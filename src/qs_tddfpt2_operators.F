@@ -32,8 +32,8 @@ MODULE qs_tddfpt2_operators
                                               qs_environment_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
-                                              tddfpt_kernel_env_type
+   USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
+                                              tddfpt_ground_state_mos
    USE xc,                              ONLY: xc_calc_2nd_deriv
    USE xc_rho_set_types,                ONLY: xc_rho_set_update
 #include "./base/base_uses.f90"
@@ -202,7 +202,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
-      TYPE(tddfpt_kernel_env_type), INTENT(in)           :: kernel_env
+      TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env

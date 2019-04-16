@@ -1300,9 +1300,9 @@ CONTAINS
       stda_section => section_vals_get_subs_vals(t_section, "STDA")
       CALL section_vals_get(stda_section, explicit=explicit)
       IF (explicit) THEN
-         CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=t_control%stda_control%do_ewald)
          CALL section_vals_val_get(stda_section, "HFX_FRACTION", r_val=t_control%stda_control%hfx_fraction)
          CALL section_vals_val_get(stda_section, "EPS_TD_FILTER", r_val=t_control%stda_control%eps_td_filter)
+         CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=t_control%stda_control%do_ewald)
       END IF
 
       CALL timestop(handle)

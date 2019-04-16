@@ -8,6 +8,7 @@ MODULE qs_tddfpt2_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create,&
@@ -22,10 +23,13 @@ MODULE qs_tddfpt2_types
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_distribution_type,&
+                                              dbcsr_create,&
+                                              dbcsr_release,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
@@ -53,6 +57,7 @@ MODULE qs_tddfpt2_types
                                               qs_rho_release,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_dbcsr_create_by_dist,&
                                               tddfpt_subgroup_env_type
    USE xc,                              ONLY: xc_prep_2nd_deriv
@@ -76,8 +81,9 @@ MODULE qs_tddfpt2_types
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices, tddfpt_kernel_env_type
-   PUBLIC :: tddfpt_create_work_matrices, tddfpt_release_work_matrices, &
+   PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices, tddfpt_kernel_env_type, &
+             full_kernel_env_type
+   PUBLIC :: tddfpt_create_work_matrices, stda_create_work_matrices, tddfpt_release_work_matrices, &
              tddfpt_create_kernel_env, tddfpt_release_kernel_env
 
 ! **************************************************************************************************
@@ -175,6 +181,17 @@ MODULE qs_tddfpt2_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao
       !> exact exchange expressed in terms of auxiliary or primary basis set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat
+      !
+      ! *** matrices required for sTDA kernel, all matrices are within subgroups
+      !
+      ! Short-range gamma exchange matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange
+      !Lowdin MO coefficients: NAO*NOCC
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: ctransformed
+      !Lowdin transformed Davidson trial vector X: NAO*NOCC
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
+      !S^1/2
+      TYPE(dbcsr_type)                                   :: shalf
    END TYPE tddfpt_work_matrices
 
 ! **************************************************************************************************
@@ -182,7 +199,7 @@ MODULE qs_tddfpt2_types
 !> \par History
 !>   * 12.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
-   TYPE tddfpt_kernel_env_type
+   TYPE full_kernel_env_type
       ! ground state electron density
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set
       ! response density
@@ -201,12 +218,22 @@ MODULE qs_tddfpt2_types
       !> scaling coefficients in the linear combination:
       !> K = alpha * K_{\alpha,\alpha} + beta * K_{\alpha,\beta}
       REAL(kind=dp)                                      :: alpha, beta
+   END TYPE full_kernel_env_type
+! **************************************************************************************************
+!> \brief Type to hold environments for the different kernels
+!> \par History
+!>   * 04.2019 created [JHU]
+! **************************************************************************************************
+   TYPE tddfpt_kernel_env_type
+      TYPE(full_kernel_env_type), POINTER                :: full_kernel => Null()
+      TYPE(full_kernel_env_type), POINTER                :: admm_kernel => Null()
+      TYPE(stda_env_type), POINTER                       :: stda_kernel => Null()
    END TYPE tddfpt_kernel_env_type
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Allocate work matrices.
+!> \brief Allocate work matrices for full kernel
 !> \param work_matrices  work matrices (allocated on exit)
 !> \param gs_mos         occupied and virtual molecular orbitals optimised for the ground state
 !> \param nstates        number of excited states to converge
@@ -245,6 +272,8 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       CALL timeset(routineN, handle)
+
+      NULLIFY(work_matrices%gamma_exchange,work_matrices%ctransformed,work_matrices%xtransformed)
 
       nspins = SIZE(gs_mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
@@ -435,7 +464,163 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_create_work_matrices
+
+! **************************************************************************************************
+!> \brief Allocate work matrices for sTDA kernel
+!> \param work_matrices  work matrices (allocated on exit)
+!> \param gs_mos         occupied and virtual molecular orbitals optimised for the ground state
+!> \param nstates        number of excited states to converge
+!> \param qs_env         Quickstep environment
+!> \param sub_env        parallel group environment
+!> \par History
+!>    * 04.2019 created from full kernel version [JHU]
+! **************************************************************************************************
+   SUBROUTINE stda_create_work_matrices(work_matrices, gs_mos, nstates, qs_env, sub_env)
+      TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      INTEGER, INTENT(in)                                :: nstates
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'stda_create_work_matrices', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, igroup, ispin, istate, nao, &
+                                                            ngroups, nspins
+      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ia_ao
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY(work_matrices%gamma_exchange,work_matrices%ctransformed,work_matrices%xtransformed)
+
+      nspins = SIZE(gs_mos)
+      CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
+      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
+
+      DO ispin = 1, nspins
+         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
+      END DO
+
+      NULLIFY (fm_struct)
+      ALLOCATE (work_matrices%fm_pool_ao_mo_occ(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (work_matrices%fm_pool_ao_mo_occ(ispin)%pool)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ(ispin), context=blacs_env)
+         CALL fm_pool_create(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+      END DO
+
+      ALLOCATE (work_matrices%S_C0_C0T(nspins))
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+      DO ispin = 1, nspins
+         NULLIFY (work_matrices%S_C0_C0T(ispin)%matrix)
+         CALL cp_fm_create(work_matrices%S_C0_C0T(ispin)%matrix, fm_struct)
+      END DO
+      CALL cp_fm_struct_release(fm_struct)
+
+      ALLOCATE (work_matrices%S_C0(nspins), work_matrices%wfm_ao_mo_occ(nspins))
+      ALLOCATE (work_matrices%wfm_mo_occ_mo_occ(nspins), work_matrices%wfm_mo_virt_mo_occ(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (work_matrices%S_C0(ispin)%matrix, work_matrices%wfm_ao_mo_occ(ispin)%matrix)
+         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
+         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%wfm_ao_mo_occ(ispin)%matrix)
+
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &
+                                      ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+         CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin)%matrix, &
+                      gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin)%matrix)
+
+         NULLIFY (work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), &
+                                  context=blacs_env)
+         CALL cp_fm_create(work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+
+         NULLIFY (work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
+                                  context=blacs_env)
+         CALL cp_fm_create(work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+      END DO
+
+      DO ispin = 1, nspins
+         NULLIFY (fm_struct_evects(ispin)%struct)
+         CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
+                                  ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
+      END DO
+
+      IF (sub_env%is_split) THEN
+         ALLOCATE (work_matrices%evects_sub(nspins, nstates), work_matrices%Aop_evects_sub(nspins, nstates))
+         DO istate = 1, nstates
+            DO ispin = 1, nspins
+               NULLIFY (work_matrices%evects_sub(ispin, istate)%matrix)
+               NULLIFY (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+            END DO
+         END DO
+
+         CALL get_blacs_info(blacs_env, para_env=para_env)
+         igroup = sub_env%group_distribution(para_env%mepos)
+         ngroups = sub_env%ngroups
+
+         DO istate = ngroups-igroup, nstates, ngroups
+            DO ispin = 1, nspins
+               CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
+               CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
+            END DO
+         END DO
+      END IF
+
+      ! sTDA specific work arrays
+      ALLOCATE (work_matrices%ctransformed(nspins), work_matrices%xtransformed(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (work_matrices%ctransformed(ispin)%matrix)
+         NULLIFY (work_matrices%xtransformed(ispin)%matrix)
+         CALL cp_fm_create(work_matrices%ctransformed(ispin)%matrix, fm_struct_evects(ispin)%struct)
+         CALL cp_fm_create(work_matrices%xtransformed(ispin)%matrix, fm_struct_evects(ispin)%struct)
+      END DO
+      CALL dbcsr_create(work_matrices%shalf, template=matrix_s(1)%matrix)
+
+      DO ispin = nspins, 1, -1
+         CALL cp_fm_struct_release(fm_struct_evects(ispin)%struct)
+      END DO
+
+      NULLIFY (work_matrices%rho_ao_orb_fm_sub)
+      NULLIFY (work_matrices%rho_ao_aux_fit_fm_sub, work_matrices%wfm_aux_orb_sub)
+      NULLIFY (work_matrices%rho_aux_fit_struct_sub)
+      NULLIFY (work_matrices%rho_orb_struct_sub)
+      NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao, work_matrices%hfx_hmat)
+      NULLIFY (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
+               work_matrices%wpw_rspace_sub)
+
+      ! group-specific dbcsr matrices
+      NULLIFY (work_matrices%A_ia_munu_sub)
+      CALL dbcsr_allocate_matrix_set(work_matrices%A_ia_munu_sub, nspins)
+      DO ispin = 1, nspins
+         CALL dbcsr_init_p(work_matrices%A_ia_munu_sub(ispin)%matrix)
+         CALL tddfpt_dbcsr_create_by_dist(work_matrices%A_ia_munu_sub(ispin)%matrix, template=matrix_s(1)%matrix, &
+                                          dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
+      END DO
+      NULLIFY (rho_ia_ao)
+      CALL dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
+      DO ispin = 1, nspins
+         CALL dbcsr_init_p(rho_ia_ao(ispin)%matrix)
+         CALL tddfpt_dbcsr_create_by_dist(rho_ia_ao(ispin)%matrix, template=matrix_s(1)%matrix, &
+                                          dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE stda_create_work_matrices
 
 ! **************************************************************************************************
 !> \brief Release work matrices.
@@ -475,13 +660,15 @@ CONTAINS
          CALL cp_fm_release(work_matrices%hfx_fm_ao_ao)
 
       ! real-space and reciprocal-space grids
-      CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      DO ispin = SIZE(work_matrices%wpw_rspace_sub), 1, -1
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin)%pw)
-      END DO
-      DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, work_matrices%wpw_rspace_sub)
+      IF(ASSOCIATED(sub_env%pw_env)) THEN
+         CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         DO ispin = SIZE(work_matrices%wpw_rspace_sub), 1, -1
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin)%pw)
+         END DO
+         DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, work_matrices%wpw_rspace_sub)
+      END IF
 
       IF (ASSOCIATED(work_matrices%rho_aux_fit_struct_sub)) &
          CALL qs_rho_release(work_matrices%rho_aux_fit_struct_sub)
@@ -523,7 +710,23 @@ CONTAINS
       END DO
       DEALLOCATE (work_matrices%fm_pool_ao_mo_occ)
 
+      ! sTDA
+      IF (ASSOCIATED(work_matrices%gamma_exchange)) THEN
+         CALL dbcsr_deallocate_matrix_set(work_matrices%gamma_exchange)
+         NULLIFY (work_matrices%gamma_exchange)
+      ENDIF
+      IF (ASSOCIATED(work_matrices%ctransformed)) THEN
+         CALL cp_fm_vect_dealloc(work_matrices%ctransformed)
+         NULLIFY (work_matrices%ctransformed)
+      ENDIF
+      IF (ASSOCIATED(work_matrices%xtransformed)) THEN
+         CALL cp_fm_vect_dealloc(work_matrices%xtransformed)
+         NULLIFY (work_matrices%xtransformed)
+      ENDIF
+      CALL dbcsr_release(work_matrices%shalf)
+
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_release_work_matrices
 
 ! **************************************************************************************************
@@ -539,7 +742,7 @@ CONTAINS
 !>    * 06.2018 the charge density needs to be provided via a dummy argument [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_create_kernel_env(kernel_env, rho_struct_sub, xc_section, is_rks_triplets, sub_env)
-      TYPE(tddfpt_kernel_env_type), INTENT(out)          :: kernel_env
+      TYPE(full_kernel_env_type), INTENT(out)            :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct_sub
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(in)                                :: is_rks_triplets
@@ -634,7 +837,7 @@ CONTAINS
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_release_kernel_env(kernel_env)
-      TYPE(tddfpt_kernel_env_type), INTENT(inout)        :: kernel_env
+      TYPE(full_kernel_env_type), INTENT(inout)          :: kernel_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_kernel_env', &
          routineP = moduleN//':'//routineN

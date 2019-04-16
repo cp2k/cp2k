@@ -415,7 +415,7 @@ MODULE cp_control_types
       !> type of kernel function/approximation to use
       INTEGER                              :: kernel
       !> options used in sTDA calculation (Kernel)
-      TYPE(stda_control_type), POINTER     :: stda_control
+      TYPE(stda_control_type)              :: stda_control
       !> algorithm to correct orbital energies
       INTEGER                              :: oe_corr
       !> eigenvalue shifts
@@ -548,7 +548,8 @@ MODULE cp_control_types
              s2_restraint_type, &
              admm_control_type, &
              rtp_control_type, &
-             sccs_control_type
+             sccs_control_type, &
+             stda_control_type
 
    ! Public subroutines
 

@@ -3,15 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-CH2O_tddfpt_stda-s-1.inp                                   37    1.0E-05               0.350619E+00
-CH2O_tddfpt_stda-pbe-s.inp                                 37    1.0E-05               0.125466E+00
-CH2O_tddfpt_stda-xtb-s.inp                                 37    1.0E-05               0.150482E+00
-CH2O_stda-xtb-s.inp                                        37    1.0E-05               0.218957E-01
-H2O_tddfpt_stda-pbe-s.inp                                  37    1.0E-05               0.599750E+00
-H2O_tddfpt_stda-pbe-t.inp                                  37    1.0E-05               0.595565E+00
-H2O_tddfpt_stda-pbe0-s.inp                                 37    1.0E-05               0.637653E+00
-H2O_tddfpt_stda-pbe0-t.inp                                 37    1.0E-05               0.633503E+00
-H2O_tddfpt_stda-s-1.inp                                    37    1.0E-05               0.172994E+00
-NO_tddfpt_stda-s-1.inp                                     37    1.0E-05               0.376584E+00
-water_xTB.inp                                              37    1.0E-05               0.174635E+00
+CH2O_tddfpt2_stda-s-1.inp                                   37    1.0E-05               0.350619E+00
+CH2O_tddfpt2_stda-pbe-s.inp                                 37    1.0E-05               0.125466E+00
+CH2O_tddfpt2_stda-xtb-s.inp                                 37    1.0E-05               0.150482E+00
+CH2O_stda2-xtb-s.inp                                        37    1.0E-05               0.218957E-01
+H2O_tddfpt2_stda-pbe-s.inp                                  37    1.0E-05               0.599750E+00
+H2O_tddfpt2_stda-pbe-t.inp                                  37    1.0E-05               0.595565E+00
+H2O_tddfpt2_stda-pbe0-s.inp                                 37    1.0E-05               0.637653E+00
+H2O_tddfpt2_stda-pbe0-t.inp                                 37    1.0E-05               0.633503E+00
+H2O_tddfpt2_stda-s-1.inp                                    37    1.0E-05               0.172994E+00
+NO_tddfpt2_stda-s-1.inp                                     37    1.0E-05               0.376584E+00
+water2_xTB.inp                                              37    1.0E-05               0.174635E+00
 #EOF
