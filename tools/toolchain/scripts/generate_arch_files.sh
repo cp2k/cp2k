@@ -160,7 +160,7 @@ gen_arch_file() {
 CXX         = \${CC}
 CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11 IF_OMP(-fopenmp|)
 GPUVER      = \${GPUVER}
-NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9
+NVCC        = \${NVCC}
 NVFLAGS     = \${NVFLAGS}
 EOF
     fi
