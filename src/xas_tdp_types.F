@@ -22,7 +22,8 @@ MODULE xas_tdp_types
                                               ot_mini_diis, &
                                               tddfpt_spin_cons, &
                                               tddfpt_spin_flip, &
-                                              do_hfx_potential_coulomb
+                                              do_hfx_potential_coulomb, &
+                                              xas_dip_vel
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_get_subs_vals
@@ -46,6 +47,7 @@ MODULE xas_tdp_types
 ! **************************************************************************************************
 !> \brief Type containing control information for TDP XAS calculations
 !> \param define_excited whether excited atoms are chosen by kind or index
+!> \param dipole_form whether the dipole moment is computed in the length or velocity representation
 !> \param n_search # of lowest energy MOs to search for donor orbitals
 !> \param check_only whether a check run for donor MOs and LUMOs guesses is conducted
 !> \param do_hfx whether exact exchange is included
@@ -53,6 +55,7 @@ MODULE xas_tdp_types
 !> \param sx the scaling applied to exact exchange
 !> \param x_op the operator used for exact exchange (Coulomb, TC, Sk)
 !> \param x_range the range for exact exchane operator (truncated coulomb or SR)
+!> \param ri_radius the radius of the sphere defining the neighbors in the RI projection of the dens
 !> \param tamm_dancoff whether the calculations should be done in the Tamm-Dancoff approximation
 !> \param list_ex_atoms list of excited atom indices, kept empty if define_excited=by_kind
 !> \param list_ex_kinds list of excited atom kinds, kept empty if define_excited=by_index
@@ -72,14 +75,17 @@ MODULE xas_tdp_types
 !> \param ot_settings the settings for the OT diagonalization if so required
 !> \param max_iter the maximum allowed number of iteration for OT diagonalization
 !> \param eps_iter the required accuracy for OT diagonalization
+!> \param is_periodic self-explanatory
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
-      INTEGER                                 :: define_excited
+      INTEGER                                 :: define_excited   
+      INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
       INTEGER                                 :: n_excited
       INTEGER                                 :: max_iter
       REAL(dp)                                :: sx
       REAL(dp)                                :: x_range
+      REAL(dp)                                :: ri_radius
       INTEGER                                 :: x_op
       REAL(dp)                                :: eps_iter
       LOGICAL                                 :: do_hfx
@@ -95,6 +101,7 @@ MODULE xas_tdp_types
       LOGICAL                                 :: do_spin_cons
       LOGICAL                                 :: do_spin_flip
       LOGICAL                                 :: full_diag
+      LOGICAL                                 :: is_periodic
       INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER    :: list_ex_kinds
@@ -120,18 +127,17 @@ MODULE xas_tdp_types
 !>        association between the MO irow and the excited atom icolumn. The third index is for spin
 !> \param ri_inv_coul the inverse coulomb RI integral (P|Q)^-1, updated for each excited kind
 !>        excited kinds, based on basis functions of the RI auxiliary basis used for Coulomb and
-!>        exchange kernels.
-!> \param q_projector the projector on the unperturbed, unoccupied ground state as a dbcsr matrix,
-!>        fpr each spin
-!> \param dipmat the dbcsr matrices containing the dipole in x,y,z directions evaluated on the
-!>        contracted spherical gaussians. It can either be in the length or the velocity
-!>        representation. For length representation, it has to be computed once with the origin on
+!>        exchange kernels. 
+!> \param q_projector the projector on the unperturbed, unoccupied ground state as a dbcsr matrix, 
+!>        for each spin
+!> \param dipmat the dbcsr matrices containing the dipole in x,y,z directions evaluated on the 
+!>        contracted spherical gaussians. It can either be in the length or the velocity 
+!>        representation. For length representation, it has to be computed once with the origin on 
 !>        each excited atom
 !> \param ri_o3c_coul the container for the RI 3-center Coulomb integrals (updated for each ex atom)
 !> \param ri_o3c_ex the container for the RI 3-center exchange integrals (updated for each ex atom)
-!> \param lb_o3c_coul the lower bond of a,b present in the 3-center RI Coulomb integrals (ab|P)
-!> \param ub_o3c_coul the upper bond of a,b present in the 3-center RI Coulomb integrals (ab|P)
 !> \param ri_fxc the array of xc integrals of type (P|fxc|Q), for alpha-alpha, alpha-beta and beta-beta
+!> \param fxc_avail a boolean telling whwther fxc is availavle on all procs
 !> \param orb_soc the matrix where the SOC is evaluated wrt the orbital basis set, for x,y,z
 !> \param lumo_guess the coefficients for the LUMOs as guees for the OT eigensolver
 !> \param lumo_evals the eigenvalues of the guess LUMOs
@@ -145,8 +151,6 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:, :), POINTER        :: state_types
       TYPE(o3c_container_type), POINTER       :: ri_o3c_coul
       TYPE(o3c_container_type), POINTER       :: ri_o3c_ex
-      INTEGER                                 :: lb_o3c_coul
-      INTEGER                                 :: ub_o3c_coul
       TYPE(cp_fm_p_type), DIMENSION(:), &
          POINTER   :: lumo_guess
       TYPE(cp_1d_r_p_type), DIMENSION(:), &
@@ -159,9 +163,10 @@ MODULE xas_tdp_types
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: q_projector
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: dipmat
-      TYPE(cp_2d_r_p_type), DIMENSION(:, :), &
-         POINTER   :: ri_fxc
+                                    POINTER   :: dipmat
+      TYPE(cp_2d_r_p_type), DIMENSION(:,:), &
+                                    POINTER   :: ri_fxc
+      LOGICAL                                 :: fxc_avail
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: orb_soc
    END TYPE xas_tdp_env_type
@@ -179,7 +184,8 @@ MODULE xas_tdp_types
 !> \param sf_coeffs solutions of the linear-response TDDFT equation for spin-flip open-shell
 !> \param sg_coeffs solutions of the linear-response TDDFT singlet equations
 !> \param tp_coeffs solutions of the linear-response TDDFT triplet equations
-!> \param gs_coeffs the ground state MO coefficients
+!> \param gs_coeffs the ground state MO coefficients 
+!> \param contract_coeffs the subset of gs_coeffs centered on excited atom, used for RI contraction
 !> \param sc_evals open-shell spin-conserving excitation energies
 !> \param sf_evals open-shell spin-flip excitation energies
 !> \param sg_evals singlet excitation energies => the eigenvalues of the linear response equation
@@ -212,6 +218,7 @@ MODULE xas_tdp_types
       TYPE(cp_fm_p_type), DIMENSION(:), &
          POINTER   :: tp_coeffs
       TYPE(cp_fm_type), POINTER               :: gs_coeffs
+      REAL(dp), DIMENSION(:,:), POINTER       :: contract_coeffs
       REAL(dp), DIMENSION(:), POINTER         :: sc_evals
       REAL(dp), DIMENSION(:), POINTER         :: sf_evals
       REAL(dp), DIMENSION(:), POINTER         :: sg_evals
@@ -241,8 +248,10 @@ MODULE xas_tdp_types
 
 ! **************************************************************************************************
 !> \brief a environment type that contains all the info needed for XAS_TDP atomic grid calculations
-!> \param excited_atoms the atoms for which RI xc-kernel calculations must be done
-!> \param excited_kinds the kinds for which RI xc-kernel calculations must be done
+!> \param ri_radius defines the neighbors in the RI projection of the density
+!> \param nspins ...
+!> \param excited_atoms the atoms for which RI xc-kernel calculations must be done 
+!> \param excited_kinds the kinds for which RI xc-kernel calculations must be done 
 !> \param grid_atom_set the set of atomic grid for each kind
 !> \param ri_dcoeff the expansion coefficients to express the density in the RI basis for each atom
 !> \param exat_neighbors the neighbors of each excited atom
@@ -250,13 +259,15 @@ MODULE xas_tdp_types
 !> \param orb_sphi_so contains the coefficient for direct contraction from so to sgf, for the orb basis
 !> *************************************************************************************************
    TYPE xas_atom_env_type
+      INTEGER                                         :: nspins
+      REAL(dp)                                        :: ri_radius
       INTEGER, DIMENSION(:), POINTER                  :: excited_atoms
       INTEGER, DIMENSION(:), POINTER                  :: excited_kinds
       INTEGER, DIMENSION(:), POINTER                  :: proc_of_exat
       TYPE(grid_atom_p_type), DIMENSION(:), POINTER   :: grid_atom_set
-      TYPE(harmonics_atom_p_type), DIMENSION(:), &
-         POINTER  :: harmonics_atom_set
-      TYPE(cp_1d_r_p_type), DIMENSION(:, :), POINTER   :: ri_dcoeff
+      TYPE(harmonics_atom_p_type), DIMENSION(:), & 
+                                             POINTER  :: harmonics_atom_set
+      TYPE(cp_1d_r_p_type), DIMENSION(:,:,:), POINTER :: ri_dcoeff
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: ri_sphi_so
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: orb_sphi_so
       TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER     :: exat_neighbors
@@ -291,10 +302,12 @@ CONTAINS
 
       xas_tdp_control%define_excited = xas_tdp_by_index
       xas_tdp_control%n_search = -1
+      xas_tdp_control%dipole_form = xas_dip_vel
       xas_tdp_control%do_hfx = .TRUE.
       xas_tdp_control%do_xc = .FALSE.
       xas_tdp_control%sx = 1.0_dp
       xas_tdp_control%x_range = 0.0_dp
+      xas_tdp_control%ri_radius = 0.0_dp
       xas_tdp_control%x_op = do_hfx_potential_coulomb
       xas_tdp_control%check_only = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
@@ -307,6 +320,7 @@ CONTAINS
       xas_tdp_control%do_spin_cons = .FALSE.
       xas_tdp_control%do_spin_flip = .FALSE.
       xas_tdp_control%full_diag = .TRUE.
+      xas_tdp_control%is_periodic = .FALSE.
       xas_tdp_control%n_excited = -1
       xas_tdp_control%eps_iter = 1.0E-6_dp
       xas_tdp_control%max_iter = 1000
@@ -382,6 +396,8 @@ CONTAINS
 
       CALL section_vals_val_get(xas_tdp_section, "SPIN_ORBIT_COUPLING", &
                                 l_val=xas_tdp_control%do_soc)
+
+      CALL section_vals_val_get(xas_tdp_section, "DIPOLE_FORM", i_val=xas_tdp_control%dipole_form)
 
       CALL section_vals_val_get(xas_tdp_section, "GRID", n_rep_val=nrep)
 
@@ -474,8 +490,11 @@ CONTAINS
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%_SECTION_PARAMETERS_", &
                                 l_val=xas_tdp_control%do_hfx)
 
+      CALL section_vals_val_get(xas_tdp_section, "KERNEL%RI_REGION", r_val=xas_tdp_control%ri_radius)
+      xas_tdp_control%ri_radius = bohr*xas_tdp_control%ri_radius
+
       IF (xas_tdp_control%do_hfx) THEN
-         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%SCALE_X", &
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%SCALE", &
                                    r_val=xas_tdp_control%sx)
          CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RANGE", &
                                    r_val=xas_tdp_control%x_range)
@@ -527,6 +546,7 @@ CONTAINS
 
       xas_tdp_env%nex_atoms = 1
       xas_tdp_env%nex_kinds = 1
+      xas_tdp_env%fxc_avail = .FALSE.
 
       NULLIFY (xas_tdp_env%ex_atom_indices)
       NULLIFY (xas_tdp_env%ex_kind_indices)
@@ -594,8 +614,10 @@ CONTAINS
             DEALLOCATE (xas_tdp_env%lumo_guess)
          END IF
          IF (ASSOCIATED(xas_tdp_env%lumo_evals)) THEN
-            DO i = 1, SIZE(xas_tdp_env%lumo_evals)
-               DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)
+            DO i = 1,SIZE(xas_tdp_env%lumo_evals)
+               IF (ASSOCIATED(xas_tdp_env%lumo_evals(i)%array)) THEN
+                  DEALLOCATE(xas_tdp_env%lumo_evals(i)%array)
+               END IF
             END DO
             DEALLOCATE (xas_tdp_env%lumo_evals)
          END IF
@@ -676,6 +698,7 @@ CONTAINS
       NULLIFY (donor_state%sg_coeffs)
       NULLIFY (donor_state%tp_coeffs)
       NULLIFY (donor_state%gs_coeffs)
+      NULLIFY (donor_state%contract_coeffs)
       NULLIFY (donor_state%sc_evals)
       NULLIFY (donor_state%sf_evals)
       NULLIFY (donor_state%sg_evals)
@@ -775,6 +798,10 @@ CONTAINS
                CALL cp_fm_release(donor_state_set(i)%gs_coeffs)
             END IF
 
+            IF (ASSOCIATED(donor_state_set(i)%contract_coeffs)) THEN
+               DEALLOCATE(donor_state_set(i)%contract_coeffs)
+            END IF
+
             IF (ASSOCIATED(donor_state_set(i)%sc_evals)) THEN
                DEALLOCATE (donor_state_set(i)%sc_evals)
             END IF
@@ -868,14 +895,15 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(donor_state%sc_evals)) DEALLOCATE (donor_state%sc_evals)
-      IF (ASSOCIATED(donor_state%sf_evals)) DEALLOCATE (donor_state%sf_evals)
-      IF (ASSOCIATED(donor_state%sg_evals)) DEALLOCATE (donor_state%sg_evals)
-      IF (ASSOCIATED(donor_state%tp_evals)) DEALLOCATE (donor_state%tp_evals)
-      IF (ASSOCIATED(donor_state%soc_evals)) DEALLOCATE (donor_state%soc_evals)
-      IF (ASSOCIATED(donor_state%sc_osc_str)) DEALLOCATE (donor_state%sc_osc_str)
-      IF (ASSOCIATED(donor_state%sg_osc_str)) DEALLOCATE (donor_state%sg_osc_str)
-      IF (ASSOCIATED(donor_state%soc_osc_str)) DEALLOCATE (donor_state%soc_osc_str)
+      IF (ASSOCIATED(donor_state%sc_evals)) DEALLOCATE(donor_state%sc_evals)
+      IF (ASSOCIATED(donor_state%contract_coeffs)) DEALLOCATE(donor_state%contract_coeffs)
+      IF (ASSOCIATED(donor_state%sf_evals)) DEALLOCATE(donor_state%sf_evals)
+      IF (ASSOCIATED(donor_state%sg_evals)) DEALLOCATE(donor_state%sg_evals)
+      IF (ASSOCIATED(donor_state%tp_evals)) DEALLOCATE(donor_state%tp_evals)
+      IF (ASSOCIATED(donor_state%soc_evals)) DEALLOCATE(donor_state%soc_evals)
+      IF (ASSOCIATED(donor_state%sc_osc_str)) DEALLOCATE(donor_state%sc_osc_str)
+      IF (ASSOCIATED(donor_state%sg_osc_str)) DEALLOCATE(donor_state%sg_osc_str)
+      IF (ASSOCIATED(donor_state%soc_osc_str)) DEALLOCATE(donor_state%soc_osc_str)
       IF (ASSOCIATED(donor_state%gs_coeffs)) CALL cp_fm_release(donor_state%gs_coeffs)
 
       IF (ASSOCIATED(donor_state%sc_coeffs)) THEN
@@ -954,16 +982,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_atom_env_create', &
          routineP = moduleN//':'//routineN
 
-      ALLOCATE (xas_atom_env)
-
-      NULLIFY (xas_atom_env%excited_atoms)
-      NULLIFY (xas_atom_env%excited_kinds)
-      NULLIFY (xas_atom_env%grid_atom_set)
-      NULLIFY (xas_atom_env%harmonics_atom_set)
-      NULLIFY (xas_atom_env%ri_dcoeff)
-      NULLIFY (xas_atom_env%ri_sphi_so)
-      NULLIFY (xas_atom_env%orb_sphi_so)
-      NULLIFY (xas_atom_env%exat_neighbors)
+      ALLOCATE(xas_atom_env)
+      
+      xas_atom_env%nspins = 1
+      xas_atom_env%ri_radius = 0.0_dp
+      NULLIFY(xas_atom_env%excited_atoms)
+      NULLIFY(xas_atom_env%excited_kinds)
+      NULLIFY(xas_atom_env%grid_atom_set)
+      NULLIFY(xas_atom_env%harmonics_atom_set)
+      NULLIFY(xas_atom_env%ri_dcoeff)
+      NULLIFY(xas_atom_env%ri_sphi_so)
+      NULLIFY(xas_atom_env%orb_sphi_so)
+      NULLIFY(xas_atom_env%exat_neighbors)
 
    END SUBROUTINE xas_atom_env_create
 
@@ -978,7 +1008,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_atom_env_release', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i, j, k
 
       IF (ASSOCIATED(xas_atom_env%grid_atom_set)) THEN
          DO i = 1, SIZE(xas_atom_env%grid_atom_set)
@@ -1002,11 +1032,13 @@ CONTAINS
       ! ressources, namely xas_tdp_env
 
       IF (ASSOCIATED(xas_atom_env%ri_dcoeff)) THEN
-         DO i = 1, SIZE(xas_atom_env%ri_dcoeff, 1)
-            DO j = 1, SIZE(xas_atom_env%ri_dcoeff, 2)
-               IF (ASSOCIATED(xas_atom_env%ri_dcoeff(i, j)%array)) THEN
-                  DEALLOCATE (xas_atom_env%ri_dcoeff(i, j)%array)
-               END IF
+         DO i = 1,SIZE(xas_atom_env%ri_dcoeff,1)
+            DO j = 1,SIZE(xas_atom_env%ri_dcoeff,2)
+               DO k =1, SIZE(xas_atom_env%ri_dcoeff,3)
+                  IF (ASSOCIATED(xas_atom_env%ri_dcoeff(i,j,k)%array)) THEN
+                     DEALLOCATE(xas_atom_env%ri_dcoeff(i,j,k)%array)
+                  END IF
+               END DO
             END DO
          END DO
          DEALLOCATE (xas_atom_env%ri_dcoeff)
@@ -1061,7 +1093,7 @@ CONTAINS
 
       IF (ASSOCIATED(xas_tdp_env%ri_o3c_ex)) THEN
          CALL release_o3c_container(xas_tdp_env%ri_o3c_ex)
-         DEALLOCATE (xas_tdp_env%ri_o3c_ex)
+         DEALLOCATE(xas_tdp_env%ri_o3c_ex)
       END IF
 
       IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN
@@ -1071,6 +1103,8 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      xas_tdp_env%fxc_avail = .FALSE.
 
    END SUBROUTINE free_exat_memory
 

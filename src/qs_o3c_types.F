@@ -105,21 +105,25 @@ CONTAINS
 !> \param basis_set_list_c ...
 !> \param sab_nl ...
 !> \param sac_nl ...
+!> \param only_bc_same_center only consider a,b,c atoms if b and c share the same center 
+!> \par History: only_bc_same_cetner added by A.Bussy for XAS_TDP (04.2019)
 ! **************************************************************************************************
    SUBROUTINE init_o3c_container(o3c, nspin, basis_set_list_a, basis_set_list_b, basis_set_list_c, &
-                                 sab_nl, sac_nl)
+                                 sab_nl, sac_nl, only_bc_same_center)
       TYPE(o3c_container_type)                           :: o3c
       INTEGER, INTENT(IN)                                :: nspin
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, &
                                                             basis_set_list_c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl, sac_nl
+      LOGICAL, INTENT(IN), OPTIONAL                      :: only_bc_same_center
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_o3c_container', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: kkind, nij, nk, nkind
-      LOGICAL                                            :: symmetric
+      REAL(dp)                                           :: rik(3), rjk(3)
+      LOGICAL                                            :: symmetric, my_sort_bc
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ac_iterator, nl_iterator
       TYPE(o3c_int_type), POINTER                        :: ijk
@@ -139,6 +143,9 @@ CONTAINS
       o3c%sac_nl => sac_nl
 
       nkind = SIZE(basis_set_list_a)
+
+      my_sort_bc = .FALSE.
+      IF (PRESENT(only_bc_same_center)) my_sort_bc = only_bc_same_center
 
       ! determine the number of ij pairs
       nij = 0
@@ -166,6 +173,12 @@ CONTAINS
          DO kkind = 1, nkind
             CALL nl_set_sub_iterator(ac_iterator, ijpair%ikind, kkind, ijpair%iatom)
             DO WHILE (nl_sub_iterate(ac_iterator) == 0)
+               IF (my_sort_bc) THEN
+                  !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
+                  CALL get_iterator_info(ac_iterator, r=rik)
+                  rjk(:) = rik(:) - ijpair%rij(:)
+                  IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
+               END IF
                nk = nk+1
             END DO
          END DO
@@ -177,6 +190,13 @@ CONTAINS
          DO kkind = 1, nkind
             CALL nl_set_sub_iterator(ac_iterator, ijpair%ikind, kkind, ijpair%iatom)
             DO WHILE (nl_sub_iterate(ac_iterator) == 0)
+               IF (my_sort_bc) THEN
+                  !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
+                  CALL get_iterator_info(ac_iterator, r=rik)
+                  rjk(:) = rik(:) - ijpair%rij(:)
+                  IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
+               END IF
+
                nk = nk+1
                ijk => ijpair%ijk(nk)
                CALL get_iterator_info(ac_iterator, jatom=ijk%katom, r=ijk%rik, cell=ijk%cellk)
@@ -481,6 +501,12 @@ CONTAINS
          me = mepos
       ELSE
          me = 0
+      END IF
+
+      !If the neighbors lists are restricted (XAS_TDP), might have nijpairs = 0 on some procs
+      IF (o3c_iterator%o3c%nijpairs == 0) THEN
+         istat = 1
+         RETURN
       END IF
 
 !$OMP CRITICAL(o3c_iterate_critical)

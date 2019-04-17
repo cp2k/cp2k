@@ -7885,7 +7885,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "//&
                           "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=7, n_subsections=5, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=5, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7927,6 +7927,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)      
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="DIPOLE_FORM", &
+                          variants=(/"DIP_FORM"/), &
+                          description="Type of integral to get the oscillator strengths "// &
+                                       "in the dipole approximation", &
+                          usage="DIPOLE_FORM {string}", &
+                          default_i_val=xas_dip_vel, &
+                          enum_c_vals=s2a("LENGTH", "VELOCITY"), &
+                          enum_desc=s2a("Length form &lang; 0 | e r | n &rang;", &
+                                        "Velocity form &lang; 0 | d/dr | n &rang;"), &
+                          enum_i_vals=(/xas_dip_len, xas_dip_vel/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
 !  The donor state subsection
       
@@ -8062,8 +8074,7 @@ CONTAINS
                                       "The parameters that are not defined here are set to defaults"// &
                                       "according to SCF%DIAGONALIZATION%OT. Better convergence "// &
                                       "is reached if there is an energy gap between the N_EXCITED"//& 
-                                      "and the N_EXCITED+1 LUMOs. A XAS TDP specific inverse-"//&
-                                      "and diagonalization-free preconditioner is used."//&
+                                      "and the N_EXCITED+1 LUMOs. No preconditioner is used."//&
                                       "Run a CHECK_ONLY calculation for optimal values of N_EXCITEED", &
                                       n_keywords=3, &
                                       n_subsections=0, &
@@ -8103,9 +8114,29 @@ CONTAINS
 !  The KERNEL subsection
       CALL section_create(subsection, name="KERNEL", &
                           description="Defines how the kernel is built in terms of functionals.", &
-                          n_keywords=0, &
+                          n_keywords=1, &
                           n_subsections=1, &
                           repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="RI_REGION", &
+                          variants=(/"RI_RADIUS"/), &
+                          description="The region defined by a sphere of the given radius around"//&
+                                      "the excited atom defining which RI_XAS basis elements are"//&
+                                      "considered for the RI projection of the density. Each basis"//&
+                                      "element which center is in this region is taken. The density"//&
+                                      "for a given excited atom is expressed as :"//&
+                                      "sum_ijkl P_ij (ijk) S_kl^-1 xi_l, where P_ij is the density"//&
+                                      "matrix, i,j span the orbital basis and k,l the RI_XAS basis"//&
+                                      "in the region. The larger the radius, the more basis "//&
+                                      "functions to expand the density. However, it is assumed"//&
+                                      "that it is a small number and the code does not scale well "//&
+                                      "as the number of RI basis elements gets large."//&
+                                      "Expressed in Angstrom. If the radius is set to 0.0, only "//&
+                                      "the RI basis elements centered on the excited atom are used.", &
+                           usage="RI_REGION {real}", &
+                           default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
 !  The XC_FUNCTIONAL subsubsection
       CALL section_create(subsubsection, name="XC_FUNCTIONAL", &
@@ -8170,7 +8201,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCALE_X", &
+      CALL keyword_create(keyword, name="SCALE", &
                           description="Scaling of the exact exchange contribution.", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(subsubsection, keyword)
