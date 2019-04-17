@@ -78,7 +78,8 @@ MODULE xc_libxc
       xc_libxc_wrap_version, &
       xc_libxc_wrap_functional_get_number, &
       xc_libxc_wrap_needs_laplace, &
-      xc_libxc_wrap_functional_set_params
+      xc_libxc_wrap_functional_set_params, &
+      xc_libxc_wrap_is_stable
 #endif
 
 #include "../base/base_uses.f90"
@@ -179,6 +180,9 @@ CONTAINS
          CASE default
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
+      END IF
+      IF (.NOT. (xc_libxc_wrap_is_stable(xc_info))) THEN
+         CPWARN(TRIM(func_name)//" is not considered stable. Use with caution.")
       END IF
 
       CALL xc_f03_func_end(xc_func)
@@ -281,6 +285,9 @@ CONTAINS
          CASE default
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
+      END IF
+      IF (.NOT. (xc_libxc_wrap_is_stable(xc_info))) THEN
+         CPWARN(TRIM(func_name)//" is not considered stable. Use with caution.")
       END IF
 
       CALL xc_f03_func_end(xc_func)
