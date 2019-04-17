@@ -100,24 +100,6 @@ else
     exit 255
 fi
 
-# Update toolchain, if present.
-TOOLCHAIN_OK=true
-if [ -d /opt/cp2k-toolchain ]; then
-    echo -e "\n========== Updating Toolchain ==========" | tee -a $REPORT
-    cd /opt/cp2k-toolchain
-    rsync_changes --exclude="/build/"    \
-                  --exclude="/install/"  \
-                  /workspace/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
-
-    # shellcheck disable=SC1091
-    source /opt/cp2k-toolchain/install/setup
-    # shellcheck disable=SC2086
-    if ! ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS} |& tee -a $REPORT ; then
-        echo -e "\nSummary: Toolchain update failed.\nStatus: FAILED" | tee -a $REPORT
-        TOOLCHAIN_OK=false
-    fi
-fi
-
 if ! md5sum --status --check ${CHECKSUMS}; then
     echo -e "\n========== Cleaning Build Cache ==========" | tee -a $REPORT
     cd /workspace/cp2k
@@ -125,12 +107,10 @@ if ! md5sum --status --check ${CHECKSUMS}; then
 fi
 
 # Run actual test.
-if $TOOLCHAIN_OK ; then
-    echo -e "\n========== Running Test ==========" | tee -a $REPORT
-    cd /workspace
-    if ! "$@" |& tee -a $REPORT ; then
-       echo -e "\nSummary: Test had non-zero exit status.\nStatus: FAILED" | tee -a $REPORT
-    fi
+echo -e "\n========== Running Test ==========" | tee -a $REPORT
+cd /workspace
+if ! "$@" |& tee -a $REPORT ; then
+   echo -e "\nSummary: Test had non-zero exit status.\nStatus: FAILED" | tee -a $REPORT
 fi
 
 # Upload artifacts.
