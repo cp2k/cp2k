@@ -1212,7 +1212,7 @@ CONTAINS
             DO jatom_local = 1, nlistb(jkind)
                jatom = listb(jkind)%list(jatom_local)
                atom_b = atom(jkind)%list(jatom)
-               IF (my_sort_atomb) THEN
+               IF (my_sort_atomb .AND. .NOT. my_symmetric) THEN
                   IF (.NOT. ANY(atomb_to_keep == atom_b)) CYCLE
                END IF
                IF (my_molecular) THEN
@@ -1292,6 +1292,12 @@ CONTAINS
                                           include_ab = (MODULO(atom_a+atom_b, 2) /= 0)
                                        ELSE
                                           include_ab = (MODULO(atom_a+atom_b, 2) == 0)
+                                       END IF
+                                       IF (my_sort_atomb) THEN
+                                          IF ((.NOT. ANY(atomb_to_keep == atom_b)) .AND. &
+                                              (.NOT. ANY(atomb_to_keep == atom_a))) THEN
+                                             include_ab = .FALSE.
+                                          END IF
                                        END IF
                                     ELSE
                                        include_ab = .TRUE.
