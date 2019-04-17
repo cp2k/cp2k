@@ -108,9 +108,9 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
   * Use the `-D__DBCSR_ACC` to enable accelerator support for matrix multiplications.
   * Add `-lcudart -lrt -lnvrtc` to LIBS.
   * Specify the GPU type (e.g. `GPUVER   = P100`)
-  * Specify the C++ compiler (e.g. `CXX = g++`). Rember to set the flags to support C++11 standard.
+  * Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the flags to support C++11 standard.
   * Use `-D__PW_CUDA` for CUDA support for PW (gather/scatter/fft) calculations.
-  * CUFFT 7.0 has a known bug and is therefore disabled by default. NVidia's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.
+  * CUFFT 7.0 has a known bug and is therefore disabled by default. NVIDIA's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.
   * Use `-D__CUDA_PROFILING` to turn on Nvidia Tools Extensions.
   * Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 
