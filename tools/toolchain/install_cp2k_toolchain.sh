@@ -94,7 +94,7 @@ OPTIONS:
                           switch --math-mode to the respective modes, BUT
                           --with-reflapack option do not have this effect.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
-                          options are: K20X, K40, K80, P100, no. Default: no.
+                          options are: K20X, K40, K80, P100, V100, no. Default: no.
                           The script will determine the correct corresponding value for
                           nvcc's '-arch' flag.
 --libint-lmax             Maximum supported angular momentum by libint.
@@ -445,13 +445,16 @@ while [ $# -ge 1 ] ; do
                 P100)
                     export GPUVER=P100
                     ;;
+                V100)
+                    export GPUVER=V100
+                    ;;
                 no)
                     export GPUVER=no
                     ;;
                 *)
                     export GPUVER=no
                     report_error ${LINENO} \
-                    "--gpu-ver currently only supports K20X, K40, K80, P100 and no as options"
+                    "--gpu-ver currently only supports K20X, K40, K80, P100, V100 and no as options"
                     exit 1
             esac
             ;;
@@ -889,12 +892,15 @@ case $GPUVER in
     P100)
         export ARCH_NUM=60
         ;;
+    V100)
+        export ARCH_NUM=70
+        ;;
     no)
         export ARCH_NUM=no
         ;;
     *)
         report_error ${LINENO} \
-        "--gpu-ver currently only supports K20X, K40, K80, P100 as options"
+        "--gpu-ver currently only supports K20X, K40, K80, P100, V100 as options"
 esac
 
 # write toolchain environment
