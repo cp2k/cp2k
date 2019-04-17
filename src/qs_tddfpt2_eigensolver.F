@@ -370,7 +370,7 @@ CONTAINS
             ! sTDA kernel
             CPASSERT((.NOT. do_hfx) .AND. (.NOT. do_admm))
             CALL stda_kernel(Aop_evects, evects, is_rks_triplets, qs_env, tddfpt_control%stda_control, &
-                             full_kernel_env, sub_env, work_matrices)
+                             kernel_env%stda_kernel, sub_env, work_matrices)
          ELSE
             CPABORT("Kernel type not implemented")
          END IF

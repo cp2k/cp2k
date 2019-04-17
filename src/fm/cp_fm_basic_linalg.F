@@ -37,6 +37,7 @@ MODULE cp_fm_basic_linalg
    PUBLIC :: cp_fm_scale, & ! scale a matrix
              cp_fm_scale_and_add, & ! scale and add two matrices
              cp_fm_column_scale, & ! scale columns of a matrix
+             cp_fm_row_scale, & ! scale rows of a matrix
              cp_fm_trace, & ! trace of the transpose(A)*B
              cp_fm_contracted_trace, & ! sum_{i,...,k} Tr [A(i,...,k)^T * B(i,...,k)]
              cp_fm_norm, & ! different norms of A
@@ -1298,12 +1299,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief scales column i of matrix a with scaling(i)
 !> \param matrixa ...
-!> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!> \param scaling : an array used for scaling the columns,
+!>                  SIZE(scaling) determines the number of columns to be scaled
 !> \author Joost VandeVondele
 !> \note
 !>      this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
-!>      that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
+!>      that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t)
 !>      this procedure can be up to 20 times faster than calling cp_fm_syrk n times
+!>      where every vector has a different prefactor
 ! **************************************************************************************************
    SUBROUTINE cp_fm_column_scale(matrixa, scaling)
       TYPE(cp_fm_type), POINTER                :: matrixa
@@ -1361,6 +1364,67 @@ CONTAINS
 #endif
    END SUBROUTINE cp_fm_column_scale
 
+! **************************************************************************************************
+!> \brief scales row i of matrix a with scaling(i)
+!> \param matrixa ...
+!> \param scaling : an array used for scaling the columns,
+!> \author JGH
+!> \note
+! **************************************************************************************************
+   SUBROUTINE cp_fm_row_scale(matrixa, scaling)
+      TYPE(cp_fm_type), POINTER                :: matrixa
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
+
+      INTEGER                                  :: n, m, nrow_global, nrow_local, ncol_local
+      INTEGER, DIMENSION(:), POINTER           :: row_indices
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
+#if defined(__SCALAPACK)
+      INTEGER                                  :: irow_global, icol, irow
+#else
+      INTEGER                                  :: j
+#endif
+
+      CALL cp_fm_get_info(matrixa, row_indices=row_indices, nrow_global=nrow_global, &
+                          nrow_local=nrow_local, ncol_local=ncol_local)
+      CPASSERT(SIZE(scaling) == nrow_global)
+
+      a => matrixa%local_data
+      a_sp => matrixa%local_data_sp
+      IF (matrixa%use_sp) THEN
+         n = SIZE(a_sp, 1)
+         m = SIZE(a_sp, 2)
+      ELSE
+         n = SIZE(a, 1)
+         m = SIZE(a, 2)
+      ENDIF
+
+#if defined(__SCALAPACK)
+      DO icol = 1, ncol_local
+         IF (matrixa%use_sp) THEN
+            DO irow = 1, nrow_local
+               irow_global = row_indices(irow)
+               a(irow, icol) = REAL(scaling(irow_global), dp)*a(irow, icol)
+            END DO
+         ELSE
+            DO irow = 1, nrow_local
+               irow_global = row_indices(irow)
+               a(irow, icol) = scaling(irow_global)*a(irow, icol)
+            END DO
+         ENDIF
+      ENDDO
+#else
+      IF (matrixa%use_sp) THEN
+         DO j = 1, m
+            a_sp(1:n, j) = REAL(scaling(1:n), sp)*a_sp(1:n, j)
+         ENDDO
+      ELSE
+         DO j = 1, m
+            a(1:n, j) = scaling(1:n)*a(1:n, j)
+         ENDDO
+      ENDIF
+#endif
+   END SUBROUTINE cp_fm_row_scale
 ! **************************************************************************************************
 !> \brief Inverts a cp_fm_type matrix, optionally returning the determinant of the input matrix
 !> \param matrix_a the matrix to invert

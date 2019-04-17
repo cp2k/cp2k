@@ -24,6 +24,8 @@ MODULE qs_tddfpt2_fhxc
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_coulomb,&
                                               tddfpt_apply_xc
+   USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
+   USE qs_tddfpt2_stda_utils,           ONLY: stda_calculate_kernel
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
                                               tddfpt_work_matrices
@@ -63,7 +65,7 @@ CONTAINS
    SUBROUTINE fhxc_kernel(Aop_evects, evects, is_rks_triplets, &
                           do_hfx, qs_env, kernel_env, kernel_env_admm_aux, &
                           sub_env, work_matrices)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
+      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env, kernel_env_admm_aux
@@ -224,120 +226,47 @@ CONTAINS
 !>                              spin-unpolarised molecular orbitals has been requested
 !> \param qs_env                Quickstep environment
 !> \param stda_control          control parameters for sTDA kernel
-!> \param kernel_env            kernel environment
+!> \param stda_env ...
 !> \param sub_env               parallel (sub)group environment
 !> \param work_matrices         collection of work matrices (modified on exit)
 !> \par History
 !>    * 04.2019 initial version [JHU]
 ! **************************************************************************************************
    SUBROUTINE stda_kernel(Aop_evects, evects, is_rks_triplets, &
-                          qs_env, stda_control, kernel_env, &
+                          qs_env, stda_control, stda_env, &
                           sub_env, work_matrices)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
+
+      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(stda_control_type), INTENT(in)                :: stda_control
-      TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
-      TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
+      TYPE(stda_control_type)                            :: stda_control
+      TYPE(stda_env_type)                                :: stda_env
+      TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'stda_kernel', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, ivect, nvects
 
       CALL timeset(routineN, handle)
 
-!      nspins = SIZE(evects, 1)
-!      nvects = SIZE(evects, 2)
-!
-!      CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao)
-!      DO ispin = 1, nspins
-!         CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nmo_occ(ispin))
-!      END DO
-!
-!      DO ivect = 1, nvects
-!         IF (ALLOCATED(work_matrices%evects_sub)) THEN
-!            IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix)) THEN
-!               DO ispin = 1, nspins
-!                  ! Can this be done using cp_dbcsr_plus_fm_fm_t ?
-!                  CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), &
-!                               0.5_dp, sub_env%mos_occ(ispin)%matrix, &
-!                               work_matrices%evects_sub(ispin, ivect)%matrix, &
-!                               0.0_dp, work_matrices%rho_ao_orb_fm_sub)
-!                  CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), &
-!                               0.5_dp, work_matrices%evects_sub(ispin, ivect)%matrix, &
-!                               sub_env%mos_occ(ispin)%matrix, &
-!                               1.0_dp, work_matrices%rho_ao_orb_fm_sub)
-!
-!                  CALL copy_fm_to_dbcsr(work_matrices%rho_ao_orb_fm_sub, &
-!                                        rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
-!               END DO
-!            ELSE
-!               ! skip trial vectors which are assigned to different parallel groups
-!               CYCLE
-!            END IF
-!         ELSE
-!            DO ispin = 1, nspins
-!               ! Can this be done using cp_dbcsr_plus_fm_fm_t ?
-!               CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 0.5_dp, sub_env%mos_occ(ispin)%matrix, &
-!                            evects(ispin, ivect)%matrix, 0.0_dp, work_matrices%rho_ao_orb_fm_sub)
-!               CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
-!                            sub_env%mos_occ(ispin)%matrix, 1.0_dp, work_matrices%rho_ao_orb_fm_sub)
-!
-!               CALL copy_fm_to_dbcsr(work_matrices%rho_ao_orb_fm_sub, &
-!                                     rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
-!            END DO
-!         END IF
-!
-!         ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
-!         ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
-!         CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-!                              rho_ia_struct=work_matrices%rho_orb_struct_sub, &
-!                              is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-!                              work_v_xc=work_matrices%wpw_rspace_sub)
-!
-!         ! electron-hole Coulomb interaction
-!         IF (.NOT. is_rks_triplets) THEN
-!            ! a sum J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu can be computed by solving
-!            ! the Poisson equation for combined density (rho_{ia,alpha} + rho_{ia,beta}) .
-!            ! The following action will destroy reciprocal-space grid in spin-unrestricted case.
-!            DO ispin = 2, nspins
-!               CALL pw_axpy(rho_ia_g(ispin)%pw, rho_ia_g(1)%pw)
-!            END DO
-!
-!            CALL tddfpt_apply_coulomb(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
-!                                      rho_ia_g=rho_ia_g(1)%pw, pw_env=sub_env%pw_env, &
-!                                      work_v_gspace=work_matrices%wpw_gspace_sub(1), &
-!                                      work_v_rspace=work_matrices%wpw_rspace_sub(1))
-!         END IF
-!
-!         ! convert from the plane-wave representation into the Gaussian basis set representation
-!         DO ispin = 1, nspins
-!            CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
-!                          work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
-!
-!            CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
-!                                    hmat=work_matrices%A_ia_munu_sub(ispin), &
-!                                    qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
-!                                    pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
-!         END DO
-!
-!         IF (ALLOCATED(work_matrices%evects_sub)) THEN
-!            DO ispin = 1, nspins
-!               CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-!                                            sub_env%mos_occ(ispin)%matrix, &
-!                                            work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
-!                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-!            END DO
-!         ELSE
-!            DO ispin = 1, nspins
-!               CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-!                                            sub_env%mos_occ(ispin)%matrix, &
-!                                            Aop_evects(ispin, ivect)%matrix, &
-!                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-!            END DO
-!         END IF
-!      END DO
+      nvects = SIZE(evects, 2)
+
+      DO ivect = 1, nvects
+         IF (ALLOCATED(work_matrices%evects_sub)) THEN
+            IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix)) THEN
+               CALL stda_calculate_kernel(qs_env, stda_control, stda_env, sub_env, work_matrices, &
+                                          is_rks_triplets, work_matrices%evects_sub(:, ivect), &
+                                          work_matrices%Aop_evects_sub(:, ivect))
+            ELSE
+               ! skip trial vectors which are assigned to different parallel groups
+               CYCLE
+            END IF
+         ELSE
+            CALL stda_calculate_kernel(qs_env, stda_control, stda_env, sub_env, work_matrices, &
+                                       is_rks_triplets, evects(:, ivect), Aop_evects(:, ivect))
+         END IF
+      END DO
 
       CALL timestop(handle)
 

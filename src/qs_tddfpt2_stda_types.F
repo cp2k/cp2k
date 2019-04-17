@@ -13,27 +13,17 @@ MODULE qs_tddfpt2_stda_types
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               stda_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                              fm_pools_create_fm_vect
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set
 #include "./base/base_uses.f90"
 
@@ -62,14 +52,6 @@ MODULE qs_tddfpt2_stda_types
       ! filter for TD matrix
       REAL(KIND=dp)                                :: eps_td_filter
       TYPE(stda_kind_p_type), DIMENSION(:), POINTER:: kind_param_set
-      !approximated Exchange-type integrals (Mataga-Nishimoto-Ohno-Klopman)
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: gamma_exchange
-      !Lowdin MO coefficients !NAO*NOCC
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: ctransformed => Null()
-      !Lowdin transformed Davidson trial vector X  !NAO*NOCC
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: xtransformed => Null()
-      !S^1/2
-      TYPE(dbcsr_type)                             :: shalf
       !number of atomic orbitals, number of occupied orbitals
       INTEGER, DIMENSION(2)                        :: n_ao
       INTEGER, DIMENSION(2)                        :: n_occ
@@ -228,9 +210,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ii, ispin, n_ao, n_occ, nkind, nspins
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_type), POINTER                          :: qs_env_c
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(stda_kind_type), POINTER                      :: kind_param
@@ -241,9 +221,6 @@ CONTAINS
       stda_kernel%n_occ = 0
       stda_kernel%n_ao = 0
       NULLIFY (stda_kernel%kind_param_set)
-      NULLIFY (stda_kernel%gamma_exchange)
-      NULLIFY (stda_kernel%ctransformed)
-      NULLIFY (stda_kernel%xtransformed)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
@@ -267,14 +244,6 @@ CONTAINS
          stda_kernel%kind_param_set(ii)%kind_param => kind_param
       ENDDO
 
-      NULLIFY (ao_mo_fm_pools)
-      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-      CALL fm_pools_create_fm_vect(ao_mo_fm_pools, stda_kernel%ctransformed, name=routineP//"ctransformed")
-      CALL fm_pools_create_fm_vect(ao_mo_fm_pools, stda_kernel%xtransformed, name=routineP//"xtransformed")
-
-      CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
-      CALL dbcsr_create(stda_kernel%shalf, template=matrix_s(1, 1)%matrix)
-
    END SUBROUTINE allocate_stda_env
 ! **************************************************************************************************
 !> \brief Deallocate the sTDA environment
@@ -290,19 +259,6 @@ CONTAINS
       INTEGER                                            :: ii
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
-      IF (ASSOCIATED(stda_kernel%gamma_exchange)) THEN
-         CALL dbcsr_deallocate_matrix_set(stda_kernel%gamma_exchange)
-         NULLIFY (stda_kernel%gamma_exchange)
-      ENDIF
-      IF (ASSOCIATED(stda_kernel%ctransformed)) THEN
-         CALL cp_fm_vect_dealloc(stda_kernel%ctransformed)
-         NULLIFY (stda_kernel%ctransformed)
-      ENDIF
-      IF (ASSOCIATED(stda_kernel%xtransformed)) THEN
-         CALL cp_fm_vect_dealloc(stda_kernel%xtransformed)
-         NULLIFY (stda_kernel%xtransformed)
-      ENDIF
-      CALL dbcsr_release(stda_kernel%shalf)
       ! deallocate stda_kind_parameters
       IF (ASSOCIATED(stda_kernel%kind_param_set)) THEN
          DO ii = 1, SIZE(stda_kernel%kind_param_set)

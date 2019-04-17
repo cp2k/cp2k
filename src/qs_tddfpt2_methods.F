@@ -66,6 +66,7 @@ MODULE qs_tddfpt2_methods
                                               deallocate_stda_env,&
                                               stda_env_type,&
                                               stda_init_param
+   USE qs_tddfpt2_stda_utils,           ONLY: stda_init_matrices
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
                                               tddfpt_subgroup_env_type
@@ -391,6 +392,9 @@ CONTAINS
          nstates = tddfpt_control%nstates
          CALL stda_create_work_matrices(work_matrices, gs_mos, nstates, qs_env, sub_env)
          !
+         CALL stda_init_matrices(qs_env, stda_kernel, sub_env, work_matrices, tddfpt_control)
+         !
+         kernel_env%stda_kernel => stda_kernel
          NULLIFY (kernel_env%full_kernel)
          NULLIFY (kernel_env%admm_kernel)
       ELSE

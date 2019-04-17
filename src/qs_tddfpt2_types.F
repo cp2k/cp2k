@@ -8,8 +8,8 @@ MODULE qs_tddfpt2_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
-                                              dbcsr_deallocate_matrix_set,&
-                                              dbcsr_allocate_matrix_set
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create,&
                                               fm_pool_create_fm,&
@@ -26,13 +26,13 @@ MODULE qs_tddfpt2_types
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
                                               dbcsr_distribution_type,&
-                                              dbcsr_create,&
-                                              dbcsr_release,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
+                                              dbcsr_release_p,&
                                               dbcsr_type
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_rval,&
@@ -188,10 +188,8 @@ MODULE qs_tddfpt2_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange
       !Lowdin MO coefficients: NAO*NOCC
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: ctransformed
-      !Lowdin transformed Davidson trial vector X: NAO*NOCC
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
       !S^1/2
-      TYPE(dbcsr_type)                                   :: shalf
+      TYPE(dbcsr_type), POINTER                          :: shalf
    END TYPE tddfpt_work_matrices
 
 ! **************************************************************************************************
@@ -273,7 +271,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(work_matrices%gamma_exchange,work_matrices%ctransformed,work_matrices%xtransformed)
+      NULLIFY (work_matrices%gamma_exchange, work_matrices%ctransformed)
 
       nspins = SIZE(gs_mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
@@ -495,12 +493,11 @@ CONTAINS
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ia_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(work_matrices%gamma_exchange,work_matrices%ctransformed,work_matrices%xtransformed)
+      NULLIFY (work_matrices%gamma_exchange, work_matrices%ctransformed)
 
       nspins = SIZE(gs_mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
@@ -581,13 +578,13 @@ CONTAINS
       END IF
 
       ! sTDA specific work arrays
-      ALLOCATE (work_matrices%ctransformed(nspins), work_matrices%xtransformed(nspins))
+      ALLOCATE (work_matrices%ctransformed(nspins))
       DO ispin = 1, nspins
          NULLIFY (work_matrices%ctransformed(ispin)%matrix)
-         NULLIFY (work_matrices%xtransformed(ispin)%matrix)
          CALL cp_fm_create(work_matrices%ctransformed(ispin)%matrix, fm_struct_evects(ispin)%struct)
-         CALL cp_fm_create(work_matrices%xtransformed(ispin)%matrix, fm_struct_evects(ispin)%struct)
       END DO
+      NULLIFY (work_matrices%shalf)
+      CALL dbcsr_init_p(work_matrices%shalf)
       CALL dbcsr_create(work_matrices%shalf, template=matrix_s(1)%matrix)
 
       DO ispin = nspins, 1, -1
@@ -601,22 +598,7 @@ CONTAINS
       NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao, work_matrices%hfx_hmat)
       NULLIFY (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                work_matrices%wpw_rspace_sub)
-
-      ! group-specific dbcsr matrices
       NULLIFY (work_matrices%A_ia_munu_sub)
-      CALL dbcsr_allocate_matrix_set(work_matrices%A_ia_munu_sub, nspins)
-      DO ispin = 1, nspins
-         CALL dbcsr_init_p(work_matrices%A_ia_munu_sub(ispin)%matrix)
-         CALL tddfpt_dbcsr_create_by_dist(work_matrices%A_ia_munu_sub(ispin)%matrix, template=matrix_s(1)%matrix, &
-                                          dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
-      END DO
-      NULLIFY (rho_ia_ao)
-      CALL dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
-      DO ispin = 1, nspins
-         CALL dbcsr_init_p(rho_ia_ao(ispin)%matrix)
-         CALL tddfpt_dbcsr_create_by_dist(rho_ia_ao(ispin)%matrix, template=matrix_s(1)%matrix, &
-                                          dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
-      END DO
 
       CALL timestop(handle)
 
@@ -660,7 +642,7 @@ CONTAINS
          CALL cp_fm_release(work_matrices%hfx_fm_ao_ao)
 
       ! real-space and reciprocal-space grids
-      IF(ASSOCIATED(sub_env%pw_env)) THEN
+      IF (ASSOCIATED(sub_env%pw_env)) THEN
          CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
          DO ispin = SIZE(work_matrices%wpw_rspace_sub), 1, -1
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw)
@@ -674,10 +656,12 @@ CONTAINS
          CALL qs_rho_release(work_matrices%rho_aux_fit_struct_sub)
       CALL qs_rho_release(work_matrices%rho_orb_struct_sub)
 
-      DO ispin = SIZE(work_matrices%A_ia_munu_sub), 1, -1
-         CALL dbcsr_deallocate_matrix(work_matrices%A_ia_munu_sub(ispin)%matrix)
-      END DO
-      DEALLOCATE (work_matrices%A_ia_munu_sub)
+      IF (ASSOCIATED(work_matrices%A_ia_munu_sub)) THEN
+         DO ispin = SIZE(work_matrices%A_ia_munu_sub), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%A_ia_munu_sub(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%A_ia_munu_sub)
+      END IF
 
       IF (ASSOCIATED(work_matrices%wfm_aux_orb_sub)) &
          CALL cp_fm_release(work_matrices%wfm_aux_orb_sub)
@@ -719,11 +703,7 @@ CONTAINS
          CALL cp_fm_vect_dealloc(work_matrices%ctransformed)
          NULLIFY (work_matrices%ctransformed)
       ENDIF
-      IF (ASSOCIATED(work_matrices%xtransformed)) THEN
-         CALL cp_fm_vect_dealloc(work_matrices%xtransformed)
-         NULLIFY (work_matrices%xtransformed)
-      ENDIF
-      CALL dbcsr_release(work_matrices%shalf)
+      CALL dbcsr_release_p(work_matrices%shalf)
 
       CALL timestop(handle)
 
