@@ -12,6 +12,13 @@
 ! **************************************************************************************************
 MODULE hfx_libint_wrapper
 
+#if(__LIBINT)
+#include <libint2/libint2_params.h>
+#endif
+
+! maximum angular momentum to be supported in CP2K-LIBINT interface
+#:set libint_max_am_supported = 8
+
    USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
                                               C_F_PROCPOINTER,&
                                               C_NULL_PTR
@@ -35,10 +42,6 @@ MODULE hfx_libint_wrapper
              cp_libint_set_params_eri, cp_libint_set_params_eri_deriv
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
-
-#if !defined (__LIBINT_MAX_AM)
-#define __LIBINT_MAX_AM 4
-#endif
 
 #if(__LIBINT)
    INTEGER, PARAMETER :: libint_max_am = libint2_max_am_eri
@@ -72,6 +75,7 @@ CONTAINS
       INTEGER, INTENT(IN)                     :: m_max
       REAL(KIND=dp), DIMENSION(:)             :: F
 
+#if(__LIBINT)
       libint%prv(1)%AB_x(1) = A(1)-B(1)
       libint%prv(1)%AB_y(1) = A(2)-B(2)
       libint%prv(1)%AB_z(1) = A(3)-B(3)
@@ -102,14 +106,18 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 30)
-#if 4*__LIBINT_MAX_AM > ${m_max}$ - 1
+#:for m_max in range(0, libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
       IF(${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
          = F(${m_max}$+1)
 
 #endif
 #:endfor
+
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
 
    END SUBROUTINE
 
@@ -123,6 +131,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                     :: m_max
 
+#if(__LIBINT)
       libint%prv(1)%AB_x(1) = A(1)-B(1)
       libint%prv(1)%AB_y(1) = A(2)-B(2)
       libint%prv(1)%AB_z(1) = A(3)-B(3)
@@ -178,14 +187,17 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 30)
-#if 4*__LIBINT_MAX_AM > ${m_max}$ - 1
+#:for m_max in range(0, libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
       IF(${m_max}$ .LE. m_max) &
          libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
          = F(${m_max}$+1)
 #endif
 #:endfor
 
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
 
    END SUBROUTINE
 
@@ -197,6 +209,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                     :: m_max
 
+#if(__LIBINT)
       libint%prv(1)%AB_x(1) = A(1)-B(1)
       libint%prv(1)%AB_y(1) = A(2)-B(2)
       libint%prv(1)%AB_z(1) = A(3)-B(3)
@@ -227,13 +240,17 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 30)
-#if 4*__LIBINT_MAX_AM > ${m_max}$ - 1
+#:for m_max in range(0, libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
       IF(${m_max}$ .LE. m_max) &
          libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
          = F(${m_max}$+1)
 #endif
 #:endfor
+
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
 
    END SUBROUTINE
 ! **************************************************************************************************
@@ -339,9 +356,6 @@ CONTAINS
       TYPE(cp_libint_t)               :: lib
       INTEGER                         :: max_am
 #if(__LIBINT)
-      IF(max_am > __LIBINT_MAX_AM) THEN
-         CPABORT("__LIBINT_MAX_AM is too small")
-      ENDIF
       CALL libint2_init_eri(lib%prv, max_am, C_NULL_PTR)
 #else
       MARK_USED(lib)
@@ -360,9 +374,6 @@ CONTAINS
       TYPE(cp_libint_t)               :: lib
       INTEGER                         :: max_am
 #if(__LIBINT)
-      IF(max_am > __LIBINT_MAX_AM) THEN
-         CPABORT("__LIBINT_MAX_AM is too small")
-      ENDIF
       CALL libint2_init_eri1(lib%prv, max_am, C_NULL_PTR)
 #else
       MARK_USED(lib)
