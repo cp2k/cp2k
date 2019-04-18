@@ -41,6 +41,9 @@ MODULE qs_scf_post_tb
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_result_methods,               ONLY: cp_results_erase,&
+                                              put_results
+   USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: ot_precond_full_all
@@ -615,11 +618,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_result_type), POINTER                      :: results
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      NULLIFY (atomic_kind_set, cell)
+      NULLIFY (atomic_kind_set, cell, results)
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set, cell=cell)
+                      particle_set=particle_set, cell=cell, results=results)
 
       ! Reference point
       reference = section_get_ival(input, keyword_name="REFERENCE")
@@ -685,6 +689,9 @@ CONTAINS
             dipole_deriv(:) = dipole_deriv(:)-q*(particle_set(i)%v(:)-drcc)
          END DO
       END IF
+      CALL cp_results_erase(results=results, description=description)
+      CALL put_results(results=results, description=description, &
+                       values=dipole(1:3))
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, '(1X,A,T48,3F11.6)') "DIPOLE "//TRIM(dipole_type)//"(A.U.)|", dipole
