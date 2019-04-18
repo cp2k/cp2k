@@ -34,6 +34,10 @@ MODULE qs_tddfpt2_types
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
                                               dbcsr_type
+   USE ewald_environment_types,         ONLY: ewald_env_release,&
+                                              ewald_environment_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
+                                              ewald_pw_type
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_rval,&
                                               section_vals_get_subs_vals,&
@@ -190,6 +194,9 @@ MODULE qs_tddfpt2_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: ctransformed
       !S^1/2
       TYPE(dbcsr_type), POINTER                          :: shalf
+      !Ewald environments
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
    END TYPE tddfpt_work_matrices
 
 ! **************************************************************************************************
@@ -600,6 +607,9 @@ CONTAINS
                work_matrices%wpw_rspace_sub)
       NULLIFY (work_matrices%A_ia_munu_sub)
 
+      NULLIFY (work_matrices%ewald_env)
+      NULLIFY (work_matrices%ewald_pw)
+
       CALL timestop(handle)
 
    END SUBROUTINE stda_create_work_matrices
@@ -704,6 +714,9 @@ CONTAINS
          NULLIFY (work_matrices%ctransformed)
       ENDIF
       CALL dbcsr_release_p(work_matrices%shalf)
+      ! Ewald
+      CALL ewald_env_release(work_matrices%ewald_env)
+      CALL ewald_pw_release(work_matrices%ewald_pw)
 
       CALL timestop(handle)
 

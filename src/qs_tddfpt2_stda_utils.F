@@ -9,6 +9,7 @@ MODULE qs_tddfpt2_stda_utils
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
+   USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type,&
@@ -43,8 +44,20 @@ MODULE qs_tddfpt2_stda_utils
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE ewald_environment_types,         ONLY: ewald_env_create,&
+                                              ewald_env_get,&
+                                              ewald_env_set,&
+                                              ewald_environment_type,&
+                                              read_ewald_section_tb
+   USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
+                                              tb_spme_evaluate
+   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
+                                              ewald_pw_type
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: oorootpi
    USE message_passing,                 ONLY: mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -63,6 +76,7 @@ MODULE qs_tddfpt2_stda_utils
    USE qs_tddfpt2_types,                ONLY: tddfpt_work_matrices
    USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: get_limit
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -96,6 +110,11 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_coulomb
+      TYPE(cell_type), POINTER                           :: cell, cell_ref
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(section_vals_type), POINTER                   :: ewald_section, poisson_section, &
+                                                            print_section
 
       CALL timeset(routineN, handle)
 
@@ -107,6 +126,21 @@ CONTAINS
 
       ! calculate S_half and Lowdin MO coefficients
       CALL get_lowdin_mo_coefficients(qs_env, stda_kernel, sub_env, work)
+
+      ! initialize Ewald for sTDA
+      IF (tddfpt_control%stda_control%do_ewald) THEN
+         NULLIFY (ewald_env, ewald_pw)
+         CALL ewald_env_create(ewald_env, sub_env%para_env)
+         poisson_section => section_vals_get_subs_vals(qs_env%input, "DFT%POISSON")
+         CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
+         ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
+         print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
+         CALL get_qs_env(qs_env, cell=cell, cell_ref=cell_ref)
+         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+         CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
+         work%ewald_env => ewald_env
+         work%ewald_pw => ewald_pw
+      ENDIF
 
       CALL timestop(handle)
 
@@ -410,18 +444,21 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, handle, ia, iatom, ikind, is, &
-                                                            ispin, jatom, jkind, natom, nsgf, &
-                                                            nspins
+      INTEGER                                            :: blk, ewald_type, handle, ia, iatom, &
+                                                            ikind, is, ispin, jatom, jkind, natom, &
+                                                            nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: n_occ, nlim
-      LOGICAL                                            :: do_coulomb, do_ewald
-      REAL(KIND=dp)                                      :: bp, dr, eta, gabr, hfx, rbeta, spinfac
+      LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
+                                                            use_virial
+      REAL(KIND=dp)                                      :: alpha, bp, dr, eta, gabr, hfx, rbeta, &
+                                                            spinfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gtcharge
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gab, pblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
@@ -430,8 +467,13 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: pdens
       TYPE(dbcsr_type), POINTER                          :: tempmat
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: n_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -511,20 +553,20 @@ CONTAINS
             CALL dbcsr_iterator_stop(iter)
             ! Ewald long range contribution
             IF (do_ewald) THEN
-!               NULLIFY (ewald_env, ewald_pw)
-!               CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
-!               CALL get_cell(cell=cell, periodic=periodic, deth=deth)
-!               CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
-!               CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list, virial=virial, atprop=atprop)
-!               use_virial = .FALSE.
-!               calculate_forces = .FALSE.
-!               CALL tb_ewald_overlap(gtcharge, tcharge, alpha, n_list, virial, use_virial, atprop)
-!               CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-!                                     gtcharge, tcharge, calculate_forces, virial, use_virial, atprop)
-!               ! add self charge interaction contribution
-!               IF (para_env%ionode) THEN
-!                  gtcharge(:, 1) = gtcharge(:, 1)-2._dp*alpha*oorootpi*tcharge(:)
-!               END IF
+               ewald_env => work%ewald_env
+               ewald_pw => work%ewald_pw
+               CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
+               CALL get_qs_env(qs_env=qs_env, virial=virial, atprop=atprop)
+               use_virial = .FALSE.
+               calculate_forces = .FALSE.
+               n_list => sub_env%sab_orb
+               CALL tb_ewald_overlap(gtcharge, tcharge, alpha, n_list, virial, use_virial, atprop)
+               CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
+                                     gtcharge, tcharge, calculate_forces, virial, use_virial, atprop)
+               ! add self charge interaction contribution
+               IF (para_env%ionode) THEN
+                  gtcharge(:, 1) = gtcharge(:, 1)-2._dp*alpha*oorootpi*tcharge(:)
+               END IF
             ELSE
                nlim = get_limit(natom, para_env%num_pe, para_env%mepos)
                DO iatom = nlim(1), nlim(2)

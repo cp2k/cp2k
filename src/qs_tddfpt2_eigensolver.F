@@ -390,7 +390,7 @@ CONTAINS
                                        gs_mos=gs_mos, matrix_ks=matrix_ks, &
                                        work_fm_ao_mo_occ=work_matrices%wfm_ao_mo_occ)
 
-         IF (do_hfx .AND. .NOT.is_stda) THEN
+         IF (do_hfx .AND. .NOT. is_stda) THEN
             CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, do_admm=do_admm, &
                                   qs_env=qs_env, work_rho_ia_ao=work_matrices%hfx_rho_ao, &
                                   work_hmat=work_matrices%hfx_hmat, wfm_rho_orb=work_matrices%hfx_fm_ao_ao)

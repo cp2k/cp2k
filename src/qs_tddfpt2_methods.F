@@ -50,7 +50,6 @@ MODULE qs_tddfpt2_methods
                                               mo_set_p_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_post_gpw,                 ONLY: make_lumo_gpw
-   USE qs_scf_post_tb,                  ONLY: make_lumo_tb
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density,&
@@ -263,7 +262,6 @@ CONTAINS
          CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
          CALL section_vals_release(xc_fun_empty)
 
-
          IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT("TDDFPT with SE not possible")
          ELSEIF (dft_control%qs_control%dftb) THEN
@@ -357,6 +355,9 @@ CONTAINS
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          ! create environment for Full Kernel
+         IF (dft_control%qs_control%xtb) THEN
+            CPABORT("TDDFPT: xTB only works with sTDA Kernel")
+         END IF
 
       ! allocate pools and work matrices
       nstates = tddfpt_control%nstates
