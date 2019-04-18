@@ -144,7 +144,9 @@ MODULE qs_scf_post_tb
 
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_tb'
-   PUBLIC :: scf_post_calculation_tb
+   PUBLIC :: scf_post_calculation_tb, make_lumo_tb
+
+! **************************************************************************************************
 
 CONTAINS
 
@@ -567,7 +569,7 @@ CONTAINS
                   IF (nlumo_stm > 0) THEN
                      ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
                      ALLOCATE (unoccupied_evals_stm(dft_control%nspins))
-                     CALL make_lumo(qs_env, scf_env, unoccupied_orbs_stm, unoccupied_evals_stm, &
+                     CALL make_lumo_tb(qs_env, scf_env, unoccupied_orbs_stm, unoccupied_evals_stm, &
                                     nlumo_stm, nlumos)
                   END IF
 
@@ -933,7 +935,7 @@ CONTAINS
 !> \param nlumo ...
 !> \param nlumos ...
 ! **************************************************************************************************
-   SUBROUTINE make_lumo(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos)
+   SUBROUTINE make_lumo_tb(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -942,7 +944,7 @@ CONTAINS
       INTEGER                                            :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo_tb', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: homo, iounit, ispin, n, nao, nmo
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1011,7 +1013,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE make_lumo
+   END SUBROUTINE make_lumo_tb
 
 ! **************************************************************************************************
 !> \brief ...

@@ -30,6 +30,7 @@ MODULE qs_tddfpt2_stda_utils
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorssum
@@ -42,7 +43,6 @@ MODULE qs_tddfpt2_stda_utils
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
-   USE distribution_1d_types,           ONLY: distribution_1d_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
@@ -62,6 +62,7 @@ MODULE qs_tddfpt2_stda_utils
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_work_matrices
    USE scf_control_types,               ONLY: scf_control_type
+   USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -413,7 +414,7 @@ CONTAINS
                                                             ispin, jatom, jkind, natom, nsgf, &
                                                             nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
-      INTEGER, DIMENSION(2)                              :: n_occ
+      INTEGER, DIMENSION(2)                              :: n_occ, nlim
       LOGICAL                                            :: do_coulomb, do_ewald
       REAL(KIND=dp)                                      :: bp, dr, eta, gabr, hfx, rbeta, spinfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
@@ -429,7 +430,6 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: pdens
       TYPE(dbcsr_type), POINTER                          :: tempmat
-      TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -467,6 +467,10 @@ CONTAINS
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
       ALLOCATE (tcharge(natom), gtcharge(natom, 1))
+
+      DO ispin = 1, nspins
+         CALL cp_fm_set_all(res(ispin)%matrix, 0.0_dp)
+      END DO
 
       DO ispin = 1, nspins
          ct => work%ctransformed(ispin)%matrix
@@ -511,8 +515,7 @@ CONTAINS
 !               CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
 !               CALL get_cell(cell=cell, periodic=periodic, deth=deth)
 !               CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
-!               CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list, &
-!                               virial=virial, atprop=atprop)
+!               CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list, virial=virial, atprop=atprop)
 !               use_virial = .FALSE.
 !               calculate_forces = .FALSE.
 !               CALL tb_ewald_overlap(gtcharge, tcharge, alpha, n_list, virial, use_virial, atprop)
@@ -523,20 +526,16 @@ CONTAINS
 !                  gtcharge(:, 1) = gtcharge(:, 1)-2._dp*alpha*oorootpi*tcharge(:)
 !               END IF
             ELSE
-               CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
-! parallelisation!!!!!!!!!!!
-               DO ikind = 1, SIZE(local_particles%n_el)
-                  DO ia = 1, local_particles%n_el(ikind)
-                     iatom = local_particles%list(ikind)%array(ia)
-                     DO jatom = 1, iatom-1
-                        rij = particle_set(iatom)%r-particle_set(jatom)%r
-                        rij = pbc(rij, cell)
-                        dr = SQRT(SUM(rij(:)**2))
-                        IF (dr > 1.e-6_dp) THEN
-                           gtcharge(iatom, 1) = gtcharge(iatom, 1)+tcharge(jatom)/dr
-                           gtcharge(jatom, 1) = gtcharge(jatom, 1)+tcharge(iatom)/dr
-                        END IF
-                     END DO
+               nlim = get_limit(natom, para_env%num_pe, para_env%mepos)
+               DO iatom = nlim(1), nlim(2)
+                  DO jatom = 1, iatom-1
+                     rij = particle_set(iatom)%r-particle_set(jatom)%r
+                     rij = pbc(rij, cell)
+                     dr = SQRT(SUM(rij(:)**2))
+                     IF (dr > 1.e-6_dp) THEN
+                        gtcharge(iatom, 1) = gtcharge(iatom, 1)+tcharge(jatom)/dr
+                        gtcharge(jatom, 1) = gtcharge(jatom, 1)+tcharge(iatom)/dr
+                     END IF
                   END DO
                END DO
             END IF

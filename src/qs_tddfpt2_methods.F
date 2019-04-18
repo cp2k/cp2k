@@ -49,7 +49,8 @@ MODULE qs_tddfpt2_methods
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_scf_methods,                  ONLY: eigensolver
-   USE qs_scf_post_gpw,                 ONLY: make_lumo
+   USE qs_scf_post_gpw,                 ONLY: make_lumo_gpw
+   USE qs_scf_post_tb,                  ONLY: make_lumo_tb
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density,&
@@ -80,6 +81,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_release_ground_state_mos
    USE string_utilities,                ONLY: integer_to_string
    USE xc_pot_saop,                     ONLY: add_saop_pot
+   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -228,7 +230,7 @@ CONTAINS
             IF (nmo_virt > 0) THEN
                ALLOCATE (evals_virt(nspins), mos_virt(nspins))
                ! the number of actually computed unoccupied orbitals will be stored as 'nmo_avail'
-               CALL make_lumo(qs_env, scf_env, mos_virt, evals_virt, nmo_virt, nmo_avail)
+               CALL make_lumo_gpw(qs_env, scf_env, mos_virt, evals_virt, nmo_virt, nmo_avail)
             END IF
          END IF
       END IF
@@ -261,8 +263,19 @@ CONTAINS
          CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
          CALL section_vals_release(xc_fun_empty)
 
+
+         IF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT("TDDFPT with SE not possible")
+         ELSEIF (dft_control%qs_control%dftb) THEN
+            CPABORT("TDDFPT with DFTB not possible")
+         ELSEIF (dft_control%qs_control%xtb) THEN
+            CALL build_xtb_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                     ext_ks_matrix=matrix_ks_oep)
+         ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
                                            ext_ks_matrix=matrix_ks_oep)
+         END IF
+
          IF (tddfpt_control%oe_corr == oe_saop .OR. &
              tddfpt_control%oe_corr == oe_lb .OR. &
              tddfpt_control%oe_corr == oe_gllb) THEN

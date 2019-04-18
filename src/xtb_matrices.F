@@ -204,6 +204,7 @@ CONTAINS
       nimg = dft_control%nimages
       nderivatives = 0
       IF (calculate_forces) nderivatives = 1
+      IF (dft_control%tddfpt2_control%enabled) nderivatives = 1
       maxder = ncoset(nderivatives)
 
       ! global parameters (Table 2 from Ref.)
@@ -944,10 +945,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param calculate_forces ...
 !> \param just_energy ...
+!> \param ext_ks_matrix ...
 ! **************************************************************************************************
-   SUBROUTINE build_xtb_ks_matrix(qs_env, calculate_forces, just_energy)
+   SUBROUTINE build_xtb_ks_matrix(qs_env, calculate_forces, just_energy, ext_ks_matrix)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: ext_ks_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_ks_matrix', &
          routineP = moduleN//':'//routineN
@@ -997,6 +1001,13 @@ CONTAINS
                       matrix_ks_kp=ks_matrix, &
                       rho=rho, &
                       energy=energy)
+
+      IF (PRESENT(ext_ks_matrix)) THEN
+         ! remap pointer to allow for non-kpoint external ks matrix
+         ! ext_ks_matrix is used in linear response code
+         ns = SIZE(ext_ks_matrix)
+         ks_matrix(1:ns, 1:1) => ext_ks_matrix(1:ns)
+      END IF
 
       energy%hartree = 0.0_dp
       energy%qmmm_el = 0.0_dp
