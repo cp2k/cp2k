@@ -3,65 +3,7 @@
 # author: Ole Schuett
 
 set -eo pipefail
-
-REPORT=/workspace/report.txt
-echo -n "StartDate: " | tee -a $REPORT
-date --utc --rfc-3339=seconds | tee -a $REPORT
 ulimit -c 0  # Disable core dumps as they can take a very long time to write.
-
-# Rsync with common args.
-function rsync_changes {
-    rsync --update                 \
-          --delete                 \
-          --executability          \
-          --ignore-times           \
-          --verbose                \
-          --recursive              \
-          --checksum               \
-          "$@" |& tee -a $REPORT
-}
-
-# Upload to cloud storage.
-function upload_file {
-    URL=$1
-    FILE=$2
-    CONTENT_TYPE=$3
-    wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
-}
-
-# Append end date and upload report.
-function upload_final_report {
-    echo -en "\nEndDate: " | tee -a $REPORT
-    date --utc --rfc-3339=seconds | tee -a $REPORT
-    upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
-}
-
-# Handle errors gracefully.
-function error_handler {
-    echo -e "\nSummary: Something went wrong.\nStatus: FAILED" | tee -a $REPORT
-    upload_final_report
-    exit 0  # prevent crash looping
-}
-trap error_handler ERR
-
-# Handle preemption gracefully.
-function sigterm_handler {
-    echo -e "\nThis job just got preempted. No worries, it should restart soon." | tee -a $REPORT
-    upload_final_report
-    exit 1  # trigger retry
-}
-trap sigterm_handler SIGTERM
-
-# Upload preliminary report every 30s in the background.
-(
-while true ; do
-    sleep 1
-    count=$(( (count + 1) % 30 ))
-    if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
-        upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
-    fi
-done
-)&
 
 # Calculate checksums of critical files.
 CHECKSUMS=/workspace/checksums.md5
@@ -74,76 +16,50 @@ shopt -u nullglob
 
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
-    echo -e "\n========== Fetching Git Commit ==========" | tee -a $REPORT
+    echo -e "\n========== Fetching Git Commit =========="
     cd /workspace/cp2k
-    git fetch origin "${GIT_BRANCH}"                       |& tee -a $REPORT
-    git -c advice.detachedHead=false checkout "${GIT_REF}" |& tee -a $REPORT
-    git submodule update --init --recursive                |& tee -a $REPORT
-    git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a $REPORT
+    git fetch origin "${GIT_REF}"
+    git -c advice.detachedHead=false checkout "${GIT_REF}"
+    git submodule update --init --recursive
+    git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n'
 
 elif [ -d  /mnt/cp2k ]; then
-    echo -e "\n========== Copying Changed Files ==========" | tee -a $REPORT
-    rsync_changes --exclude="*~"                         \
-                  --exclude=".*/"                        \
-                  --exclude="*.py[cod]"                  \
-                  --exclude="__pycache__"                \
-                  --exclude="/obj/"                      \
-                  --exclude="/lib/"                      \
-                  --exclude="/exe/"                      \
-                  --exclude="/regtesting/"               \
-                  --exclude="/arch/local*"               \
-                  --exclude="/tools/toolchain/build/"    \
-                  --exclude="/tools/toolchain/install/"  \
-                  /mnt/cp2k/  /workspace/cp2k/
+    echo -e "\n========== Copying Changed Files =========="
+    rsync --update                               \
+          --delete                               \
+          --executability                        \
+          --ignore-times                         \
+          --verbose                              \
+          --recursive                            \
+          --checksum                             \
+          --exclude="*~"                         \
+          --exclude=".*/"                        \
+          --exclude="*.py[cod]"                  \
+          --exclude="__pycache__"                \
+          --exclude="/obj/"                      \
+          --exclude="/lib/"                      \
+          --exclude="/exe/"                      \
+          --exclude="/regtesting/"               \
+          --exclude="/arch/local*"               \
+          --exclude="/tools/toolchain/build/"    \
+          --exclude="/tools/toolchain/install/"  \
+          /mnt/cp2k/  /workspace/cp2k/
 else
     echo "Neither GIT_REF nor /mnt/cp2k found - aborting."
     exit 255
 fi
 
-# Update toolchain, if present.
-TOOLCHAIN_OK=true
-if [ -d /opt/cp2k-toolchain ]; then
-    echo -e "\n========== Updating Toolchain ==========" | tee -a $REPORT
-    cd /opt/cp2k-toolchain
-    rsync_changes --exclude="/build/"    \
-                  --exclude="/install/"  \
-                  /workspace/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
-
-    # shellcheck disable=SC1091
-    source /opt/cp2k-toolchain/install/setup
-    # shellcheck disable=SC2086
-    if ! ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS} |& tee -a $REPORT ; then
-        echo -e "\nSummary: Toolchain update failed.\nStatus: FAILED" | tee -a $REPORT
-        TOOLCHAIN_OK=false
-    fi
-fi
-
 if ! md5sum --status --check ${CHECKSUMS}; then
-    echo -e "\n========== Cleaning Build Cache ==========" | tee -a $REPORT
+    echo -e "\n========== Cleaning Build Cache =========="
     cd /workspace/cp2k
-    make distclean |& tee -a $REPORT
+    make distclean
 fi
 
 # Run actual test.
-if $TOOLCHAIN_OK ; then
-    echo -e "\n========== Running Test ==========" | tee -a $REPORT
-    cd /workspace
-    if ! "$@" |& tee -a $REPORT ; then
-       echo -e "\nSummary: Test had non-zero exit status.\nStatus: FAILED" | tee -a $REPORT
-    fi
+echo -e "\n========== Running Test =========="
+cd /workspace
+if ! "$@" ; then
+   echo -e "\nSummary: Test had non-zero exit status.\nStatus: FAILED"
 fi
-
-# Upload artifacts.
-if [ -n "${ARTIFACTS_UPLOAD_URL}" ] &&  [ -d /workspace/artifacts ]; then
-    echo "Uploading artifacts..."
-    ARTIFACTS_TGZ="/tmp/test_${TESTNAME}_artifacts.tgz"
-    cd /workspace/artifacts
-    tar -czf "${ARTIFACTS_TGZ}" -- *
-    upload_file "${ARTIFACTS_UPLOAD_URL}" "${ARTIFACTS_TGZ}" "application/gzip"
-fi
-
-upload_final_report
-
-echo "Done :-)"
 
 #EOF
