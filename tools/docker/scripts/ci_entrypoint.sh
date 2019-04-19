@@ -62,6 +62,4 @@ if ! "$@" ; then
    echo -e "\nSummary: Test had non-zero exit status.\nStatus: FAILED"
 fi
 
-echo "Done :-)"
-
 #EOF
