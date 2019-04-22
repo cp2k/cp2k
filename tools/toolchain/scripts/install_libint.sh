@@ -2,8 +2,10 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libint_ver="1.1.6"
-libint_sha256="aa553de6469729ed3674c955a9f56046c41846030b6d4b4c6ba91d4f1307abc7"
+libint_ver="2.5.0"
+libint_sha256="e57bb4546a6702fdaa570ad6607712f31903ed4618f051150979a31a038ce960"
+boost_ver="1_70_0"
+boost_sha256="882b48708d211a5f48e60b0124cf5863c1534cd544ecd0664bb534a4b5d506e9"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -26,60 +28,81 @@ case "$with_libint" in
         if verify_checksums "${install_lock_file}" ; then
             echo "libint-${libint_ver} is already installed, skipping it."
         else
-            if [ -f libint-${libint_ver}.tar.gz ] ; then
-                echo "libint-${libint_ver}.tar.gz is found"
+            if [ -f v${libint_ver}.tar.gz ] ; then
+                echo "v${libint_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
-                             https://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
+                             https://github.com/evaleev/libint/archive/v${libint_ver}.tar.gz
+            fi
+            if [ -f boost_${boost_ver}.tar.gz ] ; then
+                echo "boost_${boost_ver}.tar.gz is found"
+            else
+                download_pkg ${DOWNLOADER_FLAGS} ${boost_sha256} \
+                             https://dl.bintray.com/boostorg/release/1.70.0/source/boost_${boost_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d libint-${libint_ver} ] && rm -rf libint-${libint_ver}
-            tar -xzf libint-${libint_ver}.tar.gz
+            tar -xzf v${libint_ver}.tar.gz
+            [ -d boost_${boost_ver} ] && rm -rf boost_${boost_ver}
+            tar -xzf boost_${boost_ver}.tar.gz
             cd libint-${libint_ver}
-            # hack for -with-cc, needed for -fsanitize=thread that also
+            ./autogen.sh
+            mkdir build; cd build
+            # hack for -with-cxx, needed for -fsanitize=thread that also
             # needs to be passed to the linker, but seemingly ldflags is
             # ignored by libint configure
+            ../configure --enable-eri=1 --enable-eri3=1 \
+                         --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 \
+                         --with-opt-am=3 --enable-generic-code --disable-unrolling \
+                         --with-boost-libdir="${BUILDDIR}/boost_${boost_ver}/boost" \
+                         --with-cxx="$CXX $CXXFLAGS" \
+                         --with-cxx-optflags="$CXXFLAGS" \
+                         --with-cxxgen-optflags="$CXXFLAGS" \
+                         > configure.log 2>&1
+
+            make -j $NPROCS export > make.log 2>&1
+
+            tar -xzf libint-${libint_ver}.tgz
+            cd libint-${libint_ver}
             ./configure --prefix=${pkg_install_dir} \
-                        --libdir="${pkg_install_dir}/lib" \
-                        --with-libint-max-am=5 \
-                        --with-libderiv-max-am1=4 \
-                        --with-cc="$CC $CFLAGS" \
-                        --with-cc-optflags="$CFLAGS" \
+                        --with-cxx="$CXX $CXXFLAGS" \
                         --with-cxx-optflags="$CXXFLAGS" \
-                        > configure.log 2>&1
-            make -j $NPROCS >  make.log 2>&1
+                        --enable-fortran > configure.log 2>&1
+
+            make -j $NPROCS > make.log 2>&1
+            make -j $NPROCS fortran >> make.log 2>&1
             make install > install.log 2>&1
-            cd ..
+            cd ../../..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
+
         LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib64'"
         ;;
     __SYSTEM__)
         echo "==================== Finding LIBINT from system paths ===================="
-        check_lib -lderiv "libint"
-        check_lib -lint "libint"
+        check_lib -lint2 "libint"
         add_include_from_paths -p LIBINT_CFLAGS "libint" $INCLUDE_PATHS
-        add_lib_from_paths LIBINT_LDFLAGS "libint.*" $LIB_PATHS
+        add_lib_from_paths LIBINT_LDFLAGS "libint2.*" $LIB_PATHS
         ;;
     __DONTUSE__)
         ;;
     *)
         echo "==================== Linking LIBINT to user paths ===================="
         pkg_install_dir="$with_libint"
-        check_dir "${pkg_install_dir}/lib"
+        check_dir "${pkg_install_dir}/lib64"
         check_dir "${pkg_install_dir}/include"
         LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib64'"
         ;;
 esac
 if [ "$with_libint" != "__DONTUSE__" ] ; then
-    LIBINT_LIBS="-lderiv -lint"
+    LIBINT_LIBS="-lint2"
     if [ "$with_libint" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_libint"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib64"
+prepend_path LD_RUN_PATH "$pkg_install_dir/lib64"
+prepend_path LIBRARY_PATH "$pkg_install_dir/lib64"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_libint" >> $SETUPFILE
@@ -88,11 +111,10 @@ EOF
 export LIBINT_CFLAGS="${LIBINT_CFLAGS}"
 export LIBINT_LDFLAGS="${LIBINT_LDFLAGS}"
 export LIBINT_LIBS="${LIBINT_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
+export CP_DFLAGS="\${CP_DFLAGS} -D__LIBINT"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBINT_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBINT_LDFLAGS}"
-# Libint doesn't always work with dynamic linking.
-export CP_LIBS="-Wl,-Bstatic ${LIBINT_LIBS} -Wl,-Bdynamic \${CP_LIBS}"
+export CP_LIBS="${LIBINT_LIBS} \${CP_LIBS}"
 EOF
 fi
 
