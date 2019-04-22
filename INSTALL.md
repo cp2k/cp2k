@@ -86,13 +86,22 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
 :warning: Note that on machines and compilers which support SSE you can configure FFTW3 with `--enable-sse2`. Compilers/systems that do not align memory (NAG f95, Intel IA32/gfortran) should either not use `--enable-sse2` or otherwise set the define `-D__FFTW3_UNALIGNED` in the arch file. When building an OpenMP parallel version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 ### 2g. LIBINT (optional, enables methods including HF exchange)
-Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed.
-  * Download from http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download.
-  * Additional information can be found in [README_LIBINT](./tools/hfx_tools/libint_tools/README_LIBINT).
-  * Tested against libinit-1.1.4 and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5.
-  * Use `-D__LIBINT_MAX_AM` and `-D__LIBDERIV_MAX_AM1` to match the values in `include/libint/libint.h`.
+Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed. CP2K requires libint version >= 2.5.0 that was build with Fortran bindings (configured with `--enable-fortran`). Build libint by following the [libint wiki](https://github.com/evaleev/libint/wiki) and the additional instructions below.
+  * Recommended options for `configure` to generate a CP2K-compatible libint:
+  ```
+  --enable-eri=1 --enable-eri3=1 --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 --with-opt-am=3 --enable-generic-code --disable-unrolling
+  ```
+  CP2K is not hardwired to this specific libint version and the configure options may be adapted to your needs.
+  * *After* generating libint library, configure libint with Fortran interface by setting `FC` to the Fortran compiler and by setting `--enable-fortran`.
+    ```
+    ./configure --enable-fortran FC=... FCFLAGS=...
+    make -j
+    make fortran
+    make install
+    ```
+  * In the arch file of CP2K: add `-D__LIBINT` to the `DFLAGS`. Add `-L$(LIBINT_DIR)/lib64 -lint2 -lstdc++` to `LIBS` and `-I$(LIBINT_DIR)/include` to `FCFLAGS`. `lstdc++` is needed if you use the GNU C++ compiler.
+  * Libint 1 is no longer supported and the previously needed flags `-D__LIBINT_MAX_AM` and `-D__LIBDERIV_MAX_AM1` are ignored.
   * `-D__MAX_CONTR=4` (default=2) can be used to compile efficient contraction kernels up to l=4, but the build time will increase accordingly.
-  * :warning: Do **NOT** use libinit-1.1.3, which was buggy.
 
 ### 2h. libsmm (optional, improved performance for matrix multiplication)
   * A library for small matrix multiplies can be built from the included source (see tools/build_libsmm/README).  Usually only the double precision real and perhaps complex is needed.  Link to the generated libraries. For a couple of architectures prebuilt libsmm are available at https://www.cp2k.org/static/downloads/libsmm/.
