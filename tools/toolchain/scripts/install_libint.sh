@@ -80,7 +80,7 @@ case "$with_libint" in
                          --with-cxxgen-optflags="$CXXFLAGS" \
                          --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
                          --with-libdirs="-L${BUILDDIR}/gmp-${gmp_ver}/.libs" \
-                         CPPFLAGS="-I${BUILDDIR}/boost_${boost_ver}/boost"
+                         CPPFLAGS="-I${BUILDDIR}/boost_${boost_ver}"
                          #--with-libs="-lgmpxx -lgmp"
                          #> configure.log 2>&1
 
