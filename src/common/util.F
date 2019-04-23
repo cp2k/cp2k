@@ -235,8 +235,9 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE find_boundary1(num_array, ntot, first, last, search)
       INTEGER, POINTER                                   :: num_array(:)
-      INTEGER, INTENT(IN)                                :: ntot, search
+      INTEGER, INTENT(IN)                                :: ntot
       INTEGER, INTENT(OUT)                               :: first, last
+      INTEGER, INTENT(IN)                                :: search
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_boundary1', routineP = moduleN//':'//routineN
 
@@ -281,8 +282,9 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE find_boundary2(num_array1, num_array2, ntot, first, last, search1, search2)
       INTEGER, POINTER                                   :: num_array1(:), num_array2(:)
-      INTEGER, INTENT(IN)                                :: ntot, search1, search2
+      INTEGER, INTENT(IN)                                :: ntot
       INTEGER, INTENT(OUT)                               :: first, last
+      INTEGER, INTENT(IN)                                :: search1, search2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_boundary2', routineP = moduleN//':'//routineN
 

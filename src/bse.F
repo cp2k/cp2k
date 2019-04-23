@@ -20,8 +20,8 @@ MODULE bse
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE group_dist_types,                ONLY: group_dist_d1_type, &
-                                              get_group_dist
+   USE group_dist_types,                ONLY: get_group_dist,&
+                                              group_dist_d1_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_sum
@@ -448,11 +448,11 @@ CONTAINS
 
       CALL allocate_and_fill_local_array(B_iaQ_bse_local, fm_mat_S, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
 
-      CALL allocate_and_fill_local_array(B_bar_iaQ_bse_local, fm_mat_S_bar_ia_bse, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
+CALL allocate_and_fill_local_array(B_bar_iaQ_bse_local, fm_mat_S_bar_ia_bse, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
 
-      CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_bar_ij_bse, gd_array, color_sub, homo, homo, dimen_RI, para_env)
+   CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_bar_ij_bse, gd_array, color_sub, homo, homo, dimen_RI, para_env)
 
-      CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, dimen_RI, para_env)
+     CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, dimen_RI, para_env)
 
       CALL cp_fm_release(fm_mat_S_bar_ia_bse)
       CALL cp_fm_release(fm_mat_S_bar_ij_bse)

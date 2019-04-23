@@ -35,9 +35,9 @@ MODULE mp2_ri_grad_util
                                               dbcsr_iterator_stop,&
                                               dbcsr_iterator_type,&
                                               dbcsr_type_no_symmetry
-   USE group_dist_types,                ONLY: group_dist_d1_type, &
-                                              get_group_dist, &
-                                              create_group_dist, &
+   USE group_dist_types,                ONLY: create_group_dist,&
+                                              get_group_dist,&
+                                              group_dist_d1_type,&
                                               release_group_dist
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_irecv,&
@@ -110,8 +110,8 @@ CONTAINS
          ncol_local, nrow_local, pos_group, pos_sub, proc_receive, proc_send, proc_shift, &
          rec_B_size, rec_B_virtual_end, rec_B_virtual_start, row, row_offset, row_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info, proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, &
-                                                            mepos_2_grid_group, sizes
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group, &
+                                                            sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
@@ -121,7 +121,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_temp, &
                                                             fm_ia_P, fm_Y, PQ_half
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(group_dist_d1_type)                           :: gd_ia, gd_P, gd_ia_new, gd_P_new, gd_array_new
+      TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_ia_new, gd_P, &
+                                                            gd_P_new
 
       CALL timeset(routineN, handle)
 
@@ -233,9 +234,9 @@ CONTAINS
       CALL create_group_dist(gd_array_new, para_env%num_pe)
       CALL create_group_dist(gd_P, para_env_sub%num_pe, dimen_RI)
       CALL create_group_dist(gd_P_new, para_env%num_pe)
-      
+
       CALL get_group_dist(gd_P, para_env_sub%mepos, my_P_start, my_P_end, my_P_size)
-      
+
       CALL prepare_redistribution(para_env, para_env_sub, ngroup, proc_map, &
                                   group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
 
@@ -256,7 +257,7 @@ CONTAINS
       ! create the blacs env
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
-      
+
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia, &
                                ncol_global=dimen_RI, para_env=para_env)
@@ -275,13 +276,13 @@ CONTAINS
                     gd_ia_new, gd_array_new, &
                     group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
                     fm_ia_P)
-      
+
       CALL cp_fm_struct_release(fm_struct)
-      
+
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
                                ncol_global=dimen_RI, para_env=para_env)
-      
+
       ! since we will need (P|Q)^(-1/2) in the future, make a copy
       IF (alpha_case) THEN
          ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
@@ -302,7 +303,7 @@ CONTAINS
                        group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
                        PQ_half)
       ENDIF
-      
+
       CALL cp_fm_struct_release(fm_struct)
       CALL release_group_dist(gd_P_new)
       CALL release_group_dist(gd_ia_new)
@@ -532,7 +533,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mat2D ...
-!> \param fm_struct
+!> \param fm_struct ...
 !> \param num_rows ...
 !> \param num_cols ...
 !> \param para_env ...
@@ -1697,10 +1698,11 @@ CONTAINS
 !> \param para_env_sub ...
 !> \param ngroup ...
 !> \param proc_map ...
-!> \param sizes ...
 !> \param group_grid_2_mepos ...
 !> \param mepos_2_grid_group ...
+!> \param sizes ...
 !> \param fm_mat_Gamma ...
+!> \param pos_info ...
 ! **************************************************************************************************
    SUBROUTINE prepare_redistribution(para_env, para_env_sub, ngroup, &
                                      proc_map, group_grid_2_mepos, mepos_2_grid_group, sizes, &
@@ -1708,11 +1710,12 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: ngroup
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: group_grid_2_mepos, &
-                                                            mepos_2_grid_group
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), OPTIONAL, INTENT(OUT) :: sizes
-      TYPE(cp_fm_type), POINTER, OPTIONAL                :: fm_mat_Gamma
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL, INTENT(OUT) :: pos_info
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: group_grid_2_mepos, mepos_2_grid_group
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT), OPTIONAL                           :: sizes
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_Gamma
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &
+         OPTIONAL                                        :: pos_info
 
       INTEGER                                            :: i, ncol_local, nrow_local, pos_group, &
                                                             pos_sub
@@ -1756,7 +1759,7 @@ CONTAINS
          sizes(2, para_env%mepos) = ncol_local
          CALL mp_sum(sizes, para_env%group)
       END IF
-      
+
       IF (PRESENT(pos_info)) CALL move_alloc(my_pos_info, pos_info)
 
    END SUBROUTINE prepare_redistribution
