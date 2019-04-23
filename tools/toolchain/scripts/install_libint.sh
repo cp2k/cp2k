@@ -61,7 +61,7 @@ case "$with_libint" in
             echo "Building dependency gmp-${gmp_ver}"
 
             cd gmp-${gmp_ver}
-            ./configure > configure.log 2>&1
+            ./configure --enable-cxx > configure.log 2>&1
             make > make.log 2>&1
             cd ..
 
@@ -81,7 +81,7 @@ case "$with_libint" in
                          --with-cxxgen-optflags="$CXXFLAGS" \
                          --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
                          --with-libdirs="-L${INSTALLDIR}/gmp-${gmp_ver}/.libs" \
-                         --with-libs="-lgmp"
+                         --with-libs="-lgmpxx -lgmp"
                          #> configure.log 2>&1
 
             make -j $NPROCS export > make.log 2>&1
