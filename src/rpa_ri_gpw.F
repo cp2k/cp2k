@@ -49,8 +49,8 @@ MODULE rpa_ri_gpw
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
@@ -271,10 +271,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, &
                                                             BIb_C_2D_bse_ab, BIb_C_2D_bse_ij, &
                                                             BIb_C_2D_gw, BIb_C_2D_gw_beta
-      TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, fm_mat_R_gw, &
-         fm_mat_S, fm_mat_S_ab_bse, fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, fm_mat_S_ij_bse, &
-         fm_mo_coeff_occ, fm_mo_coeff_occ_beta, fm_mo_coeff_virt, fm_mo_coeff_virt_beta, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, &
+         fm_mat_R_gw, fm_mat_S, fm_mat_S_ab_bse, fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, &
+         fm_mat_S_ij_bse, fm_mo_coeff_occ, fm_mo_coeff_occ_beta, fm_mo_coeff_virt, &
+         fm_mo_coeff_virt_beta, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
       CALL timeset(routineN, handle)
@@ -339,7 +339,7 @@ CONTAINS
          END IF
       END IF
       allowed_memory = mp2_env%mp2_memory
-      
+
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
@@ -827,9 +827,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: occ_chunk = 128
 
-      INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, &
-         occ_low, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
-         rec_B_virtual_start
+      INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, occ_low, &
+         proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       dimen_ia = homo*virtual
@@ -887,7 +886,7 @@ CONTAINS
 
          DEALLOCATE (BIb_C_rec)
       END DO
-      
+
    END SUBROUTINE calculate_BIb_C_2D
 
 ! **************************************************************************************************
@@ -913,8 +912,6 @@ CONTAINS
 !> \param my_group_L_end ...
 !> \param para_env_RPA ...
 !> \param fm_mat_S ...
-!> \param fm_mat_Q_gemm ...
-!> \param fm_mat_Q ...
 !> \param nrow_block_mat ...
 !> \param ncol_block_mat ...
 !> \param beta_case ...
@@ -922,6 +919,8 @@ CONTAINS
 !> \param blacs_env_ext_S ...
 !> \param do_gw_open_shell ...
 !> \param do_im_time ...
+!> \param fm_mat_Q_gemm ...
+!> \param fm_mat_Q ...
 !> \param fm_scaled_dm_occ_tau ...
 !> \param fm_scaled_dm_virt_tau ...
 !> \param mo_coeff ...
@@ -960,9 +959,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: beta_case
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_gw_open_shell, do_im_time
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_Q_gemm, fm_mat_Q, fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau, mo_coeff, &
-                                                            fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), OPTIONAL, POINTER :: fm_mat_Q_gemm, fm_mat_Q, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau, mo_coeff, fm_mo_coeff_occ, fm_mo_coeff_virt
       INTEGER, INTENT(IN), OPTIONAL                      :: nmo, homo
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_mao
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -973,32 +971,22 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: comm_exchange, comm_rpa, dummy_proc, end_col_block, end_row_block, grid_2D(2), &
-         handle, handle2, handle3, i, i_global, i_local, i_sub, iiB, iii, iproc, iproc_col, &
-         iproc_row, itmp(2), j_global, j_local, j_sub, jjB, mepos_in_RPA_group, my_num_col_blocks, &
-         my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, nmao_occ, npcol, nprow, &
-         nrow_block, nrow_local, num_rec_cols, number_of_rec, number_of_send, proc_receive, &
-         proc_receive_static, proc_send, proc_send_static, proc_shift, rec_counter, rec_ia_end, &
-         rec_ia_size, rec_ia_start, rec_L_end, rec_L_size, rec_L_start, rec_pcol
-      INTEGER :: rec_prow, ref_send_pcol, ref_send_prow, row_col_proc_ratio, send_counter, &
-         send_pcol, send_prow, size_rec_buffer, size_send_buffer, start_col_block, &
-         start_row_block, sub_sub_color
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
-                                                            map_send_size, req_send, RPA_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blocks_ranges_col, blocks_ranges_row, grid_2_mepos, &
-         grid_ref_2_send_pos, group_grid_2_mepos, mepos_2_grid
+      INTEGER :: comm_exchange, comm_rpa, grid_2D(2), handle, handle2, i, i_global, iiB, iproc, &
+         iproc_col, iproc_row, j_global, jjB, mepos_in_RPA_group, ncol_block, ncol_local, &
+         nmao_occ, nrow_block, nrow_local, proc_receive, proc_receive_static, proc_send, &
+         proc_send_static, proc_shift, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
+         rec_L_size, rec_L_start, row_col_proc_ratio, sub_sub_color
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_beta_case, my_blacs_ext, &
                                                             my_blacs_S_ext, my_do_im_time, &
                                                             my_do_mao, my_gw_open_shell
-      REAL(KIND=dp)                                      :: part_ia, part_RI
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_rec
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
-      TYPE(group_dist_d1_type)                           :: gd_L, gd_ia
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(group_dist_d1_type)                           :: gd_ia, gd_L
 
       CALL timeset(routineN, handle)
 
@@ -1114,22 +1102,22 @@ CONTAINS
          END DO
 
          CALL create_group_dist(gd_ia, my_ia_start, my_ia_end, my_ia_size, para_env_RPA)
-            
+
          CALL create_group_dist(gd_L, my_group_L_start, my_group_L_end, my_group_L_size, para_env_RPA)
 
          IF (.TRUE.) THEN
             ! create the info array
-            
+
             mepos_in_RPA_group = MOD(color_sub, integ_group_size)
             ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:integ_group_size-1))
             group_grid_2_mepos = 0
             group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
             CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
-         
+
             CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, RPA_proc_map, &
                           my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, gd_ia, gd_L, &
                           group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S)
-         
+
             CALL cp_fm_struct_release(fm_struct)
          ELSE
             ! old replication scheme
@@ -1146,7 +1134,7 @@ CONTAINS
                                 ncol_local=ncol_local, &
                                 row_indices=row_indices, &
                                 col_indices=col_indices)
-            
+
             ! old inefficient replication scheme
             ! local data
             DO jjB = 1, ncol_local

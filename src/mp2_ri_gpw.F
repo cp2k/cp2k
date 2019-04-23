@@ -256,8 +256,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
                                                             BIb_C_bse_ab
-      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array, gd_B_virtual, gd_B_occ_bse, &
-                                                            gd_B_virt_bse, gd_B_all
+      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array, gd_B_virtual
       INTEGER, INTENT(OUT)                               :: dimen_RI
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -286,20 +285,22 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, calc_forces
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_mc_t, ends_array_mc_t
-      LOGICAL, INTENT(IN)                                :: do_dbcsr_t
-      TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
+      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_all
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_mc_t, ends_array_mc_t
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_im_time, do_mao
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
+      LOGICAL, INTENT(IN)                                :: do_dbcsr_t
+      TYPE(dbcsr_t_type)                                 :: t_3c_M
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int, &
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff_occ, mao_coeff_virt
       INTEGER, INTENT(IN)                                :: ri_metric
+      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_occ_bse, gd_B_virt_bse
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT), OPTIONAL                           :: BIb_C_beta, BIb_C_gw_beta
       TYPE(group_dist_d1_type), INTENT(OUT), OPTIONAL    :: gd_B_virtual_beta
@@ -2137,13 +2138,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals', &
          routineP = moduleN//':'//routineN
 
-      TYPE(group_dist_d1_type)                           :: gd_sub_array
       INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, group_size, handle, &
-         handle2, handle3, i, i_counter, i_global, iatom, igrid_level, iiB, ikind, ipgf, &
-         iproc, iset, j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, &
-         natom, ncoa, ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, &
-         proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
-         rec_L_start, sgfa, strat_group_size, sub_sub_color, tp(3), ub(3)
+         handle2, handle3, i, i_counter, i_global, iatom, igrid_level, iiB, ikind, ipgf, iproc, &
+         iset, j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, natom, ncoa, &
+         ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, proc_receive_static, &
+         proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, &
+         strat_group_size, sub_sub_color, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, npgfa, &
                                                             nsgfa, row_indices
@@ -2162,6 +2162,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_diag
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(group_dist_d1_type)                           :: gd_sub_array
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -2213,7 +2214,7 @@ CONTAINS
 
       ! check that very small systems are not running on too many processes
       CPASSERT(dimen_RI >= para_env%num_pe)
-      
+
       CALL create_group_dist(gd_array, ngroup, dimen_RI)
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
@@ -2437,7 +2438,7 @@ CONTAINS
          proc_map(-i-1) = para_env_exchange%num_pe-i-1
          proc_map(para_env_exchange%num_pe+i) = i
       END DO
-      
+
       CALL create_group_dist(gd_sub_array, my_group_L_size, &
                              my_group_L_end, my_group_L_start, para_env)
 
@@ -5132,7 +5133,7 @@ CONTAINS
          proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
          CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-            
+
          CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
          IF (.NOT. alpha_beta) THEN
@@ -8735,9 +8736,8 @@ CONTAINS
       INTEGER                                            :: cut_RI_old, handle, iatom, iblk_RI, &
                                                             icount, icut, itmp(2), natom, &
                                                             nblks_RI, nkind, size_RI, start_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atom_RI_tmp, &
-         my_group_L_ends_im_time_tmp, my_group_L_starts_im_time_tmp, row_blk_end_RI, &
-         row_blk_offset_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atom_RI_tmp, my_group_L_ends_im_time_tmp, &
+         my_group_L_starts_im_time_tmp, row_blk_end_RI, row_blk_offset_RI
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes_RI
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(group_dist_d1_type)                           :: gd_array_mem_cut
@@ -8748,7 +8748,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL create_group_dist(gd_array_mem_cut, cut_memory, dimen_RI)
-      
+
       ALLOCATE (my_group_L_starts_im_time(1:cut_memory))
       my_group_L_starts_im_time = 0
       ALLOCATE (my_group_L_ends_im_time(1:cut_memory))

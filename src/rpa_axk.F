@@ -120,8 +120,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: avirt, handle, i_global, iib, iocc, j_global, jjb, kkb, L_counter, &
-         my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, nrow_local, color_sub, iitmp(2)
+      INTEGER :: avirt, color_sub, handle, i_global, iib, iitmp(2), iocc, j_global, jjb, kkb, &
+         L_counter, my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, &
+         nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
@@ -276,7 +277,7 @@ CONTAINS
 
       ! Get aux sizes
       ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
-                         
+
       color_sub = para_env_RPA%mepos/para_env_sub%num_pe
 
       iitmp = get_limit(dimen_RI, ngroup, color_sub)

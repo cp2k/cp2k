@@ -31,9 +31,9 @@ MODULE rpa_communication
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
-   USE group_dist_types,                ONLY: group_dist_d1_type, &
-                                              create_group_dist, &
-                                              get_group_dist, &
+   USE group_dist_types,                ONLY: create_group_dist,&
+                                              get_group_dist,&
+                                              group_dist_d1_type,&
                                               release_group_dist
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_irecv,&
@@ -603,15 +603,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_fm_to_dbcsr', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: dimen_ia, dummy_proc, handle, i, i_global, i_local, iaia, iib, iii, iproc, &
-         itmp(2), j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, &
-         myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, number_of_rec, &
+      INTEGER :: dimen_ia, dummy_proc, handle, i, i_global, i_local, iaia, iib, iii, itmp(2), &
+         j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, myprow, &
+         ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, number_of_rec, &
          number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
          rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, &
-                                                            map_send_size, proc_map, req_send, &
-                                                            sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
+                                                            proc_map, req_send, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, grid_ref_2_send_pos, &
          group_grid_2_mepos, indices_map_my, mepos_2_grid, mepos_2_grid_group, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices

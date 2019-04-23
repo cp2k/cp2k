@@ -66,9 +66,9 @@ MODULE mp2_gpw
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                               distribute_molecules_2d
-   USE group_dist_types,                ONLY: group_dist_d1_type, &
-                                              get_group_dist, &
-                                              create_group_dist, &
+   USE group_dist_types,                ONLY: create_group_dist,&
+                                              get_group_dist,&
+                                              group_dist_d1_type,&
                                               release_group_dist
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               ri_overlap
@@ -189,8 +189,7 @@ CONTAINS
          gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, &
          local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, n_multigrid, nelectron, &
          nelectron_beta, nmo, nspins, ri_metric
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array_mc_t, &
-         starts_array_mc_t
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc_t, starts_array_mc_t
       LOGICAL :: blacs_repeatable, do_bse, do_dbcsr_t, do_im_time, do_kpoints_cubic_RPA, do_mao, &
          my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2, &
          skip_load_balance_distributed
@@ -1856,8 +1855,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, &
-         my_mu_end, my_mu_size, my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
+      INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
+         my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
          proc_receive_static, proc_send, proc_send_static, proc_shift, virtual
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
@@ -2152,6 +2151,7 @@ CONTAINS
 !> \param dft_control ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
+!> \param atom2d ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param sab_orb_sub ...
@@ -2547,6 +2547,7 @@ CONTAINS
 !> \param dft_control ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
+!> \param atom2d ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param particle_set ...
