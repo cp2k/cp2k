@@ -75,11 +75,10 @@ case "$with_libint" in
             ../configure --enable-eri=1 --enable-eri3=1 \
                          --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 \
                          --with-opt-am=3 --enable-generic-code --disable-unrolling \
-                         --with-boost-libdir="${BUILDDIR}/boost_${boost_ver}/boost" \
                          --with-cxx="$CXX $CXXFLAGS" \
                          --with-cxx-optflags="$CXXFLAGS" \
                          --with-cxxgen-optflags="$CXXFLAGS" \
-                         --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
+                         --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver} -I${BUILDDIR}/boost_${boost_ver}/boost" \
                          --with-libdirs="-L${BUILDDIR}/gmp-${gmp_ver}/.libs"
                          #--with-libs="-lgmpxx -lgmp"
                          #> configure.log 2>&1
