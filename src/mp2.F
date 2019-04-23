@@ -1963,8 +1963,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_matrix_ks_to_kp', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, ispin, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -2013,8 +2011,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_matrix_ks_kp', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, ispin, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
