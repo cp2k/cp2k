@@ -30,11 +30,11 @@ MODULE qs_tddfpt2_eigensolver
    USE input_constants,                 ONLY: tddfpt_kernel_full,&
                                               tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_type
-   USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
+   USE memory_utilities,                ONLY: reallocate
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -259,8 +259,8 @@ CONTAINS
       DO jvect = nvects_old+1, nvects_total
          ! <psi1_i | psi1_j>
          DO ivect = 1, jvect-1
-            CALL cp_fm_trace(evects(:, jvect), S_evects(:, ivect), weights(1:nspins))
-            norm = accurate_sum(weights(1:nspins))
+            CALL cp_fm_trace(evects(:, jvect), S_evects(:, ivect), weights(1:nspins), accurate=.FALSE.)
+            norm = SUM(weights(1:nspins))
 
             DO ispin = 1, nspins
                CALL cp_fm_scale_and_add(1.0_dp, evects(ispin, jvect)%matrix, -norm, evects(ispin, ivect)%matrix)
@@ -273,9 +273,9 @@ CONTAINS
                                          ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
          END DO
 
-         CALL cp_fm_trace(evects(:, jvect), S_evects(:, jvect), weights(1:nspins))
+         CALL cp_fm_trace(evects(:, jvect), S_evects(:, jvect), weights(1:nspins), accurate=.FALSE.)
 
-         norm = accurate_sum(weights(1:nspins))
+         norm = SUM(weights(1:nspins))
          norm = 1.0_dp/SQRT(norm)
 
          DO ispin = 1, nspins
@@ -409,14 +409,20 @@ CONTAINS
 !> \param evals            Ritz eigenvalues (initialised on exit)
 !> \param krylov_vects     Krylov's vectors
 !> \param Aop_krylov       action of TDDFPT operator on Krylov's vectors
+!> \param Atilde ...
+!> \param nkvo ...
+!> \param nkvn ...
 !> \par History
 !>    * 06.2016 created [Sergey Chulkov]
 !>    * 03.2017 altered prototype, OpenMP parallelisation [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_compute_ritz_vects(ritz_vects, Aop_ritz, evals, krylov_vects, Aop_krylov)
+   SUBROUTINE tddfpt_compute_ritz_vects(ritz_vects, Aop_ritz, evals, krylov_vects, Aop_krylov, &
+                                        Atilde, nkvo, nkvn)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: ritz_vects, Aop_ritz
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: krylov_vects, Aop_krylov
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
+      INTEGER, INTENT(IN)                                :: nkvo, nkvn
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_compute_ritz_vects', &
          routineP = moduleN//':'//routineN
@@ -424,7 +430,7 @@ CONTAINS
       INTEGER                                            :: handle, ikv, irv, ispin, nkvs, nrvs, &
                                                             nspins
       REAL(kind=dp)                                      :: act
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: Atilde, evects_Atilde
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: at12, at21, at22, evects_Atilde
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: Atilde_fm, evects_Atilde_fm
@@ -434,6 +440,7 @@ CONTAINS
       nspins = SIZE(krylov_vects, 1)
       nkvs = SIZE(krylov_vects, 2)
       nrvs = SIZE(ritz_vects, 2)
+      CPASSERT(nkvs == nkvo+nkvn)
 
       CALL cp_fm_get_info(krylov_vects(1, 1)%matrix, context=blacs_env_global)
 
@@ -443,12 +450,28 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
 
       ! *** compute upper-diagonal reduced action matrix ***
-      ALLOCATE (Atilde(nkvs, nkvs))
+      CALL reallocate(Atilde, 1, nkvs, 1, nkvs)
       ! TO DO: the subroutine 'cp_fm_contracted_trace' will compute all elements of
       ! the matrix 'Atilde', however only upper-triangular elements are actually needed
-      CALL cp_fm_contracted_trace(Aop_krylov, krylov_vects, Atilde)
+      !
+      IF (nkvo == 0) THEN
+         CALL cp_fm_contracted_trace(Aop_krylov(:, 1:nkvs), krylov_vects(:, 1:nkvs), &
+                                     Atilde(1:nkvs, 1:nkvs), accurate=.FALSE.)
+      ELSE
+         ALLOCATE (at12(nkvn, nkvo), at21(nkvo, nkvn), at22(nkvn, nkvn))
+         CALL cp_fm_contracted_trace(Aop_krylov(:, nkvo+1:nkvs), krylov_vects(:, 1:nkvo), &
+                                     at12, accurate=.FALSE.)
+         Atilde(nkvo+1:nkvs, 1:nkvo) = at12(1:nkvn, 1:nkvo)
+         CALL cp_fm_contracted_trace(Aop_krylov(:, 1:nkvo), krylov_vects(:, nkvo+1:nkvs), &
+                                     at21, accurate=.FALSE.)
+         Atilde(1:nkvo, nkvo+1:nkvs) = at21(1:nkvo, 1:nkvn)
+         CALL cp_fm_contracted_trace(Aop_krylov(:, nkvo+1:nkvs), krylov_vects(:, nkvo+1:nkvs), &
+                                     at22, accurate=.FALSE.)
+         Atilde(nkvo+1:nkvs, nkvo+1:nkvs) = at22(1:nkvn, 1:nkvn)
+         DEALLOCATE (at12, at21, at22)
+      END IF
+      Atilde = 0.5_dp*(Atilde+TRANSPOSE(Atilde))
       CALL cp_fm_set_submatrix(Atilde_fm, Atilde)
-      DEALLOCATE (Atilde)
 
       ! *** solve an eigenproblem for the reduced matrix ***
       CALL choose_eigv_solver(Atilde_fm, evects_Atilde_fm, evals(1:nkvs))
@@ -539,8 +562,9 @@ CONTAINS
             lambda = evals(irv)
 
             DO ispin = 1, nspins
-               CALL cp_fm_get_info(work_fm_mo_virt_mo_occ(ispin)%matrix, nrow_local=nrows_local, ncol_local=ncols_local, &
-                                   row_indices=row_indices_local, col_indices=col_indices_local, local_data=weights_ldata)
+               CALL cp_fm_get_info(work_fm_mo_virt_mo_occ(ispin)%matrix, nrow_local=nrows_local, &
+                                   ncol_local=ncols_local, row_indices=row_indices_local, &
+                                   col_indices=col_indices_local, local_data=weights_ldata)
 
                ! work_fm_ao_mo_occ := Ab(ispin, irv) - evals(irv) b(ispin, irv), where 'b' is a Ritz vector
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ritz_vects(ispin, irv)%matrix, work_fm_ao_mo_occ(ispin)%matrix, &
@@ -630,6 +654,7 @@ CONTAINS
       LOGICAL                                            :: is_nonortho
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_krylov, Aop_ritz, krylov_vects, &
                                                             S_krylov
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -688,6 +713,8 @@ CONTAINS
 
       t1 = m_walltime()
 
+      ALLOCATE (Atilde(1, 1))
+
       DO
          ! davidson iteration
          CALL cp_iterate(logger%iter_info, iter_nr_out=iter)
@@ -704,7 +731,8 @@ CONTAINS
          CALL tddfpt_compute_ritz_vects(ritz_vects=evects, Aop_ritz=Aop_ritz, &
                                         evals=evals_last(1:nvects_exist+nvects_new), &
                                         krylov_vects=krylov_vects(:, 1:nvects_exist+nvects_new), &
-                                        Aop_krylov=Aop_krylov(:, 1:nvects_exist+nvects_new))
+                                        Aop_krylov=Aop_krylov(:, 1:nvects_exist+nvects_new), &
+                                        Atilde=Atilde, nkvo=nvects_exist, nkvn=nvects_new)
 
          CALL tddfpt_write_restart(evects=evects, evals=evals_last(1:nstates), gs_mos=gs_mos, &
                                    logger=logger, tddfpt_print_section=tddfpt_print_section)
@@ -788,6 +816,8 @@ CONTAINS
             EXIT
          END IF
       END DO
+
+      DEALLOCATE (Atilde)
 
       DO istate = nvects_exist+nvects_new, 1, -1
          DO ispin = nspins, 1, -1

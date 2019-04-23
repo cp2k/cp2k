@@ -838,6 +838,7 @@ CONTAINS
 !> \param matrix_a list of A matrices
 !> \param matrix_b list of B matrices
 !> \param trace    computed traces
+!> \param accurate ...
 !> \par History
 !>    * 11.2016 forked from cp_fm_trace() [Sergey Chulkov]
 !> \note \parblock
@@ -850,16 +851,17 @@ CONTAINS
 !>      all dummy variables (matrix_a, matrix_b, and trace) are 1-dimensional arrays.
 !>      \endparblock
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_trace_a1b1t1(matrix_a, matrix_b, trace)
+   SUBROUTINE cp_fm_trace_a1b1t1(matrix_a, matrix_b, trace, accurate)
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a, matrix_b
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+      LOGICAL, INTENT(IN), OPTIONAL                      :: accurate
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b1t1', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: group, handle, imatrix, n_matrices, &
                                                             ncols_local, nrows_local
-      LOGICAL                                            :: use_sp_a, use_sp_b
+      LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
 
@@ -869,10 +871,13 @@ CONTAINS
       CPASSERT(SIZE(matrix_a) == n_matrices)
       CPASSERT(SIZE(matrix_b) == n_matrices)
 
+      use_accurate_sum = .TRUE.
+      IF (PRESENT(accurate)) use_accurate_sum = accurate
+
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
 !$OMP             PRIVATE(nrows_local, use_sp_a, use_sp_b), &
-!$OMP             SHARED(matrix_a, matrix_b, n_matrices, trace)
+!$OMP             SHARED(matrix_a, matrix_b, n_matrices, trace, use_accurate_sum)
       DO imatrix = 1, n_matrices
          CALL cp_fm_get_info(matrix_a(imatrix)%matrix, nrow_local=nrows_local, ncol_local=ncols_local)
 
@@ -883,11 +888,19 @@ CONTAINS
          IF (use_sp_a .AND. use_sp_b) THEN
             ldata_a_sp => matrix_a(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
             ldata_b_sp => matrix_b(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
+            IF (use_accurate_sum) THEN
             trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
+            ELSE
+               trace(imatrix) = SUM(ldata_a_sp*ldata_b_sp)
+            END IF
          ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
             ldata_a => matrix_a(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
             ldata_b => matrix_b(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
+            IF (use_accurate_sum) THEN
             trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
+         ELSE
+               trace(imatrix) = SUM(ldata_a*ldata_b)
+            END IF
          ELSE
             CPABORT("Matrices A and B are of different types")
          END IF
@@ -905,10 +918,12 @@ CONTAINS
 !> \param matrix_a list of A matrices
 !> \param matrix_b list of B matrices
 !> \param trace    computed traces
+!> \param accurate ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_contracted_trace_a2b2t2(matrix_a, matrix_b, trace)
+   SUBROUTINE cp_fm_contracted_trace_a2b2t2(matrix_a, matrix_b, trace, accurate)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: matrix_a, matrix_b
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: trace
+      LOGICAL, INTENT(IN), OPTIONAL                      :: accurate
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_contracted_trace_a2b2t2', &
          routineP = moduleN//':'//routineN
@@ -916,7 +931,7 @@ CONTAINS
       INTEGER                                            :: group, handle, ia, ib, iz, na, nb, &
                                                             ncols_local, nrows_local, nz
       INTEGER(kind=int_8)                                :: ib8, itrace, na8, ntraces
-      LOGICAL                                            :: use_sp_a, use_sp_b
+      LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
       REAL(kind=dp)                                      :: t
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
@@ -931,14 +946,18 @@ CONTAINS
       CPASSERT(SIZE(trace, 1) == na)
       CPASSERT(SIZE(trace, 2) == nb)
 
-      ! here we use one running index (itrace) instead of two (ia, ib) in order to improve load balance between shared-memory threads
+      use_accurate_sum = .TRUE.
+      IF (PRESENT(accurate)) use_accurate_sum = accurate
+
+      ! here we use one running index (itrace) instead of two (ia, ib) in order to
+      ! improve load balance between shared-memory threads
       ntraces = na*nb
       na8 = INT(na, kind=int_8)
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ia, ib, ib8, itrace, iz, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
 !$OMP             PRIVATE(nrows_local, t, use_sp_a, use_sp_b), &
-!$OMP             SHARED(matrix_a, matrix_b, na, na8, nb, ntraces, nz, trace)
+!$OMP             SHARED(matrix_a, matrix_b, na, na8, nb, ntraces, nz, trace, use_accurate_sum)
       DO itrace = 1, ntraces
          ib8 = (itrace - 1)/na8
          ia = INT(itrace - ib8*na8)
@@ -954,11 +973,19 @@ CONTAINS
             IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
                ldata_a => matrix_a(iz, ia)%matrix%local_data(1:nrows_local, 1:ncols_local)
                ldata_b => matrix_b(iz, ib)%matrix%local_data(1:nrows_local, 1:ncols_local)
+               IF (use_accurate_sum) THEN
                t = t + accurate_dot_product(ldata_a, ldata_b)
+               ELSE
+                  t = t+SUM(ldata_a*ldata_b)
+               END IF
             ELSE IF (use_sp_a .AND. use_sp_b) THEN
                ldata_a_sp => matrix_a(iz, ia)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
                ldata_b_sp => matrix_b(iz, ib)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
+               IF (use_accurate_sum) THEN
                t = t + accurate_dot_product(ldata_a_sp, ldata_b_sp)
+            ELSE
+                  t = t+SUM(ldata_a_sp*ldata_b_sp)
+               END IF
             ELSE
                CPABORT("Matrices A and B are of different types")
             END IF

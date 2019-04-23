@@ -43,6 +43,7 @@ MODULE qs_tddfpt2_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -135,6 +136,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
                                                             tddfpt_print_section, tddfpt_section, &
@@ -262,6 +264,10 @@ CONTAINS
          CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
          CALL section_vals_release(xc_fun_empty)
 
+!deb     CALL get_qs_env(qs_env, energy=energy_init)
+         NULLIFY (energy)
+!deb     CALL allocate_qs_energy(energy)
+!deb     CALL set_qs_env(qs_env, qs_energy=energy)
          IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT("TDDFPT with SE not possible")
          ELSEIF (dft_control%qs_control%dftb) THEN
@@ -273,6 +279,8 @@ CONTAINS
          CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
                                            ext_ks_matrix=matrix_ks_oep)
          END IF
+!deb     CALL deallocate_qs_energy(energy)
+!deb     CALL set_qs_env(qs_env, energy=energy_init)
 
          IF (tddfpt_control%oe_corr == oe_saop .OR. &
              tddfpt_control%oe_corr == oe_lb .OR. &

@@ -278,7 +278,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (work_matrices%gamma_exchange, work_matrices%ctransformed)
+      ! sTDA
+      NULLIFY (work_matrices%shalf)
+      NULLIFY (work_matrices%ewald_env)
+      NULLIFY (work_matrices%ewald_pw)
+      NULLIFY (work_matrices%gamma_exchange)
+      NULLIFY (work_matrices%ctransformed)
 
       nspins = SIZE(gs_mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
