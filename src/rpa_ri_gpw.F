@@ -3828,6 +3828,10 @@ CONTAINS
             DEALLOCATE (wkp_W)
          END IF
 
+         IF (do_kpoints_from_Gamma) THEN
+            CALL kpoint_release(kpoints)
+         END IF
+
       END IF
 
       DEALLOCATE (tj)
