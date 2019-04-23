@@ -80,6 +80,7 @@ MODULE mp2_ri_gpw
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
+                                              kpoint_initialize,&
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
@@ -116,7 +117,8 @@ MODULE mp2_ri_gpw
                                               pw_p_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                               integrate_v_rspace
@@ -363,7 +365,6 @@ CONTAINS
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
-      TYPE(kpoint_type), POINTER                         :: kpoints_from_DFT
       TYPE(pw_p_type)                                    :: psi_L
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
@@ -371,9 +372,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cite_reference(DelBen2013)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      kpoints=kpoints_from_DFT)
 
       do_alpha_beta = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
@@ -401,11 +399,12 @@ CONTAINS
       do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CPASSERT(eri_method == do_eri_os)
-         IF (do_kpoints_cubic_RPA) THEN
-            kpoints => kpoints_from_DFT
-         ELSE
-            CALL compute_kpoints(qs_env, kpoints_from_DFT, kpoints, unit_nr)
-         END IF
+      END IF
+      IF (do_kpoints_cubic_RPA) THEN
+         CALL get_qs_env(qs_env=qs_env, &
+                         kpoints=kpoints)
+      ELSE IF (do_kpoints_from_Gamma) THEN
+         CALL compute_kpoints(qs_env, kpoints, unit_nr)
       END IF
 
       ! in case of imaginary time, we do not need the intermediate matrices
@@ -1923,20 +1922,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param kpoints_from_DFT ...
 !> \param kpoints ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE compute_kpoints(qs_env, kpoints_from_DFT, kpoints, unit_nr)
+   SUBROUTINE compute_kpoints(qs_env, kpoints, unit_nr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kpoint_type), POINTER                         :: kpoints_from_DFT, kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kpoints', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, i_dim, ikp, ix, iy, iz, nkp, &
+      INTEGER                                            :: handle, i, i_dim, ix, iy, iz, nkp, &
                                                             num_dim
       INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
       TYPE(cell_type), POINTER                           :: cell
@@ -1944,6 +1942,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
@@ -2005,30 +2004,11 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (kpoints%kp_sym(nkp))
-      DO ikp = 1, nkp
-         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym)
+      CALL kpoint_initialize(kpoints, particle_set, cell)
 
-         ! the following is instead of kpoint_sym_create because
-         ! it crashes with some cryptical pointer fault
-         CPASSERT(.NOT. ASSOCIATED(kpoints%kp_sym(ikp)%kpoint_sym))
-
-         ALLOCATE (kpoints%kp_sym(ikp)%kpoint_sym)
-
-         kpoints%kp_sym(ikp)%kpoint_sym%nwght = 0
-         kpoints%kp_sym(ikp)%kpoint_sym%apply_symmetry = .FALSE.
-
-         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym%rot)
-         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym%xkp)
-         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym%f0)
-      END DO
-
-!      CALL kpoint_init_cell_index(kpoints, sab_orb_sub, para_env, dft_control)
       CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
 
-      CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
-
-      kpoints_from_DFT => kpoints
+      CALL set_qs_env(qs_env, kpoints=kpoints)
 
       CALL timestop(handle)
 
