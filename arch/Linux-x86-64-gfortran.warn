@@ -46,12 +46,12 @@ WFLAGS     = -pedantic\
 #            -Wuse-without-only
 
 
-DFLAGS   = -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5 -D__ACC -D__DBCSR_ACC -D__PW_CUDA -D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3
+DFLAGS   = -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__ACC -D__DBCSR_ACC -D__PW_CUDA -D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3
 FCFLAGS  = -fopenmp -I$(CP2KINSTALLDIR)/include -std=f2008 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 -O3 -march=native $(PROFOPT) $(DFLAGS) $(WFLAGS)
 LDFLAGS  = -L$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 $(FCFLAGS)
 NVFLAGS  = $(DFLAGS) -g -O2 -arch sm_35 -arch sm_35 -Xcompiler='-fopenmp' --std=c++11
 CFLAGS   = $(DFLAGS) -I$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1
-LIBS     = -lxc -lderiv -lint -lpexsi_linux_v0.7.3 -lsuperlu_dist_3.3 -lparmetis -lmetis -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt
+LIBS     = -lxc -lint2 -lpexsi_linux_v0.7.3 -lsuperlu_dist_3.3 -lparmetis -lmetis -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt
 
 FCLOGPIPE =  2> $(notdir $<).warn
 
