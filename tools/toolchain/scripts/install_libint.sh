@@ -6,6 +6,9 @@ libint_ver="2.5.0"
 libint_sha256="e57bb4546a6702fdaa570ad6607712f31903ed4618f051150979a31a038ce960"
 boost_ver="1_70_0"
 boost_sha256="882b48708d211a5f48e60b0124cf5863c1534cd544ecd0664bb534a4b5d506e9"
+gmp_ver="6.1.2"
+gmp_sha256="5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -40,11 +43,29 @@ case "$with_libint" in
                 download_pkg ${DOWNLOADER_FLAGS} ${boost_sha256} \
                              https://dl.bintray.com/boostorg/release/1.70.0/source/boost_${boost_ver}.tar.gz
             fi
-            echo "Installing from scratch into ${pkg_install_dir}"
+
+            if [ -f gmp-${gmp_ver}.tar.bz2 ] ; then
+                echo "gmp-${gmp_ver}.tar.bz2 is found"
+            else
+                download_pkg ${DOWNLOADER_FLAGS} ${gmp_sha256} \
+                             https://ftp.gnu.org/gnu/gmp/gmp-${gmp_ver}.tar.bz2
+            fi
+
             [ -d libint-${libint_ver} ] && rm -rf libint-${libint_ver}
             tar -xzf v${libint_ver}.tar.gz
             [ -d boost_${boost_ver} ] && rm -rf boost_${boost_ver}
             tar -xzf boost_${boost_ver}.tar.gz
+            [ -d gmp-${gmp_ver} ] && rm -rf gmp-${gmp_ver}
+            tar -xjf gmp-${gmp_ver}.tar.bz2
+
+            echo "Building dependency gmp-${gmp_ver}"
+
+            cd gmp-${gmp_ver}
+            ./configure > configure.log 2>&1
+            make > make.log 2>&1
+            cd ..
+
+            echo "Installing from scratch into ${pkg_install_dir}"
             cd libint-${libint_ver}
             ./autogen.sh
             mkdir build; cd build
@@ -57,7 +78,9 @@ case "$with_libint" in
                          --with-boost-libdir="${BUILDDIR}/boost_${boost_ver}/boost" \
                          --with-cxx="$CXX $CXXFLAGS" \
                          --with-cxx-optflags="$CXXFLAGS" \
-                         --with-cxxgen-optflags="$CXXFLAGS"
+                         --with-cxxgen-optflags="$CXXFLAGS" \
+                         --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
+                         --with-libdirs="-L${INSTALLDIR}/gmp-${gmp_ver}/libs"
                          #> configure.log 2>&1
 
             make -j $NPROCS export > make.log 2>&1
