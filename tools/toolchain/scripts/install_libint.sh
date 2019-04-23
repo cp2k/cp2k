@@ -80,18 +80,18 @@ case "$with_libint" in
                          --with-cxxgen-optflags="$CXXFLAGS" \
                          --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
                          --with-libdirs="-L${BUILDDIR}/gmp-${gmp_ver}/.libs" \
-                         --with-boost="${BUILDDIR}/boost_${boost_ver}"
-                         #--with-libs="-lgmpxx -lgmp"
-                         #> configure.log 2>&1
+                         --with-boost="${BUILDDIR}/boost_${boost_ver}" \
+                         > configure.log 2>&1
 
-            make -j $NPROCS export > make.log 2>&1
+            make -j $NPROCS export #> make.log 2>&1
 
             tar -xzf libint-${libint_ver}.tgz
             cd libint-${libint_ver}
             ./configure --prefix=${pkg_install_dir} \
                         --with-cxx="$CXX $CXXFLAGS" \
                         --with-cxx-optflags="$CXXFLAGS" \
-                        --enable-fortran > configure.log 2>&1
+                        --enable-fortran \
+                        > configure.log 2>&1
 
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS fortran >> make.log 2>&1
