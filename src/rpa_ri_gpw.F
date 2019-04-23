@@ -972,8 +972,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: comm_exchange, comm_rpa, grid_2D(2), handle, handle2, i, i_global, iiB, iproc, &
-         iproc_col, iproc_row, j_global, jjB, mepos_in_RPA_group, ncol_block, ncol_local, &
-         nmao_occ, nrow_block, nrow_local, proc_receive, proc_receive_static, proc_send, &
+         iproc_col, iproc_row, j_global, jjB, mepos_in_RPA_group, ncol_local, &
+         nmao_occ, nrow_local, proc_receive, proc_receive_static, proc_send, &
          proc_send_static, proc_shift, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
          rec_L_size, rec_L_start, row_col_proc_ratio, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map

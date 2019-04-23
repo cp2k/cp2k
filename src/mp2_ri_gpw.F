@@ -287,14 +287,14 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_all
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_mc_t, ends_array_mc_t
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array_mc_t, ends_array_mc_t
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_im_time, do_mao
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
       LOGICAL, INTENT(IN)                                :: do_dbcsr_t
-      TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
+      TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: t_3c_O
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int, &
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
@@ -1014,7 +1014,7 @@ CONTAINS
          ENDDO
       ENDDO
 
-   END SUBROUTINE
+   END SUBROUTINE split_block_sizes
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1089,7 +1089,7 @@ CONTAINS
                           ao_blk_sizes, ao_blk_sizes)
       CALL dbcsr_t_distribution_destroy(dist)
 
-   END SUBROUTINE
+   END SUBROUTINE create_tensor_M_3c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1132,7 +1132,7 @@ CONTAINS
                           ao_blk_sizes_1, ao_blk_sizes_2)
       CALL dbcsr_t_distribution_destroy(dist)
 
-   END SUBROUTINE
+   END SUBROUTINE create_tensor_O_3c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1179,7 +1179,7 @@ CONTAINS
          IF (PRESENT(limits_end)) limits_end(ibin) = el_end
       ENDDO
 
-   END SUBROUTINE
+   END SUBROUTINE contiguous_dist
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1210,7 +1210,7 @@ CONTAINS
          occup(ibin+1) = occup(ibin+1)+weights(iel)
       ENDDO
 
-   END SUBROUTINE
+   END SUBROUTINE cyclic_dist
 
 ! **************************************************************************************************
 !> \brief Contract (P|ai) = (R|P) x (R|ai)
@@ -1382,7 +1382,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE contract_B_L
 
 ! **************************************************************************************************
 !> \brief Encapsulate building of intermediate matrices matrix_ia_jnu(_beta
@@ -1593,7 +1593,7 @@ CONTAINS
                                                             my_group_L_end
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
-      REAL(KIND=dp), INTENT(IN)                          :: cond_num
+      REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       INTEGER, INTENT(OUT)                               :: num_small_eigen
       INTEGER, INTENT(IN)                                :: ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
@@ -1835,7 +1835,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_V_by_lattice_sum
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2070,7 +2070,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE Obara_Saika_overlap_mat
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2129,7 +2129,7 @@ CONTAINS
                                                             my_group_L_end
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
-      REAL(KIND=dp)                                      :: cond_num
+      REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       INTEGER, INTENT(OUT)                               :: num_small_eigen
       LOGICAL, INTENT(IN), OPTIONAL                      :: external_matrix_struc, do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
@@ -2804,7 +2804,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fill_fm_L_from_L_loc_non_blocking
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3137,7 +3137,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE grep_Lcols
 
 ! **************************************************************************************************
 !> \brief ...
@@ -4879,7 +4879,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: local_i_aL, local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss, alpha_alpha, beta_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Y_i_aP, Y_j_aP
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(INOUT) :: Y_i_aP, Y_j_aP
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, my_B_size_beta
       TYPE(group_dist_d1_type), INTENT(IN), OPTIONAL     :: gd_B_virtual_beta
@@ -6413,7 +6413,7 @@ CONTAINS
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_overl_int
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
-      TYPE(dbcsr_p_type)                                 :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: local_atoms_RI
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -6769,7 +6769,7 @@ CONTAINS
       CALL dbcsr_t_destroy(t_3c_tmp)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE compute_3c_overlap_int_t
 ! **************************************************************************************************
 !> \brief compute three center overlap integrals and write them to mat_3_overl_int
 !> \param mat_3c_overl_int ...
@@ -7484,7 +7484,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_3c_overlap_int
 
 ! **************************************************************************************************
 !> \brief ...
@@ -7507,9 +7507,9 @@ CONTAINS
          INTENT(OUT)                                     :: t_3c_overl_int
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c_overl
       INTEGER, INTENT(IN)                                :: ngroup
-      TYPE(dbcsr_p_type)                                 :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: unit_nr
+      INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: local_atoms_RI
       INTEGER, DIMENSION(:), INTENT(IN)                  :: row_blk_sizes_RI_t, row_dist_RI_t
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -7863,7 +7863,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE reserve_blocks_3c_t
 ! **************************************************************************************************
 !> \brief compute three center overlap integrals and write them to mat_3_overl_int
 !> \param mat_3c_overl_int ...
@@ -8459,7 +8459,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE reserve_blocks_3c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -8664,7 +8664,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE replicate_mao_coeff
 
 !***************************************************************************************************
 ! **************************************************************************************************
@@ -8700,7 +8700,7 @@ CONTAINS
 
       DEALLOCATE (local_atoms_for_mao_basis)
 
-   END SUBROUTINE
+   END SUBROUTINE clean_up
 
 ! **************************************************************************************************
 !> \brief ...
@@ -8721,13 +8721,14 @@ CONTAINS
                                     local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, &
                                     dimen_RI, ngroup, cut_memory, cut_RI, color_sub, qs_env)
 
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_group_L_starts_im_time, &
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: my_group_L_starts_im_time, &
                                                             my_group_L_ends_im_time, &
                                                             my_group_L_sizes_im_time, &
                                                             local_atoms_RI
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: row_blk_sizes_RI_t, row_dist_RI_t
-      INTEGER                                            :: dimen_RI, ngroup, cut_memory, cut_RI, &
+      INTEGER, INTENT(IN)                                :: dimen_RI, ngroup, cut_memory, &
                                                             color_sub
+      INTEGER, INTENT(OUT)                               :: cut_RI
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_group_L_im_time', &
@@ -8884,6 +8885,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE setup_group_L_im_time
 
 END MODULE mp2_ri_gpw

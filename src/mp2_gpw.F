@@ -2483,7 +2483,7 @@ CONTAINS
    SUBROUTINE create_matrix_P(mat_P_global, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, &
                               qs_kind_set, atom2d, molecule_kind_set, molecule_set, particle_set, cell)
 
-      TYPE(dbcsr_p_type)                                 :: mat_P_global
+      TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_P_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -3493,7 +3493,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE clean_up_im_time_t(mat_P_global, mat_dm_occ_global_mao, mat_dm_virt_global_mao, &
                                  para_env_sub_im_time_3c)
-      TYPE(dbcsr_p_type)                                 :: mat_P_global, mat_dm_occ_global_mao, &
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global, mat_dm_occ_global_mao, &
                                                             mat_dm_virt_global_mao
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_im_time_3c
 
@@ -3508,7 +3508,7 @@ CONTAINS
 
       CALL cp_para_env_release(para_env_sub_im_time_3c)
 
-   END SUBROUTINE
+   END SUBROUTINE clean_up_im_time_t
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3544,7 +3544,7 @@ CONTAINS
                                                             para_env_sub_im_time_P
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff_occ, mao_coeff_virt, &
                                                             mao_coeff_occ_A, mao_coeff_virt_A
-      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(mp2_type), POINTER                            :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_up_im_time', &
          routineP = moduleN//':'//routineN
@@ -3779,7 +3779,7 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE generate_integer_product
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3826,7 +3826,7 @@ CONTAINS
          size_indx = 0
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE get_start_end_size_indx
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3856,7 +3856,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE get_blk_from_indx
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3876,6 +3876,6 @@ CONTAINS
       eps_rho_rspace_old = dft_control%qs_control%eps_rho_rspace
       eps_gvg_rspace_old = dft_control%qs_control%eps_gvg_rspace
 
-   END SUBROUTINE
+   END SUBROUTINE get_eps_old
 
 END MODULE mp2_gpw
