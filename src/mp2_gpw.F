@@ -227,7 +227,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, mo_coeff_gw_beta, &
          mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -269,8 +269,8 @@ CONTAINS
 
       ! ... setup needed to be able to qs_integrate in a subgroup.
       IF (do_kpoints_cubic_RPA) THEN
-         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, kpoints=kpoints)
-         mos(1:nspins) => kpoints%kp_env(1)%kpoint_env%mos(1:nspins, 1)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, kpoints=kpoints_from_DFT)
+         mos(1:nspins) => kpoints_from_DFT%kp_env(1)%kpoint_env%mos(1:nspins, 1)
       ELSE
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
       END IF
@@ -517,10 +517,9 @@ CONTAINS
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
                do_bse, starts_B_all, sizes_B_all, ends_B_all, starts_array_mc_t, ends_array_mc_t, &
-               gw_corr_lev_occ, gw_corr_lev_virt, &
-               do_im_time, do_mao, do_kpoints_cubic_RPA, &
-               mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
-               mat_3c_overl_int_mao_for_virt, &
+               gw_corr_lev_occ, gw_corr_lev_virt, do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
+               mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, &
+               mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
                mao_coeff_occ, mao_coeff_virt, ri_metric, &
                starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, &
                starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
@@ -542,7 +541,7 @@ CONTAINS
                                        blacs_env_sub, my_do_gw, do_bse, starts_B_all, sizes_B_all, &
                                        ends_B_all, starts_array_mc_t, ends_array_mc_t, &
                                        gw_corr_lev_occ, gw_corr_lev_virt, &
-                                       do_im_time, do_mao, do_kpoints_cubic_RPA, &
+                                       do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
                                        mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
                                        mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
                                        ri_metric, &
@@ -730,7 +729,7 @@ CONTAINS
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                    starts_array, starts_B_virtual, starts_B_all, starts_B_occ_bse, sizes_B_occ_bse, &
                                    ends_B_occ_bse, starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
-                                   mo_coeff, fm_matrix_L_RI_metric, &
+                                   mo_coeff, fm_matrix_L_RI_metric, kpoints, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
@@ -748,7 +747,7 @@ CONTAINS
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                    starts_array, starts_B_virtual, starts_B_all, starts_B_occ_bse, sizes_B_occ_bse, &
                                    ends_B_occ_bse, starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
-                                   mo_coeff, fm_matrix_L_RI_metric, &
+                                   mo_coeff, fm_matrix_L_RI_metric, kpoints, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
@@ -2259,7 +2258,7 @@ CONTAINS
       INTEGER                                            :: blacs_grid_layout, color_sub_1, &
                                                             comm_sub_1, handle, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      LOGICAL                                            :: blacs_repeatable, do_kpoints_cubic_RPA, &
+      LOGICAL                                            :: blacs_repeatable, do_kpoints, &
                                                             my_do_im_time, my_do_mixed_basis, &
                                                             my_do_ri_aux_basis
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
@@ -2293,8 +2292,11 @@ CONTAINS
          my_do_im_time = do_im_time
       END IF
 
-      do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      IF (do_kpoints_cubic_RPA) THEN
+!      do_kpoints = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints .OR. &
+!                             SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
+      do_kpoints = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
+
+      IF (do_kpoints) THEN
          ! please choose EPS_PGF_ORB in QS section smaller than EPS_GRID in WFC_GPW section
          CPASSERT(mp2_env%mp2_gpw%eps_grid .GE. dft_control%qs_control%eps_pgf_orb)
       END IF
@@ -2354,7 +2356,7 @@ CONTAINS
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
       ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
-      IF (do_kpoints_cubic_RPA) THEN
+      IF (do_kpoints) THEN
          CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
                                    mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
                                    symmetric=.FALSE.)
@@ -2497,7 +2499,7 @@ CONTAINS
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
          ! for kpoints in cubic RPA/GW we need all neighbor cells
-         IF (do_kpoints_cubic_RPA) THEN
+         IF (do_kpoints) THEN
             CALL build_neighbor_lists(sab_orb_all, particle_set, atom2d, cell, pair_radius, &
                                       mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
                                       symmetric=.FALSE.)

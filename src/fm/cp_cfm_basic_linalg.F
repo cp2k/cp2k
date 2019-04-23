@@ -45,7 +45,8 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_trace, &
              cp_cfm_transpose, &
              cp_cfm_triangular_invert, &
-             cp_cfm_triangular_multiply
+             cp_cfm_triangular_multiply, &
+             cp_cfm_cholesky_invert
 
    REAL(kind=dp), EXTERNAL :: zlange, pzlange
 

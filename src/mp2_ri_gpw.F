@@ -21,6 +21,7 @@ MODULE mp2_ri_gpw
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
+   USE constants_operator,              ONLY: operator_coulomb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -81,6 +82,7 @@ MODULE mp2_ri_gpw
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_create,&
                                               kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
@@ -212,6 +214,7 @@ CONTAINS
 !> \param do_im_time ...
 !> \param do_mao ...
 !> \param do_kpoints_cubic_RPA ...
+!> \param kpoints ...
 !> \param mat_3c_overl_int ...
 !> \param do_dbcsr_t ...
 !> \param t_3c_M ...
@@ -251,7 +254,7 @@ CONTAINS
                                     mp2_memory, calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, do_bse, &
                                     starts_B_all, sizes_B_all, ends_B_all, starts_array_mc_t, ends_array_mc_t, &
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
-                                    do_im_time, do_mao, do_kpoints_cubic_RPA, &
+                                    do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
                                     mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
                                     mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
                                     ri_metric, ends_B_occ_bse, sizes_B_occ_bse, &
@@ -299,6 +302,7 @@ CONTAINS
                                                             starts_array_mc_t, ends_array_mc_t
       INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL                                            :: do_im_time, do_mao, do_kpoints_cubic_RPA
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       LOGICAL, INTENT(IN)                                :: do_dbcsr_t
       TYPE(dbcsr_t_type)                                 :: t_3c_M
@@ -341,7 +345,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims_2_2d, pdims_sub_2d
       INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
       INTEGER, DIMENSION(:), POINTER                     :: ao_blk_sizes
-      LOGICAL                                            :: do_alpha_beta, memory_info
+      LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
+                                                            memory_info
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, pair_energy, &
                                                             wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
@@ -358,7 +363,7 @@ CONTAINS
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints_from_DFT
       TYPE(pw_p_type)                                    :: psi_L
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
@@ -368,7 +373,7 @@ CONTAINS
       CALL cite_reference(DelBen2013)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      kpoints=kpoints)
+                      kpoints=kpoints_from_DFT)
 
       do_alpha_beta = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
@@ -393,9 +398,14 @@ CONTAINS
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
 
-      do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      IF (do_kpoints_cubic_RPA) THEN
+      do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
+      IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CPASSERT(eri_method == do_eri_os)
+         IF (do_kpoints_cubic_RPA) THEN
+            kpoints => kpoints_from_DFT
+         ELSE
+            CALL compute_kpoints(qs_env, kpoints_from_DFT, kpoints, unit_nr)
+         END IF
       END IF
 
       ! in case of imaginary time, we do not need the intermediate matrices
@@ -518,18 +528,15 @@ CONTAINS
       ! for minimax Ewald summation, full periodicity is required
       IF (eri_method == do_eri_mme) THEN
          CPASSERT(periodic(1) == 1 .AND. periodic(2) == 1 .AND. periodic(3) == 1)
-         ! for Obara-Saika for two-center Coulomb matrix, only gas phase calculations are supported
-      ELSE IF (eri_method == do_eri_os .AND. (.NOT. do_kpoints_cubic_RPA)) THEN
-         CPASSERT(periodic(1) == 0 .AND. periodic(2) == 0 .AND. periodic(3) == 0)
       END IF
 
       CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                           fm_matrix_L, ngroup, color_sub, dimen_RI, &
+                           fm_matrix_L, ngroup, color_sub, dimen_RI, kpoints, &
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, &
                            sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                           num_small_eigen, ri_metric, &
-                           fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
+                           num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
+                           do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set)
 
       IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
@@ -796,6 +803,7 @@ CONTAINS
             END DO
          END IF
       ENDIF
+
       CALL timestop(handle2)
 
       IF (do_im_time) THEN
@@ -1618,6 +1626,7 @@ CONTAINS
 !> \param ngroup ...
 !> \param color_sub ...
 !> \param dimen_RI ...
+!> \param kpoints ...
 !> \param mo_coeff ...
 !> \param dft_control ...
 !> \param psi_L ...
@@ -1638,19 +1647,18 @@ CONTAINS
 !> \param ri_metric ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param do_im_time ...
-!> \param do_kpoints_cubic_RPA ...
+!> \param do_kpoints ...
 !> \param mp2_eps_pgf_orb_S ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 ! **************************************************************************************************
    SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                              fm_matrix_L, ngroup, color_sub, dimen_RI, &
+                              fm_matrix_L, ngroup, color_sub, dimen_RI, kpoints, &
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, &
                               sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                              num_small_eigen, &
-                              ri_metric, fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, mp2_eps_pgf_orb_S, &
-                              atomic_kind_set, qs_kind_set)
+                              num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
+                              do_kpoints, mp2_eps_pgf_orb_S, atomic_kind_set, qs_kind_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
@@ -1659,6 +1667,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER                                            :: ngroup, color_sub, dimen_RI
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type)                                    :: psi_L, rho_r, rho_g, pot_g
@@ -1671,7 +1680,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen, ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
-      LOGICAL                                            :: do_im_time, do_kpoints_cubic_RPA
+      LOGICAL                                            :: do_im_time, do_kpoints
       REAL(KIND=dp)                                      :: mp2_eps_pgf_orb_S
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1713,7 +1722,7 @@ CONTAINS
             CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
 
             ! Gamma-point overlap matrix or kpoint dependent overlap matrix
-            CALL Obara_Saika_overlap_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI)
+            CALL Obara_Saika_overlap_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, do_kpoints, kpoints)
 
             ! re-init the radii to previous values
             dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
@@ -1739,11 +1748,12 @@ CONTAINS
 
          END IF
 
-         IF (do_kpoints_cubic_RPA) THEN
+         IF (do_kpoints) THEN
 
-            CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric)
+            CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
 
-            CALL inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, dimen_RI, qs_env)
+            CALL inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
+                                                            dimen_RI, kpoints)
 
          ELSE
 
@@ -1786,7 +1796,7 @@ CONTAINS
 
       END IF
 
-      IF (do_kpoints_cubic_RPA) THEN
+      IF (do_kpoints) THEN
 
          DO i_size = 1, SIZE(fm_matrix_L_kpoints, 1)
          DO i_real_imag = 1, SIZE(fm_matrix_L_kpoints, 2)
@@ -1807,33 +1817,35 @@ CONTAINS
 !> \param qs_env ...
 !> \param fm_matrix_L_kpoints ...
 !> \param fm_matrix_L_RI_metric ...
+!> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric)
+   SUBROUTINE compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_kpoints, &
                                                             fm_matrix_L_RI_metric
+      TYPE(kpoint_type), POINTER                         :: kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_by_lattice_sum', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i_dim, i_real_imag, ikp, nkp
       INTEGER, DIMENSION(3)                              :: periodic
+      REAL(dp)                                           :: cutoff
+      REAL(KIND=dp), DIMENSION(3)                        :: abc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl, matrix_v_RI_kp
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (matrix_s_RI_aux_transl, particle_set, cell, kpoints, qs_kind_set)
+      NULLIFY (matrix_s_RI_aux_transl, particle_set, cell, qs_kind_set)
 
       CALL get_qs_env(qs_env=qs_env, &
                       matrix_s_RI_aux_kp=matrix_s_RI_aux_transl, &
                       particle_set=particle_set, &
                       cell=cell, &
-                      kpoints=kpoints, &
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
 
@@ -1842,14 +1854,10 @@ CONTAINS
       DO i_dim = 1, 3
          IF (periodic(i_dim) == 1) THEN
             CPASSERT(MODULO(kpoints%nkp_grid(i_dim), 2) == 0)
-            CPASSERT(kpoints%nkp_grid(i_dim) > 3)
          END IF
       END DO
 
       nkp = kpoints%nkp
-
-      NULLIFY (matrix_v_RI_kp)
-      CALL dbcsr_allocate_matrix_set(matrix_v_RI_kp, nkp, 2)
 
       NULLIFY (fm_matrix_L_kpoints)
       ALLOCATE (fm_matrix_L_kpoints(nkp, 2))
@@ -1860,6 +1868,9 @@ CONTAINS
             CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, 0.0_dp)
          END DO
       END DO
+
+      NULLIFY (matrix_v_RI_kp)
+      CALL dbcsr_allocate_matrix_set(matrix_v_RI_kp, nkp, 2)
 
       DO ikp = 1, nkp
 
@@ -1877,10 +1888,24 @@ CONTAINS
 
       END DO
 
+      CALL get_cell(cell=cell, abc=abc, periodic=periodic)
+      IF (periodic(1) == 0) THEN
+         abc(1) = 1.0E10_dp
+      END IF
+      IF (periodic(2) == 0) THEN
+         abc(2) = 1.0E10_dp
+      END IF
+      IF (periodic(3) == 0) THEN
+         abc(3) = 1.0E10_dp
+      END IF
+!      cutoff = qs_env%mp2_env%ri_rpa_im_time%cutoff*MIN(abc(1), abc(2), abc(3))
+      cutoff = 1.0_dp/(qs_env%mp2_env%ri_rpa_im_time%cutoff*MIN(abc(1), abc(2), abc(3)))
+
       CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
                                       cell=cell, particle_set=particle_set, qs_kind_set=qs_kind_set, &
                                       atomic_kind_set=atomic_kind_set, &
-                                      size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum)
+                                      size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum, &
+                                      operator_type=operator_coulomb, cutoff=cutoff)
 
       DO ikp = 1, nkp
 
@@ -1898,16 +1923,135 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param kpoints_from_DFT ...
+!> \param kpoints ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE compute_kpoints(qs_env, kpoints_from_DFT, kpoints, unit_nr)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints_from_DFT, kpoints
+      INTEGER                                            :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kpoints', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, i_dim, ikp, ix, iy, iz, nkp, &
+                                                            num_dim
+      INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell, dft_control, para_env)
+      CALL get_qs_env(qs_env=qs_env, cell=cell, para_env=para_env, dft_control=dft_control, sab_orb=sab_orb)
+      CALL get_cell(cell=cell, periodic=periodic)
+
+      NULLIFY (kpoints)
+      CALL kpoint_create(kpoints)
+
+      ! general because we augment a Monkhorst-Pack mesh by additional points in the BZ
+      kpoints%kp_scheme = "GENERAL"
+      kpoints%symmetry = .FALSE.
+      kpoints%verbose = .FALSE.
+      kpoints%full_grid = .FALSE.
+      kpoints%use_real_wfn = .FALSE.
+      kpoints%eps_geo = 1.e-6_dp
+      kpoints%full_grid = .TRUE.
+      nkp_grid(1:3) = qs_env%mp2_env%ri_rpa_im_time%kp_grid(1:3)
+      kpoints%nkp_grid(1:3) = nkp_grid(1:3)
+
+      num_dim = periodic(1)+periodic(2)+periodic(3)
+
+      DO i_dim = 1, 3
+         IF (periodic(i_dim) == 1) THEN
+            CPASSERT(MODULO(kpoints%nkp_grid(i_dim), 2) == 0)
+         END IF
+      END DO
+
+      IF (num_dim == 3) THEN
+         nkp = nkp_grid(1)*nkp_grid(2)*nkp_grid(3)/2
+      ELSE IF (num_dim == 2) THEN
+         nkp = MAX(nkp_grid(1)*nkp_grid(2)/2, nkp_grid(1)*nkp_grid(3)/2, nkp_grid(2)*nkp_grid(3)/2)
+      ELSE IF (num_dim == 1) THEN
+         nkp = MAX(nkp_grid(1)/2, nkp_grid(2)/2, nkp_grid(3)/2)
+      END IF
+
+      kpoints%nkp = nkp
+
+      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+         "KPOINT_INFO| Number of kpoints for V and W:", nkp
+
+      ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
+      kpoints%wkp(:) = 1.0_dp/REAL(nkp, KIND=dp)
+
+      i = 0
+      DO ix = 1, nkp_grid(1)
+         DO iy = 1, nkp_grid(2)
+            DO iz = 1, nkp_grid(3)
+
+               i = i+1
+               IF (i > nkp) CYCLE
+
+               kpoints%xkp(1, i) = REAL(2*ix-nkp_grid(1)-1, KIND=dp)/(2._dp*REAL(nkp_grid(1), KIND=dp))
+               kpoints%xkp(2, i) = REAL(2*iy-nkp_grid(2)-1, KIND=dp)/(2._dp*REAL(nkp_grid(2), KIND=dp))
+               kpoints%xkp(3, i) = REAL(2*iz-nkp_grid(3)-1, KIND=dp)/(2._dp*REAL(nkp_grid(3), KIND=dp))
+
+            END DO
+         END DO
+      END DO
+
+      ALLOCATE (kpoints%kp_sym(nkp))
+      DO ikp = 1, nkp
+         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym)
+
+         ! the following is instead of kpoint_sym_create because
+         ! it crashes with some cryptical pointer fault
+         CPASSERT(.NOT. ASSOCIATED(kpoints%kp_sym(ikp)%kpoint_sym))
+
+         ALLOCATE (kpoints%kp_sym(ikp)%kpoint_sym)
+
+         kpoints%kp_sym(ikp)%kpoint_sym%nwght = 0
+         kpoints%kp_sym(ikp)%kpoint_sym%apply_symmetry = .FALSE.
+
+         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym%rot)
+         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym%xkp)
+         NULLIFY (kpoints%kp_sym(ikp)%kpoint_sym%f0)
+      END DO
+
+!      CALL kpoint_init_cell_index(kpoints, sab_orb_sub, para_env, dft_control)
+      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
+
+      CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
+
+      kpoints_from_DFT => kpoints
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_L ...
 !> \param dimen_RI ...
+!> \param do_kpoints ...
+!> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE Obara_Saika_overlap_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI)
+   SUBROUTINE Obara_Saika_overlap_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, &
+                                      do_kpoints, kpoints)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER                                            :: dimen_RI
+      LOGICAL                                            :: do_kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Obara_Saika_overlap_mat', &
          routineP = moduleN//':'//routineN
@@ -1915,7 +2059,6 @@ CONTAINS
       INTEGER                                            :: handle, i_real_imag, i_size, ikp, &
                                                             n_real_imag, nkp
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_kpoints_cubic_RPA
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -1924,7 +2067,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl
       TYPE(dbcsr_type), POINTER                          :: cmatrix, matrix_s_RI_aux_desymm, &
                                                             rmatrix, tmpmat
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -1936,10 +2078,7 @@ CONTAINS
                       sab_orb=sab_orb, &
                       para_env=para_env, &
                       blacs_env=blacs_env, &
-                      matrix_s_RI_aux_kp=matrix_s_RI_aux_transl, &
-                      kpoints=kpoints)
-
-      do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
+                      matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
 
       CALL build_overlap_matrix(qs_env%ks_env, &
                                 matrixkp_s=matrix_s_RI_aux_transl, &
@@ -1949,7 +2088,7 @@ CONTAINS
 
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
 
-      IF (do_kpoints_cubic_RPA) THEN
+      IF (do_kpoints) THEN
          CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
                               cell_to_index=cell_to_index)
          n_real_imag = 2
@@ -1975,7 +2114,7 @@ CONTAINS
       CALL cp_fm_create(fm_matrix_S_global, fm_struct)
       CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
 
-      IF (do_kpoints_cubic_RPA) THEN
+      IF (do_kpoints) THEN
 
          ALLOCATE (rmatrix, cmatrix, tmpmat)
          CALL dbcsr_create(rmatrix, template=matrix_s_RI_aux_transl(1, 1)%matrix, &
@@ -2859,14 +2998,15 @@ CONTAINS
 !> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_L_kpoints ...
 !> \param dimen_RI ...
-!> \param qs_env ...
+!> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, dimen_RI, qs_env)
+   SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
+                                                         dimen_RI, kpoints)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_L_kpoints
       INTEGER                                            :: dimen_RI
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_S_and_mult_with_chol_dec_of_V', &
          routineP = moduleN//':'//routineN
@@ -2880,7 +3020,6 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: cfm_matrix_K_tmp, cfm_matrix_L_tmp, &
                                                             cfm_matrix_S_inv_tmp, cfm_matrix_S_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(kpoint_type), POINTER                         :: kpoints
 
       CALL timeset(routineN, handle)
 
@@ -2892,8 +3031,6 @@ CONTAINS
       CALL cp_cfm_create(cfm_matrix_S_inv_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_L_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_K_tmp, matrix_struct)
-
-      CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
 
       CALL get_kpoint_info(kpoints, nkp=nkp)
 
@@ -8023,8 +8160,6 @@ CONTAINS
       IF (do_kpoints_cubic_RPA) THEN
          ! set up new kpoint type with periodic images according to eps_grid from MP2 section
          ! instead of eps_pgf_orb from QS section
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
-
          CALL kpoint_init_cell_index(kpoints, sab_orb_sub, para_env, dft_control)
 
          nimg = dft_control%nimages
