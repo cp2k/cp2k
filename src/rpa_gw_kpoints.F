@@ -398,6 +398,8 @@ CONTAINS
       CALL cp_fm_release(fm_mat_work_global)
       CALL cp_fm_release(fm_mat_work_local)
       DEALLOCATE (atom_from_RI_index)
+      DEALLOCATE (row_blk_start)
+      DEALLOCATE (row_blk_end)
 
       CALL timestop(handle2)
 
