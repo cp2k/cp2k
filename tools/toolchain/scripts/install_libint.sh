@@ -57,8 +57,8 @@ case "$with_libint" in
                          --with-boost-libdir="${BUILDDIR}/boost_${boost_ver}/boost" \
                          --with-cxx="$CXX $CXXFLAGS" \
                          --with-cxx-optflags="$CXXFLAGS" \
-                         --with-cxxgen-optflags="$CXXFLAGS" \
-                         > configure.log 2>&1
+                         --with-cxxgen-optflags="$CXXFLAGS"
+                         #> configure.log 2>&1
 
             make -j $NPROCS export > make.log 2>&1
 
