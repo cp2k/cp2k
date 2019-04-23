@@ -80,8 +80,8 @@ case "$with_libint" in
                          --with-cxx-optflags="$CXXFLAGS" \
                          --with-cxxgen-optflags="$CXXFLAGS" \
                          --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
-                         --with-libdirs="-L${INSTALLDIR}/gmp-${gmp_ver}/.libs" \
-                         --with-libs="-lgmpxx -lgmp"
+                         --with-libdirs="-L${INSTALLDIR}/gmp-${gmp_ver}/.libs"
+                         #--with-libs="-lgmpxx -lgmp"
                          #> configure.log 2>&1
 
             make -j $NPROCS export > make.log 2>&1
