@@ -216,23 +216,23 @@ CONTAINS
                                 mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp)                                      :: Erpa
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      REAL(KIND=dp), INTENT(OUT)                         :: Erpa
+      TYPE(mp2_type), INTENT(INOUT), POINTER             :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
                                                             BIb_C_bse_ab
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      INTEGER                                            :: color_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, ends_B_all, sizes_array, &
-         sizes_B_virtual, sizes_B_all, starts_array, starts_B_virtual, starts_B_all, &
+      INTEGER, INTENT(INOUT)                             :: color_sub
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: ends_array, ends_B_virtual, ends_B_all, &
+         sizes_array, sizes_B_virtual, sizes_B_all, starts_array, starts_B_virtual, starts_B_all, &
          starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, starts_B_virt_bse, sizes_B_virt_bse, &
          ends_B_virt_bse
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       INTEGER                                            :: nmo, homo, dimen_RI, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, unit_nr
-      LOGICAL                                            :: do_ri_sos_laplace_mp2, my_do_gw, &
+      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_mao, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mao_coeff_occ, mao_coeff_virt, &
                                                             mao_coeff_occ_A, mao_coeff_virt_A
@@ -246,18 +246,20 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc_t, ends_array_mc_t
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
-      REAL(KIND=dp)                                      :: eps_filter
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         OPTIONAL                                        :: BIb_C_beta
-      INTEGER, OPTIONAL                                  :: homo_beta
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: ends_B_virtual_beta, &
+         INTENT(IN), OPTIONAL                            :: BIb_C_beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(INout), &
+         OPTIONAL                                        :: Eigenval_beta
+      INTEGER, ALLOCATABLE, DIMENSION(:), &
+         INTENT(INout), OPTIONAL                         :: ends_B_virtual_beta, &
                                                             sizes_B_virtual_beta, &
                                                             starts_B_virtual_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         OPTIONAL                                        :: BIb_C_gw_beta
-      INTEGER, OPTIONAL                                  :: gw_corr_lev_occ_beta, &
+         INTENT(INout), OPTIONAL                         :: BIb_C_gw_beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_ri_compute_en', &
@@ -2041,8 +2043,8 @@ CONTAINS
          my_num_dgemm_call, n_group_col, n_group_row, n_local_col, n_local_row, nblkrows_total, &
          ncol_local, ngroup_RI_orig, nkp, nkp_self_energy, nmo, nrow_local, num_3c_repl
       INTEGER :: num_cells_dm, num_fit_points, num_points_corr, num_points_per_magnitude, &
-         num_residues, num_Z_vectors, number_of_rec, number_of_rec_axk, number_of_rec_beta, &
-         number_of_send, number_of_send_axk, number_of_send_beta, row, row_start_local, size_P
+         num_Z_vectors, number_of_rec, number_of_rec_axk, number_of_rec_beta, number_of_send, &
+         number_of_send_axk, number_of_send_beta, row, row_start_local, size_P
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ikp_local, map_rec_size, map_rec_size_axk, &
          map_rec_size_beta, map_send_size, map_send_size_axk, map_send_size_beta, &
          mepos_P_from_RI_row, my_group_L_sizes_im_time, my_group_L_starts_im_time, row_from_LLL, &
@@ -3191,8 +3193,6 @@ CONTAINS
 
          END IF ! do im time
 
-         num_residues = 0
-
          DO jquad = 1, num_integ_points
 
             IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
@@ -3282,15 +3282,14 @@ CONTAINS
             IF (do_ri_sos_laplace_mp2) THEN
                ! calculate the trace of the product Q*Q
                trace_XX = 0.0_dp
-               DO jjB = 1, ncol_local
-                  DO iiB = 1, nrow_local
-                     IF (my_open_shell) THEN
-                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
-                     ELSE
-                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q%local_data(iiB, jjB)
-                     END IF
+               IF (my_open_shell) THEN
+                  DO jjB = 1, ncol_local
+                     trace_XX = trace_XX+DOT_PRODUCT(fm_mat_Q%local_data(:, jjB), fm_mat_Q_beta%local_data(:, jjB))
                   END DO
-               END DO
+               ELSE
+                  trace_XX = NORM2(fm_mat_Q%local_data)
+                  trace_XX = trace_XX*trace_XX
+               END IF
 
                Erpa = Erpa-trace_XX*tau_wj(jquad)
 
@@ -4804,11 +4803,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_coeff_homo', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i_global, i_occ_level, iiB, &
-                                                            j_global, jjB, ncol_local, nrow_local
+      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_homo
-      REAL(KIND=dp)                                      :: norm_coeff_homo, scalar_prod
+      REAL(KIND=dp)                                      :: norm_coeff_homo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeff_homo_update, &
                                                             coeff_homo_update_orthog
 
@@ -4856,26 +4855,9 @@ CONTAINS
 
       CALL mp_sum(coeff_homo_update, para_env%group)
 
-      scalar_prod = 0.0_dp
-      DO i_occ_level = 1, homo
+      norm_coeff_homo = NORM2(coeff_homo_update)
 
-         scalar_prod = scalar_prod+coeff_homo(i_occ_level)*coeff_homo_update(i_occ_level)
-
-      END DO
-
-      norm_coeff_homo = 0.0_dp
-      DO i_occ_level = 1, homo
-
-!         coeff_homo(i_occ_level) = 0.8_dp*coeff_homo(i_occ_level) + &
-!                                   0.2_dp*(coeff_homo_update(i_occ_level) - scalar_prod*coeff_homo(i_occ_level))
-
-         coeff_homo(i_occ_level) = coeff_homo_update(i_occ_level)
-
-         norm_coeff_homo = norm_coeff_homo+(coeff_homo(i_occ_level))**2
-
-      END DO
-
-      coeff_homo = coeff_homo/SQRT(norm_coeff_homo)
+      coeff_homo(:) = coeff_homo_update(:)/norm_coeff_homo
 
       CALL timestop(handle)
 
@@ -6289,12 +6271,13 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_x_nodes ...
 ! **************************************************************************************************
-   SUBROUTINE calc_max_error_fit_tau_grid_with_sine(max_error, omega, tau_tj, tau_wj_work, x_values, &
-                                                    y_values, num_integ_points, num_x_nodes)
+   PURE SUBROUTINE calc_max_error_fit_tau_grid_with_sine(max_error, omega, tau_tj, tau_wj_work, x_values, &
+                                                         y_values, num_integ_points, num_x_nodes)
 
-      REAL(KIND=dp)                                      :: max_error, omega
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj, tau_wj_work, x_values, y_values
-      INTEGER                                            :: num_integ_points, num_x_nodes
+      REAL(KIND=dp), INTENT(INOUT)                       :: max_error, omega
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj, tau_wj_work, x_values, y_values
+      INTEGER, INTENT(IN)                                :: num_integ_points, num_x_nodes
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_max_error_fit_tau_grid_with_sine', &
          routineP = moduleN//':'//routineN
