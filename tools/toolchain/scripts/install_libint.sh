@@ -83,7 +83,7 @@ case "$with_libint" in
                          --with-boost="${BUILDDIR}/boost_${boost_ver}" \
                          > configure.log 2>&1
 
-            make -j $NPROCS export #> make.log 2>&1
+            make -j $NPROCS export > make.log 2>&1
 
             tar -xzf libint-${libint_ver}.tgz
             cd libint-${libint_ver}
@@ -91,6 +91,7 @@ case "$with_libint" in
                         --with-cxx="$CXX $CXXFLAGS" \
                         --with-cxx-optflags="$CXXFLAGS" \
                         --enable-fortran \
+                        --libdir="${pkg_install_dir}/lib" \
                         > configure.log 2>&1
 
             make -j $NPROCS > make.log 2>&1
@@ -101,7 +102,7 @@ case "$with_libint" in
         fi
 
         LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib64'"
+        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
         ;;
     __SYSTEM__)
         echo "==================== Finding LIBINT from system paths ===================="
@@ -114,19 +115,19 @@ case "$with_libint" in
     *)
         echo "==================== Linking LIBINT to user paths ===================="
         pkg_install_dir="$with_libint"
-        check_dir "${pkg_install_dir}/lib64"
+        check_dir "${pkg_install_dir}/lib"
         check_dir "${pkg_install_dir}/include"
         LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib64'"
+        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
         ;;
 esac
 if [ "$with_libint" != "__DONTUSE__" ] ; then
     LIBINT_LIBS="-lint2"
     if [ "$with_libint" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_libint"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib64"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib64"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib64"
+prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
+prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_libint" >> $SETUPFILE
