@@ -248,7 +248,7 @@ CONTAINS
                                                             mat_3c_overl_int_mao_for_virt
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN), OPTIONAL                            :: BIb_C_beta
+         INTENT(INout), OPTIONAL                         :: BIb_C_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
       REAL(KIND=dp), DIMENSION(:), INTENT(INout), &
          OPTIONAL                                        :: Eigenval_beta
@@ -6237,12 +6237,14 @@ CONTAINS
 !> \param tau_wj_work ...
 !> \param omega ...
 ! **************************************************************************************************
-   SUBROUTINE eval_fit_func_tau_grid_sine(func_val, x_value, num_integ_points, tau_tj, tau_wj_work, omega)
+   PURE SUBROUTINE eval_fit_func_tau_grid_sine(func_val, x_value, num_integ_points, tau_tj, tau_wj_work, omega)
 
-      REAL(KIND=dp)                                      :: func_val, x_value
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj, tau_wj_work
-      REAL(KIND=dp)                                      :: omega
+      REAL(KIND=dp), INTENT(inOUT)                       :: func_val
+      REAL(KIND=dp), INTENT(IN)                          :: x_value
+      INTEGER, INTENT(in)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj, tau_wj_work
+      REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_tau_grid_sine', &
          routineP = moduleN//':'//routineN
@@ -6282,10 +6284,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_max_error_fit_tau_grid_with_sine', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, kkk
+      INTEGER                                            :: kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
-
-      CALL timeset(routineN, handle)
 
       max_error_tmp = 0.0_dp
 
@@ -6307,8 +6307,6 @@ CONTAINS
          max_error = max_error_tmp
 
       END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE calc_max_error_fit_tau_grid_with_sine
 
