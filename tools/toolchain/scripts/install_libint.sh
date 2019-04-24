@@ -61,7 +61,7 @@ case "$with_libint" in
             echo "Building dependency gmp-${gmp_ver}"
 
             cd gmp-${gmp_ver}
-            ./configure --enable-cxx > configure.log 2>&1
+            ./configure --enable-cxx --disable-shared > configure.log 2>&1
             make > make.log 2>&1
             cd ..
 
