@@ -3072,7 +3072,7 @@ CONTAINS
          "Use the previous wavefunction (not available for K-points)", &
          "Higher order extrapolation of the density matrix times the overlap matrix (not available for K-points)", &
          "Frozen ...", &
-         "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy. "// &
+         "Always stable predictor corrector, similar to PS, but going for MD stability instead of initial guess accuracy. "// &
          "(not available for K-points)"), &
          enum_i_vals=(/ &
          wfi_use_guess_method_nr, &
@@ -7113,7 +7113,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, name="MAX_TAYLOR", &
-         description="Maximum order of the Taylor expansion before diagonalisation is prefered, for large parallel runs"// &
+         description="Maximum order of the Taylor expansion before diagonalisation is preferred, for large parallel runs"// &
          " a slightly higher order could sometimes result in a small speedup.", &
          usage="MAX_TAYLOR 5", &
          default_i_val=4)

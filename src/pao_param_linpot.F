@@ -536,7 +536,7 @@ CONTAINS
    END SUBROUTINE linpot_calc_forces
 
 ! **************************************************************************************************
-!> \brief Calculate intial guess for matrix_X
+!> \brief Calculate initial guess for matrix_X
 !> \param pao ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -572,7 +572,7 @@ CONTAINS
          nterms = SIZE(V_terms, 2)
          IF (nterms == 0) CYCLE ! protect against corner-case of zero pao parameters
 
-         ! guess intial potential
+         ! guess initial potential
          N = pri_basis_size(iatom)
          ALLOCATE (V_guess_vec(n*n))
          V_guess(1:n, 1:n) => V_guess_vec

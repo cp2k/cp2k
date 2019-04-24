@@ -413,7 +413,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief allocates and intitializes a fist_env
 !> \param fist_env the object to create
-!> \param para_env the parallel environement for the qs_env
+!> \param para_env the parallel environment for the qs_env
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed

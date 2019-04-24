@@ -84,7 +84,7 @@ CONTAINS
 !>      if required. Each sparse-matrix block A-B is corrected by all the atomic contributions
 !>      centered on atoms C for which the triplet A-C-B exists (they are close enough)
 !>      To this end special lists are used
-!> \param qs_env qs enviroment, for the lists, the contraction coefficients and the
+!> \param qs_env qs environment, for the lists, the contraction coefficients and the
 !>               pre calculated integrals of the potential with the atomic orbitals
 !> \param ksmat KS matrix, sparse matrix
 !> \param pmat density matrix, sparse matrix, needed only for the forces

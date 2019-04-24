@@ -455,7 +455,7 @@ CONTAINS
    END SUBROUTINE gth_calc_term
 
 ! **************************************************************************************************
-!> \brief Calculate intial guess for matrix_X
+!> \brief Calculate initial guess for matrix_X
 !> \param pao ...
 ! **************************************************************************************************
    SUBROUTINE pao_param_initguess_gth(pao)

@@ -359,7 +359,7 @@ CONTAINS
 !> \param f_env the f_env to createate
 !> \param force_env the force_environment to be stored
 !> \param timer_env the timer env to be stored
-!> \param mp_perf_env the mp performance environement to be stored
+!> \param mp_perf_env the mp performance environment to be stored
 !> \param id_nr ...
 !> \param logger ...
 !> \param old_dir ...
@@ -424,7 +424,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -471,7 +471,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -544,7 +544,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -923,7 +923,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env

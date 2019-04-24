@@ -3012,7 +3012,7 @@ CONTAINS
       END IF
 
       ! readjust the occupation number of the orbitals as requested by user
-      ! this is done to break symmetry (bs) and bias the intial guess
+      ! this is done to break symmetry (bs) and bias the initial guess
       ! to the pre-defined multiplicity/charge state of the atom
       IF (bs_occupation) THEN
          DO is = 1, 2

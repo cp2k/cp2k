@@ -85,7 +85,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a local list
 !> \param distribution_1d the lists to create
-!> \param para_env parallel environement to be used
+!> \param para_env parallel environment to be used
 !> \param listbased_distribution if each list has its own distribution
 !>        (defaults to false)
 !> \param n_el number of elements in each list (defaults to 0)

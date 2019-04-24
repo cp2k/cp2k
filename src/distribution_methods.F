@@ -462,7 +462,7 @@ CONTAINS
 !> \param molecule_set ...
 !> \param distribution_2d the distribution that will be created by this
 !>                         method
-!> \param blacs_env the parallel environement at the basis of the
+!> \param blacs_env the parallel environment at the basis of the
 !>                   distribution
 !> \param force_env_section ...
 !> \par History

@@ -42,7 +42,7 @@ MODULE qs_rho_types
 !>      which ones are valid.
 !> \param most attributes are array with either lda or lsd_alpha,lsd_beta.
 !> \param rho_ao the filtered rho in the localized atom basis (to have rho(r)
-!>        the filtred matrix is enough, but rho(r,r') is lost).
+!>        the filtered matrix is enough, but rho(r,r') is lost).
 !> \param rho_ao_kp the filtered rho in the localized atom basis (to have rho(r)
 !>        the filtered matrix is enough, but rho(r,r') is lost).
 !>        for kpoints, in real space index form

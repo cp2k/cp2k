@@ -22,7 +22,7 @@ MODULE cp_para_types
    PUBLIC :: cp_para_env_type, cp_para_env_p_type, cp_para_cart_type
 
 ! **************************************************************************************************
-!> \brief stores all the informations relevant to an mpi environement
+!> \brief stores all the informations relevant to an mpi environment
 !> \param mepos rank of the actual processor
 !> \param group id of the actual mpi communicator (I know that it is confusing,
 !>        but this is not the mpi group)

@@ -183,7 +183,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculates overlap integrals (aabb) of the orbital basis set,
-!>        reguired for LRI basis set optimization
+!>        required for LRI basis set optimization
 !> \param lri_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -380,7 +380,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief read input for optimization
-!> \param lri_opt optimization environmnet
+!> \param lri_opt optimization environment
 !> \param lri_optbas_section ...
 !> \param opt_state state of the optimizer
 ! **************************************************************************************************
@@ -529,7 +529,7 @@ CONTAINS
 !> \brief employ Fermi constraint, transfer exponents
 !> \param lri_opt optimization environment
 !> \param zet untransferred exponents
-!> \param zet_init intial value of the eponents
+!> \param zet_init initial value of the exponents
 !> \param zet_trans transferred exponents
 !> \param nvar number of optimized exponents
 ! **************************************************************************************************
@@ -592,7 +592,7 @@ CONTAINS
 !> \param lri_env lri environment
 !> \param lri_density ...
 !> \param qs_env ...
-!> \param lri_opt optimization enviroment
+!> \param lri_opt optimization environment
 !> \param opt_state state of the optimizer
 !> \param pmatrix density matrix
 !> \param para_env ...

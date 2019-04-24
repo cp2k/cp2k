@@ -32,7 +32,7 @@ MODULE qs_ks_qmmm_types
    PUBLIC :: qs_ks_qmmm_release, qs_ks_qmmm_retain
 
 ! **************************************************************************************************
-!> \brief calculation environement to calculate the ks_qmmm matrix,
+!> \brief calculation environment to calculate the ks_qmmm matrix,
 !>      holds the QM/MM potential and all the needed variables to
 !>      compute the QM/MM electrostatic 1-electron ks matrix
 !>      assumes that the core hamiltonian and energy are up to date.

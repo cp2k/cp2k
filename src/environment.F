@@ -228,7 +228,7 @@ CONTAINS
    END SUBROUTINE cp2k_init
 
 ! **************************************************************************************************
-!> \brief echos the list of host names and pids
+!> \brief echoes the list of host names and pids
 !> \param para_env ...
 !> \param output_unit ...
 ! **************************************************************************************************
@@ -271,7 +271,7 @@ CONTAINS
    END SUBROUTINE echo_all_hosts
 
 ! **************************************************************************************************
-!> \brief echos the list the number of process per host
+!> \brief echoes the list the number of process per host
 !> \param para_env ...
 !> \param output_unit ...
 ! **************************************************************************************************
@@ -333,7 +333,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -392,8 +392,8 @@ CONTAINS
 !> \param globenv the global environment to initialize
 !> \author fawzi
 !> \note
-!>      if possible do the initializations here as the environement
-!>      (error,...) is setup, instaed of cp2k_init
+!>      if possible do the initializations here as the environment
+!>      (error,...) is setup, instead of cp2k_init
 ! **************************************************************************************************
    SUBROUTINE cp2k_setup(root_section, para_env, globenv)
 
@@ -472,7 +472,7 @@ CONTAINS
    END SUBROUTINE cp2k_setup
 
 ! **************************************************************************************************
-!> \brief read the global sectionof new input
+!> \brief read the global section of new input
 !> \param root_section ...
 !> \param para_env ...
 !> \param globenv ...
@@ -899,7 +899,7 @@ CONTAINS
          try_fftw = .TRUE.
       ENDIF
 
-      !   *** Initialize FFT library with the user's prefered FFT library ***
+      !   *** Initialize FFT library with the user's preferred FFT library ***
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
                     alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                     fftsg_sizes=.NOT. section_get_lval(global_section, "EXTENDED_FFT_LENGTHS"), &
@@ -1092,7 +1092,7 @@ CONTAINS
 !> \author JGH,MK
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -1223,7 +1223,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
          ENDIF
 
-         ! update the runtime enviroment variables
+         ! update the runtime environment variables
          CALL get_runtime_info()
 
          ! Just a choice, do not print the CP2K footer if there is a failure

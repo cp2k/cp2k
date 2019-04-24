@@ -79,19 +79,19 @@ MODULE qs_ks_types
    PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env
 
 ! **************************************************************************************************
-!> \brief calculation environement to calculate the ks matrix,
+!> \brief calculation environment to calculate the ks matrix,
 !>      holds all the needed vars.
 !>      assumes that the core hamiltonian and energy are up to date.
 !> \param s_mstruct_changed if the sparsity structure of s in qs_env where this
 !>        ks_env lives has changed
 !> \param rho_changed if the rho stored in the qs_env has changed
 !> \param forces_up_to_date if the forces are up to date
-!> \param potential_changed if some external potentian changed (such as due to the constraint)
+!> \param potential_changed if some external potential changed (such as due to the constraint)
 !>
 !> \param matrix_h core hamiltonian (matrix_h(1)), if needed by the calculation also
 !>        its derivatives wrt. x,y, and z (matrix_h(2:4))
-!> \param matrix_ks Khon-Sham matrix (filtred by the structure of S).
-!>        with LSD an array with the differents orbitals
+!> \param matrix_ks Khon-Sham matrix (filtered by the structure of S).
+!>        with LSD an array with the different orbitals
 !> \param matrix_s the overlap matrix (matrix_s(1)), if needed by the calculation also
 !>        its derivatives wrt. x,y, and z (matrix_s(2:4))
 !> \param kinetic kinetic part of h
@@ -145,7 +145,7 @@ MODULE qs_ks_types
                                                                id_nr = -1, &
                                                                ref_count = 1
 
-      ! hartree is supposed to contain the hartree potential (for cube ouput)
+      ! hartree is supposed to contain the hartree potential (for cube output)
       ! ugly to keep it always around only for a cube output...
       TYPE(pw_type), POINTER                                :: v_hartree_rspace => Null()
 
@@ -924,7 +924,7 @@ CONTAINS
 !> \brief tells that some of the things relevant to the ks calculation
 !>      did change. has to be called when changes happen otherwise
 !>      the calculation will give wrong results.
-!> \param ks_env the environement that is informed about the changes
+!> \param ks_env the environment that is informed about the changes
 !> \param s_mstruct_changed if true it means that the structure of the
 !>        overlap matrix has changed
 !>        (atoms have moved)

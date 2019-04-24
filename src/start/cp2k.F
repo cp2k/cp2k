@@ -208,7 +208,7 @@ PROGRAM cp2k
             WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,(T3,A))") &
                "These switches skip the simulation, unless [-r|-run] is specified:", &
                "--check, -c       : performs a syntax check of the <input_file>", &
-               "--echo, -e        : echos the <input_file>, and make all defaults explicit", &
+               "--echo, -e        : echoes the <input_file>, and make all defaults explicit", &
                "                    The input is also checked, but only a failure is reported", &
                "--help, -h        : writes this message", &
                "--html-manual     : writes a HTML reference manual of the CP2K input", &
