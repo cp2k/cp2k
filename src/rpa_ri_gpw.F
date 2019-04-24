@@ -2669,7 +2669,7 @@ CONTAINS
                                      mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                      weights_cos_tf_t_to_w, tj, tau_tj, e_fermi, eps_filter, alpha, &
                                      eps_filter_im_time, Eigenval, nmo, n_group_col, &
-                                     group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                     group_size_P, num_integ_points, cut_memory, cut_RI, &
                                      unit_nr, mp2_env, para_env, para_env_sub, &
                                      starts_array_prim_col, ends_array_prim_col, &
                                      starts_array_prim_row, ends_array_prim_row, &
@@ -2704,7 +2704,7 @@ CONTAINS
                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
                                            eps_filter_im_time, Eigenval_beta, nmo, n_group_col, &
-                                           group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                           group_size_P, num_integ_points, cut_memory, cut_RI, &
                                            unit_nr, mp2_env, para_env, para_env_sub, &
                                            starts_array_prim_col, ends_array_prim_col, &
                                            starts_array_prim_row, ends_array_prim_row, &
@@ -2733,7 +2733,7 @@ CONTAINS
                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
                                            eps_filter_im_time, Eigenval_beta, nmo, n_group_col, &
-                                           group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                           group_size_P, num_integ_points, cut_memory, cut_RI, &
                                            unit_nr, mp2_env, para_env, para_env_sub, &
                                            starts_array_prim_col, ends_array_prim_col, &
                                            starts_array_prim_row, ends_array_prim_row, &
