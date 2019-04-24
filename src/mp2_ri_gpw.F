@@ -80,10 +80,8 @@ MODULE mp2_ri_gpw
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
-                                              kpoint_initialize,&
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                              kpoint_create,&
                                               kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
@@ -399,11 +397,10 @@ CONTAINS
       do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CPASSERT(eri_method == do_eri_os)
-      END IF
-      IF (do_kpoints_cubic_RPA) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          kpoints=kpoints)
-      ELSE IF (do_kpoints_from_Gamma) THEN
+      END IF
+      IF (do_kpoints_from_Gamma) THEN
          CALL compute_kpoints(qs_env, kpoints, unit_nr)
       END IF
 
@@ -1942,16 +1939,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
       NULLIFY (cell, dft_control, para_env)
       CALL get_qs_env(qs_env=qs_env, cell=cell, para_env=para_env, dft_control=dft_control, sab_orb=sab_orb)
       CALL get_cell(cell=cell, periodic=periodic)
-
-      NULLIFY (kpoints)
-      CALL kpoint_create(kpoints)
 
       ! general because we augment a Monkhorst-Pack mesh by additional points in the BZ
       kpoints%kp_scheme = "GENERAL"
@@ -2003,8 +1996,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      CALL kpoint_initialize(kpoints, particle_set, cell)
 
       CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
 
