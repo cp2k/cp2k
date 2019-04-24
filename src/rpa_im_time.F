@@ -112,7 +112,6 @@ CONTAINS
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param num_integ_points ...
-!> \param jquad ...
 !> \param cut_memory ...
 !> \param unit_nr ...
 !> \param mp2_env ...
@@ -135,7 +134,7 @@ CONTAINS
                                     weights_cos_tf_t_to_w, &
                                     tj, tau_tj, e_fermi, eps_filter, &
                                     alpha, eps_filter_im_time, Eigenval, nmo, &
-                                    num_integ_points, jquad, cut_memory, unit_nr, &
+                                    num_integ_points, cut_memory, unit_nr, &
                                     mp2_env, para_env, &
                                     stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
                                     has_mat_P_blocks, do_ri_sos_laplace_mp2)
@@ -157,7 +156,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo, num_integ_points, &
                                                             cut_memory, unit_nr
-      INTEGER, INTENT(INOUT)                             :: jquad
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
@@ -172,7 +170,7 @@ CONTAINS
 
       INTEGER :: handle, handle4, handle5, handle6, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
          i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, i_cell_T, i_mem, &
-         iquad, j_mem, num_3c_repl, num_cells_dm, unit_nr_prv
+         iquad, j_mem, jquad, num_3c_repl, num_cells_dm, unit_nr_prv
       INTEGER(KIND=int_8)                                :: num_flops_mat_P
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       LOGICAL :: do_Gamma_RPA, do_kpoints_cubic_RPA, first_cycle_im_time, first_cycle_omega_loop, &
@@ -483,7 +481,6 @@ CONTAINS
 !> \param n_group_col ...
 !> \param group_size_P ...
 !> \param num_integ_points ...
-!> \param jquad ...
 !> \param cut_memory ...
 !> \param cut_RI ...
 !> \param unit_nr ...
@@ -535,7 +532,7 @@ CONTAINS
                                   mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, weights_cos_tf_t_to_w, &
                                   tj, tau_tj, e_fermi, eps_filter, &
                                   alpha, eps_filter_im_time, Eigenval, nmo, n_group_col, &
-                                  group_size_P, num_integ_points, jquad, cut_memory, cut_RI, unit_nr, &
+                                  group_size_P, num_integ_points, cut_memory, cut_RI, unit_nr, &
                                   mp2_env, para_env, para_env_sub, &
                                   starts_array_prim_col, ends_array_prim_col, &
                                   starts_array_prim_row, ends_array_prim_row, &
@@ -573,7 +570,7 @@ CONTAINS
                                                             eps_filter_im_time
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: nmo, n_group_col, group_size_P, &
-                                                            num_integ_points, jquad, cut_memory, &
+                                                            num_integ_points, cut_memory, &
                                                             cut_RI, unit_nr
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -610,7 +607,7 @@ CONTAINS
 
       INTEGER :: handle, handle4, handle5, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
          i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, i_cell_T, i_cut_RI, &
-         i_mem, iquad, j_mem, my_group_L_size, num_cells_dm
+         i_mem, iquad, j_mem, my_group_L_size, num_3c_repl, num_cells_dm
       INTEGER(KIND=int_8)                                :: flop_occ, flop_virt, num_flops_mat_P
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       LOGICAL :: do_kpoints_cubic_RPA, first_cycle_im_time, first_cycle_omega_loop, memory_info, &
@@ -631,7 +628,7 @@ CONTAINS
                                     weights_cos_tf_t_to_w, &
                                     tj, tau_tj, e_fermi, eps_filter, &
                                     alpha, eps_filter_im_time, Eigenval, nmo, &
-                                    num_integ_points, jquad, cut_memory, unit_nr, &
+                                    num_integ_points, cut_memory, unit_nr, &
                                     mp2_env, para_env, &
                                     stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
                                     has_mat_P_blocks, do_ri_sos_laplace_mp2)
