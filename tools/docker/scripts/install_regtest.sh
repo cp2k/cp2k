@@ -19,7 +19,7 @@ source /opt/cp2k-toolchain/install/setup
 
 # pre-build cp2k
 cd /workspace/cp2k
-echo -n "Trying to compile... "
+echo -n "Warming cache by trying to compile... "
 if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> /dev/null ; then
     echo "done."
 else

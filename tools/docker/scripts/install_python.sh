@@ -3,8 +3,8 @@
 # author: Ole Schuett
 
 # install Ubuntu packages
-apt-get update
-apt-get install -y --no-install-recommends \
+apt-get update -qq
+apt-get install -qq --no-install-recommends \
     python                \
     python3               \
     python-pip            \
@@ -19,17 +19,19 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip  install numpy matplotlib requests
-pip3 install numpy matplotlib requests
+pip  install --quiet numpy matplotlib requests
+pip3 install --quiet numpy matplotlib requests
 
 # install python2.6
+echo "Building Python-2.6.9... "
 cd /tmp
 wget -q https://www.python.org/ftp/python/2.6.9/Python-2.6.9.tgz
+echo "7277b1285d8a82f374ef6ebaac85b003266f7939b3f2a24a3af52f9523ac94db  Python-2.6.9.tgz" | sha256sum --check
 tar -xzf Python-2.6.9.tgz
 pushd Python-2.6.9
-./configure
-make -j
-make install
+./configure > /tmp/python2.6.9_configure.log
+make -j  > /tmp/python2.6.9_make.log
+make install > /tmp/python2.6.9_install.log
 popd
 rm -rf Python-2.6.9*
 

@@ -10,8 +10,8 @@ fi
 GCC_VERSION=$1
 
 # install Ubuntu packages
-apt-get update
-apt-get install -y --no-install-recommends  \
+apt-get update -qq
+apt-get install -qq --no-install-recommends  \
     gcc-${GCC_VERSION}                      \
     g++-${GCC_VERSION}                      \
     gfortran-${GCC_VERSION}                 \

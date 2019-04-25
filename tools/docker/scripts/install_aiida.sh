@@ -3,10 +3,10 @@
 # author: Ole Schuett
 
 # install Ubuntu packages
-apt-get update
+apt-get update -qq
 export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
-apt-get install -y --no-install-recommends \
+apt-get install -qq --no-install-recommends \
     build-essential       \
     python-setuptools     \
     python-wheel          \
@@ -19,7 +19,7 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip install flake8 aiida ase
+pip install --quiet flake8 aiida ase
 
 # create ubuntu user with sudo powers
 adduser --disabled-password --gecos "" ubuntu
@@ -34,7 +34,12 @@ ln -vs /opt/cp2k-toolchain/install/arch/local* .
 
 # pre-build cp2k
 cd /workspace/cp2k
-make -j VERSION=pdbg
+echo -n "Warming cache by trying to compile... "
+if make -j VERSION=pdbg &> /dev/null ; then
+   echo "done."
+else
+   echo "failed."
+fi
 rm -rf lib exe
 
 #EOF
