@@ -1,8 +1,8 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-libvdwxc_ver="master-429a80027a2ec2c97e2f6d9a3dc84843f2739865"
-libvdwxc_sha256="6185bd9d8d679b979794f4ab3eb9f5652157b4971d94097d7f2791c186eda9c8"
+libvdwxc_ver="0.4.0"
+libvdwxc_sha256="3524feb5bb2be86b4688f71653502146b181e66f3f75b8bdaf23dd1ae4a56b33"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -40,7 +40,7 @@ case "$with_libvdwxc" in
             else
                 # do not remove this. They do not publish official version often
                 download_pkg ${DOWNLOADER_FLAGS} ${libvdwxc_sha256} \
-                             https://www.cp2k.org/static/downloads/libvdwxc-${libvdwxc_ver}.tar.gz
+                             "https://launchpad.net/libvdwxc/stable/${libvdwxc_ver}/+download/libvdwxc-${libvdwxc_ver}.tar.gz"
             fi
 
             for patch in "${patches[@]}" ; do
@@ -62,7 +62,6 @@ case "$with_libvdwxc" in
                 patch -p1 < ../"${patch##*/}"
             done
             unset MPICC MPICXX MPIF90 MPIFC MPIF77
-            ./autogen.sh > configure.log 2>&1
             if [ "$MPI_MODE" = "no" ]; then
                 # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
                 ./configure \
