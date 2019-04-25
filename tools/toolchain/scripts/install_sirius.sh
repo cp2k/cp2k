@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver="6.1.2"
-sirius_sha256="40ea3a7e2a2a6c87cb3e4d8c2fba977eb74dc212c198b1a38cdbb262f9807b4a"
+sirius_ver="6.1.5"
+sirius_sha256="379f0a2e5208fd6d91c2bd4939c3a5c40002975fb97652946fa1bfe4a3ef97cb"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -84,7 +84,8 @@ case "$with_sirius" in
             else
 
                 download_pkg ${DOWNLOADER_FLAGS} ${sirius_sha256} \
-                             https://www.cp2k.org/static/downloads/SIRIUS-${sirius_ver}.tar.gz
+                             "https://github.com/electronic-structure/SIRIUS/archive/v${sirius_ver}.tar.gz" \
+                             -o SIRIUS-${sirius_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
