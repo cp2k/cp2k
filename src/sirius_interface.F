@@ -599,14 +599,14 @@
                      CALL section_vals_val_get(section, option_name1, i_val=ival)
                      CALL sirius_option_set_int(sctx, section_name, option_name, ival, 0)
                   CASE (11)
-                     CALL section_vals_val_get(section, option_name1, i_vals=ivals, n_rep_val=length)
-                     CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), length)
+                     CALL section_vals_val_get(section, option_name1, i_vals=ivals)
+                     CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), SIZE(ivals))
                   CASE (2)
                      CALL section_vals_val_get(section, option_name1, r_val=rval)
                      CALL sirius_option_set_double(sctx, section_name, option_name, rval, 0)
                   CASE (12)
-                     CALL section_vals_val_get(section, option_name1, r_vals=rvals, n_rep_val=length)
-                     CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), length)
+                     CALL section_vals_val_get(section, option_name1, r_vals=rvals)
+                     CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
                   CASE (3)
                      CALL section_vals_val_get(section, option_name1, l_val=lval)
                      IF (lval) THEN
@@ -615,7 +615,8 @@
                         CALL sirius_option_set_logical(sctx, section_name, option_name, 0, 0)
                      ENDIF
                   CASE (13)
-                     CALL section_vals_val_get(section, option_name, l_vals=lvals, n_rep_val=length)
+                     CALL section_vals_val_get(section, option_name, l_vals=lvals)
+                     length = SIZE(lvals)
                      DO i = 1, length
                         IF (lvals(i)) THEN
                            lvalsi(i) = 1
