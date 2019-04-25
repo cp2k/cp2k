@@ -190,8 +190,8 @@
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
-      TYPE(section_vals_type), POINTER                   :: json_section, libxc_fun, pwdft_section, &
-                                                            xc_fun, xc_section
+      TYPE(section_vals_type), POINTER                   :: libxc_fun, pwdft_section, &
+                                                            pwdft_sub_section, xc_fun, xc_section
 
             CPASSERT(ASSOCIATED(pwdft_env))
 ! create context of simulation
@@ -227,38 +227,38 @@
             ENDIF
 
 !     import control section
-            json_section => section_vals_get_subs_vals(pwdft_section, "control")
-            IF (ASSOCIATED(json_section)) THEN
-               CALL cp_sirius_feel_in_section(sctx, json_section, string("control"))
+            pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
+            IF (ASSOCIATED(pwdft_sub_section)) THEN
+               CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("control"))
             ENDIF
 
 !     import parameters section
-            json_section => section_vals_get_subs_vals(pwdft_section, "parameters")
-            IF (ASSOCIATED(json_section)) THEN
-               CALL cp_sirius_feel_in_section(sctx, json_section, string("parameters"))
-               CALL section_vals_val_get(json_section, "ngridk", i_vals=kk)
+            pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
+            IF (ASSOCIATED(pwdft_sub_section)) THEN
+               CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("parameters"))
+               CALL section_vals_val_get(pwdft_sub_section, "ngridk", i_vals=kk)
                k_grid(1) = kk(1)
                k_grid(2) = kk(2)
                k_grid(3) = kk(3)
 
-               CALL section_vals_val_get(json_section, "shiftk", i_vals=kk)
+               CALL section_vals_val_get(pwdft_sub_section, "shiftk", i_vals=kk)
                k_shift(1) = kk(1)
                k_shift(2) = kk(2)
                k_shift(3) = kk(3)
-               CALL section_vals_val_get(json_section, "num_mag_dims", i_val=num_mag_dims)
-               CALL section_vals_val_get(json_section, "use_symmetry", l_val=use_symmetry)
+               CALL section_vals_val_get(pwdft_sub_section, "num_mag_dims", i_val=num_mag_dims)
+               CALL section_vals_val_get(pwdft_sub_section, "use_symmetry", l_val=use_symmetry)
             ENDIF
 
 !     import mixer section
-            json_section => section_vals_get_subs_vals(pwdft_section, "mixer")
-            IF (ASSOCIATED(json_section)) THEN
-               CALL cp_sirius_feel_in_section(sctx, json_section, string("mixer"))
+            pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "mixer")
+            IF (ASSOCIATED(pwdft_sub_section)) THEN
+               CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("mixer"))
             ENDIF
 
             !     import solver section
-            json_section => section_vals_get_subs_vals(pwdft_section, "iterative_solver")
-            IF (ASSOCIATED(json_section)) THEN
-               CALL cp_sirius_feel_in_section(sctx, json_section, string("iterative_solver"))
+            pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "iterative_solver")
+            IF (ASSOCIATED(pwdft_sub_section)) THEN
+               CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("iterative_solver"))
             ENDIF
 
             CALL sirius_dump_runtime_setup(sctx, string("runtime.json"))
