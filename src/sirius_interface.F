@@ -456,8 +456,6 @@
 ! initialize global variables/indices/arrays/etc. of the simulation
             CALL sirius_initialize_context(sctx)
 
-            CALL pwdft_env_set(pwdft_env, kgrid=k_grid, kshift=k_shift)
-
             ! strictly speaking the parameter use_symmetry is initialized at the
             ! beginning but it does no harm to do it that way
             IF (use_symmetry) THEN
