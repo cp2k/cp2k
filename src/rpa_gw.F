@@ -2910,6 +2910,8 @@ CONTAINS
          sign_occ_virt = 1.0_dp
       END IF
 
+      n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+
       DO jquad = 1, num_fit_points
          vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
       END DO
@@ -3080,8 +3082,6 @@ CONTAINS
          IF (ScalParam > 100.0_dp .AND. could_exit) EXIT
 
          IF (ScalParam > 1E+10_dp) ScalParam = 1E-4_dp
-
-         n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
 
       END DO
 
