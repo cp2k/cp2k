@@ -58,7 +58,7 @@ MODULE qs_operators_ao
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief   Calculation of the linear momemtum matrix over
+!> \brief   Calculation of the linear momentum matrix over
 !>          Cartesian Gaussian functions.
 !> \param qs_env ...
 !> \param matrix ...
@@ -357,7 +357,7 @@ CONTAINS
 
             f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            ! *** Calculate the reccurence relation ***
+            ! *** Calculate the recurrence relation ***
 
             CALL os_rr_ovlp(rap, la_max+1, rbp, lb_max, zet, ldrr, rr)
 
@@ -410,7 +410,7 @@ CONTAINS
    END SUBROUTINE lin_mom
 
 ! **************************************************************************************************
-!> \brief   Calculation of the angular momemtum matrix over
+!> \brief   Calculation of the angular momentum matrix over
 !>          Cartesian Gaussian functions.
 !> \param qs_env ...
 !> \param matrix ...
@@ -725,7 +725,7 @@ CONTAINS
 
             f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            ! *** Calculate the reccurence relation ***
+            ! *** Calculate the recurrence relation ***
 
             CALL os_rr_ovlp(rap, la_max+1, rbp, lb_max, zet, ldrr, rr)
 
@@ -790,7 +790,7 @@ CONTAINS
 !>      basis functions
 !> \param op matrix representation of the p operator
 !>               calculated in terms of the contracted basis functions
-!> \param qs_env enviroment for the lists and the basis sets
+!> \param qs_env environment for the lists and the basis sets
 !> \param minimum_image take into account only the first neighbors in the lists
 !> \par History
 !>      06.2005 created [MI]
@@ -1052,9 +1052,9 @@ CONTAINS
 !>      basis functions
 !> \param op matrix representation of the p operator
 !>               calculated in terms of the contracted basis functions
-!> \param qs_env enviroment for the lists and the basis sets
+!> \param qs_env environment for the lists and the basis sets
 !> \param rc reference vector position
-!> \param order maximum order of the momentum, for the doipole order = 1
+!> \param order maximum order of the momentum, for the dipole order = 1
 !> \param minimum_image take into account only the first neighbors in the lists
 !> \param soft ...
 !> \par History
@@ -1296,7 +1296,7 @@ CONTAINS
 !>      When it is not the case a correction term is needed
 !>
 !>     The momentum operator [\mu|M|\nu] is symmetric, the number of components is
-!>     detrermined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)
+!>     determined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)
 !>     The derivative of the type [\mu | op | d(\nu)/dR_i(\nu)], where
 !>     i indicates the cartesian direction, is antisymmetric only when
 !>     the no component M =(r_i) or (r_i r_j) is in the same cartesian
@@ -1310,7 +1310,7 @@ CONTAINS
 !> \param op matrix representation of the p operator
 !>               calculated in terms of the contracted basis functions
 !> \param op_der ...
-!> \param qs_env enviroment for the lists and the basis sets
+!> \param qs_env environment for the lists and the basis sets
 !> \param rc reference vector position
 !> \param order maximum order of the momentum, for the dipole order = 1
 !> \param minimum_image take into account only the first neighbors in the lists

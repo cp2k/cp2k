@@ -77,12 +77,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a replica environment together with its force environment
 !> \param rep_env the replica environment that will be created
-!> \param para_env the parallel enviroment that will contain the replicas
+!> \param para_env the parallel environment that will contain the replicas
 !> \param input the input used to initialize the force environment
 !> \param input_declaration ...
 !> \param nrep the number of replicas to calculate
 !> \param prep the number of processors for each replica
-!> \param sync_v if the volocity should be synchronized (defaults to false)
+!> \param sync_v if the velocity should be synchronized (defaults to false)
 !> \param keep_wf_history if wf history should be kept on a per replica
 !>        basis (defaults to true for QS jobs)
 !> \param row_force to use the new mapping to the cart with rows
@@ -402,7 +402,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      low level wrapper to export this function in f77_int_low and work
-!>      around the handling of circular dependecies in fortran
+!>      around the handling of circular dependencies in fortran
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id, calc_f, ierr)
       INTEGER, INTENT(in)                                :: rep_env_id, calc_f

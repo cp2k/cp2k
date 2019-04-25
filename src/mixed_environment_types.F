@@ -327,7 +327,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief allocates and intitializes a mixed_env
 !> \param mixed_env the object to create
-!> \param para_env the parallel environement for the qs_env
+!> \param para_env the parallel environment for the qs_env
 !> \author fschiff 11.06
 ! **************************************************************************************************
    SUBROUTINE mixed_env_create(mixed_env, para_env)

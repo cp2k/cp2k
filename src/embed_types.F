@@ -323,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param embed_env ...
-!> \param para_env the parallel environement for the qs_env
+!> \param para_env the parallel environment for the qs_env
 !> \author Vladimir Rybkin 02.2018
 ! **************************************************************************************************
    SUBROUTINE embed_env_create(embed_env, para_env)

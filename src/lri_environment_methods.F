@@ -478,7 +478,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculates overlap integrals (aabb) of the orbital basis set,
-!>        reguired for LRI basis set optimization
+!>        required for LRI basis set optimization
 !> \param lri_env ...
 !> \param qs_env ...
 ! **************************************************************************************************

@@ -337,7 +337,7 @@ CONTAINS
 !> http://kcachegrind.sourceforge.net/cgi-bin/show.cgi/KcacheGrindCalltreeFormat
 !> \param filename ...
 !> \par History
-!>     12.2012  intial version[ole]
+!>     12.2012  initial version[ole]
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE timings_report_callgraph(filename)

@@ -765,7 +765,7 @@ CONTAINS
             ! [s|s] integral
             f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            ! Calculate the reccurence relation
+            ! Calculate the recurrence relation
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
             DO lb = lb_min, lb_max
@@ -1070,7 +1070,7 @@ CONTAINS
                ! [ss|s] integral
                f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-               ! Calculate the reccurence relation
+               ! Calculate the recurrence relation
                CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
                DO lb = lb_min, lb_max
@@ -1272,7 +1272,7 @@ CONTAINS
                ! [s|s] integral
                f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-               ! Calculate the reccurence relation
+               ! Calculate the recurrence relation
                CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
                DO lb2 = lb2_min, lb2_max
@@ -1467,7 +1467,7 @@ CONTAINS
                   ! [sss|s] integral
                   f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-                  ! Calculate the reccurence relation
+                  ! Calculate the recurrence relation
                   CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
                   DO lb = lb_min, lb_max
@@ -1674,7 +1674,7 @@ CONTAINS
                   ! [ss|ss] integral
                   f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-                  ! Calculate the reccurence relation
+                  ! Calculate the recurrence relation
                   CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
                   DO lb2 = lb2_min, lb2_max
@@ -1883,7 +1883,7 @@ CONTAINS
                   ! [s|s] integral
                   f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-                  ! Calculate the reccurence relation
+                  ! Calculate the recurrence relation
                   CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
                   DO lb3 = lb3_min, lb3_max

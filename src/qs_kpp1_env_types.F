@@ -29,7 +29,7 @@ MODULE qs_kpp1_env_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_types'
 
 ! **************************************************************************************************
-!> \brief environement that keeps the informations and temporary
+!> \brief environment that keeps the informations and temporary
 !>      val to build the kpp1 kernel matrix
 !> \param ref_count reference count (how may objects are sharing this one)
 !> \param v_rspace potential in r space. This is used to do an update only
@@ -80,7 +80,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief releases a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp1_env the environement to release
+!> \param kpp1_env the environment to release
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -138,7 +138,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief retains a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp1_env the environement to retain
+!> \param kpp1_env the environment to retain
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed

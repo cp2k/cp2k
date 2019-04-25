@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief qs_environement methods that use many other modules
+!> \brief qs_environment methods that use many other modules
 !> \par History
 !>      09.2002 created [fawzi]
 !>      - local atom distribution (25.06.2003,MK)
@@ -432,7 +432,7 @@ CONTAINS
          CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
       ENDIF
 
-      !update the time in the poisson environement, to update time dependant constraints
+      !update the time in the poisson environment, to update time dependant constraints
       new_pw_env%poisson_env%parameters%dbc_params%time = qs_env%sim_time
 
       CALL timestop(handle)

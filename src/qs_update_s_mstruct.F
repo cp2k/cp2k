@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief qs_environement methods that use many other modules
+!> \brief qs_environment methods that use many other modules
 !> \par History
 !>      09.2002 created [fawzi]
 !>      - local atom distribution (25.06.2003,MK)

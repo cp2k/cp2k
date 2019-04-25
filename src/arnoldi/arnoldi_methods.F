@@ -760,7 +760,7 @@ CONTAINS
   END SUBROUTINE compute_norms_${nametype1}$
 
 ! **************************************************************************************************
-!> \brief Computes the intial guess for the solution of the generalized eigenvalue
+!> \brief Computes the initial guess for the solution of the generalized eigenvalue
 !>        using the arnoldi method
 !> \param matrix ...
 !> \param matrix_arnoldi ...

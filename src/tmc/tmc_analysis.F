@@ -1425,7 +1425,7 @@ CONTAINS
                                  conf_nr=INT(ana_env%dip_ana%conf_counter)+1, dip=elem%dipole, &
                                  file_ext="dip_folded")
 
-      ! set ouput file name
+      ! set output file name
       file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)// &
                                             tmc_default_trajectory_file_name, &
                                             ana_env%temperature)

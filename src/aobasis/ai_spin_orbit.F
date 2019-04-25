@@ -134,7 +134,7 @@ CONTAINS
 
             f0 = 2.0_dp*SQRT(zet/pi)*(pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            ! *** Calculate the reccurence relation ***
+            ! *** Calculate the recurrence relation ***
 
             CALL os_rr_coul(rap, la_max+1, rbp, lb_max+1, rcp, zet, ldrr1, ldrr2, rr)
 

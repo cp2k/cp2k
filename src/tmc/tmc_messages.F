@@ -592,7 +592,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief the message for sending back the initial configuration
 !> \param msg_type the status tag
-!> \param elem the intial tree element with initial coordinates and energy
+!> \param elem the initial tree element with initial coordinates and energy
 !>        (using the approximated potential)
 !> \param result_count ...
 !> \param tmc_params to send the cell properties
@@ -675,7 +675,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief the message for sending back the initial configuration
 !> \param msg_type the status tag
-!> \param elem the intial tree element with initial coordinates and energy
+!> \param elem the initial tree element with initial coordinates and energy
 !>        (using the approximated potential)
 !> \param result_count ...
 !> \param m_send the message structure

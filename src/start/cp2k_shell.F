@@ -7,13 +7,13 @@
 !> \brief Interactive shell of CP2K
 !> \note
 !>       sample of a simple runner that uses the f77_interface
-!>       it can beused to connect c programs, communicating through std-in/ std-out
+!>       it can be used to connect c programs, communicating through std-in/ std-out
 !>
 !>       positions are in angstrom, energies in evolt
 !>
 !>       commands:
 !>       load filename:   loads the filename, returns the env_id, or -1 in case of error
-!>       natom [env_id]:  returns the number of atoms in the environement env_id
+!>       natom [env_id]:  returns the number of atoms in the environment env_id
 !>                        (defaults to the last loaded)
 !>       setpos [env_id]: sets the positions of the atoms, should be followed
 !>                        by natom*3 (on a line) and then all the positions [angstrom]
@@ -101,7 +101,7 @@ PROGRAM cp2k_shell
   ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
   ll(' DESTROY [env_id]: destroys the given environment (last and default env'),&
   ll('   might become invalid)'),&
-  ll(' NATOM [env_id]: returns the number of atoms in the environement env_id'),&
+  ll(' NATOM [env_id]: returns the number of atoms in the environment env_id'),&
   ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
   ll('   by natom*3 (on a line) and then all the positions. Returns the max'),&
   ll('   change of the coordinates (useful to avoid extra calculations).'),&
