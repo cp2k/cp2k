@@ -11,8 +11,8 @@ make -j VERSION=pdbg cp2k
 
 echo -e "\n========== Installing i-Pi =========="
 cd /opt/i-pi
-git pull
-pip install .
+git pull --quiet
+pip install --quiet .
 
 echo -e "\n========== Running i-Pi Tests =========="
 

@@ -19,11 +19,11 @@ chmod +x /usr/bin/cp2k
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/
-git clone https://github.com/cp2k/aiida-cp2k.git
-pip install ./aiida-cp2k/[pre-commit]
+git clone --quiet https://github.com/cp2k/aiida-cp2k.git
+pip install --quiet ./aiida-cp2k/[pre-commit]
 
 # workaround for dependency chain in 1.0.0b1
-pip install 'topika==0.1.3'
+pip install --quiet 'topika==0.1.3'
 
 echo -e "\n========== Configuring AiiDA =========="
 for i in $(dirname "$(which mpirun)")/* ; do ln -sf "$i" /usr/bin/; done
