@@ -14,6 +14,7 @@
 !> \par History
 !>      08.2015 created [A. Gloess (agloess)]
 !>      01.2018 refactoring [A. Gloess (agloess)]
+!>      10.2018/04.2019 added hyb_mgga [S. Simko, included by F. Stein]
 !> \author A. Gloess (agloess)
 ! **************************************************************************************************
 MODULE xc_libxc_wrap
@@ -71,6 +72,7 @@ MODULE xc_libxc_wrap
       XC_FAMILY_GGA, &
       XC_FAMILY_MGGA, &
       XC_FAMILY_HYB_GGA, &
+      XC_FAMILY_HYB_MGGA, &
       !
       XC_UNPOLARIZED, &
       XC_POLARIZED, &
@@ -81,7 +83,8 @@ MODULE xc_libxc_wrap
       XC_KINETIC, &
       !
       XC_FLAGS_NEEDS_LAPLACIAN, &
-      XC_FLAGS_HAVE_EXC
+      XC_FLAGS_HAVE_EXC, &
+      XC_FLAGS_STABLE
 
 #include "../base/base_uses.f90"
 
@@ -105,7 +108,7 @@ MODULE xc_libxc_wrap
              xc_f03_mgga_vxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
-             XC_FAMILY_HYB_GGA
+             XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
 
    PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 
@@ -116,7 +119,8 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_version, &
              xc_libxc_wrap_functional_get_number, &
              xc_libxc_wrap_needs_laplace, &
-             xc_libxc_wrap_functional_set_params
+             xc_libxc_wrap_functional_set_params, &
+             xc_libxc_wrap_is_stable
 
 CONTAINS
 
@@ -260,6 +264,33 @@ CONTAINS
       CALL timestop(handle)
 
    END FUNCTION xc_libxc_wrap_functional_get_number
+
+! **************************************************************************************************
+!> \brief Wrapper to test wether functional is considered stable in Libxc
+!> \param xc_info ...
+!>
+!> \return ...
+!> \author F. Stein (fstein93)
+! **************************************************************************************************
+   LOGICAL FUNCTION xc_libxc_wrap_is_stable(xc_info)
+      TYPE(xc_f03_func_info_t)                           :: xc_info
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_stable', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_STABLE) == XC_FLAGS_STABLE) THEN
+         xc_libxc_wrap_is_stable = .TRUE.
+      ELSE
+         xc_libxc_wrap_is_stable = .FALSE.
+      END IF
+
+      CALL timestop(handle)
+
+   END FUNCTION xc_libxc_wrap_is_stable
 
 ! **************************************************************************************************
 !> \brief Wrapper for functionals that need the Laplacian, all others can use
