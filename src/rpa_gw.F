@@ -3063,6 +3063,9 @@ CONTAINS
          CALL calc_chi2(chi2, Lambda, vec_Sigma_c_gw, vec_omega_fit_gw_sign, num_poles, &
                         num_fit_points, n_level_gw)
 
+         ! if the fit is already super accurate, exit. otherwise maybe issues when dividing by 0
+         IF (chi2 < 1.0E-30_dp) EXIT
+
          IF (chi2 < chi2_old) THEN
             ScalParam = MAX(ScalParam/Ldown, 1E-12_dp)
             DO iii = 1, num_var
