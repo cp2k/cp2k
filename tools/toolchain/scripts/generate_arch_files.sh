@@ -104,7 +104,7 @@ CUDA_DFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ] ; then
     LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
     DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
-    NVFLAGS="-arch sm_${ARCH_NUM} -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+    NVFLAGS="-arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
     check_command nvcc "cuda"
     check_lib -lcudart "cuda"
     check_lib -lnvrtc "cuda"
