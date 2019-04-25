@@ -18,7 +18,7 @@
       pw_cutoff 25.00
       energy_tol 1e-8
       num_dft_iter 100
-      k_grid 2 2 2
+      ngridk 2 2 2
     &END PARAMETERS
     &ITERATIVE_SOLVER
       energy_tolerance 1e-2

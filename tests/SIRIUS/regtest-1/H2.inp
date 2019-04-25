@@ -7,9 +7,6 @@
       gen_evp_solver_type lapack
       verbosity 1
       cyclic_block_size 2
-      print_forces true
-      print_stress true
-      cyclic block size 32
     &END CONTROL
     &PARAMETERS
       electronic_structure_method pseudopotential
@@ -25,7 +22,7 @@
       ngridk 1 1 1
     &END PARAMETERS
     &ITERATIVE_SOLVER
-      tolerance 1e-5
+      residual_tolerance 1e-5
       num_steps 20
       subspace_size 4
       type davidson
