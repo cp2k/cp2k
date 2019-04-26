@@ -199,7 +199,9 @@ PURE FUNCTION m_cpuid() RESULT (cpuid)
 #endif
     INTEGER :: cpuid
 #if defined(__LIBXSMM)
-    cpuid = MIN(MACHINE_X86_SSE4 + libxsmm_get_target_archid() - LIBXSMM_X86_SSE4, MACHINE_X86)
+    cpuid = libxsmm_get_target_archid()
+    cpuid = MERGE(MIN(MACHINE_X86_SSE4 + cpuid - LIBXSMM_X86_SSE4, MACHINE_X86), &
+                  MACHINE_CPU_GENERIC, LIBXSMM_X86_SSE4 .LE. cpuid)
 #else
     cpuid = m_cpuid_static()
 #endif
