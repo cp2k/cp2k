@@ -32,9 +32,9 @@ MODULE input_cp2k_global
                                               silent_print_level
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_diag_sl2, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
+        do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_farming, do_fft_fftw3, &
+        do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, do_tamc, do_test, &
+        do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
         energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
         fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
         negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
@@ -110,9 +110,9 @@ CONTAINS
          description="Specifies the DIAGONALIZATION library to be used. If not availabe, the standard scalapack is used", &
          usage="PREFERRED_DIAG_LIBRARY ELPA", &
          default_i_val=do_diag_sl, &
-         enum_i_vals=(/do_diag_sl, do_diag_sl2, do_diag_elpa/), &
-         enum_c_vals=s2a("SL", "SL2", "ELPA"), &
-         enum_desc=s2a("Standard scalapack: syevd", "Scalapack 2.0: syevr", "ELPA"), &
+         enum_i_vals=(/do_diag_sl, do_diag_elpa/), &
+         enum_c_vals=s2a("SL", "ELPA"), &
+         enum_desc=s2a("Standard (Sca)LAPACK: syevd", "ELPA"), &
          citations=(/Marek2014/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

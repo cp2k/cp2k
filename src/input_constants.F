@@ -818,8 +818,7 @@ MODULE input_constants
 
    ! DIAGONALIZATION library
    INTEGER, PARAMETER, PUBLIC               :: do_diag_sl = 1, &
-                                               do_diag_sl2 = 2, &
-                                               do_diag_elpa = 3
+                                               do_diag_elpa = 2
    ! FFT library
    ! these might need sync with fft_lib.F
    INTEGER, PARAMETER, PUBLIC               :: do_fft_sg = 1, &
