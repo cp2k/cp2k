@@ -2,6 +2,8 @@ Data file BASIS_SET copied to tests/QMMM/QS
 Data file GTH_BASIS_SETS copied to tests/QMMM/QS
 Data file MM_POTENTIAL copied to tests/QMMM/QS
 Data file POTENTIAL copied to tests/QMMM/QS
+Flag ${xsmm_supported[n]}$ not mentioned in INSTALL.md
+Flag ${xsmm_supported[n]}$ not mentioned in cp2k_flags()
 Flag FD_DEBUG not mentioned in INSTALL.md
 Flag FD_DEBUG not mentioned in cp2k_flags()
 Flag INTEL_MKL_VERSION not mentioned in INSTALL.md
@@ -30,14 +32,26 @@ Flag XC_MAJOR_VERSION not mentioned in INSTALL.md
 Flag XC_MAJOR_VERSION not mentioned in cp2k_flags()
 Flag __ACC_MIC not mentioned in INSTALL.md
 Flag __ACC_MIC not mentioned in cp2k_flags()
+Flag __AVX2__ not mentioned in INSTALL.md
+Flag __AVX2__ not mentioned in cp2k_flags()
+Flag __AVX512CD__ not mentioned in INSTALL.md
+Flag __AVX512CD__ not mentioned in cp2k_flags()
+Flag __AVX512F__ not mentioned in INSTALL.md
+Flag __AVX512F__ not mentioned in cp2k_flags()
+Flag __AVX__ not mentioned in INSTALL.md
+Flag __AVX__ not mentioned in cp2k_flags()
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL.md
 Flag __DATA_DIR not mentioned in cp2k_flags()
+Flag __FAST_MATH__ not mentioned in INSTALL.md
+Flag __FAST_MATH__ not mentioned in cp2k_flags()
 Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
+Flag __FMA__ not mentioned in INSTALL.md
+Flag __FMA__ not mentioned in cp2k_flags()
+Flag __FORCE_USE_FAST_MATH not mentioned in INSTALL.md
+Flag __FORCE_USE_FAST_MATH not mentioned in cp2k_flags()
 Flag __GRID_CORE not mentioned in cp2k_flags()
 Flag __HAS_smm_${nametype1}$nn not mentioned in INSTALL.md
 Flag __HAS_smm_${nametype1}$nn not mentioned in cp2k_flags()
-Flag ${xsmm_supported[n]}$ not mentioned in INSTALL.md
-Flag ${xsmm_supported[n]}$ not mentioned in cp2k_flags()
 Flag __HAS_smm_cnt not mentioned in INSTALL.md
 Flag __HAS_smm_ctn not mentioned in INSTALL.md
 Flag __HAS_smm_ctt not mentioned in INSTALL.md
@@ -57,10 +71,12 @@ Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL.md
 Flag __RELEASE_VERSION not mentioned in INSTALL.md
 Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL.md
-Flag __FAST_MATH__ not mentioned in INSTALL.md
-Flag __FAST_MATH__ not mentioned in cp2k_flags()
-Flag __FORCE_USE_FAST_MATH not mentioned in INSTALL.md
-Flag __FORCE_USE_FAST_MATH not mentioned in cp2k_flags()
+Flag __SSE3__ not mentioned in INSTALL.md
+Flag __SSE3__ not mentioned in cp2k_flags()
+Flag __SSE4_1__ not mentioned in INSTALL.md
+Flag __SSE4_1__ not mentioned in cp2k_flags()
+Flag __SSE4_2__ not mentioned in INSTALL.md
+Flag __SSE4_2__ not mentioned in cp2k_flags()
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
 almo_scf_optimizer.F: Found CLOSE statement in procedure "print_mathematica_matrix"
@@ -111,6 +127,8 @@ cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t"
+cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
+cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector"
@@ -136,10 +154,6 @@ cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random"
 dbcsr_data_methods_low.F: Found WRITE statement with hardcoded unit in "internal_data_allocate"
 dbcsr_dist_methods.F: Found FLOAT in "make_threads"
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic"
-dbcsr_mm_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_image_dist"
-dbcsr_mm_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_reset_locals"
 dbcsr_example_1.F: Found WRITE statement with hardcoded unit in "dbcsr_example_1"
 dbcsr_example_2.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_example_2"
 dbcsr_example_2.F: Found WRITE statement with hardcoded unit in "dbcsr_example_2"
@@ -155,17 +169,19 @@ dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "make_ind
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "merge_index_arrays"
 dbcsr_mm.F: Found FLOAT in "dbcsr_multiply_lib_finalize"
 dbcsr_mm.F: Found WRITE statement with hardcoded unit in "dbcsr_multiply_generic"
-dbcsr_mm_accdrv.F: Found FLOAT in "setup_stackbuffers"
-dbcsr_mm_common.F: Found FLOAT in "count_mpi_statistics"
-dbcsr_mm_common.F: Found WRITE statement with hardcoded unit in "rec_sort_index"
-dbcsr_mm_cannon.F: Found FLOAT in "multiply_cannon"
-dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "multiply_cannon"
-dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_make_images_dense"
-dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index_2d"
 dbcsr_mm_3d.F: Found FLOAT in "multiply_3d"
 dbcsr_mm_3d.F: Found WRITE statement with hardcoded unit in "multiply_3d"
+dbcsr_mm_accdrv.F: Found FLOAT in "setup_stackbuffers"
+dbcsr_mm_cannon.F: Found FLOAT in "multiply_cannon"
+dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_make_images_dense"
+dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "multiply_cannon"
+dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index_2d"
+dbcsr_mm_common.F: Found FLOAT in "count_mpi_statistics"
+dbcsr_mm_common.F: Found WRITE statement with hardcoded unit in "rec_sort_index"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "build_csr_index"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_csr_multiply_low"
+dbcsr_mm_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_image_dist"
+dbcsr_mm_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_reset_locals"
 dbcsr_mm_hostdrv.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_hostdrv_process"
 dbcsr_mm_hostdrv.F: Found WRITE statement with hardcoded unit in "print_gemm_parameters"
 dbcsr_mm_multrec.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_multrec_init"
@@ -180,6 +196,7 @@ dbcsr_ptr_util.F: Found WRITE statement with hardcoded unit in "ensure_array_siz
 dbcsr_ptr_util.F: Found WRITE statement with hardcoded unit in "ensure_array_size_l"
 dbcsr_ptr_util.F: Found WRITE statement with hardcoded unit in "ensure_array_size_s"
 dbcsr_ptr_util.F: Found WRITE statement with hardcoded unit in "ensure_array_size_z"
+dbcsr_tensor_test.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_t_random_dist"
 dbcsr_test_add.F: Found WRITE statement with hardcoded unit in "dbcsr_check_add"
 dbcsr_test_add.F: Found WRITE statement with hardcoded unit in "dbcsr_test_adds"
 dbcsr_test_add.F: Found WRITE statement with hardcoded unit in "test_add"
@@ -210,6 +227,7 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
 erf_fn.F: Found GOTO statement in procedure "calerf"
+et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
@@ -239,6 +257,10 @@ hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cac
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c"
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri_nze_count"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_fock_sub"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_mo_count"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
@@ -274,6 +296,7 @@ mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "create_w_p"
 mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "write_array"
 mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "complete_gamma"
 mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "write_array"
+optimize_embedding_potential.F: Found FLOAT in "init_embed_pot"
 powell.F: Found GOTO statement in procedure "newuob"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho"
@@ -377,10 +400,3 @@ xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_details_s
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_extern_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_int_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_string_"
-dbcsr_tensor_test.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_t_random_dist"
-optimize_embedding_potential.F: Found FLOAT in "init_embed_pot"
-et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
-libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri"
-libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri_nze_count"
-libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_fock_sub"
-libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_mo_count"
