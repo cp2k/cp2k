@@ -185,7 +185,7 @@ PURE FUNCTION m_cpuid_static() RESULT (cpuid)
 #else
     cpuid = MACHINE_CPU_GENERIC
 #endif
-END FUNCTION m_cpuid
+END FUNCTION m_cpuid_static
 
 ! **************************************************************************************************
 !> \brief Target architecture or instruction set extension according to CPU-check at runtime.
