@@ -33,12 +33,31 @@ MODULE machine
   INTEGER, PUBLIC, PARAMETER                   :: default_output_unit = output_unit, &
                                                   default_input_unit  = input_unit
 
+  ! Enumerates the target architectures or instruction set extensions.
+  ! A feature is present if within range for the respective architecture.
+  ! For example, to check for MACHINE_X86_AVX the following is true:
+  ! MACHINE_X86_AVX <= m_cpuid() and MACHINE_X86 >= m_cpuid().
+  ! For example, to check for MACHINE_ARM_SOME the following is true:
+  ! MACHINE_ARM_SOME <= m_cpuid() and MACHINE_ARM >= m_cpuid().
+  INTEGER, PARAMETER :: &
+    MACHINE_CPU_GENERIC =    0, &
+    MACHINE_X86_SSE4    = 1000, &
+    MACHINE_X86_AVX     = 1001, &
+    MACHINE_X86_AVX2    = 1002, &
+    MACHINE_X86_AVX512  = 1003, &
+    MACHINE_X86 = MACHINE_X86_AVX512 ! marks end of range
+   ! other arch to be added as needed e.g.,
+   !MACHINE_ARM_SOME    = 2000
+   !MACHINE_ARM_ELSE    = 2001
+   !MACHINE_ARM = MACHINE_ARM_ELSE
+   !MACHINE_PWR_????    = 3000
+
   PRIVATE
 
   PUBLIC :: m_walltime, m_datum, m_flush, m_flush_internal,&
             m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
             m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details,&
-            m_energy, m_memory_max, m_cpuinfo
+            m_energy, m_memory_max, m_cpuinfo, m_cpuid_static, m_cpuid
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
@@ -146,6 +165,47 @@ SUBROUTINE m_cpuinfo(model_name)
         ENDIF
     ENDIF
 END SUBROUTINE m_cpuinfo
+
+! **************************************************************************************************
+!> \brief Target architecture or instruction set extension according to compiler target flags.
+!> \return cpuid according to MACHINE_* integer-parameter.
+!> \par History
+!>      04.2019 created [Hans Pabst]
+! **************************************************************************************************
+PURE FUNCTION m_cpuid_static() RESULT (cpuid)
+    INTEGER :: cpuid
+#if (__AVX512F__ && __AVX512CD__ && __AVX2__ && __FMA__ && __AVX__ && __SSE4_2__ && __SSE4_1__ && __SSE3__)
+    cpuid = MACHINE_X86_AVX512
+#elif (__AVX2__ && __FMA__ && __AVX__ && __SSE4_2__ && __SSE4_1__ && __SSE3__)
+    cpuid = MACHINE_X86_AVX2
+#elif (__AVX__ && __SSE4_2__ && __SSE4_1__ && __SSE3__)
+    cpuid = MACHINE_X86_AVX
+#elif (__SSE4_2__ && __SSE4_1__ && __SSE3__)
+    cpuid = MACHINE_X86_SSE4
+#else
+    cpuid = MACHINE_CPU_GENERIC
+#endif
+END FUNCTION m_cpuid_static
+
+! **************************************************************************************************
+!> \brief Target architecture or instruction set extension according to CPU-check at runtime.
+!> \return cpuid according to MACHINE_* integer-parameter.
+!> \par History
+!>      04.2019 created [Hans Pabst]
+! **************************************************************************************************
+PURE FUNCTION m_cpuid() RESULT (cpuid)
+#if defined(__LIBXSMM)
+    USE libxsmm, ONLY: libxsmm_get_target_archid, LIBXSMM_X86_SSE4
+#endif
+    INTEGER :: cpuid
+#if defined(__LIBXSMM)
+    cpuid = libxsmm_get_target_archid()
+    cpuid = MERGE(MIN(MACHINE_X86_SSE4 + cpuid - LIBXSMM_X86_SSE4, MACHINE_X86), &
+                  MACHINE_CPU_GENERIC, LIBXSMM_X86_SSE4 .LE. cpuid)
+#else
+    cpuid = m_cpuid_static()
+#endif
+END FUNCTION m_cpuid
 
 ! **************************************************************************************************
 !> \brief returns the energy used since some time in the past.
