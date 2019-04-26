@@ -29,10 +29,7 @@ MODULE cp_fm_elpa
 #include "../base/base_uses.f90"
 
 #if defined (__ELPA)
-# if (__ELPA < 201611)
-#  include "elpa_kernel_constants.h"
-   USE elpa2,                           ONLY: solve_evp_real_2stage
-# elif (__ELPA < 201705)
+# if (__ELPA < 201705)
 #  include "elpa_kernel_constants.h"
    USE elpa2,                           ONLY: elpa_solve_evp_real_2stage_double
 # else
@@ -232,16 +229,7 @@ $: "#endif"
       LOGICAL, INTENT(IN)                                :: use_qr, use_qr_unsafe
 
 #if defined(__ELPA)
-#if (__ELPA==201112) || (__ELPA==201308) || (__ELPA==201311) || (__ELPA==201406)
-      MARK_USED(use_qr)
-      MARK_USED(use_qr_unsafe)
-      elpa_qr = .FALSE.
-      elpa_qr_unsafe = .FALSE.
-#elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
-      MARK_USED(use_qr_unsafe)
-      elpa_qr = use_qr
-      elpa_qr_unsafe = .FALSE.
-#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
+#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       elpa_qr = use_qr
       elpa_qr_unsafe = use_qr_unsafe
 #else
@@ -390,12 +378,7 @@ $: "#endif"
       !     - Proper matrix order:  src/elpa2.F90 (src/elpa2_template.X90 in git version)
       !     - Proper block size:    test/Fortran/test_real2_qr.F90
       ! Note that the names of these files might change in different ELPA versions
-#if (__ELPA==201112) || (__ELPA==201308) || (__ELPA==201311) || (__ELPA==201406)
-      use_qr = .FALSE.
-#elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
-      ! Matrix order must be an integer multiple of the block size
-      use_qr = elpa_qr .AND. MOD(n, nblk).EQ.0
-#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
+#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       ! Matrix order must be even
       use_qr = elpa_qr .AND. MOD(n, 2).EQ.0
       ! Matrix order and block size must be greater than or equal to 64
@@ -438,19 +421,13 @@ $: "#endif"
             WRITE(io_unit, '(A,L14)') "ELPA| Use potentially unsafe QR: ", elpa_qr_unsafe
             WRITE(io_unit, '(A,L14)') "ELPA| Matrix is suitable for QR: ", use_qr
             IF (.NOT. use_qr) THEN
-#if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
-               WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT divisible by block size"
-#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
                IF (MOD(n, 2).NE.0 ) &
                   WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT even"
                IF (nblk .LT. 64 .AND. .NOT. elpa_qr_unsafe) &
                   WRITE(io_unit, '(A)') "ELPA| Matrix block size is NOT 64 or greater"
-#endif
             ELSE
-#if (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
                IF (nblk .LT. 64 .AND. elpa_qr_unsafe) &
                   WRITE(io_unit, '(A,L14)') "ELPA| Matrix block size check was bypassed"
-#endif
             END IF
          END IF
       END IF
@@ -464,51 +441,7 @@ $: "#endif"
 
       ! Make actual call to ELPA to calculate eigenvalues/eigenvectors
 
-!---------------------------------------------------------------------------------------------------
-#if (__ELPA==201112) || (__ELPA==201308) || (__ELPA==201311)
-      IF (elpa_kernel /= -1) CPABORT("The only available ELPA kernel is AUTO.")
-      CALL solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, comm_row, comm_col, group)
-      success = .TRUE.
-
-!---------------------------------------------------------------------------------------------------
-#elif (__ELPA==201406) || (__ELPA==201502) || (__ELPA==201505)
-      IF (elpa_kernel == -1) THEN ! auto
-         success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
-                                         comm_row, comm_col, group, &
-                                         useQR=use_qr)
-      ELSE
-         success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
-                                         comm_row, comm_col, group, &
-                                         elpa_kernel, &
-                                         useQR=use_qr)
-      END IF
-
-!---------------------------------------------------------------------------------------------------
-#elif (__ELPA==201511) || (__ELPA==201605)
-      IF (elpa_kernel == -1) THEN ! auto
-         success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
-                                         comm_row, comm_col, group, &
-                                         useQR=use_qr)
-         IF (check_eigenvalues) THEN
-            success_noqr = solve_evp_real_2stage(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
-                                                 comm_row, comm_col, group, &
-                                                 useQR=.FALSE.)
-         END IF
-      ELSE
-         success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
-                                         comm_row, comm_col, group, &
-                                         elpa_kernel, &
-                                         useQR=use_qr)
-         IF (check_eigenvalues) THEN
-            success_noqr = solve_evp_real_2stage(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
-                                                 comm_row, comm_col, group, &
-                                                 elpa_kernel, &
-                                                 useQR=.FALSE.)
-         END IF
-      END IF
-
-!---------------------------------------------------------------------------------------------------
-#elif (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
+#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       IF (elpa_kernel == -1) THEN ! auto
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
@@ -531,11 +464,9 @@ $: "#endif"
          END IF
       END IF
 
-!---------------------------------------------------------------------------------------------------
 #else
    Error: Unknown ELPA version, please specify library release date via __ELPA=YYYYMM
 #endif
-!---------------------------------------------------------------------------------------------------
 
       IF (.NOT. success) &
          CPABORT("ELPA failed to diagonalize a matrix")
