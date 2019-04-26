@@ -116,6 +116,21 @@ CONTAINS
 #:endfor
 
 #else
+      MARK_USED(libint)
+      MARK_USED(A)
+      MARK_USED(B)
+      MARK_USED(C)
+      MARK_USED(D)
+      MARK_USED(P)
+      MARK_USED(Q)
+      MARK_USED(W)
+      MARK_USED(ZetaInv)
+      MARK_USED(EtaInv)
+      MARK_USED(ZetapEtaInv)
+      MARK_USED(Rho)
+      MARK_USED(m_max)
+      MARK_USED(F)
+
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -126,12 +141,12 @@ CONTAINS
       TYPE(cp_libint_t)                       :: libint
       REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
       REAL(KIND=dp), INTENT(IN)               :: zeta_A, zeta_B, zeta_C, zeta_D, ZetaInv, EtaInv, ZetapEtaInv, Rho
-      REAL(KIND=dp), DIMENSION(:)             :: F
-      REAL(KIND=dp)                           :: gammap, gammaq, gammapq, rhop, rhoq
 
       INTEGER, INTENT(IN)                     :: m_max
+      REAL(KIND=dp), DIMENSION(:)             :: F
 
 #if(__LIBINT)
+      REAL(KIND=dp)                           :: gammap, gammaq, gammapq, rhop, rhoq
       libint%prv(1)%AB_x(1) = A(1)-B(1)
       libint%prv(1)%AB_y(1) = A(2)-B(2)
       libint%prv(1)%AB_z(1) = A(3)-B(3)
@@ -196,6 +211,24 @@ CONTAINS
 #:endfor
 
 #else
+      MARK_USED(libint)
+      MARK_USED(A)
+      MARK_USED(B)
+      MARK_USED(C)
+      MARK_USED(D)
+      MARK_USED(P)
+      MARK_USED(Q)
+      MARK_USED(W)
+      MARK_USED(zeta_A)
+      MARK_USED(zeta_B)
+      MARK_USED(zeta_C)
+      MARK_USED(zeta_D)
+      MARK_USED(ZetaInv)
+      MARK_USED(EtaInv)
+      MARK_USED(ZetapEtaInv)
+      MARK_USED(Rho)
+      MARK_USED(m_max)
+      MARK_USED(F)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -242,6 +275,7 @@ CONTAINS
 
 #:for m_max in range(0, libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
+
       IF(${m_max}$ .LE. m_max) &
          libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
          = F(${m_max}$+1)
@@ -249,6 +283,20 @@ CONTAINS
 #:endfor
 
 #else
+      MARK_USED(libint)
+      MARK_USED(A)
+      MARK_USED(B)
+      MARK_USED(C)
+      MARK_USED(D)
+      MARK_USED(P)
+      MARK_USED(Q)
+      MARK_USED(W)
+      MARK_USED(ZetaInv)
+      MARK_USED(EtaInv)
+      MARK_USED(ZetapEtaInv)
+      MARK_USED(Rho)
+      MARK_USED(m_max)
+      MARK_USED(F)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -367,7 +415,14 @@ CONTAINS
    SUBROUTINE cp_libint_set_contrdepth(lib, contrdepth)
       TYPE(cp_libint_t) :: lib
       INTEGER           :: contrdepth
+#if(__LIBINT)
       lib%prv(1)%contrdepth = contrdepth
+#else
+      MARK_USED(lib)
+      MARK_USED(contrdepth)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
    END SUBROUTINE
 
    SUBROUTINE cp_libint_init_eri1(lib, max_am)
