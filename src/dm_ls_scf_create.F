@@ -175,6 +175,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: mu
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
@@ -212,8 +213,12 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "SIGN_METHOD", i_val=ls_scf_env%sign_method)
       CALL section_vals_val_get(ls_scf_section, "DYNAMIC_THRESHOLD", l_val=ls_scf_env%dynamic_threshold)
       CALL section_vals_val_get(ls_scf_section, "NON_MONOTONIC", l_val=ls_scf_env%non_monotonic)
-      CALL section_vals_val_get(ls_scf_section, "S_SQRT_ORDER", i_val=ls_scf_env%s_sqrt_order)
       CALL section_vals_val_get(ls_scf_section, "S_SQRT_METHOD", i_val=ls_scf_env%s_sqrt_method)
+
+      CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=ls_scf_env%s_sqrt_order, explicit=explicit)
+      IF (.NOT. explicit) THEN
+         CALL section_vals_val_get(ls_scf_section, "S_SQRT_ORDER", i_val=ls_scf_env%s_sqrt_order)
+      ENDIF
       CALL section_vals_val_get(ls_scf_section, "EXTRAPOLATION_ORDER", i_val=ls_scf_env%extrapolation_order)
       CALL section_vals_val_get(ls_scf_section, "RESTART_READ", l_val=ls_scf_env%restart_read)
       CALL section_vals_val_get(ls_scf_section, "RESTART_WRITE", l_val=ls_scf_env%restart_write)

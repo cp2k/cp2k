@@ -183,8 +183,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="S_SQRT_ORDER", &
-                          description="Order of the iteration method for the caclulation of the sqrt of S.", &
+                          description="Order of the iteration method for the calculation of the sqrt of S.", &
                           usage="S_SQRT_ORDER 3", default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SIGN_SQRT_ORDER", &
+                          description="Order of the sqrt iteration, should be 2..5, 3 or 5 recommended.", &
+                          usage="SIGN_SQRT_ORDER 3", default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -269,20 +275,6 @@ CONTAINS
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
                                         "Using the Hotellign iteration."), &
                           enum_i_vals=(/ls_s_inversion_sign_sqrt, ls_s_inversion_hotelling/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIGN_SQRT_METHOD", &
-                          description="Method for the sqrt iteration, should be 2..5, 3 or 5 recommended", &
-                          usage="SIGN_SQRT_METHOD NEWTONSCHULZ", &
-                          default_i_val=3)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIGN_SQRT_ORDER", &
-                          description="Order of the sqrt iteration, should be 2..5, 3 or 5 recommended", &
-                          usage="SIGN_SQRT_ORDER 5", &
-                          default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
