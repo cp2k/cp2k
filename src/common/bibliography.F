@@ -3967,7 +3967,7 @@ CONTAINS
                          "   Lass, M", &
                          "   Walther, A", &
                          "   Plessl, C", &
-                         "   Kühne, T D", &
+                         "   Kuehne, T D", &
                          "TI A General Algorithm to Calculate the Inverse Principal p-th Root of ", &
                          "   Symmetric Positive Definite Matrices", &
                          "SO Communications in Computational Physics", &
