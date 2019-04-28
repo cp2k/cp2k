@@ -11,6 +11,8 @@
 MODULE iterate_matrix
    USE arnoldi_api,                     ONLY: arnoldi_data_type,&
                                               arnoldi_extremal
+   USE bibliography,                    ONLY: Richters2018,&
+                                              cite_reference
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -39,6 +41,7 @@ MODULE iterate_matrix
    END INTERFACE
 
    PUBLIC :: invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz, &
+             matrix_sqrt_proot, matrix_sign_proot, &
              purify_mcweeny, invert_Taylor, determinant
 
 CONTAINS
@@ -750,6 +753,89 @@ CONTAINS
 
    END SUBROUTINE matrix_sign_Newton_Schulz
 
+   ! **************************************************************************************************
+!> \brief compute the sign a matrix using the general algorithm for the p-th root of Richters et al.
+!>                   Commun. Comput. Phys., 25 (2019), pp. 564-585.
+!> \param matrix_sign ...
+!> \param matrix ...
+!> \param threshold ...
+!> \par History
+!>       2019.03 created [Robert Schade]
+!> \author Robert Schade
+! **************************************************************************************************
+   SUBROUTINE matrix_sign_proot(matrix_sign, matrix, threshold)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
+      REAL(KIND=dp), INTENT(IN)                          :: threshold
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, unit_nr
+      INTEGER(KIND=int_8)                                :: flop0, flop1, flop2
+      LOGICAL                                            :: converged, symmetrize
+      REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base, occ_matrix
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix2, matrix_sqrt, matrix_sqrt_inv, &
+                                                            tmp1, tmp2
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
+
+      CALL dbcsr_create(tmp1, template=matrix_sign)
+
+      CALL dbcsr_create(tmp2, template=matrix_sign)
+
+      CALL dbcsr_create(matrix2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix, 0.0_dp, matrix2, &
+                          filter_eps=threshold, flop=flop0)
+      !CALL dbcsr_filter(matrix2, threshold)
+
+      !CALL dbcsr_copy(matrix_sign, matrix)
+      !CALL dbcsr_filter(matrix_sign, threshold)
+
+      IF (unit_nr > 0) WRITE (unit_nr, *)
+
+      CALL dbcsr_create(matrix_sqrt, template=matrix2)
+      CALL dbcsr_create(matrix_sqrt_inv, template=matrix2)
+      IF (unit_nr > 0) WRITE (unit_nr, *) "Threshold=", threshold
+
+      symmetrize = .FALSE.
+      CALL matrix_sqrt_proot(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, 3, &
+                             0.01_dp, 100, symmetrize, converged)
+!      call matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, 3, &
+!                                        0.01_dp,100, symmetrize,converged)
+
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_sqrt_inv, 0.0_dp, matrix_sign, &
+                          filter_eps=threshold, flop=flop1)
+
+      ! this check is not really needed
+      CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sign, matrix_sign, 0.0_dp, tmp1, &
+                          filter_eps=threshold, flop=flop2)
+      frob_matrix_base = dbcsr_frobenius_norm(tmp1)
+      CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
+      frob_matrix = dbcsr_frobenius_norm(tmp1)
+      occ_matrix = dbcsr_get_occupation(matrix_sign)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3)') "Final proot sign iter", i, occ_matrix, &
+            frob_matrix/frob_matrix_base
+         WRITE (unit_nr, '()')
+         CALL m_flush(unit_nr)
+      ENDIF
+
+      CALL dbcsr_release(tmp1)
+      CALL dbcsr_release(tmp2)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE matrix_sign_proot
+
 ! **************************************************************************************************
 !> \brief compute the sqrt of a matrix via the sign function and the corresponding Newton-Schulz iterations
 !>        the order of the algorithm should be 2..5, 3 or 5 is recommended
@@ -766,20 +852,20 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
-                                        eps_lanczos, max_iter_lanczos, converged)
+                                        eps_lanczos, max_iter_lanczos, symmetrize, converged)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sqrt, matrix_sqrt_inv, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
-      LOGICAL, OPTIONAL                                  :: converged
+      LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, unit_nr
       INTEGER(KIND=int_8)                                :: flop1, flop2, flop3, flop4, flop5
-      LOGICAL                                            :: arnoldi_converged
+      LOGICAL                                            :: arnoldi_converged, tsym
       REAL(KIND=dp)                                      :: a, b, c, conv, d, frob_matrix, &
                                                             frob_matrix_base, gershgorin_norm, &
                                                             max_ev, min_ev, oa, ob, oc, &
@@ -797,6 +883,11 @@ CONTAINS
       ENDIF
 
       IF (PRESENT(converged)) converged = .FALSE.
+      IF (PRESENT(symmetrize)) THEN
+         tsym = symmetrize
+      ELSE
+         tsym = .TRUE.
+      ENDIF
 
       ! for stability symmetry can not be assumed
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -836,6 +927,10 @@ CONTAINS
 
       CALL dbcsr_scale(matrix_sqrt, scaling)
       CALL dbcsr_filter(matrix_sqrt, threshold)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, *) "Order=", order
+      ENDIF
 
       DO i = 1, 100
 
@@ -950,10 +1045,15 @@ CONTAINS
       ENDDO
 
       ! symmetrize the matrices as this is not guaranteed by the algorithm
-      CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
-      CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
-      CALL dbcsr_transposed(tmp1, matrix_sqrt)
-      CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
+      IF (tsym) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A20)') "SYMMETRIZING RESULTS"
+         ENDIF
+         CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
+         CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
+         CALL dbcsr_transposed(tmp1, matrix_sqrt)
+         CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
+      ENDIF
 
       ! this check is not really needed
       CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1, &
@@ -982,6 +1082,256 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE matrix_sqrt_Newton_Schulz
+   FUNCTION factorial(n) RESULT(res)
+
+      INTEGER, INTENT(in)                                :: n
+      INTEGER                                            :: res
+
+      INTEGER                                            :: i
+
+      res = PRODUCT((/(i, i=1, n)/))
+
+   END FUNCTION factorial
+   FUNCTION choose(n, k) RESULT(res)
+
+      INTEGER, INTENT(in)                                :: n, k
+      INTEGER                                            :: res
+
+      res = factorial(n)/(factorial(k)*factorial(n-k))
+
+   END FUNCTION choose
+
+! **************************************************************************************************
+!> \brief compute the sqrt of a matrix via the general algorithm for the p-th root of Richters et al.
+!>                   Commun. Comput. Phys., 25 (2019), pp. 564-585.
+!> \param matrix_sqrt ...
+!> \param matrix_sqrt_inv ...
+!> \param matrix ...
+!> \param threshold ...
+!> \param order ...
+!> \param eps_lanczos ...
+!> \param max_iter_lanczos ...
+!> \param converged ...
+!> \par History
+!>       2019.04 created [Robert Schade]
+!> \author Robert Schade
+! **************************************************************************************************
+   SUBROUTINE matrix_sqrt_proot(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
+                                eps_lanczos, max_iter_lanczos, symmetrize, converged)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sqrt, matrix_sqrt_inv, matrix
+      REAL(KIND=dp), INTENT(IN)                          :: threshold
+      INTEGER, INTENT(IN)                                :: order
+      REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
+      INTEGER, INTENT(IN)                                :: max_iter_lanczos
+      LOGICAL, OPTIONAL                                  :: symmetrize, converged
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, j, unit_nr
+      INTEGER(KIND=int_8)                                :: f, flop1, flop2, flop3, flop4, flop5
+      LOGICAL                                            :: arnoldi_converged, test, tsym
+      REAL(KIND=dp)                                      :: conv, frob_matrix, frob_matrix_base, &
+                                                            max_ev, min_ev, occ_matrix, scaling, &
+                                                            t1, t2
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: BK2A, matrixS, Rmat, tmp1, tmp2
+
+      CALL cite_reference(Richters2018)
+
+      test = .FALSE.
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
+
+      IF (PRESENT(converged)) converged = .FALSE.
+      IF (PRESENT(symmetrize)) THEN
+         tsym = symmetrize
+      ELSE
+         tsym = .TRUE.
+      ENDIF
+
+      ! for stability symmetry can not be assumed
+      CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(tmp2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(Rmat, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(matrixS, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+
+      CALL dbcsr_copy(matrixS, matrix)
+      IF (1 .EQ. 1) THEN
+         ! scale the matrix to get into the convergence range
+         CALL arnoldi_extremal(matrixS, max_ev, min_ev, threshold=eps_lanczos, &
+                               max_iter=max_iter_lanczos, converged=arnoldi_converged)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *)
+            WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", eps_lanczos
+            WRITE (unit_nr, '(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:", max_ev, min_ev
+            WRITE (unit_nr, '(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev, EPSILON(min_ev))
+         ENDIF
+         ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
+         ! and adjust the scaling to be on the safe side
+         scaling = 2.0_dp/(max_ev+min_ev+100*eps_lanczos)
+         CALL dbcsr_scale(matrixS, scaling)
+         CALL dbcsr_filter(matrixS, threshold)
+      ELSE
+         scaling = 1.0_dp
+      ENDIF
+
+      CALL dbcsr_set(matrix_sqrt_inv, 0.0_dp)
+      CALL dbcsr_add_on_diag(matrix_sqrt_inv, 1.0_dp)
+      !CALL dbcsr_filter(matrix_sqrt_inv, threshold)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, *) "Order=", order
+      ENDIF
+
+      DO i = 1, 100
+
+         t1 = m_walltime()
+         IF (1 .EQ. 1) THEN
+            !build R=1-A B_K^2
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix_sqrt_inv, 0.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flop1)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrixS, tmp1, 0.0_dp, Rmat, &
+                                filter_eps=threshold, flop=flop2)
+            CALL dbcsr_scale(Rmat, -1.0_dp)
+            CALL dbcsr_add_on_diag(Rmat, 1.0_dp)
+
+            flop4 = 0; flop5 = 0
+            CALL dbcsr_set(tmp1, 0.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 2.0_dp)
+
+            flop3 = 0
+
+            DO j = 2, order
+               IF (j .EQ. 2) THEN
+                  CALL dbcsr_copy(tmp2, Rmat)
+               ELSE
+                  f = 0
+                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, Rmat, 0.0_dp, tmp2, &
+                                      filter_eps=threshold, flop=f)
+                  flop3 = flop3+f
+               ENDIF
+               CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 1.0_dp)
+            ENDDO
+         ELSE
+            CALL dbcsr_create(BK2A, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrixS, 0.0_dp, BK2A, &
+                                filter_eps=threshold, flop=flop1)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, BK2A, 0.0_dp, BK2A, &
+                                filter_eps=threshold, flop=flop2)
+            CALL dbcsr_copy(Rmat, BK2A)
+            CALL dbcsr_add_on_diag(Rmat, -1.0_dp)
+
+            CALL dbcsr_set(tmp1, 0.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 1.0_dp)
+
+            CALL dbcsr_set(tmp2, 0.0_dp)
+            CALL dbcsr_add_on_diag(tmp2, 1.0_dp)
+
+            flop3 = 0
+            DO j = 1, order
+               CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose(order, j))
+               IF (j .LT. order) THEN
+                  f = 0
+                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, BK2A, 0.0_dp, tmp2, &
+                                      filter_eps=threshold, flop=f)
+                  flop3 = flop3+f
+               ENDIF
+            ENDDO
+            CALL dbcsr_release(BK2A)
+         ENDIF
+
+         CALL dbcsr_multiply("N", "N", 0.5_dp, matrix_sqrt_inv, tmp1, 0.0_dp, matrix_sqrt_inv, &
+                             filter_eps=threshold, flop=flop4)
+
+         occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
+
+         ! done iterating
+         t2 = m_walltime()
+
+         conv = dbcsr_frobenius_norm(Rmat)
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "PROOT sqrt iter ", i, occ_matrix, &
+               conv, t2-t1, &
+               (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+            CALL m_flush(unit_nr)
+         ENDIF
+
+         IF (abnormal_value(conv)) &
+            CPABORT("conv is an abnormal value (NaN/Inf).")
+
+         ! conv < SQRT(threshold)
+         IF ((conv*conv) < threshold) THEN
+            IF (PRESENT(converged)) converged = .TRUE.
+            EXIT
+         ENDIF
+
+      ENDDO
+
+      ! scale to proper end results
+      CALL dbcsr_scale(matrix_sqrt_inv, SQRT(scaling))
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix, 0.0_dp, matrix_sqrt, &
+                          filter_eps=threshold, flop=flop5)
+
+      ! symmetrize the matrices as this is not guaranteed by the algorithm
+      IF (tsym) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A20)') "SYMMETRIZING RESULTS"
+         ENDIF
+         CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
+         CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
+         CALL dbcsr_transposed(tmp1, matrix_sqrt)
+         CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
+      ENDIF
+
+      ! this check is not really needed
+      IF (test) THEN
+         CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1, &
+                             filter_eps=threshold)
+         frob_matrix_base = dbcsr_frobenius_norm(tmp1)
+         CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
+         frob_matrix = dbcsr_frobenius_norm(tmp1)
+         occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3)') "Final PROOT S^{-1/2} S^{1/2}-Eins error ", i, occ_matrix, &
+               frob_matrix/frob_matrix_base
+            WRITE (unit_nr, '()')
+            CALL m_flush(unit_nr)
+         ENDIF
+
+         ! this check is not really needed
+         CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt_inv, 0.0_dp, tmp2, &
+                             filter_eps=threshold)
+         CALL dbcsr_multiply("N", "N", +1.0_dp, tmp2, matrix, 0.0_dp, tmp1, &
+                             filter_eps=threshold)
+         frob_matrix_base = dbcsr_frobenius_norm(tmp1)
+         CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
+         frob_matrix = dbcsr_frobenius_norm(tmp1)
+         occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3)') "Final PROOT S^{-1/2} S^{-1/2} S-Eins error ", i, occ_matrix, &
+               frob_matrix/frob_matrix_base
+            WRITE (unit_nr, '()')
+            CALL m_flush(unit_nr)
+         ENDIF
+      ENDIF
+
+      CALL dbcsr_release(tmp1)
+      CALL dbcsr_release(tmp2)
+      CALL dbcsr_release(Rmat)
+      CALL dbcsr_release(matrixS)
+
+      CALL timestop(handle)
+   END SUBROUTINE matrix_sqrt_proot
 
 ! **************************************************************************************************
 !> \brief ...
