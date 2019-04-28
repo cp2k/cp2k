@@ -10,7 +10,7 @@
 !>      04.2015 GW routines added [Jan Wilhelm]
 !>      10.2015 Cubic-scaling RPA routines added [Jan Wilhelm]
 !>      10.2018 Cubic-scaling SOS-MP2 added [Frederick Stein]
-!>      03.2019 Refactoring [Frederick Stein, Jan Wilhelm]
+!>      03.2019 Refactoring [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_ri_gpw
    USE bibliography,                    ONLY: Bates2013,&
@@ -219,7 +219,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
       TYPE(mp2_type), INTENT(INOUT), POINTER             :: mp2_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
                                                             BIb_C_bse_ab
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(INOUT)                             :: color_sub
@@ -231,7 +232,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
-      INTEGER                                            :: nmo, homo, dimen_RI, gw_corr_lev_occ, &
+      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, unit_nr
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_mao, do_bse
@@ -4035,8 +4036,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
       TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
-      INTEGER                                            :: dimen_RI, ikp, nkp
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
+      INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Q_kp_RPA', &
@@ -4081,7 +4082,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_Q_kp_RPA
 
 ! **************************************************************************************************
 !> \brief ...
@@ -4100,8 +4101,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      INTEGER                                            :: ikp, nkp
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
+      INTEGER, INTENT(IN)                                :: ikp, nkp
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_P_to_subgroup', &
@@ -4163,7 +4164,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE mat_P_to_subgroup
 
 ! **************************************************************************************************
 !> \brief ...
@@ -4176,8 +4177,9 @@ CONTAINS
 
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: trace_Qomega
-      INTEGER                                            :: dimen_RI
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: trace_Qomega
+      INTEGER, INTENT(IN)                                :: dimen_RI
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cholesky_decomp_Q', &
          routineP = moduleN//':'//routineN
@@ -4231,12 +4233,13 @@ CONTAINS
    SUBROUTINE frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env_RPA, trace_Qomega, &
                                                dimen_RI, freq_weight, kp_weight)
 
-      REAL(KIND=dp)                                      :: Erpa
+      REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: trace_Qomega
-      INTEGER                                            :: dimen_RI
-      REAL(KIND=dp)                                      :: freq_weight, kp_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: trace_Qomega
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      REAL(KIND=dp), INTENT(IN)                          :: freq_weight, kp_weight
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'frequency_and_kpoint_integration', &
          routineP = moduleN//':'//routineN
@@ -4315,20 +4318,20 @@ CONTAINS
                                       print_ic_values, do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, &
                                       do_alpha, do_beta)
 
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_nnP_ic, &
                                                             mat_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      INTEGER                                            :: gw_corr_lev_tot, gw_corr_lev_occ, &
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, nmo, dimen_RI, &
                                                             unit_nr
-      LOGICAL                                            :: print_ic_values, do_ic_opt_homo_lumo
+      LOGICAL, INTENT(IN)                                :: print_ic_values, do_ic_opt_homo_lumo
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
-      LOGICAL, OPTIONAL                                  :: do_alpha, do_beta
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ic_correction', &
          routineP = moduleN//':'//routineN
@@ -4734,9 +4737,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_Neaton_value(fm_mat_M_occ, unit_nr, gw_corr_lev_occ, para_env, do_homo, do_lumo)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_M_occ
-      INTEGER                                            :: unit_nr, gw_corr_lev_occ
+      INTEGER, INTENT(IN)                                :: unit_nr, gw_corr_lev_occ
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      LOGICAL, OPTIONAL                                  :: do_homo, do_lumo
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_homo, do_lumo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_Neaton_value', &
          routineP = moduleN//':'//routineN
@@ -5121,8 +5124,8 @@ CONTAINS
    SUBROUTINE fill_fm_mat_M_occ(fm_mat_M_occ, mat_N_occ_dbcsr, matrix_s, Eigenval, gw_corr_lev_occ, homo, para_env)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_M_occ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_N_occ_dbcsr, matrix_s
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: gw_corr_lev_occ, homo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, homo
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_mat_M_occ', &
@@ -5433,8 +5436,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_coeff_dbcsr_virt(coeff_dbcsr, coeff, homo)
       TYPE(dbcsr_type), POINTER                          :: coeff_dbcsr
-      REAL(KIND=dp), DIMENSION(:)                        :: coeff
-      INTEGER                                            :: homo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: coeff
+      INTEGER, INTENT(IN)                                :: homo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_coeff_dbcsr_virt', &
          routineP = moduleN//':'//routineN
@@ -5505,7 +5508,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj_ext, wj_ext
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
-      INTEGER, OPTIONAL                                  :: homo_beta, virtual_beta, dimen_ia_beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, virtual_beta, dimen_ia_beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta
 
@@ -5818,13 +5821,15 @@ CONTAINS
                                 ZERO, ONE, M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
                                 nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
                                 para_env, para_env_row, para_env_row_beta)
-      REAL(KIND=dp)                                      :: a_scaling, left_term, first_deriv
-      INTEGER                                            :: num_integ_points
-      LOGICAL                                            :: my_open_shell
-      REAL(KIND=dp)                                      :: zero, one
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: M_ia, cottj, wj, D_ia, D_ia_beta, &
+      REAL(KIND=dp), INTENT(IN)                          :: a_scaling
+      REAL(KIND=dp), INTENT(INOUT)                       :: left_term, first_deriv
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      LOGICAL, INTENT(IN)                                :: my_open_shell
+      REAL(KIND=dp), INTENT(IN)                          :: zero, one
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: M_ia, cottj, wj, D_ia, D_ia_beta, &
                                                             M_ia_beta
-      INTEGER                                            :: nrow_local, nrow_local_beta, &
+      INTEGER, INTENT(IN)                                :: nrow_local, nrow_local_beta, &
                                                             num_integ_group, color_rpa_group
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_row, para_env_row_beta
 
@@ -6032,12 +6037,16 @@ CONTAINS
    SUBROUTINE get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, omega_tj, &
                                            E_min, E_max, max_error, num_points_per_magnitude)
 
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_sin_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: omega_tj
-      REAL(KIND=dp)                                      :: E_min, E_max, max_error
-      INTEGER                                            :: num_points_per_magnitude
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: weights_sin_tf_t_to_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: omega_tj
+      REAL(KIND=dp), INTENT(IN)                          :: E_min, E_max
+      REAL(KIND=dp), INTENT(OUT)                         :: max_error
+      INTEGER, INTENT(IN)                                :: num_points_per_magnitude
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_l_sq_wghts_sin_tf_t_to_w', &
          routineP = moduleN//':'//routineN
@@ -6245,7 +6254,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE eval_fit_func_tau_grid_sine(func_val, x_value, num_integ_points, tau_tj, tau_wj_work, omega)
 
-      REAL(KIND=dp), INTENT(inOUT)                       :: func_val
+      REAL(KIND=dp), INTENT(INOUT)                       :: func_val
       REAL(KIND=dp), INTENT(IN)                          :: x_value
       INTEGER, INTENT(in)                                :: num_integ_points
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -6327,8 +6336,9 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER                                            :: cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
+      INTEGER, INTENT(IN)                                :: cut_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: non_zero_blocks_3c
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c', &
          routineP = moduleN//':'//routineN
@@ -6424,8 +6434,9 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut_col
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER                                            :: cut_RI, cut_memory
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut
+      INTEGER, INTENT(IN)                                :: cut_RI, cut_memory
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :), &
+         INTENT(OUT)                                     :: non_zero_blocks_3c_cut
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c_cut_col', &
          routineP = moduleN//':'//routineN
@@ -6855,10 +6866,12 @@ CONTAINS
    SUBROUTINE calc_max_error_fit_omega_grid_with_cosine(max_error, tau, omega_tj, omega_wj_work, x_values, &
                                                         y_values, num_integ_points, num_x_nodes)
 
-      REAL(KIND=dp)                                      :: max_error, tau
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: omega_tj, omega_wj_work, x_values, &
+      REAL(KIND=dp), INTENT(OUT)                         :: max_error
+      REAL(KIND=dp), INTENT(IN)                          :: tau
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: omega_tj, omega_wj_work, x_values, &
                                                             y_values
-      INTEGER                                            :: num_integ_points, num_x_nodes
+      INTEGER, INTENT(IN)                                :: num_integ_points, num_x_nodes
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_max_error_fit_omega_grid_with_cosine', &
          routineP = moduleN//':'//routineN
@@ -6944,10 +6957,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_kp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_sub_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: nkp, dimen_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
-      INTEGER                                            :: first_ikp_local
-      LOGICAL                                            :: do_kpoints_cubic_RPA
+      INTEGER, INTENT(IN)                                :: nkp, dimen_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ikp_local
+      INTEGER, INTENT(OUT)                               :: first_ikp_local
+      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_sub_para_kp', &
          routineP = moduleN//':'//routineN
@@ -7001,8 +7014,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tj_dummy, tau_tj_dummy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_w_to_t_dummy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: tj_dummy, tau_tj_dummy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: weights_cos_tf_w_to_t_dummy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dummys', routineP = moduleN//':'//routineN
 
@@ -7030,8 +7045,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tj_dummy, tau_tj_dummy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_w_to_t_dummy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: tj_dummy, tau_tj_dummy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: weights_cos_tf_w_to_t_dummy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dummys', routineP = moduleN//':'//routineN
 
@@ -7061,8 +7078,8 @@ CONTAINS
 
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      INTEGER                                            :: num_integ_points, jquad, nkp
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
+      INTEGER, INTENT(IN)                                :: num_integ_points, jquad, nkp
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_Wc_kp_tau_GW', &
          routineP = moduleN//':'//routineN
