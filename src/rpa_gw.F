@@ -154,7 +154,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, mo_coeff, mo_coeff_beta
-      TYPE(dbcsr_p_type)                                 :: mat_dm_virt_local
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm_virt_local
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, &
          mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected, &
          mat_3c_overl_nnP_ic_reflected_beta, matrix_s, mat_W

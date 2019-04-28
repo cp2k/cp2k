@@ -10,6 +10,7 @@
 !>      04.2015 GW routines added [Jan Wilhelm]
 !>      10.2015 Cubic-scaling RPA routines added [Jan Wilhelm]
 !>      10.2018 Cubic-scaling SOS-MP2 added [Frederick Stein]
+!>      03.2019 Refactoring [Frederick Stein, Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_ri_gpw
    USE bibliography,                    ONLY: Bates2013,&
@@ -236,7 +237,7 @@ CONTAINS
                                                             do_im_time, do_mao, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mao_coeff_occ, mao_coeff_virt, &
                                                             mao_coeff_occ_A, mao_coeff_virt_A
-      TYPE(dbcsr_p_type)                                 :: mat_munu, mat_dm_occ_local, &
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu, mat_dm_occ_local, &
                                                             mat_dm_virt_local, mat_P_local, &
                                                             mat_P_global, mat_M
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
@@ -248,17 +249,17 @@ CONTAINS
                                                             mat_3c_overl_int_mao_for_virt
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INout), OPTIONAL                         :: BIb_C_beta
+         INTENT(INOUT), OPTIONAL                         :: BIb_C_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
-      REAL(KIND=dp), DIMENSION(:), INTENT(INout), &
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: Eigenval_beta
       INTEGER, ALLOCATABLE, DIMENSION(:), &
-         INTENT(INout), OPTIONAL                         :: ends_B_virtual_beta, &
+         INTENT(INOUT), OPTIONAL                         :: ends_B_virtual_beta, &
                                                             sizes_B_virtual_beta, &
                                                             starts_B_virtual_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INout), OPTIONAL                         :: BIb_C_gw_beta
+         INTENT(INOUT), OPTIONAL                         :: BIb_C_gw_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta
 
@@ -4794,11 +4795,12 @@ CONTAINS
 !> \param do_lumo ...
 ! **************************************************************************************************
    SUBROUTINE update_coeff_homo(coeff_homo, fm_mat_U_occ, para_env, homo, gw_corr_lev_occ, do_lumo)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeff_homo
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: coeff_homo
       TYPE(cp_fm_type), POINTER                          :: fm_mat_U_occ
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: homo, gw_corr_lev_occ
-      LOGICAL, OPTIONAL                                  :: do_lumo
+      INTEGER, INTENT(IN)                                :: homo, gw_corr_lev_occ
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_lumo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_coeff_homo', &
          routineP = moduleN//':'//routineN
@@ -4876,8 +4878,8 @@ CONTAINS
    SUBROUTINE fill_fm_mat_M_virt(fm_mat_M_virt, mat_N_virt_dbcsr, matrix_s, Eigenval, gw_corr_lev_virt, homo, para_env)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_M_virt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_N_virt_dbcsr, matrix_s
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: gw_corr_lev_virt, homo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_virt, homo
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_mat_M_virt', &
@@ -5384,8 +5386,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_coeff_dbcsr_occ(coeff_dbcsr, coeff, homo)
       TYPE(dbcsr_type), POINTER                          :: coeff_dbcsr
-      REAL(KIND=dp), DIMENSION(:)                        :: coeff
-      INTEGER                                            :: homo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: coeff
+      INTEGER, INTENT(IN)                                :: homo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_coeff_dbcsr_occ', &
          routineP = moduleN//':'//routineN
@@ -5494,16 +5496,17 @@ CONTAINS
                                   num_integ_points, num_integ_group, color_rpa_group, &
                                   tj_ext, wj_ext, fm_mat_S, &
                                   homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta)
-      REAL(KIND=dp)                                      :: a_scaling_ext
+      REAL(KIND=dp), INTENT(INOUT)                       :: a_scaling_ext
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
-      INTEGER                                            :: homo, virtual
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: num_integ_points, num_integ_group, &
+      INTEGER, INTENT(IN)                                :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tj_ext, wj_ext
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tj_ext, wj_ext
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       INTEGER, OPTIONAL                                  :: homo_beta, virtual_beta, dimen_ia_beta
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor', &
@@ -5892,12 +5895,16 @@ CONTAINS
    SUBROUTINE get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, omega_tj, &
                                            E_min, E_max, max_error, num_points_per_magnitude)
 
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: omega_tj
-      REAL(KIND=dp)                                      :: E_min, E_max, max_error
-      INTEGER                                            :: num_points_per_magnitude
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: weights_cos_tf_t_to_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: omega_tj
+      REAL(KIND=dp), INTENT(IN)                          :: E_min, E_max
+      REAL(KIND=dp), INTENT(INOUT)                       :: max_error
+      INTEGER, INTENT(IN)                                :: num_points_per_magnitude
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_l_sq_wghts_cos_tf_t_to_w', &
          routineP = moduleN//':'//routineN
@@ -6156,20 +6163,19 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_x_nodes ...
 ! **************************************************************************************************
-   SUBROUTINE calc_max_error_fit_tau_grid_with_cosine(max_error, omega, tau_tj, tau_wj_work, x_values, &
-                                                      y_values, num_integ_points, num_x_nodes)
+   PURE SUBROUTINE calc_max_error_fit_tau_grid_with_cosine(max_error, omega, tau_tj, tau_wj_work, x_values, &
+                                                           y_values, num_integ_points, num_x_nodes)
 
-      REAL(KIND=dp)                                      :: max_error, omega
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj, tau_wj_work, x_values, y_values
-      INTEGER                                            :: num_integ_points, num_x_nodes
+      REAL(KIND=dp), INTENT(INOUT)                       :: max_error, omega
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj, tau_wj_work, x_values, y_values
+      INTEGER, INTENT(IN)                                :: num_integ_points, num_x_nodes
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_max_error_fit_tau_grid_with_cosine', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, kkk
+      INTEGER                                            :: kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
-
-      CALL timeset(routineN, handle)
 
       max_error_tmp = 0.0_dp
 
@@ -6192,8 +6198,6 @@ CONTAINS
 
       END IF
 
-      CALL timestop(handle)
-
    END SUBROUTINE calc_max_error_fit_tau_grid_with_cosine
 
 ! **************************************************************************************************
@@ -6205,12 +6209,14 @@ CONTAINS
 !> \param tau_wj_work ...
 !> \param omega ...
 ! **************************************************************************************************
-   SUBROUTINE eval_fit_func_tau_grid_cosine(func_val, x_value, num_integ_points, tau_tj, tau_wj_work, omega)
+   PURE SUBROUTINE eval_fit_func_tau_grid_cosine(func_val, x_value, num_integ_points, tau_tj, tau_wj_work, omega)
 
-      REAL(KIND=dp)                                      :: func_val, x_value
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj, tau_wj_work
-      REAL(KIND=dp)                                      :: omega
+      REAL(KIND=dp), INTENT(OUT)                         :: func_val
+      REAL(KIND=dp), INTENT(IN)                          :: x_value
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj, tau_wj_work
+      REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_tau_grid_cosine', &
          routineP = moduleN//':'//routineN
@@ -6567,11 +6573,12 @@ CONTAINS
                                            mat_3c_overl_int_cut, cut_RI, cut_memory, para_env_sub, &
                                            do_kpoints_cubic_RPA)
 
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :), INTENT(OUT) :: &
+         needed_cutRI_mem_R1vec_R2vec_for_kp
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut
-      INTEGER                                            :: cut_RI, cut_memory
+      INTEGER, INTENT(IN)                                :: cut_RI, cut_memory
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      LOGICAL                                            :: do_kpoints_cubic_RPA
+      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_sparsity_arrays_for_kp', &
          routineP = moduleN//':'//routineN
@@ -6708,12 +6715,16 @@ CONTAINS
    SUBROUTINE get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, omega_tj, &
                                            E_min, E_max, max_error, num_points_per_magnitude)
 
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_w_to_t
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: omega_tj
-      REAL(KIND=dp)                                      :: E_min, E_max, max_error
-      INTEGER                                            :: num_points_per_magnitude
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: weights_cos_tf_w_to_t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: omega_tj
+      REAL(KIND=dp), INTENT(IN)                          :: E_min, E_max
+      REAL(KIND=dp), INTENT(INOUT)                       :: max_error
+      INTEGER, INTENT(IN)                                :: num_points_per_magnitude
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_l_sq_wghts_cos_tf_w_to_t', &
          routineP = moduleN//':'//routineN
@@ -6891,11 +6902,13 @@ CONTAINS
 !> \param omega_wj_work ...
 !> \param tau ...
 ! **************************************************************************************************
-   SUBROUTINE eval_fit_func_omega_grid_cosine(func_val, x_value, num_integ_points, omega_tj, omega_wj_work, tau)
-      REAL(KIND=dp)                                      :: func_val, x_value
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: omega_tj, omega_wj_work
-      REAL(KIND=dp)                                      :: tau
+   PURE SUBROUTINE eval_fit_func_omega_grid_cosine(func_val, x_value, num_integ_points, omega_tj, omega_wj_work, tau)
+      REAL(KIND=dp), INTENT(OUT)                         :: func_val
+      REAL(KIND=dp), INTENT(IN)                          :: x_value
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: omega_tj, omega_wj_work
+      REAL(KIND=dp), INTENT(IN)                          :: tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_omega_grid_cosine', &
          routineP = moduleN//':'//routineN

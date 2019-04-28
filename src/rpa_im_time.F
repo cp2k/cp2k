@@ -3630,7 +3630,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                                             nmo
-      TYPE(dbcsr_p_type)                                 :: mat_dm_virt_local
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm_virt_local
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER                                            :: cut_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_from_LLL, my_group_L_starts_im_time, &
