@@ -391,7 +391,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: color_rpa_group, dimen_nm_gw, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
          gw_corr_lev_virt, homo, homo_beta, nmo, num_integ_points, num_integ_group, unit_nr
       INTEGER, INTENT(INOUT)                             :: gw_corr_lev_tot, num_fit_points
-      REAL(kind=dp)                                      :: omega_max_fit
+      REAL(KIND=dp)                                      :: omega_max_fit
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
@@ -413,8 +413,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: nkp, nkp_self_energy
-      LOGICAL                                            :: do_kpoints_cubic_RPA, &
+      INTEGER, INTENT(OUT)                               :: nkp, nkp_self_energy
+      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA, &
                                                             do_kpoints_from_Gamma
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw', &
@@ -424,7 +424,7 @@ CONTAINS
       INTEGER :: handle, iiB, iquad, jjB, jquad, m_global, m_global_beta, n_global, n_global_beta, &
          n_level_gw, n_level_gw_ref, ncol_local, nm_global, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      REAL(kind=dp)                                      :: omega
+      REAL(KIND=dp)                                      :: omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_gw
 
       CALL timeset(routineN, handle)
@@ -793,7 +793,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
-      LOGICAL                                            :: do_kpoints_cubic_RPA, &
+      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA, &
                                                             do_kpoints_from_Gamma
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_matrix_operations', &
@@ -1196,11 +1196,13 @@ CONTAINS
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, tau_tj, tj, &
          vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
          vec_omega_fit_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_Sigma_x_gw, vec_Sigma_x_gw_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: vec_Sigma_x_gw, vec_Sigma_x_gw_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: z_value, z_value_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_t_to_w, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
          fm_mo_coeff_occ, fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
@@ -1216,10 +1218,11 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: nkp_self_energy
-      LOGICAL                                            :: do_kpoints_cubic_RPA
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval_kp, Eigenval_scf_kp
-      INTEGER                                            :: iter_ev_sc
+      INTEGER, INTENT(IN)                                :: nkp_self_energy
+      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: Eigenval_kp, Eigenval_scf_kp
+      INTEGER, INTENT(INOUT)                             :: iter_ev_sc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_postprocessing', &
          routineP = moduleN//':'//routineN
@@ -1227,7 +1230,7 @@ CONTAINS
       INTEGER                                            :: crossing_search, handle, ikp, &
                                                             max_iter_fit, n_level_gw, num_poles
       LOGICAL                                            :: check_fit, remove_neg_virt_energies
-      REAL(kind=dp)                                      :: stop_crit
+      REAL(KIND=dp)                                      :: stop_crit
 
       CALL timeset(routineN, handle)
 
@@ -1537,15 +1540,16 @@ CONTAINS
    SUBROUTINE compute_eps_head_Berry(eps_head, kpoints, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, para_env_RPA, &
                                      qs_env, homo, Eigenval, omega)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_head
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: eps_head
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: homo
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      REAL(KIND=dp)                                      :: omega
+      INTEGER, INTENT(IN)                                :: homo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_eps_head_Berry', &
          routineP = moduleN//':'//routineN
@@ -1703,11 +1707,11 @@ CONTAINS
                                                             matrix_berry_im_mo_mo
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      LOGICAL                                            :: do_mo_coeff_Gamma_only
-      INTEGER                                            :: homo, nmo, gw_corr_lev_virt
-      REAL(KIND=dp)                                      :: eps_kpoint
-      LOGICAL                                            :: do_aux_bas
-      REAL(KIND=dp)                                      :: frac_aux_mos
+      LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only
+      INTEGER, INTENT(IN)                                :: homo, nmo, gw_corr_lev_virt
+      REAL(KIND=dp), INTENT(IN)                          :: eps_kpoint
+      LOGICAL, INTENT(IN)                                :: do_aux_bas
+      REAL(KIND=dp), INTENT(IN)                          :: frac_aux_mos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_berry_phase', &
          routineP = moduleN//':'//routineN
@@ -2218,7 +2222,7 @@ CONTAINS
    SUBROUTINE remove_unnecessary_blocks(mat_mo_coeff_Gamma_occ_and_GW, homo, gw_corr_lev_virt)
 
       TYPE(dbcsr_type), POINTER                          :: mat_mo_coeff_Gamma_occ_and_GW
-      INTEGER                                            :: homo, gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: homo, gw_corr_lev_virt
 
       INTEGER                                            :: col, col_offset, row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
@@ -2263,14 +2267,17 @@ CONTAINS
                                                 matrix_berry_im_mo_mo, homo, gw_corr_lev_occ, gw_corr_lev_virt, &
                                                 para_env_RPA, do_extra_kpoints)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, eps_inv_head
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: delta_corr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: eps_inv_head
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
-      INTEGER                                            :: homo, gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: homo, gw_corr_lev_occ, gw_corr_lev_virt
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_RPA
-      LOGICAL                                            :: do_extra_kpoints
+      LOGICAL, INTENT(IN)                                :: do_extra_kpoints
 
       INTEGER                                            :: col, col_offset, col_size, i_col, i_row, &
                                                             ikp, m_level, n_level_gw, nkp, row, &
@@ -2446,7 +2453,10 @@ CONTAINS
 !> \param kpoints ...
 ! **************************************************************************************************
    SUBROUTINE compute_eps_inv_head(eps_inv_head, eps_head, kpoints)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_inv_head, eps_head
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: eps_inv_head
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: eps_head
       TYPE(kpoint_type), POINTER                         :: kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_eps_inv_head', &
@@ -2487,11 +2497,11 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid
-      INTEGER                                            :: num_kp_grids
+      INTEGER, INTENT(IN)                                :: num_kp_grids
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
-      INTEGER                                            :: nmo
-      LOGICAL                                            :: do_mo_coeff_Gamma_only, do_extra_kpoints
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_inv
+      INTEGER, INTENT(IN)                                :: nmo
+      LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only, do_extra_kpoints
 
       INTEGER                                            :: end_kp, i, i_grid_level, ix, iy, iz, &
                                                             nkp_inner_grid, nkp_outer_grid, &
@@ -2685,9 +2695,10 @@ CONTAINS
 !> \param eps_eigenval ...
 ! **************************************************************************************************
    SUBROUTINE average_degenerate_levels(vec_Sigma_c_gw, Eigenval_DFT, eps_eigenval)
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: vec_Sigma_c_gw
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval_DFT
-      REAL(KIND=dp)                                      :: eps_eigenval
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_DFT
+      REAL(KIND=dp), INTENT(IN)                          :: eps_eigenval
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: avg_self_energy
       INTEGER :: degeneracy, first_degenerate_level, i_deg_level, i_level_gw, j_deg_level, jquad, &
@@ -2768,11 +2779,12 @@ CONTAINS
 !> \param my_open_shell ...
 ! **************************************************************************************************
    SUBROUTINE get_eigenval_for_conti(Eigenval, Eigenval_scf, Eigenval_kp, Eigenval_scf_kp, kpoints, ikp, iter_ev_sc, my_open_shell)
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval, Eigenval_scf
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval_kp, Eigenval_scf_kp
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_scf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: Eigenval_kp, Eigenval_scf_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: ikp, iter_ev_sc
-      LOGICAL                                            :: my_open_shell
+      INTEGER, INTENT(IN)                                :: ikp, iter_ev_sc
+      LOGICAL, INTENT(IN)                                :: my_open_shell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_eigenval_for_conti', &
          routineP = moduleN//':'//routineN
@@ -4287,10 +4299,11 @@ CONTAINS
                             gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
                             homo, nmo, unit_nr, do_alpha, do_beta)
 
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval, Eigenval_scf, ic_corr_list
-      INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt, &
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_scf
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: ic_corr_list
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
                                                             gw_corr_lev_tot, homo, nmo, unit_nr
-      LOGICAL, OPTIONAL                                  :: do_alpha, do_beta
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_ic_corr', routineP = moduleN//':'//routineN
 
@@ -4501,13 +4514,16 @@ CONTAINS
                                                             mat_contr_W
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_W
       TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv, mat_dm
-      REAL(KIND=dp)                                      :: stabilize_exp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_t_to_w, &
+      REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: vec_Sigma_c_gw
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw
       LOGICAL, INTENT(IN)                                :: do_periodic
       INTEGER, INTENT(IN)                                :: num_points_corr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: delta_corr
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -4843,11 +4859,12 @@ CONTAINS
                                                             matrix_s
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: jquad, num_integ_points, nmo
-      REAL(KIND=dp)                                      :: eps_filter, e_fermi, stabilize_exp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj
-      INTEGER                                            :: count_ev_sc_GW
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: jquad, num_integ_points, nmo
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, stabilize_exp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tau_tj
+      INTEGER, INTENT(IN)                                :: count_ev_sc_GW
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Greens_function', &
          routineP = moduleN//':'//routineN
