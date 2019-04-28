@@ -69,7 +69,7 @@ case "$with_elpa" in
             [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
             has_AVX2=`grep '\bavx2\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
-            has_AVX512=`grep '\bavx512\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            has_AVX512=`grep '\bavx512f\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             FMA_flag=`grep '\bfma\b' /proc/cpuinfo 1>/dev/null && echo '-mfma' || echo '-mno-fma'`
             SSE4_flag=`grep '\bsse4_1\b' /proc/cpuinfo 1>/dev/null && echo '-msse4' || echo '-mno-sse4'`
             # non-threaded version
