@@ -7015,9 +7015,9 @@ CONTAINS
    SUBROUTINE get_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: tj_dummy, tau_tj_dummy
+         INTENT(INOUT)                                   :: tj_dummy, tau_tj_dummy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: weights_cos_tf_w_to_t_dummy
+         INTENT(INOUT)                                   :: weights_cos_tf_w_to_t_dummy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dummys', routineP = moduleN//':'//routineN
 
@@ -7046,9 +7046,9 @@ CONTAINS
    SUBROUTINE release_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: tj_dummy, tau_tj_dummy
+         INTENT(INOUT)                                   :: tj_dummy, tau_tj_dummy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: weights_cos_tf_w_to_t_dummy
+         INTENT(INOUT)                                   :: weights_cos_tf_w_to_t_dummy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dummys', routineP = moduleN//':'//routineN
 

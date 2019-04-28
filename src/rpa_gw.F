@@ -2781,7 +2781,7 @@ CONTAINS
    SUBROUTINE get_eigenval_for_conti(Eigenval, Eigenval_scf, Eigenval_kp, Eigenval_scf_kp, kpoints, ikp, iter_ev_sc, my_open_shell)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_scf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: Eigenval_kp, Eigenval_scf_kp
+         INTENT(INOUT)                                   :: Eigenval_kp, Eigenval_scf_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: ikp, iter_ev_sc
       LOGICAL, INTENT(IN)                                :: my_open_shell
