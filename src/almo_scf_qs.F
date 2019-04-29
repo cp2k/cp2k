@@ -126,9 +126,8 @@ CONTAINS
       INTEGER                                            :: dimen, handle, hold, iatom, iblock_col, &
                                                             iblock_row, imol, mynode, natoms, &
                                                             nblkrows_tot, nlength, nmols, row
-      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, cluster_distr, &
-         cluster_distr_new, col_cluster_new, col_distr_new, col_sizes_new, distr_new_array, &
-         row_cluster_new, row_distr_new, row_sizes_new
+      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, col_distr_new, &
+         col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
       LOGICAL                                            :: active, one_dim_is_mo, tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
@@ -140,7 +139,7 @@ CONTAINS
 ! symmetry type: dbcsr_type_no_symmetry, dbcsr_type_symmetric,
 !  dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
 !  (see dbcsr_lib/dbcsr_types.F for other values)
-! spin_key: either 1 or 2 (0 is allowed for matrics in the AO basis)
+! spin_key: either 1 or 2 (0 is allowed for matrices in the AO basis)
 !    TYPE(dbcsr_iterator_type)                  :: iter
 !    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: allones
 !-----------------------------------------------------------------------
@@ -149,7 +148,7 @@ CONTAINS
 
       ! RZK-warning The structure of the matrices can be optimized:
       ! 1. Diagonal matrices must be distributed evenly over the processes.
-      !    This can be achived by distributing cpus: 012012-rows and 001122-cols
+      !    This can be achieved by distributing cpus: 012012-rows and 001122-cols
       !    block_diagonal_flag is introduced but not used
       ! 2. Multiplication of diagonally dominant matrices will be faster
       !    if the diagonal blocks are local to the same processes.
@@ -167,12 +166,10 @@ CONTAINS
 
          ! distribution pattern is the same for all matrix types (ao, occ, virt)
          IF (dimen == 1) THEN !rows
-            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr)
          ELSE !columns
-            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr)
          ENDIF
-
-         NULLIFY (cluster_distr_new)
 
          IF (size_keys(dimen) == almo_mat_dim_aobasis) THEN ! this dimension is AO
 
@@ -184,10 +181,6 @@ CONTAINS
                ALLOCATE (block_sizes_new(natoms), distr_new_array(natoms))
                block_sizes_new(:) = blk_sizes(:)
                distr_new_array(:) = blk_distr(:)
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  ALLOCATE (cluster_distr_new(natoms))
-                  cluster_distr_new(:) = cluster_distr(:)
-               END IF
                ! molecular clustering of AOs
             ELSE IF (almo_scf_env%mat_distr_aos == almo_mat_distr_molecular) THEN
                ALLOCATE (block_sizes_new(nmols), distr_new_array(nmols))
@@ -201,13 +194,6 @@ CONTAINS
                   distr_new_array(imol) = &
                      blk_distr(almo_scf_env%first_atom_of_domain(imol))
                ENDDO
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  ALLOCATE (cluster_distr_new(nmols))
-                  DO imol = 1, nmols
-                     cluster_distr_new(imol) = &
-                        cluster_distr(almo_scf_env%first_atom_of_domain(imol))
-                  ENDDO
-               END IF
             ELSE
                CPABORT("Illegal distribution")
             ENDIF
@@ -259,27 +245,15 @@ CONTAINS
 
             ! distribution for MOs is copied from AOs
             ALLOCATE (distr_new_array(nlength))
-            IF (ASSOCIATED(cluster_distr)) THEN
-               ALLOCATE (cluster_distr_new(nlength))
-            END IF
             ! atomic clustering
             IF (almo_scf_env%mat_distr_mos == almo_mat_distr_atomic) THEN
                distr_new_array(:) = blk_distr(:)
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  cluster_distr_new(:) = cluster_distr(:)
-               ENDIF
                ! molecular clustering
             ELSE IF (almo_scf_env%mat_distr_mos == almo_mat_distr_molecular) THEN
                DO imol = 1, nmols
                   distr_new_array(imol) = &
                      blk_distr(almo_scf_env%first_atom_of_domain(imol))
                ENDDO
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  DO imol = 1, nmols
-                     cluster_distr_new(imol) = &
-                        cluster_distr(almo_scf_env%first_atom_of_domain(imol))
-                  ENDDO
-               END IF
             ENDIF
          ENDIF ! end choosing dimension size (AOs vs .NOT.AOs)
 
@@ -287,18 +261,15 @@ CONTAINS
          IF (dimen == 1) THEN !rows
             row_sizes_new => block_sizes_new
             row_distr_new => distr_new_array
-            row_cluster_new => cluster_distr_new
          ELSE !columns
             col_sizes_new => block_sizes_new
             col_distr_new => distr_new_array
-            col_cluster_new => cluster_distr_new
          ENDIF
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
       CALL dbcsr_distribution_new(dist_new, template=dist_qs, &
                                   row_dist=row_distr_new, col_dist=col_distr_new, &
-                                  row_cluster=row_cluster_new, col_cluster=col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 
       ! Create the matrix
@@ -307,7 +278,7 @@ CONTAINS
                         row_sizes_new, col_sizes_new, reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(dist_new)
 
-      ! fill out reqired blocks with 1.0_dp to tell the dbcsr library
+      ! fill out required blocks with 1.0_dp to tell the dbcsr library
       ! which blocks to keep
       IF (init_domains) THEN
 
@@ -330,7 +301,7 @@ CONTAINS
          !QQQ
          !QQQ         ! RZK-warning replace with a function which says if this
          !QQQ         ! distribution block is active or not
-         !QQQ         ! Translate indeces of distribution blocks to domain blocks
+         !QQQ         ! Translate indices of distribution blocks to domain blocks
          !QQQ         if (size_keys(1)==almo_mat_dim_aobasis) then
          !QQQ           domain_row=almo_scf_env%domain_index_of_ao_block(iblock_row)
          !QQQ         else if (size_keys(2)==almo_mat_dim_occ .OR. &
@@ -426,7 +397,7 @@ CONTAINS
 
             ENDIF ! mynode
          ENDDO
-         ! end lnear-scaling replacement
+         ! end linear-scaling replacement
 
       ENDIF ! init_domains
 
@@ -1478,7 +1449,7 @@ CONTAINS
             ! check boundaries
             IF (domain_grid(grid1, 0) .GT. max_neig) THEN
                ! this neighbor will overstep the boundaries
-               ! stop the trial and increase the max number of neigbors
+               ! stop the trial and increase the max number of neighbors
                DEALLOCATE (domain_grid)
                max_neig = max_neig*2
                CYCLE max_neig_loop

@@ -209,9 +209,8 @@ CONTAINS
                                                             iblock_row, iblock_size, nblocks, &
                                                             nblocks_new, start_index, trailing_size
       INTEGER, DIMENSION(2)                              :: add_blocks_before
-      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, cluster_distr, &
-         cluster_distr_new, col_cluster_new, col_distr_new, col_sizes_new, distr_new_array, &
-         row_cluster_new, row_distr_new, row_sizes_new
+      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, col_distr_new, &
+         col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -235,13 +234,11 @@ CONTAINS
             add_blocks_after = add_blocks_after+1
          ENDIF
 
-         NULLIFY (cluster_distr_new)
-
          IF (dimen == 1) THEN !rows
-            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr)
             CALL dbcsr_get_info(submatrix_in, row_blk_size=blk_sizes)
          ELSE !columns
-            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr)
             CALL dbcsr_get_info(submatrix_in, col_blk_size=blk_sizes)
          ENDIF
          nblocks = SIZE(blk_sizes) ! number of blocks in the small matrix
@@ -249,45 +246,30 @@ CONTAINS
          nblocks_new = nblocks+add_blocks_before(dimen)+add_blocks_after
          ALLOCATE (block_sizes_new(nblocks_new))
          ALLOCATE (distr_new_array(nblocks_new))
-         IF (ASSOCIATED(cluster_distr)) THEN
-            ALLOCATE (cluster_distr_new(nblocks_new))
-         END IF
          IF (add_blocks_before(dimen) .GT. 0) THEN
             block_sizes_new(1) = offset(dimen)
             distr_new_array(1) = 0
-            IF (ASSOCIATED(cluster_distr)) THEN
-               cluster_distr_new(1) = 0
-            END IF
          ENDIF
          block_sizes_new(start_index:nblocks+start_index-1) = blk_sizes(1:nblocks)
          distr_new_array(start_index:nblocks+start_index-1) = blk_distr(1:nblocks)
-         IF (ASSOCIATED(cluster_distr)) THEN
-            cluster_distr_new(start_index:nblocks+start_index-1) = cluster_distr(1:nblocks)
-         END IF
          IF (add_blocks_after .GT. 0) THEN
             block_sizes_new(nblocks_new) = trailing_size
             distr_new_array(nblocks_new) = 0
-            IF (ASSOCIATED(cluster_distr)) THEN
-               cluster_distr_new(nblocks_new) = 0
-            END IF
          ENDIF
 
          ! create final arrays
          IF (dimen == 1) THEN !rows
             row_sizes_new => block_sizes_new
             row_distr_new => distr_new_array
-            row_cluster_new => cluster_distr_new
          ELSE !columns
             col_sizes_new => block_sizes_new
             col_distr_new => distr_new_array
-            col_cluster_new => cluster_distr_new
          ENDIF
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
       CALL dbcsr_distribution_new(dist_new, template=dist_qs, &
                                   row_dist=row_distr_new, col_dist=col_distr_new, &
-                                  row_cluster=row_cluster_new, col_cluster=col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 
       ! Create big the matrix
