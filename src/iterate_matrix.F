@@ -1083,35 +1083,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE matrix_sqrt_Newton_Schulz
-! **************************************************************************************************
-!> \brief ...
-!> \param n ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION factorial(n) RESULT(res)
-
-      INTEGER, INTENT(in)                                :: n
-      INTEGER                                            :: res
-
-      INTEGER                                            :: i
-
-      res = PRODUCT((/(i, i=1, n)/))
-
-   END FUNCTION factorial
-! **************************************************************************************************
-!> \brief ...
-!> \param n ...
-!> \param k ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION choose(n, k) RESULT(res)
-
-      INTEGER, INTENT(in)                                :: n, k
-      INTEGER                                            :: res
-
-      res = factorial(n)/(factorial(k)*factorial(n-k))
-
-   END FUNCTION choose
 
 ! **************************************************************************************************
 !> \brief compute the sqrt of a matrix via the general algorithm for the p-th root of Richters et al.
@@ -1141,7 +1112,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, unit_nr
+      INTEGER                                            :: choose, handle, i, ii, j, unit_nr
       INTEGER(KIND=int_8)                                :: f, flop1, flop2, flop3, flop4, flop5
       LOGICAL                                            :: arnoldi_converged, test, tsym
       REAL(KIND=dp)                                      :: conv, frob_matrix, frob_matrix_base, &
@@ -1251,7 +1222,9 @@ CONTAINS
 
             flop3 = 0
             DO j = 1, order
-               CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose(order, j))
+               !choose=factorial(order)/(factorial(j)*factorial(order-j))
+               choose = PRODUCT((/(ii, ii=1, order)/))/(PRODUCT((/(ii, ii=1, j)/))*PRODUCT((/(ii, ii=1, order-j)/)))
+               CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose)
                IF (j .LT. order) THEN
                   f = 0
                   CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, BK2A, 0.0_dp, tmp2, &

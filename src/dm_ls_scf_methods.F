@@ -29,6 +29,7 @@ MODULE dm_ls_scf_methods
                                               ls_s_preconditioner_molecular,&
                                               ls_s_preconditioner_none,&
                                               ls_s_sqrt_ns,&
+                                              ls_s_sqrt_proot,&
                                               ls_scf_sign_ns,&
                                               ls_scf_sign_proot
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
@@ -124,18 +125,22 @@ CONTAINS
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(ls_scf_env%matrix_s_sqrt_inv, template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
-         IF (ls_scf_env%s_sqrt_method .EQ. ls_s_sqrt_ns) THEN
-            CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_s_sqrt_inv, &
-                                           ls_scf_env%matrix_s, ls_scf_env%eps_filter, &
-                                           ls_scf_env%s_sqrt_order, &
-                                           ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
-         ELSE
+
+         SELECT CASE (ls_scf_env%s_sqrt_method)
+         CASE (ls_s_sqrt_proot)
             CALL matrix_sqrt_proot(ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_s_sqrt_inv, &
                                    ls_scf_env%matrix_s, ls_scf_env%eps_filter, &
                                    ls_scf_env%s_sqrt_order, &
                                    ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos, &
                                    symmetrize=.TRUE.)
-         ENDIF
+         CASE (ls_s_sqrt_ns)
+            CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_s_sqrt_inv, &
+                                           ls_scf_env%matrix_s, ls_scf_env%eps_filter, &
+                                           ls_scf_env%s_sqrt_order, &
+                                           ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
+         CASE DEFAULT
+            CPABORT("Unkown sqrt method.")
+         END SELECT
 
          IF (ls_scf_env%check_s_inv) THEN
             CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
@@ -488,6 +493,8 @@ CONTAINS
          CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold)
       CASE (ls_scf_sign_proot)
          CALL matrix_sign_proot(matrix_sign, matrix_sinv_ks, threshold)
+      CASE DEFAULT
+         CPABORT("Unkown sign method.")
       END SELECT
       CALL dbcsr_release(matrix_sinv_ks)
 

@@ -361,6 +361,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
          CASE (ls_s_sqrt_proot)
             WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
+         CASE DEFAULT
+            CPABORT("Unkown sqrt method.")
          END SELECT
 
          WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_scf_env%s_sqrt_order
