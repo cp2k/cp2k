@@ -223,14 +223,6 @@ CONTAINS
 #if defined __HAS_NO_MPI_MOD
       flags = TRIM(flags)//" has_no_mpi_mod"
 #endif
-#if defined __LIBDERIV_MAX_AM1
-      CALL integer_to_string(__LIBDERIV_MAX_AM1, tmp_str)
-      flags = TRIM(flags)//" libderiv_max_am1="//TRIM(tmp_str)
-#endif
-#if defined __LIBINT_MAX_AM
-      CALL integer_to_string(__LIBINT_MAX_AM, tmp_str)
-      flags = TRIM(flags)//" libint_max_am="//TRIM(tmp_str)
-#endif
 #if defined __MAX_CONTR
       CALL integer_to_string(__MAX_CONTR, tmp_str)
       flags = TRIM(flags)//" max_contr="//TRIM(tmp_str)
