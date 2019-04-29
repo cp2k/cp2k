@@ -2020,8 +2020,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_energy', &
          routineP = moduleN//':'//routineN
 
+      REAL(KIND=dp)                                      :: e_h
+
       CALL pint_calc_e_kin_beads_u(pint_env)
       CALL pint_calc_e_vir(pint_env)
+
+      CALL pint_calc_uf_h(pint_env, e_h)
+      pint_env%e_pot_h = e_h
 
       SELECT CASE (pint_env%pimd_thermostat)
       CASE (thermostat_nose)
@@ -2037,8 +2042,8 @@ CONTAINS
       END SELECT
 
       pint_env%energy(e_kin_thermo_id) = &
-         0.5_dp*REAL(pint_env%p, dp)*REAL(pint_env%ndim, dp)*pint_env%kT- &
-         pint_env%e_pot_h
+         (0.5_dp*REAL(pint_env%p, dp)*REAL(pint_env%ndim, dp)*pint_env%kT- &
+          pint_env%e_pot_h)*pint_env%propagator%temp_sim2phys
 
       pint_env%energy(e_potential_id) = SUM(pint_env%e_pot_bead)
 
