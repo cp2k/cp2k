@@ -803,8 +803,9 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A)") &
             start_section_label//"| CPU model name : "//TRIM(model_name)
          IF (m_cpuid_static() .LT. m_cpuid()) THEN
-            CPWARN("the compiler target flags used to build this binary are insufficiently"//
-            "exploiting the extensions which are available for this CPU model")
+            CALL cp_hint(__LOCATION__, &
+               "the compiler target flags used to build this binary are insufficiently"// &
+               "exploiting the extensions which are available for this CPU model")
          END IF
 
          WRITE (UNIT=output_unit, FMT="()")

@@ -17,13 +17,13 @@ MODULE base_hooks
    PRIVATE
 
    !API
-   PUBLIC :: cp_abort, cp_warn, timeset, timestop
+   PUBLIC :: cp_abort, cp_warn, cp_hint, timeset, timestop
    !API
-   PUBLIC :: cp_abort_hook, cp_warn_hook, timeset_hook, timestop_hook
+   PUBLIC :: cp_abort_hook, cp_warn_hook, cp_hint_hook, timeset_hook, timestop_hook
    !API
-   PUBLIC :: cp__a, cp__b, cp__w, cp__l
+   PUBLIC :: cp__a, cp__b, cp__w, cp__h, cp__l
 
-   ! this interface (with subroutines in it) musst to be defined right before
+   ! this interface (with subroutines in it) must to be defined right before
    ! the regular subroutines/functions - otherwise prettify.py will screw up.
    INTERFACE
       SUBROUTINE cp_abort_interface(location, message)
@@ -35,6 +35,11 @@ MODULE base_hooks
       CHARACTER(len=*), INTENT(in)                       :: location, message
 
       END SUBROUTINE cp_warn_interface
+
+      SUBROUTINE cp_hint_interface(location, message)
+      CHARACTER(len=*), INTENT(in)                       :: location, message
+
+      END SUBROUTINE cp_hint_interface
 
       SUBROUTINE timeset_interface(routineN, handle)
       CHARACTER(LEN=*), INTENT(IN)                       :: routineN
@@ -50,6 +55,7 @@ MODULE base_hooks
 
    PROCEDURE(cp_abort_interface), POINTER :: cp_abort_hook => Null()
    PROCEDURE(cp_warn_interface), POINTER :: cp_warn_hook => Null()
+   PROCEDURE(cp_hint_interface), POINTER :: cp_hint_hook => Null()
    PROCEDURE(timeset_interface), POINTER :: timeset_hook => Null()
    PROCEDURE(timestop_interface), POINTER :: timestop_hook => Null()
 
@@ -91,6 +97,23 @@ CONTAINS
          CALL m_flush(default_output_unit)
       ENDIF
    END SUBROUTINE cp_warn
+
+! **************************************************************************************************
+!> \brief Issue a hint
+!> \param location ...
+!> \param message ...
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE cp_hint(location, message)
+      CHARACTER(len=*), INTENT(in)                       :: location, message
+
+      IF (ASSOCIATED(cp_hint_hook)) THEN
+         CALL cp_hint_hook(location, message)
+      ELSE
+         WRITE (default_output_unit, *) "HINT in "//TRIM(location)//" "//TRIM(message)
+         CALL m_flush(default_output_unit)
+      ENDIF
+   END SUBROUTINE cp_hint
 
 ! **************************************************************************************************
 !> \brief Start timer
@@ -171,6 +194,21 @@ CONTAINS
 
       CALL cp_warn(location=cp__l(filename, lineNr), message=message)
    END SUBROUTINE cp__w
+
+! **************************************************************************************************
+!> \brief CPHINT handler
+!> \param filename ...
+!> \param lineNr ...
+!> \param message ...
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE cp__h(filename, lineNr, message)
+      CHARACTER(len=*), INTENT(in)                       :: filename
+      INTEGER, INTENT(in)                                :: lineNr
+      CHARACTER(len=*), INTENT(in)                       :: message
+
+      CALL cp_hint(location=cp__l(filename, lineNr), message=message)
+   END SUBROUTINE cp__h
 
 ! **************************************************************************************************
 !> \brief Helper routine to assemble __LOCATION__
