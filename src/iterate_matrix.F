@@ -831,6 +831,9 @@ CONTAINS
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
+      CALL dbcsr_release(matrix2)
+      CALL dbcsr_release(matrix_sqrt)
+      CALL dbcsr_release(matrix_sqrt_inv)
 
       CALL timestop(handle)
 
