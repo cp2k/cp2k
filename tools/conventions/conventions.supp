@@ -40,6 +40,7 @@ base_hooks.F: Found STOP statement in procedure "cp__a"
 base_hooks.F: Found STOP statement in procedure "cp__b"
 base_hooks.F: Found STOP statement in procedure "cp_abort"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
@@ -154,6 +155,8 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
 library_tests.F: Routine PILAENV called with an implicit interface.
+machine_cpuid.c: Copyright banner malformed
+machine_cpuid.h: Copyright banner malformed
 machine.F: Found OPEN statement in procedure "m_cpuinfo"
 machine_internal.F: Found CALL m_abort in procedure "m_getarg"
 machine_internal.F: Found CALL m_abort in procedure "m_getcwd"
