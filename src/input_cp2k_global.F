@@ -21,6 +21,7 @@ MODULE input_cp2k_global
                                               BLACS_GRID_SQUARE
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
    USE cp_fm_elpa,                      ONLY: get_elpa_kernel_descriptions,&
+                                              get_elpa_kernel_index,&
                                               get_elpa_kernel_names,&
                                               get_elpa_number_kernels
    USE cp_output_handling,              ONLY: add_last_numeric,&

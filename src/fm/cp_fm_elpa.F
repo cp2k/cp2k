@@ -151,6 +151,11 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    PURE FUNCTION get_elpa_kernel_index(cpuid) RESULT(index)
+      USE machine,  ONLY: MACHINE_X86, &
+                          MACHINE_X86_SSE4, &
+                          MACHINE_X86_AVX, &
+                          MACHINE_X86_AVX2, &
+                          MACHINE_X86_AVX512
       INTEGER, INTENT(IN) :: cpuid
       INTEGER :: index
 
@@ -164,7 +169,6 @@ CONTAINS
          CASE (MACHINE_X86_AVX2)
             index = 14 ! ELPA_2STAGE_REAL_AVX2_BLOCK4
          CASE DEFAULT
-            CPASSERT(MACHINE_X86_AVX512 .LE. cpuid)
             index = 17 ! ELPA_2STAGE_REAL_AVX512_BLOCK4
          END SELECT
       END IF
