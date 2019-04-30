@@ -4,9 +4,11 @@
   USE base_hooks,                      ONLY: cp__a,&
                                              cp__b,&
                                              cp__w,&
+                                             cp__h,&
                                              cp__l,&
                                              cp_abort,&
                                              cp_warn,&
+                                             cp_hint,&
                                              timeset,&
                                              timestop
 
@@ -19,6 +21,8 @@
 #define __LOCATION__ cp__l(__SHORT_FILE__,__LINE__)
 #define CPWARN(msg) CALL cp__w(__SHORT_FILE__,__LINE__,msg)
 #define CPABORT(msg) CALL cp__b(__SHORT_FILE__,__LINE__,msg)
+! In contrast to CPWARN, the warning counter is not increased
+#define CPHINT(msg) CALL cp__h(__SHORT_FILE__,__LINE__,msg)
 
 ! CPASSERT can be elided if NDEBUG is defined.
 #if defined(NDEBUG)
