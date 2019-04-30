@@ -126,7 +126,7 @@ Library ELPA for the solution of the eigenvalue problem
   * A version of ELPA can to be downloaded from http://elpa.rzg.mpg.de/software.
   * During the installation the libelpa.a (or libelpa_mt.a if omp active) is created.
   * Add `-D__ELPA=YYYYMM` to DFLAGS, where `YYYYMM` denotes the release date of the library.
-  * Currently supported versions are: `201112`, `201308`, `201311`, `201406`, `201502`, `201505`, `201511`, `201605`, and `201611`.
+  * Currently supported versions are: `201611`, `201705` and `201711`.
   * Add `-I$(ELPA_INCLUDE_DIR)/modules` to FCFLAGS
   * Add `-I$(ELPA_INCLUDE_DIR)/elpa` to FCFLAGS
   * Add `-L$(ELPA_DIR)` to `LDFLAGS`
