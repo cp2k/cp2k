@@ -183,14 +183,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="S_SQRT_ORDER", &
+                          variants=s2a("SIGN_SQRT_ORDER"), &
                           description="Order of the iteration method for the calculation of the sqrt of S.", &
                           usage="S_SQRT_ORDER 3", default_i_val=3)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIGN_SQRT_ORDER", &
-                          description="Order of the sqrt iteration, should be 2..5, 3 or 5 recommended.", &
-                          usage="SIGN_SQRT_ORDER 3", default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
