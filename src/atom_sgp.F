@@ -22,6 +22,7 @@ MODULE atom_sgp
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
+                                              fourpi,&
                                               rootpi
    USE mathlib,                         ONLY: diamat_all,&
                                               get_pseudo_inverse_diag
@@ -80,8 +81,8 @@ CONTAINS
 
       INTEGER                                            :: i, n
       LOGICAL                                            :: is_ecp, is_upf
-      REAL(KIND=dp)                                      :: errcc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss
+      REAL(KIND=dp)                                      :: errcc, rcut
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss, cutpots, cutpotu
       TYPE(atom_basis_type)                              :: basis
       TYPE(opmat_type), POINTER                          :: core, hnl, score, shnl
 
@@ -93,6 +94,21 @@ CONTAINS
       is_upf = .FALSE.
       IF (PRESENT(upf_pot)) is_upf = .TRUE.
       CPASSERT(.NOT. (is_ecp .AND. is_upf))
+
+      ! upf has often very small grids, use a smooth cutoff function
+      IF (is_upf) THEN
+         n = SIZE(upf_pot%r)
+         ALLOCATE (cutpotu(n))
+         rcut = MAXVAL(upf_pot%r)
+         CALL cutpot(cutpotu, upf_pot%r, rcut, 2.5_dp)
+         n = basis%grid%nr
+         ALLOCATE (cutpots(n))
+         CALL cutpot(cutpots, basis%grid%rad, rcut, 2.5_dp)
+      ELSE
+         n = basis%grid%nr
+         ALLOCATE (cutpots(n))
+         cutpots = 1.0_dp
+      END IF
 
       ! generate the transformed potentials
       IF (is_ecp) THEN
@@ -113,19 +129,21 @@ CONTAINS
       IF (is_ecp) THEN
          CALL ecpints(hnl%op, basis, ecp_pot)
       ELSEIF (is_upf) THEN
-         CALL upfints(core%op, hnl%op, basis, upf_pot, sgp_pot%ac_local)
+         CALL upfints(core%op, hnl%op, basis, upf_pot, cutpotu, sgp_pot%ac_local)
       ELSE
          CPABORT("")
       END IF
       !
-      CALL sgpints(score%op, shnl%op, basis, sgp_pot)
+      CALL sgpints(score%op, shnl%op, basis, sgp_pot, cutpots)
       !
       error = 0.0_dp
       IF (sgp_pot%has_local) THEN
-         error(1) = MAXVAL(ABS(core%op-score%op))
+         n = MIN(3, UBOUND(core%op, 3))
+         error(1) = MAXVAL(ABS(core%op(:, :, 0:n)-score%op(:, :, 0:n)))
       END IF
       IF (sgp_pot%has_nonlocal) THEN
-         error(2) = MAXVAL(ABS(hnl%op-shnl%op))
+         n = MIN(3, UBOUND(hnl%op, 3))
+         error(2) = MAXVAL(ABS(hnl%op(:, :, 0:n)-shnl%op(:, :, 0:n)))
       END IF
       IF (sgp_pot%has_nlcc) THEN
          IF (is_upf) THEN
@@ -142,6 +160,13 @@ CONTAINS
             CPABORT("")
          END IF
          error(3) = errcc
+      END IF
+      !
+      IF (is_upf) THEN
+         DEALLOCATE (cutpotu)
+         DEALLOCATE (cutpots)
+      ELSE
+         DEALLOCATE (cutpots)
       END IF
       !
       CALL release_opmat(score)
@@ -170,8 +195,8 @@ CONTAINS
 
       INTEGER                                            :: i, n, ppot_type
       LOGICAL                                            :: do_transform, explicit, is_ecp, is_upf
-      REAL(KIND=dp)                                      :: errcc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss
+      REAL(KIND=dp)                                      :: errcc, rcut
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss, cutpots, cutpotu
       TYPE(atom_ecppot_type), POINTER                    :: ecp_pot
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_type), POINTER                           :: atom_ref
@@ -227,15 +252,30 @@ CONTAINS
          CALL create_opmat(score, atom_ref%basis%nbas)
          CALL create_opmat(shnl, atom_ref%basis%nbas, 5)
          !
+         ! upf has often very small grids, use a smooth cutoff function
+         IF (is_upf) THEN
+            n = SIZE(upf_pot%r)
+            ALLOCATE (cutpotu(n))
+            rcut = MAXVAL(upf_pot%r)
+            CALL cutpot(cutpotu, upf_pot%r, rcut, 2.5_dp)
+            n = atom_ref%basis%grid%nr
+            ALLOCATE (cutpots(n))
+            CALL cutpot(cutpots, atom_ref%basis%grid%rad, rcut, 2.5_dp)
+         ELSE
+            n = atom_ref%basis%grid%nr
+            ALLOCATE (cutpots(n))
+            cutpots = 1.0_dp
+         END IF
+         !
          IF (is_ecp) THEN
             CALL ecpints(hnl%op, atom_ref%basis, ecp_pot)
          ELSEIF (is_upf) THEN
-            CALL upfints(core%op, hnl%op, atom_ref%basis, upf_pot, sgp_pot%ac_local)
+            CALL upfints(core%op, hnl%op, atom_ref%basis, upf_pot, cutpotu, sgp_pot%ac_local)
          ELSE
             CPABORT("")
          END IF
          !
-         CALL sgpints(score%op, shnl%op, atom_ref%basis, sgp_pot)
+         CALL sgpints(score%op, shnl%op, atom_ref%basis, sgp_pot, cutpots)
          !
          IF (sgp_pot%has_local) THEN
             n = MIN(3, UBOUND(core%op, 3))
@@ -274,6 +314,13 @@ CONTAINS
                WRITE (iw, '(" Number of basis functions ",T77,i4)') sgp_pot%n_nlcc
                WRITE (iw, '(" RMS error of core density ",T69,f12.8)') errcc
             END IF
+         END IF
+         !
+         IF (is_upf) THEN
+            DEALLOCATE (cutpotu)
+            DEALLOCATE (cutpots)
+         ELSE
+            DEALLOCATE (cutpots)
          END IF
          !
          CALL release_opmat(score)
@@ -649,6 +696,8 @@ CONTAINS
             DEALLOCATE (pgauss, pproa, pprob)
             DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
          ENDIF
+         ! SQRT(4PI)
+         sgp_pot%c_nonlocal = sgp_pot%c_nonlocal/SQRT(fourpi)
       ENDIF
 
       IF (upf_pot%core_correction) THEN
@@ -727,12 +776,14 @@ CONTAINS
 !> \param hnl ...
 !> \param basis ...
 !> \param upf_pot ...
+!> \param cutpotu ...
 !> \param ac_local ...
 ! **************************************************************************************************
-   SUBROUTINE upfints(core, hnl, basis, upf_pot, ac_local)
+   SUBROUTINE upfints(core, hnl, basis, upf_pot, cutpotu, ac_local)
       REAL(KIND=dp), DIMENSION(:, :, 0:)                 :: core, hnl
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_upfpot_type)                             :: upf_pot
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cutpotu
       REAL(KIND=dp), INTENT(IN)                          :: ac_local
 
       CHARACTER(len=*), PARAMETER :: routineN = 'upfints', routineP = moduleN//':'//routineN
@@ -755,12 +806,13 @@ CONTAINS
       zval = upf_pot%zion
       DO i = 1, n
          IF (upf_pot%r(i) < 1.e-12_dp) THEN
-            spot(i) = spot(i)+2.0_dp*zval/rootpi/ac_local
+            spot(i) = spot(i)+SQRT(2.0_dp)*zval/rootpi/ac_local
          ELSE
-            rc = upf_pot%r(i)/ac_local
+            rc = upf_pot%r(i)/ac_local/SQRT(2.0_dp)
             spot(i) = spot(i)+zval/upf_pot%r(i)*erf(rc)
          END IF
       END DO
+      spot(:) = spot(:)*cutpotu(:)
 
       CALL numpot_matrix(core, spot, gbasis, 0)
       DEALLOCATE (spot)
@@ -800,6 +852,7 @@ CONTAINS
             m = SIZE(upf_pot%vsemi(:, la+1))
             ALLOCATE (spot(m))
             spot(:) = upf_pot%vsemi(:, la+1)-upf_pot%vlocal(:)
+            spot(:) = spot(:)*cutpotu(:)
             n = basis%nbas(la)
             DO i = 1, n
                DO j = i, n
@@ -868,11 +921,13 @@ CONTAINS
 !> \param hnl ...
 !> \param basis ...
 !> \param sgp_pot ...
+!> \param cutpots ...
 ! **************************************************************************************************
-   SUBROUTINE sgpints(core, hnl, basis, sgp_pot)
+   SUBROUTINE sgpints(core, hnl, basis, sgp_pot, cutpots)
       REAL(KIND=dp), DIMENSION(:, :, 0:)                 :: core, hnl
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cutpots
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sgpints', routineP = moduleN//':'//routineN
 
@@ -894,6 +949,7 @@ CONTAINS
          DO i = 1, sgp_pot%n_local
             cpot(:) = cpot(:)+sgp_pot%c_local(i)*EXP(-sgp_pot%a_local(i)*rad(:)**2)
          END DO
+         cpot(:) = cpot(:)*cutpots(:)
          CALL numpot_matrix(core, cpot, basis, 0)
       END IF
       DEALLOCATE (cpot)
@@ -917,10 +973,12 @@ CONTAINS
                   c = sgp_pot%c_nonlocal(j, i, l)
                   pgauss(:) = pgauss(:)+c*EXP(-a*rad(:)**2)*rad(:)**l
                END DO
+               pgauss(:) = pgauss(:)*cutpots(:)
                DO ia = 1, na
                   qmat(ia, i) = SUM(basis%bf(:, ia, l)*pgauss(:)*basis%grid%wr(:))
                END DO
             END DO
+            qmat = SQRT(fourpi)*qmat
             DO i = 1, na
                DO j = i, na
                   DO ia = 1, n
@@ -1070,5 +1128,37 @@ CONTAINS
       DEALLOCATE (tv, smat, sinv)
       !
    END SUBROUTINE pplocal_error
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pot ...
+!> \param r ...
+!> \param rcut ...
+!> \param rsmooth ...
+! **************************************************************************************************
+   SUBROUTINE cutpot(pot, r, rcut, rsmooth)
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: pot
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
+      REAL(KIND=dp), INTENT(IN)                          :: rcut, rsmooth
+
+      INTEGER                                            :: i, n
+      REAL(KIND=dp)                                      :: rab, rx, x
+
+      n = SIZE(pot)
+      CPASSERT(n <= SIZE(r))
+
+      pot(:) = 1.0_dp
+      DO i = 1, n
+         rab = r(i)
+         IF (rab > rcut) THEN
+            pot(i) = 0.0_dp
+         ELSE IF (rab > rcut-rsmooth) THEN
+            rx = rab-(rcut-rsmooth)
+            x = rx/rsmooth
+            pot(i) = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+         END IF
+      END DO
+
+   END SUBROUTINE cutpot
 
 END MODULE atom_sgp

@@ -135,6 +135,12 @@ CONTAINS
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+!deb
+      REAL(KIND=dp), DIMENSION(3,3)                      :: vir1
+      if(use_virial) then
+        vir1 = virial%pv_virial
+      endif
+!deb
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -263,8 +269,8 @@ CONTAINS
             ELSE IF (ASSOCIATED(spotential(kkind)%sgp_potential)) THEN
                ! SGP potential
                dogth = .FALSE.
-               nppnl = spotential(kkind)%sgp_potential%nppnl
-               IF (nppnl == 0) CYCLE
+               nprjc = spotential(kkind)%sgp_potential%nppnl
+               IF (nprjc == 0) CYCLE
                nnl = spotential(kkind)%sgp_potential%n_nonlocal
                lppnl = spotential(kkind)%sgp_potential%lmax
                is_nonlocal = .FALSE.
@@ -277,7 +283,7 @@ CONTAINS
                radp(:) = ppnl_radius
                cprj => spotential(kkind)%sgp_potential%cprj_ppnl
                hprj => spotential(kkind)%sgp_potential%vprj_ppnl
-               nprjc = SIZE(cprj, 2)
+               nppnl = SIZE(cprj, 2)
             ELSE
                CYCLE
             END IF
@@ -358,16 +364,16 @@ CONTAINS
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                   DO i = 1, maxder
-                     first_col = (i-1)*nppnl
+                     first_col = (i-1)*nprjc
                      ! *** Transformation step projector functions (cartesian->spherical) ***
                      CALL dgemm("N", "N", ncoa, nppnl, nprjc, 1.0_dp, sab(1, first_col+1), SIZE(sab, 1), &
                                 cprj(1, 1), SIZE(cprj, 1), 0.0_dp, work(1, first_col+1), SIZE(work, 1))
                      ! *** Contraction step (basis functions) ***
-                     CALL dgemm("T", "N", nsgf_seta(iset), nprjc, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                work(1, first_col), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, first_col+1), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
                      ! *** Multiply with interaction matrix(h) ***
                      ncoc = sgfa+nsgf_seta(iset)-1
-                     DO j = 1, nprjc
+                     DO j = 1, nppnl
                         clist%achint(sgfa:ncoc, j, i) = clist%acint(sgfa:ncoc, j, i)*hprj(j)
                      END DO
                   END DO
@@ -375,9 +381,7 @@ CONTAINS
             END DO
             clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
             clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
-            IF (.NOT. dogth) THEN
-               DEALLOCATE (radp)
-            END IF
+            IF (.NOT. dogth) DEALLOCATE (radp)
          END DO
 
          DEALLOCATE (sab, ai_work, work)
@@ -534,6 +538,14 @@ CONTAINS
                END DO
             END IF
          END IF
+!deb
+      if(use_virial) then
+        vir1 = virial%pv_virial - vir1
+        write(6,*) "VIRIAL PPNL  ",vir1(1,1),vir1(1,2),vir1(1,3)
+        write(6,*) "VIRIAL PPNL  ",vir1(2,1),vir1(2,2),vir1(2,3)
+        write(6,*) "VIRIAL PPNL  ",vir1(3,1),vir1(3,2),vir1(3,3)
+      endif
+!deb
 
       END IF !ppnl_present
 
