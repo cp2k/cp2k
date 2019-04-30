@@ -67,6 +67,8 @@ MODULE environment
                                               int_8,&
                                               print_kind_info
    USE machine,                         ONLY: flush_should_flush,&
+                                              m_cpuid,&
+                                              m_cpuid_static,&
                                               m_cpuinfo,&
                                               m_energy,&
                                               m_flush_internal,&
@@ -800,6 +802,10 @@ CONTAINS
          CALL m_cpuinfo(model_name)
          WRITE (UNIT=output_unit, FMT="(T2,A)") &
             start_section_label//"| CPU model name : "//TRIM(model_name)
+         IF (m_cpuid_static() .LT. m_cpuid()) THEN
+            CPWARN("the compiler target flags used to build this binary are insufficiently"//
+            "exploiting the extensions which are available for this CPU model")
+         END IF
 
          WRITE (UNIT=output_unit, FMT="()")
          WRITE (UNIT=output_unit, FMT="(T2,A)") "MEMORY| system memory details [Kb]"

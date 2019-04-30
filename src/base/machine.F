@@ -11,6 +11,7 @@
 !> \author APSI & JGH
 ! **************************************************************************************************
 MODULE machine
+   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_INT
    USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
                                               output_unit
    USE kinds,                           ONLY: default_string_length,&
@@ -33,18 +34,19 @@ MODULE machine
   INTEGER, PUBLIC, PARAMETER                   :: default_output_unit = output_unit, &
                                                   default_input_unit  = input_unit
 
+#include "machine_cpuid.h"
   ! Enumerates the target architectures or instruction set extensions.
   ! A feature is present if within range for the respective architecture.
   ! For example, to check for MACHINE_X86_AVX the following is true:
   ! MACHINE_X86_AVX <= m_cpuid() and MACHINE_X86 >= m_cpuid().
   ! For example, to check for MACHINE_ARM_SOME the following is true:
   ! MACHINE_ARM_SOME <= m_cpuid() and MACHINE_ARM >= m_cpuid().
-  INTEGER, PARAMETER :: &
-    MACHINE_CPU_GENERIC =    0, &
-    MACHINE_X86_SSE4    = 1000, &
-    MACHINE_X86_AVX     = 1001, &
-    MACHINE_X86_AVX2    = 1002, &
-    MACHINE_X86_AVX512  = 1003, &
+  INTEGER, PUBLIC, PARAMETER :: &
+    MACHINE_CPU_GENERIC = CP_MACHINE_CPU_GENERIC, &
+    MACHINE_X86_SSE4    = CP_MACHINE_X86_SSE4, &
+    MACHINE_X86_AVX     = CP_MACHINE_X86_AVX, &
+    MACHINE_X86_AVX2    = CP_MACHINE_X86_AVX2, &
+    MACHINE_X86_AVX512  = CP_MACHINE_X86_AVX512, &
     MACHINE_X86 = MACHINE_X86_AVX512 ! marks end of range
    ! other arch to be added as needed e.g.,
    !MACHINE_ARM_SOME    = 2000
@@ -58,6 +60,19 @@ MODULE machine
             m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
             m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details,&
             m_energy, m_memory_max, m_cpuinfo, m_cpuid_static, m_cpuid
+
+  INTERFACE
+    ! **********************************************************************************************
+    !> \brief Target architecture or instruction set extension according to compiler target flags.
+    !> \return cpuid according to MACHINE_* integer-parameter.
+    !> \par History
+    !>      04.2019 created [Hans Pabst]
+    ! **********************************************************************************************
+    PURE FUNCTION m_cpuid_static() BIND(C)
+      IMPORT :: C_INT
+      INTEGER(C_INT) :: m_cpuid_static
+    END FUNCTION m_cpuid_static
+  END INTERFACE
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
@@ -165,27 +180,6 @@ SUBROUTINE m_cpuinfo(model_name)
         ENDIF
     ENDIF
 END SUBROUTINE m_cpuinfo
-
-! **************************************************************************************************
-!> \brief Target architecture or instruction set extension according to compiler target flags.
-!> \return cpuid according to MACHINE_* integer-parameter.
-!> \par History
-!>      04.2019 created [Hans Pabst]
-! **************************************************************************************************
-PURE FUNCTION m_cpuid_static() RESULT (cpuid)
-    INTEGER :: cpuid
-#if (__AVX512F__ && __AVX512CD__ && __AVX2__ && __FMA__ && __AVX__ && __SSE4_2__ && __SSE4_1__ && __SSE3__)
-    cpuid = MACHINE_X86_AVX512
-#elif (__AVX2__ && __FMA__ && __AVX__ && __SSE4_2__ && __SSE4_1__ && __SSE3__)
-    cpuid = MACHINE_X86_AVX2
-#elif (__AVX__ && __SSE4_2__ && __SSE4_1__ && __SSE3__)
-    cpuid = MACHINE_X86_AVX
-#elif (__SSE4_2__ && __SSE4_1__ && __SSE3__)
-    cpuid = MACHINE_X86_SSE4
-#else
-    cpuid = MACHINE_CPU_GENERIC
-#endif
-END FUNCTION m_cpuid_static
 
 ! **************************************************************************************************
 !> \brief Target architecture or instruction set extension according to CPU-check at runtime.
