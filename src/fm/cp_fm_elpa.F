@@ -154,8 +154,7 @@ CONTAINS
       USE machine,  ONLY: MACHINE_X86, &
                           MACHINE_X86_SSE4, &
                           MACHINE_X86_AVX, &
-                          MACHINE_X86_AVX2, &
-                          MACHINE_X86_AVX512
+                          MACHINE_X86_AVX2
       INTEGER, INTENT(IN) :: cpuid
       INTEGER :: index
 
