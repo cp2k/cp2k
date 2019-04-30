@@ -130,12 +130,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator, nl_iterator
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
-!deb
-      REAL(KIND=dp), DIMENSION(3,3)                      :: vir1
-      IF (use_virial) THEN
-         vir1 = virial%pv_virial
-      endif
-!deb
+
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
       ELSE
@@ -496,14 +491,6 @@ CONTAINS
             END DO
          END IF
       END IF
-!deb
-      IF (use_virial) THEN
-         vir1 = virial%pv_virial - vir1
-         write(6,*) vir1(1,1),vir1(1,2),vir1(1,3)
-         write(6,*) vir1(2,1),vir1(2,2),vir1(2,3)
-         write(6,*) vir1(3,1),vir1(3,2),vir1(3,3)
-      endif
-!deb
 
       CALL timestop(handle)
 
