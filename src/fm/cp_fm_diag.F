@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief used for collecting some of the diagonalization shemes available for
+!> \brief used for collecting some of the diagonalization schemes available for
 !>      cp_fm_type. cp_fm_power also moved here as it is very related
 !> \note
 !>      first version : most routines imported
