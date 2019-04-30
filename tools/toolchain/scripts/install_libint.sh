@@ -72,8 +72,9 @@ case "$with_libint" in
             # hack for -with-cxx, needed for -fsanitize=thread that also
             # needs to be passed to the linker, but seemingly ldflags is
             # ignored by libint configure
-            ../configure --enable-eri=1 --enable-eri3=1 \
+            ../configure --enable-eri=1 --enable-eri3=1  --enable-eri2=1 \
                          --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 \
+                         --with-eri2-max-am=5,4 \
                          --with-opt-am=3 --enable-generic-code --disable-unrolling \
                          --with-cxx="$CXX $CXXFLAGS" \
                          --with-cxx-optflags="$CXXFLAGS" \
