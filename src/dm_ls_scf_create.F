@@ -29,7 +29,8 @@ MODULE dm_ls_scf_create
    USE input_constants,                 ONLY: &
         ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
-        ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
+        ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_pexsi, ls_scf_sign, &
+        ls_scf_tc2, ls_scf_trs4
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
@@ -208,9 +209,11 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "REPORT_ALL_SPARSITIES", l_val=ls_scf_env%report_all_sparsities)
       CALL section_vals_val_get(ls_scf_section, "PERFORM_MU_SCAN", l_val=ls_scf_env%perform_mu_scan)
       CALL section_vals_val_get(ls_scf_section, "PURIFICATION_METHOD", i_val=ls_scf_env%purification_method)
+      CALL section_vals_val_get(ls_scf_section, "SIGN_METHOD", i_val=ls_scf_env%sign_method)
       CALL section_vals_val_get(ls_scf_section, "DYNAMIC_THRESHOLD", l_val=ls_scf_env%dynamic_threshold)
       CALL section_vals_val_get(ls_scf_section, "NON_MONOTONIC", l_val=ls_scf_env%non_monotonic)
-      CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=ls_scf_env%sign_sqrt_order)
+      CALL section_vals_val_get(ls_scf_section, "S_SQRT_METHOD", i_val=ls_scf_env%s_sqrt_method)
+      CALL section_vals_val_get(ls_scf_section, "S_SQRT_ORDER", i_val=ls_scf_env%s_sqrt_order)
       CALL section_vals_val_get(ls_scf_section, "EXTRAPOLATION_ORDER", i_val=ls_scf_env%extrapolation_order)
       CALL section_vals_val_get(ls_scf_section, "RESTART_READ", l_val=ls_scf_env%restart_read)
       CALL section_vals_val_get(ls_scf_section, "RESTART_WRITE", l_val=ls_scf_env%restart_write)
@@ -346,8 +349,18 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,T61,L20)') "has unit metric:", ls_scf_env%has_unit_metric
          WRITE (unit_nr, '(T2,A,T61,L20)') "Computing inv(S):", ls_scf_env%needs_s_inv
          WRITE (unit_nr, '(T2,A,T61,L20)') "Computing sqrt(S):", ls_scf_env%use_s_sqrt
-         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing s preconditioner ", ls_scf_env%has_s_preconditioner
-         WRITE (unit_nr, '(T2,A,T61,I20)') "sign sqrt order:", ls_scf_env%sign_sqrt_order
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing S preconditioner ", ls_scf_env%has_s_preconditioner
+
+         SELECT CASE (ls_scf_env%s_sqrt_method)
+         CASE (ls_s_sqrt_ns)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
+         CASE (ls_s_sqrt_proot)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
+         CASE DEFAULT
+            CPABORT("Unkown sqrt method.")
+         END SELECT
+
+         WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_scf_env%s_sqrt_order
          WRITE (unit_nr, '(T2,A,T61,I20)') "Extrapolation order:", ls_scf_env%extrapolation_order
          WRITE (unit_nr, '(T2,A,T61,L20)') "Use single precision matrices", ls_scf_env%ls_mstruct%single_precision
 
@@ -368,11 +381,11 @@ CONTAINS
          ENDIF
 
          SELECT CASE (ls_scf_env%purification_method)
-         CASE (ls_scf_ns)
-            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Newton-Schulz sign iter")
+         CASE (ls_scf_sign)
+            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("sign iteration")
          CASE (ls_scf_tc2)
             CALL cite_reference(Niklasson2014)
-            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace conserving 2nd  order")
+            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace conserving 2nd order")
          CASE (ls_scf_trs4)
             CALL cite_reference(Niklasson2003)
             WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace resetting 4th order")

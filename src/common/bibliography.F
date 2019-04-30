@@ -41,7 +41,7 @@ MODULE bibliography
    PUBLIC :: add_all_references ! f77_interface only
 
    ! all reference keys
-   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, &
+   INTEGER, PUBLIC, SAVE :: Richters2018, VandeVondele2005a, VandeVondele2003, &
                             Laino2005, Laino2006, Goedecker1996, Hartwigsen1998, Krack2005, &
                             Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005, &
                             Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999, &
@@ -3961,6 +3961,27 @@ CONTAINS
                          "DI 10.1021/acs.jctc.8b00957", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.8b00957")
+
+      CALL add_reference(key=Richters2018, ISI_record=s2a( &
+                         "AU Richters, D", &
+                         "   Lass, M", &
+                         "   Walther, A", &
+                         "   Plessl, C", &
+                         "   Kuehne, T D", &
+                         "TI A General Algorithm to Calculate the Inverse Principal p-th Root of ", &
+                         "   Symmetric Positive Definite Matrices", &
+                         "SO Communications in Computational Physics", &
+                         "SN 1991-7120", &
+                         "J9 J COMPUT CHEM", &
+                         "JI Commun. Comput. Phys.", &
+                         "PD OCT", &
+                         "PY 2018", &
+                         "VL 25", &
+                         "IS 2", &
+                         "BP 564", &
+                         "EP 585", &
+                         "ER"), &
+                         DOI="10.4208/cicp.OA-2018-0053")
 
    END SUBROUTINE add_all_references
 

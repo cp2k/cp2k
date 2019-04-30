@@ -19,8 +19,9 @@ MODULE input_cp2k_ls
    USE input_constants,                 ONLY: &
         ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
-        ls_s_preconditioner_none, ls_scf_line_search_3point, ls_scf_line_search_3point_2d, &
-        ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
+        ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_line_search_3point, &
+        ls_scf_line_search_3point_2d, ls_scf_pexsi, ls_scf_sign, ls_scf_sign_ns, &
+        ls_scf_sign_proot, ls_scf_tc2, ls_scf_trs4
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -170,17 +171,47 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="S_SQRT_METHOD", &
+                          description="Method for the caclulation of the sqrt of S.", &
+                          usage="S_SQRT_METHOD NEWTONSCHULZ", &
+                          default_i_val=ls_s_sqrt_ns, &
+                          enum_c_vals=s2a("NEWTONSCHULZ", "PROOT"), &
+                          enum_desc=s2a("Using a Newton-Schulz-like iteration", &
+                                        "Using the p-th root method."), &
+                          enum_i_vals=(/ls_s_sqrt_ns, ls_s_sqrt_proot/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="S_SQRT_ORDER", &
+                          variants=s2a("SIGN_SQRT_ORDER"), &
+                          description="Order of the iteration method for the calculation of the sqrt of S.", &
+                          usage="S_SQRT_ORDER 3", default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="PURIFICATION_METHOD", &
                           description="Scheme used to purify the Kohn-Sham matrix into the density matrix.", &
                           usage="PURIFICATION_METHOD TRS4", &
-                          default_i_val=ls_scf_ns, &
+                          default_i_val=ls_scf_sign, &
                           citations=(/VandeVondele2012, Niklasson2003/), &
-                          enum_c_vals=s2a("SIGN_MATRIX", "TRS4", "TC2", "PEXSI"), &
-                          enum_desc=s2a("Newton-Schulz sign matrix iteration.", &
+                          enum_c_vals=s2a("SIGN", "TRS4", "TC2", "PEXSI"), &
+                          enum_desc=s2a("Sign matrix iteration.", &
                                         "Trace resetting 4th order scheme", &
                                         "Trace conserving 2nd order scheme", &
                                         "PEXSI method"), &
-                          enum_i_vals=(/ls_scf_ns, ls_scf_trs4, ls_scf_tc2, ls_scf_pexsi/))
+                          enum_i_vals=(/ls_scf_sign, ls_scf_trs4, ls_scf_tc2, ls_scf_pexsi/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SIGN_METHOD", &
+                          description="Method used for the computation of the sign matrix.", &
+                          usage="SIGN_METHOD NEWTONSCHULZ", &
+                          default_i_val=ls_scf_sign_ns, &
+                          citations=(/VandeVondele2012, Niklasson2003/), &
+                          enum_c_vals=s2a("NEWTONSCHULZ", "PROOT"), &
+                          enum_desc=s2a("Newton-Schulz iteration.", &
+                                        "p-th order root iteration"), &
+                          enum_i_vals=(/ls_scf_sign_ns, ls_scf_sign_proot/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -239,13 +270,6 @@ CONTAINS
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
                                         "Using the Hotellign iteration."), &
                           enum_i_vals=(/ls_s_inversion_sign_sqrt, ls_s_inversion_hotelling/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIGN_SQRT_ORDER", &
-                          description="Order of the sqrt iteration, should be 2..5, 3 or 5 recommended", &
-                          usage="SIGN_SQRT_ORDER 5", &
-                          default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -222,7 +222,7 @@ CONTAINS
 
       CALL matrix_sqrt_Newton_Schulz(pao%matrix_precon_inv, pao%matrix_precon, matrix_gth_overlap, &
                                      threshold=ls_scf_env%eps_filter, &
-                                     order=ls_scf_env%sign_sqrt_order, &
+                                     order=ls_scf_env%s_sqrt_order, &
                                      max_iter_lanczos=ls_scf_env%max_iter_lanczos, &
                                      eps_lanczos=ls_scf_env%eps_lanczos, &
                                      converged=converged)
