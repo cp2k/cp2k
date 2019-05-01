@@ -269,19 +269,16 @@ def gen_plots(archive_reports, log, outdir, full_archive):
     for report in ordered_reports:
         for p in report['plots']:
             if(p['name'] not in plots.keys()):
-                plots[p['name']] = {'curves': OrderedDict()}
-            plots[p['name']]['title'] = p['title'] # update title
-            plots[p['name']]['ylabel'] = p['ylabel'] # update label
+                plots[p['name']] = {'curves': OrderedDict(), 'title': p['title'], 'ylabel': p['ylabel']}
         for pp in report['plotpoints']:
             p = plots[pp['plot']]
             if(pp['name'] not in p['curves'].keys()):
-                p['curves'][pp['name']] = {'x':[], 'y':[], 'yerr':[]}
+                p['curves'][pp['name']] = {'x':[], 'y':[], 'yerr':[], 'label': pp['label']}
             c = p['curves'][pp['name']]
             age = log.index[report['git-sha']]
             c['x'].append(-age)
             c['y'].append(pp['y'])
             c['yerr'].append(pp['yerr'])
-            c['label'] = pp['label'] # update label
 
     # write raw data
     tags = sorted([(pname, cname) for pname, p in plots.items() for cname in p['curves'].keys()])
