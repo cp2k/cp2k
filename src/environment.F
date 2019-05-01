@@ -804,8 +804,8 @@ CONTAINS
             start_section_label//"| CPU model name : "//TRIM(model_name)
          IF (m_cpuid_static() .LT. m_cpuid()) THEN
             CALL cp_hint(__LOCATION__, &
-                         "the compiler target flags used to build this binary are insufficiently"// &
-                         "exploiting the extensions which are available for this CPU model")
+                         "The compiler target flags used to build this binary are insufficiently "// &
+                         "exploiting the extensions which are available for this CPU model.")
          END IF
 
          WRITE (UNIT=output_unit, FMT="()")
