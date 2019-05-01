@@ -771,7 +771,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, unit_nr
+      INTEGER                                            :: handle, unit_nr
       INTEGER(KIND=int_8)                                :: flop0, flop1, flop2
       LOGICAL                                            :: converged, symmetrize
       REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base, occ_matrix
@@ -823,7 +823,7 @@ CONTAINS
       frob_matrix = dbcsr_frobenius_norm(tmp1)
       occ_matrix = dbcsr_get_occupation(matrix_sign)
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3)') "Final proot sign iter", i, occ_matrix, &
+         WRITE (unit_nr, '(T6,A,F10.8,E12.3)') "Final proot sign iter", occ_matrix, &
             frob_matrix/frob_matrix_base
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
