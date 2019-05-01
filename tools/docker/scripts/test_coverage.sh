@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 
 # author: Ole Schuett
 
@@ -23,15 +23,15 @@ make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 # gcov gets stuck on some files...
 # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644
 # As a workaround we'll simply remove the offending files for now.
-rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/almo_scf_types.gcda
-rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/mp2_types.gcda
-rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/rpa_im_time.gcda
 rm -f "/workspace/cp2k/obj/${ARCH}/${VERSION}"/exts/*/*.gcda
-
-#cd /tmp
-#for i in /workspace/cp2k/obj/${ARCH}/${VERSION}/*.gcda; do
-#    timeout 30 gcov $i >/dev/null 2>&1 || rm -v $i
-#done
+cd /tmp
+GCOV_TIMEOUT="10s"
+for fn in /workspace/cp2k/obj/${ARCH}/${VERSION}/*.gcda; do
+    if ! timeout "${GCOV_TIMEOUT}" gcov "$fn" &> /dev/null ; then
+        echo "Skipping ${fn} because gcov took longer than ${GCOV_TIMEOUT}."
+        rm "${fn}"
+    fi
+done
 
 # collect coverage stats
 mkdir -p /workspace/artifacts/coverage
