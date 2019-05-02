@@ -43,6 +43,7 @@ MODULE qs_kind_types
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -1404,8 +1405,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
                                                             basis_set_type
-      INTEGER :: handle, i, i_rep, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, nb_rep, &
-         nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
+      INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
+         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
@@ -1417,6 +1418,7 @@ CONTAINS
       TYPE(atom_ecppot_type)                             :: ecppot
       TYPE(atom_sgp_potential_type)                      :: sgppot
       TYPE(atom_upfpot_type)                             :: upfpot
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: sup_basis_set, tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
          dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
@@ -1424,6 +1426,10 @@ CONTAINS
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       NULLIFY (elec_conf)
 
@@ -2219,6 +2225,18 @@ CONTAINS
                                      has_nlcc=.FALSE.)
                   ! convert PP
                   CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, error=error)
+                  IF (iounit > 0) THEN
+                     WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
+                     IF (sgppot%has_local) THEN
+                        WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
+                     END IF
+                     IF (sgppot%has_nonlocal) THEN
+                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                     END IF
+                     IF (sgppot%has_nlcc) THEN
+                        WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
+                     END IF
+                  END IF
                   IF (sgppot%has_nonlocal) THEN
                      CALL set_potential(qs_kind%sgp_potential, n_nonlocal=sgppot%n_nonlocal, lmax=sgppot%lmax, &
                                         is_nonlocal=sgppot%is_nonlocal)
@@ -2264,6 +2282,18 @@ CONTAINS
                                      zeff=upfpot%zion, z=z, has_nlcc=upfpot%core_correction)
                   ! convert pp
                   CALL sgp_construction(sgp_pot=sgppot, upf_pot=upfpot, error=error)
+                  IF (iounit > 0) THEN
+                     WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(upfpot%pname)
+                     IF (sgppot%has_local) THEN
+                        WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
+                     END IF
+                     IF (sgppot%has_nonlocal) THEN
+                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                     END IF
+                     IF (sgppot%has_nlcc) THEN
+                        WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
+                     END IF
+                  END IF
                   IF (sgppot%has_nonlocal) THEN
                      CALL set_potential(qs_kind%sgp_potential, n_nonlocal=sgppot%n_nonlocal, lmax=sgppot%lmax, &
                                         is_nonlocal=sgppot%is_nonlocal)

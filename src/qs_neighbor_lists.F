@@ -527,7 +527,7 @@ CONTAINS
          END IF
 
          ! Pseudopotentials
-         IF (gth_potential_present) THEN
+         IF (gth_potential_present .OR. sgp_potential_present) THEN
             IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
                                   ppl_present=ppl_present(ikind), &

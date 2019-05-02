@@ -46,7 +46,7 @@
              l_max_rho="0"
              l_local="-3"
              mesh_size="1073"
-             number_of_wfc=" 2"
+             number_of_wfc="2"
              number_of_proj="1"/>
   <PP_MESH dx="1.250000000000000E-002" mesh="1073" xmin="-7.000000000000000E+000" rmax="1.003075063120137E+002"
 zmesh="6.000000000000000E+000">

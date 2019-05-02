@@ -395,6 +395,7 @@ CONTAINS
 
       DO ispin = 1, nspin
 
+         NULLIFY (mo_coeff)
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff_b=mo_coeff, mo_coeff=mo_coeff_fm)
          CALL copy_fm_to_dbcsr(mo_coeff_fm, mo_coeff) !fm -> dbcsr
 

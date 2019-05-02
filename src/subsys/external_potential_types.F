@@ -1316,9 +1316,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_sgp_potential', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i1, i2, i3, j1, j2, j3, l, la, lb, lc, &
-                                                            n1, n2, n3, nnl, nprj
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj
+      INTEGER                                            :: i1, i2, j1, j2, l, la, lb, n1, n2, nnl, &
+                                                            nprj
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ind1, ind2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, hnl
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cn
 
       IF (ASSOCIATED(potential)) THEN
@@ -1336,46 +1337,72 @@ CONTAINS
             cprj => potential%cprj_ppnl
             cprj = 0.0_dp
             cn => potential%c_nonlocal
-            !
             nnl = potential%n_nonlocal
+            !
+            n1 = 0
+            DO la = 0, potential%lmax
+               n1 = n1+nnl*nco(la)
+            END DO
+            ALLOCATE (ind1(n1, 3))
             n1 = 0
             DO i1 = 1, nnl
                DO la = 0, potential%lmax
                   DO j1 = 1, nco(la)
                      n1 = n1+1
-                     !
-                     n2 = 0
-                     DO i2 = 1, nnl
-                        DO lb = 0, potential%lmax
-                           IF (.NOT. potential%is_nonlocal(lb)) CYCLE
-                           DO j2 = 1, nso(lb)
-                              n2 = n2+1
-                              IF (la /= lb) CYCLE
-                              !
-                              n3 = 0
-                              DO i3 = 1, nnl
-                                 DO lc = 0, potential%lmax
-                                    DO j3 = 1, nso(lc)
-                                       n3 = n3+1
-                                       !
-                                       IF (i1 /= i3) CYCLE
-                                       IF (la /= lc) CYCLE
-                                       cprj(n1, n2) = cprj(n1, n2)+orbtramat(la)%c2s(j3, j1)*cn(n3, n2, la)
-                                    END DO
-                                 END DO
-                              END DO
-                           END DO
-                        END DO
-                     END DO
+                     ind1(n1, 1) = la
+                     ind1(n1, 2) = j1
+                     ind1(n1, 3) = i1
                   END DO
                END DO
             END DO
             !
+            n2 = 0
+            DO i2 = 1, nnl
+               DO lb = 0, potential%lmax
+                  IF (.NOT. potential%is_nonlocal(lb)) CYCLE
+                  n2 = n2+nso(lb)
+               END DO
+            END DO
+            ALLOCATE (ind2(n2, 3))
+            n2 = 0
+            DO i2 = 1, nnl
+               DO lb = 0, potential%lmax
+                  IF (.NOT. potential%is_nonlocal(lb)) CYCLE
+                  DO j2 = 1, nso(lb)
+                     n2 = n2+1
+                     ind2(n2, 1) = lb
+                     ind2(n2, 2) = j2
+                     ind2(n2, 3) = i2
+                  END DO
+               END DO
+            END DO
+            !
+            DO n1 = 1, SIZE(ind1, 1)
+               la = ind1(n1, 1)
+               j1 = ind1(n1, 2)
+               i1 = ind1(n1, 3)
+               DO n2 = 1, SIZE(ind2, 1)
+                  lb = ind2(n2, 1)
+                  IF (la /= lb) CYCLE
+                  j2 = ind2(n2, 2)
+                  i2 = ind2(n2, 3)
+                  cprj(n1, n2) = orbtramat(la)%c2s(j2, j1)*cn(i1, i2, la)
+               END DO
+            END DO
+            !
+            hnl => potential%h_nonlocal
             IF (ASSOCIATED(potential%vprj_ppnl)) THEN
                DEALLOCATE (potential%vprj_ppnl)
             END IF
             ALLOCATE (potential%vprj_ppnl(nprj))
             potential%vprj_ppnl = 0.0_dp
+            DO n2 = 1, SIZE(ind2, 1)
+               lb = ind2(n2, 1)
+               i2 = ind2(n2, 3)
+               potential%vprj_ppnl(n2) = hnl(i2, lb)
+            END DO
+            !
+            DEALLOCATE (ind1, ind2)
          END IF
       END IF
 

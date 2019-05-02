@@ -1308,6 +1308,7 @@ CONTAINS
                          is_nonlocal=sgp_atompot%is_nonlocal, &
                          n_nonlocal=n, a_nonlocal=ap, h_nonlocal=hhp, c_nonlocal=ccp)
       ! nonlocal
+      sgp_atompot%has_nonlocal = ANY(sgp_atompot%is_nonlocal)
       sgp_atompot%lmax = lm
       CPASSERT(n <= SIZE(sgp_atompot%a_nonlocal))
       sgp_atompot%n_nonlocal = n

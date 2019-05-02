@@ -263,8 +263,8 @@ CONTAINS
             ELSE IF (ASSOCIATED(spotential(kkind)%sgp_potential)) THEN
                ! SGP potential
                dogth = .FALSE.
-               nppnl = spotential(kkind)%sgp_potential%nppnl
-               IF (nppnl == 0) CYCLE
+               nprjc = spotential(kkind)%sgp_potential%nppnl
+               IF (nprjc == 0) CYCLE
                nnl = spotential(kkind)%sgp_potential%n_nonlocal
                lppnl = spotential(kkind)%sgp_potential%lmax
                is_nonlocal = .FALSE.
@@ -277,7 +277,7 @@ CONTAINS
                radp(:) = ppnl_radius
                cprj => spotential(kkind)%sgp_potential%cprj_ppnl
                hprj => spotential(kkind)%sgp_potential%vprj_ppnl
-               nprjc = SIZE(cprj, 2)
+               nppnl = SIZE(cprj, 2)
             ELSE
                CYCLE
             END IF
@@ -336,38 +336,37 @@ CONTAINS
                                   lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                      ! *** Transformation step projector functions (cartesian->spherical) ***
                      DO i = 1, maxder
-                        first_col = (i-1)*SIZE(work, 1)
+                        first_col = (i-1)*ldsab
                         CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, first_col+1), SIZE(sab, 1), &
-                                   cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, first_col+prjc), SIZE(work, 1))
+                                   cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, first_col+prjc), ldsab)
                      END DO
                      prjc = prjc+nprjc
                   END DO
                   DO i = 1, maxder
-                     first_col = (i-1)*SIZE(work, 1)+1
+                     first_col = (i-1)*ldsab+1
                      ! *** Contraction step (basis functions) ***
                      CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                work(1, first_col), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                                work(1, first_col), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
                      ! *** Multiply with interaction matrix(h) ***
                      CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
                                 vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
                   END DO
                ELSE
                   ! SGP potential
-                  work = 0._dp
                   ! *** Calculate the primitive overlap integrals ***
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                   DO i = 1, maxder
-                     first_col = (i-1)*nppnl
+                     first_col = (i-1)*ldsab+1
                      ! *** Transformation step projector functions (cartesian->spherical) ***
-                     CALL dgemm("N", "N", ncoa, nppnl, nprjc, 1.0_dp, sab(1, first_col+1), SIZE(sab, 1), &
-                                cprj(1, 1), SIZE(cprj, 1), 0.0_dp, work(1, first_col+1), SIZE(work, 1))
+                     CALL dgemm("N", "N", ncoa, nppnl, nprjc, 1.0_dp, sab(1, first_col), ldsab, &
+                                cprj(1, 1), SIZE(cprj, 1), 0.0_dp, work(1, 1), ldsab)
                      ! *** Contraction step (basis functions) ***
-                     CALL dgemm("T", "N", nsgf_seta(iset), nprjc, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                work(1, first_col), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, 1), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
                      ! *** Multiply with interaction matrix(h) ***
                      ncoc = sgfa+nsgf_seta(iset)-1
-                     DO j = 1, nprjc
+                     DO j = 1, nppnl
                         clist%achint(sgfa:ncoc, j, i) = clist%acint(sgfa:ncoc, j, i)*hprj(j)
                      END DO
                   END DO
@@ -375,9 +374,7 @@ CONTAINS
             END DO
             clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
             clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
-            IF (.NOT. dogth) THEN
-               DEALLOCATE (radp)
-            END IF
+            IF (.NOT. dogth) DEALLOCATE (radp)
          END DO
 
          DEALLOCATE (sab, ai_work, work)
