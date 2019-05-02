@@ -23,7 +23,8 @@ MODULE atom_sgp
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fourpi,&
-                                              rootpi
+                                              rootpi,&
+                                              sqrt2
    USE mathlib,                         ONLY: diamat_all,&
                                               get_pseudo_inverse_diag
    USE powell,                          ONLY: opt_state_type,&
@@ -501,7 +502,7 @@ CONTAINS
       ostate%nvar = 2
       x(1) = 1.00_dp !starting point of geometric series
       x(2) = 1.20_dp !factor of series
-      ostate%rhoend = 1.e-12_dp
+      ostate%rhoend = 1.e-14_dp
       ostate%rhobeg = 5.e-2_dp
       ostate%maxfun = 1000
       ostate%iprint = 1
@@ -808,9 +809,9 @@ CONTAINS
       zval = upf_pot%zion
       DO i = 1, n
          IF (upf_pot%r(i) < 1.e-12_dp) THEN
-            spot(i) = spot(i)+SQRT(2.0_dp)*zval/rootpi/ac_local
+            spot(i) = spot(i)+sqrt2*zval/rootpi/ac_local
          ELSE
-            rc = upf_pot%r(i)/ac_local/SQRT(2.0_dp)
+            rc = upf_pot%r(i)/ac_local/sqrt2
             spot(i) = spot(i)+zval/upf_pot%r(i)*erf(rc)
          END IF
       END DO
