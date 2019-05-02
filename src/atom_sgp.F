@@ -138,7 +138,7 @@ CONTAINS
       !
       error = 0.0_dp
       IF (sgp_pot%has_local) THEN
-         n = MIN(3, UBOUND(core%op, 3))
+         n = MIN(2, UBOUND(core%op, 3))
          error(1) = MAXVAL(ABS(core%op(:, :, 0:n)-score%op(:, :, 0:n)))
       END IF
       IF (sgp_pot%has_nonlocal) THEN
@@ -501,7 +501,7 @@ CONTAINS
       ostate%nvar = 2
       x(1) = 1.00_dp !starting point of geometric series
       x(2) = 1.20_dp !factor of series
-      ostate%rhoend = 1.e-8_dp
+      ostate%rhoend = 1.e-12_dp
       ostate%rhobeg = 5.e-2_dp
       ostate%maxfun = 1000
       ostate%iprint = 1
@@ -512,7 +512,7 @@ CONTAINS
             DO ir = 1, nl
                al(ir) = x(1)*x(2)**(ir-1)
             END DO
-            CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, ostate%f)
+            CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, 1, ostate%f)
          END IF
          IF (ostate%state == -1) EXIT
          CALL powell_optimize(ostate%nvar, x, ostate)
@@ -522,7 +522,7 @@ CONTAINS
       DO ir = 1, nl
          al(ir) = x(1)*x(2)**(ir-1)
       END DO
-      CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, errloc)
+      CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, 1, errloc)
       !
       ALLOCATE (sgp_pot%a_local(nl), sgp_pot%c_local(nl))
       sgp_pot%n_local = nl
@@ -613,6 +613,8 @@ CONTAINS
                sgp_pot%is_nonlocal(la) = .TRUE.
                DEALLOCATE (score, qmat)
             END DO
+            ! SQRT(4PI)
+            sgp_pot%c_nonlocal = sgp_pot%c_nonlocal/SQRT(fourpi)
             CALL release_atom_basis(gbasis)
             DEALLOCATE (pgauss, vloc)
             DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
@@ -692,12 +694,12 @@ CONTAINS
                sgp_pot%is_nonlocal(la) = .TRUE.
                DEALLOCATE (score, qmat)
             END DO
+            ! SQRT(4PI)
+            sgp_pot%c_nonlocal = sgp_pot%c_nonlocal/SQRT(fourpi)
             CALL release_atom_basis(gbasis)
             DEALLOCATE (pgauss, pproa, pprob)
             DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
          ENDIF
-         ! SQRT(4PI)
-         sgp_pot%c_nonlocal = sgp_pot%c_nonlocal/SQRT(fourpi)
       ENDIF
 
       IF (upf_pot%core_correction) THEN
@@ -1065,13 +1067,15 @@ CONTAINS
 !> \param gbasis ...
 !> \param rad ...
 !> \param ww ...
+!> \param method ...
 !> \param errloc ...
 ! **************************************************************************************************
-   SUBROUTINE pplocal_error(nl, al, cl, vloc, vgauss, gbasis, rad, ww, errloc)
+   SUBROUTINE pplocal_error(nl, al, cl, vloc, vgauss, gbasis, rad, ww, method, errloc)
       INTEGER                                            :: nl
       REAL(KIND=dp), DIMENSION(:)                        :: al, cl, vloc, vgauss
       TYPE(atom_basis_type)                              :: gbasis
       REAL(KIND=dp), DIMENSION(:)                        :: rad, ww
+      INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp)                                      :: errloc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pplocal_error', routineP = moduleN//':'//routineN
@@ -1082,43 +1086,57 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gmat
 
       cl = 0.0_dp
-      !
-      ALLOCATE (tv(nl), smat(nl, nl), sinv(nl, nl))
-      !
-      smat = 0.0_dp
-      tv = 0.0_dp
-      DO la = 0, MIN(UBOUND(gbasis%nbas, 1), 3)
-         na = gbasis%nbas(la)
-         ALLOCATE (rmat(na, na), gmat(na, na, nl))
-         rmat = 0.0_dp
-         gmat = 0.0_dp
-         DO ia = 1, na
-            DO ib = ia, na
-               rmat(ia, ib) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vloc(:)*ww(:))
-               rmat(ib, ia) = rmat(ia, ib)
-            END DO
-         END DO
+      IF (method == 1) THEN
+         ALLOCATE (tv(nl), smat(nl, nl), sinv(nl, nl))
          DO ir = 1, nl
             vgauss(:) = EXP(-al(ir)*rad(:)**2)
+            DO ix = 1, nl
+               smat(ir, ix) = SUM(vgauss(:)*EXP(-al(ix)*rad(:)**2)*ww(:))
+            END DO
+            tv(ir) = SUM(vloc(:)*vgauss(:)*ww(:))
+         END DO
+         CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-12_dp)
+         cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
+      ELSE
+         !
+         ALLOCATE (tv(nl), smat(nl, nl), sinv(nl, nl))
+         !
+         smat = 0.0_dp
+         tv = 0.0_dp
+         DO la = 0, MIN(UBOUND(gbasis%nbas, 1), 3)
+            na = gbasis%nbas(la)
+            ALLOCATE (rmat(na, na), gmat(na, na, nl))
+            rmat = 0.0_dp
+            gmat = 0.0_dp
             DO ia = 1, na
                DO ib = ia, na
-                  gmat(ia, ib, ir) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vgauss(:)*ww(:))
-                  gmat(ib, ia, ir) = gmat(ia, ib, ir)
+                  rmat(ia, ib) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vloc(:)*ww(:))
+                  rmat(ib, ia) = rmat(ia, ib)
                END DO
             END DO
-         END DO
-         DO ir = 1, nl
-            tv(ir) = tv(ir)+accurate_dot_product(rmat, gmat(:, :, ir))
-            DO ix = ir, nl
-               smat(ir, ix) = smat(ir, ix)+accurate_dot_product(gmat(:, :, ix), gmat(:, :, ir))
-               smat(ix, ir) = smat(ir, ix)
+            DO ir = 1, nl
+               vgauss(:) = EXP(-al(ir)*rad(:)**2)
+               DO ia = 1, na
+                  DO ib = ia, na
+                     gmat(ia, ib, ir) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vgauss(:)*ww(:))
+                     gmat(ib, ia, ir) = gmat(ia, ib, ir)
+                  END DO
+               END DO
             END DO
+            DO ir = 1, nl
+               tv(ir) = tv(ir)+accurate_dot_product(rmat, gmat(:, :, ir))
+               DO ix = ir, nl
+                  smat(ir, ix) = smat(ir, ix)+accurate_dot_product(gmat(:, :, ix), gmat(:, :, ir))
+                  smat(ix, ir) = smat(ir, ix)
+               END DO
+            END DO
+            DEALLOCATE (rmat, gmat)
          END DO
-         DEALLOCATE (rmat, gmat)
-      END DO
-      sinv = 0.0_dp
-      CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-12_dp)
-      cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
+         sinv = 0.0_dp
+         CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-12_dp)
+         cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
+      ENDIF
+      !
       vgauss = 0.0_dp
       DO ir = 1, nl
          vgauss(:) = vgauss(:)+cl(ir)*EXP(-al(ir)*rad(:)**2)
