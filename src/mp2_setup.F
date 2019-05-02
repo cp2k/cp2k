@@ -149,13 +149,16 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%hf_like_ev_start)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PRINT_GW_DETAILS", &
                                 l_val=mp2_env%ri_g0w0%print_gw_details)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PRINT_EXX", &
+                                i_val=mp2_env%ri_g0w0%print_exx)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC_CORR_LIST", &
                                 r_vals=mp2_env%ri_g0w0%ic_corr_list)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC_CORR_LIST_BETA", &
                                 r_vals=mp2_env%ri_g0w0%ic_corr_list_beta)
-
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%GAMMA_ONLY_SIGMA", &
+                                l_val=mp2_env%ri_g0w0%do_gamma_only_sigma)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%BSE", &
                                 l_val=mp2_env%ri_g0w0%do_bse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%BSE%NUM_Z_VECTORS", &
@@ -293,8 +296,14 @@ CONTAINS
                                 r_val=mp2_env%ri_rpa_im_time%stabilize_exp)
       CALL section_vals_val_get(im_time_section, "DO_KPOINTS", &
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
+      CALL section_vals_val_get(im_time_section, "CUTOFF_W", &
+                                r_val=mp2_env%ri_rpa_im_time%cutoff)
       CALL section_vals_val_get(im_time_section, "RI_G0W0", &
                                 l_val=mp2_env%ri_rpa_im_time%do_gw_im_time)
+      CALL section_vals_val_get(im_time_section, "KPOINTS", &
+                                i_vals=mp2_env%ri_rpa_im_time%kp_grid)
+      CALL section_vals_val_get(im_time_section, "EXP_KPOINTS", &
+                                r_val=mp2_env%ri_rpa_im_time%exp_kpoints)
 
       CALL section_vals_val_get(mp2_section, "IM_TIME%DO_DBCSR_T", &
                                 l_val=mp2_env%ri_rpa_im_time%do_dbcsr_t)

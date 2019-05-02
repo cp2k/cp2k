@@ -10,4 +10,5 @@ RI_RPA_H2O_PBE0_ADMM1.inp                             11      1e-08            -
 RI_RPA_H2O_Obara_Saika.inp                            11      1e-08            -17.160204463746162
 RPA_kpoints_H2O.inp                                   11      1e-08            -17.384611923474342
 RPA_kpoints_H2O_non_zero_group_sizes.inp              11      1e-08            -17.384611923474342
+RPA_kpoints_from_Gamma_H2O.inp                        11      1e-08            -17.384614981790069
 #EOF

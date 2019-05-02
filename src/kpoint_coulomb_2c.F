@@ -17,7 +17,6 @@ MODULE kpoint_coulomb_2c
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
-   USE constants_operator,              ONLY: operator_coulomb
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
@@ -59,9 +58,11 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param atomic_kind_set ...
 !> \param size_lattice_sum ...
+!> \param operator_type ...
+!> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE build_2c_coulomb_matrix_kp(matrix_v_kp, kpoints, basis_type, cell, particle_set, qs_kind_set, &
-                                         atomic_kind_set, size_lattice_sum)
+                                         atomic_kind_set, size_lattice_sum, operator_type, cutoff)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -70,7 +71,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      INTEGER                                            :: size_lattice_sum
+      INTEGER                                            :: size_lattice_sum, operator_type
+      REAL(dp)                                           :: cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_2c_coulomb_matrix_kp', &
          routineP = moduleN//':'//routineN
@@ -85,7 +87,8 @@ CONTAINS
       CALL allocate_tmp(matrix_v_L_tmp, matrix_v_kp)
 
       CALL lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
-                       qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp)
+                       qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
+                       operator_type, cutoff)
 
       CALL deallocate_tmp(matrix_v_L_tmp)
 
@@ -104,9 +107,12 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param size_lattice_sum ...
 !> \param matrix_v_L_tmp ...
+!> \param operator_type ...
+!> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
-                          qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp)
+                          qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
+                          operator_type, cutoff)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -117,6 +123,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER                                            :: size_lattice_sum
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
+      INTEGER                                            :: operator_type
+      REAL(dp)                                           :: cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lattice_sum', routineP = moduleN//':'//routineN
 
@@ -181,39 +189,6 @@ CONTAINS
       CALL allocate_blocks_of_v_L(blocks_of_v_L, matrix_v_L_tmp)
       CALL allocate_blocks_of_v_L(blocks_of_v_L_store, matrix_v_L_tmp)
 
-!      DO i_x = x_min, x_max
-!         DO j_y = y_min, y_max
-!            DO k_z = z_min, z_max
-!
-!               vec_s = [REAL(i_x, dp), REAL(j_y, dp), REAL(k_z, dp)]
-!
-!               vec_L = MATMUL(hmat, vec_s)
-!
-!               ! Compute (P 0 | Q vec_L) and store it in matrix_v_L_tmp
-!               CALL compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
-!                                     qs_kind_set, atomic_kind_set, basis_type, cell)
-!
-!               ! add exp(iq*vec_L) * (P 0 | Q vec_L) to V_PQ(q)
-!               DO ik = 1, nkp
-!
-!                  coskl = COS(twopi*DOT_PRODUCT(vec_s(1:3),kpoints%xkp(1:3,ik)))
-!                  sinkl = SIN(twopi*DOT_PRODUCT(vec_s(1:3),kpoints%xkp(1:3,ik)))
-!
-!                  DO i_block = 1, SIZE(blocks_of_v_L)
-!
-!                    blocks_of_v_kp(ik,1,i_block)%block(:,:) = blocks_of_v_kp(ik,1,i_block)%block(:,:) &
-!                                                              + coskl*blocks_of_v_L(i_block)%block(:,:)
-!                    blocks_of_v_kp(ik,2,i_block)%block(:,:) = blocks_of_v_kp(ik,2,i_block)%block(:,:) &
-!                                                              + sinkl*blocks_of_v_L(i_block)%block(:,:)
-!
-!                  END DO
-!
-!               END DO
-!
-!            END DO
-!         END DO
-!      END DO
-
       DO i_x_inner = 0, 2*nkp_grid(1)-1
          DO j_y_inner = 0, 2*nkp_grid(2)-1
             DO k_z_inner = 0, 2*nkp_grid(3)-1
@@ -236,7 +211,8 @@ CONTAINS
 
                         ! Compute (P 0 | Q vec_L) and store it in matrix_v_L_tmp
                         CALL compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
-                                              qs_kind_set, atomic_kind_set, basis_type, cell)
+                                              qs_kind_set, atomic_kind_set, basis_type, cell, &
+                                              operator_type, cutoff)
 
                         DO i_block = 1, SIZE(blocks_of_v_L)
                            blocks_of_v_L_store(i_block)%block(:, :) = blocks_of_v_L_store(i_block)%block(:, :) &
@@ -343,9 +319,11 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param basis_type ...
 !> \param cell ...
+!> \param operator_type ...
+!> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
-                               qs_kind_set, atomic_kind_set, basis_type, cell)
+                               qs_kind_set, atomic_kind_set, basis_type, cell, operator_type, cutoff)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
       TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_of_v_L
@@ -355,6 +333,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       TYPE(cell_type), POINTER                           :: cell
+      INTEGER                                            :: operator_type
+      REAL(dp)                                           :: cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_v_transl', &
          routineP = moduleN//':'//routineN
@@ -404,8 +384,8 @@ CONTAINS
 
          blocks_of_v_L(i_block)%block = 0.0_dp
 
-         CALL int_operators_r12_ab_shg(operator_coulomb, blocks_of_v_L(i_block)%block, dummy_force, rab_L, &
-                                       basis_set_a, basis_set_b, contr_a, contr_b, &
+         CALL int_operators_r12_ab_shg(operator_type, blocks_of_v_L(i_block)%block, dummy_force, rab_L, &
+                                       basis_set_a, basis_set_b, contr_a, contr_b, omega=cutoff, &
                                        calculate_forces=.FALSE.)
 
          i_block = i_block+1

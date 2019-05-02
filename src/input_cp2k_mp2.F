@@ -26,11 +26,12 @@ MODULE input_cp2k_mp2
                                               silent_print_level
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_hfx_potential_coulomb, do_mp2_potential_tshpsc, &
-        gaussian, gw_pade_approx, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_coulomb, ri_mp2_laplace, &
-        ri_mp2_method_gpw, ri_overlap, ri_rpa_g0w0_crossing_bisection, &
-        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
-        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+        gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, gw_skip_for_regtest, &
+        gw_two_pole_model, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
+        mp2_ri_optimize_basis, numerical, ri_coulomb, ri_mp2_laplace, ri_mp2_method_gpw, &
+        ri_overlap, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
+        ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, &
+        wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -806,8 +807,37 @@ CONTAINS
       CALL keyword_create(keyword, name="PRINT_GW_DETAILS", &
                           description="If true, prints additional information on the quasiparticle energies.", &
                           usage="PRINT_GW_DETAILS", &
-                          default_l_val=.FALSE., &
+                          default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PRINT_EXX", &
+                          description="Print exchange self-energy minus exchange correlation potential for Gamma-only "// &
+                          "calculation (PRINT). For a GW calculation with k-points we use this output as "// &
+                          "exchange self-energy (READ). This is a temporary solution because the hybrid MPI/OMP "// &
+                          "parallelization in the HFX by Manuel Guidon conflicts with the parallelization in "// &
+                          "low-scaling GW k-points which is most efficient with maximum number of MPI tasks and "// &
+                          "minimum number of OMP threads. For HFX by M. Guidon, the density matrix is "// &
+                          "fully replicated on every MPI rank which necessitates a high number of OMP threads per MPI "// &
+                          "rank for large systems to prevent out of memory. "// &
+                          "Such a high number of OMP threads would slow down the GW calculation "// &
+                          "severely. Therefore, it was decided to temporarily divide the GW k-point calculation in a "// &
+                          "Gamma-only HF calculation with high number of OMP threads to prevent out of memory and "// &
+                          "a GW k-point calculation with 1 OMP thread per MPI rank reading the previousHF output.", &
+                          usage="PRINT_EXX TRUE", &
+                          enum_c_vals=s2a("TRUE", "FALSE", "READ", "SKIP_FOR_REGTEST"), &
+                          enum_i_vals=(/gw_print_exx, gw_no_print_exx, gw_read_exx, gw_skip_for_regtest/), &
+                          enum_desc=s2a("Please, put TRUE for Gamma only calculation to get the exchange self-energy. "// &
+                                        "If 'SIGMA_X' and the corresponding values for the exchange-energy are written, "// &
+                                        "the writing has been successful", &
+                                        "FALSE is needed if you want to do nothing here.", &
+                                        "Please, put READ for the k-point GW calculation to read the exact exchange. "// &
+                                        "You have to provide an output file including the exact exchange. This file "// &
+                                        "has to be named 'exx.dat'.", &
+                                        "SKIP_FOR_REGTEST is only used for the GW k-point regtest where no exchange "// &
+                                        "self-energy is computed."), &
+                          default_i_val=gw_no_print_exx)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -888,6 +918,16 @@ CONTAINS
                           "are recommended.", &
                           usage="NPARAM_PADE 16", &
                           default_i_val=16)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GAMMA_ONLY_SIGMA", &
+                          variants=(/"GAMMA"/), &
+                          description="If true, the correlation self-energy is only computed at the Gamma point. "// &
+                          "The Gamma point itself is obtained by averaging over all kpoints of the DFT mesh.", &
+                          usage="GAMMA TRUE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1268,6 +1308,41 @@ CONTAINS
          usage="DO_DBCSR_T", &
          default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="CUTOFF_W", &
+         description="Cutoff for screened Coulomb interaction for GW kpoints.", &
+         usage="CUTOFF_W 0.5", &
+         default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="KPOINTS", &
+         description="For periodic calculations, using kpoints for the density response and the "// &
+         "Coulomb operator are strongly recommended. For 2d periodic systems (e.g. xy "// &
+         "periodicity, please specify KPOINTS  N_x  0  N_z.", &
+         usage="KPOINTS  N_x  N_y  N_z", &
+         n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="EXP_KPOINTS", &
+         description="For kpoints in low-scaling GW, a Monkhorst-Pack mesh is used. Because the screened Coulomb "// &
+         "interaction W(k) diverges at the Gamma point with W(k) ~ k^alpha, we adapt the weights of the "// &
+         "Monkhorst-Pack mesh to compute int_BZ k^alpha dk (BZ=Brllouin zone) correctly with the Monkhorst-Pack "// &
+         "mesh. You can enter here the exponent alpha. For solids, the exponent is -2 (known from plane waves), "// &
+         "for 2d periodic systems -1 and for 1d systems W(k) ~ log(1-cos(a*k)) where a is the length of the unit "// &
+         "cell in periodic direction. If you enter 1.0, one of these three functions are picked according to the "// &
+         "periodicity. If you enter a value bigger than 2.0, the ordinary Monkhorst-Pack mesh with identical "// &
+         "weights is chosen.", &
+         usage="EXP_KPOINTS -2.0", &
+         default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

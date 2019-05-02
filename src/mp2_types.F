@@ -134,15 +134,16 @@ MODULE mp2_types
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
       LOGICAL                  :: memory_info, do_mao, opt_sc_dm_occ, opt_sc_dm_virt, do_lr
-      REAL(KIND=dp)            :: eps_filter_im_time, eps_grad_occ, eps_grad_virt, lr_fraction
-      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude, &
+      REAL(KIND=dp)            :: eps_filter_im_time, eps_grad_occ, eps_grad_virt, lr_fraction, cutoff, &
+                                  exp_kpoints
+      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude, extrapol_fac, &
                                   max_iter_occ, max_iter_virt, group_size_Q
       INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
                                             ends_array_cm, sizes_array_cm_mao_occ, &
                                             starts_array_cm_mao_occ, ends_array_cm_mao_occ, &
                                             sizes_array_cm_mao_virt, starts_array_cm_mao_virt, &
                                             ends_array_cm_mao_virt
-      INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt
+      INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt, kp_grid
       LOGICAL                  :: do_gw_im_time, do_im_time_kpoints
       REAL(KIND=dp)            :: stabilize_exp
       LOGICAL  :: do_dbcsr_t
@@ -169,7 +170,7 @@ MODULE mp2_types
                                   do_ri_Sigma_x, &
                                   remove_neg_virt_energies
       LOGICAL                  :: do_periodic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_x_minus_vxc_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: vec_Sigma_x_minus_vxc_gw
       INTEGER, DIMENSION(:), POINTER    :: kp_grid
       INTEGER                  :: num_kp_grids
       REAL(KIND=dp)            :: eps_kpoint
@@ -187,6 +188,8 @@ MODULE mp2_types
       REAL(KIND=dp)            :: eps_dist
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta, &
                                                             gw_eigenvalues, gw_eigenvalues_beta
+      INTEGER :: print_exx
+      LOGICAL :: do_gamma_only_sigma
    END TYPE
 
    TYPE ri_basis_opt

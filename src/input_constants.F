@@ -961,7 +961,11 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none = 0, &
                                                ri_rpa_g0w0_crossing_z_shot = 1, &
                                                ri_rpa_g0w0_crossing_newton = 2, &
-                                               ri_rpa_g0w0_crossing_bisection = 3
+                                               ri_rpa_g0w0_crossing_bisection = 3, &
+                                               gw_no_print_exx = 5, &
+                                               gw_print_exx = 6, &
+                                               gw_read_exx = 7, &
+                                               gw_skip_for_regtest = 8
 
    INTEGER, PARAMETER, PUBLIC               :: gw_pade_approx = 0, &
                                                gw_two_pole_model = 1
