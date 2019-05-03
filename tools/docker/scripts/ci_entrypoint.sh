@@ -18,7 +18,7 @@ shopt -u nullglob
 if [ -n "${GIT_REF}" ]; then
     echo -e "\n========== Fetching Git Commit =========="
     cd /workspace/cp2k
-    git fetch origin "${GIT_REF}"
+    git fetch origin "${GIT_BRANCH}"
     git -c advice.detachedHead=false checkout "${GIT_REF}"
     git submodule update --init --recursive
     git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n'
