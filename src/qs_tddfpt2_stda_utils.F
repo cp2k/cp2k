@@ -12,8 +12,7 @@ MODULE qs_tddfpt2_stda_utils
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_control_types,                ONLY: dft_control_type,&
-                                              stda_control_type,&
+   USE cp_control_types,                ONLY: stda_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -285,7 +284,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_s
       TYPE(dbcsr_type)                                   :: sm_hinv
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_s
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_control
 
@@ -297,7 +295,7 @@ CONTAINS
 
       ! Calculate S^1/2 matrix
       IF (iounit > 0) THEN
-         WRITE (iounit, "(/,T3,A)") "STDA | Create Matrix SQRT(S)"
+         WRITE (iounit, "(/,T3,A)") "STDA| Create Matrix SQRT(S)"
       END IF
       IF (sub_env%is_split) THEN
          CPABORT('SPLIT')
@@ -316,7 +314,8 @@ CONTAINS
       eps_lanczos = 1.0e-4_dp
       max_iter_lanczos = 40
       CALL matrix_sqrt_Newton_Schulz(sm_h, sm_hinv, sm_s, &
-                                     threshold, order_lanczos, eps_lanczos, max_iter_lanczos, converged)
+                                     threshold, order_lanczos, eps_lanczos, max_iter_lanczos, &
+                                     converged=converged)
       CALL dbcsr_release(sm_hinv)
       !
       NULLIFY (qs_kind_set)
@@ -326,8 +325,8 @@ CONTAINS
       !
       IF (.NOT. converged) THEN
          IF (iounit > 0) THEN
-            WRITE (iounit, "(T3,A)") "STDA | Newton-Schulz iteration did not converge"
-            WRITE (iounit, "(T3,A)") "STDA | Calculate SQRT(S) from diagonalization"
+            WRITE (iounit, "(T3,A)") "STDA| Newton-Schulz iteration did not converge"
+            WRITE (iounit, "(T3,A)") "STDA| Calculate SQRT(S) from diagonalization"
          END IF
          CALL get_qs_env(qs_env=qs_env, scf_control=scf_control)
          ! Provide full size work matrices
@@ -351,8 +350,7 @@ CONTAINS
          IF (iounit > 0) WRITE (iounit, *)
       END IF
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      nspins = dft_control%nspins
+      nspins = SIZE(sub_env%mos_occ)
 
       DO ispin = 1, nspins
          n_occ = stda_env%n_occ(ispin)

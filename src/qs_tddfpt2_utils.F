@@ -218,7 +218,8 @@ CONTAINS
                CALL cp_fm_triangular_invert(ortho_fm)
             END IF
 
-            ! need to store 'cholesky_method' in a temporary variable, as the subroutine eigensolver() will update this variable
+            ! need to store 'cholesky_method' in a temporary variable, as the subroutine eigensolver()
+            ! will update this variable
             cholesky_method_inout = cholesky_method
             CALL eigensolver(matrix_ks_fm=matrix_ks_fm, mo_set=mos_extended, ortho=ortho_fm, &
                              work=work_fm, cholesky_method=cholesky_method_inout, &
@@ -331,9 +332,10 @@ CONTAINS
       END IF
       CALL cp_fm_release(work_fm)
 
-      IF (do_eigen) &
-         CALL deallocate_mo_set(mos_extended)
+      IF (do_eigen)  CALL deallocate_mo_set(mos_extended)
+
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_init_ground_state_mos
 
 ! **************************************************************************************************

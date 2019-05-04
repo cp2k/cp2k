@@ -118,9 +118,8 @@ CONTAINS
       CHARACTER(len=20)                                  :: nstates_str
       INTEGER :: energy_unit, handle, ispin, istate, iter, log_unit, mult, niters, nmo_avail, &
          nmo_occ, nmo_virt, nspins, nstates, nstates_read
-      LOGICAL                                            :: do_admm, do_hfx, explicit_xc, &
-                                                            is_restarted
-      REAL(kind=dp)                                      :: C_hf, conv
+      LOGICAL                                            :: do_admm, do_hfx, is_restarted
+      REAL(kind=dp)                                      :: conv
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt_spin
       TYPE(admm_type), POINTER                           :: admm_env
@@ -138,10 +137,9 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
-                                                            tddfpt_print_section, tddfpt_section, &
-                                                            xc_fun_empty, xc_fun_original, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: input, tddfpt_print_section, &
+                                                            tddfpt_section, xc_fun_empty, &
+                                                            xc_fun_original, xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), ALLOCATABLE, &
@@ -151,63 +149,24 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work_matrices
 
       CALL timeset(routineN, handle)
+
       logger => cp_get_default_logger()
 
-      CALL cite_reference(Iannuzzi2005)
+      ! input section print/xc
+      CALL tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
 
-      NULLIFY (blacs_env, cell, dft_control, input, matrix_ks, matrix_s, mos)
+      IF (do_admm) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+      ELSE
+         NULLIFY (admm_env)
+      END IF
+
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
-                      input=input, matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
+                      matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
 
-      nspins = dft_control%nspins
-      CPASSERT(dft_control%nimages <= 1)
-
-      IF (tddfpt_control%nstates <= 0) THEN
-         CALL integer_to_string(tddfpt_control%nstates, nstates_str)
-         CALL cp_warn(__LOCATION__, "TDDFPT calculation was requested for "// &
-                      TRIM(nstates_str)//" excited states: nothing to do.")
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
-      tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
-
-      xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
-      CALL section_vals_get(xc_section, explicit=explicit_xc)
-      IF (explicit_xc) THEN
-         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      END IF
-      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
-
-      CALL section_vals_get(hfx_section, explicit=do_hfx)
-      IF (do_hfx) THEN
-         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
-         do_hfx = (C_hf /= 0.0_dp)
-      END IF
-
-      do_admm = do_hfx .AND. dft_control%do_admm
-      IF (do_admm) THEN
-         IF (explicit_xc) THEN
-            ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
-            CALL cp_abort(__LOCATION__, &
-                          "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
-                          "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
-         END IF
-
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-      END IF
-
-      ! reset rks_triplets if UKS is in use
-      IF (tddfpt_control%rks_triplets .AND. nspins > 1) THEN
-         tddfpt_control%rks_triplets = .FALSE.
-         CALL cp_warn(__LOCATION__, "Keyword RKS_TRIPLETS has been ignored for spin-polarised calculations")
-      END IF
-
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
+      nspins = dft_control%nspins
       ALLOCATE (gs_mos(nspins))
 
       ! when the number of unoccupied orbitals is limited and OT has been used
@@ -257,11 +216,11 @@ CONTAINS
          END DO
 
          ! KS-matrix without XC-terms
-         xc_fun_original => section_vals_get_subs_vals(input, "DFT%XC%XC_FUNCTIONAL")
+         xc_fun_original => section_vals_get_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL")
          CALL section_vals_retain(xc_fun_original)
          NULLIFY (xc_fun_empty)
          CALL section_vals_create(xc_fun_empty, xc_fun_original%section)
-         CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
+         CALL section_vals_set_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
          CALL section_vals_release(xc_fun_empty)
 
 !deb     CALL get_qs_env(qs_env, energy=energy_init)
@@ -293,7 +252,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "Unimplemented orbital energy correction potential")
          END IF
-         CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_original)
+         CALL section_vals_set_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL", xc_fun_original)
          CALL section_vals_release(xc_fun_original)
       END IF
 
@@ -573,6 +532,84 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(matrix_ks_oep)
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt
+
+! **************************************************************************************************
+!> \brief TDDFPT input
+!> \param qs_env  Quickstep environment
+!> \param do_hfx ...
+!> \param do_admm ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_input', routineP = moduleN//':'//routineN
+
+      CHARACTER(len=20)                                  :: nstates_str
+      LOGICAL                                            :: explicit_xc
+      REAL(kind=dp)                                      :: C_hf
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
+                                                            tddfpt_section
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+
+      CALL cite_reference(Iannuzzi2005)
+
+      NULLIFY (dft_control, input)
+      CALL get_qs_env(qs_env, dft_control=dft_control, input=input)
+      tddfpt_control => dft_control%tddfpt2_control
+
+      ! no k-points
+      CPASSERT(dft_control%nimages <= 1)
+
+      IF (tddfpt_control%nstates <= 0) THEN
+         CALL integer_to_string(tddfpt_control%nstates, nstates_str)
+         CALL cp_warn(__LOCATION__, "TDDFPT calculation was requested for "// &
+                      TRIM(nstates_str)//" excited states: nothing to do.")
+         RETURN
+      END IF
+
+      NULLIFY(tddfpt_section, tddfpt_print_section)
+      tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
+      tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
+
+      NULLIFY(xc_section)
+      xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
+      CALL section_vals_get(xc_section, explicit=explicit_xc)
+      IF (explicit_xc) THEN
+         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
+      ELSE
+         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      END IF
+      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
+      IF (do_hfx) THEN
+         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
+         do_hfx = (C_hf /= 0.0_dp)
+      END IF
+
+      do_admm = do_hfx .AND. dft_control%do_admm
+      IF (do_admm) THEN
+         IF (explicit_xc) THEN
+            ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
+            CALL cp_abort(__LOCATION__, &
+                          "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
+                          "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
+         END IF
+      END IF
+
+      ! reset rks_triplets if UKS is in use
+      IF (tddfpt_control%rks_triplets .AND. dft_control%nspins > 1) THEN
+         tddfpt_control%rks_triplets = .FALSE.
+         CALL cp_warn(__LOCATION__, "Keyword RKS_TRIPLETS has been ignored for spin-polarised calculations")
+      END IF
+
+   END SUBROUTINE tddfpt_input
 
 END MODULE qs_tddfpt2_methods
