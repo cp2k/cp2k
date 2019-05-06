@@ -139,7 +139,7 @@ CONTAINS
       !
       error = 0.0_dp
       IF (sgp_pot%has_local) THEN
-         n = MIN(2, UBOUND(core%op, 3))
+         n = MIN(3, UBOUND(core%op, 3))
          error(1) = MAXVAL(ABS(core%op(:, :, 0:n)-score%op(:, :, 0:n)))
       END IF
       IF (sgp_pot%has_nonlocal) THEN
@@ -502,7 +502,7 @@ CONTAINS
       ostate%nvar = 2
       x(1) = 1.00_dp !starting point of geometric series
       x(2) = 1.20_dp !factor of series
-      ostate%rhoend = 1.e-14_dp
+      ostate%rhoend = 1.e-12_dp
       ostate%rhobeg = 5.e-2_dp
       ostate%maxfun = 1000
       ostate%iprint = 1
