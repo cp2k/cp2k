@@ -12,8 +12,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
+         EPS_SCF 1.0E-8
       &END
       MAX_SCF  10
+      EPS_SCF 1.0E-8
     &END SCF
     &PRINT
       &MOMENTS ON
