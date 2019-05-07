@@ -22,7 +22,7 @@ MODULE pw_grid_info
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: pw_find_cutoff, pw_grid_init_setup, pw_grid_bounds_from_n
+   PUBLIC :: pw_find_cutoff, pw_grid_init_setup, pw_grid_bounds_from_n, pw_grid_n_for_fft
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grid_info'
 

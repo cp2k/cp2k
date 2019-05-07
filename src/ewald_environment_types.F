@@ -33,6 +33,7 @@ MODULE ewald_environment_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
+   USE pw_grid_info,                    ONLY: pw_grid_n_for_fft
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
                                               do_ewald_pme,&
@@ -452,7 +453,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section_tb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iw
+      INTEGER                                            :: i, iw, n(3)
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
       LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: alat, cutoff, dummy
@@ -515,6 +516,8 @@ CONTAINS
             ewald_env%gmax(i) = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi)+1
          ENDDO
       ENDIF
+      n = ewald_env%gmax
+      ewald_env%gmax = pw_grid_n_for_fft(n, odd=.TRUE.)
 
       iw = cp_print_key_unit_nr(logger, ewald_section, "PRINT%PROGRAM_RUN_INFO", &
                                 extension=".log")
