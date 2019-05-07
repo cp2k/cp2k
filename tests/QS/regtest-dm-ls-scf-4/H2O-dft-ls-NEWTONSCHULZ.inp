@@ -26,7 +26,7 @@
       &END
     &END QS
     &LS_SCF
-      MAX_SCF    4
+      MAX_SCF    6
       EPS_FILTER 1.0E-6
       EPS_SCF    1.0E-6
       MU         0.15
