@@ -115,10 +115,11 @@ CONTAINS
 !> \param subsys_section ...
 !> \param use_motion_section ...
 !> \param exclusions ...
+!> \param elkind ...
 ! **************************************************************************************************
    SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set, &
                                molecule_set, colvar_p, gci, root_section, para_env, qmmm, qmmm_env, &
-                               force_env_section, subsys_section, use_motion_section, exclusions)
+                               force_env_section, subsys_section, use_motion_section, exclusions, elkind)
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -134,12 +135,14 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_motion_section
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exclusions
+      LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'topology_control', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iw, iw2
-      LOGICAL                                            :: binary_coord_read, my_qmmm
+      LOGICAL                                            :: binary_coord_read, el_as_kind, explicit, &
+                                                            my_qmmm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: cell_section, constraint_section, &
                                                             topology_section
@@ -159,6 +162,17 @@ CONTAINS
                                 extension=".mmLog")
       my_qmmm = .FALSE.
       IF (PRESENT(qmmm) .AND. PRESENT(qmmm_env)) my_qmmm = qmmm
+
+      IF (PRESENT(elkind)) THEN
+         CALL section_vals_val_get(topology_section, "USE_ELEMENT_AS_KIND", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(topology_section, "USE_ELEMENT_AS_KIND", l_val=el_as_kind)
+         ELSE
+            el_as_kind = elkind
+         END IF
+      ELSE
+         CALL section_vals_val_get(topology_section, "USE_ELEMENT_AS_KIND", l_val=el_as_kind)
+      END IF
 
       ! 1. Initialize the topology structure type
       CALL init_topology(topology)
@@ -185,6 +199,11 @@ CONTAINS
       ! 6. Read in or generate the molecular connectivity
       CALL connectivity_control(topology, para_env, my_qmmm, qmmm_env, subsys_section, &
                                 force_env_section)
+
+      IF (el_as_kind) THEN
+         ! redefine atom names with the name of the element
+         topology%atom_info%id_atmname(:) = topology%atom_info%id_element(:)
+      END IF
 
       ! 7. Pack everything into the molecular types
       CALL topology_connectivity_pack(molecule_kind_set, molecule_set, &

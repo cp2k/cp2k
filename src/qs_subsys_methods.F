@@ -63,9 +63,10 @@ CONTAINS
 !> \param cp_subsys ...
 !> \param cell ...
 !> \param cell_ref ...
+!> \param elkind ...
 ! **************************************************************************************************
    SUBROUTINE qs_subsys_create(subsys, para_env, root_section, force_env_section, subsys_section, &
-                               use_motion_section, cp_subsys, cell, cell_ref)
+                               use_motion_section, cp_subsys, cell, cell_ref, elkind)
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
@@ -73,6 +74,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_motion_section
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
+      LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_subsys_create', &
          routineP = moduleN//':'//routineN
@@ -95,7 +97,8 @@ CONTAINS
          CALL cp_subsys_create(my_cp_subsys, para_env, root_section=root_section, &
                                force_env_section=force_env_section, &
                                subsys_section=subsys_section, &
-                               use_motion_section=use_motion_section)
+                               use_motion_section=use_motion_section, &
+                               elkind=elkind)
       ELSE
          CPABORT("qs_subsys_create: cp_subsys or root_section needed")
       END IF

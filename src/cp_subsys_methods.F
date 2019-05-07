@@ -87,11 +87,12 @@ CONTAINS
 !> \param qmmm ...
 !> \param qmmm_env ...
 !> \param exclusions ...
+!> \param elkind ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE cp_subsys_create(subsys, para_env, &
                                root_section, force_env_section, subsys_section, &
-                               use_motion_section, qmmm, qmmm_env, exclusions)
+                               use_motion_section, qmmm, qmmm_env, exclusions, elkind)
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
@@ -101,6 +102,7 @@ CONTAINS
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exclusions
+      LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
          routineP = moduleN//':'//routineN
@@ -159,7 +161,7 @@ CONTAINS
                             subsys%colvar_p, subsys%gci, root_section, para_env, &
                             force_env_section=my_force_env_section, &
                             subsys_section=my_subsys_section, use_motion_section=my_use_motion_section, &
-                            qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions)
+                            qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions, elkind=elkind)
 
       CALL particle_list_create(particles, els_ptr=particle_set)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)

@@ -246,8 +246,9 @@ CONTAINS
 
       INTEGER                                            :: ikind, method_id, natom, nkind
       LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
-                                                            do_kpoints, mp2_present, my_qmmm, &
-                                                            qmmm_decoupl, silent, use_ref_cell
+                                                            do_kpoints, is_semi, mp2_present, &
+                                                            my_qmmm, qmmm_decoupl, silent, &
+                                                            use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -294,8 +295,11 @@ CONTAINS
       CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
             do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
          CALL init_se_intd_array()
+         is_semi = .TRUE.
+      CASE (do_method_xtb, do_method_dftb)
+         is_semi = .TRUE.
       CASE DEFAULT
-         ! Do nothing
+         is_semi = .FALSE.
       END SELECT
 
       CALL qs_subsys_create(subsys, para_env, &
@@ -303,7 +307,8 @@ CONTAINS
                             subsys_section=subsys_section, &
                             use_motion_section=use_motion_section, &
                             root_section=root_section, &
-                            cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref)
+                            cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
+                            elkind=is_semi)
 
       CALL qs_ks_env_create(ks_env)
       CALL set_ks_env(ks_env, subsys=subsys)

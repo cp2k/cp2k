@@ -1576,6 +1576,14 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
       ! Logical
+      CALL keyword_create(keyword, name="USE_ELEMENT_AS_KIND", &
+                          description="Kinds are generated according to the element name."// &
+                          " Default=True for SE and TB methods.", &
+                          usage="USE_ELEMENT_AS_KIND logical", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="CHARGE_OCCUP", &
                           variants=(/"CHARGE_O"/), &
                           description="Read MM charges from the OCCUP field of PDB file.", &
