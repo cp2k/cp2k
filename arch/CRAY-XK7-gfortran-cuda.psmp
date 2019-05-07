@@ -14,6 +14,7 @@ GPUVER   = K20X
 
 CPPFLAGS =
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
+CXXOMPFLAGS = -fopenmp
 DFLAGS   = -D__GEMINI -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -march=bdver1 -funroll-loops -ftree-vectorize \
