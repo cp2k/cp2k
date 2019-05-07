@@ -9,6 +9,7 @@ GPUVER   = K20X
 
 CPPFLAGS =
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
+CXXOMPFLAGS = -fopenmp
 
 #https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 

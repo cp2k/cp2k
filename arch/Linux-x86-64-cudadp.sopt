@@ -29,6 +29,7 @@ DFLAGSCU  = $(DFLAGSBASE) -Dcpu_d_gemm=dgemm -Dcpu_d_symm=dsymm
 CFLAGS   =  -O2
 CPPFLAGS = -traditional -C $(DFLAGS) -P -I/opt/intel/mkl/10.0.1.014/include/fftw
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
+CXXOMPFLAGS = -fopenmp
 CPPFLAGSCU = -traditional -C $(DFLAGSCU) -P -I/opt/intel/mkl/10.0.1.014/include/fftw
 NVFLAGS	 = $(DFLAGS) -arch sm_13 -deviceemu -Xcompiler='-fopenmp' --std=c++11
 FCFLAGS  = $(DFLAGS) -O2 -xW
