@@ -83,7 +83,8 @@ MODULE bibliography
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
-                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007, &
+                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
+                            Grimme2017, Kondov2007, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
                             Toulouse2004, Limpanuparb2011
 
@@ -1807,6 +1808,36 @@ CONTAINS
                          "DI 10.1002/jcc.21759", &
                          "ER"), &
                          DOI="10.1002/jcc.21759")
+
+      CALL add_reference(key=Grimme2013, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Grimme, S", &
+                         "AF Grimme, Stefan", &
+                         "TI A simplified Tamm-Dancoff density functional approach for", &
+                         "   the electronic excitation spectra of very large molecules", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2013", &
+                         "VL 138", &
+                         "AR 244104", &
+                         "DI 10.1063/1.4811331", &
+                         "ER"), &
+                         DOI="10.1063/1.4811331")
+
+      CALL add_reference(key=Grimme2016, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Grimme, S", &
+                         "   Bannwarth, C", &
+                         "AF Grimme, Stefan", &
+                         "   Bannwarth, Christoph", &
+                         "TI Ultra-fast computation of electronic spectra for large systems", &
+                         "   by tight-binding based simplified Tamm-Dancoff approximation (sTDA-xTB)", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2016", &
+                         "VL 145", &
+                         "AR 054103", &
+                         "DI 10.1063/1.4959605", &
+                         "ER"), &
+                         DOI="10.1063/1.4959605")
 
       CALL add_reference(key=Grimme2017, ISI_record=s2a( &
                          "PT J", &

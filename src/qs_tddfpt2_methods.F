@@ -5,7 +5,9 @@
 
 MODULE qs_tddfpt2_methods
    USE admm_types,                      ONLY: admm_type
-   USE bibliography,                    ONLY: Iannuzzi2005,&
+   USE bibliography,                    ONLY: Grimme2013,&
+                                              Grimme2016,&
+                                              Iannuzzi2005,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
@@ -137,9 +139,9 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: input, tddfpt_print_section, &
-                                                            tddfpt_section, xc_fun_empty, &
-                                                            xc_fun_original, xc_section
+      TYPE(section_vals_type), POINTER                   :: tddfpt_print_section, tddfpt_section, &
+                                                            xc_fun_empty, xc_fun_original, &
+                                                            xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), ALLOCATABLE, &
@@ -164,6 +166,12 @@ CONTAINS
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
+
+      CALL cite_reference(Iannuzzi2005)
+      IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
+         CALL cite_reference(Grimme2013)
+         CALL cite_reference(Grimme2016)
+      END IF
 
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
       nspins = dft_control%nspins
@@ -540,25 +548,22 @@ CONTAINS
 !> \param qs_env  Quickstep environment
 !> \param do_hfx ...
 !> \param do_admm ...
+!> \param xc_section ...
+!> \param tddfpt_print_section ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm
-      TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
+      TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_input', routineP = moduleN//':'//routineN
 
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: explicit_xc
       REAL(kind=dp)                                      :: C_hf
-      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
-                                                            tddfpt_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, tddfpt_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-
-      CALL cite_reference(Iannuzzi2005)
 
       NULLIFY (dft_control, input)
       CALL get_qs_env(qs_env, dft_control=dft_control, input=input)

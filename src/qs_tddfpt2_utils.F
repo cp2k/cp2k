@@ -332,7 +332,7 @@ CONTAINS
       END IF
       CALL cp_fm_release(work_fm)
 
-      IF (do_eigen)  CALL deallocate_mo_set(mos_extended)
+      IF (do_eigen) CALL deallocate_mo_set(mos_extended)
 
       CALL timestop(handle)
 
