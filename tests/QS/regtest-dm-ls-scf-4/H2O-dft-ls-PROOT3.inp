@@ -11,7 +11,7 @@
      &END MULLIKEN
     &END PRINT
     &MGRID
-      CUTOFF 300
+      CUTOFF 175
       &RS_GRID
          MAX_DISTRIBUTED_LEVEL 5
       &END
@@ -39,10 +39,6 @@
       SIGN_METHOD PROOT
       S_SQRT_METHOD PROOT
       S_SQRT_ORDER 3
-    &END
-    &SCF
-      MAX_SCF    30
-      EPS_SCF    1.0E-7
     &END
     &XC
       &XC_FUNCTIONAL PADE
