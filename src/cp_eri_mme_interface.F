@@ -450,7 +450,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: basis_type
-      INTEGER                                            :: handle, i, ibasis, ikind, iset, j, l_m, &
+      INTEGER                                            :: handle, ibasis, ikind, ipgf, iset, l_m, &
                                                             l_zet, nbasis, nkind, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf
       REAL(KIND=dp)                                      :: zet_m
@@ -480,7 +480,7 @@ CONTAINS
             CPASSERT(ASSOCIATED(basis_set))
             npgf => basis_set%npgf
             nset = basis_set%nset
-            l_m = MAX(l_m, MAXVAL(basis_set%l(:, :)))
+            l_m = MAX(l_m, MAXVAL(basis_set%lmax(:)))
             DO iset = 1, nset
                zet_m = MAX(zet_m, MAXVAL(basis_set%zet(1:npgf(iset), iset)))
                IF (zet_mm .LT. 0.0_dp) THEN
@@ -502,10 +502,11 @@ CONTAINS
             ENDIF
             CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set, &
                              basis_type=basis_type)
-            DO i = LBOUND(basis_set%l, 1), UBOUND(basis_set%l, 1)
-               DO j = LBOUND(basis_set%l, 2), UBOUND(basis_set%l, 2)
-                  IF (ABS(zet_m-basis_set%zet(i, j)) .LE. (zet_m*1.0E-12_dp) .AND. (basis_set%l(i, j) .GT. l_zet)) THEN
-                     l_zet = basis_set%l(i, j)
+            DO iset = 1, basis_set%nset
+               DO ipgf = 1, basis_set%npgf(iset)
+                  IF (ABS(zet_m-basis_set%zet(ipgf, iset)) .LE. (zet_m*1.0E-12_dp) &
+                      .AND. (basis_set%lmax(iset) .GT. l_zet)) THEN
+                     l_zet = basis_set%lmax(iset)
                   ENDIF
                ENDDO
             ENDDO
