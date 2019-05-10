@@ -14,6 +14,7 @@ MODULE hfx_libint_wrapper
 
 #if(__LIBINT)
 #include <libint2/libint2_params.h>
+#include <libint2/config.h>
 #endif
 
 ! maximum angular momentum to be supported in CP2K-LIBINT interface
@@ -416,7 +417,12 @@ CONTAINS
       TYPE(cp_libint_t) :: lib
       INTEGER           :: contrdepth
 #if(__LIBINT)
+#if LIBINT_CONTRACTED_INTS
       lib%prv(1)%contrdepth = contrdepth
+#else
+      MARK_USED(lib)
+      MARK_USED(contrdepth)
+#endif
 #else
       MARK_USED(lib)
       MARK_USED(contrdepth)
