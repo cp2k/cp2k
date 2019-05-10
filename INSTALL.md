@@ -89,7 +89,9 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
 Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed. CP2K requires libint version >= 2.5.0 that was build with Fortran bindings (configured with `--enable-fortran`). Build libint by following the [libint wiki](https://github.com/evaleev/libint/wiki) and the additional instructions below.
   * Recommended options for `configure` to generate a CP2K-compatible libint:
   ```
-  --enable-eri=1 --enable-eri3=1 --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 --with-opt-am=3 --enable-generic-code --disable-unrolling
+  --enable-eri=1 --enable-eri3=1 --enable-eri2=1 \
+    --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 --with-eri2-max-am=5,4 \
+    --with-opt-am=3 --enable-generic-code --disable-unrolling
   ```
   CP2K is not hardwired to this specific libint version and the configure options may be adapted to your needs.
   * *After* generating libint library, configure libint with Fortran interface by setting `FC` to the Fortran compiler and by setting `--enable-fortran`.
