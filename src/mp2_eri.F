@@ -597,7 +597,6 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 !> \param basis_type_b ...
 !> \param basis_type_c ...
 !> \param sab_nl neighbor list for a, b
-!> \param transp return (c|ab) instead of (ab|c)
 !> \param eri_method ...
 !> \param pabc ...
 !> \param force_a ...
@@ -610,7 +609,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
    SUBROUTINE mp2_eri_3c_integrate(param, para_env, qs_env, &
                                       first_c, last_c, mat_ab, &
                                       basis_type_a, basis_type_b, basis_type_c, &
-                                      sab_nl, transp, eri_method, &
+                                      sab_nl, eri_method, &
                                       pabc, force_a, force_b, force_c, &
                                       mat_dabc, mat_adbc, mat_abdc)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
@@ -622,7 +621,6 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b, basis_type_c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      LOGICAL, INTENT(IN), OPTIONAL                      :: transp
       INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
       TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
          INTENT(INOUT), OPTIONAL                         :: pabc
@@ -913,8 +911,7 @@ $:                         'force_c=force_c(kkind)%forces(:, atom_c), &'*doforce
 $:                         'hdabc=hdabc, &'*dabc
 $:                         'hadbc=hadbc, &'*adbc
 $:                         'habdc=habdc, &'*abdc
-                           GG_count=GG_count, GR_count=GR_count, RR_count=RR_count, &
-                           transp=transp)
+                           GG_count=GG_count, GR_count=GR_count, RR_count=RR_count)
                      ENDIF
 #:endfor
 #:endfor
@@ -1051,7 +1048,6 @@ $:                         'habdc=habdc, &'*abdc
 !> \param GG_count ...
 !> \param GR_count ...
 !> \param RR_count ...
-!> \param transp ...
 !> \note
 ! **************************************************************************************************
    SUBROUTINE integrate_set_3c(param, &
@@ -1071,8 +1067,7 @@ $:                         'habdc=habdc, &'*abdc
                                        force_a, force_b, force_c, &
                                        do_symmetric, on_diagonal, &
                                        hdabc, hadbc, habdc, &
-                                       GG_count, GR_count, RR_count, &
-                                       transp)
+                                       GG_count, GR_count, RR_count)
 
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &
@@ -1096,7 +1091,6 @@ $:                         'habdc=habdc, &'*abdc
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(OUT), OPTIONAL                           :: hdabc, hadbc, habdc
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
-      LOGICAL, INTENT(IN), OPTIONAL                      :: transp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_set_3c', &
          routineP = moduleN//':'//routineN
@@ -1207,8 +1201,7 @@ $:                         'habdc=habdc, &'*abdc
                   CALL eri_mme_3c_integrate(param, &
                                             la_min, la_max_d, lb_min, lb_max_d, lc_min, lc_max_d, &
                                             zeta(ipgf), zetb(jpgf), zetc(kpgf), ra, rb, rc, habc_uncontr_d, 0, 0, 0, &
-                                            GG_count, GR_count, RR_count, &
-                                            transp=transp)
+                                            GG_count, GR_count, RR_count)
 
                   habc_uncontr(na+1:na+ncoset(la_max), nb+1:nb+ncoset(lb_max), nc+1:nc+ncoset(lc_max)) = &
                      habc_uncontr_d(:ncoset(la_max), :ncoset(lb_max), :ncoset(lc_max))
