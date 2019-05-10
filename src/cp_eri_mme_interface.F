@@ -25,6 +25,7 @@ MODULE cp_eri_mme_interface
                                               eri_mme_3c_perf_acc_test
    USE eri_mme_types,                   ONLY: eri_mme_init,&
                                               eri_mme_param,&
+                                              eri_mme_print_grid_info,&
                                               eri_mme_release,&
                                               eri_mme_set_params
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -151,6 +152,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, &
+                          name="DO_ERROR_ESTIMATE", &
+                          description="Whether the error due to minimax approx. and cutoff shall be estimated", &
+                          default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create(print_key, "ERI_MME_INFO", &
                                        description="Controls the printing info.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
@@ -242,7 +251,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: debug_nsum, n_minimax, unit_nr
-      LOGICAL                                            :: debug, do_calib_cutoff, print_calib
+      LOGICAL                                            :: debug, do_calib_cutoff, do_error_est, &
+                                                            print_calib
       REAL(KIND=dp)                                      :: cutoff, cutoff_delta, cutoff_eps, &
                                                             cutoff_max, cutoff_min, debug_delta, &
                                                             sum_precision
@@ -259,6 +269,7 @@ CONTAINS
       CALL section_vals_val_get(mme_section, "CUTOFF", r_val=cutoff)
       CALL section_vals_val_get(mme_section, "SUM_PRECISION", r_val=sum_precision)
       CALL section_vals_val_get(mme_section, "DO_CALIBRATE_CUTOFF", l_val=do_calib_cutoff)
+      CALL section_vals_val_get(mme_section, "DO_ERROR_ESTIMATE", l_val=do_error_est)
       CALL section_vals_val_get(mme_section, "PRINT_CALIB", l_val=print_calib)
       subsection => section_vals_get_subs_vals(mme_section, "CUTOFF_CALIB")
       CALL section_vals_val_get(subsection, "MIN", r_val=cutoff_min)
@@ -272,7 +283,7 @@ CONTAINS
       param%mme_section => mme_section
 
       CALL eri_mme_init(param%par, n_minimax, &
-                        cutoff, do_calib_cutoff, cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, &
+                        cutoff, do_calib_cutoff, do_error_est, cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, &
                         sum_precision, debug, debug_delta, debug_nsum, unit_nr, print_calib)
 
       param%do_calib = do_calib_cutoff
@@ -520,8 +531,11 @@ CONTAINS
    SUBROUTINE eri_mme_print_info(param)
       TYPE(cp_eri_mme_param)                             :: param
 
-      INTEGER                                            :: unit_nr
+      INTEGER                                            :: igrid, unit_nr
+      LOGICAL                                            :: print_multigrids
       TYPE(cp_logger_type), POINTER                      :: logger
+
+      print_multigrids = .FALSE.
 
       logger => param%logger
 
@@ -532,14 +546,23 @@ CONTAINS
       ENDIF
       IF (param%par%is_ortho) THEN
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
-            WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Minimax error:", param%par%err_mm
-            WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", param%par%err_c
-            WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm+param%par%err_c
+            IF (param%par%do_error_est) THEN
+               WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
+               WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Minimax error:", param%par%err_mm
+               WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", param%par%err_c
+               WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm+param%par%err_c
+            ENDIF
             IF (param%par%print_calib) &
                WRITE (unit_nr, '(T2, A, T68, F13.10)') "ERI_MME|   Minimax scaling constant in AM-GM estimate:", param%par%C_mm
          ENDIF
       ENDIF
+
+      IF (print_multigrids) THEN
+         DO igrid = 1, param%par%n_grids
+            CALL eri_mme_print_grid_info(param%par%minimax_grid(igrid), igrid, unit_nr)
+         ENDDO
+      ENDIF
+
       IF (unit_nr > 0) WRITE (unit_nr, *)
 
    END SUBROUTINE eri_mme_print_info
