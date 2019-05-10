@@ -137,8 +137,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
       LOGICAL, INTENT(IN)                                :: is_ortho
       REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_err_cutoff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: l_err_cutoff
+      REAL(KIND=dp), INTENT(IN)                          :: zet_err_cutoff
+      INTEGER, INTENT(IN)                                :: l_err_cutoff
       INTEGER, INTENT(IN)                                :: l_max
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
@@ -146,24 +146,20 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, l_mm
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: l_c
+      INTEGER                                            :: l_c
       LOGICAL                                            :: s_only
       REAL(KIND=dp)                                      :: cutoff, E_mm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_c
 
       CALL timeset(routineN, handle)
 
       ! Note: in MP2 default logger hacked and does not use global default print level
       s_only = l_max .EQ. 0
 
-      CPASSERT(SIZE(zet_err_cutoff) .EQ. SIZE(l_err_cutoff))
-
       CALL init_orbital_pointers(3*l_max) ! allow for orbital pointers of combined index
 
       ! l values for minimax error estimate (l_mm) and for cutoff error estimate (l_c)
       l_mm = MERGE(0, 1, s_only)
-      ALLOCATE (l_c(SIZE(zet_err_cutoff)), zet_c(SIZE(zet_err_cutoff)))
-      l_c(:) = l_err_cutoff(:)
+      l_c = l_err_cutoff
 
       ! cell info
       ! Note: we recompute basic quantities from hmat to avoid dependency on cp2k cell type
