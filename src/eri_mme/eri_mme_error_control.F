@@ -283,10 +283,10 @@ CONTAINS
 
       err_ctff_prev(:) = 0.0_dp
       gr = 0.5_dp*(SQRT(5.0_dp)-1.0_dp) ! golden ratio
+      err_ctff_curr = 0.0_dp
       DO n = 1, SIZE(l_ctff)
          ! Find valid starting values for golden section search
          DO iter = 1, max_iter+1
-            err_ctff_curr = 0.0_dp
             IF (iter .GT. max_iter) &
                CALL cp_abort(__LOCATION__, "Maximum number of iterations for finding "// &
                              "exponent maximizing cutoff error has been exceeded.")
