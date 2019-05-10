@@ -79,8 +79,8 @@ MODULE cp_eri_mme_interface
       INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp)                                      :: zet_err_minimax
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: zet_err_cutoff
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: l_err_cutoff
+      REAL(KIND=dp)                                      :: zet_err_cutoff
+      INTEGER                                            :: l_err_cutoff
       INTEGER                                            :: l_max
       LOGICAL                                            :: do_calib
    END TYPE cp_eri_mme_param
@@ -323,8 +323,6 @@ CONTAINS
       ENDIF
 
       CALL eri_mme_release(param%par)
-      IF (ALLOCATED(param%zet_err_cutoff)) DEALLOCATE (param%zet_err_cutoff)
-      IF (ALLOCATED(param%l_err_cutoff)) DEALLOCATE (param%l_err_cutoff)
       CALL cp_print_key_finished_output(unit_nr, param%logger, param%mme_section, "ERI_MME_INFO")
    END SUBROUTINE cp_eri_mme_finalize
 
@@ -350,17 +348,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params_from_basis', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, l_max
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: l_err_cutoff
-      REAL(KIND=dp)                                      :: zet_err_minimax
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_err_cutoff
+      INTEGER                                            :: handle, l_err_cutoff, l_max
+      REAL(KIND=dp)                                      :: zet_err_cutoff, zet_err_minimax
 
       CALL timeset(routineN, handle)
 
       CALL error_est_pgf_params_from_basis(qs_kind_set, basis_type_1, basis_type_2, &
-                                           zet_err_minimax, zet_err_cutoff, l_err_cutoff)
+                                           zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max)
 
-      l_max = MAXVAL(l_err_cutoff)
       CALL eri_mme_set_params_custom(param, cell%hmat, cell%orthorhombic, &
                                      zet_err_minimax, zet_err_cutoff, l_err_cutoff, &
                                      l_max, para_env)
@@ -383,10 +378,8 @@ CONTAINS
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
       LOGICAL, INTENT(IN)                                :: is_ortho
-      REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_err_cutoff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: l_err_cutoff
-      INTEGER, INTENT(IN)                                :: l_max
+      REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax, zet_err_cutoff
+      INTEGER, INTENT(IN)                                :: l_err_cutoff, l_max
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       REAL(KIND=dp), PARAMETER                           :: eps_changed = 1.0E-14_dp
@@ -398,8 +391,8 @@ CONTAINS
             ! only calibrate cutoff if parameters (cell, basis coefficients) have changed
             IF (ALL(ABS(param%hmat-hmat) < eps_changed) .AND. &
                 ABS(param%zet_err_minimax-zet_err_minimax) < eps_changed .AND. &
-                ALL(ABS(param%zet_err_cutoff-zet_err_cutoff) < eps_changed) .AND. &
-                ALL(param%l_err_cutoff == l_err_cutoff) .AND. &
+                ABS(param%zet_err_cutoff-zet_err_cutoff) < eps_changed .AND. &
+                param%l_err_cutoff == l_err_cutoff .AND. &
                 param%l_max == l_max) THEN
                param%par%do_calib_cutoff = .FALSE.
             ELSE
@@ -414,12 +407,8 @@ CONTAINS
 
       param%hmat(:, :) = hmat(:, :)
       param%zet_err_minimax = zet_err_minimax
-      IF (ALLOCATED(param%zet_err_cutoff)) DEALLOCATE (param%zet_err_cutoff)
-      IF (ALLOCATED(param%l_err_cutoff)) DEALLOCATE (param%l_err_cutoff)
-      ALLOCATE (param%zet_err_cutoff(SIZE(zet_err_cutoff)))
-      param%zet_err_cutoff(:) = zet_err_cutoff(:)
-      ALLOCATE (param%l_err_cutoff(SIZE(l_err_cutoff)))
-      param%l_err_cutoff(:) = l_err_cutoff(:)
+      param%zet_err_cutoff = zet_err_cutoff
+      param%l_err_cutoff = l_err_cutoff
 
       param%l_max = l_max
 
@@ -436,16 +425,15 @@ CONTAINS
 !>               used to estimate cutoff error
 !> \param l_c    contains the largest l for max. exponent and max. l,
 !>               used to estimate cutoff error
+!> \param l_max ...
 ! **************************************************************************************************
-   SUBROUTINE error_est_pgf_params_from_basis(qs_kind_set, basis_type_1, basis_type_2, zet_mm, zet_c, l_c)
+   SUBROUTINE error_est_pgf_params_from_basis(qs_kind_set, basis_type_1, basis_type_2, zet_mm, zet_c, l_c, l_max)
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
       CHARACTER(len=*), INTENT(IN)                       :: basis_type_1
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_2
-      REAL(KIND=dp), INTENT(OUT)                         :: zet_mm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: zet_c
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: l_c
+      REAL(KIND=dp), INTENT(OUT)                         :: zet_mm, zet_c
+      INTEGER, INTENT(OUT)                               :: l_c, l_max
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'error_est_pgf_params_from_basis', &
          routineP = moduleN//':'//routineN
@@ -454,7 +442,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ibasis, ikind, iset, j, l_m, &
                                                             l_zet, nbasis, nkind, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf
-      REAL(KIND=dp)                                      :: zet_l, zet_m
+      REAL(KIND=dp)                                      :: zet_m
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
 
       CALL timeset(routineN, handle)
@@ -462,7 +450,6 @@ CONTAINS
       l_m = 0
       zet_m = 0.0_dp
       l_zet = -1
-      zet_l = -1.0_dp
       zet_mm = -1.0_dp
 
       nkind = SIZE(qs_kind_set)
@@ -509,24 +496,19 @@ CONTAINS
                   IF (ABS(zet_m-basis_set%zet(i, j)) .LE. (zet_m*1.0E-12_dp) .AND. (basis_set%l(i, j) .GT. l_zet)) THEN
                      l_zet = basis_set%l(i, j)
                   ENDIF
-                  IF ((basis_set%l(i, j) .EQ. l_m) .AND. (basis_set%zet(i, j) .GT. zet_l)) THEN
-                     zet_l = basis_set%zet(i, j)
-                  ENDIF
                ENDDO
             ENDDO
          ENDDO
       ENDDO
 
-      ALLOCATE (l_c(2))
-      ALLOCATE (zet_c(2))
+      CPASSERT(l_zet .GE. 0)
 
-      CPASSERT(zet_l .GT. 0.0_dp .AND. l_zet .GE. 0)
-
-      zet_c(:) = [zet_m, zet_l]
+      zet_c = zet_m
 
       ! l + 1 because we may calculate forces
       ! this is probably a safe choice also for the case that forces are not needed
-      l_c(:) = [l_zet+1, l_m+1]
+      l_c = l_zet+1
+      l_max = l_m+1
 
       CALL timestop(handle)
    END SUBROUTINE error_est_pgf_params_from_basis
@@ -801,7 +783,7 @@ CONTAINS
       ENDDO
 
       ! initialize MME method
-      CALL cp_eri_mme_set_params(param, box%hmat, box%orthorhombic, MINVAL(zet), [MAXVAL(zet)], [l_max], l_max, para_env)
+      CALL cp_eri_mme_set_params(param, box%hmat, box%orthorhombic, MINVAL(zet), MAXVAL(zet), l_max, l_max, para_env)
 
       IF (iw > 0) WRITE (iw, '(T2, A, T61, I20)') "ERI_MME| Number of atomic distances:", nR
 

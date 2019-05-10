@@ -844,8 +844,8 @@ CONTAINS
             CALL cp_eri_mme_set_params(qmmm_env%image_charge_pot%eri_mme_param, &
                                        hmat=qm_cell_small%hmat, is_ortho=qm_cell_small%orthorhombic, &
                                        zet_err_minimax=qmmm_env%image_charge_pot%eta, &
-                                       zet_err_cutoff=[qmmm_env%image_charge_pot%eta], &
-                                       l_err_cutoff=[0], &
+                                       zet_err_cutoff=qmmm_env%image_charge_pot%eta, &
+                                       l_err_cutoff=0, &
                                        l_max=0, &
                                        para_env=para_env)
 
