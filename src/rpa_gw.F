@@ -1161,73 +1161,66 @@ CONTAINS
 !> \param Eigenval_scf_kp ...
 !> \param iter_ev_sc ...
 ! **************************************************************************************************
-   SUBROUTINE GW_postprocessing(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, count_ev_sc_GW, &
-                                gw_corr_lev_occ, gw_corr_lev_occ_beta, &
-                                gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, &
-                                homo, homo_beta, &
+   SUBROUTINE GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
+                                gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                 nmo, num_fit_points, num_integ_points, &
-                                num_points_corr, unit_nr, &
-                                do_apply_ic_corr_to_gw, do_gw_im_time, &
-                                do_periodic, do_ri_Sigma_x, &
-                                first_cycle_periodic_correction, my_do_gw, my_open_shell, &
-                                do_GW_corr, e_fermi, &
-                                e_fermi_beta, eps_filter, &
+                                num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_gw_im_time, &
+                                do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, my_do_gw, &
+                                do_GW_corr, e_fermi, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
-                                Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
-                                Eigenval_scf_beta, m_value, m_value_beta, &
-                                tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
-                                vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-                                vec_Sigma_x_gw, vec_Sigma_x_gw_beta, &
-                                z_value, z_value_beta, ic_corr_list, ic_corr_list_beta, &
+                                Eigenval_last, Eigenval_scf, m_value, &
+                                tau_tj, tj, vec_gw_energ, vec_gw_energ_error_fit, &
+                                vec_omega_fit_gw, vec_Sigma_x_gw, z_value, ic_corr_list, &
                                 weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                 fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff, fm_mat_W_tau, &
-                                para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
-                                mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, matrix_berry_im_mo_mo, &
-                                matrix_berry_re_mo_mo, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
-                                mat_greens_fct_virt, mat_greens_fct_virt_beta, mat_W, matrix_s, &
+                                mo_coeff, fm_mat_W_tau, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                mat_3c_overl_int_gw, matrix_berry_im_mo_mo, &
+                                matrix_berry_re_mo_mo, mat_greens_fct_occ, mat_greens_fct_virt, mat_W, matrix_s, &
                                 mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, kpoints, mp2_env, qs_env, &
-                                nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc)
+                                nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc, &
+                                vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
+                                e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
+                                vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_Sigma_x_gw_beta, &
+                                z_value_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                mat_3c_overl_int_gw_beta, mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: count_ev_sc_GW, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
-         gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, homo_beta, nmo, &
+         DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw
+      INTEGER, INTENT(IN) :: count_ev_sc_GW, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, homo, nmo, &
          num_fit_points, num_integ_points
       INTEGER                                            :: num_points_corr
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_apply_ic_corr_to_gw, do_gw_im_time, &
                                                             do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
+      LOGICAL, INTENT(IN)                                :: my_do_gw
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, e_fermi_beta, eps_filter, &
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter, &
                                                             fermi_level_offset, stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: Eigenval_last, &
-         Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, tau_tj, tj, &
-         vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
+         Eigenval_scf, m_value, tau_tj, tj, vec_gw_energ, vec_gw_energ_error_fit, &
          vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: vec_Sigma_x_gw, vec_Sigma_x_gw_beta
+         INTENT(INOUT)                                   :: vec_Sigma_x_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: z_value, z_value_beta
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
+         INTENT(INOUT)                                   :: z_value
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
          fm_mo_coeff_occ, fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-         fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff
+         mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_SinvVSinv
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, &
          matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_greens_fct_occ, &
-         mat_greens_fct_occ_beta, mat_greens_fct_virt, mat_greens_fct_virt_beta, mat_W, matrix_s
+         mat_greens_fct_virt, mat_W, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
                                                             mat_contr_W
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1238,16 +1231,41 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: Eigenval_kp, Eigenval_scf_kp
       INTEGER, INTENT(INOUT)                             :: iter_ev_sc
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(INOUT), OPTIONAL     :: vec_Sigma_c_gw_beta
+      INTEGER, INTENT(IN), OPTIONAL :: gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: e_fermi_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), OPTIONAL :: Eigenval_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT), OPTIONAL :: Eigenval_last_beta, &
+         Eigenval_scf_beta, m_value_beta, vec_gw_energ_beta, vec_gw_energ_error_fit_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT), OPTIONAL                         :: vec_Sigma_x_gw_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: z_value_beta
+      REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL     :: ic_corr_list_beta
+      TYPE(cp_fm_type), POINTER, OPTIONAL :: fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER, OPTIONAL :: mat_3c_overl_int_gw_beta, &
+         mat_greens_fct_occ_beta, mat_greens_fct_virt_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_postprocessing', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: crossing_search, handle, ikp, &
                                                             max_iter_fit, n_level_gw, num_poles
-      LOGICAL                                            :: check_fit, remove_neg_virt_energies
+      LOGICAL                                            :: check_fit, my_open_shell, remove_neg_virt_energies
       REAL(KIND=dp)                                      :: stop_crit
 
       CALL timeset(routineN, handle)
+
+      my_open_shell = .FALSE.
+      IF (PRESENT(vec_Sigma_c_gw_beta) .AND. PRESENT(gw_corr_lev_occ_beta) .AND. PRESENT(gw_corr_lev_virt_beta) .AND. &
+          PRESENT(homo_beta) .AND. PRESENT(e_fermi_beta) .AND. PRESENT(Eigenval_beta) .AND. PRESENT(Eigenval_last_beta) &
+          .AND. PRESENT(Eigenval_scf_beta) .AND. PRESENT(m_value_beta) .AND. PRESENT(vec_gw_energ_beta) .AND. &
+          PRESENT(vec_gw_energ_error_fit_beta) .AND. PRESENT(vec_Sigma_x_gw_beta) .AND. PRESENT(z_value_beta) .AND. &
+          PRESENT(ic_corr_list_beta) .AND. PRESENT(fm_mo_coeff_occ_beta) .AND. PRESENT(fm_mo_coeff_virt_beta) .AND. &
+          PRESENT(mat_3c_overl_int_gw_beta) .AND. PRESENT(mat_greens_fct_occ_beta) .AND. PRESENT(mat_greens_fct_virt_beta)) THEN
+         my_open_shell = .TRUE.
+      END IF
 
       stop_crit = 1.0e-7
 
