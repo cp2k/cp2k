@@ -113,7 +113,6 @@ MODULE mp2_types
       INTEGER                  :: n_group_col
       INTEGER                  :: n_group_P
       INTEGER                  :: cut_RI
-      INTEGER                  :: n_group_RI_orig
       INTEGER, ALLOCATABLE, DIMENSION(:)  :: sizes_array_prim_row, starts_array_prim_row, &
                                              ends_array_prim_row, sizes_array_prim_col, &
                                              starts_array_prim_col, ends_array_prim_col, &
