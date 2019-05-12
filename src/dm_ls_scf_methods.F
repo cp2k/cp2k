@@ -365,6 +365,7 @@ CONTAINS
 !> \param mu ...
 !> \param fixed_mu ...
 !> \param sign_method ...
+!> \param sign_order ...
 !> \param matrix_ks ...
 !> \param matrix_s ...
 !> \param matrix_s_inv ...
@@ -374,12 +375,13 @@ CONTAINS
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE density_matrix_sign(matrix_p, mu, fixed_mu, sign_method, matrix_ks, matrix_s, matrix_s_inv, nelectron, threshold)
+   SUBROUTINE density_matrix_sign(matrix_p, mu, fixed_mu, sign_method, sign_order, matrix_ks, &
+                                  matrix_s, matrix_s_inv, nelectron, threshold)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
       LOGICAL                                            :: fixed_mu
-      INTEGER                                            :: sign_method
+      INTEGER                                            :: sign_method, sign_order
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       INTEGER, INTENT(IN)                                :: nelectron
       REAL(KIND=dp), INTENT(IN)                          :: threshold
@@ -414,7 +416,8 @@ CONTAINS
             IF (ABS(mu_high-mu_low) < threshold) EXIT
          ENDIF
 
-         CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, matrix_ks, matrix_s, matrix_s_inv, threshold)
+         CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, &
+                                           matrix_ks, matrix_s, matrix_s_inv, threshold)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,I2,1X,F13.9,1X,F15.9)') &
             "Density matrix:  iter, mu, trace error: ", iter, mu, trace-nelectron
 
@@ -445,6 +448,7 @@ CONTAINS
 !> \param trace ...
 !> \param mu ...
 !> \param sign_method ...
+!> \param sign_order ...
 !> \param matrix_ks ...
 !> \param matrix_s ...
 !> \param matrix_s_inv ...
@@ -453,12 +457,13 @@ CONTAINS
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, matrix_ks, matrix_s, matrix_s_inv, threshold)
+   SUBROUTINE density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, matrix_ks, &
+                                           matrix_s, matrix_s_inv, threshold)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(OUT)                         :: trace
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
-      INTEGER                                            :: sign_method
+      INTEGER                                            :: sign_method, sign_order
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       REAL(KIND=dp), INTENT(IN)                          :: threshold
 
@@ -490,9 +495,9 @@ CONTAINS
       CALL dbcsr_create(matrix_sign, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
       SELECT CASE (sign_method)
       CASE (ls_scf_sign_ns)
-         CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold)
+         CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold, sign_order)
       CASE (ls_scf_sign_proot)
-         CALL matrix_sign_proot(matrix_sign, matrix_sinv_ks, threshold)
+         CALL matrix_sign_proot(matrix_sign, matrix_sinv_ks, threshold, sign_order)
       CASE DEFAULT
          CPABORT("Unkown sign method.")
       END SELECT

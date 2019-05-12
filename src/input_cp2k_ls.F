@@ -215,6 +215,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="SIGN_ORDER", &
+                          description="Order of the method used for the computation of the sign matrix.", &
+                          usage="SIGN_ORDER 2", &
+                          default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="DYNAMIC_THRESHOLD", &
                           description="Should the threshold for the purification be chosen dynamically", &
                           usage="DYNAMIC_THRESHOLD .TRUE.", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

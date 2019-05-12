@@ -102,6 +102,7 @@ MODULE dm_ls_scf_types
       INTEGER :: s_inversion_type
       INTEGER :: purification_method
       INTEGER :: sign_method
+      INTEGER :: sign_order
       INTEGER :: s_sqrt_method
       INTEGER :: s_sqrt_order
 

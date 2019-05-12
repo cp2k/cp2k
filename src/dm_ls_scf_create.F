@@ -30,7 +30,7 @@ MODULE dm_ls_scf_create
         ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
         ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_pexsi, ls_scf_sign, &
-        ls_scf_tc2, ls_scf_trs4
+        ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_tc2, ls_scf_trs4
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
@@ -210,6 +210,7 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "PERFORM_MU_SCAN", l_val=ls_scf_env%perform_mu_scan)
       CALL section_vals_val_get(ls_scf_section, "PURIFICATION_METHOD", i_val=ls_scf_env%purification_method)
       CALL section_vals_val_get(ls_scf_section, "SIGN_METHOD", i_val=ls_scf_env%sign_method)
+      CALL section_vals_val_get(ls_scf_section, "SIGN_ORDER", i_val=ls_scf_env%sign_order)
       CALL section_vals_val_get(ls_scf_section, "DYNAMIC_THRESHOLD", l_val=ls_scf_env%dynamic_threshold)
       CALL section_vals_val_get(ls_scf_section, "NON_MONOTONIC", l_val=ls_scf_env%non_monotonic)
       CALL section_vals_val_get(ls_scf_section, "S_SQRT_METHOD", i_val=ls_scf_env%s_sqrt_method)
@@ -383,6 +384,15 @@ CONTAINS
          SELECT CASE (ls_scf_env%purification_method)
          CASE (ls_scf_sign)
             WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("sign iteration")
+            SELECT CASE (ls_scf_env%sign_method)
+            CASE (ls_scf_sign_ns)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("newton schulz")
+            CASE (ls_scf_sign_proot)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("p-th root method")
+            CASE DEFAULT
+               CPABORT("Unkown sign method.")
+            END SELECT
+            WRITE (unit_nr, '(T2,A,T61,I20)') "Sign order:", ls_scf_env%sign_order
          CASE (ls_scf_tc2)
             CALL cite_reference(Niklasson2014)
             WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace conserving 2nd order")
