@@ -2041,9 +2041,9 @@ CONTAINS
          cut_memory, cut_RI, first_ikp_local, group_size_P, gw_corr_lev_tot, handle, handle3, &
          handle4, i_cell, i_cut_RI, i_dim, i_global, i_kp, i_mem, i_real_imag, i_size, ierr, iiB, &
          ikp, info_chol, isize, iter_ev_sc, j_cell, j_global, j_mem, j_size, jjB, jquad, jsize, &
-         ksize, LLL, max_iter_bse, max_iter_fit, mm_style, my_group_L_size_im_time, &
+         ksize, LLL, max_iter_bse, max_iter_fit, mm_style, &
          my_num_dgemm_call, n_group_col, n_group_row, n_local_col, n_local_row, nblkrows_total, &
-         ncol_local, ngroup_RI_orig, nkp, nkp_self_energy, nmo, nrow_local, num_3c_repl
+         ncol_local, nkp, nkp_self_energy, nmo, nrow_local, num_3c_repl
       INTEGER :: num_cells_dm, num_fit_points, num_points_corr, num_points_per_magnitude, &
          num_Z_vectors, number_of_rec, number_of_rec_axk, number_of_rec_beta, number_of_send, &
          number_of_send_axk, number_of_send_beta, row, row_start_local, size_P
@@ -2205,7 +2205,6 @@ CONTAINS
          cut_memory = mp2_env%ri_rpa_im_time%cut_memory
          cut_RI = mp2_env%ri_rpa_im_time_util(1)%cut_RI
          eps_filter_im_time = mp2_env%ri_rpa_im_time%eps_filter_im_time
-         ngroup_RI_orig = mp2_env%ri_rpa_im_time_util(1)%n_group_RI_orig
          stabilize_exp = mp2_env%ri_rpa_im_time%stabilize_exp
 
          ALLOCATE (my_group_L_starts_im_time(cut_RI))
@@ -2221,8 +2220,6 @@ CONTAINS
 
          IF (.NOT. do_dbcsr_t) THEN
             DO i_cut_RI = 1, cut_RI
-
-               my_group_L_size_im_time = my_group_L_sizes_im_time(i_cut_RI)
 
                DO i_cell = 1, num_3c_repl
                   DO j_cell = 1, num_3c_repl
@@ -3085,7 +3082,7 @@ CONTAINS
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
                "MEMORY_INFO| Im. time group size for RI functions:", mp2_env%ri_rpa_im_time%group_size_3c
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
-               "MEMORY_INFO| Im. time group size for local P matrix:", mp2_env%ri_rpa_im_time%group_size_P
+               "MEMORY_INFO| Im. time group size for local P matrix:", group_size_P
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
                "SPARSITY_INFO| Eps pgf orb for imaginary time:", mp2_env%mp2_gpw%eps_grid
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &

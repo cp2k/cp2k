@@ -816,8 +816,6 @@ CONTAINS
                                     cut_RI, &
                                     color_sub_3c, qs_env)
 
-         qs_env%mp2_env%ri_rpa_im_time_util(1)%n_group_RI_orig = ngroup
-
          memory_info = qs_env%mp2_env%ri_rpa_im_time%memory_info
 
          IF (do_dbcsr_t) THEN
