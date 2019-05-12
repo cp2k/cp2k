@@ -56,7 +56,7 @@ ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
 ifneq ($(LD_SHARED),)
- ARCHIVE_EXT := .$(ONEVERSION).so
+ ARCHIVE_EXT := .so
 else
  ARCHIVE_EXT := .a
 endif

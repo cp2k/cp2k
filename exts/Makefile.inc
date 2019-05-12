@@ -3,7 +3,7 @@ $(error "No DBCSR submodule available, please run 'git submodule update --init -
 endif
 
 LIBS     := -L$(LIBEXTSDIR)/dbcsr -ldbcsr $(LIBS)
-EXTSDEPS_LIB  = $(LIBEXTSDIR)/dbcsr/libdbcsr.a
+EXTSDEPS_LIB  = $(LIBEXTSDIR)/dbcsr/libdbcsr.$(ARCHIVE_EXT)
 EXTSDEPS_MOD = $(OBJEXTSDIR)/dbcsr/dbcsr_api.mod $(OBJEXTSDIR)/dbcsr/dbcsr_tensor_api.mod
 $(EXTSDEPS_MOD) : ; # override builtin .mod rule to prevent circular dependency
 
