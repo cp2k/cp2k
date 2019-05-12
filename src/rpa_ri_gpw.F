@@ -3438,19 +3438,33 @@ CONTAINS
             CALL timestop(handle3)
 
             IF (my_do_gw .OR. do_gw_im_time) THEN
-               CALL GW_matrix_operations(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, &
-                                         dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
-                                         gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, jquad, &
-                                         nmo, num_fit_points, num_integ_points, ncol_local, nrow_local, &
-                                         col_indices, row_indices, do_bse, &
-                                         do_gw_im_time, do_periodic, my_do_gw, my_open_shell, &
-                                         first_cycle_periodic_correction, fermi_level_offset, &
-                                         omega, Eigenval, Eigenval_beta, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
-                                         vec_W_gw, vec_W_gw_beta, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
-                                         fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, fm_mat_S_gw_beta, &
-                                         fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, mo_coeff, para_env, &
-                                         para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
-                                         kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
+               IF (my_open_shell) THEN
+                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+                                            gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
+                                            ncol_local, nrow_local, col_indices, row_indices, do_bse, &
+                                            do_gw_im_time, do_periodic, my_do_gw, &
+                                            first_cycle_periodic_correction, fermi_level_offset, &
+                                            omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
+                                            vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
+                                            fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                            fm_mat_S_gw_work, fm_mat_work, mo_coeff, para_env, &
+                                            para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
+                                            kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
+                                            vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
+                                            vec_W_gw_beta, fm_mat_S_gw_beta, fm_mat_S_gw_work_beta)
+               ELSE
+                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+                                            gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
+                                            ncol_local, nrow_local, col_indices, row_indices, do_bse, &
+                                            do_gw_im_time, do_periodic, my_do_gw, &
+                                            first_cycle_periodic_correction, fermi_level_offset, &
+                                            omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
+                                            vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
+                                            fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                            fm_mat_S_gw_work, fm_mat_work, mo_coeff, para_env, &
+                                            para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
+                                            kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
+               END IF
             END IF
 
          END DO ! jquad

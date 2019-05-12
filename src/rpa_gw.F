@@ -747,38 +747,38 @@ CONTAINS
 !> \param do_kpoints_cubic_RPA ...
 !> \param do_kpoints_from_Gamma ...
 ! **************************************************************************************************
-   SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, &
-                                   dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
-                                   gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, jquad, &
-                                   nmo, num_fit_points, num_integ_points, ncol_local, nrow_local, &
-                                   col_indices, row_indices, do_bse, &
-                                   do_gw_im_time, do_periodic, my_do_gw, my_open_shell, &
+   SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+                                   gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
+                                   ncol_local, nrow_local, col_indices, row_indices, do_bse, &
+                                   do_gw_im_time, do_periodic, my_do_gw, &
                                    first_cycle_periodic_correction, fermi_level_offset, &
-                                   omega, Eigenval, Eigenval_beta, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
-                                   vec_W_gw, vec_W_gw_beta, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
-                                   fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, fm_mat_S_gw_beta, &
-                                   fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, mo_coeff, para_env, &
+                                   omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
+                                   vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
+                                   fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                   fm_mat_S_gw_work, fm_mat_work, mo_coeff, para_env, &
                                    para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
-                                   kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
+                                   kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
+                                   vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
+                                   vec_W_gw_beta, fm_mat_S_gw_beta, fm_mat_S_gw_work_beta)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: dimen_nm_gw, dimen_RI, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
-         gw_corr_lev_virt, homo, homo_beta, jquad, nmo, num_fit_points, num_integ_points
+         DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw
+      INTEGER, INTENT(IN) :: dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+         gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points
       INTEGER, INTENT(INOUT)                             :: ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL, INTENT(IN)                                :: do_bse, do_gw_im_time, do_periodic, &
-                                                            my_do_gw, my_open_shell
+                                                            my_do_gw
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj, vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_W_gw, vec_W_gw_beta
+         INTENT(INOUT)                                   :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -786,7 +786,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
-         fm_mat_S_gw_beta, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, mo_coeff
+         fm_mat_S_gw_work, fm_mat_work, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
@@ -795,6 +795,13 @@ CONTAINS
       TYPE(mp2_type), POINTER                            :: mp2_env
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA, &
                                                             do_kpoints_from_Gamma
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(INOUT), OPTIONAL     :: vec_Sigma_c_gw_beta
+      INTEGER, INTENT(IN), OPTIONAL :: gw_corr_lev_occ_beta, homo_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), OPTIONAL :: Eigenval_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: vec_W_gw_beta
+      TYPE(cp_fm_type), POINTER, OPTIONAL :: fm_mat_S_gw_beta, fm_mat_S_gw_work_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_matrix_operations', &
          routineP = moduleN//':'//routineN
@@ -802,11 +809,19 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: im_unit
       INTEGER :: handle, handle2, handle3, i_global, iiB, iquad, j_global, jjB, m_global, &
          m_global_beta, n_global, n_global_beta, nm_global
+      LOGICAL                                            :: my_open_shell
       REAL(KIND=dp)                                      :: delta_corr_nn, delta_corr_nn_beta, &
                                                             e_fermi, omega_i, sign_occ_virt, tau, &
                                                             weight
 
       CALL timeset(routineN, handle)
+
+      my_open_shell = .FALSE.
+      IF (PRESENT(vec_Sigma_c_gw_beta) .AND. PRESENT(gw_corr_lev_occ_beta) .AND. PRESENT(homo_beta) &
+          .AND. PRESENT(Eigenval_beta) .AND. PRESENT(vec_W_gw_beta) .AND. PRESENT(fm_mat_S_gw_beta) &
+          .AND. PRESENT(fm_mat_S_gw_work_beta)) THEN
+         my_open_shell = .TRUE.
+      END IF
 
       IF (my_do_gw) THEN
          CALL timeset(routineN//"_G0W0_matrix_operations", handle2)
