@@ -1234,8 +1234,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_1i, &
                                                             col_indices_2a, row_indices, &
                                                             row_indices_1i, row_indices_2a
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ab_rec, ab_send, mat_deb, mat_rec, &
-                                                            mat_send
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ab_rec, ab_send, mat_rec, mat_send
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_P_ij, L_mu_q

@@ -64,10 +64,10 @@ MODULE rpa_ri_gpw
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
                                               dbcsr_t_type
-   USE group_dist_types,                ONLY: group_dist_d1_type, &
-                                              get_group_dist, &
-                                              release_group_dist, &
-                                              create_group_dist
+   USE group_dist_types,                ONLY: create_group_dist,&
+                                              get_group_dist,&
+                                              group_dist_d1_type,&
+                                              release_group_dist
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
    USE kinds,                           ONLY: dp,&
@@ -82,9 +82,12 @@ MODULE rpa_ri_gpw
                                               pi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: &
-        mp_alltoall, mp_bcast, mp_comm_split_direct, mp_irecv, mp_isend, mp_min, mp_sendrecv, &
-        mp_sum, mp_wait, mp_waitall
+   USE message_passing,                 ONLY: mp_alltoall,&
+                                              mp_bcast,&
+                                              mp_comm_split_direct,&
+                                              mp_min,&
+                                              mp_sendrecv,&
+                                              mp_sum
    USE minimax_exp,                     ONLY: check_exp_minimax_range,&
                                               get_exp_minimax_coeff
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
@@ -971,18 +974,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: comm_exchange, comm_rpa, grid_2D(2), handle, handle2, i, i_global, iiB, iproc, &
-         iproc_col, iproc_row, j_global, jjB, mepos_in_RPA_group, ncol_local, &
-         nmao_occ, nrow_local, proc_receive, proc_receive_static, proc_send, &
-         proc_send_static, proc_shift, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
-         rec_L_size, rec_L_start, row_col_proc_ratio, sub_sub_color
+      INTEGER :: comm_exchange, comm_rpa, grid_2D(2), handle, handle2, i, iproc, iproc_col, &
+         iproc_row, mepos_in_RPA_group, nmao_occ, row_col_proc_ratio, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_beta_case, my_blacs_ext, &
                                                             my_blacs_S_ext, my_do_im_time, &
                                                             my_do_mao, my_gw_open_shell
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_rec
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange

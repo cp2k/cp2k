@@ -226,9 +226,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, mo_coeff_gw_beta, &
          mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_occ_bse, &
+                                                            gd_B_virt_bse, gd_B_virtual, &
+                                                            gd_B_virtual_beta
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
-      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_virtual, &
-                                                            gd_B_virtual_beta, gd_B_occ_bse, gd_B_virt_bse
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set

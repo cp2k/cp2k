@@ -289,14 +289,14 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_all
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array_mc_t, ends_array_mc_t
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
-      LOGICAL, INTENT(IN)                                :: do_im_time, do_mao
-      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
+      LOGICAL, INTENT(IN)                                :: do_im_time, do_mao, do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       LOGICAL, INTENT(IN)                                :: do_dbcsr_t
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: t_3c_O
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int, &
-                                                            mat_3c_overl_int_mao_for_occ, &
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: t_3c_O
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff_occ, mao_coeff_virt
       INTEGER, INTENT(IN)                                :: ri_metric
@@ -4802,7 +4802,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: local_i_aL, local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss, alpha_alpha, beta_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(INOUT) :: Y_i_aP, Y_j_aP
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: Y_i_aP, Y_j_aP
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, my_B_size_beta
       TYPE(group_dist_d1_type), INTENT(IN), OPTIONAL     :: gd_B_virtual_beta
@@ -8591,14 +8592,12 @@ CONTAINS
                                     local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, &
                                     dimen_RI, ngroup, cut_memory, cut_RI, color_sub, qs_env)
 
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: my_group_L_starts_im_time, &
-                                                            my_group_L_ends_im_time, &
-                                                            my_group_L_sizes_im_time, &
-                                                            local_atoms_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: row_blk_sizes_RI_t, row_dist_RI_t
-      INTEGER, INTENT(IN)                                :: dimen_RI, ngroup, cut_memory, &
-                                                            color_sub
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: my_group_L_starts_im_time, &
+         my_group_L_ends_im_time, my_group_L_sizes_im_time, local_atoms_RI, row_blk_sizes_RI_t, &
+         row_dist_RI_t
+      INTEGER, INTENT(IN)                                :: dimen_RI, ngroup, cut_memory
       INTEGER, INTENT(OUT)                               :: cut_RI
+      INTEGER, INTENT(IN)                                :: color_sub
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_group_L_im_time', &

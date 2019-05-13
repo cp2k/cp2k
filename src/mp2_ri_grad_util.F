@@ -29,12 +29,7 @@ MODULE mp2_ri_grad_util
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_iterator_blocks_left,&
-                                              dbcsr_iterator_next_block,&
-                                              dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop,&
-                                              dbcsr_iterator_type,&
-                                              dbcsr_type_no_symmetry
+   USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -105,22 +100,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_gamma', routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, col, col_offset, col_size, dimen_ia, handle, i, i_global, ia_global, iiB, &
-         j_global, jjB, kkB, my_ia_end, my_ia_size, my_ia_start, my_P_end, my_P_size, my_P_start, &
-         ncol_local, nrow_local, pos_group, pos_sub, proc_receive, proc_send, proc_shift, &
-         rec_B_size, rec_B_virtual_end, rec_B_virtual_start, row, row_offset, row_size
+      INTEGER :: dimen_ia, handle, i, ia_global, iiB, jjB, my_ia_end, my_ia_size, my_ia_start, &
+         my_P_end, my_P_size, my_P_start, ncol_local, nrow_local, pos_group, pos_sub, &
+         proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info, proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group, &
                                                             sizes
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_temp, &
                                                             fm_ia_P, fm_Y, PQ_half
-      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_ia_new, gd_P, &
                                                             gd_P_new
 
