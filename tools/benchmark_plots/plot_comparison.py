@@ -1,6 +1,8 @@
 """
 Make a plot of CP2K benchmark data.
 """
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker
@@ -43,8 +45,8 @@ def makePlot(benchmarkName, machineNames, shifts, showPlot):
                    + '/' \
                    + benchmarkName \
                    + '_besttimes.txt'
-        print 'Processing benchmark results from file:'
-        print fileName
+        print('Processing benchmark results from file:')
+        print(fileName)
         data = np.loadtxt(fileName,
                           dtype={'names': ('nodes', 'time', 'label'), \
                                  'formats': ('i4', 'f4', 'a5')})
