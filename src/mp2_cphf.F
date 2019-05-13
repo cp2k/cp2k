@@ -154,7 +154,6 @@ CONTAINS
                                                             restore_p_screen, use_virial
       REAL(KIND=dp)                                      :: e_hartree, factor, out_alpha, &
                                                             pair_energy, tot_rho_r
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_deb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -1378,16 +1377,15 @@ CONTAINS
          virtual_beta
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, converged
-      REAL(KIND=dp) :: alpha, beta, conv, conv_b, eps_conv, factor, norm_b, norm_b_beta, norms(3), &
-         norms_beta(3), out_alpha, rkrk, rkrk_beta, t1, t2
+      REAL(KIND=dp)                                      :: conv, conv_b, eps_conv, factor, &
+                                                            out_alpha, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: proj_bi_xj, temp_vals, x_norm, x_norm_b, &
                                                             xi_b
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ax, Ax_ab, Ax_ba, Ax_bb, xn, xn_b
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp, fm_struct_tmp_b
-      TYPE(cp_fm_type), POINTER                          :: Ap, Ap_b, b_i, b_i_b, pk, pk_b, precond, &
-                                                            precond_b, residual, residual_b, rk, &
-                                                            rk_b, xk, xk_b
+      TYPE(cp_fm_type), POINTER                          :: b_i, b_i_b, precond, precond_b, &
+                                                            residual, residual_b
 
       CALL timeset(routineN, handle)
 
