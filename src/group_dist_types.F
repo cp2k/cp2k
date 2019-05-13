@@ -25,7 +25,6 @@ MODULE group_dist_types
              create_group_dist, get_group_dist, release_group_dist, maxsize
 
    ! Type to represent start, end and size of one group (usually the own group)
-   ! The underscore is added to prevent confusions with fortran intrinsics
    TYPE group_dist_d0_type
       INTEGER :: starts, ends, sizes
    END TYPE group_dist_d0_type
