@@ -13,7 +13,6 @@ MODULE qs_scf_loop_utils
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type
-   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -27,29 +26,20 @@ MODULE qs_scf_loop_utils
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_fb_env_methods,               ONLY: fb_env_do_diag
    USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
    USE qs_mo_types,                     ONLY: mo_set_p_type
-   USE qs_mom_methods,                  ONLY: do_mom_diag
    USE qs_outer_scf,                    ONLY: outer_loop_gradient
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_diagonalization,          ONLY: do_block_davidson_diag,&
-                                              do_block_krylov_diag,&
-                                              do_general_diag,&
-                                              do_general_diag_kp,&
-                                              do_roks_diag,&
-                                              do_scf_diag_subspace,&
-                                              do_special_diag
+   USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
    USE qs_scf_methods,                  ONLY: scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
    USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
                                               block_krylov_diag_method_nr,&
-                                              filter_matrix_diag_method_nr,&
                                               general_diag_method_nr,&
                                               ot_diag_method_nr,&
                                               ot_method_nr,&
@@ -65,7 +55,7 @@ MODULE qs_scf_loop_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_loop_utils'
 
    PUBLIC :: qs_scf_set_loop_flags, &
-             qs_scf_new_mos, qs_scf_new_mos_kp, &
+             qs_scf_new_mos_kp, &
              qs_scf_density_mixing, qs_scf_check_inner_exit, &
              qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
@@ -102,136 +92,6 @@ CONTAINS
       exit_inner_loop = .FALSE.
 
    END SUBROUTINE qs_scf_set_loop_flags
-
-! **************************************************************************************************
-!> \brief takes known energy and derivatives and produces new wfns
-!>        and or density matrix
-!> \param qs_env ...
-!> \param scf_env ...
-!> \param scf_control ...
-!> \param scf_section ...
-!> \param diis_step ...
-! **************************************************************************************************
-   SUBROUTINE qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: scf_section
-      LOGICAL                                            :: diis_step
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: has_unit_metric, skip_diag_sub
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      matrix_s=matrix_s, energy=energy, &
-                      ks_env=ks_env, &
-                      matrix_ks=matrix_ks, rho=rho, mos=mos, &
-                      dft_control=dft_control, &
-                      has_unit_metric=has_unit_metric)
-      scf_env%iter_param = 0.0_dp
-
-      SELECT CASE (scf_env%method)
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, &
-                       "unknown scf method: "// &
-                       cp_to_string(scf_env%method))
-
-         ! *************************************************************************
-         ! Filter matrix diagonalisation: ugly implementation at this point of time
-         ! *************************************************************************
-      CASE (filter_matrix_diag_method_nr)
-
-         CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
-                             matrix_ks, matrix_s, scf_section, diis_step)
-
-         ! Diagonlization in non orthonormal case
-      CASE (general_diag_method_nr)
-         IF (dft_control%roks) THEN
-            CALL do_roks_diag(scf_env, mos, matrix_ks, matrix_s, &
-                              scf_control, scf_section, diis_step, &
-                              has_unit_metric)
-         ELSE
-            IF (scf_control%diagonalization%mom) THEN
-               CALL do_mom_diag(scf_env, mos, matrix_ks, &
-                                matrix_s, scf_control, scf_section, &
-                                diis_step)
-            ELSE
-               CALL do_general_diag(scf_env, mos, matrix_ks, &
-                                    matrix_s, scf_control, scf_section, &
-                                    diis_step)
-            END IF
-            IF (scf_control%do_diag_sub) THEN
-               skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
-                               (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%subspace_env%eps_diag_sub)
-               IF (.NOT. skip_diag_sub) THEN
-                  CALL do_scf_diag_subspace(qs_env, scf_env, scf_env%subspace_env, mos, rho, &
-                                            ks_env, scf_section, scf_control)
-               END IF
-            END IF
-         END IF
-         ! Diagonlization in orthonormal case
-      CASE (special_diag_method_nr)
-         IF (dft_control%roks) THEN
-            CALL do_roks_diag(scf_env, mos, matrix_ks, matrix_s, &
-                              scf_control, scf_section, diis_step, &
-                              has_unit_metric)
-         ELSE
-            CALL do_special_diag(scf_env, mos, matrix_ks, &
-                                 scf_control, scf_section, &
-                                 diis_step)
-         END IF
-         ! Block Krylov diagonlization
-      CASE (block_krylov_diag_method_nr)
-         IF ((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND. &
-             (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%krylov_space%eps_std_diag)) THEN
-            IF (scf_env%krylov_space%always_check_conv) THEN
-               CALL do_block_krylov_diag(scf_env, mos, matrix_ks, &
-                                         scf_control, scf_section, check_moconv_only=.TRUE.)
-            END IF
-            CALL do_general_diag(scf_env, mos, matrix_ks, &
-                                 matrix_s, scf_control, scf_section, diis_step)
-         ELSE
-            CALL do_block_krylov_diag(scf_env, mos, matrix_ks, &
-                                      scf_control, scf_section)
-         END IF
-         IF (scf_control%do_diag_sub) THEN
-            skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
-                            (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%subspace_env%eps_diag_sub)
-            IF (.NOT. skip_diag_sub) THEN
-               CALL do_scf_diag_subspace(qs_env, scf_env, scf_env%subspace_env, mos, rho, &
-                                         ks_env, scf_section, scf_control)
-            END IF
-         END IF
-         ! Block Davidson diagonlization
-      CASE (block_davidson_diag_method_nr)
-         CALL do_block_davidson_diag(qs_env, scf_env, mos, matrix_ks, matrix_s, scf_control, &
-                                     scf_section, .FALSE.)
-      END SELECT
-
-      energy%kTS = 0.0_dp
-      energy%efermi = 0.0_dp
-      CALL get_qs_env(qs_env, mos=mos)
-      DO ispin = 1, SIZE(mos)
-         energy%kTS = energy%kTS+mos(ispin)%mo_set%kTS
-         energy%efermi = energy%efermi+mos(ispin)%mo_set%mu
-      ENDDO
-      energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE qs_scf_new_mos
 
 ! **************************************************************************************************
 !> \brief Updates MOs and density matrix using diagonalization

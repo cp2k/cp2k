@@ -94,7 +94,6 @@ MODULE qs_scf
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE qs_block_davidson_types,         ONLY: block_davidson_deallocate
    USE qs_cdft_scf_utils,               ONLY: build_diagonal_jacobian,&
                                               create_tmp_logger,&
                                               initialize_inverse_jacobian,&
@@ -104,8 +103,6 @@ MODULE qs_scf
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
-   USE qs_diis,                         ONLY: qs_diis_b_clear,&
-                                              qs_diis_b_create
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -136,10 +133,16 @@ MODULE qs_scf
                                               qs_scf_check_outer_exit,&
                                               qs_scf_density_mixing,&
                                               qs_scf_inner_finalize,&
+                                              qs_scf_new_mos_kp,&
                                               qs_scf_rho_update,&
                                               qs_scf_set_loop_flags
+   USE qs_scf_mo_calc_block_davidson,   ONLY: MOCalcBlockDavidson
+   USE qs_scf_mo_calc_block_krylov,     ONLY: MOCalcBlockKrylov
+   USE qs_scf_mo_calc_filter_matrix,    ONLY: MOCalcFilterMatrix
+   USE qs_scf_mo_calc_general_diag,     ONLY: MOCalcGeneralDiag
    USE qs_scf_mo_calc_ot,               ONLY: MOCalcOT
    USE qs_scf_mo_calc_ot_diag,          ONLY: MOCalcOTDiag
+   USE qs_scf_mo_calc_special_diag,     ONLY: MOCalcSpecialDiag
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
                                               qs_scf_loop_info,&
@@ -418,6 +421,21 @@ CONTAINS
       CASE (ot_method_nr)
          ALLOCATE (MOCalcOT :: mo_calc)
          CALL mo_calc%init(qs_env, scf_env, scf_section)
+      CASE (filter_matrix_diag_method_nr)
+         ALLOCATE (MOCalcFilterMatrix :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
+      CASE (block_krylov_diag_method_nr)
+         ALLOCATE (MOCalcBlockKrylov :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
+      CASE (block_davidson_diag_method_nr)
+         ALLOCATE (MOCalcBlockDavidson :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
+      CASE (general_diag_method_nr)
+         ALLOCATE (MOCalcGeneralDiag :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
+      CASE (special_diag_method_nr)
+         ALLOCATE (MOCalcSpecialDiag :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
       END SELECT
 
       scf_outer_loop: DO
@@ -448,16 +466,24 @@ CONTAINS
             ! print 'heavy weight' or relatively expensive quantities
             CALL qs_scf_loop_print(qs_env, scf_env, para_env)
 
-            ! call the MO calculation routine
-            CALL mo_calc%run(diis_step, energy_only)
+            IF (do_kpoints) THEN
+               ! kpoints
+               CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+            ELSE
+               ! Gamma points only
+               scf_env%iter_param = 0.0_dp ! where should this one go?
 
-            ! IF (do_kpoints) THEN
-            !    ! kpoints
-            !    CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
-            ! ELSE
-            !    ! Gamma points only
-            !    CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step)
-            ! END IF
+               ! call the MO calculation routine
+               CALL mo_calc%run(diis_step, energy_only)
+
+               energy%kTS = 0.0_dp
+               energy%efermi = 0.0_dp
+               DO ispin = 1, SIZE(mos)
+                  energy%kTS = energy%kTS+mos(ispin)%mo_set%kTS
+                  energy%efermi = energy%efermi+mos(ispin)%mo_set%mu
+               ENDDO
+               energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
+            END IF
 
             ! another heavy weight print object, print controlled by dft_section
             CALL qs_scf_write_mos(mos, atomic_kind_set, qs_kind_set, particle_set, dft_section)
@@ -623,36 +649,6 @@ CONTAINS
                                    smear=scf_control%smear)
       ENDDO
 
-      SELECT CASE (scf_env%method)
-      CASE DEFAULT
-
-         CPABORT("unknown scf method method:"//cp_to_string(scf_env%method))
-
-      CASE (filter_matrix_diag_method_nr)
-
-         IF (.NOT. scf_env%skip_diis) THEN
-            IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-               CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
-            END IF
-            CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
-         END IF
-
-      CASE (general_diag_method_nr, special_diag_method_nr, block_krylov_diag_method_nr)
-         IF (.NOT. scf_env%skip_diis) THEN
-            IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-               CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
-            END IF
-            CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
-         END IF
-
-      CASE (ot_diag_method_nr)
-         ! Initialization is part of the new OO model
-      CASE (block_davidson_diag_method_nr)
-         ! Preconditioner initialized within the loop, when required
-      CASE (ot_method_nr)
-         ! Initialization is part of the new OO model
-      END SELECT
-
       ! another safety check
       IF (dft_control%low_spin_roks) THEN
          CPASSERT(scf_env%method == ot_method_nr)
@@ -712,25 +708,6 @@ CONTAINS
       IF (ASSOCIATED(scf_env%p_delta)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
       END IF
-
-! *** method dependent cleanup
-      SELECT CASE (scf_env%method)
-      CASE (ot_method_nr)
-         !
-      CASE (ot_diag_method_nr)
-         !
-      CASE (general_diag_method_nr)
-         !
-      CASE (special_diag_method_nr)
-         !
-      CASE (block_krylov_diag_method_nr)
-      CASE (block_davidson_diag_method_nr)
-         CALL block_davidson_deallocate(scf_env%block_davidson_env)
-      CASE (filter_matrix_diag_method_nr)
-         !
-      CASE DEFAULT
-         CPABORT("unknown scf method method:"//cp_to_string(scf_env%method))
-      END SELECT
 
       IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
          DEALLOCATE (scf_env%outer_scf%variables)
