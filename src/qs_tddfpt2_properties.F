@@ -624,11 +624,13 @@ CONTAINS
          nmo_virt_occ_alpha = INT(nmo_virt(1), int_8)*INT(nmo_occ(1), int_8)
 
          IF (log_unit > 0) THEN
-            WRITE (log_unit, '(/,1X,A,/)') "Excitation analysis"
-
-            WRITE (log_unit, '(3X,A,T17,A,T34,A,T49,A)') "State", "Occupied", "Virtual", "Excitation"
-            WRITE (log_unit, '(3X,A,T18,A,T34,A,T49,A)') "number", "orbital", "orbital", "amplitude"
-            WRITE (log_unit, '(1X,57("-"))')
+            WRITE (log_unit, "(1X,A)") "", &
+               "-------------------------------------------------------------------------------", &
+               "-                            Excitation analysis                              -", &
+               "-------------------------------------------------------------------------------"
+            WRITE (log_unit, '(8X,A,T27,A,T49,A,T69,A)') "State", "Occupied", "Virtual", "Excitation"
+            WRITE (log_unit, '(8X,A,T28,A,T49,A,T69,A)') "number", "orbital", "orbital", "amplitude"
+            WRITE (log_unit, '(1X,79("-"))')
 
             IF (nspins == 1) THEN
                state_spin = 1
@@ -771,7 +773,7 @@ CONTAINS
                weights_neg_abs_recv(:) = -ABS(weights_recv)
                CALL sort(weights_neg_abs_recv, INT(nexcs), inds)
 
-               WRITE (log_unit, '(1X,I8)') istate
+               WRITE (log_unit, '(T7,I8)') istate
 
                DO iexc = 1, nexcs
                   ind = inds_recv(inds(iexc))-1
@@ -789,7 +791,7 @@ CONTAINS
                   imo_occ = ind/nmo_virt8(state_spin)+1
                   imo_virt = MOD(ind, nmo_virt8(state_spin))+1
 
-                  WRITE (log_unit, '(T14,I8,1X,A5,T30,I8,1X,A5,T50,F9.6)') imo_occ, spin_label, &
+                  WRITE (log_unit, '(T27,I8,1X,A5,T48,I8,1X,A5,T70,F9.6)') imo_occ, spin_label, &
                      nmo_occ8(state_spin)+imo_virt, spin_label, weights_recv(inds(iexc))
                END DO
             END IF
@@ -800,6 +802,10 @@ CONTAINS
          END DO
 
          DEALLOCATE (weights_local, inds_local)
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, "(1X,A)") &
+               "-------------------------------------------------------------------------------"
+         END IF
       END IF
 
       DO ispin = nspins, 1, -1

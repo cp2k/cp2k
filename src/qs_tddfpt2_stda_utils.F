@@ -295,8 +295,12 @@ CONTAINS
 
       ! Calculate S^1/2 matrix
       IF (iounit > 0) THEN
-         WRITE (iounit, "(/,T3,A)") "STDA| Create Matrix SQRT(S)"
+         WRITE (iounit, "(1X,A)") "", &
+            "-------------------------------------------------------------------------------", &
+            "-                      sTDA Kernel: Create Matrix SQRT(S)                     -", &
+            "-------------------------------------------------------------------------------"
       END IF
+
       IF (sub_env%is_split) THEN
          CPABORT('SPLIT')
       ELSE

@@ -800,7 +800,7 @@ CONTAINS
                   nstates_conv = nstates_conv+1
             END DO
 
-            WRITE (iter_unit, '(1X,I8,T12,F7.1,T24,ES11.4,T42,I8)') iter, t2-t1, conv, nstates_conv
+            WRITE (iter_unit, '(T7,I8,T24,F7.1,T40,ES11.4,T66,I8)') iter, t2-t1, conv, nstates_conv
             CALL m_flush(iter_unit)
          END IF
 

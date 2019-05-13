@@ -4,12 +4,16 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_utils
+   USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
@@ -27,13 +31,25 @@ MODULE qs_tddfpt2_utils
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_copy,&
+                                              dbcsr_get_info,&
+                                              dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE input_constants,                 ONLY: cholesky_dbcsr,&
-                                              cholesky_inverse,&
-                                              cholesky_off
+   USE input_constants,                 ONLY: &
+        cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_restore, oe_gllb, oe_lb, oe_none, &
+        oe_saop, oe_shift
+   USE input_section_types,             ONLY: section_vals_create,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_release,&
+                                              section_vals_retain,&
+                                              section_vals_set_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_min,&
@@ -41,6 +57,7 @@ MODULE qs_tddfpt2_utils
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
@@ -48,8 +65,13 @@ MODULE qs_tddfpt2_utils
                                               mo_set_p_type,&
                                               mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
+   USE qs_scf_post_gpw,                 ONLY: make_lumo_gpw
+   USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                              qs_scf_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE util,                            ONLY: sort
+   USE xc_pot_saop,                     ONLY: add_saop_pot
+   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -64,12 +86,110 @@ MODULE qs_tddfpt2_utils
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
    PUBLIC :: tddfpt_init_ground_state_mos, tddfpt_release_ground_state_mos
-   PUBLIC :: tddfpt_guess_vectors
+   PUBLIC :: tddfpt_guess_vectors, tddfpt_init_mos, tddfpt_oecorr
    PUBLIC :: tddfpt_total_number_of_states, ev_shift_operator
 
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Prepare MOs for TDDFPT Calculations
+!> \param qs_env  Quickstep environment
+!> \param gs_mos  ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_init_mos(qs_env, gs_mos)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_mos', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin, nmo_avail, nmo_occ, &
+                                                            nmo_virt, nspins
+      REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt_spin
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals_virt
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_virt
+      TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
+                      matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
+      tddfpt_control => dft_control%tddfpt2_control
+
+      CPASSERT(.NOT. ASSOCIATED(gs_mos))
+      ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
+      nspins = dft_control%nspins
+      ALLOCATE (gs_mos(nspins))
+
+      ! when the number of unoccupied orbitals is limited and OT has been used
+      ! for the ground-state DFT calculation,
+      ! compute the missing unoccupied orbitals using OT as well.
+      NULLIFY (evals_virt, evals_virt_spin, mos_virt, mos_virt_spin)
+      IF (ASSOCIATED(scf_env)) THEN
+         IF (scf_env%method == ot_method_nr .AND. tddfpt_control%nlumo > 0) THEN
+            ! As OT with ADDED_MOS/=0 is currently not implemented, the following block is equivalent to:
+            ! nmo_virt = tddfpt_control%nlumo
+            ! number of already computed unoccupied orbitals (added_mos) .
+            nmo_virt = HUGE(0)
+            DO ispin = 1, nspins
+               CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo_avail, homo=nmo_occ)
+               nmo_virt = MIN(nmo_virt, nmo_avail-nmo_occ)
+            END DO
+            ! number of unoccupied orbitals to compute
+            nmo_virt = tddfpt_control%nlumo-nmo_virt
+            IF (nmo_virt > 0) THEN
+               ALLOCATE (evals_virt(nspins), mos_virt(nspins))
+               ! the number of actually computed unoccupied orbitals will be stored as 'nmo_avail'
+               CALL make_lumo_gpw(qs_env, scf_env, mos_virt, evals_virt, nmo_virt, nmo_avail)
+            END IF
+         END IF
+      END IF
+
+      DO ispin = 1, nspins
+         IF (ASSOCIATED(evals_virt)) THEN
+            evals_virt_spin => evals_virt(ispin)%array
+         ELSE
+            NULLIFY (evals_virt_spin)
+         END IF
+         IF (ASSOCIATED(mos_virt)) THEN
+            mos_virt_spin => mos_virt(ispin)%matrix
+         ELSE
+            NULLIFY (mos_virt_spin)
+         END IF
+         CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin)%mo_set, &
+                                           nlumo=tddfpt_control%nlumo, &
+                                           blacs_env=blacs_env, cholesky_method=cholesky_restore, &
+                                           matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
+                                           mos_virt=mos_virt_spin, evals_virt=evals_virt_spin)
+      END DO
+
+      IF (ASSOCIATED(evals_virt)) THEN
+         DO ispin = 1, SIZE(evals_virt)
+            IF (ASSOCIATED(evals_virt(ispin)%array)) DEALLOCATE (evals_virt(ispin)%array)
+         END DO
+         DEALLOCATE (evals_virt)
+      END IF
+
+      IF (ASSOCIATED(mos_virt)) THEN
+         DO ispin = 1, SIZE(mos_virt)
+            IF (ASSOCIATED(mos_virt(ispin)%matrix)) CALL cp_fm_release(mos_virt(ispin)%matrix)
+         END DO
+         DEALLOCATE (mos_virt)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_init_mos
 
 ! **************************************************************************************************
 !> \brief Generate all virtual molecular orbitals for a given spin by diagonalising
@@ -86,16 +206,14 @@ CONTAINS
 !>                         (in addition to the ADDED_MOS, if present). NULL when no OT is in use.
 !> \param evals_virt       orbital energies of precomputed (OT) virtual molecular orbitals.
 !>                         NULL when no OT is in use.
-!> \param matrix_ks_oep    Kohn-Sham matrix computed using the corrected XC-potential.
-!>                         NULL if there is no orbital energy correction to apply.
 !> \par History
 !>    * 05.2016 created as tddfpt_lumos() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype [Sergey Chulkov]
 !>    * 04.2019 limit the number of unoccupied states, orbital energy correction [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, nlumo, blacs_env, cholesky_method, matrix_ks, matrix_s, &
-                                           mos_virt, evals_virt, matrix_ks_oep)
-      TYPE(tddfpt_ground_state_mos), INTENT(out)         :: gs_mos
+                                           mos_virt, evals_virt)
+      TYPE(tddfpt_ground_state_mos)                      :: gs_mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       INTEGER, INTENT(in)                                :: nlumo
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -103,7 +221,6 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
       TYPE(cp_fm_type), POINTER                          :: mos_virt
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt
-      TYPE(dbcsr_type), POINTER                          :: matrix_ks_oep
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos', &
          routineP = moduleN//':'//routineN
@@ -121,8 +238,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
       TYPE(cp_fm_pool_type), POINTER                     :: wfn_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
-                                                            ao_mo_virt_fm_struct, &
-                                                            mo_occ_mo_occ_fm_struct, wfn_fm_struct
+                                                            ao_mo_virt_fm_struct, wfn_fm_struct
       TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm, mo_coeff_extended, &
                                                             ortho_fm, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -201,7 +317,6 @@ CONTAINS
          CALL cp_fm_create(matrix_ks_fm, ao_ao_fm_struct)
          CALL cp_fm_create(ortho_fm, ao_ao_fm_struct)
          CALL cp_fm_create(work_fm, ao_ao_fm_struct)
-
          CALL cp_fm_struct_release(ao_ao_fm_struct)
 
          ! some stuff from the subroutine general_eigenproblem()
@@ -317,19 +432,6 @@ CONTAINS
          gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ+1:nmo_occ+nmo_virt)
       END IF
 
-      ! compute 'evals_occ_matrix', if orbital correction is in use
-      IF (ASSOCIATED(matrix_ks_oep)) THEN
-         NULLIFY (mo_occ_mo_occ_fm_struct)
-         CALL cp_fm_struct_create(mo_occ_mo_occ_fm_struct, nrow_global=nmo_occ, ncol_global=nmo_occ, context=blacs_env)
-         CALL cp_fm_create(gs_mos%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
-         CALL cp_fm_struct_release(mo_occ_mo_occ_fm_struct)
-
-         ! work_fm is a temporary [nao x nmo_occ] matrix
-         CALL cp_dbcsr_sm_fm_multiply(matrix_ks_oep, gs_mos%mos_occ, work_fm, ncol=nmo_occ, alpha=1.0_dp, beta=0.0_dp)
-         CALL cp_gemm('T', 'N', nmo_occ, nmo_occ, nao, 1.0_dp, gs_mos%mos_occ, work_fm, 0.0_dp, gs_mos%evals_occ_matrix)
-      ELSE
-         NULLIFY (gs_mos%evals_occ_matrix)
-      END IF
       CALL cp_fm_release(work_fm)
 
       IF (do_eigen) CALL deallocate_mo_set(mos_extended)
@@ -374,6 +476,150 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt_release_ground_state_mos
+
+! **************************************************************************************************
+!> \brief Callculate orbital corrected KS matrix for TDDFPT
+!> \param qs_env  Quickstep environment
+!> \param gs_mos ...
+!> \param matrix_ks_oep ...
+!> \param do_hfx ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep, do_hfx)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_oep
+      LOGICAL, INTENT(IN)                                :: do_hfx
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_oecorr', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iounit, ispin, nao, nmo_occ, &
+                                                            nspins
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_occ_fm_struct, &
+                                                            mo_occ_mo_occ_fm_struct
+      TYPE(cp_fm_type), POINTER                          :: work_fm
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, blacs_env=blacs_env, dft_control=dft_control, matrix_ks=matrix_ks)
+      tddfpt_control => dft_control%tddfpt2_control
+
+      ! obtain corrected KS-matrix
+      ! We should 'save' the energy values?
+      nspins = SIZE(gs_mos)
+      NULLIFY (matrix_ks_oep)
+      IF (tddfpt_control%oe_corr /= oe_none) THEN
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(1X,A)") "", &
+               "-------------------------------------------------------------------------------", &
+               "-                    Orbital Eigenvalue Correction Started                    -", &
+               "-------------------------------------------------------------------------------"
+         END IF
+
+         CALL cp_warn(__LOCATION__, &
+                      "Orbital energy correction potential is an experimental feature. "// &
+                      "Use it with extreme care")
+
+         IF (do_hfx) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Implementation of orbital energy correction XC-potentials is "// &
+                          "currently incompatible with exact-exchange functionals")
+         END IF
+
+         CALL dbcsr_allocate_matrix_set(matrix_ks_oep, nspins)
+         DO ispin = 1, nspins
+            CALL dbcsr_init_p(matrix_ks_oep(ispin)%matrix)
+            CALL dbcsr_copy(matrix_ks_oep(ispin)%matrix, matrix_ks(ispin)%matrix)
+         END DO
+
+         ! KS-matrix without XC-terms
+         xc_fun_original => section_vals_get_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL")
+         CALL section_vals_retain(xc_fun_original)
+         NULLIFY (xc_fun_empty)
+         CALL section_vals_create(xc_fun_empty, xc_fun_original%section)
+         CALL section_vals_set_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
+         CALL section_vals_release(xc_fun_empty)
+
+         IF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT("TDDFPT with SE not possible")
+         ELSEIF (dft_control%qs_control%dftb) THEN
+            CPABORT("TDDFPT with DFTB not possible")
+         ELSEIF (dft_control%qs_control%xtb) THEN
+            CALL build_xtb_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                     ext_ks_matrix=matrix_ks_oep)
+         ELSE
+            CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                              ext_ks_matrix=matrix_ks_oep)
+         END IF
+
+         IF (tddfpt_control%oe_corr == oe_saop .OR. &
+             tddfpt_control%oe_corr == oe_lb .OR. &
+             tddfpt_control%oe_corr == oe_gllb) THEN
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(T2,A)") " Orbital energy correction of SAOP type "
+            END IF
+            CALL add_saop_pot(matrix_ks_oep, qs_env, tddfpt_control%oe_corr)
+         ELSE IF (tddfpt_control%oe_corr == oe_shift) THEN
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(T2,A,T71,F10.3)") &
+                  " Virtual Orbital Eigenvalue Shift [eV] ", tddfpt_control%ev_shift*evolt
+               WRITE (iounit, "(T2,A,T71,F10.3)") &
+                  " Open Shell Orbital Eigenvalue Shift [eV] ", tddfpt_control%eos_shift*evolt
+            END IF
+            CALL ev_shift_operator(qs_env, matrix_ks_oep, &
+                                   tddfpt_control%ev_shift, tddfpt_control%eos_shift)
+            DO ispin = 1, nspins
+               IF (ALLOCATED(gs_mos(ispin)%evals_virt)) THEN
+                  gs_mos(ispin)%evals_virt(:) = gs_mos(ispin)%evals_virt(:)+tddfpt_control%ev_shift
+               END IF
+            END DO
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "Unimplemented orbital energy correction potential")
+         END IF
+         CALL section_vals_set_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL", xc_fun_original)
+         CALL section_vals_release(xc_fun_original)
+
+         ! compute 'evals_occ_matrix'
+         CALL dbcsr_get_info(matrix_ks(1)%matrix, nfullrows_total=nao)
+         NULLIFY (mo_occ_mo_occ_fm_struct)
+         DO ispin = 1, nspins
+            nmo_occ = SIZE(gs_mos(ispin)%evals_occ)
+            CALL cp_fm_struct_create(mo_occ_mo_occ_fm_struct, nrow_global=nmo_occ, ncol_global=nmo_occ, &
+                                     context=blacs_env)
+            CALL cp_fm_create(gs_mos(ispin)%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
+            CALL cp_fm_struct_release(mo_occ_mo_occ_fm_struct)
+            ! work_fm is a temporary [nao x nmo_occ] matrix
+            CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, &
+                                     context=blacs_env)
+            CALL cp_fm_create(work_fm, ao_mo_occ_fm_struct)
+            CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_ks_oep(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                         work_fm, ncol=nmo_occ, alpha=1.0_dp, beta=0.0_dp)
+            CALL cp_gemm('T', 'N', nmo_occ, nmo_occ, nao, 1.0_dp, gs_mos(ispin)%mos_occ, work_fm, &
+                         0.0_dp, gs_mos(ispin)%evals_occ_matrix)
+            CALL cp_fm_release(work_fm)
+         END DO
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(1X,A)") &
+               "-------------------------------------------------------------------------------"
+         END IF
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_oecorr
 
 ! **************************************************************************************************
 !> \brief Compute the number of possible singly excited states (occ -> virt)
@@ -555,17 +801,19 @@ CONTAINS
 
       nstates_occ_virt_alpha = nmo_occ_selected(1)*nmo_virt_selected(1)
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,21X,A)') "TDDFPT initial guess"
-         WRITE (log_unit, '(1X,60("-"))')
-         WRITE (log_unit, '(5X,A)') "State       Occupied    ->    Virtual        Excitation"
-         WRITE (log_unit, '(5X,A)') "number       orbital          orbital        energy (eV)"
-         WRITE (log_unit, '(1X,60("-"))')
+         WRITE (log_unit, "(1X,A)") "", &
+            "-------------------------------------------------------------------------------", &
+            "-                            TDDFPT Initial Guess                             -", &
+            "-------------------------------------------------------------------------------"
+         WRITE (log_unit, '(T11,A)') "State         Occupied      ->      Virtual          Excitation"
+         WRITE (log_unit, '(T11,A)') "number         orbital              orbital          energy (eV)"
+         WRITE (log_unit, '(1X,79("-"))')
       END IF
 
       DO istate = 1, nstates
          IF (ASSOCIATED(evects(1, istate)%matrix)) THEN
             IF (log_unit > 0) &
-               WRITE (log_unit, '(1X,I8,11X,A19,8X,F14.5)') &
+               WRITE (log_unit, '(T7,I8,T28,A19,T60,F14.5)') &
                istate, "***  restarted  ***", evals(istate)*evolt
          ELSE
             ind = inds(istate)-1
@@ -585,7 +833,7 @@ CONTAINS
             evals(istate) = e_virt_minus_occ(istate)
 
             IF (log_unit > 0) &
-               WRITE (log_unit, '(1X,I8,5X,I8,1X,A5,3X,I8,1X,A5,2X,F14.5)') &
+               WRITE (log_unit, '(T7,I8,T24,I8,T37,A5,T45,I8,T54,A5,T60,F14.5)') &
                istate, imo_occ, spin_label, nmo_occ_avail(ispin)+imo_virt, spin_label, e_virt_minus_occ(istate)*evolt
 
             DO jspin = 1, nspins
@@ -600,8 +848,11 @@ CONTAINS
          END IF
       END DO
 
-      IF (log_unit > 0) &
-         WRITE (log_unit, '(/,1X,A,T30,I24)') 'Number of active states:', tddfpt_total_number_of_states(gs_mos)
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(/,T7,A,T50,I24)') 'Number of active states:', tddfpt_total_number_of_states(gs_mos)
+         WRITE (log_unit, "(1X,A)") &
+            "-------------------------------------------------------------------------------"
+      END IF
 
       DEALLOCATE (e_virt_minus_occ)
       DEALLOCATE (inds)

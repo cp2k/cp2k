@@ -23,7 +23,8 @@ MODULE input_cp2k_properties_dft
                                               cp_print_key_section_create,&
                                               high_print_level,&
                                               low_print_level,&
-                                              medium_print_level
+                                              medium_print_level,&
+                                              silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
@@ -1364,7 +1365,13 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of information during the TDDFT run.", repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "GUESS_VECTORS", &
+      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+                                       description="Controls the printing of the banner for TDDFPT program", &
+                                       print_level=silent_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "GUESS_VECTORS", &
                                        description="Controls the printing of initial guess vectors.", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
