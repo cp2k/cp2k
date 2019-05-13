@@ -837,7 +837,7 @@ CONTAINS
                                    mat_munu, qs_env, &
                                    dimen_RI, cut_RI, unit_nr, &
                                    my_group_L_starts_im_time, my_group_L_ends_im_time, &
-                                   my_group_L_sizes_im_time, & !nblk_RI_offset(color_sub_3c), &
+                                   my_group_L_sizes_im_time, &
                                    sab_orb_sub, sab_orb_all, para_env, num_diff_blk)
 
          ENDIF
@@ -1815,7 +1815,6 @@ CONTAINS
       IF (periodic(3) == 0) THEN
          abc(3) = 1.0E10_dp
       END IF
-!      cutoff = qs_env%mp2_env%ri_rpa_im_time%cutoff*MIN(abc(1), abc(2), abc(3))
       cutoff = 1.0_dp/(qs_env%mp2_env%ri_rpa_im_time%cutoff*MIN(abc(1), abc(2), abc(3)))
 
       CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
@@ -3480,7 +3479,6 @@ CONTAINS
             my_block_size = ij_map(ij_counter, 3)
 
             local_i_aL = 0.0_dp
-            ! local_i_aL(my_group_L_start:my_group_L_end,1:my_B_size)=BIb_C(1:my_group_L_size,1:my_B_size,my_i)
             DO irep = 0, num_integ_group-1
                Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
                Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
@@ -3492,7 +3490,6 @@ CONTAINS
             END DO
 
             local_j_aL = 0.0_dp
-            ! local_j_aL(my_group_L_start:my_group_L_end,1:my_B_size)=BIb_C(1:my_group_L_size,1:my_B_size,my_j)
             DO irep = 0, num_integ_group-1
                Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
                Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
@@ -3520,7 +3517,6 @@ CONTAINS
                ALLOCATE (BI_C_rec(rec_L_size, MAX(my_B_size, my_B_size_beta), my_block_size))
 
                IF (ij_index <= send_ij_index) THEN
-                  ! ij_counter_send=(ij_index-MIN(1,proc_send))*ngroup+proc_send
                   ij_counter_send = (ij_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+ &
                                     integ_group_pos2color_sub(proc_send)
                   send_i = ij_map(ij_counter_send, 1)
@@ -3667,7 +3663,6 @@ CONTAINS
                                       external_i_aL, proc_receive, &
                                       para_env_sub%group)
 
-                     ! local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size)=MATMUL(TRANSPOSE(external_i_aL),local_j_aL)
                      t_start = m_walltime()
                      CALL dgemm('T', 'N', rec_B_size, my_B_size_beta, dimen_RI, 1.0_dp, &
                                 external_i_aL, dimen_RI, local_j_aL(:, :, jjB), dimen_RI, &
@@ -3714,7 +3709,6 @@ CONTAINS
                   sym_fac = 2.0_dp
                   IF (my_i == my_j) sym_fac = 1.0_dp
                   IF (.NOT. my_alpha_beta_case) THEN
-                     ! IF(my_open_shell_SS) sym_fac=sym_fac/2.0_dp
                      DO b = 1, my_B_size
                         b_global = b+my_B_virtual_start-1
                         DO a = 1, virtual
@@ -3822,7 +3816,6 @@ CONTAINS
 
                IF (ij_index <= send_ij_index) THEN
                   ! something to send
-                  ! ij_counter_send=(ij_index-MIN(1,proc_send))*ngroup+proc_send
                   ij_counter_send = (ij_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+ &
                                     integ_group_pos2color_sub(proc_send)
                   send_i = ij_map(ij_counter_send, 1)
@@ -3954,24 +3947,6 @@ CONTAINS
             CALL cp_para_env_release(para_env_P)
          ENDIF
 
-         ! sum P_ij (later)
-         ! mp2_env%ri_grad%P_ij=mp2_env%ri_grad%P_ij*2.0_dp
-         ! CALL mp_sum(mp2_env%ri_grad%P_ij,para_env%group)
-         ! WRITE(*,*) mp2_env%ri_mp2%eps_canonical
-
-         ! XXXXXXXXXXXXXX
-         ! Write P_ab
-         ! ALLOCATE(external_ab(virtual,virtual))
-         ! external_ab=0.0_dp
-         ! external_ab(my_B_virtual_start:my_B_virtual_end,1:virtual)=mp2_env%ri_grad%P_ab
-         ! CALL mp_sum(external_ab,para_env_sub%group)
-         ! IF(para_env%mepos==0) CALL write_array(external_ab)
-         ! DEALLOCATE(external_ab)
-         ! ! Write P_ij
-         ! IF(para_env%mepos==0) CALL write_array(mp2_env%ri_grad%P_ij)
-         ! write_array is now in mp2_ri_grad_util
-         ! XXXXXXXXXXXXXX
-
          ! recover original information (before replication)
          DEALLOCATE (gd_array%sizes)
          iiB = SIZE(sizes_array_orig)
@@ -4080,20 +4055,6 @@ CONTAINS
                END DO
             END DO
          ENDIF
-
-         ! ALLOCATE(Y_i_aP(homo,virtual,dimen_RI))
-         ! Y_i_aP=0.0_dp
-         ! Y_i_aP(1:homo,my_B_virtual_start:my_B_virtual_end,my_group_L_start:my_group_L_end)=mp2_env%ri_grad%Gamma_P_ia
-         ! CALL mp_sum(Y_i_aP,para_env%group)
-         ! IF(para_env%mepos==0) THEN
-         !   DO iiB=1, dimen_RI
-         !     WRITE(*,*) iiB
-         !     write_array is now in mp2_ri_grad_util
-         !     CALL write_array(Y_i_aP(1:homo,1:virtual,iiB))
-         !     WRITE(*,*)
-         !   END DO
-         ! END IF
-         ! DEALLOCATE(Y_i_aP)
 
       END IF
 
@@ -4239,80 +4200,43 @@ CONTAINS
       CALL mp_sum(new_sizes_array, para_env_exchange%group)
       CALL mp_sum(ranges_info_array, para_env_exchange%group)
 
-      IF (.FALSE.) THEN
-         ! replication scheme using mp_sendrecv
-         ALLOCATE (BIb_C_copy(my_group_L_size, my_B_size, homo))
-         BIb_C_copy(:, :, :) = BIb_C
+      ! replication scheme using mp_allgather
+      ! get the max L size of the
+      max_L_size = MAXVAL(sizes_array)
 
-         DEALLOCATE (BIb_C)
+      ALLOCATE (BIb_C_copy(max_L_size, my_B_size, homo))
+      BIb_C_copy = 0.0_dp
+      BIb_C_copy(1:my_group_L_size, 1:my_B_size, 1:homo) = BIb_C
 
-         ALLOCATE (BIb_C(my_new_group_L_size, my_B_size, homo))
-         BIb_C = 0.0_dp
+      DEALLOCATE (BIb_C)
 
-         start_point = ranges_info_array(3, 0, para_env_exchange%mepos)
-         end_point = ranges_info_array(4, 0, para_env_exchange%mepos)
+      ALLOCATE (BIb_C_gather(max_L_size, my_B_size, homo, 0:para_env_rep%num_pe-1))
+      BIb_C_gather = 0.0_dp
 
-         BIb_C(start_point:end_point, 1:my_B_size, 1:homo) = BIb_C_copy
+      CALL mp_allgather(BIb_C_copy, BIb_C_gather, para_env_rep%group)
 
-         DO proc_shift = 1, para_env_rep%num_pe-1
-            proc_send = proc_map_rep(para_env_rep%mepos+proc_shift)
-            proc_receive = proc_map_rep(para_env_rep%mepos-proc_shift)
+      DEALLOCATE (BIb_C_copy)
 
-            start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
-            end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
+      ALLOCATE (BIb_C(my_new_group_L_size, my_B_size, homo))
+      BIb_C = 0.0_dp
 
-            CALL mp_sendrecv(BIb_C_copy(1:my_group_L_size, 1:my_B_size, 1:homo), proc_send, &
-                             BIb_C(start_point:end_point, 1:my_B_size, 1:homo), proc_receive, &
-                             para_env_rep%group)
+      ! reorder data
+      DO proc_shift = 0, para_env_rep%num_pe-1
+         proc_send = proc_map_rep(para_env_rep%mepos+proc_shift)
+         proc_receive = proc_map_rep(para_env_rep%mepos-proc_shift)
 
-         END DO
+         start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
+         end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
-         DEALLOCATE (BIb_C_copy)
+         BIb_C(start_point:end_point, 1:my_B_size, 1:homo) = &
+            BIb_C_gather(1:end_point-start_point+1, 1:my_B_size, 1:homo, proc_receive)
 
-      ELSE
-         ! replication scheme using mp_allgather
-         ! get the max L size of the
-         max_L_size = MAXVAL(sizes_array)
+      END DO
 
-         ALLOCATE (BIb_C_copy(max_L_size, my_B_size, homo))
-         BIb_C_copy = 0.0_dp
-         BIb_C_copy(1:my_group_L_size, 1:my_B_size, 1:homo) = BIb_C
-
-         DEALLOCATE (BIb_C)
-
-         ALLOCATE (BIb_C_gather(max_L_size, my_B_size, homo, 0:para_env_rep%num_pe-1))
-         BIb_C_gather = 0.0_dp
-
-         CALL mp_allgather(BIb_C_copy, BIb_C_gather, para_env_rep%group)
-
-         DEALLOCATE (BIb_C_copy)
-
-         ALLOCATE (BIb_C(my_new_group_L_size, my_B_size, homo))
-         BIb_C = 0.0_dp
-
-         ! reorder data
-         DO proc_shift = 0, para_env_rep%num_pe-1
-            proc_send = proc_map_rep(para_env_rep%mepos+proc_shift)
-            proc_receive = proc_map_rep(para_env_rep%mepos-proc_shift)
-
-            start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
-            end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
-
-            BIb_C(start_point:end_point, 1:my_B_size, 1:homo) = &
-               BIb_C_gather(1:end_point-start_point+1, 1:my_B_size, 1:homo, proc_receive)
-
-         END DO
-
-         DEALLOCATE (BIb_C_gather)
-
-      END IF
-
-      ! DEALLOCATE(proc_map_rep)
+      DEALLOCATE (BIb_C_gather)
       DEALLOCATE (rep_sizes_array)
       DEALLOCATE (rep_starts_array)
       DEALLOCATE (rep_ends_array)
-
-      ! CALL  cp_para_env_release(para_env_rep)
 
       CALL timestop(handle)
 
@@ -4782,7 +4706,6 @@ CONTAINS
 
          IF (.NOT. (mp2_env%ri_mp2%block_size > 0)) THEN
             mem_for_comm = mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
-            !k_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
             DO
                num_IJ_blocks = (homo/best_block_size)
                num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
@@ -4982,17 +4905,12 @@ CONTAINS
       ! both i^alpha,j^beta and i^beta,j^alpha. Formally, my_i can be equal to my_j, but they are different
       ! due to spin in alpha-beta case.
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
-         ! CALL dgemm('N','T',virtual,virtual,my_B_size,1.0_dp,&
-         !                t_ab(:,:),virtual,local_ab(:,:),virtual,&
-         !                1.0_dp,mp2_env%ri_grad%P_ab(:,:),virtual)
-
          ! Alpha_alpha or closed-shell case
          IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) THEN
             CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, 1.0_dp, &
                        t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
                        local_ab(:, :), virtual, &
                        1.0_dp, mp2_env%ri_grad%P_ab(1:my_B_size, 1:virtual), my_B_size)
-            ! CHECK CORRECTNESS IF BLOCK SIZE greater than 1
             mp2_env%ri_grad%P_ij(my_j+jjB-1, my_j+jjB-1) = &
                mp2_env%ri_grad%P_ij(my_j+jjB-1, my_j+jjB-1)+P_ij_diag
          ENDIF
@@ -5002,7 +4920,6 @@ CONTAINS
                        t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
                        local_ab(:, :), virtual, &
                        1.0_dp, mp2_env%ri_grad%P_ab_beta(1:my_B_size, 1:virtual), my_B_size)
-            ! CHECK CORRECTNESS IF BLOCK SIZE greater than 1
             mp2_env%ri_grad%P_ij_beta(my_j+jjB-1, my_j+jjB-1) = &
                mp2_env%ri_grad%P_ij_beta(my_j+jjB-1, my_j+jjB-1)+P_ij_diag
          ENDIF
@@ -5104,9 +5021,6 @@ CONTAINS
       ! Now, Gamma_P_ia (made of Y_ia_P)
 
       CALL timeset(routineN//"_Gamma", handle)
-      ! CALL dgemm('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
-      !                local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
-      !                0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size_beta),my_B_size)
       IF (.NOT. alpha_beta) THEN
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
@@ -5219,9 +5133,6 @@ CONTAINS
             DEALLOCATE (external_ab)
          END DO
       END IF
-
-      ! Y_i_aP=0.0_dp
-      ! Y_j_aP=0.0_dp
 
       CALL timestop(handle)
 
@@ -5356,16 +5267,6 @@ CONTAINS
 !$OMP              END PARALLEL DO
                ENDIF
             END DO
-            ! DO iiB=1, my_block_size
-            !   mp2_env%ri_grad%Gamma_P_ia(my_i+iiB-1,1:my_B_size,start_point:end_point)=&
-            !   mp2_env%ri_grad%Gamma_P_ia(my_i+iiB-1,1:my_B_size,start_point:end_point)+&
-            !   Y_i_aP(1:my_B_size,Lstart_pos:Lend_pos,iiB)
-            ! END DO
-            ! DO jjB=1, my_block_size
-            !   mp2_env%ri_grad%Gamma_P_ia(my_j+jjB-1,1:my_B_size,start_point:end_point)=&
-            !   mp2_env%ri_grad%Gamma_P_ia(my_j+jjB-1,1:my_B_size,start_point:end_point)+&
-            !   Y_j_aP(1:my_B_size,Lstart_pos:Lend_pos,jjB)
-            ! END DO
          END DO
          CALL timestop(handle2)
 
@@ -5421,14 +5322,6 @@ CONTAINS
 !$OMP                END PARALLEL DO
                   ENDIF
                END DO
-               ! DO iiB=1, my_block_size
-               !   BI_C_send(iiB,1:my_B_size,start_point:end_point)=&
-               !      Y_i_aP(1:my_B_size,Lstart_pos:Lend_pos,iiB)
-               ! END DO
-               ! DO jjB=1, my_block_size
-               !   BI_C_send(jjB+my_block_size,1:my_B_size,start_point:end_point)=&
-               !      Y_j_aP(1:my_B_size,Lstart_pos:Lend_pos,jjB)
-               ! END DO
             END DO
             CALL timestop(handle2)
 
@@ -5518,16 +5411,6 @@ CONTAINS
 !$OMP                   END PARALLEL DO
                      ENDIF
                   END DO
-                  ! DO iiB=1, rec_block_size
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)=&
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)+&
-                  !   BI_C_rec(iiB,1:my_B_size,start_point:end_point)
-                  ! END DO
-                  ! DO jjB=1, rec_block_size
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)=&
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)+&
-                  !   BI_C_rec(jjB+rec_block_size,1:my_B_size,start_point:end_point)
-                  ! END DO
                END DO
                CALL timestop(handle2)
 
@@ -5643,16 +5526,6 @@ CONTAINS
 !$OMP                  END PARALLEL DO
                      ENDIF
                   END DO
-                  ! DO iiB=1, rec_block_size
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)=&
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)+&
-                  !   BI_C_rec(iiB,1:my_B_size,start_point:end_point)
-                  ! END DO
-                  ! DO jjB=1, rec_block_size
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)=&
-                  !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)+&
-                  !   BI_C_rec(jjB+rec_block_size,1:my_B_size,start_point:end_point)
-                  ! END DO
                END DO
                CALL timestop(handle2)
 
@@ -5918,9 +5791,6 @@ CONTAINS
                                          BI_C_rec(1:rec_L_size, 1:size_B_j, 1), proc_receive, &
                                          para_env_exchange%group)
                      ELSE ! For beta_beta density, the size is different now
-                        !DEALLOCATE(BI_C_rec)
-                        !ALLOCATE(BI_C_rec(rec_L_size,size_B_j,1))
-                        !BI_C_rec=0.0_dp
                         CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_j, send_j), proc_send, &
                                          BI_C_rec(1:rec_L_size, 1:size_B_j, 1), proc_receive, &
                                          para_env_exchange%group)

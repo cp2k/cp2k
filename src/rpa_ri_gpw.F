@@ -1027,19 +1027,12 @@ CONTAINS
          IF (para_env_RPA%num_pe > 1) THEN
             row_col_proc_ratio = dimen_ia_for_block_size/dimen_RI
             row_col_proc_ratio = MAX(1, row_col_proc_ratio)
-            IF (.FALSE.) THEN
-               iproc_row = MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1)-1
-               DO iproc = 1, para_env_RPA%num_pe
-                  iproc_row = iproc_row+1
-                  IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
-               END DO
-            ELSE
-               iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe)+1
-               DO iproc = 1, para_env_RPA%num_pe
-                  iproc_row = iproc_row-1
-                  IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
-               END DO
-            END IF
+
+            iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe)+1
+            DO iproc = 1, para_env_RPA%num_pe
+               iproc_row = iproc_row-1
+               IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
+            END DO
 
             iproc_col = para_env_RPA%num_pe/iproc_row
             grid_2D(1) = iproc_row
@@ -1055,7 +1048,6 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MATRIX_INFO| Number column processes:", grid_2D(2)
          END IF
-         ! CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA)
 
          ! define the block_size for the row
          IF (ext_row_block_size > 0) THEN
@@ -1081,8 +1073,6 @@ CONTAINS
          END IF
 
          NULLIFY (fm_struct)
-         ! CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_ia,&
-         !                          ncol_global=dimen_RI,para_env=para_env_RPA)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia, &
                                   ncol_global=dimen_RI, para_env=para_env_RPA, &
                                   nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
@@ -1105,91 +1095,21 @@ CONTAINS
 
          CALL create_group_dist(gd_L, my_group_L_start, my_group_L_end, my_group_L_size, para_env_RPA)
 
-         IF (.TRUE.) THEN
-            ! create the info array
+         ! create the info array
 
-            mepos_in_RPA_group = MOD(color_sub, integ_group_size)
-            ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:integ_group_size-1))
-            group_grid_2_mepos = 0
-            group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
-            CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
+         mepos_in_RPA_group = MOD(color_sub, integ_group_size)
+         ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:integ_group_size-1))
+         group_grid_2_mepos = 0
+         group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
+         CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
 
-            CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, RPA_proc_map, &
-                          my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, gd_ia, gd_L, &
-                          group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S)
+         CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, RPA_proc_map, &
+                       my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, gd_ia, gd_L, &
+                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S)
 
-            CALL cp_fm_struct_release(fm_struct)
-         ELSE
-            ! old replication scheme
-            ! create the S full matrix, that is the (ia|K) matrix with K colomns
-            ! and homo*virtual rows
-            NULLIFY (fm_mat_S)
-            CALL cp_fm_create(fm_mat_S, fm_struct, name="fm_mat_S")
+         CALL cp_fm_struct_release(fm_struct)
 
-            CALL cp_fm_set_all(matrix=fm_mat_S, alpha=0.0_dp)
-
-            ! fill the matrix
-            CALL cp_fm_get_info(matrix=fm_mat_S, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-
-            ! old inefficient replication scheme
-            ! local data
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global >= my_group_L_start .AND. j_global <= my_group_L_end) THEN
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
-                     IF (i_global >= my_ia_start .AND. i_global <= my_ia_end) THEN
-                        fm_mat_S%local_data(iiB, jjB) = BIb_C_2D(i_global-my_ia_start+1, j_global-my_group_L_start+1)
-                     END IF
-                  END DO
-               END IF
-            END DO
-
-            proc_send_static = RPA_proc_map(para_env_RPA%mepos+1)
-            proc_receive_static = RPA_proc_map(para_env_RPA%mepos-1)
-
-            ! start collect data from other proc in the RPA group
-            DO proc_shift = 1, para_env_RPA%num_pe-1
-               proc_send = RPA_proc_map(para_env_RPA%mepos+proc_shift)
-               proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
-
-               CALL get_group_dist(gd_L, proc_receive, rec_L_start, rec_L_end, rec_L_size)
-               CALL get_group_dist(gd_ia, proc_receive, rec_ia_start, rec_ia_end, rec_ia_size)
-
-               ALLOCATE (BIb_C_rec(rec_ia_size, rec_L_size))
-               BIb_C_rec = 0.0_dp
-
-               CALL mp_sendrecv(BIb_C_2D, proc_send_static, &
-                                BIb_C_rec, proc_receive_static, &
-                                para_env_RPA%group)
-
-               DO jjB = 1, ncol_local
-                  j_global = col_indices(jjB)
-                  IF (j_global >= rec_L_start .AND. j_global <= rec_L_end) THEN
-                     DO iiB = 1, nrow_local
-                        i_global = row_indices(iiB)
-                        IF (i_global >= rec_ia_start .AND. i_global <= rec_ia_end) THEN
-                           fm_mat_S%local_data(iiB, jjB) = BIb_C_rec(i_global-rec_ia_start+1, j_global-rec_L_start+1)
-                        END IF
-                     END DO
-                  END IF
-               END DO
-
-               DEALLOCATE (BIb_C_2D)
-               ALLOCATE (BIb_C_2D(rec_ia_size, rec_L_size))
-               BIb_C_2D(:, :) = BIb_C_rec
-
-               DEALLOCATE (BIb_C_rec)
-            END DO
-
-            DEALLOCATE (BIb_C_2D)
-         END IF
-
-         ! deallocaete the info array
+         ! deallocate the info array
          CALL release_group_dist(gd_L)
          CALL release_group_dist(gd_ia)
 

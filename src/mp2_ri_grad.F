@@ -50,7 +50,6 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
-   USE mp2_ri_grad_util,                ONLY: write_array
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -2054,8 +2053,6 @@ CONTAINS
       ENDIF
       CALL timestop(handle2)
 
-      ! IF(para_env%mepos==0) CALL write_array(mp2_env%ri_grad%P_ij(1:homo,1:homo))
-
       ! Calculate occ-virt block of the lagrangian in MO
       CALL timeset(routineN//"_Ljb", handle2)
       IF (.NOT. alpha_beta) THEN
@@ -2116,145 +2113,6 @@ CONTAINS
       CALL timestop(handle2)
 
       ! here we should be done next CPHF
-
-      IF (.FALSE.) THEN
-         ALLOCATE (ab_send(homo, virtual))
-         ab_send = 0.0_dp
-         IF (.NOT. alpha_beta) THEN
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ELSE
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb_beta, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ENDIF
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (.NOT. alpha_beta) THEN
-                  ab_send(i_global, j_global) = mp2_env%ri_grad%L_jb%local_data(iiB, jjB)
-               ELSE
-                  ab_send(i_global, j_global) = mp2_env%ri_grad%L_jb_beta%local_data(iiB, jjB)
-               ENDIF
-            END DO
-         END DO
-         CALL mp_sum(ab_send, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'Ljb'
-            CALL write_array(ab_send(1:homo, 1:virtual))
-         END IF
-         DEALLOCATE (ab_send)
-         ALLOCATE (ab_send(homo, homo))
-         ALLOCATE (ab_rec(virtual, virtual))
-         ALLOCATE (mat_deb(homo, virtual))
-         ab_send = 0.0_dp
-         ab_rec = 0.0_dp
-         mat_deb = 0.0_dp
-         IF (.NOT. alpha_beta) THEN
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ELSE
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo_beta, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ENDIF
-         IF (.NOT. alpha_beta) THEN
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (i_global <= homo .AND. j_global <= homo) THEN
-                     ab_send(i_global, j_global) = mp2_env%ri_grad%P_mo%local_data(iiB, jjB)
-                  ELSE
-                     IF (i_global > homo .AND. j_global > homo) THEN
-                        ab_rec(i_global-homo, j_global-homo) = mp2_env%ri_grad%P_mo%local_data(iiB, jjB)
-                     ELSE
-                        mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo) = &
-                           mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo)+ &
-                           mp2_env%ri_grad%P_mo%local_data(iiB, jjB)
-                     END IF
-                  END IF
-               END DO
-            END DO
-         ELSE
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (i_global <= homo .AND. j_global <= homo) THEN
-                     ab_send(i_global, j_global) = mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB)
-                  ELSE
-                     IF (i_global > homo .AND. j_global > homo) THEN
-                        ab_rec(i_global-homo, j_global-homo) = mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB)
-                     ELSE
-                        mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo) = &
-                           mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo)+ &
-                           mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB)
-                     END IF
-                  END IF
-               END DO
-            END DO
-         ENDIF
-
-         CALL mp_sum(ab_send, para_env%group)
-         CALL mp_sum(ab_rec, para_env%group)
-         CALL mp_sum(mat_deb, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'Pij'
-            CALL write_array(ab_send(1:homo, 1:homo))
-            WRITE (*, *) 'Pab'
-            CALL write_array(ab_rec(1:virtual, 1:virtual))
-            WRITE (*, *) 'Pia'
-            CALL write_array(mat_deb(1:homo, 1:virtual))
-         END IF
-         DEALLOCATE (ab_send, ab_rec, mat_deb)
-         ALLOCATE (ab_send(dimen, dimen))
-         ab_send = 0.0_dp
-         IF (.NOT. alpha_beta) THEN
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ELSE
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo_beta, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ENDIF
-
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (.NOT. alpha_beta) THEN
-                  ab_send(i_global, j_global) = &
-                     mp2_env%ri_grad%W_mo%local_data(iiB, jjB)
-               ELSE
-                  ab_send(i_global, j_global) = &
-                     mp2_env%ri_grad%W_mo_beta%local_data(iiB, jjB)
-               ENDIF
-            END DO
-         END DO
-         CALL mp_sum(ab_send, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'Wij'
-            CALL write_array(ab_send(1:dimen, 1:dimen))
-         END IF
-         DEALLOCATE (ab_send)
-      END IF
 
       DEALLOCATE (sub_proc_map)
       DEALLOCATE (pos_info)
