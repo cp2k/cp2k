@@ -112,8 +112,4 @@ def parse_output(out_fn, ref_energy):
     return(runtime)
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

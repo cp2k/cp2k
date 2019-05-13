@@ -623,8 +623,4 @@ def parse_plots(report_txt):
     return({'plots': plots, 'plotpoints': plotpoints})
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()
