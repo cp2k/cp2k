@@ -57,7 +57,7 @@ MODULE mp2_ri_grad_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
-   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution, write_array
+   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
@@ -241,18 +241,15 @@ CONTAINS
                                   group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
 
       DO i = 0, para_env%num_pe-1
-         ! calculate postition of the group
+         ! calculate position of the group
          pos_group = i/para_env_sub%num_pe
-         ! calculate postition in the subgroup
+         ! calculate position in the subgroup
          pos_sub = pos_info(i)
          ! 1 -> rows, 2 -> cols
          CALL get_group_dist(gd_ia, pos_sub, gd_ia_new, i)
          CALL get_group_dist(gd_array, pos_group, gd_array_new, i)
          CALL get_group_dist(gd_P, pos_sub, gd_P_new, i)
       END DO
-
-      ! WRITE(*,*) mepos_2_grid_group(:,1)
-      ! WRITE(*,*) mepos_2_grid_group(:,2)
 
       ! create the blacs env
       NULLIFY (blacs_env)
@@ -315,9 +312,6 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia, &
                                ncol_global=dimen_RI, para_env=para_env)
       ! for now we don't force the blocks
-      ! CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=num_rows,&
-      !                          ncol_global=num_cols,para_env=para_env,&
-      !                          nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
       CALL cp_fm_create(fm_Gamma, fm_struct, name="fm_Gamma")
       CALL cp_fm_set_all(matrix=fm_Gamma, alpha=0.0_dp)
       CALL cp_fm_struct_release(fm_struct)
@@ -352,53 +346,6 @@ CONTAINS
       CALL cp_fm_release(fm_Gamma_PQ_temp)
       CALL cp_fm_release(PQ_half)
 
-      IF (.FALSE.) THEN
-         ALLOCATE (Gamma_2D(dimen_ia, dimen_RI))
-         Gamma_2D = 0.0_dp
-         CALL cp_fm_get_info(matrix=fm_Gamma, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               Gamma_2D(i_global, j_global) = fm_Gamma%local_data(iiB, jjB)
-            END DO
-         END DO
-         CALL mp_sum(Gamma_2D, para_env%group)
-         IF (para_env%mepos == 0) CALL write_array(Gamma_2D(1:dimen_ia, 1:dimen_RI))
-         DEALLOCATE (Gamma_2D)
-
-         ALLOCATE (Gamma_2D(dimen_RI, dimen_RI))
-         Gamma_2D = 0.0_dp
-         CALL cp_fm_get_info(matrix=fm_Gamma_PQ, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               Gamma_2D(i_global, j_global) = fm_Gamma_PQ%local_data(iiB, jjB)
-            END DO
-         END DO
-         CALL mp_sum(Gamma_2D, para_env%group)
-         IF (para_env%mepos == 0) CALL write_array(Gamma_2D(1:dimen_RI, 1:dimen_RI))
-         DEALLOCATE (Gamma_2D)
-      END IF
-
-      ! restore original sizes information (dimen_ia x dimen_RI)
-      ! DO i=0,para_env%num_pe-1
-      !   ! calculate postition of the group
-      !   pos_group=i/para_env_sub%num_pe
-      !   ! calculate postition in the subgroup
-      !   pos_sub=pos_info(i)
-      !   ! fill the map from the grid of groups to process
-      !   group_grid_2_mepos(pos_sub,pos_group)=i
-      ! END DO
       CALL cp_fm_get_info(matrix=fm_Gamma, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local)
@@ -441,76 +388,10 @@ CONTAINS
                        fm_Gamma_PQ)
       ENDIF
 
-      IF (.FALSE.) THEN
-         ALLOCATE (BIb_C_2D(dimen_ia, dimen_RI))
-         BIb_C_2D = 0.0_dp
-         BIb_C_2D(my_ia_start:my_ia_end, my_group_L_start:my_group_L_end) = Gamma_2D
-         CALL mp_sum(BIb_C_2D, para_env%group)
-         IF (para_env%mepos == 0) CALL write_array(BIb_C_2D(1:dimen_ia, 1:dimen_RI))
-         DEALLOCATE (BIb_C_2D)
-
-         ALLOCATE (BIb_C_2D(dimen_RI, dimen_RI))
-         BIb_C_2D = 0.0_dp
-         IF (alpha_case) THEN
-            BIb_C_2D(my_P_start:my_P_end, my_group_L_start:my_group_L_end) = &
-               mp2_env%ri_grad%Gamma_PQ
-         ELSE
-            BIb_C_2D(my_P_start:my_P_end, my_group_L_start:my_group_L_end) = &
-               mp2_env%ri_grad%Gamma_PQ_beta
-         ENDIF
-         CALL mp_sum(BIb_C_2D, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'AAAAAAAAAAAAAAAAAA'
-            WRITE (*, *)
-            CALL write_array(BIb_C_2D(1:dimen_RI, 1:dimen_RI))
-         END IF
-         DEALLOCATE (BIb_C_2D)
-      END IF
-
       ! create the Gamma_ia_P in DBCSR style
       CALL create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
                               my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
                               mp2_env, alpha_case)
-
-      IF (.FALSE.) THEN
-         ALLOCATE (Gamma_2D(dimen_ia, dimen_RI))
-         ALLOCATE (BIb_C_rec(virtual, homo, dimen_RI))
-         Gamma_2D = 0.0_dp
-         BIb_C_rec = 0.0_dp
-         DO kkB = 1, my_group_L_size
-            IF (alpha_case) THEN
-               CALL dbcsr_iterator_start(iter, mp2_env%ri_grad%G_P_ia(kkB)%matrix)
-            ELSE
-               CALL dbcsr_iterator_start(iter, mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
-            ENDIF
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                              row_size=row_size, col_size=col_size, &
-                                              row_offset=row_offset, col_offset=col_offset)
-               DO iiB = 1, row_size
-                  i_global = row_offset+iiB-1
-                  DO jjB = 1, col_size
-                     j_global = col_offset+jjB-1
-                     ia_global = (i_global-1)*virtual+j_global
-                     Gamma_2D(ia_global, my_group_L_start+kkB-1) = data_block(iiB, jjB)
-                     BIb_C_rec(j_global, i_global, my_group_L_start+kkB-1) = data_block(iiB, jjB)
-                  ENDDO
-               ENDDO
-            ENDDO
-            CALL dbcsr_iterator_stop(iter)
-         END DO
-         CALL mp_sum(Gamma_2D, para_env%group)
-         CALL mp_sum(BIb_C_rec, para_env%group)
-         ! IF(para_env%mepos==0) CALL write_array(Gamma_2D(1:dimen_ia,1:dimen_RI))
-         IF (para_env%mepos == 0) THEN
-            DO iiB = 1, dimen_RI
-               WRITE (*, *) 'AAAAAAAAAA', iiB
-               CALL write_array(BIb_C_rec(1:virtual, 1:homo, iiB))
-            END DO
-         END IF
-         DEALLOCATE (Gamma_2D)
-         DEALLOCATE (BIb_C_rec)
-      END IF
 
       DEALLOCATE (pos_info)
       DEALLOCATE (group_grid_2_mepos, mepos_2_grid_group)
@@ -518,10 +399,6 @@ CONTAINS
       CALL release_group_dist(gd_P)
       DEALLOCATE (proc_map)
       DEALLOCATE (sizes)
-
-      ! release fm_matrices
-      ! CALL cp_fm_release(fm_Gamma)
-      ! CALL cp_fm_release(fm_Gamma_PQ)
 
       ! release blacs_env
       CALL cp_blacs_env_release(blacs_env)
@@ -1068,8 +945,6 @@ CONTAINS
          END DO ! i_global
       END DO ! j_global
 
-      ! WRITE(*,*) para_env%mepos,'AAAA',map_send_size
-
       ! 2) loop over my local data of the array and define a map for the proc from which rec data
       ALLOCATE (map_rec_size(0:para_env%num_pe-1))
       map_rec_size = 0
@@ -1117,7 +992,6 @@ CONTAINS
       ! (ref_send_prow,ref_send_pcol) returns
       ! the position in the buffer_send associated to that process
 
-      ! ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
       ALLOCATE (grid_ref_2_send_pos(0:ngroup_row-1, 0:ngroup_col-1))
       grid_ref_2_send_pos = 0
 
@@ -1185,7 +1059,6 @@ CONTAINS
 
       DEALLOCATE (iii_vet)
       DEALLOCATE (grid_ref_2_send_pos)
-      ! CALL cp_fm_release(fm_mat)
       CALL timestop(handle2)
 
       ! 5) similarly to what done for the buffer_send
@@ -1345,8 +1218,6 @@ CONTAINS
       TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indeces_rec
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
-
-! TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
 
       CALL timeset(routineN, handle)
 
@@ -1668,32 +1539,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat ...
-!> \param unitout ...
-! **************************************************************************************************
-   SUBROUTINE write_array(mat, unitout)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
-      INTEGER, INTENT(IN), OPTIONAL                      :: unitout
-
-      INTEGER                                            :: iii, jjj
-
-      WRITE (*, *)
-      DO iii = 1, SIZE(mat, 1)
-         WRITE (*, *) iii
-         DO jjj = 1, SIZE(mat, 2), 20
-            IF (PRESENT(unitout)) THEN
-               WRITE (1000+unitout, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-            ELSE
-               WRITE (*, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-            END IF
-         END DO
-         WRITE (*, *)
-      END DO
-      WRITE (*, *)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param ngroup ...
@@ -1737,9 +1582,9 @@ CONTAINS
          proc_map(i) = i
          proc_map(-i-1) = para_env%num_pe-i-1
          proc_map(para_env%num_pe+i) = i
-         ! calculate postition of the group
+         ! calculate position of the group
          pos_group = i/para_env_sub%num_pe
-         ! calculate postition in the subgroup
+         ! calculate position in the subgroup
          pos_sub = my_pos_info(i)
          ! fill the map from the grid of groups to process
          group_grid_2_mepos(pos_sub, pos_group) = i

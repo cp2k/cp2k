@@ -809,7 +809,7 @@ CONTAINS
                   Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
             END IF
             ! if we need forces time to calculate the MP2 non-separable contribution
-            ! and start coputing the Largrangian
+            ! and start coputing the Lagrangian
             IF (calc_forces) THEN
                ! since we have to compute again integrals reinitialize the stuff we need
                ! get some of the grids ready
@@ -825,25 +825,6 @@ CONTAINS
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
                ENDIF
-
-               ! the mu_nu matrix (again)
-               ! XXXXXXXXXXXXXXXXXXXXXXXXX
-               ! ! build a dbcsr matrix the hard way
-               ! CALL get_particle_set(particle_set=particle_set,nsgf=rbs)
-               ! CALL array_nullify (row_blk_sizes)
-               ! CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-               ! ALLOCATE(mat_munu%matrix, STAT=stat)
-               ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-               ! CALL dbcsr_init(mat_munu%matrix)
-               ! CALL dbcsr_create(matrix=mat_munu%matrix,&
-               !            name="(ai|munu)",&
-               !            dist=dbcsr_dist_sub, &
-               !            matrix_type=dbcsr_type_symmetric,&
-               !            ! matrix_type=dbcsr_type_no_symmetry,&
-               !            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-               !            nze=0)
-               ! CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub)
-               ! CALL array_release (row_blk_sizes)
 
                IF (nspins == 2) THEN ! Open shell
                   CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, dft_control, cell, &
@@ -930,22 +911,6 @@ CONTAINS
          CALL deallocate_task_list(task_list_sub)
          CALL pw_env_release(pw_env_sub)
       END IF
-
-      ! CALL dbcsr_distribution_release(dbcsr_dist_sub)
-      ! DEALLOCATE(dbcsr_dist_sub,STAT=stat)
-      ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-
-      ! DO i=1,SIZE(sab_orb_sub)
-      !    CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-      ! END DO
-      ! DEALLOCATE(sab_orb_sub,stat=stat)
-      ! CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
-
-      ! CALL distribution_2d_release(distribution_2d_sub)
-
-      ! CALL distribution_1d_release(local_particles_sub)
-      ! CALL distribution_1d_release(local_molecules_sub)
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
       ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
       dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old

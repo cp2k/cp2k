@@ -599,7 +599,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :)        :: needed_cutRI_mem_R1vec_R2vec_for_kp
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      INTEGER                                            :: num_3c_repl
       LOGICAL                                            :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
@@ -607,7 +606,7 @@ CONTAINS
 
       INTEGER :: handle, handle4, handle5, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
          i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, i_cell_T, i_cut_RI, &
-         i_mem, iquad, j_mem, my_group_L_size, num_3c_repl, num_cells_dm
+         i_mem, iquad, j_mem, jquad, my_group_L_size, num_3c_repl, num_cells_dm
       INTEGER(KIND=int_8)                                :: flop_occ, flop_virt, num_flops_mat_P
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       LOGICAL :: do_kpoints_cubic_RPA, first_cycle_im_time, first_cycle_omega_loop, memory_info, &
