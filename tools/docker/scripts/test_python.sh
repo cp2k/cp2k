@@ -34,8 +34,8 @@ ERRORS=0
 cd /workspace/cp2k
 
 # find executable python scripts
-ALL_SCRIPTS=$(find ./src/ ./tools/ -name "*.py"  -executable)
-ESSENTIAL_SCRIPTS=$(find ./tools/build_utils -name "*.py"  -executable)
+ALL_TEST_SCRIPTS=$(find ./src/ ./tools/ -name "*_test.py"  -executable)
+ESSENTIAL_TEST_SCRIPTS=$(find ./tools/build_utils -name "*_test.py"  -executable)
 
 # python 2.6
 run_selftests python2.6 "${ESSENTIAL_SCRIPTS}"
