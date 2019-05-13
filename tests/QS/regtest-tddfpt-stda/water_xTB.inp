@@ -1,12 +1,25 @@
 &GLOBAL
   PROJECT water_xTB
-  RUN_TYPE ELECTRONIC_SPECTRA
+  RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
 &FORCE_EVAL
   METHOD Quickstep
+  &PROPERTIES
+    &TDDFPT
+       KERNEL sTDA
+       &sTDA
+          FRACTION 0.5
+          DO_EWALD T
+       &END sTDA
+       OE_CORR SHIFT
+       EV_SHIFT [eV] 0.5
+       NSTATES      1
+       MAX_ITER    50
+       CONVERGENCE [eV] 1.0e-5
+    &END TDDFPT
+  &END PROPERTIES
   &DFT
-    EXCITATIONS tddfpt
     &QS
        METHOD xTB
        &xTB
@@ -26,22 +39,6 @@
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
     &END SCF
-    &TDDFPT
-      CALCULATE_KERNEL T
-      KERNEL sTDA
-      OE_CORR SHIFT
-      EV_SHIFT [eV] 0.5
-      &sTDA 
-         FRACTION 0.5
-         DO_EWALD T
-      &END sTDA
-      MAX_KV 10
-      METHOD DAVIDSON
-      NEV 1
-      REORTHO 2
-      RES_ETYPE SINGLETS
-      RESTARTS 2
-    &END TDDFPT
   &END DFT
   &SUBSYS
     &CELL
