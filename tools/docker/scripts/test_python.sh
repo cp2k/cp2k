@@ -2,7 +2,7 @@
 
 # author: Ole Schuett
 
-function run_selftests {
+function run_tests {
     PYTHON=$1
     SCRIPTS=$2
     BASEDIR=$(pwd)
@@ -19,7 +19,7 @@ function run_selftests {
         echo "Selftesting $i"
         cd "$(dirname "$i")"
         SCRIPT=$(basename "$i")
-        if ! $PYTHON -B "./${SCRIPT}" --selftest ; then
+        if ! $PYTHON -B "./${SCRIPT}" ; then
             echo "Selftest of $i failed"
             ERRORS=$((ERRORS+1))
         fi
@@ -38,22 +38,20 @@ ALL_TEST_SCRIPTS=$(find ./src/ ./tools/ -name "*_test.py"  -executable)
 ESSENTIAL_TEST_SCRIPTS=$(find ./tools/build_utils -name "*_test.py"  -executable)
 
 # python 2.6
-run_selftests python2.6 "${ESSENTIAL_SCRIPTS}"
+run_tests python2.6 "${ESSENTIAL_TEST_SCRIPTS}"
 
 # python 2.7
-run_selftests python2.7 "${ALL_SCRIPTS}"
+run_tests python2.7 "${ALL_TEST_SCRIPTS}"
 
 # python 3.x
-run_selftests python3 "${ALL_SCRIPTS}"
+run_tests python3 "${ALL_TEST_SCRIPTS}"
 
 # print report
-NUM_SCRIPTS=$(echo "${ALL_SCRIPTS}" | wc -w)
+NUM_TEST_SCRIPTS=$(echo "${ALL_TEST_SCRIPTS}" | wc -w)
 echo ""
-echo "Summary: Checked ${NUM_SCRIPTS} Python scripts, found ${ERRORS} errors."
+echo "Summary: Run ${NUM_TEST_SCRIPTS} Python test scripts, found ${ERRORS} errors."
 if [ $ERRORS == 0 ]; then
     echo "Status: OK"
 else
     echo "Status: FAILED"
 fi
-
-#EOF

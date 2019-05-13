@@ -7,14 +7,14 @@
 
 # Example 1: show timings for a CP2K output
 #       > diff_cp2k.py <name_file>
-#    It shows the values of the timings for the MAXIMUM SELF 
-#    timings as extracted from the final table of timings of 
-#    CP2K output. The values are sorted (only values >0). 
+#    It shows the values of the timings for the MAXIMUM SELF
+#    timings as extracted from the final table of timings of
+#    CP2K output. The values are sorted (only values >0).
 #    You can use the option
 #       -f <1 || 2 || 3 || 4>
 #    to change between AVERAGE SELF (1), MAX SELF (2), AVERAGE TOTAL (3) or MAX TOTAL (4).
 #    The last line CP2K_Total refers always to the MAXIMUM TOTAL TIME.
-#    There is also the possibility to filter between the SUBROUTINE names 
+#    There is also the possibility to filter between the SUBROUTINE names
 #    by using the options:
 #       -g <name> : partial comparison (similar to linux command grep)
 #       -e <name> : exact comparison
@@ -23,48 +23,48 @@
 # Example 2: compare two (or more) CP2K outputs
 #       > diff_cp2k.py <list of files>
 #    You can use wild cards (for example *.out).
-#    It shows the timings from all outputs, sorted by the values 
-#    of the first file, which is the reference for the comparison. 
-#    It also shows the relative difference (in percentage) with respect to 
+#    It shows the timings from all outputs, sorted by the values
+#    of the first file, which is the reference for the comparison.
+#    It also shows the relative difference (in percentage) with respect to
 #    the reference values. Colors/bold are used to easy spot the larger discrepancies:
-#       blue: smaller than reference 
+#       blue: smaller than reference
 #       blue bold: smaller than reference > 100%
-#       green: bigger than reference 
+#       green: bigger than reference
 #       green bold: bigger than reference > 100%
-#    A set of dashes "-------" are reported for SUBROUTINES that 
-#    are only in the reference file, while the SUBROUTINES 
+#    A set of dashes "-------" are reported for SUBROUTINES that
+#    are only in the reference file, while the SUBROUTINES
 #    that are only in the other files are reported for each file at the end.
-#    You can use the option 
+#    You can use the option
 #       -b <#>
-#    to change the file used as reference (default is 1). 
+#    to change the file used as reference (default is 1).
 #    The other options mentioned in Example 1 are still valid here.
-#    It is possible to replace the SUBROUTINE names. This feature allows, for example, 
+#    It is possible to replace the SUBROUTINE names. This feature allows, for example,
 #    to compare SUBROUTINEs with different names belonging to different files.
-#    Create a file, called diff_cp2k_keys.py, where you declare 
+#    Create a file, called diff_cp2k_keys.py, where you declare
 #    the SUBROUTINE names and their replacements, e.g.
 #        special_keys={'cannon_multiply_low_rma_metroc':'cannon_multiply_low_metrocomm1' ,
 #                      'cannon_multiply_low_rma':'cannon_multiply_low'}
 #    In this case the SUBROUTINE with name cannon_multiply_low_rma_metroc will be
 #    replaced by the name cannon_multiply_low_metrocomm1.
-#    The file is automatically loaded from the local directory where 
+#    The file is automatically loaded from the local directory where
 #    you run the script or from the home directory. Alternatively it is possible
 #    to use the option
 #       -k <file keys>
 #    to specify a different file.
 #
 # Example 3: grep for some other values
-#    As described in Example 2, create a file, called diff_cp2k_keys.py, 
+#    As described in Example 2, create a file, called diff_cp2k_keys.py,
 #    where you declare the keywords that you want to grep from the output, e.g.
 #       stats_keys={'flops total':[0],'average stack size':[1,2]}
-#    The script splits the line by the keyword in two parts and reports 
+#    The script splits the line by the keyword in two parts and reports
 #    the field at the given position of the right part.
-#    The file is automatically loaded from the local directory where 
+#    The file is automatically loaded from the local directory where
 #    you run the script or from the home directory. Alternatively it is possible
 #    to use the option
 #       -k <file keys>
 #    to specify a different file.
 #    The values will appear under "Stats report".
-#    
+#
 
 import sys
 import argparse
@@ -100,7 +100,7 @@ def read_file(filename,field,special_keys,stats_keys):
                 nline+=1
                 if nline < 6: continue
                 # end reading
-                if "-----" in line: 
+                if "-----" in line:
                     nline=0
                     continue
                 values=line.split()
@@ -170,7 +170,7 @@ def main():
         # if not file_keys is provided, then look for it in the local directory and home
         file_keys.append(os.getcwd()+'/diff_cp2k_keys.py')
         file_keys.append(os.path.expanduser('~')+'/diff_cp2k_keys.py')
-        
+
     for filename in file_keys:
         try:
             module = imp.load_source('*',filename)
@@ -181,12 +181,12 @@ def main():
                 print("Cannont open file keys "+filename+"!")
                 print("Exit")
                 sys.exit(-1)
-                
+
     if args.base < 1 or args.base > len(args.file_lists):
         print("Value for -b option out-of-bounds! Allowed values are between 1 and "+str(len(args.file_lists)))
         print("Exit")
         sys.exit(-1)
-                        
+
     dict_values={}
     dict_stats={}
     files={}
@@ -195,14 +195,14 @@ def main():
                                                                                args.field-1,
                                                                                special_keys,
                                                                                stats_keys)
-                            
+
     print("===== Timings report =====")
-                            
+
     # sorted by first file timings
     sorted_values = sorted(dict_values[args.file_lists[args.base-1]].items(), key=operator.itemgetter(1))
     for key in sorted_values:
         # Apply filtering
-        if (key[0]!="CP2K_Total" and 
+        if (key[0]!="CP2K_Total" and
             ((len(args.grep) > 0 and any(s not in key[0] for s in args.grep)) or
              (len(args.filter) > 0 and key[0] not in args.filter))):
             continue
@@ -235,7 +235,7 @@ def main():
             sys.stdout.write(('-'*20).rjust(20))
             print("")
 
-    print("") 
+    print("")
 
     for filename in args.file_lists:
         if filename == args.file_lists[args.base-1]:
@@ -273,8 +273,4 @@ def main():
     print("")
 
 #===============================================================================
-if (len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

@@ -51,8 +51,4 @@ def check(fn):
 
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

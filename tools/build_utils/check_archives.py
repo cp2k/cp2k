@@ -61,9 +61,4 @@ def check_output(*popenargs, **kwargs):
     return output.decode()
 
 #=============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-
-#EOF
+main()
