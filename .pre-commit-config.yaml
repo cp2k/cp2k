@@ -6,6 +6,11 @@ repos:
     hooks:
     -   id: check-yaml
     -   id: check-added-large-files
+    -   id: check-ast
+        exclude: >-
+          (?x)^(
+            tools/autotune_grid/xyz_to_vab/pyratemp.py|
+          )$
 -   repo: local
     hooks:
     -   id: prettify
