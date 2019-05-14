@@ -1051,23 +1051,23 @@ $:                         'habdc=habdc, &'*abdc
 !> \note
 ! **************************************************************************************************
    SUBROUTINE integrate_set_3c(param, &
-                                       la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
-                                       npgfa, npgfb, npgfc, &
-                                       zeta, zetb, zetc, &
-                                       ra, rb, rc, &
-                                       habc, &
-                                       n_habc_a, n_habc_b, n_habc_c, &
-                                       offset_habc_a, offset_habc_b, offset_habc_c, &
-                                       offset_set_a, offset_set_b, offset_set_c, &
-                                       sphi_a, sphi_b, sphi_c, &
-                                       sgfa, sgfb, sgfc, &
-                                       nsgfa, nsgfb, nsgfc, &
-                                       eri_method, &
-                                       pabc, &
-                                       force_a, force_b, force_c, &
-                                       do_symmetric, on_diagonal, &
-                                       hdabc, hadbc, habdc, &
-                                       GG_count, GR_count, RR_count)
+                               la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
+                               npgfa, npgfb, npgfc, &
+                               zeta, zetb, zetc, &
+                               ra, rb, rc, &
+                               habc, &
+                               n_habc_a, n_habc_b, n_habc_c, &
+                               offset_habc_a, offset_habc_b, offset_habc_c, &
+                               offset_set_a, offset_set_b, offset_set_c, &
+                               sphi_a, sphi_b, sphi_c, &
+                               sgfa, sgfb, sgfc, &
+                               nsgfa, nsgfb, nsgfc, &
+                               eri_method, &
+                               pabc, &
+                               force_a, force_b, force_c, &
+                               do_symmetric, on_diagonal, &
+                               hdabc, hadbc, habdc, &
+                               GG_count, GR_count, RR_count)
 
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &

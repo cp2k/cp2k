@@ -61,12 +61,12 @@ CONTAINS
 !> \param o2 ...
 !> \param G_count ...
 !> \param R_count ...
-!> \param normalize     calculate integrals w.r.t. normalized Hermite-Gaussians
-!> \param exact_method  create reference values by exact method (no minimax approx.
-!>                      and sum is converged to much higher precision)
+!> \param normalize calculate integrals w.r.t. normalized Hermite-Gaussians
+!> \param potential use exact potential instead of minimax approx. (for testing only)
+!> \param pot_par potential parameter
 ! **************************************************************************************************
    SUBROUTINE eri_mme_2c_integrate(param, la_min, la_max, lb_min, lb_max, zeta, zetb, rab, &
-                                   hab, o1, o2, G_count, R_count, normalize, exact_method)
+                                   hab, o1, o2, G_count, R_count, normalize, potential, pot_par)
       TYPE(eri_mme_param), INTENT(IN)                    :: param
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb
@@ -74,7 +74,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hab
       INTEGER, INTENT(IN)                                :: o1, o2
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
-      LOGICAL, INTENT(IN), OPTIONAL                      :: normalize, exact_method
+      LOGICAL, INTENT(IN), OPTIONAL                      :: normalize
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate', &
          routineP = moduleN//':'//routineN
@@ -117,8 +119,8 @@ CONTAINS
 
       l_max = la_max+lb_max
 
-      IF (PRESENT(exact_method)) THEN
-         exact = exact_method
+      IF (PRESENT(potential)) THEN
+         exact = .TRUE.
       ELSE
          exact = .FALSE.
       ENDIF
@@ -151,7 +153,7 @@ CONTAINS
 
          G_rad = exp_radius(l_max, alpha_G, 0.01*param%sum_precision, 1.0_dp, epsin=G_res)
          G_bounds(:) = ellipsoid_bounds(G_rad, TRANSPOSE(hmat)/(2.0_dp*pi))
-         CALL pgf_sum_2c_gspace_3d(S_G_no, l_max, -rab, alpha_G, h_inv, G_bounds, G_rad, vol, coulomb=.TRUE.)
+         CALL pgf_sum_2c_gspace_3d(S_G_no, l_max, -rab, alpha_G, h_inv, G_bounds, G_rad, vol, potential, pot_par)
       ELSE
 
          DO i_aw = 1, n_aw

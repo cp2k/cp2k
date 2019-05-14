@@ -16,7 +16,8 @@ MODULE eri_mme_lattice_summation
    USE ao_util,                         ONLY: exp_radius
    USE eri_mme_gaussian,                ONLY: create_gaussian_overlap_dist_to_hermite,&
                                               create_hermite_to_cartesian, &
-                                              exp_radius_fast
+                                              exp_radius_fast, eri_mme_coulomb, eri_mme_yukawa,&
+                                              eri_mme_longrange
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: gaussi,&
@@ -415,7 +416,7 @@ CONTAINS
 !> \param coulomb ...
 !> \note  MMME Method is not very efficient for non-orthorhombic cells
 ! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_2c_gspace_3d(S_G, l_max, R, alpha, h_inv, G_c, G_rad, vol, coulomb)
+   PURE SUBROUTINE pgf_sum_2c_gspace_3d(S_G, l_max, R, alpha, h_inv, G_c, G_rad, vol, potential, pot_par)
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: S_G
       INTEGER, INTENT(IN)                                :: l_max
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
@@ -423,23 +424,18 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_c
       REAL(KIND=dp), INTENT(IN)                          :: G_rad, vol
-      LOGICAL, INTENT(IN), OPTIONAL                      :: coulomb
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
       COMPLEX(KIND=dp)                                   :: exp_tot
       INTEGER, DIMENSION(3)                              :: l_xyz
       INTEGER                                            :: gx, gy, gz, k, l, lco, lx, ly, lz
       COMPLEX(KIND=dp), DIMENSION(ncoset(l_max))         :: Ig
-      LOGICAL                                            :: use_coulomb
       REAL(KIND=dp)                                      :: G_rads_sq, G_sq
       REAL(KIND=dp), DIMENSION(3)                        :: G, G_x, G_y, G_z
       REAL(KIND=dp), DIMENSION(3, 0:l_max)               :: G_pow_l
       REAL(KIND=dp), DIMENSION(3, 3)                     :: ht
 
-      IF (PRESENT(coulomb)) THEN
-         use_coulomb = coulomb
-      ELSE
-         use_coulomb = .FALSE.
-      ENDIF
 
       ht = twopi*TRANSPOSE(h_inv)
       Ig(:) = 0.0_dp
@@ -457,13 +453,21 @@ CONTAINS
                G_sq = G(1)**2+G(2)**2+G(3)**2
                IF (G_sq .GT. G_rads_sq) CYCLE
 
-               IF (use_coulomb) THEN
+               IF (PRESENT(potential)) THEN
                   IF (gx .EQ. 0 .AND. gy .EQ. 0 .AND. gz .EQ. 0) CYCLE
                ENDIF
 
                exp_tot = EXP(-alpha*G_sq)*EXP(gaussi*DOT_PRODUCT(G, R)) ! cost: 2 exp_w flops
-               IF (use_coulomb) THEN
-                  exp_tot = exp_tot/G_sq
+               IF (PRESENT(potential)) THEN
+                  SELECT CASE (potential)
+                  CASE (eri_mme_coulomb)
+                     exp_tot = exp_tot/G_sq
+                  CASE (eri_mme_yukawa)
+                     exp_tot = exp_tot/(G_sq + pot_par**2)
+                     !exp_tot = exp_tot/G_sq
+                  CASE (eri_mme_longrange)
+                     exp_tot = exp_tot/G_sq*EXP(-G_sq/pot_par**2)
+                  END SELECT
                ENDIF
                DO k = 1, 3
                   G_pow_l(k, 0) = 1.0_dp

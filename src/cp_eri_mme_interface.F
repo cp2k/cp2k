@@ -23,11 +23,14 @@ MODULE cp_eri_mme_interface
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE eri_mme_test,                    ONLY: eri_mme_2c_perf_acc_test,&
                                               eri_mme_3c_perf_acc_test
-   USE eri_mme_types,                   ONLY: eri_mme_init,&
+   USE eri_mme_types,                   ONLY: eri_mme_coulomb,&
+                                              eri_mme_init,&
+                                              eri_mme_longrange,&
                                               eri_mme_param,&
                                               eri_mme_print_grid_info,&
                                               eri_mme_release,&
-                                              eri_mme_set_params
+                                              eri_mme_set_params,&
+                                              eri_mme_yukawa
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -46,6 +49,7 @@ MODULE cp_eri_mme_interface
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -79,10 +83,6 @@ MODULE cp_eri_mme_interface
       INTEGER                                            :: G_count_2c, R_count_2c
       INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp)                                      :: zet_err_minimax
-      REAL(KIND=dp)                                      :: zet_err_cutoff
-      INTEGER                                            :: l_err_cutoff
-      INTEGER                                            :: l_max
       LOGICAL                                            :: do_calib
    END TYPE cp_eri_mme_param
 
@@ -346,8 +346,11 @@ CONTAINS
 !> \param basis_type_1 ...
 !> \param basis_type_2 ...
 !> \param para_env ...
+!> \param potential ...
+!> \param pot_par ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_set_params_from_basis(param, cell, qs_kind_set, basis_type_1, basis_type_2, para_env)
+   SUBROUTINE eri_mme_set_params_from_basis(param, cell, qs_kind_set, basis_type_1, basis_type_2, para_env, &
+                                            potential, pot_par)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(cell_type), INTENT(IN)                        :: cell
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -355,21 +358,24 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: basis_type_1
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_2
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params_from_basis', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, l_err_cutoff, l_max
-      REAL(KIND=dp)                                      :: zet_err_cutoff, zet_err_minimax
+      INTEGER                                            :: handle, l_max, l_max_zet
+      REAL(KIND=dp)                                      :: zet_max, zet_min
 
       CALL timeset(routineN, handle)
 
       CALL error_est_pgf_params_from_basis(qs_kind_set, basis_type_1, basis_type_2, &
-                                           zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max)
+                                           zet_min, zet_max, l_max_zet, l_max)
 
       CALL eri_mme_set_params_custom(param, cell%hmat, cell%orthorhombic, &
-                                     zet_err_minimax, zet_err_cutoff, l_err_cutoff, &
-                                     l_max, para_env)
+                                     zet_min, zet_max, l_max_zet, &
+                                     l_max, para_env, &
+                                     potential, pot_par)
 
       CALL timestop(handle)
    END SUBROUTINE eri_mme_set_params_from_basis
@@ -379,19 +385,24 @@ CONTAINS
 !> \param param ...
 !> \param hmat ...
 !> \param is_ortho ...
-!> \param zet_err_minimax ...
-!> \param zet_err_cutoff ...
-!> \param l_err_cutoff ...
+!> \param zet_min ...
+!> \param zet_max ...
+!> \param l_max_zet ...
 !> \param l_max ...
 !> \param para_env ...
+!> \param potential ...
+!> \param pot_par ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_set_params_custom(param, hmat, is_ortho, zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max, para_env)
+   SUBROUTINE eri_mme_set_params_custom(param, hmat, is_ortho, zet_min, zet_max, l_max_zet, l_max, para_env, &
+                                        potential, pot_par)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
       LOGICAL, INTENT(IN)                                :: is_ortho
-      REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax, zet_err_cutoff
-      INTEGER, INTENT(IN)                                :: l_err_cutoff, l_max
+      REAL(KIND=dp), INTENT(IN)                          :: zet_min, zet_max
+      INTEGER, INTENT(IN)                                :: l_max_zet, l_max
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
       REAL(KIND=dp), PARAMETER                           :: eps_changed = 1.0E-14_dp
 
@@ -401,10 +412,10 @@ CONTAINS
          ELSE
             ! only calibrate cutoff if parameters (cell, basis coefficients) have changed
             IF (ALL(ABS(param%hmat-hmat) < eps_changed) .AND. &
-                ABS(param%zet_err_minimax-zet_err_minimax) < eps_changed .AND. &
-                ABS(param%zet_err_cutoff-zet_err_cutoff) < eps_changed .AND. &
-                param%l_err_cutoff == l_err_cutoff .AND. &
-                param%l_max == l_max) THEN
+                ABS(param%par%zet_min-zet_min) < eps_changed .AND. &
+                ABS(param%par%zet_max-zet_max) < eps_changed .AND. &
+                param%par%l_max_zet == l_max_zet .AND. &
+                param%par%l_max == l_max) THEN
                param%par%do_calib_cutoff = .FALSE.
             ELSE
                param%par%do_calib_cutoff = .TRUE.
@@ -414,14 +425,10 @@ CONTAINS
          param%par%do_calib_cutoff = .FALSE.
       ENDIF
 
-      CALL eri_mme_set_params(param%par, hmat, is_ortho, zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max, para_env)
+      CALL eri_mme_set_params(param%par, hmat, is_ortho, zet_min, zet_max, l_max_zet, l_max, para_env, &
+                              potential, pot_par)
 
       param%hmat(:, :) = hmat(:, :)
-      param%zet_err_minimax = zet_err_minimax
-      param%zet_err_cutoff = zet_err_cutoff
-      param%l_err_cutoff = l_err_cutoff
-
-      param%l_max = l_max
 
       CALL eri_mme_print_info(param)
    END SUBROUTINE eri_mme_set_params_custom
@@ -431,20 +438,20 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param basis_type_1 ...
 !> \param basis_type_2 ...
-!> \param zet_mm Smallest exponent, used to estimate error due to minimax approx.
-!> \param zet_c  contains max. exponent and the largest exponent for max. l,
-!>               used to estimate cutoff error
-!> \param l_c    contains the largest l for max. exponent and max. l,
-!>               used to estimate cutoff error
+!> \param zet_min    Smallest exponent, used to estimate error due to minimax approx.
+!> \param zet_max    contains max. exponent,
+!>                   used to estimate cutoff error
+!> \param l_max_zet  contains the largest l for max. exponent,
+!>                   used to estimate cutoff error
 !> \param l_max ...
 ! **************************************************************************************************
-   SUBROUTINE error_est_pgf_params_from_basis(qs_kind_set, basis_type_1, basis_type_2, zet_mm, zet_c, l_c, l_max)
+   SUBROUTINE error_est_pgf_params_from_basis(qs_kind_set, basis_type_1, basis_type_2, zet_min, zet_max, l_max_zet, l_max)
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
       CHARACTER(len=*), INTENT(IN)                       :: basis_type_1
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_2
-      REAL(KIND=dp), INTENT(OUT)                         :: zet_mm, zet_c
-      INTEGER, INTENT(OUT)                               :: l_c, l_max
+      REAL(KIND=dp), INTENT(OUT)                         :: zet_min, zet_max
+      INTEGER, INTENT(OUT)                               :: l_max_zet, l_max
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'error_est_pgf_params_from_basis', &
          routineP = moduleN//':'//routineN
@@ -461,7 +468,7 @@ CONTAINS
       l_m = 0
       zet_m = 0.0_dp
       l_zet = -1
-      zet_mm = -1.0_dp
+      zet_min = -1.0_dp
 
       nkind = SIZE(qs_kind_set)
       nbasis = MERGE(2, 1, PRESENT(basis_type_2))
@@ -483,10 +490,10 @@ CONTAINS
             l_m = MAX(l_m, MAXVAL(basis_set%lmax(:)))
             DO iset = 1, nset
                zet_m = MAX(zet_m, MAXVAL(basis_set%zet(1:npgf(iset), iset)))
-               IF (zet_mm .LT. 0.0_dp) THEN
-                  zet_mm = MINVAL(basis_set%zet(1:npgf(iset), iset))
+               IF (zet_min .LT. 0.0_dp) THEN
+                  zet_min = MINVAL(basis_set%zet(1:npgf(iset), iset))
                ELSE
-                  zet_mm = MIN(zet_mm, MINVAL(basis_set%zet(1:npgf(iset), iset)))
+                  zet_min = MIN(zet_min, MINVAL(basis_set%zet(1:npgf(iset), iset)))
                ENDIF
             ENDDO
          ENDDO
@@ -515,11 +522,11 @@ CONTAINS
 
       CPASSERT(l_zet .GE. 0)
 
-      zet_c = zet_m
+      zet_max = zet_m
 
       ! l + 1 because we may calculate forces
       ! this is probably a safe choice also for the case that forces are not needed
-      l_c = l_zet+1
+      l_max_zet = l_zet+1
       l_max = l_m+1
 
       CALL timestop(handle)
@@ -541,6 +548,18 @@ CONTAINS
       logger => param%logger
 
       unit_nr = param%par%unit_nr
+
+      IF (unit_nr > 0) THEN
+         SELECT CASE (param%par%potential)
+         CASE (eri_mme_coulomb)
+            WRITE (unit_nr, '(/T2, A)') "ERI_MME| Potential: Coulomb"
+         CASE (eri_mme_yukawa)
+            WRITE (unit_nr, '(/T2, A, ES9.2)') "ERI_MME| Potential: Yukawa with a=", param%par%pot_par
+         CASE (eri_mme_longrange)
+            WRITE (unit_nr, '(/T2, A, ES9.2)') "ERI_MME| Potential: long-range Coulomb with a=", param%par%pot_par
+         END SELECT
+      ENDIF
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(/T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%par%cutoff
          WRITE (unit_nr, '(/T2, A, T78, I3/)') "ERI_MME| Number of terms in minimax approximation:", param%par%n_minimax
@@ -674,6 +693,22 @@ CONTAINS
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="POTENTIAL", &
+                          description="Operator to test", &
+                          default_i_val=eri_mme_coulomb, &
+                          enum_i_vals=(/eri_mme_coulomb, eri_mme_yukawa, eri_mme_longrange/), &
+                          enum_c_vals=s2a("COULOMB", "YUKAWA", "LONGRANGE"), &
+                          enum_desc=s2a("1/r", "exp(-a*r)/r", "erf(a*r)/r"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="POTENTIAL_PARAM", &
+                          description="Parameter 'a' for chosen potential, ignored for Coulomb", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_eri_mme_test_section
 
 ! **************************************************************************************************
@@ -736,9 +771,10 @@ CONTAINS
 
       INTEGER                                            :: count_r, G_count, GG_count, GR_count, i, &
                                                             ix, iy, iz, l_max, min_nR, nR, nR_xyz, &
-                                                            nrep, nsample, nzet, R_count, RR_count
+                                                            nrep, nsample, nzet, potential, &
+                                                            R_count, RR_count
       LOGICAL                                            :: test_2c, test_3c, test_accuracy
-      REAL(KIND=dp)                                      :: zet_fac, zetmax, zetmin
+      REAL(KIND=dp)                                      :: pot_par, zet_fac, zetmax, zetmin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rabc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
@@ -762,6 +798,8 @@ CONTAINS
       CALL section_vals_val_get(eri_mme_test_section, "ZET_MAX", r_val=zetmax)
       CALL section_vals_val_get(eri_mme_test_section, "NZET", i_val=nzet)
       CALL section_vals_val_get(eri_mme_test_section, "NSAMPLE_3C", i_val=nsample)
+      CALL section_vals_val_get(eri_mme_test_section, "POTENTIAL", i_val=potential)
+      CALL section_vals_val_get(eri_mme_test_section, "POTENTIAL_PARAM", r_val=pot_par)
 
       IF (nzet .LE. 0) &
          CPABORT("Number of exponents NZET must be greater than 0.")
@@ -807,16 +845,19 @@ CONTAINS
       ENDDO
 
       ! initialize MME method
-      CALL cp_eri_mme_set_params(param, box%hmat, box%orthorhombic, MINVAL(zet), MAXVAL(zet), l_max, l_max, para_env)
+      CALL cp_eri_mme_set_params(param, box%hmat, box%orthorhombic, MINVAL(zet), MAXVAL(zet), l_max, l_max, para_env, &
+                                 potential, pot_par)
 
       IF (iw > 0) WRITE (iw, '(T2, A, T61, I20)') "ERI_MME| Number of atomic distances:", nR
 
       G_count = 0; R_count = 0
       GG_count = 0; GR_count = 0; RR_count = 0
 
-      IF (test_2c) CALL eri_mme_2c_perf_acc_test(param%par, l_max, zet, rabc, nrep, test_accuracy, para_env, iw, G_count, R_count)
+      IF (test_2c) CALL eri_mme_2c_perf_acc_test(param%par, l_max, zet, rabc, nrep, test_accuracy, para_env, iw, &
+                                                 potential=potential, pot_par=pot_par, G_count=G_count, R_count=R_count)
       IF (test_3c) CALL eri_mme_3c_perf_acc_test(param%par, l_max, zet, rabc, nrep, nsample, &
-                                                 para_env, iw, GG_count, GR_count, RR_count)
+                                                 para_env, iw, potential=potential, pot_par=pot_par, &
+                                                 GG_count=GG_count, GR_count=GR_count, RR_count=RR_count)
       CALL cp_eri_mme_update_local_counts(param, para_env, G_count, R_count, GG_count, GR_count, RR_count)
       CALL cp_eri_mme_finalize(param)
       CALL cell_release(box)
