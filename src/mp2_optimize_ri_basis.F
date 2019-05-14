@@ -204,10 +204,6 @@ CONTAINS
          CALL mp_sum(Emp2_AB, para_env%group)
          DEALLOCATE (ij_list_proc)
 
-         ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Alpha = ', Emp2_AA
-         ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Beta-Beta   = ', Emp2_BB
-         ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Beta  = ', Emp2_AB
-
          Emp2 = Emp2_AA+Emp2_BB+Emp2_AB*2.0_dp !+Emp2_BA
          Emp2_Cou = Emp2_AA_Cou+Emp2_BB_Cou+Emp2_AB_Cou*2.0_dp !+Emp2_BA
          Emp2_ex = Emp2_AA_ex+Emp2_BB_ex+Emp2_AB_ex*2.0_dp !+Emp2_BA
@@ -1527,18 +1523,6 @@ CONTAINS
             DEALLOCATE (num_sgf_per_l)
             DEALLOCATE (max_min_exp_l)
             DEALLOCATE (RI_num_sgf_per_l)
-
-            ! IF(qs_env%para_env%mepos==0) THEN
-            !   WRITE(*,*) RI_nset, RI_max_am, geom_fact
-            !   iset=0
-            !   DO la=0, RI_max_am
-            !     DO iexpo=1, RI_num_sgf_per_l(la)
-            !       iset=iset+1
-            !       WRITE(*,*) RI_l_expo(iset), RI_exponents(iset)
-            !     END DO
-            !   END DO
-            !   WRITE(*,*) nsgfa, nsgfa_RI
-            ! END IF
 
          END IF ! RI basis not associated
 
