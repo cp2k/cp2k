@@ -15,7 +15,8 @@ MODULE mathlib
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: euler,&
-                                              fac
+                                              fac,&
+                                              pi
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,7 +37,8 @@ MODULE mathlib
              get_pseudo_inverse_svd, &
              get_pseudo_inverse_diag, &
              symmetrize_matrix, &
-             unit_matrix, diag
+             unit_matrix, diag, &
+             erfc_cutoff
 
    ! Public functions
 
@@ -1736,6 +1738,63 @@ CONTAINS
       END DO
 
    END SUBROUTINE swap_vector
+
+! **************************************************************************************************
+!> \brief - compute a truncation radius for the shortrange operator
+!> \param eps target accuracy!> \param omg screening parameter
+!> \param r_cutoff cutoff radius
+!> \par History
+!>      10.2012 created [Hossein Banihashemian]
+!>      05.2019 moved here from hfx_types (A. Bussy)
+!> \author Hossein Banihashemian
+! **************************************************************************************************
+   SUBROUTINE erfc_cutoff(eps, omg, r_cutoff)
+      IMPLICIT NONE
+
+      REAL(dp), INTENT(in)  :: eps, omg
+      REAL(dp), INTENT(out) :: r_cutoff
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'erfc_cutoff', &
+                                     routineP = moduleN//':'//routineN
+
+      REAL(dp), PARAMETER :: abstol = 1E-10_dp, soltol = 1E-16_dp
+      REAL(dp) :: r0, f0, fprime0, delta_r
+      INTEGER :: iter, handle
+      INTEGER, PARAMETER :: iterMAX = 1000
+
+      CALL timeset(routineN, handle)
+
+      ! initial guess assuming that we are in the asymptotic regime of the erf, and the solution is about 10.
+      r0 = SQRT(-LOG(eps*omg*10**2))/omg
+      CALL eval_transc_func(r0, eps, omg, f0, fprime0)
+
+      DO iter = 1, iterMAX
+         delta_r = f0/fprime0
+         r0 = r0-delta_r
+         CALL eval_transc_func(r0, eps, omg, f0, fprime0)
+         IF (ABS(delta_r) .LT. abstol .OR. ABS(f0) .LT. soltol) EXIT
+      END DO
+      CPASSERT(iter <= itermax)
+      r_cutoff = r0
+
+      CALL timestop(handle)
+   CONTAINS
+! **************************************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param eps ...
+!> \param omega ...
+!> \param fn ...
+!> \param df ...
+! **************************************************************************************************
+      SUBROUTINE eval_transc_func(r, eps, omega, fn, df)
+         REAL(dp), INTENT(in)                               :: r, eps, omega
+         REAL(dp), INTENT(out)                              :: fn, df
+
+         fn = erfc(omega*r)-r*eps
+         df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi)-eps
+      END SUBROUTINE eval_transc_func
+   END SUBROUTINE erfc_cutoff
 
 END MODULE mathlib
 

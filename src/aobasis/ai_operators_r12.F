@@ -11,7 +11,7 @@
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !>      R. Ahlrichs, PCCP, 8, 3072 (2006)
 !> \par History
-!>      none
+!>      05.2019 Added the truncated Coulomb operator (A. Bussy)
 !> \par Parameters
 !>       - ax,ay,az    : Angular momentum index numbers of orbital a.
 !>       - cx,cy,cz    : Angular momentum index numbers of orbital c.
@@ -28,6 +28,7 @@
 !>       - zetp        : Reciprocal of the sum of the exponents of orbital a and b.
 !>       - zetw        : Reciprocal of the sum of the exponents of orbital a and c.
 !>       - omega       : Parameter in the operator
+!>       - r_cutoff    : The cutoff radius for the truncated Coulomb operator
 !> \author Dorothea Golze (05.2016)
 ! **************************************************************************************************
 MODULE ai_operators_r12
@@ -38,6 +39,7 @@ MODULE ai_operators_r12
                                               pi
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
+   USE t_c_g0,                          ONLY: t_c_g0_n, get_lmax_init
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -46,7 +48,8 @@ MODULE ai_operators_r12
 
    ! *** Public subroutines ***
 
-   PUBLIC :: operator2, cps_coulomb2, cps_verf2, cps_verfc2, cps_vgauss2, cps_gauss2, ab_sint_os
+   PUBLIC :: operator2, cps_coulomb2, cps_verf2, cps_verfc2, cps_vgauss2, cps_gauss2, ab_sint_os, &
+             cps_truncated2
 
    ABSTRACT INTERFACE
 ! **************************************************************************************************
@@ -60,12 +63,14 @@ MODULE ai_operators_r12
 !> \param rho ...
 !> \param rac2 ...
 !> \param omega ...
+!> \param r_cutoff ...
 ! **************************************************************************************************
-      SUBROUTINE ab_sint_os(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+      SUBROUTINE ab_sint_os(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
          USE kinds, ONLY: dp
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
-      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
 
       END SUBROUTINE ab_sint_os
    END INTERFACE
@@ -87,6 +92,7 @@ CONTAINS
 !> \param zetc ...
 !> \param lc_min ...
 !> \param omega ...
+!> \param r_cutoff ...
 !> \param rac ...
 !> \param rac2 ...
 !> \param vac matrix storing the integrals
@@ -97,14 +103,14 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE operator2(cps_operator2, la_max, npgfa, zeta, la_min, lc_max, npgfc, zetc, lc_min, &
-                        omega, rac, rac2, vac, v, maxder, vac_plus)
+                        omega, r_cutoff, rac, rac2, vac, v, maxder, vac_plus)
       PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2
       INTEGER, INTENT(IN)                                :: la_max, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta
       INTEGER, INTENT(IN)                                :: la_min, lc_max, npgfc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetc
       INTEGER, INTENT(IN)                                :: lc_min
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(IN)                          :: omega, r_cutoff
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
       REAL(KIND=dp), INTENT(IN)                          :: rac2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vac
@@ -160,7 +166,7 @@ CONTAINS
 
             ! *** Calculate the basic two-center integrals [s||s]{n} ***
 
-            CALL cps_operator2(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+            CALL cps_operator2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
 
             ! *** Vertical recurrence steps: [s||s] -> [s||c] ***
 
@@ -428,20 +434,24 @@ CONTAINS
 !> \param rac2 square distance between center A and C, |Ra-Rc|^2
 !> \param omega this parameter is actually not used, but included for the sake of the abstract
 !>        interface
+!> \param r_cutoff same as above
 ! **************************************************************************************************
-   SUBROUTINE cps_coulomb2(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+   SUBROUTINE cps_coulomb2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
-      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cps_coulomb2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: n
-      REAL(KIND=dp)                                      :: dummy, f0, t
+      REAL(KIND=dp)                                      :: f0, t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
 
+      MARK_USED(omega)
+      MARK_USED(r_cutoff)
+
       ALLOCATE (f(0:nmax))
-      dummy = omega
       f0 = 2.0_dp*SQRT(pi**5*zetw)*zetp*zetq
 
       ! *** Calculate the incomplete Gamma/Boys function ***
@@ -469,17 +479,21 @@ CONTAINS
 !> \param rho = zeta*zetc*zetw
 !> \param rac2 square distance between center A and C, |Ra-Rc|^2
 !> \param omega parameter in the operator
+!> \param r_cutoff dummy argument for the sake of generality
 ! **************************************************************************************************
-   SUBROUTINE cps_verf2(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+   SUBROUTINE cps_verf2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
-      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cps_verf2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: arg, comega, f0, t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
+
+      MARK_USED(r_cutoff)
 
       ALLOCATE (f(0:nmax))
       comega = omega**2/(omega**2+rho)
@@ -512,17 +526,21 @@ CONTAINS
 !> \param rho = zeta*zetc*zetw
 !> \param rac2 square distance between center A and C, |Ra-Rc|^2
 !> \param omega parameter in the operator
+!> \param r_cutoff dummy argument for the sake of generality
 ! **************************************************************************************************
-   SUBROUTINE cps_verfc2(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+   SUBROUTINE cps_verfc2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
-      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cps_verfc2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: argerf, comega, f0, t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fv, fverf
+
+      MARK_USED(r_cutoff)
 
       ALLOCATE (fv(0:nmax), fverf(0:nmax))
       comega = omega**2/(omega**2+rho)
@@ -557,17 +575,21 @@ CONTAINS
 !> \param rho = zeta*zetc*zetw
 !> \param rac2 square distance between center A and C, |Ra-Rc|^2
 !> \param omega parameter in the operator
+!> \param r_cutoff dummy argument for the sake of generality
 ! **************************************************************************************************
-   SUBROUTINE cps_vgauss2(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+   SUBROUTINE cps_vgauss2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
-      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cps_vgauss2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: j, n
       REAL(KIND=dp)                                      :: arg, dummy, eta, expT, f0, fsign, t, tau
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
+
+      MARK_USED(r_cutoff)
 
       ALLOCATE (f(0:nmax))
 
@@ -611,17 +633,21 @@ CONTAINS
 !> \param rho = zeta*zetc*zetw
 !> \param rac2 square distance between center A and C, |Ra-Rc|^2
 !> \param omega parameter in the operator
+!> \param r_cutoff dummy argument for the sake of generality
 ! **************************************************************************************************
-   SUBROUTINE cps_gauss2(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+   SUBROUTINE cps_gauss2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
-      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cps_gauss2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: dummy, expT, f0, t, tau
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
+
+      MARK_USED(r_cutoff)
 
       ALLOCATE (f(0:nmax))
 
@@ -641,5 +667,54 @@ CONTAINS
       DEALLOCATE (f)
 
    END SUBROUTINE cps_gauss2
+
+! **************************************************************************************************
+!> \brief Calculation of truncated Coulomb integrals for s-function, i.e, [s|TC|s] where TC = 1/r12
+!>        if r12 <= r_cutoff and 0 otherwise
+!> \param v matrix storing the integrals
+!> \param nmax maximal n in the auxiliary integrals [s|TC|s]
+!> \param zetp = 1/zeta
+!> \param zetq = 1/zetc
+!> \param zetw = 1/(zeta+zetc)
+!> \param rho = zeta*zetc*zetw
+!> \param rac2 square distance between center A and C, |Ra-Rc|^2
+!> \param omega dummy argument for the sake of generality
+!> \param r_cutoff the radius at which the operator is cut
+!> \note The truncated operator must have been initialized from the data file prior to this call
+! **************************************************************************************************
+   SUBROUTINE cps_truncated2(v, nmax, zetp, zetq, zetw, rho, rac2, omega, r_cutoff)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
+      INTEGER, INTENT(IN)                                :: nmax
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
+                                                            r_cutoff
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_truncated2', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: n
+      REAL(KIND=dp)                                      :: t, r, f0
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
+      LOGICAL                                            :: use_gamma
+
+      MARK_USED(omega)
+
+      ALLOCATE (f(nmax+1)) !t_c_g0 needs to start at index 1
+
+      r = r_cutoff*SQRT(rho)
+      t = rho*rac2
+      f0 = 2.0_dp*SQRT(pi**5*zetw)*zetp*zetq
+
+      !check that the operator has been init from file
+      CPASSERT(get_lmax_init() .GE. nmax) 
+
+      CALL t_c_g0_n(f, use_gamma, r, t, nmax)
+      IF (use_gamma) CALL fgamma(nmax, t, f)
+
+      DO n = 1, nmax
+         v(1, 1, n) = f0*f(n)
+      END DO
+      
+      DEALLOCATE(f)
+
+   END SUBROUTINE cps_truncated2
 
 END MODULE ai_operators_r12

@@ -12,7 +12,7 @@ MODULE xas_tdp_kernel
    USE basis_set_types,                 ONLY: gto_basis_set_type, get_gto_basis_set
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply, dbcsr_deallocate_matrix_set,&
-                                              dbcsr_allocate_matrix_set
+                                              dbcsr_allocate_matrix_set, cp_dbcsr_dist2d_to_dist
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create, cp_fm_struct_release, &
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create, cp_fm_release, cp_fm_type, &
@@ -27,9 +27,9 @@ MODULE xas_tdp_kernel
                                               dbcsr_complete_redistribute, dbcsr_iterator_type, &
                                               dbcsr_iterator_blocks_left, dbcsr_iterator_start, &
                                               dbcsr_iterator_stop, dbcsr_iterator_next_block, &
-                                              dbcsr_add, dbcsr_reserve_block2d, &
+                                              dbcsr_add, dbcsr_reserve_block2d, dbcsr_filter, &
                                               dbcsr_transposed, dbcsr_get_stored_coordinates, &
-                                              dbcsr_type_symmetric
+                                              dbcsr_type_symmetric, dbcsr_distribution_release
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast, mp_isend, mp_irecv, mp_waitall
    USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env 
@@ -674,10 +674,12 @@ CONTAINS
       REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: coeffs, ri_coeffs
       TYPE(o3c_vec_type), DIMENSION(:), POINTER       :: o3c_vec
       TYPE(dbcsr_type), POINTER                       :: abIJ
-      TYPE(dbcsr_type)                                :: contr1_int_t, abIJ_desymm, work_mat
+      TYPE(dbcsr_type)                                :: contr1_int_t, abIJ_desymm, work_mat, &
+                                                         abIJ_desymm_std_dist
       REAL(dp), DIMENSION(:), POINTER                 :: v
       REAL(dp), DIMENSION(:,:), POINTER               :: pblock, PQ, aIQ
       TYPE(dbcsr_iterator_type)                       :: iter
+      TYPE(dbcsr_distribution_type)                   :: opt_3c_dist
 
       NULLIFY(para_env, matrix_s, ri_blk_size, o3c_vec, v)
       NULLIFY(vec_blk_size, pblock, abIJ, PQ, aIQ)
@@ -692,7 +694,7 @@ CONTAINS
       do_roks = xas_tdp_control%do_roks
       do_uks = xas_tdp_control%do_uks
       ndo_so = ndo_mo; IF (do_uks) ndo_so = 2*ndo_mo !if not UKS, same donor MOs for both spins
-      PQ => xas_tdp_env%ri_inv_coul
+      PQ => xas_tdp_env%ri_inv_ex
       
       CALL get_qs_env(qs_env, para_env=para_env, matrix_s=matrix_s)
       CALL dbcsr_get_info(contr1_int(1)%matrix, col_blk_size=ri_blk_size)
@@ -706,8 +708,15 @@ CONTAINS
       CALL o3c_vec_create(o3c_vec, vec_blk_size)
 
       ! a and b need to overlap for non-zero (ab|IJ) => same block structure as overlap S
+      ! goes into an o3c routine => need compatible distribution_2d
+      CALL cp_dbcsr_dist2d_to_dist(xas_tdp_env%opt_3c_dist2d, opt_3c_dist)
+
       ALLOCATE(abIJ)
-      CALL dbcsr_copy(abIJ, matrix_s(1)%matrix, name="(ab|IJ)")
+      CALL dbcsr_create(abIJ, template=matrix_s(1)%matrix, name="(ab|IJ)", dist=opt_3c_dist)
+      CALL dbcsr_complete_redistribute(matrix_s(1)%matrix, abIJ)
+
+      CALL dbcsr_create(abIJ_desymm_std_dist, template=matrix_s(1)%matrix, matrix_type="N")
+
       CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
@@ -745,16 +754,19 @@ CONTAINS
             CALL dbcsr_set(abIJ, 0.0_dp)
             CALL contract3_o3c(xas_tdp_env%ri_o3c_ex, o3c_vec, abIJ)
 
-            ! (ab|IJ) is symmetric, but need it as normal for distributions to match
+            ! (ab|IJ) is symmetric, but need it as normal in the stendard dbcsr distribution
+            ! for the block by block copying process
             CALL dbcsr_desymmetrize(abIJ, abIJ_desymm)
+            CALL dbcsr_filter(abIJ_desymm, 1.0E-12_dp) !if short range exchange, might have 0 blocks
+            CALL dbcsr_complete_redistribute(abIJ_desymm, abIJ_desymm_std_dist)
 
-            CALL dbcsr_iterator_start(iter, abIJ_desymm)
+            CALL dbcsr_iterator_start(iter, abIJ_desymm_std_dist)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
                CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
                IF (iso == jso .AND. jblk<iblk) CYCLE
 
-               CALL dbcsr_get_block_p(abIJ_desymm, iblk, jblk, pblock, found)
+               CALL dbcsr_get_block_p(abIJ_desymm_std_dist, iblk, jblk, pblock, found)
 
                IF (found) THEN
                   CALL dbcsr_put_block(work_mat, (iso-1)*nblk+iblk, (jso-1)*nblk+jblk, pblock)
@@ -784,6 +796,8 @@ CONTAINS
       CALL dbcsr_release(work_mat)
       CALL dbcsr_release(abIJ)
       CALL o3c_vec_release(o3c_vec)
+      CALL dbcsr_distribution_release(opt_3c_dist)
+      CALL dbcsr_release(abIJ_desymm_std_dist)
       DEALLOCATE(o3c_vec, vec_blk_size, abIJ)
 
    END SUBROUTINE ondiag_ex
@@ -828,7 +842,7 @@ CONTAINS
       ndo_mo = donor_state%ndo_mo
       do_roks = xas_tdp_control%do_roks
       do_uks = xas_tdp_control%do_uks
-      PQ => xas_tdp_env%ri_inv_coul
+      PQ => xas_tdp_env%ri_inv_ex
 
       rhs_int => contr1_int
       ALLOCATE(lhs_int(SIZE(contr1_int)))
@@ -905,10 +919,10 @@ CONTAINS
       INTEGER                                         :: handle, natom, ndo_mo, imo, nsgfk, kkind, &
                                                          katom, nspins, ndo_so, ispin, i
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrices
-      TYPE(dbcsr_type), POINTER                       :: aI_P, P_Ib, work1, work2 
+      TYPE(dbcsr_type), POINTER                       :: aI_P, P_Ib, work1, work2, work3
       CHARACTER                                       :: my_op
       INTEGER, DIMENSION(:), POINTER                  :: std_blk_size, ri_blk_size
-      TYPE(dbcsr_distribution_type), POINTER          :: dbcsr_dist
+      TYPE(dbcsr_distribution_type)                   :: opt_3c_dist
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(gto_basis_set_type), POINTER               :: ri_basis
       REAL(dp), DIMENSION(:,:), POINTER               :: coeffs
@@ -916,14 +930,13 @@ CONTAINS
       LOGICAL                                         :: do_uks
       TYPE(cp_para_env_type), POINTER                 :: para_env
 
-      NULLIFY(matrix_s, std_blk_size, ri_blk_size, dbcsr_dist, qs_kind_set, ri_basis)
+      NULLIFY(matrix_s, std_blk_size, ri_blk_size, qs_kind_set, ri_basis)
       NULLIFY(aI_P, P_Ib, work1, work2, matrices, coeffs)
 
       CALL timeset(routineN, handle)
 
 !  Initialization
-      CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s, qs_kind_set=qs_kind_set, &
-                      dbcsr_dist=dbcsr_dist, para_env=para_env)
+      CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s, qs_kind_set=qs_kind_set, para_env=para_env)
       ndo_mo = donor_state%ndo_mo
       kkind = donor_state%kind_index
       katom = donor_state%at_index
@@ -950,15 +963,18 @@ CONTAINS
 !  Create  work matrices. They must have the block distribution of a symmetric matric to enter the 
 !  o3c routines. HACK => create a symmetric matrix with non-symmetric block size (aI_P, P_Ib)
 !  Also create their normal matrix conterparts (work1, work2)
-      ALLOCATE(aI_P, P_Ib, work1, work2, matrices(2))
-      CALL dbcsr_create(aI_P, dist=dbcsr_dist, matrix_type="S", name="(aI|P)", &
+!  Everything that goes into a o3c routine must be compatible with xas_tdp_env%opt_3c_dist2d
+      CALL cp_dbcsr_dist2d_to_dist(xas_tdp_env%opt_3c_dist2d, opt_3c_dist)
+
+      ALLOCATE(aI_P, P_Ib, work1, work2, work3, matrices(2))
+      CALL dbcsr_create(aI_P, dist=opt_3c_dist, matrix_type="S", name="(aI|P)", &
                         row_blk_size=std_blk_size, col_blk_size=ri_blk_size)
-      CALL dbcsr_create(work1, dist=dbcsr_dist, matrix_type="N", name="WORK 1", &
+      CALL dbcsr_create(work1, dist=opt_3c_dist, matrix_type="N", name="WORK 1", &
                         row_blk_size=std_blk_size, col_blk_size=ri_blk_size)
 
-      CALL dbcsr_create(P_Ib, dist=dbcsr_dist, matrix_type="S", name="(P|Ib)", &
+      CALL dbcsr_create(P_Ib, dist=opt_3c_dist, matrix_type="S", name="(P|Ib)", &
                         row_blk_size=ri_blk_size, col_blk_size=std_blk_size)
-      CALL dbcsr_create(work2, dist=dbcsr_dist, matrix_type="N", name="WORK 2", &
+      CALL dbcsr_create(work2, dist=opt_3c_dist, matrix_type="N", name="WORK 2", &
                         row_blk_size=ri_blk_size, col_blk_size=std_blk_size)
 
       !reserve the blocks (needed for o3c routines)
@@ -973,6 +989,8 @@ CONTAINS
       ALLOCATE(contr_int(ndo_so))
       DO i = 1, ndo_so
          ALLOCATE(contr_int(i)%matrix)
+         CALL dbcsr_create(matrix=contr_int(i)%matrix, template=matrix_s(1)%matrix, matrix_type="N",&
+                           row_blk_size=std_blk_size, col_blk_size=ri_blk_size)
       END DO
 
    ! Only take the coeffs for atom on which MOs I,J are localized
@@ -990,13 +1008,16 @@ CONTAINS
             ELSE
                CALL contract_o3c_once(o3c_ex, coeffs(:,(ispin-1)*ndo_mo+imo), aI_P, P_Ib, katom)
             END IF
-         
+
             ! Get the full "normal" (aI|P) contracted integrals
             CALL change_dist(P_Ib, work2, para_env)
-            CALL dbcsr_transposed(contr_int((ispin-1)*ndo_mo+imo)%matrix, work2)
+            CALL dbcsr_transposed(work3, work2)
             CALL change_dist(aI_P, work1, para_env)
-            CALL dbcsr_add(contr_int((ispin-1)*ndo_mo+imo)%matrix, work1, 1.0_dp, 1.0_dp)
-            
+            CALL dbcsr_add(work3, work1, 1.0_dp, 1.0_dp)
+            CALL dbcsr_complete_redistribute(work3, contr_int((ispin-1)*ndo_mo+imo)%matrix)
+
+            CALL dbcsr_release(work3)
+
          END DO !imo
       END DO !ispin
 
@@ -1005,7 +1026,8 @@ CONTAINS
       CALL dbcsr_release(P_Ib)
       CALL dbcsr_release(work1)
       CALL dbcsr_release(work2)
-      DEALLOCATE(ri_blk_size, aI_P, P_Ib, work1, work2)
+      CALL dbcsr_distribution_release(opt_3c_dist)
+      DEALLOCATE(ri_blk_size, aI_P, P_Ib, work1, work2, work3)
 
       CALL timestop(handle)
 
@@ -1134,11 +1156,12 @@ CONTAINS
 
       INTEGER                                         :: iblk, jblk, blk, i, n
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(dbcsr_type), POINTER                       :: template
+      TYPE(dbcsr_type), POINTER                       :: template, work
       TYPE(dbcsr_iterator_type)                       :: iter
       LOGICAL                                         :: found
       REAL(dp), DIMENSION(:,:), POINTER               :: pblock_s, pblock_m
       CHARACTER                                       :: my_type
+      TYPE(dbcsr_distribution_type)                   :: dist 
 
       NULLIFY(matrix_s, pblock_s, pblock_m, template)
 
@@ -1148,13 +1171,19 @@ CONTAINS
       !assume symmetric type
       my_type = dbcsr_type_symmetric
       IF (PRESENT(matrix_type)) my_type = matrix_type
+      CALL dbcsr_get_info(matrices(1)%matrix, distribution=dist)
+
+!  Need to redistribute matrix_s in the distribution of matrices
+      ALLOCATE(work)
+      CALL dbcsr_create(work, template=matrix_s(1)%matrix, dist=dist)
+      CALL dbcsr_complete_redistribute(matrix_s(1)%matrix, work)
 
 !  If non-symmetric, need to desymmetrize matrix as as a template
       IF (my_type .NE. dbcsr_type_symmetric) THEN
          ALLOCATE(template)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, template)
+         CALL dbcsr_desymmetrize(work, template)
       ELSE
-         template => matrix_s(1)%matrix
+         template => work
       END IF
 
 !  Loop over matrix_s as need a,b to overlap
@@ -1162,10 +1191,10 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
          CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
-         !only have a,b pair if one of the is the ri_atom
+         !only have a,b pair if one of them is the ri_atom
          IF (iblk .NE. ri_atom .AND. jblk .NE. ri_atom) CYCLE
          IF (jblk < iblk) CYCLE 
-         
+
          CALL dbcsr_get_block_p(template, iblk, jblk, pblock_s, found) 
 
          IF (found) THEN
@@ -1187,6 +1216,8 @@ CONTAINS
          CALL dbcsr_release(template)
          DEALLOCATE(template)
       END IF
+      CALL dbcsr_release(work)
+      DEALLOCATE(work)
 
    END SUBROUTINE reserve_contraction_blocks
 
@@ -1489,5 +1520,5 @@ CONTAINS
       CALL dbcsr_release(prod)
 
    END SUBROUTINE ri_int_product
-   
+  
 END MODULE xas_tdp_kernel

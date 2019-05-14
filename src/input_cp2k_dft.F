@@ -97,7 +97,7 @@ MODULE input_cp2k_dft
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
         xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip, do_hfx_potential_coulomb, &
-        do_hfx_potential_truncated
+        do_hfx_potential_truncated, do_hfx_potential_short
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7892,7 +7892,7 @@ CONTAINS
       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of XAS simulations with linear "// &
                           "response TDDFT.", &
-                          usage="&TDP_XAS ON", &
+                          usage="&TDP_XAS {logical}", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -7952,7 +7952,7 @@ CONTAINS
       CALL keyword_create(keyword, name="DEFINE_EXCITED", &
                           description="Whether the atoms to be excited should be defined by "// &
                           "a list of atom indices or by a list of atom kinds.", &
-                          usage="DEFINE_EXCITED string", &
+                          usage="DEFINE_EXCITED {string}", &
                           default_i_val=xas_tdp_by_index, &
                           enum_c_vals=s2a("BY_INDEX", "BY_KIND"), &
                           enum_i_vals=(/xas_tdp_by_index, xas_tdp_by_kind/))
@@ -8034,7 +8034,7 @@ CONTAINS
                                       "The default grid dimensions are those set for the GAPW "// &
                                       "ground state calculation. These grids are used for the "// &
                                       "xc-kernel calculations and/or for spin-orbit coupling.", &
-                          usage="GRID kind na nr", &
+                          usage="GRID kind na nr {string} {integer} {integer}", &
                           n_var=3, type_of_var=char_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -8168,7 +8168,7 @@ CONTAINS
       CALL section_create(subsubsection, name="EXACT_EXCHANGE", &
                           description="Whther exact-exchange should be added to the kernel and " //&
                                       "if so, with which scaling.", &
-                          n_keywords=3, &
+                          n_keywords=6, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -8183,24 +8183,52 @@ CONTAINS
       CALL keyword_create(keyword, name="OPERATOR", variants=(/"OP"/), &
                           description="The type of operator used for exact exchange. The stendard"// &
                                       "Coulomb operator cannot be used in periodic systems.", &
-                          usage="OPERATOR string", &
+                          usage="OPERATOR {string}", &
                           repeats=.FALSE., &
                           default_i_val=do_hfx_potential_coulomb, &
-                          enum_c_vals=s2a("COULOMB", "TC"), &
-                          enum_desc=s2a("Stendard Coulomb operator", "Truncated Coulomb operator"),&
-                          enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_truncated/))
+                          enum_c_vals=s2a("COULOMB", "TRUNCATED", "SHORTRANGE"), &
+                          enum_desc=s2a("Stendard Coulomb operator: 1/r", &
+                                        "Truncated Coulomb operator: 1/r if (r<R_c), 0 otherwise ",&
+                                        "Short range: erfc(omega*r)/r"),&
+                          enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_truncated, &
+                                        do_hfx_potential_short/))
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANGE", &
-                          description="The cutoff radius (in Angstrom) for the truncated Coulomb "// &
-                                       "operator. Ignored if OPERATOR is set to COULOMB.", &
-                          usage="RANGE {double}", &
+      CALL keyword_create(keyword, name="CUTOFF_RADIUS", &
+                          variants=s2a("R_C", "RC", "RANGE"), &
+                          description="The cutoff radius (in Angstrom) for the truncated Coulomb operator.", &
+                          usage="CUTOFF_RADIUS {double}", &
                           default_r_val=0.0_dp, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="T_C_G_DATA", &
+                          description="Location of the file t_c_g.dat that contains the data for the "// &
+                                      "evaluation of the truncated gamma function ", &
+                          usage="T_C_G_DATA {string}", &
+                          default_c_val="t_c_g.dat")
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OMEGA", &
+                          description="The range parameter for the short range operator (in 1/a0).",&
+                          usage="OMEGA {double}", &
+                          default_r_val=0.0_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_RANGE", &
+                          description="The threshold to determine the effective range of the short range "//&
+                                      "operator: erfc(omega*eff_range)/eff_range = EPS_EANGE", &
+                          usage="EPS_RANGE = {double}", &
+                          default_r_val=1.0E-6_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+                          
       CALL keyword_create(keyword, name="SCALE", &
                           description="Scaling of the exact exchange contribution.", &
                           default_r_val=1.0_dp)
