@@ -31,7 +31,7 @@ MODULE eri_mme_error_control
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_error_control'
 
-   PUBLIC :: calibrate_cutoff, cutoff_minimax_error
+   PUBLIC :: calibrate_cutoff, cutoff_minimax_error, minimax_error, cutoff_error
 CONTAINS
 
 ! **************************************************************************************************
@@ -41,10 +41,10 @@ CONTAINS
 !> \param h_inv ...
 !> \param G_min ...
 !> \param vol ...
-!> \param zet_mm    Exponent to estimate minimax error
-!> \param l_mm      Total ang. mom. quantum number to estimate minimax error
-!> \param zet_c     Max. exponents to estimate cutoff error
-!> \param l_c       Max. total ang. mom. quantum numbers to estimate cutoff error
+!> \param zet_min   Minimum exponent
+!> \param l_mm      Total ang. mom. quantum number
+!> \param zet_max     Max. exponents to estimate cutoff error
+!> \param l_max_zet       Max. total ang. mom. quantum numbers to estimate cutoff error
 !> \param n_minimax Number of terms in minimax approximation
 !> \param cutoff_l  Initial guess of lower bound for cutoff
 !> \param cutoff_r  Initial guess of upper bound for cutoff
@@ -59,16 +59,16 @@ CONTAINS
 !> \param print_calib ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE calibrate_cutoff(hmat, h_inv, G_min, vol, zet_mm, l_mm, zet_c, l_c, &
+   SUBROUTINE calibrate_cutoff(hmat, h_inv, G_min, vol, zet_min, l_mm, zet_max, l_max_zet, &
                                n_minimax, cutoff_l, cutoff_r, tol, delta, &
                                cutoff, err_mm, err_c, C_mm, para_env, print_calib, unit_nr)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
       REAL(KIND=dp), INTENT(IN)                          :: G_min
       REAL(KIND=dp)                                      :: vol
-      REAL(KIND=dp), INTENT(IN)                          :: zet_mm
+      REAL(KIND=dp), INTENT(IN)                          :: zet_min
       INTEGER, INTENT(IN)                                :: l_mm
-      REAL(KIND=dp), INTENT(IN)                          :: zet_c
-      INTEGER, INTENT(IN)                                :: l_c, n_minimax
+      REAL(KIND=dp), INTENT(IN)                          :: zet_max
+      INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_l, cutoff_r, tol, delta
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff, err_mm, err_c, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
@@ -87,9 +87,9 @@ CONTAINS
       do_print = unit_nr > 0 .AND. print_calib
       IF (do_print) THEN
          WRITE (unit_nr, '(/T2, A)') "ERI_MME| Basis set parameters for estimating minimax error"
-         WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_mm, l_mm
+         WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_min, l_mm
          WRITE (unit_nr, '(T2, A)') "ERI_MME| Basis set parameters for estimating cutoff error"
-         WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_c, l_c
+         WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_max, l_max_zet
       ENDIF
 
       max_iter = 100
@@ -124,7 +124,7 @@ CONTAINS
          ! approx.) is hit
 
          DO i = 1, 2
-            CALL cutoff_minimax_error(cutoff_lr(i), hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
+            CALL cutoff_minimax_error(cutoff_lr(i), hmat, h_inv, vol, G_min, zet_min, l_mm, zet_max, l_max_zet, &
                                       n_minimax, minimax_aw, delta_mm(i), delta_c(i), C_mm, para_env)
          ENDDO
 
@@ -151,7 +151,7 @@ CONTAINS
                           "Maximum number of iterations in bisection to determine cutoff has been exceeded")
 
          cutoff_mid = 0.5_dp*(cutoff_lr(1)+cutoff_lr(2))
-         CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
+         CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_min, l_mm, zet_max, l_max_zet, &
                                    n_minimax, minimax_aw, delta_mm_mid, delta_c_mid, C_mm, para_env)
          IF (do_print) WRITE (unit_nr, '(T11, I2, F11.1, F11.1, F11.1, 3X, ES9.2, 3X, ES9.2, 3X, ES9.2)') &
             iter2, cutoff_lr(1), cutoff_lr(2), cutoff_mid, &
@@ -189,10 +189,10 @@ CONTAINS
 !> \param h_inv ...
 !> \param vol ...
 !> \param G_min ...
-!> \param zet_mm     Exponent of P to estimate minimax error
+!> \param zet_min     Exponent of P to estimate minimax error
 !> \param l_mm       total ang. mom. quantum number of P to estimate minimax error
-!> \param zet_ctff   Max. exponents of P to estimate cutoff error
-!> \param l_ctff     Max. total ang. mom. quantum numbers of P to estimate cutoff error
+!> \param zet_max   Max. exponents of P to estimate cutoff error
+!> \param l_max_zet     Max. total ang. mom. quantum numbers of P to estimate cutoff error
 !> \param n_minimax  Number of terms in minimax approximation
 !> \param minimax_aw Minimax coefficients
 !> \param err_mm     Minimax error
@@ -201,14 +201,14 @@ CONTAINS
 !>                   minimax approx.
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE cutoff_minimax_error(cutoff, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_ctff, l_ctff, &
+   SUBROUTINE cutoff_minimax_error(cutoff, hmat, h_inv, vol, G_min, zet_min, l_mm, zet_max, l_max_zet, &
                                    n_minimax, minimax_aw, err_mm, err_ctff, C_mm, para_env)
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
-      REAL(KIND=dp), INTENT(IN)                          :: vol, G_min, zet_mm
+      REAL(KIND=dp), INTENT(IN)                          :: vol, G_min, zet_min
       INTEGER, INTENT(IN)                                :: l_mm
-      REAL(KIND=dp), INTENT(IN)                          :: zet_ctff
-      INTEGER, INTENT(IN)                                :: l_ctff, n_minimax
+      REAL(KIND=dp), INTENT(IN)                          :: zet_max
+      INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
       REAL(KIND=dp), INTENT(OUT)                         :: err_mm, err_ctff, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
@@ -216,30 +216,103 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_minimax_error', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i_aw, i_xyz, iG, iter, max_iter, nG
-      REAL(KIND=dp) :: C, dG, E_mm, eps_zet, err0, err1, err_c, err_ctff_curr, err_ctff_prev, &
-         err_d, G, G_1, G_c, gr, prod_mm_k, zet_a, zet_b, zet_c, zet_ctff_tmp, zet_d, zet_div
+      REAL(KIND=dp)                                      :: delta_mm
+
+      CALL minimax_error(cutoff, hmat, vol, G_min, zet_min, l_mm, &
+                         n_minimax, minimax_aw, err_mm, delta_mm)
+      CALL cutoff_error(cutoff, h_inv, G_min, zet_max, l_max_zet, &
+                        n_minimax, minimax_aw, err_ctff, C_mm, para_env)
+
+   END SUBROUTINE cutoff_minimax_error
+
+! **************************************************************************************************
+!> \brief   Minimax error, simple analytical formula
+!>          Note minimax error may blow up for small exponents. This is also observed numerically,
+!>          but in this case, error estimate is no upper bound.
+!> \param cutoff ...
+!> \param hmat ...
+!> \param vol ...
+!> \param G_min ...
+!> \param zet_min    Exponent of P to estimate minimax error
+!> \param l_mm       total ang. mom. quantum number of P to estimate minimax error
+!> \param n_minimax  Number of terms in minimax approximation
+!> \param minimax_aw Minimax coefficients
+!> \param err_mm     Minimax error
+!> \param delta_mm ...
+!> \param potential ...
+!> \param pot_par ...
+! **************************************************************************************************
+   SUBROUTINE minimax_error(cutoff, hmat, vol, G_min, zet_min, l_mm, &
+                            n_minimax, minimax_aw, err_mm, delta_mm, potential, pot_par)
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
+      REAL(KIND=dp), INTENT(IN)                          :: vol, G_min, zet_min
+      INTEGER, INTENT(IN)                                :: l_mm, n_minimax
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
+      REAL(KIND=dp), INTENT(OUT)                         :: err_mm, delta_mm
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'minimax_error', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i_xyz
+      REAL(KIND=dp)                                      :: prod_mm_k
+
+      CALL get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw(:), &
+                                      potential=potential, pot_par=pot_par, err_minimax=delta_mm)
+
+      prod_mm_k = 1.0_dp
+      DO i_xyz = 1, 3
+         prod_mm_k = prod_mm_k*(ABS(hmat(i_xyz, i_xyz))/twopi+ &
+                                MERGE(SQRT(2.0_dp/(zet_min*pi))*EXP(-1.0_dp), 0.0_dp, l_mm .GT. 0))
+      ENDDO
+      err_mm = 32*pi**4/vol*delta_mm*prod_mm_k
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Cutoff error, estimating G > G_c part of Ewald sum by using C/3 * 1/(Gx^2*Gy^2*Gz^2)^1/3 as an
+!>        upper bound for 1/G^2 (AM-GM inequality) and its minimax approximation (factor C).
+!>
+!> Note: usually, minimax approx. falls off faster than 1/G**2, so C should be approximately 1.
+!> The error is calculated for all l up to l_max and golden section search algorithm is
+!> applied to find the exponent that maximizes cutoff error.
+!> \param cutoff ...
+!> \param h_inv ...
+!> \param G_min ...
+!> \param zet_max   Max. exponents of P to estimate cutoff error
+!> \param l_max_zet     Max. total ang. mom. quantum numbers of P to estimate cutoff error
+!> \param n_minimax  Number of terms in minimax approximation
+!> \param minimax_aw Minimax coefficients
+!> \param err_ctff   Cutoff error
+!> \param C_mm       Scaling constant to generalize AM-GM upper bound estimate to
+!>                   minimax approx.
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE cutoff_error(cutoff, h_inv, G_min, zet_max, l_max_zet, &
+                           n_minimax, minimax_aw, err_ctff, C_mm, para_env)
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
+      REAL(KIND=dp), INTENT(IN)                          :: G_min, zet_max
+      INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
+      REAL(KIND=dp), INTENT(OUT)                         :: err_ctff, C_mm
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_error', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i_aw, iG, iter, max_iter, nG
+      REAL(KIND=dp) :: C, dG, eps_zet, err0, err1, err_c, err_ctff_curr, err_ctff_prev, err_d, G, &
+         G_1, G_c, gr, zet_a, zet_b, zet_c, zet_d, zet_div, zet_max_tmp
 
       ! parameters for finding exponent maximizing cutoff error
 
       eps_zet = 1.0E-05_dp ! tolerance for exponent
       zet_div = 2.0_dp ! sampling constant for finding initial values of exponents
       max_iter = 100 ! maximum number of iterations in golden section search
-
-      zet_ctff_tmp = zet_ctff
-
-      CALL get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw(:), E_mm)
       G_c = SQRT(2.0*cutoff)
 
-      ! 1) Minimax error, simple analytical formula
-      ! Note minimax error may blow up for small exponents. This is also observed numerically,
-      ! but in this case, error estimate is no upper bound.
-      prod_mm_k = 1.0_dp
-      DO i_xyz = 1, 3
-         prod_mm_k = prod_mm_k*(ABS(hmat(i_xyz, i_xyz))/twopi+ &
-                                MERGE(SQRT(2.0_dp/(zet_mm*pi))*EXP(-1.0_dp), 0.0_dp, l_mm .GT. 0))
-      ENDDO
-      err_mm = 32*pi**4/vol*E_mm*prod_mm_k
+      zet_max_tmp = zet_max
 
       ! 2) Cutoff error, estimating G > G_c part of Ewald sum by using C/3 * 1/(Gx^2*Gy^2*Gz^2)^1/3 as an
       !                  upper bound for 1/G^2 (AM-GM inequality) and its minimax approximation (factor C).
@@ -277,15 +350,15 @@ CONTAINS
             CALL cp_abort(__LOCATION__, "Maximum number of iterations for finding "// &
                           "exponent maximizing cutoff error has been exceeded.")
 
-         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_ctff, zet_ctff_tmp, C, err_ctff_curr, para_env)
+         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_max_tmp, C, err_ctff_curr, para_env)
          IF (err_ctff_prev .GE. err_ctff_curr) THEN
-            zet_a = zet_ctff_tmp
-            zet_b = MIN(zet_ctff_tmp*zet_div**2, zet_ctff)
+            zet_a = zet_max_tmp
+            zet_b = MIN(zet_max_tmp*zet_div**2, zet_max)
             EXIT
          ELSE
             err_ctff_prev = err_ctff_curr
          ENDIF
-         zet_ctff_tmp = zet_ctff_tmp/zet_div
+         zet_max_tmp = zet_max_tmp/zet_div
       ENDDO
 
       ! Golden section search
@@ -293,13 +366,13 @@ CONTAINS
       zet_d = zet_a+gr*(zet_b-zet_a)
       DO iter = 1, max_iter+1
          IF (ABS(zet_c-zet_d) .LT. eps_zet*(zet_a+zet_b)) THEN
-            CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_ctff, zet_a, C, err0, para_env)
-            CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_ctff, zet_b, C, err1, para_env)
+            CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_a, C, err0, para_env)
+            CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_b, C, err1, para_env)
             err_ctff_curr = MAX(err0, err1)
             EXIT
          ENDIF
-         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_ctff, zet_c, C, err_c, para_env)
-         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_ctff, zet_d, C, err_d, para_env)
+         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_c, C, err_c, para_env)
+         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_d, C, err_d, para_env)
          IF (err_c .GT. err_d) THEN
             zet_b = zet_d
             zet_d = zet_c
@@ -312,28 +385,28 @@ CONTAINS
       ENDDO
       err_ctff = err_ctff_curr
 
-   END SUBROUTINE cutoff_minimax_error
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Calculate cutoff error estimate by using C_mm/3 * 1/(Gx^2*Gy^2*Gz^2)^1/3
 !>        as an upper bound for 1/G^2 (and its minimax approximation) for |G| > G_c.
-!>        Error is referring to a basis function P with fixed exponent zet_c and
-!>        max. angular momentum l_c.
+!>        Error is referring to a basis function P with fixed exponent zet_max and
+!>        max. angular momentum l_max_zet.
 !> \param cutoff ...
 !> \param h_inv ...
 !> \param G_min ...
-!> \param l_c ...
-!> \param zet_c ...
+!> \param l_max_zet ...
+!> \param zet_max ...
 !> \param C_mm ...
 !> \param err_c ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_c, zet_c, C_mm, err_c, para_env)
+   SUBROUTINE cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_max, C_mm, err_c, para_env)
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp), INTENT(IN)                          :: G_min
-      INTEGER, INTENT(IN)                                :: l_c
-      REAL(KIND=dp), INTENT(IN)                          :: zet_c, C_mm
+      INTEGER, INTENT(IN)                                :: l_max_zet
+      REAL(KIND=dp), INTENT(IN)                          :: zet_max, C_mm
       REAL(KIND=dp), INTENT(OUT)                         :: err_c
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
@@ -353,13 +426,13 @@ CONTAINS
       G_res = 0.5_dp*G_min ! resolution for screening
 
       err_c = 0.0_dp
-      alpha_G = 1.0_dp/(2.0_dp*zet_c)
-      prefactor = 1.0_dp/zet_c
+      alpha_G = 1.0_dp/(2.0_dp*zet_max)
+      prefactor = 1.0_dp/zet_max
 
-      ALLOCATE (S_G_l(0:2*l_c, 3))
-      ALLOCATE (S_G_u(0:2*l_c, 3))
+      ALLOCATE (S_G_l(0:2*l_max_zet, 3))
+      ALLOCATE (S_G_u(0:2*l_max_zet, 3))
 
-      G_rad = exp_radius(2*l_c, alpha_G, eps_G, prefactor, epsin=G_res)
+      G_rad = exp_radius(2*l_max_zet, alpha_G, eps_G, prefactor, epsin=G_res)
 
       ! Parallelization of sum over G vectors
       my_p = para_env%mepos ! mpi rank
@@ -419,7 +492,7 @@ CONTAINS
 
       S_G_u = S_G_u*2.0_dp ! to include negative values of G
 
-      DO l = 0, l_c
+      DO l = 0, l_max_zet
       DO ax = 0, l
       DO ay = 0, l-ax
          az = l-ax-ay
@@ -434,7 +507,7 @@ CONTAINS
                       S_G_l(2*ax, 1)*S_G_u(2*ay, 2)*S_G_l(2*az, 3)+ &
                       S_G_l(2*ax, 1)*S_G_l(2*ay, 2)*S_G_u(2*az, 3)
 
-         err_c_l = 4.0_dp*pi**4*hermite_gauss_norm(zet_c, [ax, ay, az])**2* &
+         err_c_l = 4.0_dp*pi**4*hermite_gauss_norm(zet_max, [ax, ay, az])**2* &
                    C_mm/3.0_dp*sum_G_diff
 
          err_c = MAX(err_c, err_c_l)

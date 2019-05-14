@@ -16,7 +16,11 @@ MODULE eri_mme_test
                                               create_hermite_to_cartesian
    USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate,&
                                               eri_mme_3c_integrate
-   USE eri_mme_types,                   ONLY: eri_mme_param
+   USE eri_mme_types,                   ONLY: eri_mme_coulomb,&
+                                              eri_mme_longrange,&
+                                              eri_mme_param,&
+                                              eri_mme_set_potential,&
+                                              eri_mme_yukawa
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
@@ -45,19 +49,24 @@ CONTAINS
 !> \param test_accuracy ...
 !> \param para_env ...
 !> \param iw ...
+!> \param potential ...
+!> \param pot_par ...
 !> \param G_count ...
 !> \param R_count ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_2c_perf_acc_test(param, l_max, zet, rabc, nrep, test_accuracy, para_env, iw, G_count, R_count)
-      TYPE(eri_mme_param), INTENT(IN)                    :: param
+   SUBROUTINE eri_mme_2c_perf_acc_test(param, l_max, zet, rabc, nrep, test_accuracy, &
+                                       para_env, iw, potential, pot_par, G_count, R_count)
+      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: l_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: zet
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rabc
       INTEGER, INTENT(IN)                                :: nrep
-      LOGICAL, INTENT(IN)                                :: test_accuracy
+      LOGICAL, INTENT(INOUT)                             :: test_accuracy
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: iw
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
       INTEGER, INTENT(OUT), OPTIONAL                     :: G_count, R_count
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_2c_perf_acc_test', &
@@ -76,6 +85,10 @@ CONTAINS
       nzet = SIZE(zet)
       nR = SIZE(rabc, 2)
 
+      IF (PRESENT(potential)) THEN
+         CALL eri_mme_set_potential(param, potential, pot_par)
+      ENDIF
+
       ! Calculate reference values (Exact expression in G space converged to high precision)
       IF (test_accuracy) THEN
          ht = twopi*TRANSPOSE(param%h_inv)
@@ -87,7 +100,7 @@ CONTAINS
             DO iab = 1, nR
                CALL eri_mme_2c_integrate(param, 0, l_max, 0, l_max, zet(izet), zet(izet), rabc(:, iab), &
                                          I_ref(:, :, iab, izet), 0, 0, &
-                                         normalize=.TRUE., exact_method=.TRUE.)
+                                         normalize=.TRUE., potential=potential, pot_par=pot_par)
 
             ENDDO
          ENDDO
@@ -121,7 +134,7 @@ CONTAINS
       ENDIF
 
       IF (iw > 0) THEN
-         WRITE (iw, '(/T2, A)') "ERI_MME| Test results for 2c cpu time"
+         WRITE (iw, '(T2, A)') "ERI_MME| Test results for 2c cpu time"
          WRITE (iw, '(T11, A)') "l, zet, cpu time, accuracy"
 
          DO l = 0, l_max
@@ -165,12 +178,15 @@ CONTAINS
 !> \param nsample ...
 !> \param para_env ...
 !> \param iw ...
+!> \param potential ...
+!> \param pot_par ...
 !> \param GG_count ...
 !> \param GR_count ...
 !> \param RR_count ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_3c_perf_acc_test(param, l_max, zet, rabc, nrep, nsample, para_env, iw, GG_count, GR_count, RR_count)
-      TYPE(eri_mme_param), INTENT(IN)                    :: param
+   SUBROUTINE eri_mme_3c_perf_acc_test(param, l_max, zet, rabc, nrep, nsample, &
+                                       para_env, iw, potential, pot_par, GG_count, GR_count, RR_count)
+      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: l_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: zet
@@ -180,6 +196,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nsample
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: iw
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
       INTEGER, INTENT(OUT), OPTIONAL                     :: GG_count, GR_count, RR_count
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_3c_perf_acc_test', &
@@ -200,6 +218,10 @@ CONTAINS
       nzet = SIZE(zet)
       nR = SIZE(rabc, 2)
 
+      IF (PRESENT(potential)) THEN
+         CALL eri_mme_set_potential(param, potential, pot_par)
+      ENDIF
+
       IF (param%debug) THEN
          DO izeta = 1, nzet
          DO izetb = 1, nzet
@@ -216,7 +238,19 @@ CONTAINS
       ENDIF
 
       IF (iw > 0) THEN
-         WRITE (iw, '(/T2, A)') "ERI_MME| Test results for 3c cpu time"
+         IF (PRESENT(potential)) THEN
+            SELECT CASE (potential)
+            CASE (eri_mme_coulomb)
+               WRITE (iw, '(/T2, A)') "ERI_MME| Potential: Coulomb"
+            CASE (eri_mme_yukawa)
+               WRITE (iw, '(/T2, A, ES9.2)') "ERI_MME| Potential: Yukawa with a=", pot_par
+            CASE (eri_mme_longrange)
+               WRITE (iw, '(/T2, A, ES9.2)') "ERI_MME| Potential: long-range Coulomb with a=", pot_par
+            END SELECT
+         ELSE
+            WRITE (iw, '(/T2, A)') "ERI_MME| Potential: Coulomb"
+         ENDIF
+         WRITE (iw, '(T2, A)') "ERI_MME| Test results for 3c cpu time"
          WRITE (iw, '(T11, A)') "la, lb, lc, zeta, zetb, zetc, cpu time"
       ENDIF
 

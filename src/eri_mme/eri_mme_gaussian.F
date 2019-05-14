@@ -24,6 +24,10 @@ MODULE eri_mme_gaussian
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_gaussian'
 
+   INTEGER, PARAMETER, PUBLIC :: eri_mme_coulomb = 1, &
+                                 eri_mme_yukawa = 2, &
+                                 eri_mme_longrange = 3
+
    PUBLIC :: &
       create_gaussian_overlap_dist_to_hermite, &
       create_hermite_to_cartesian, &
@@ -83,18 +87,41 @@ CONTAINS
 !> \param cutoff      Plane Wave cutoff
 !> \param G_min       Minimum absolute value of G
 !> \param minimax_aw  Minimax coefficients a_i, w_i
+!> \param potential   potential to use. Accepts the following values:
+!>                    1: coulomb potential V(r)=1/r
+!>                    2: yukawa potential V(r)=e(-a*r)/r
+!>                    3: long-range coulomb erf(a*r)/r
+!> \param pot_par     potential parameter a for yukawa V(r)=e(-a*r)/r or long-range coulomb V(r)=erf(a*r)/r
 !> \param err_minimax Maximum error MAX (|1/G^2-\sum_i w_i exp(-a_i G^2)|)
 ! **************************************************************************************************
-   SUBROUTINE get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax)
+   SUBROUTINE get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, potential, pot_par, err_minimax)
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff, G_min
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: err_minimax
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_v_gspace', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: potential_prv
       REAL(KIND=dp)                                      :: dG, G_max, minimax_Rc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a, w
+
+      IF (PRESENT(potential)) THEN
+         potential_prv = potential
+      ELSE
+         potential_prv = eri_mme_coulomb
+      ENDIF
+
+      IF (potential_prv > 3) THEN
+         CPABORT("unknown potential")
+      ENDIF
+
+      IF ((potential_prv >= 2) .AND. .NOT. PRESENT(pot_par)) THEN
+         CPABORT("potential parameter pot_par required for yukawa or long-range Coulomb")
+      ENDIF
 
       dG = 1.0E-3 ! Resolution in G to determine error of minimax approximation
 
@@ -103,16 +130,50 @@ CONTAINS
       ! Minimax approx. needs to be valid in range [G_min, G_max]
 
       ! 1) compute minimax coefficients
-      G_max = SQRT(3.0_dp*2.0_dp*cutoff)
-      minimax_Rc = (G_max/G_min)**2
 
       G_max = SQRT(3.0_dp*2.0_dp*cutoff)
       CPASSERT(G_max .GT. G_min)
+      IF (potential_prv == eri_mme_coulomb .OR. potential_prv == eri_mme_longrange) THEN
+         minimax_Rc = (G_max/G_min)**2
+      ELSEIF (potential_prv == eri_mme_yukawa) THEN
+         minimax_Rc = (G_max**2+pot_par**2)/(G_min**2+pot_par**2)
+      ENDIF
 
       CALL get_exp_minimax_coeff(n_minimax, minimax_Rc, minimax_aw, err_minimax)
 
-      minimax_aw = minimax_aw/G_min**2
-      IF (PRESENT(err_minimax)) err_minimax = err_minimax/G_min**2
+      ALLOCATE (a(n_minimax)); ALLOCATE (w(n_minimax))
+      a(:) = minimax_aw(:n_minimax)
+      w(:) = minimax_aw(n_minimax+1:)
+      SELECT CASE (potential_prv)
+         ! Scale minimax coefficients to incorporate different Fourier transforms
+      CASE (eri_mme_coulomb)
+         ! FT = 1/G**2
+         a(:) = a/G_min**2
+         w(:) = w/G_min**2
+      CASE (eri_mme_yukawa)
+         ! FT = 1/(G**2 + pot_par**2)
+         w(:) = w*EXP((-a*pot_par**2)/(G_min**2+pot_par**2))/(G_min**2+pot_par**2)
+         a(:) = a/(G_min**2+pot_par**2)
+      CASE (eri_mme_longrange)
+         ! FT = exp(-(G/pot_par)**2)/G**2
+         ! approximating 1/G**2 as for Coulomb:
+         a(:) = a/G_min**2
+         w(:) = w/G_min**2
+         ! incorporate exponential factor:
+         a(:) = a+1.0_dp/pot_par**2
+      END SELECT
+      minimax_aw = [a(:), w(:)]
+
+      IF (PRESENT(err_minimax)) THEN
+         IF (potential_prv == eri_mme_coulomb) THEN
+            err_minimax = err_minimax/G_min**2
+         ELSEIF (potential_prv == eri_mme_yukawa) THEN
+            err_minimax = err_minimax/(G_min**2+pot_par**2)
+         ELSEIF (potential_prv == eri_mme_longrange) THEN
+            err_minimax = err_minimax/G_min**2 ! approx. of Coulomb
+            err_minimax = err_minimax*EXP(-G_min**2/pot_par**2) ! exponential factor
+         ENDIF
+      ENDIF
 
    END SUBROUTINE get_minimax_coeff_v_gspace
 
