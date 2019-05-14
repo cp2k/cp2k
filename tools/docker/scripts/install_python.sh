@@ -7,6 +7,8 @@ apt-get update -qq
 apt-get install -qq --no-install-recommends \
     python                \
     python3               \
+    libpython-stdlib      \
+    libpython3-stdlib     \
     python-pip            \
     python3-pip           \
     python-wheel          \
@@ -20,7 +22,7 @@ rm -rf /var/lib/apt/lists/*
 
 # install python packages
 pip  install --quiet numpy matplotlib requests
-pip3 install --quiet numpy matplotlib requests
+pip3 install --quiet numpy matplotlib requests pre-commit
 
 # install python2.6
 echo "Building Python-2.6.9... "

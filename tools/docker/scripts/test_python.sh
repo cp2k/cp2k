@@ -16,16 +16,25 @@ function run_tests {
           echo "Skipping $i - it's Python3 only."
           continue
         fi
-        echo "Selftesting $i"
+        echo "Running $i"
         cd "$(dirname "$i")"
         SCRIPT=$(basename "$i")
         if ! $PYTHON -B "./${SCRIPT}" ; then
-            echo "Selftest of $i failed"
+            echo "Test $i failed"
             ERRORS=$((ERRORS+1))
         fi
         set -e #re-enable error trapping
         cd "$BASEDIR"
     done
+}
+
+function run_pre_commit {
+    set +e #disable error trapping
+    if ! pre-commit run --all-files --hook-stage manual check-ast ; then
+        echo "Syntax check failed for either Python 2 or 3"
+        ERRORS=$((ERRORS+1))
+    fi
+    set -e #re-enable error trapping
 }
 
 #===============================================================================
@@ -46,8 +55,11 @@ run_tests python2.7 "${ALL_TEST_SCRIPTS}"
 # python 3.x
 run_tests python3 "${ALL_TEST_SCRIPTS}"
 
+# run manual pre-commit checks
+run_pre_commit
+
 # print report
-NUM_TEST_SCRIPTS=$(echo "${ALL_TEST_SCRIPTS}" | wc -w)
+NUM_TEST_SCRIPTS=$(( $(wc -w <<< "${ALL_TEST_SCRIPTS}") + 1 ))
 echo ""
 echo "Summary: Run ${NUM_TEST_SCRIPTS} Python test scripts, found ${ERRORS} errors."
 if [ $ERRORS == 0 ]; then
