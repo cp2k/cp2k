@@ -925,7 +925,6 @@ CONTAINS
                            DO iiB = 1, nsgfa(iset)
                               primitive_counter = primitive_counter+1
                               L_block(iiB, kkB) = primitive_integrals(primitive_counter)
-                              ! WRITE(1001,*) L_B_i_start+iiB-1, L_B_k_start+kkB-1, L_block(iiB,kkB)
                            END DO
                         END DO
                      END DO
@@ -1194,8 +1193,6 @@ CONTAINS
 
                   !IF(cartesian_estimate<eps_schwarz) CYCLE
 
-                  ! WRITE(1111,*) nsgfd(lset),nsgfc(kset),nsgfa(iset)
-
                   primitive_counter = 0
                   DO llB = 1, nsgfd(lset)
                      DO kkB = 1, nsgfc(kset)
@@ -1203,7 +1200,6 @@ CONTAINS
                            DO iiB = 1, nsgfa(iset)
                               primitive_counter = primitive_counter+1
                               MNRS(llB, kkB, iiB) = primitive_integrals(primitive_counter)
-                              ! WRITE(1111,*) orb_l_start+llB-1,orb_k_start+kkB-1,L_B_i_start+iiB-1,MNRS(llB,kkB,iiB)
                            END DO
                         END DO
                      END DO
@@ -1239,14 +1235,6 @@ CONTAINS
       END DO
 
       CALL mp_sum(Lai, para_env%group)
-
-      ! DO iiB=1, occupied
-      !   DO jjB=1, virtual
-      !     DO kkB=1, RI_dimen
-      !       WRITE(3011,*) kkB,jjB,iiB,Lai(kkB,jjB,iiB)
-      !     END DO
-      !   END DO
-      ! END DO
 
       DEALLOCATE (set_list_kl)
 
