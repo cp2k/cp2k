@@ -180,12 +180,6 @@ mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
-mp2_cphf.F: Found WRITE statement with hardcoded unit in "write_array"
-mp2_ri_gpw.F: Found WRITE statement with hardcoded unit in "write_array"
-mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "create_w_p"
-mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "write_array"
-mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "complete_gamma"
-mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "write_array"
 optimize_embedding_potential.F: Found FLOAT in "init_embed_pot"
 powell.F: Found GOTO statement in procedure "newuob"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all"
