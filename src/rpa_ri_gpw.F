@@ -2640,18 +2640,28 @@ CONTAINS
          END IF
 
          IF (do_gw_im_time .AND. (.NOT. do_kpoints_cubic_RPA)) THEN
-
-            CALL allocate_matrices_gw_im_time(cut_RI, gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_tot, &
-                                              gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, homo_beta, nmo, &
-                                              num_integ_points, unit_nr, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
-                                              row_from_LLL, prim_blk_sizes, RI_blk_sizes, do_ic_model, do_ic_opt_homo_lumo, &
-                                              my_open_shell, para_env, para_env_sub, fm_mat_W_tau, fm_mat_Q, &
-                                              mo_coeff, mo_coeff_beta, mat_dm_virt_local, mat_3c_overl_int_gw, &
-                                              mat_3c_overl_int_gw_beta, mat_3c_overl_nnP_ic, &
-                                              mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected, &
-                                              mat_3c_overl_nnP_ic_reflected_beta, matrix_s, mat_W, &
-                                              mat_3c_overl_int, mat_contr_gf_occ, mat_contr_gf_virt, &
-                                              mat_contr_W, qs_env)
+            IF (my_open_shell) THEN
+               CALL allocate_matrices_gw_im_time(cut_RI, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, homo, nmo, &
+                                                 num_integ_points, unit_nr, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
+                                                 row_from_LLL, prim_blk_sizes, RI_blk_sizes, do_ic_model, do_ic_opt_homo_lumo, &
+                                                 para_env, para_env_sub, fm_mat_W_tau, fm_mat_Q, &
+                                                 mo_coeff, mat_dm_virt_local, mat_3c_overl_int_gw, &
+                                                 mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                                 matrix_s, mat_W, mat_3c_overl_int, mat_contr_gf_occ, mat_contr_gf_virt, &
+                                                 mat_contr_W, qs_env, &
+                                                 gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
+                                                 mo_coeff_beta, mat_3c_overl_int_gw_beta, mat_3c_overl_nnP_ic_beta, &
+                                                 mat_3c_overl_nnP_ic_reflected_beta)
+            ELSE
+               CALL allocate_matrices_gw_im_time(cut_RI, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, homo, nmo, &
+                                                 num_integ_points, unit_nr, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
+                                                 row_from_LLL, prim_blk_sizes, RI_blk_sizes, do_ic_model, do_ic_opt_homo_lumo, &
+                                                 para_env, para_env_sub, fm_mat_W_tau, fm_mat_Q, &
+                                                 mo_coeff, mat_dm_virt_local, mat_3c_overl_int_gw, &
+                                                 mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                                 matrix_s, mat_W, mat_3c_overl_int, mat_contr_gf_occ, mat_contr_gf_virt, &
+                                                 mat_contr_W, qs_env)
+            END IF
 
          END IF
 
@@ -2994,22 +3004,37 @@ CONTAINS
       END IF
 
       IF (my_do_gw .OR. do_gw_im_time) THEN
-
-         CALL allocate_matrices_gw(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, color_rpa_group, dimen_nm_gw, &
-                                   gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, &
-                                   nmo, num_integ_points, num_integ_group, unit_nr, &
-                                   gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                   do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
-                                   first_cycle_periodic_correction, do_GW_corr, &
-                                   a_scaling, Eigenval, Eigenval_beta, &
-                                   tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
-                                   vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
-                                   Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
-                                   vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
-                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, &
-                                   fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
-                                   fm_mat_S_gw_beta, para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
-                                   do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
+         IF (my_open_shell) THEN
+            CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
+                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                      nmo, num_integ_points, num_integ_group, unit_nr, &
+                                      gw_corr_lev_tot, num_fit_points, omega_max_fit, &
+                                      do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
+                                      first_cycle_periodic_correction, do_GW_corr, &
+                                      a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                      delta_corr, Eigenval_last, Eigenval_scf, m_value, &
+                                      vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
+                                      fm_mat_S_gw, fm_mat_S_gw_work, &
+                                      para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
+                                      do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
+                                      vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
+                                      vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
+                                      vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_W_gw_beta, z_value_beta, &
+                                      fm_mat_S_gw_work_beta, fm_mat_S_gw_beta)
+         ELSE
+            CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
+                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                      nmo, num_integ_points, num_integ_group, unit_nr, &
+                                      gw_corr_lev_tot, num_fit_points, omega_max_fit, &
+                                      do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
+                                      first_cycle_periodic_correction, do_GW_corr, &
+                                      a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                      delta_corr, Eigenval_last, Eigenval_scf, m_value, &
+                                      vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
+                                      fm_mat_S_gw, fm_mat_S_gw_work, &
+                                      para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
+                                      do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
+         END IF
 
          IF (do_bse) THEN
 
