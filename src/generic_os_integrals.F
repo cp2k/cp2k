@@ -10,7 +10,8 @@
 !>        ii) (aba) and (abb) s-overlaps
 !> \par History
 !>      created [06.2015]
-!> \author Dorothea Golze
+!>      05.2019: Added truncated coulomb operator (A. Bussy)
+!> \author Doro/hea Golze
 ! **************************************************************************************************
 MODULE generic_os_integrals
    USE ai_contraction_sphi,             ONLY: ab_contract,&
@@ -21,6 +22,7 @@ MODULE generic_os_integrals
    USE ai_operators_r12,                ONLY: ab_sint_os,&
                                               cps_coulomb2,&
                                               cps_gauss2,&
+                                              cps_truncated2,&
                                               cps_verf2,&
                                               cps_verfc2,&
                                               cps_vgauss2,&
@@ -33,6 +35,7 @@ MODULE generic_os_integrals
                                               gto_basis_set_type
    USE constants_operator,              ONLY: operator_coulomb,&
                                               operator_gauss,&
+                                              operator_truncated,&
                                               operator_verf,&
                                               operator_verfc,&
                                               operator_vgauss
@@ -66,8 +69,10 @@ CONTAINS
 !> \param fbb basis at center B
 !> \param omega parameter in the operator
 !> \param calculate_forces ...
+!> \param r_cutoff the cutoff in case of truncated coulomb operator
 ! **************************************************************************************************
-   SUBROUTINE int_operators_r12_ab_os(r12_operator, vab, dvab, rab, fba, fbb, omega, calculate_forces)
+   SUBROUTINE int_operators_r12_ab_os(r12_operator, vab, dvab, rab, fba, fbb, omega, r_cutoff, &
+                                      calculate_forces)
 
       INTEGER, INTENT(IN)                                :: r12_operator
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
@@ -75,14 +80,14 @@ CONTAINS
          OPTIONAL                                        :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega, r_cutoff
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operators_r12_ab_os', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: my_omega
+      REAL(KIND=dp)                                      :: my_omega, my_r_cutoff
 
       PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2
 
@@ -90,6 +95,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       my_omega = 1.0_dp
+      my_r_cutoff = 1.0_dp
 
       SELECT CASE (r12_operator)
       CASE (operator_coulomb)
@@ -106,11 +112,15 @@ CONTAINS
       CASE (operator_gauss)
          cps_operator2 => cps_gauss2
          IF (PRESENT(omega)) my_omega = omega
+      CASE (operator_truncated)
+         cps_operator2 => cps_truncated2
+         IF (PRESENT(r_cutoff)) my_r_cutoff = r_cutoff
       CASE DEFAULT
          CPABORT("Operator not available")
       END SELECT
 
-      CALL int_operator_ab_os_low(cps_operator2, vab, dvab, rab, fba, fbb, my_omega, calculate_forces)
+      CALL int_operator_ab_os_low(cps_operator2, vab, dvab, rab, fba, fbb, my_omega, my_r_cutoff, &
+                                  calculate_forces)
 
       CALL timestop(handle)
 
@@ -125,9 +135,11 @@ CONTAINS
 !> \param fba basis at center A
 !> \param fbb basis at center B
 !> \param omega parameter in the operator
+!> \param r_cutoff ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE int_operator_ab_os_low(cps_operator2, vab, dvab, rab, fba, fbb, omega, calculate_forces)
+   SUBROUTINE int_operator_ab_os_low(cps_operator2, vab, dvab, rab, fba, fbb, omega, r_cutoff, &
+                                     calculate_forces)
 
       PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
@@ -135,7 +147,7 @@ CONTAINS
          INTENT(INOUT)                                   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(IN)                          :: omega, r_cutoff
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_os_low', routineP = moduleN//':'//routineN
@@ -214,7 +226,7 @@ CONTAINS
                vac = 0.0_dp
                CALL operator2(cps_operator2, la_max(iset)+1, npgfa(iset), zeta(:, iset), la_min(iset), &
                               lb_max(jset)+1, npgfb(jset), zetb(:, jset), lb_min(jset), &
-                              omega, rab, rab2, vac, vwork, maxder=1, vac_plus=vac_plus)
+                              omega, r_cutoff, rab, rab2, vac, vwork, maxder=1, vac_plus=vac_plus)
                CALL dabdr_noscreen(la_max(iset), npgfa(iset), zeta(:, iset), lb_max(jset), npgfb(jset), &
                                    vac_plus, devab(:, :, 1), devab(:, :, 2), devab(:, :, 3))
                DO i = 1, 3
@@ -229,7 +241,7 @@ CONTAINS
                vac = 0.0_dp
                CALL operator2(cps_operator2, la_max(iset), npgfa(iset), zeta(:, iset), la_min(iset), &
                               lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
-                              omega, rab, rab2, vac, vwork)
+                              omega, r_cutoff, rab, rab2, vac, vwork)
             ENDIF
 
             CALL ab_contract(vab(sgfa:m1, sgfb:m2), vac(1:ncoa, 1:ncob), sphi_a(:, sgfa:), sphi_b(:, sgfb:), &

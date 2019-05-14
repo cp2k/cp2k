@@ -7,6 +7,7 @@
 !> \brief constants for the different operators of the 2c-integrals
 !> \par History
 !>      10.2016 created Dorothea Golze
+!>      05.2019 added truncated Coulomb operator (A. Bussy)
 ! **************************************************************************************************
 MODULE constants_operator
 
@@ -20,6 +21,7 @@ MODULE constants_operator
                                                 operator_verf = 1, &
                                                 operator_verfc = 2, &
                                                 operator_vgauss = 3, &
-                                                operator_gauss = 4
+                                                operator_gauss = 4, &
+                                                operator_truncated = 5
 
 END MODULE constants_operator

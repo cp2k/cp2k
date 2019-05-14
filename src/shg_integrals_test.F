@@ -407,7 +407,7 @@ CONTAINS
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
                   CALL int_operators_r12_ab_os(operator_verf, vab_os, dvab_os, rab(:, iab), &
-                                               oba, obb, omega, calc_derivatives)
+                                               oba, obb, omega=omega, calculate_forces=calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_verf = MAX(dmax_verf, dtemp)
                   ddmax_verf = MAX(ddmax_verf, ddtemp)
@@ -418,7 +418,7 @@ CONTAINS
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
                   CALL int_operators_r12_ab_os(operator_verfc, vab_os, dvab_os, rab(:, iab), &
-                                               oba, obb, omega, calc_derivatives)
+                                               oba, obb, omega=omega, calculate_forces=calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_verfc = MAX(dmax_verfc, dtemp)
                   ddmax_verfc = MAX(ddmax_verfc, ddtemp)
@@ -429,7 +429,7 @@ CONTAINS
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
                   CALL int_operators_r12_ab_os(operator_vgauss, vab_os, dvab_os, rab(:, iab), &
-                                               oba, obb, omega, calc_derivatives)
+                                               oba, obb, omega=omega, calculate_forces=calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_vgauss = MAX(dmax_vgauss, dtemp)
                   ddmax_vgauss = MAX(ddmax_vgauss, ddtemp)
@@ -440,7 +440,7 @@ CONTAINS
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
                   CALL int_operators_r12_ab_os(operator_gauss, vab_os, dvab_os, rab(:, iab), &
-                                               oba, obb, omega, calc_derivatives)
+                                               oba, obb, omega=omega, calculate_forces=calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_gauss = MAX(dmax_gauss, dtemp)
                   ddmax_gauss = MAX(ddmax_gauss, ddtemp)

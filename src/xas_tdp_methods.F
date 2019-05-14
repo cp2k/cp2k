@@ -42,13 +42,15 @@ MODULE xas_tdp_methods
                                               dbcsr_create, dbcsr_multiply, dbcsr_add_on_diag, &
                                               dbcsr_finalize, dbcsr_copy, dbcsr_set, dbcsr_add, &
                                               dbcsr_get_info
+   USE hfx_libint_wrapper,              ONLY: cp_libint_static_init
    USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
                                               do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
                                               op_loc_berry, tddfpt_singlet, tddfpt_spin_cons, &
                                               tddfpt_triplet, xas_tdp_uks, xas_tdp_roks, &
                                               general_roks, high_spin_roks, state_loc_list, &
                                               tddfpt_spin_flip, do_hfx_potential_coulomb, &
-                                              xas_dip_vel, xas_dip_len, do_hfx_potential_truncated
+                                              xas_dip_vel, xas_dip_len, do_hfx_potential_truncated,&
+                                              do_hfX_potential_short
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_get_subs_vals,&
                                               section_vals_val_set, &
@@ -112,10 +114,12 @@ MODULE xas_tdp_methods
    USE xas_tdp_utils,                   ONLY: setup_xas_tdp_prob, &
                                               solve_xas_tdp_prob, &
                                               compute_ri_coulomb2_int, &
+                                              compute_ri_exchange2_int, &
                                               include_rcs_soc, &
                                               include_os_soc, &
                                               compute_ri_o3c_coulomb, &
-                                              compute_ri_o3c_exchange
+                                              compute_ri_o3c_exchange, &
+                                              get_opt_3c_dist2d
    USE xc_derivatives,                  ONLY: xc_functional_get_info
    USE xc_libxc,                        ONLY: libxc_version_info
 
@@ -288,8 +292,11 @@ CONTAINS
                               atom_list=atoms_of_kind)
 
          IF (.NOT. ANY(xas_tdp_env%ex_kind_indices == ikind)) CYCLE
-         ! compute the RI coulomb2 inverse for this kind
+         ! compute the RI coulomb2 inverse for this kind, and RI exchange2 if needed
          CALL compute_ri_coulomb2_int(ikind, xas_tdp_env, xas_tdp_control, qs_env)
+         IF (xas_tdp_control%do_hfx) THEN
+            CALL compute_ri_exchange2_int(ikind, xas_tdp_env, xas_tdp_control, qs_env)
+         END IF
 
 !        Loop over atoms of kind
          DO iat = 1, SIZE(atoms_of_kind)
@@ -311,8 +318,9 @@ CONTAINS
             !compute the three center RI exchange integrals if so required
             IF (xas_tdp_control%do_hfx) THEN
                IF (output_unit > 0) THEN
-                  WRITE(UNIT=output_unit, FMT="(/,T3,A,I4,A)") &
-                     "# Computing the RI 3-center Exchange integrals for this atom ..."
+                  WRITE(UNIT=output_unit, FMT="(/,T3,A,I4,A1,A2)") &
+                     "# Computing the RI 3-center Exchange integrals for excited atom (idx/kind): ", &
+                     iatom, "/", symbol_of_kind
                   CALL m_flush(output_unit)
                END IF
                CALL compute_ri_o3c_exchange(iatom, xas_tdp_env, xas_tdp_control, qs_env)
@@ -441,16 +449,13 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       REAL(dp)                                           :: fact
       LOGICAL                                            :: do_uks, do_os, unique
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cell_type), POINTER                           :: cell
 
       NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, qs_kind_set, dft_control)
       NULLIFY(qs_loc_env, loc_section, mos, particle_set, rho, rho_ao, mo_evals, cell)
-      NULLIFY(mo_coeff, scf_control, matrix_ks, fm_struct, para_env, blacs_env)
+      NULLIFY(mo_coeff, scf_control, matrix_ks)
 
 !  XAS TDP control type initialization
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -653,7 +658,6 @@ CONTAINS
                            template=matrix_s(1)%matrix, matrix_type="N")
       END IF
 
-!     TODO: Add a filter_eps in the multiplication ? Cuz possible many almost zero blocks
 !     In the case of spin-restricted calculations, rho_ao includes double occupency => 0.5 prefactor
       fact = -0.5_dp; IF (do_os) fact = -1.0_dp
       CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, rho_ao(1)%matrix, 0.0_dp, &
@@ -694,6 +698,12 @@ CONTAINS
 
 !  Check that everything is allowed
       CALL safety_check(xas_tdp_control)
+
+!  Initialize libint for the 3-center integrals
+      CALL cp_libint_static_init()
+
+!  Compute the optimized distribution_2d for the 3-center inegrals
+      CALL get_opt_3c_dist2d(xas_tdp_env, qs_env)
 
    END SUBROUTINE xas_tdp_init
 
@@ -855,9 +865,16 @@ CONTAINS
             WRITE(UNIT=ou, FMT="(T3,A)") &
                "EXACT_EXCHANGE| Operator : Coulomb"
          ELSE IF (xas_tdp_control%x_op == do_hfx_potential_truncated) THEN
-            WRITE(UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A)") &
+            WRITE(UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,A)") &
                "EXACT_EXCHANGE| Operator: Truncated Coulomb", &
-               "EXACT_EXCHANGE| Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)"
+               "EXACT_EXCHANGE| Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
+               "EXACT_EXCHANGE| T_C_G_DATA: ", xas_tdp_control%x_t_c_filename
+         ELSE IF (xas_tdp_control%x_op == do_hfx_potential_short) THEN
+            WRITE(UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,F5.2,A,/,T3,A,ES7.1)") &
+               "EXACT_EXCHANGE| Operator: Short Range", &
+               "EXACT_EXCHANGE| Omega: ", xas_tdp_control%x_omega, ", (1/a0)", &
+               "EXACT_EXCHANGE| Effective Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
+               "EXACT_EXCHANGE| EPS_RANGE: ", xas_tdp_control%eps_range
          END IF
       END IF
 
