@@ -185,6 +185,7 @@ CONTAINS
 
       memory_info = mp2_env%ri_rpa_im_time%memory_info
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
+      do_Gamma_RPA = .NOT. do_kpoints_cubic_RPA
       num_3c_repl = MAXVAL(cell_to_index_3c)
 
       CALL timeset(routineN, handle)
@@ -245,7 +246,7 @@ CONTAINS
                   IF (unit_nr_prv > 0) WRITE (UNIT=unit_nr_prv, FMT="(T3,A,I2,1X,I2)") &
                      "RPA_IM_TIME_INFO| Memory Cut iteration", i_mem, j_mem
 
-                  IF (do_gamma_RPA) THEN
+                  IF (do_Gamma_RPA) THEN
                      IF (.NOT. dbcsr_t_need_contract(t_3c_O_cut(j_mem, 1, 1), &
                                                      t_dm_occ_cut(i_mem, 1), &
                                                      [3], [1])) CYCLE
