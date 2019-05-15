@@ -678,7 +678,7 @@ CONTAINS
                   IF (use_virial) THEN
                      ria = particle_set(ia)%r
                      ria = pbc(ria, cell)
-                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, forcea*charge, ria)
+                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, di*charge, ria)
                   END IF
                END DO
             END IF
