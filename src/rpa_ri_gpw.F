@@ -6882,7 +6882,7 @@ CONTAINS
    SUBROUTINE calc_max_error_fit_omega_grid_with_cosine(max_error, tau, omega_tj, omega_wj_work, x_values, &
                                                         y_values, num_integ_points, num_x_nodes)
 
-      REAL(KIND=dp), INTENT(OUT)                         :: max_error
+      REAL(KIND=dp), INTENT(INOUT)                       :: max_error
       REAL(KIND=dp), INTENT(IN)                          :: tau
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: omega_tj, omega_wj_work, x_values, &
