@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 
 # author: Ole Schuett
 
@@ -17,4 +17,5 @@ echo -e "\n========== Running Regtests =========="
 cd /workspace/cp2k
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
+exit 0 # Prevent CI from overwriting do_regtest's summary message.
 #EOF
