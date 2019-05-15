@@ -544,7 +544,7 @@ CONTAINS
       LOGICAL                                            :: found, use_virial
       REAL(KIND=dp)                                      :: charge, dd, ener_field, fdir, omega
       REAL(KIND=dp), DIMENSION(3)                        :: ci, cqi, dfilter, di, fieldpol, fij, &
-                                                            forcea, hdi, kvec, qi, rab, ria, rib
+                                                            hdi, kvec, qi, rab, ria, rib
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, ks_block, p_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -678,7 +678,7 @@ CONTAINS
                   IF (use_virial) THEN
                      ria = particle_set(ia)%r
                      ria = pbc(ria, cell)
-                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, forcea*charge, ria)
+                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, di*charge, ria)
                   END IF
                END DO
             END IF
