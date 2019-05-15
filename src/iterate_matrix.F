@@ -72,7 +72,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, max_iter_lanczos, nsize, &
                                                             order_lanczos, sign_iter, unit_nr
-      INTEGER(KIND=int_8)                                :: flop1, flop2
+      INTEGER(KIND=int_8)                                :: flop1
       INTEGER, SAVE                                      :: recursion_depth = 0
       REAL(KIND=dp)                                      :: det0, eps_lanczos, frobnorm, maxnorm, &
                                                             occ_matrix, t1, t2, trace
@@ -206,7 +206,7 @@ CONTAINS
                WRITE (unit_nr, '(T6,A,1X,I3,1X,F7.5,F16.10,F10.3,F11.3)') &
                   "Determinant iter", i, occ_matrix, &
                   det, t2-t1, &
-                  (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+                  flop1/(1.0E6_dp*MAX(0.001_dp, t2-t1))
                CALL m_flush(unit_nr)
             ENDIF
 

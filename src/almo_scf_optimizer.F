@@ -33,6 +33,8 @@ MODULE almo_scf_optimizer
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
    USE cp_external_control,             ONLY: external_control
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -5246,7 +5248,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=20)                                  :: formatstr, Scols
-      CHARACTER(LEN=200)                                 :: logfile
       INTEGER                                            :: col, fiunit, handle, hori_offset, jj, &
                                                             nblkcols_tot, nblkrows_tot, Ncols, &
                                                             ncores, Nrows, row, unit_nr, &
@@ -5322,14 +5323,13 @@ CONTAINS
       CALL dbcsr_release(matrix_asym)
 
       IF (unit_nr > 0) THEN
-         logfile = TRIM(ADJUSTL(filename))
-         OPEN (fiunit, file=logfile, status='REPLACE')
+         CALL open_file(filename, unit_number=fiunit, file_status='REPLACE')
          WRITE (Scols, "(I10)") Ncols
          formatstr = "("//TRIM(Scols)//"E27.17)"
          DO jj = 1, Nrows
             WRITE (fiunit, formatstr) H(jj, :)
          ENDDO
-         CLOSE (fiunit)
+         CALL close_file(fiunit)
       ENDIF
 
       DEALLOCATE (mo_block_sizes)
