@@ -563,6 +563,7 @@ CONTAINS
 !> \param log_unit           output unit
 !> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
 !>                           SIZE(evects,2) -- number of excited states to print)
+!> \param evals              TDDFPT eigenvalues
 !> \param gs_mos             molecular orbitals optimised for the ground state
 !> \param matrix_s           overlap matrix
 !> \param min_amplitude      the smallest excitation amplitude to print
@@ -570,9 +571,10 @@ CONTAINS
 !>    * 05.2016 created as 'tddfpt_print_summary' [Sergey Chulkov]
 !>    * 08.2018 splited of from 'tddfpt_print_summary' [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, gs_mos, matrix_s, min_amplitude)
+   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s, min_amplitude)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
@@ -649,7 +651,8 @@ CONTAINS
                                          ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
 
             NULLIFY (fm_struct, weights_fm(ispin)%matrix)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
+                                     context=blacs_env)
             CALL cp_fm_create(weights_fm(ispin)%matrix, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
          END DO
@@ -773,7 +776,7 @@ CONTAINS
                weights_neg_abs_recv(:) = -ABS(weights_recv)
                CALL sort(weights_neg_abs_recv, INT(nexcs), inds)
 
-               WRITE (log_unit, '(T7,I8)') istate
+               WRITE (log_unit, '(T7,I8,F10.5,A)') istate, evals(istate)*evolt, " eV"
 
                DO iexc = 1, nexcs
                   ind = inds_recv(inds(iexc))-1

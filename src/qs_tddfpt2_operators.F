@@ -9,8 +9,11 @@ MODULE qs_tddfpt2_operators
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
@@ -65,57 +68,56 @@ CONTAINS
 !> \param gs_mos      molecular orbitals optimised for the ground state (only occupied orbital
 !>                    energies [component %evals_occ] are needed)
 !> \param matrix_ks   Kohn-Sham matrix
-!> \param work_fm_ao_mo_occ work matrices with shape [nao x nmo_occ(spin)] to store matrix
-!>                          products S * evects * diag(evals_occ).
 !> \par History
 !>    * 05.2016 initialise all matrix elements in one go [Sergey Chulkov]
 !>    * 03.2017 renamed from tddfpt_init_energy_diff(), altered prototype [Sergey Chulkov]
 !> \note Based on the subroutine p_op_l1() which was originally created by
 !>       Thomas Chassaing on 08.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks, work_fm_ao_mo_occ)
+   SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: work_fm_ao_mo_occ
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_energy_diff', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ
+      INTEGER                                            :: handle, ispin, ivect, nactive, nao, &
+                                                            nspins, nvects
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type), POINTER                          :: hevec
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(evects, 1)
       nvects = SIZE(evects, 2)
 
-      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
       DO ispin = 1, nspins
-         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
-      END DO
+         CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
+                             nrow_global=nao, ncol_global=nactive)
+         NULLIFY (hevec)
+         CALL cp_fm_create(hevec, matrix_struct)
 
-      DO ivect = 1, nvects
-         DO ispin = 1, nspins
+         DO ivect = 1, nvects
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, evects(ispin, ivect)%matrix, &
-                                         Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
+                                         Aop_evects(ispin, ivect)%matrix, ncol=nactive, &
                                          alpha=1.0_dp, beta=1.0_dp)
 
             IF (ASSOCIATED(gs_mos(ispin)%evals_occ_matrix)) THEN
                ! orbital energy correction: evals_occ_matrix is not a diagonal matrix
-               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_occ(ispin), 1.0_dp, &
+               CALL cp_gemm('N', 'N', nao, nactive, nactive, 1.0_dp, &
                             S_evects(ispin, ivect)%matrix, gs_mos(ispin)%evals_occ_matrix, &
-                            0.0_dp, work_fm_ao_mo_occ(ispin)%matrix)
+                            0.0_dp, hevec)
             ELSE
-               CALL cp_fm_to_fm(S_evects(ispin, ivect)%matrix, work_fm_ao_mo_occ(ispin)%matrix)
-               CALL cp_fm_column_scale(work_fm_ao_mo_occ(ispin)%matrix, gs_mos(ispin)%evals_occ)
+               CALL cp_fm_to_fm(S_evects(ispin, ivect)%matrix, hevec)
+               CALL cp_fm_column_scale(hevec, gs_mos(ispin)%evals_occ)
             END IF
 
             ! KS * C1 - S * C1 * occupied_orbital_energies
-            CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect)%matrix, -1.0_dp, &
-                                     work_fm_ao_mo_occ(ispin)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect)%matrix, -1.0_dp, hevec)
          END DO
+         CALL cp_fm_release(hevec)
       END DO
 
       CALL timestop(handle)

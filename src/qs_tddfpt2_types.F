@@ -129,12 +129,6 @@ MODULE qs_tddfpt2_types
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_C0
       !> S * \rho_0(spin)
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_C0_C0T
-      !> globally distributed dense matrices with shape [nao x nmo_occ(spin)]
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: wfm_ao_mo_occ
-      !> globally distributed dense matrices with shape [nmo_occ(spin) x nmo_occ(spin)]
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: wfm_mo_occ_mo_occ
-      !> globally distributed dense matrices with shape [nmo_virt(spin) x nmo_occ(spin)]
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: wfm_mo_virt_mo_occ
       !
       ! *** dense matrices distributed across parallel (sub)groups ***
       !
@@ -317,27 +311,15 @@ CONTAINS
       END DO
       CALL cp_fm_struct_release(fm_struct)
 
-      ALLOCATE (work_matrices%S_C0(nspins), work_matrices%wfm_ao_mo_occ(nspins))
-      ALLOCATE (work_matrices%wfm_mo_occ_mo_occ(nspins), work_matrices%wfm_mo_virt_mo_occ(nspins))
+      ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%S_C0(ispin)%matrix, work_matrices%wfm_ao_mo_occ(ispin)%matrix)
+         NULLIFY (work_matrices%S_C0(ispin)%matrix)
          CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
-         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%wfm_ao_mo_occ(ispin)%matrix)
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
          CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin)%matrix, &
                       gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin)%matrix)
-
-         NULLIFY (work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
-         CALL cp_fm_create(work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-
-         NULLIFY (work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
-         CALL cp_fm_create(work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
       END DO
 
       IF (sub_env%is_split) THEN
@@ -537,29 +519,15 @@ CONTAINS
       END DO
       CALL cp_fm_struct_release(fm_struct)
 
-      ALLOCATE (work_matrices%S_C0(nspins), work_matrices%wfm_ao_mo_occ(nspins))
-      ALLOCATE (work_matrices%wfm_mo_occ_mo_occ(nspins), work_matrices%wfm_mo_virt_mo_occ(nspins))
+      ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%S_C0(ispin)%matrix, work_matrices%wfm_ao_mo_occ(ispin)%matrix)
+         NULLIFY (work_matrices%S_C0(ispin)%matrix)
          CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
-         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%wfm_ao_mo_occ(ispin)%matrix)
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
          CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin)%matrix, &
                       gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin)%matrix)
-
-         NULLIFY (work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), &
-                                  context=blacs_env)
-         CALL cp_fm_create(work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-
-         NULLIFY (work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
-                                  context=blacs_env)
-         CALL cp_fm_create(work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
       END DO
 
       DO ispin = 1, nspins
@@ -695,14 +663,10 @@ CONTAINS
       END IF
 
       DO ispin = SIZE(work_matrices%fm_pool_ao_mo_occ), 1, -1
-         CALL cp_fm_release(work_matrices%wfm_mo_virt_mo_occ(ispin)%matrix)
-         CALL cp_fm_release(work_matrices%wfm_mo_occ_mo_occ(ispin)%matrix)
-         CALL cp_fm_release(work_matrices%wfm_ao_mo_occ(ispin)%matrix)
          CALL cp_fm_release(work_matrices%S_C0(ispin)%matrix)
          CALL cp_fm_release(work_matrices%S_C0_C0T(ispin)%matrix)
       END DO
-      DEALLOCATE (work_matrices%S_C0, work_matrices%S_C0_C0T, work_matrices%wfm_ao_mo_occ)
-      DEALLOCATE (work_matrices%wfm_mo_occ_mo_occ, work_matrices%wfm_mo_virt_mo_occ)
+      DEALLOCATE (work_matrices%S_C0, work_matrices%S_C0_C0T)
 
       DO ispin = SIZE(work_matrices%fm_pool_ao_mo_occ), 1, -1
          CALL fm_pool_release(work_matrices%fm_pool_ao_mo_occ(ispin)%pool)

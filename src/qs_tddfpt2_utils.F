@@ -87,7 +87,7 @@ MODULE qs_tddfpt2_utils
 
    PUBLIC :: tddfpt_init_ground_state_mos, tddfpt_release_ground_state_mos
    PUBLIC :: tddfpt_guess_vectors, tddfpt_init_mos, tddfpt_oecorr
-   PUBLIC :: tddfpt_total_number_of_states, ev_shift_operator
+   PUBLIC :: tddfpt_total_number_of_states
 
 ! **************************************************************************************************
 
@@ -576,13 +576,8 @@ CONTAINS
                WRITE (iounit, "(T2,A,T71,F10.3)") &
                   " Open Shell Orbital Eigenvalue Shift [eV] ", tddfpt_control%eos_shift*evolt
             END IF
-            CALL ev_shift_operator(qs_env, matrix_ks_oep, &
+            CALL ev_shift_operator(qs_env, gs_mos, matrix_ks_oep, &
                                    tddfpt_control%ev_shift, tddfpt_control%eos_shift)
-            DO ispin = 1, nspins
-               IF (ALLOCATED(gs_mos(ispin)%evals_virt)) THEN
-                  gs_mos(ispin)%evals_virt(:) = gs_mos(ispin)%evals_virt(:)+tddfpt_control%ev_shift
-               END IF
-            END DO
          ELSE
             CALL cp_abort(__LOCATION__, &
                           "Unimplemented orbital energy correction potential")
@@ -650,6 +645,7 @@ CONTAINS
 !>        Shift operator = Edelta*Q  Q: projector on virtual space (1-PS)
 !>                                      projector on open shell space PosS
 !> \param qs_env the qs_env that is perturbed by this p_env
+!> \param gs_mos  ...
 !> \param matrix_ks ...
 !> \param ev_shift ...
 !> \param eos_shift ...
@@ -657,47 +653,85 @@ CONTAINS
 !>      02.04.2019 adapted for TDDFT use from p_env (JGH)
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE ev_shift_operator(qs_env, matrix_ks, ev_shift, eos_shift)
+   SUBROUTINE ev_shift_operator(qs_env, gs_mos, matrix_ks, ev_shift, eos_shift)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       REAL(KIND=dp), INTENT(IN)                          :: ev_shift, eos_shift
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ev_shift_operator', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, n_spins, nhomo
+      INTEGER                                            :: handle, ispin, n_spins, na, nb, nhomo, &
+                                                            nl, nos, nu
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: coeff, cvec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: smat
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      n_spins = dft_control%nspins
+      n_spins = SIZE(gs_mos)
+      CPASSERT(n_spins == SIZE(matrix_ks))
 
+      ! virtual shift
       IF (ev_shift /= 0.0_dp) THEN
-
          CALL get_qs_env(qs_env, mos=mos, matrix_s=matrix_s)
          smat => matrix_s(1)%matrix
          DO ispin = 1, n_spins
             CALL dbcsr_add_on_diag(matrix_ks(ispin)%matrix, ev_shift)
-            CALL get_mo_set(qs_env%mos(ispin)%mo_set, mo_coeff=coeff, homo=nhomo)
-            CALL cp_fm_get_info(coeff, matrix_struct=fmstruct)
+            coeff => gs_mos(ispin)%mos_occ
+            CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
             CALL cp_fm_create(cvec, fmstruct)
             CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nhomo, 1.0_dp, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, coeff, cvec, nhomo, &
                                        -ev_shift, keep_sparsity=.TRUE.)
             CALL cp_fm_release(cvec)
          END DO
-
       END IF
-
-      IF (eos_shift /= 0.0_dp) THEN
-         CPABORT("Open Shell Shifts not implemented")
+      ! open shell orbital shift
+      IF (eos_shift /= 0.0_dp .AND. n_spins > 1) THEN
+         CPABORT("eos_shift not implemented")
+      END IF
+      ! set eigenvalues
+      IF (eos_shift == 0.0_dp .OR. n_spins == 1) THEN
+         DO ispin = 1, n_spins
+            IF (ALLOCATED(gs_mos(ispin)%evals_virt)) THEN
+               gs_mos(ispin)%evals_virt(:) = gs_mos(ispin)%evals_virt(:)+ev_shift
+            END IF
+         END DO
+      ELSE
+         CALL cp_fm_get_info(gs_mos(1)%mos_occ, ncol_global=na)
+         CALL cp_fm_get_info(gs_mos(2)%mos_occ, ncol_global=nb)
+         nl = MIN(na, nb)
+         nu = MAX(na, nb)
+         nos = nu-nl
+         IF (na == nu) THEN
+            IF (ALLOCATED(gs_mos(1)%evals_occ)) THEN
+               gs_mos(1)%evals_occ(nl+1:nu) = gs_mos(1)%evals_occ(nl+1:nu)-eos_shift
+            END IF
+            IF (ALLOCATED(gs_mos(1)%evals_virt)) THEN
+               gs_mos(1)%evals_virt(:) = gs_mos(1)%evals_virt(:)+ev_shift
+            END IF
+            IF (ALLOCATED(gs_mos(2)%evals_virt)) THEN
+               gs_mos(2)%evals_virt(1:nos) = gs_mos(2)%evals_virt(1:nos)+eos_shift
+               gs_mos(2)%evals_virt(nos+1:) = gs_mos(2)%evals_virt(nos+1:)+ev_shift
+            END IF
+         ELSE
+            IF (ALLOCATED(gs_mos(1)%evals_virt)) THEN
+               gs_mos(1)%evals_virt(1:nos) = gs_mos(1)%evals_virt(1:nos)+eos_shift
+               gs_mos(1)%evals_virt(nos+1:) = gs_mos(1)%evals_virt(nos+1:)+ev_shift
+            END IF
+            IF (ALLOCATED(gs_mos(2)%evals_occ)) THEN
+               gs_mos(2)%evals_occ(nl+1:nu) = gs_mos(2)%evals_occ(nl+1:nu)-eos_shift
+            END IF
+            IF (ALLOCATED(gs_mos(2)%evals_virt)) THEN
+               gs_mos(2)%evals_virt(:) = gs_mos(2)%evals_virt(:)+ev_shift
+            END IF
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -856,7 +890,9 @@ CONTAINS
 
       DEALLOCATE (e_virt_minus_occ)
       DEALLOCATE (inds)
+
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_guess_vectors
 
 END MODULE qs_tddfpt2_utils

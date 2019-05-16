@@ -279,7 +279,7 @@ CONTAINS
       CALL tddfpt_guess_vectors(evects=evects, evals=evals, gs_mos=gs_mos, log_unit=log_unit)
       CALL cp_print_key_finished_output(log_unit, logger, tddfpt_print_section, "GUESS_VECTORS")
 
-      CALL tddfpt_orthogonalize_psi1_psi0(evects, work_matrices%S_C0_C0T, work_matrices%wfm_ao_mo_occ)
+      CALL tddfpt_orthogonalize_psi1_psi0(evects, work_matrices%S_C0_C0T)
       CALL tddfpt_orthonormalize_psi1_psi1(evects, nstates, S_evects, matrix_s(1)%matrix)
 
       niters = tddfpt_control%niters
@@ -367,7 +367,7 @@ CONTAINS
       END IF
 
       CALL tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ)
-      CALL tddfpt_print_excitation_analysis(log_unit, evects, gs_mos, matrix_s(1)%matrix, &
+      CALL tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                             min_amplitude=tddfpt_control%min_excitation_amplitude)
 
       ! -- clean up all useless stuff
