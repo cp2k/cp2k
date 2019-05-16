@@ -46,9 +46,6 @@ cd /workspace/cp2k
 ALL_TEST_SCRIPTS=$(find ./src/ ./tools/ -name "*_test.py"  -executable)
 ESSENTIAL_TEST_SCRIPTS=$(find ./tools/build_utils -name "*_test.py"  -executable)
 
-# python 2.6
-run_tests python2.6 "${ESSENTIAL_TEST_SCRIPTS}"
-
 # python 2.7
 run_tests python2.7 "${ALL_TEST_SCRIPTS}"
 
