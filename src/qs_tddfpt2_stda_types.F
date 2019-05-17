@@ -54,7 +54,7 @@ MODULE qs_tddfpt2_stda_types
       TYPE(stda_kind_p_type), DIMENSION(:), POINTER:: kind_param_set
       !number of atomic orbitals, number of occupied orbitals
       INTEGER, DIMENSION(2)                        :: n_ao
-      INTEGER, DIMENSION(2)                        :: n_occ
+      INTEGER, DIMENSION(2)                        :: nactive
    END TYPE
 
    !PARAMETERS
@@ -200,16 +200,20 @@ CONTAINS
 !> \brief Allocate the sTDA environment
 !> \param qs_env ...
 !> \param stda_kernel ...
+!> \param n_ao ...
+!> \param nactive ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_stda_env(qs_env, stda_kernel)
+   SUBROUTINE allocate_stda_env(qs_env, stda_kernel, n_ao, nactive)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(stda_env_type)                                :: stda_kernel
+      INTEGER, INTENT(IN)                                :: n_ao
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nactive
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_stda_env', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ii, ispin, n_ao, n_occ, nkind, nspins
+      INTEGER                                            :: ii, ispin, nkind
       TYPE(cp_fm_type), POINTER                          :: qs_env_c
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -218,20 +222,10 @@ CONTAINS
       stda_kernel%hfx_fraction = 0.0d0
       stda_kernel%alpha_param = 0.0d0
       stda_kernel%beta_param = 0.0d0
-      stda_kernel%n_occ = 0
-      stda_kernel%n_ao = 0
+      stda_kernel%nactive = 0
+      stda_kernel%nactive(1:2) = nactive(1:2)
+      stda_kernel%n_ao = n_ao
       NULLIFY (stda_kernel%kind_param_set)
-
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      nspins = dft_control%nspins
-
-      ! get number of occ orbitals / atomic orbitals
-      DO ispin = 1, nspins
-         CALL get_mo_set(qs_env%mos(ispin)%mo_set, mo_coeff=qs_env_c)
-         CALL cp_fm_get_info(qs_env_c, ncol_global=n_occ, nrow_global=n_ao)
-         stda_kernel%n_occ(ispin) = n_occ
-         stda_kernel%n_ao(ispin) = n_ao
-      ENDDO
 
       ! initialize stda_kind_parameters
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)

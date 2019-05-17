@@ -75,7 +75,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fhxc_kernel', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ
+      INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao, rho_ia_ao_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
@@ -90,7 +90,7 @@ CONTAINS
 
       CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao)
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nmo_occ(ispin))
+         CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
       END DO
 
       CALL qs_rho_get(work_matrices%rho_orb_struct_sub, rho_ao=rho_ia_ao, &
@@ -106,11 +106,11 @@ CONTAINS
             IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix)) THEN
                DO ispin = 1, nspins
                   ! Can this be done using cp_dbcsr_plus_fm_fm_t ?
-                  CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), &
+                  CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), &
                                0.5_dp, sub_env%mos_occ(ispin)%matrix, &
                                work_matrices%evects_sub(ispin, ivect)%matrix, &
                                0.0_dp, work_matrices%rho_ao_orb_fm_sub)
-                  CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), &
+                  CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), &
                                0.5_dp, work_matrices%evects_sub(ispin, ivect)%matrix, &
                                sub_env%mos_occ(ispin)%matrix, &
                                1.0_dp, work_matrices%rho_ao_orb_fm_sub)
@@ -125,9 +125,9 @@ CONTAINS
          ELSE
             DO ispin = 1, nspins
                ! Can this be done using cp_dbcsr_plus_fm_fm_t ?
-               CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 0.5_dp, sub_env%mos_occ(ispin)%matrix, &
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, sub_env%mos_occ(ispin)%matrix, &
                             evects(ispin, ivect)%matrix, 0.0_dp, work_matrices%rho_ao_orb_fm_sub)
-               CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
                             sub_env%mos_occ(ispin)%matrix, 1.0_dp, work_matrices%rho_ao_orb_fm_sub)
 
                CALL copy_fm_to_dbcsr(work_matrices%rho_ao_orb_fm_sub, &
@@ -202,14 +202,14 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
                                             sub_env%mos_occ(ispin)%matrix, &
                                             work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
-                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+                                            ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          ELSE
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
                                             sub_env%mos_occ(ispin)%matrix, &
                                             Aop_evects(ispin, ivect)%matrix, &
-                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+                                            ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          END IF
       END DO

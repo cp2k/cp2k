@@ -274,12 +274,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iounit, ispin, max_iter_lanczos, &
-                                                            n_occ, ndep, nsgf, nspins, &
+                                                            nactive, ndep, nsgf, nspins, &
                                                             order_lanczos
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: eps_lanczos, threshold
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
+      TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_s
       TYPE(dbcsr_type)                                   :: sm_hinv
@@ -357,23 +357,9 @@ CONTAINS
       nspins = SIZE(sub_env%mos_occ)
 
       DO ispin = 1, nspins
-         n_occ = stda_env%n_occ(ispin)
-         ! Build Lowdin coefficients C'= S^1/2 C for each spin
-         NULLIFY (fm_work2)
-         CALL cp_fm_struct_create(fmstruct=fmstruct, &
-                                  para_env=sub_env%para_env, &
-                                  context=sub_env%blacs_env, &
-                                  nrow_global=nsgf, &
-                                  ncol_global=n_occ)
-         CALL cp_fm_create(matrix=fm_work2, matrix_struct=fmstruct, name="TMP MATRIX 2")
+         CALL cp_fm_get_info(work%ctransformed(ispin)%matrix, ncol_global=nactive)
          CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin)%matrix, &
-                                      fm_work2, n_occ, alpha=1.0_dp, beta=0.0_dp)
-
-         CALL cp_fm_to_fm(fm_work2, work%ctransformed(ispin)%matrix)
-
-         CALL cp_fm_struct_release(fmstruct=fmstruct)
-         CALL cp_fm_release(matrix=fm_work2)
-         NULLIFY (fm_work2, fmstruct)
+                                      work%ctransformed(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
       ENDDO
 
       CALL timestop(handle)
@@ -395,9 +381,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_lowdin_x', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, ncol, nspins
-      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: fmwork
+      INTEGER                                            :: handle, ispin, nactive, nspins
 
       CALL timeset(routineN, handle)
 
@@ -405,13 +389,9 @@ CONTAINS
 
       ! Build Lowdin transformed tilde(X)= S^1/2 X for each spin
       DO ispin = 1, nspins
-         NULLIFY (fmwork, fmstruct)
-         CALL cp_fm_get_info(xt(ispin)%matrix, matrix_struct=fmstruct, ncol_global=ncol)
-         CALL cp_fm_create(matrix=fmwork, matrix_struct=fmstruct, name="TMP MATRIX 2")
+         CALL cp_fm_get_info(xt(ispin)%matrix, ncol_global=nactive)
          CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin)%matrix, &
-                                      fmwork, ncol, alpha=1.0_dp, beta=0.0_dp)
-         CALL cp_fm_to_fm(fmwork, xt(ispin)%matrix)
-         CALL cp_fm_release(matrix=fmwork)
+                                      xt(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
       ENDDO
 
       CALL timestop(handle)
@@ -450,7 +430,7 @@ CONTAINS
                                                             ikind, is, ispin, jatom, jkind, natom, &
                                                             nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
-      INTEGER, DIMENSION(2)                              :: n_occ, nlim
+      INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
                                                             use_virial
       REAL(KIND=dp)                                      :: alpha, bp, dr, eta, gabr, hfx, rbeta, &
@@ -479,7 +459,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      n_occ(:) = stda_env%n_occ(:)
+      nactive(:) = stda_env%nactive(:)
       nspins = SIZE(X)
       spinfac = 2.0_dp
       IF (nspins == 2) spinfac = 1.0_dp
@@ -596,7 +576,7 @@ CONTAINS
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             ! rho(nu,i) = rho(nu,i) + Shalf(nu,mu)*CV(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, n_occ(ispin), spinfac, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), spinfac, 1.0_dp)
          END IF
          !
          ! *** Exchange contribution
@@ -609,7 +589,7 @@ CONTAINS
             tempmat => work%shalf
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
-            CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, n_occ(ispin), &
+            CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
                                        1.0_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
@@ -632,9 +612,9 @@ CONTAINS
             END DO
             CALL dbcsr_iterator_stop(iter)
             ! CV(mu,i) = P(nu,mu)*CT(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, n_occ(ispin), 1.0_dp, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
             ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, n_occ(ispin), -1.0_dp, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), -1.0_dp, 1.0_dp)
             !
             CALL dbcsr_release(pdens)
             DEALLOCATE (kind_of)

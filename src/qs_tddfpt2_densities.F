@@ -91,6 +91,7 @@ CONTAINS
                              task_list_external=sub_env%task_list_orb)
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_construct_ground_state_orb_density
 
 ! **************************************************************************************************

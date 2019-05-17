@@ -199,7 +199,8 @@ CONTAINS
             RETURN
          END IF
 
-         CALL open_file(file_name=filename, file_action="READ", file_form="UNFORMATTED", file_status="OLD", unit_number=iunit)
+         CALL open_file(file_name=filename, file_action="READ", file_form="UNFORMATTED", &
+                        file_status="OLD", unit_number=iunit)
       END IF
 
       nspins = SIZE(evects, 1)

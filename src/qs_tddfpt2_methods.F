@@ -16,7 +16,8 @@ MODULE qs_tddfpt2_methods
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_get_info
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -105,7 +106,8 @@ CONTAINS
       CHARACTER(len=20)                                  :: nstates_str
       INTEGER                                            :: energy_unit, handle, ispin, istate, &
                                                             iter, log_unit, mult, niters, nspins, &
-                                                            nstates, nstates_read
+                                                            nstates, nstates_read, nao
+      INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_hfx, is_restarted
       REAL(kind=dp)                                      :: conv
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
@@ -167,7 +169,7 @@ CONTAINS
       ! components of the dipole operator
       CALL tddfpt_dipole_operator(dipole_op_mos_occ, tddfpt_control, gs_mos, qs_env)
 
-      nspins = dft_control%nspins
+      nspins = SIZE(gs_mos)
       ! multiplicity of molecular system
       IF (nspins > 1) THEN
          mult = ABS(SIZE(gs_mos(1)%evals_occ) - SIZE(gs_mos(2)%evals_occ)) + 1
@@ -235,7 +237,12 @@ CONTAINS
          END IF
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          ! sTDA kernel
-         CALL allocate_stda_env(qs_env, stda_kernel)
+         nactive = 0
+         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+         DO ispin = 1,SIZE(gs_mos)
+            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nactive(ispin))
+         END DO
+         CALL allocate_stda_env(qs_env, stda_kernel, nao, nactive)
          ! sTDA parameters
          CALL stda_init_param(qs_env, stda_kernel, tddfpt_control%stda_control)
          ! allocate pools and work matrices

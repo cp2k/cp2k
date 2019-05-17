@@ -177,9 +177,8 @@ CONTAINS
          CALL pw_axpy(work_v_rspace%pw, A_ia_rspace(ispin)%pw, alpha)
       END DO
 
-      ! TO DO: tau component
-
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_apply_coulomb
 
 ! **************************************************************************************************
@@ -281,6 +280,7 @@ CONTAINS
       DEALLOCATE (rho_ia_g2, rho_ia_r2)
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_apply_xc
 
 ! **************************************************************************************************
@@ -319,7 +319,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
                                                             nspins, nvects
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ
+      INTEGER, DIMENSION(maxspins)                       :: nactive
       REAL(kind=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
 
@@ -336,7 +336,7 @@ CONTAINS
 
       CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
       DO ispin = 1, nspins
-         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         CALL cp_fm_get_info(evects(ispin,1)%mos_occ, ncol_global=nactive(ispin))
       END DO
 
       IF (do_admm) THEN
@@ -348,9 +348,9 @@ CONTAINS
       ! TO DO: add SIC support
       DO ivect = 1, nvects
          DO ispin = 1, nspins
-            CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
+            CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
                          evects(ispin, ivect)%matrix, 0.0_dp, wfm_rho_orb)
-            CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+            CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
                          gs_mos(ispin)%mos_occ, 1.0_dp, wfm_rho_orb)
 
             CALL dbcsr_set(work_hmat(ispin)%matrix, 0.0_dp)
@@ -375,13 +375,13 @@ CONTAINS
                CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
                             admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
-               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, alpha, wfm_rho_orb, &
+               CALL cp_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
                             gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
             END DO
          ELSE
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                            Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
+                                            Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
                                             alpha=alpha, beta=1.0_dp)
             END DO
          END IF
