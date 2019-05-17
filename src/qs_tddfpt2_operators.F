@@ -336,7 +336,7 @@ CONTAINS
 
       CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(evects(ispin,1)%mos_occ, ncol_global=nactive(ispin))
+         CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
       END DO
 
       IF (do_admm) THEN

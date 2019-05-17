@@ -15,9 +15,9 @@ MODULE qs_tddfpt2_methods
                                               tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_get_info
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -105,8 +105,8 @@ CONTAINS
 
       CHARACTER(len=20)                                  :: nstates_str
       INTEGER                                            :: energy_unit, handle, ispin, istate, &
-                                                            iter, log_unit, mult, niters, nspins, &
-                                                            nstates, nstates_read, nao
+                                                            iter, log_unit, mult, nao, niters, &
+                                                            nspins, nstates, nstates_read
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_hfx, is_restarted
       REAL(kind=dp)                                      :: conv

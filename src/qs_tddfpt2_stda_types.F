@@ -11,10 +11,7 @@ MODULE qs_tddfpt2_stda_types
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cp_control_types,                ONLY: dft_control_type,&
-                                              stda_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_type
+   USE cp_control_types,                ONLY: stda_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -24,7 +21,6 @@ MODULE qs_tddfpt2_stda_types
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_mo_types,                     ONLY: get_mo_set
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -213,9 +209,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_stda_env', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ii, ispin, nkind
-      TYPE(cp_fm_type), POINTER                          :: qs_env_c
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      INTEGER                                            :: ii, nkind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
