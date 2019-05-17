@@ -12,4 +12,5 @@ o2_ot_refine_2.inp                                     1      1e-13             
 o2_ot_refine_diis_1.inp                                1      8e-14             -31.68975974949591
 o2_ot_refine_diis_2.inp                                1      5e-14             -31.26277230138731
 ethylene_l1_loc.inp                                   13    1.0E-14               0.4063601640E+02
+o2_ot_refine_roks.inp                                  1      1e-13             -31.23722653728602
 #EOF

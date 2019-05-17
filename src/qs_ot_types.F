@@ -524,6 +524,9 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k, template=matrix_s, n=k, &
                                                 sym=dbcsr_type_no_symmetry)
          !
+         CALL dbcsr_init_p(qs_ot_env%matrix_buf1)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf1, template=matrix_s, m=k, n=k, &
+                                            sym=dbcsr_type_no_symmetry)
 
       END SELECT
 
