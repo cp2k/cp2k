@@ -263,9 +263,10 @@ cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
 ###################################################################################
 repo_dir=${dir_base}/${cp2k_dir}
 test_types_file=${repo_dir}/tests/TEST_TYPES
-dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
-dirout=${dirout:-${dir_base}}
-dir_out=${dir_out}/TEST-${dir_triplet}-${cp2k_version}-${date_stamp}
+lastdir=LAST-${dir_triplet}-${cp2k_version}
+dir_last=${dir_base}/${lastdir}
+testdir=TEST-${dir_triplet}-${cp2k_version}-${date_stamp}
+dir_test=${dir_out}/${testdir}
 changelog=${dir_last}/ChangeLog
 changelog_diff=${changelog}.diff
 changelog_new=${changelog}.new
@@ -274,15 +275,15 @@ changelog_tests=${changelog}-tests
 changelog_tests_diff=${changelog_tests}.diff
 changelog_tests_new=${changelog_tests}.new
 changelog_tests_old=${changelog_tests}.old
-mkdir -p ${dir_out}
+mkdir -p ${dir_test}
 mkdir -p ${dir_last}
-make_out=${dir_out}/make.out
-error_description_file=${dir_out}/error_summary
+make_out=${dir_test}/make.out
+error_description_file=${dir_test}/error_summary
 >${error_description_file}
-memory_description_file=${dir_out}/memory_summary
+memory_description_file=${dir_test}/memory_summary
 >${memory_description_file}
-summary=${dir_out}/summary.txt
-timings=${dir_out}/timings.txt
+summary=${dir_test}/summary.txt
+timings=${dir_test}/timings.txt
 printf "Summary of the regression tester run from ${date_stamp} using ${dir_triplet} ${cp2k_version} \n" >${summary}
 
 
@@ -356,15 +357,15 @@ function do_test() {
 function run_regtest_dir() {
   dir=$1
   task=${dir//\//-}
-  touch ${dir_out}/status/REGTEST_RUNNING-$task
+  touch ${dir_test}/status/REGTEST_RUNNING-$task
   n_runtime_error=0
   n_wrong_results=0
   n_correct=0
   n_tests=0
   n_new=0
 
-  cd ${dir_out}/tests/${dir}
-  mkdir -p ${dir_out}/${dir}
+  cd ${dir_test}/tests/${dir}
+  mkdir -p ${dir_test}/${dir}
   mkdir -p ${dir_last}/${dir}
   touch ${dir_last}/${dir}/TEST_FILES_RESET
 
@@ -373,12 +374,12 @@ function run_regtest_dir() {
   #
   if [[ ${noreset} != "noreset" ]]; then
      if [[ -f TEST_FILES_RESET ]] ; then
-       diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
+       diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_test}/${dir}/TEST_FILES_RESET.diff
        cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
-       nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
+       nreset=`grep '<' ${dir_test}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
        for ((itest=1;itest<=nreset;itest++));
        do
-          reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+          reset_file=`grep '<' ${dir_test}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
           rm -f ${dir_last}/${dir}/${reset_file}.out
        done
      else
@@ -388,8 +389,8 @@ function run_regtest_dir() {
   #
   # run the tests now
   #
-  echo "Starting regression tests in ${dir_out}/tests/${dir} (${idir} of ${ndir})"
-  echo ">>> ${dir_out}/tests/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  echo "Starting regression tests in ${dir_test}/tests/${dir} (${idir} of ${ndir})"
+  echo ">>> ${dir_test}/tests/${dir}" > ${dir_test}/status/REGTEST_TASK_TESTS-$task
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
   t1=`date +%s`
   for ((itest=1;itest<=ntest;itest++));
@@ -404,7 +405,7 @@ function run_regtest_dir() {
      test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF >= 3) { print $3 } else { print def_err_tol } }'`
      test_ref_value=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) if (NF == 4) { print $4 } }'`
 
-     output_file=${dir_out}/${dir}/${input_file}.out
+     output_file=${dir_test}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
 
 
@@ -528,16 +529,16 @@ function run_regtest_dir() {
        fi
      fi
 
-     printf "    %-50s %25s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+     printf "    %-50s %25s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
      printf "%7.2f  %s\n" "${timing}" "${dir}/${input_file}" >> "${timings}"
   done
 
   t2=`date +%s`
   timing_all=$((1+t2-t1))
-  printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
-  cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
+  printf "%s %0.2f %s\n" "<<< ${dir_test}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
+  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
+  cat ${dir_test}/status/REGTEST_TASK_TESTS-$task
+  rm -f ${dir_test}/status/REGTEST_TASK_TESTS-$task ${dir_test}/status/REGTEST_RUNNING-$task
 }
 
 
@@ -549,19 +550,19 @@ function run_regtest_dir() {
 function run_unittest() {
   dir=$1
   task=${dir//\//-}
-  touch ${dir_out}/status/REGTEST_RUNNING-$task
+  touch ${dir_test}/status/REGTEST_RUNNING-$task
   n_runtime_error=0
   n_correct=0
 
-  mkdir -p ${dir_out}/UNIT
-  mkdir -p ${dir_out}/tests/${dir}
-  cd ${dir_out}/tests/${dir}
+  mkdir -p ${dir_test}/UNIT
+  mkdir -p ${dir_test}/tests/${dir}
+  cd ${dir_test}/tests/${dir}
 
-  echo "Starting unit test in ${dir_out}/test/${dir} (${idir} of ${ndir})"
-  echo ">>> ${dir_out}/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  echo "Starting unit test in ${dir_test}/test/${dir} (${idir} of ${ndir})"
+  echo ">>> ${dir_test}/${dir}" > ${dir_test}/status/REGTEST_TASK_TESTS-$task
 
   t1=`date +%s`
-  output_file=${dir_out}/${dir}.out
+  output_file=${dir_test}/${dir}.out
   unittest=${dir##*/}
   testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version}"
   ( ulimit -t ${job_max_time} ; ${testcmd} &> ${output_file} ) >& /dev/null
@@ -623,11 +624,11 @@ function run_unittest() {
      fi
   fi
 
-  printf "    %-50s %25s %20s %s\n" "${dir##*/}" "-" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  echo "${n_runtime_error} 0 ${n_correct} 0  1" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
-  cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
+  printf "    %-50s %25s %20s %s\n" "${dir##*/}" "-" "${this_test}" "${leak_marker}" >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
+  printf "%s %0.2f %s\n" "<<< ${dir_test}/tests/${dir} (${idir} of ${ndir}) done in" ${timing} "sec"  >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
+  echo "${n_runtime_error} 0 ${n_correct} 0  1" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
+  cat ${dir_test}/status/REGTEST_TASK_TESTS-$task
+  rm -f ${dir_test}/status/REGTEST_TASK_TESTS-$task ${dir_test}/status/REGTEST_RUNNING-$task
   printf "%7.2f  %s\n" "${timing}" "UNIT/${dir##*/}" >> "${timings}"
 }
 
@@ -653,7 +654,7 @@ if [[ -f ${lockfile} ]]; then
       echo "       Check if a regtest is already running for the same directory and if not then"
       echo "       remove the lockfile ${lockfile}"
       echo "       first and retry"
-      rm -rf ${dir_out}
+      rm -rf ${dir_test}
       echo -e "\nSummary: Test directory is locked."
       echo -e "Status: UNKNOWN\n"
       exit 7
@@ -671,7 +672,7 @@ if (( maxtasks < numprocs*OMP_NUM_THREADS )); then
    echo "       maxtasks        = ${maxtasks}"
    echo "       numprocs        = ${numprocs}"
    echo "       OMP_NUM_THREADS = ${OMP_NUM_THREADS}"
-   rm -rf ${dir_out} ${lockfile}
+   rm -rf ${dir_test} ${lockfile}
    exit 8
 fi
 
@@ -687,7 +688,7 @@ function file_info() {
 echo " regtesting location summary file: $summary"
 echo " regtesting location error_summary file: $error_description_file"
 echo " regtesting location memory_summary file: $memory_description_file"
-echo " regtesting location output dir: $dir_out"
+echo " regtesting location output dir: $dir_test"
 echo " regtesting location last dir: $dir_last"
 }
 
@@ -901,27 +902,27 @@ if [[ ${skiptest} != "skiptest" ]]; then
    if df --output=target >/dev/null ; then
      # GNU coreutils version for Linux etc.
      source_device=$(df --output=target ${dir_base}/${cp2k_dir}/tests | tail -1)
-     target_device=$(df --output=target ${dir_out} | tail -1)
+     target_device=$(df --output=target ${dir_test} | tail -1)
      if [[ -f /.dockerenv ]]; then
        printf "Inside Docker, using normal copy ... "
-       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_test}
      elif [[ ${source_device} == "/afs" || ${target_device} == "/afs" ]]; then
        printf "cannot use hard links with AFS.\n"
        printf "Using normal copy instead ... "
-       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_test}
      elif [[ ${source_device} == ${target_device} ]]; then
-        cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
-        cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
+        cp -al ${dir_base}/${cp2k_dir}/tests ${dir_test}/tests || \
+        cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_test}/tests
      else
        echo "cannot use hard links to copy the tests folder."
        echo "Source device is ${source_device} for ${dir_base}/${cp2k_dir}/tests"
-       echo "Target device is ${target_device} for ${dir_out}"
+       echo "Target device is ${target_device} for ${dir_test}"
        printf "Using normal copy instead ... "
-       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_test}
      fi
    else
      # Probably running on a mac, just use normal cp
-     cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+     cp -a ${dir_base}/${cp2k_dir}/tests ${dir_test}
    fi
 
    printf "done!\n"
@@ -931,29 +932,28 @@ if [[ ${skiptest} != "skiptest" ]]; then
    #
    last_test_dir=""
    retest_dirs=""
-   if [[ $doretest == "yes" ]];
-   then
-     last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
-     if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
-     then
+   if [[ $doretest == "yes" ]]; then
+     last_test_dir=`ls ${dir_out} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
+     if [[ "${testdir}" == "${last_test_dir}" ]]; then
        echo "No TEST directory with latest test results found. Nothing to test!"
        rm ${lockfile}
+       rm -rf ${dir_test}
        exit 5
-     elif [[ ! -f "${dir_base}/${last_test_dir}/error_summary" ]]
-     then
+     elif [[ ! -f "${dir_out}/${last_test_dir}/error_summary" ]]; then
        echo "No error summary exists in the last TEST directory. Nothing to test!"
        rm ${lockfile}
+       rm -rf ${dir_test}
        exit 6
      else
-       retest_dirs=`grep .inp.out ${dir_base}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
-       for t in $retest_dirs
-       do
+       retest_dirs=`grep .inp.out ${dir_out}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
+       for t in ${retest_dirs}; do
          let ndirstorestrict=ndirstorestrict+1;
          restrict_dirs[ndirstorestrict]=$t;
        done
        if (( ndirstorestrict == 0 )); then
           echo "No error occurred during the last run. Nothing to retest!"
           rm ${lockfile}
+          rm -rf ${dir_test}
           exit 0
        fi
      fi
@@ -966,7 +966,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    echo "CP2K supports: $cp2kflags"
 
    # get a list of regtest directories
-   dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
+   dirs=`cat ${dir_test}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
 
    # prepend list of unit-tests to dirs, use a special "UNIT/" prefix
    if [[ "$do_unit_test" == "yes" ]]; then
@@ -1018,7 +1018,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
 
      # does this dir require features we do not have ?
      featurematch="yes"
-     features_required=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
+     features_required=`cat ${dir_test}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
      for fr in $features_required
      do
         # allow a specification on the mpiranks needed e.g. fr="mpiranks>2&&mpiranks<6"
@@ -1043,11 +1043,11 @@ if [[ ${skiptest} != "skiptest" ]]; then
    dirs=$new_dirs
 
    # Just to be sure, clean possible existing status files.
-   cd ${dir_out}
-   mkdir ${dir_out}/status
-   rm -f ${dir_out}/status/REGTEST_RUNNING-* \
-       ${dir_out}/status/REGTEST_TASK_RESULT-* \
-       ${dir_out}/status/REGTEST_TASK_TESTS-*
+   cd ${dir_test}
+   mkdir ${dir_test}/status
+   rm -f ${dir_test}/status/REGTEST_RUNNING-* \
+       ${dir_test}/status/REGTEST_TASK_RESULT-* \
+       ${dir_test}/status/REGTEST_TASK_TESTS-*
 
    #
    # generate farming input
@@ -1055,7 +1055,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    if [[ "$farming" == "yes" ]]; then
    echo "generating farming input "
    ijob=0
-   cat << EOF > ${dir_out}/farming.inp
+   cat << EOF > ${dir_test}/farming.inp
 &GLOBAL
   PROJECT farming
   PROGRAM FARMING
@@ -1069,16 +1069,16 @@ EOF
    for dir in ${dirs}; do
      if [[ $dir != UNIT/* ]]; then
        # generate output dir
-       mkdir -p ${dir_out}/${dir}
+       mkdir -p ${dir_test}/${dir}
        #
        # generate the equivalent farming input
        #
        idir=$((idir+1))
-       ntest=`grep -v "#" ${dir_out}/tests/${dir}/TEST_FILES | ${awk} '{c=c+1}END{print c}'`
+       ntest=`grep -v "#" ${dir_test}/tests/${dir}/TEST_FILES | ${awk} '{c=c+1}END{print c}'`
        for ((itest=1;itest<=ntest;itest++));
        do
-         input_file=`grep -v "#" ${dir_out}/tests/${dir}/TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
-         output_file=${dir_out}/${dir}/${input_file}.out
+         input_file=`grep -v "#" ${dir_test}/tests/${dir}/TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
+         output_file=${dir_test}/${dir}/${input_file}.out
          jobid=$((idir*100000+itest))
          if [[ $itest != 1 ]]; then
             jobid_prev=$((idir*100000+itest-1))
@@ -1087,11 +1087,11 @@ EOF
             depstr=""
          fi
          ijob=$((ijob+1))
-         printf "&JOB \n   DIRECTORY ${dir_out}/tests/${dir} \n   INPUT_FILE_NAME ${input_file} \n   OUTPUT_FILE_NAME ${output_file} \n   JOB_ID $jobid \n   $depstr \n&END JOB\n" >> ${dir_out}/farming.inp
+         printf "&JOB \n   DIRECTORY ${dir_test}/tests/${dir} \n   INPUT_FILE_NAME ${input_file} \n   OUTPUT_FILE_NAME ${output_file} \n   JOB_ID $jobid \n   $depstr \n&END JOB\n" >> ${dir_test}/farming.inp
        done
      fi
    done
-   printf "&END FARMING\n" >> ${dir_out}/farming.inp
+   printf "&END FARMING\n" >> ${dir_test}/farming.inp
    echo "Running farming for $ijob jobs"
    ${cp2k_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} farming.inp ${cp2k_postfix} < /dev/null >& farming.out
    if (( $? )); then # on failed farming, provide info
@@ -1126,7 +1126,7 @@ EOF
     runningtasks=10000
     while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
        sleep 0.1
-       runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
+       runningtasks=`ls -1 ${dir_test}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
     done
 
    done
@@ -1143,7 +1143,7 @@ EOF
    for dir in ${dirs};
    do
      task=${dir//\//-}
-     file=${dir_out}/status/REGTEST_TASK_RESULT-$task
+     file=${dir_test}/status/REGTEST_TASK_RESULT-$task
      tmp=`awk '{print $1}' $file`
      n_runtime_error=$((n_runtime_error+tmp))
      tmp=`awk '{print $2}' $file`
