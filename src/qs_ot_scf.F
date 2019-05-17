@@ -119,10 +119,9 @@ CONTAINS
 !> \param energy_only ...
 !> \param delta ...
 !> \param qs_ot_env ...
-!> \param input ...
 ! **************************************************************************************************
    SUBROUTINE ot_scf_mini(mo_array, matrix_dedc, smear, matrix_s, energy, &
-                          energy_only, delta, qs_ot_env, input)
+                          energy_only, delta, qs_ot_env)
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dedc
@@ -132,11 +131,10 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: energy_only
       REAL(KIND=dp)                                      :: delta
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
-      TYPE(section_vals_type), POINTER                   :: input
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, k, n, nspin, output_unit
+      INTEGER                                            :: handle, ispin, k, n, nspin
       REAL(KIND=dp)                                      :: ener_nondiag, trace
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: expectation_values, occupation_numbers, &
                                                             scaling_factor
@@ -274,9 +272,7 @@ CONTAINS
       ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
       qs_ot_env(1)%etotal = energy+ener_nondiag
 
-      output_unit = cp_print_key_unit_nr(logger, input, "DFT%SCF%PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
-      CALL ot_mini(qs_ot_env, matrix_dedc_scaled, output_unit)
+      CALL ot_mini(qs_ot_env, matrix_dedc_scaled)
 
       delta = qs_ot_env(1)%delta
       energy_only = qs_ot_env(1)%energy_only
@@ -298,8 +294,7 @@ CONTAINS
          CASE ("REF")
             CALL qs_ot_get_orbitals_ref(mo_coeff, matrix_s, qs_ot_env(ispin)%matrix_x, &
                                         qs_ot_env(ispin)%matrix_sx, qs_ot_env(ispin)%matrix_gx_old, &
-                                        qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin), qs_ot_env(1), &
-                                        output_unit)
+                                        qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin), qs_ot_env(1))
          CASE DEFAULT
             CPABORT("Algorithm not yet implemented")
          END SELECT
@@ -320,8 +315,6 @@ CONTAINS
       ENDIF
 
       ! cleanup
-      CALL cp_print_key_finished_output(output_unit, logger, input, &
-                                        "DFT%SCF%PRINT%PROGRAM_RUN_INFO")
       DO ispin = 1, SIZE(scaling_factor)
          DEALLOCATE (scaling_factor(ispin)%array)
       ENDDO

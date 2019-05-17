@@ -17,7 +17,6 @@ MODULE qs_ot
                                               cp_dbcsr_cholesky_restore
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_p, dbcsr_get_info, &
@@ -117,7 +116,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: alpha = 0.1_dp, f2_eps = 0.01_dp
 
       INTEGER                                            :: blk, col, col_size, group, handle, i, k, &
-                                                            n, output_unit, p, row, row_size
+                                                            n, p, row, row_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
       REAL(KIND=dp)                                      :: expfactor, f2, norm_fro, norm_gct, tmp
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -156,8 +155,6 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_get_info(C, group=group)
       CALL mp_sum(f2, group)
-      output_unit = cp_logger_get_default_io_unit()
-      IF (output_unit > 0) WRITE (output_unit, *) routineN//' f2 =', f2
       !
       !
       CALL dbcsr_multiply('T', 'N', 1.0_dp, C, C_NEW, 0.0_dp, GU)
@@ -333,16 +330,14 @@ CONTAINS
 !> \param SC ...
 !> \param norm_in ...
 !> \param update ...
-!> \param output_unit ...
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_ref_poly(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, norm_in, update, output_unit)
+   SUBROUTINE qs_ot_ref_poly(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, norm_in, update)
       !
       TYPE(qs_ot_type)                                   :: qs_ot_env
       TYPE(dbcsr_type), POINTER                          :: C_OLD, C_TMP, C_NEW, P
       TYPE(dbcsr_type)                                   :: SC
       REAL(dp), INTENT(IN)                               :: norm_in
       LOGICAL, INTENT(IN)                                :: update
-      INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_poly', routineP = moduleN//':'//routineN
 
@@ -375,15 +370,13 @@ CONTAINS
          !
          ! rescaling
          IF (norm .GT. 1.0_dp) THEN
-            IF (output_unit > 0) WRITE (output_unit, '(A,I3,A)') &
-               routineN, irefine, ': we rescale (C+a*D)'
             CALL dbcsr_scale(P, 1.0_dp/norm)
             rescale = rescale/SQRT(norm)
          ENDIF
          !
          ! get the refinement polynomial
          CALL qs_ot_refine(P, FY, BUF1, BUF2, qs_ot_env%settings%irac_degree, &
-                           qs_ot_env%settings%eps_irac_filter_matrix, output_unit)
+                           qs_ot_env%settings%eps_irac_filter_matrix)
          !
          ! collect the transformation
          IF (irefine .EQ. 1) THEN
@@ -394,16 +387,12 @@ CONTAINS
                occ_in = dbcsr_get_occupation(buf1)
                CALL dbcsr_filter(buf1, qs_ot_env%settings%eps_irac_filter_matrix)
                occ_out = dbcsr_get_occupation(buf1)
-               IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-                  WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(BUF1): occ_in', occ_in, ' occ_out', occ_out
             ENDIF
             CALL dbcsr_copy(FT, BUF1, name='FT')
          ENDIF
          !
          ! quick exit if possible
          IF (quick_exit) THEN
-            IF (output_unit > 0) WRITE (output_unit, '(A,I3,A)') &
-               routineN, irefine, ': quick exit!'
             EXIT
          ENDIF
          !
@@ -413,16 +402,12 @@ CONTAINS
             occ_in = dbcsr_get_occupation(buf_nosym)
             CALL dbcsr_filter(buf_nosym, qs_ot_env%settings%eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(buf_nosym)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(BUF_NOSYM): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          CALL dbcsr_multiply('N', 'N', 1.0_dp, FY, BUF_NOSYM, 0.0_dp, P)
          IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
             occ_in = dbcsr_get_occupation(p)
             CALL dbcsr_filter(p, qs_ot_env%settings%eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(p)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(P): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          !
          ! check ||P-1||_gct
@@ -433,8 +418,6 @@ CONTAINS
          norm = MIN(norm_gct, norm_fro)
          !
          ! printing
-         IF (output_unit > 0) WRITE (output_unit, '(A,I3,A,E12.5)') &
-            routineN, irefine, ': ||P-I||=', norm
          !
          ! blows up
          IF (norm > 1.0E10_dp) THEN
@@ -458,8 +441,6 @@ CONTAINS
          occ_in = dbcsr_get_occupation(c_new)
          CALL dbcsr_filter(c_new, qs_ot_env%settings%eps_irac_filter_matrix)
          occ_out = dbcsr_get_occupation(c_new)
-         IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-            WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(C_NEW): occ_in', occ_in, ' occ_out', occ_out
       ENDIF
       !
       ! update SC = SC * FY * rescale
@@ -469,8 +450,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(c_tmp)
             CALL dbcsr_filter(c_tmp, qs_ot_env%settings%eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(c_tmp)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(C_TMP): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          CALL dbcsr_copy(SC, C_TMP)
       ENDIF
@@ -533,16 +512,13 @@ CONTAINS
 !> \param matrix_dx ...
 !> \param qs_ot_env ...
 !> \param qs_ot_env1 ...
-!> \param output_unit ...
 ! **************************************************************************************************
    SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
-                                     matrix_gx_old, matrix_dx, qs_ot_env, &
-                                     qs_ot_env1, output_unit)
+                                     matrix_gx_old, matrix_dx, qs_ot_env, qs_ot_env1)
       !
       TYPE(dbcsr_type), POINTER                          :: matrix_c, matrix_s, matrix_x, matrix_sx, &
                                                             matrix_gx_old, matrix_dx
       TYPE(qs_ot_type)                                   :: qs_ot_env, qs_ot_env1
-      INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_ref', &
          routineP = moduleN//':'//routineN
@@ -554,10 +530,6 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: C_NEW, C_OLD, C_TMP, D, G_OLD, P, S, SC
 
       CALL timeset(routineN, handle)
-
-      IF (output_unit > 0 .AND. qs_ot_env1%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-         WRITE (output_unit, *) routinen//' eps_irac_filter_matrix=', &
-         qs_ot_env1%settings%eps_irac_filter_matrix
 
       CALL dbcsr_get_info(matrix_c, nfullrows_total=n, nfullcols_total=k)
       !
@@ -587,8 +559,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(sc)
             CALL dbcsr_filter(sc, qs_ot_env1%settings%eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(sc)
-            IF (output_unit > 0 .AND. qs_ot_env1%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(SC): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
       ELSE
          CALL dbcsr_copy(SC, C_OLD)
@@ -600,8 +570,6 @@ CONTAINS
          occ_in = dbcsr_get_occupation(p)
          CALL dbcsr_filter(p, qs_ot_env1%settings%eps_irac_filter_matrix)
          occ_out = dbcsr_get_occupation(p)
-         IF (output_unit > 0 .AND. qs_ot_env1%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-            WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(P): occ_in', occ_in, ' occ_out', occ_out
       ENDIF
       !
       ! check ||P-1||_f and ||P-1||_gct
@@ -611,9 +579,6 @@ CONTAINS
       CALL dbcsr_add_on_diag(P, 1.0_dp)
       norm = MIN(norm_gct, norm_fro)
       CALL qs_ot_ref_decide(qs_ot_env1, norm, ortho_irac)
-      IF (output_unit > 0) WRITE (output_unit, '(A,I3,A,E12.5,A)') &
-             routineN, 0, ': ||P-I||=', norm,&
-           & ', ortho_irac = '//ortho_irac
       !
       ! select the orthogonality method
       SELECT CASE (ortho_irac)
@@ -622,7 +587,7 @@ CONTAINS
       CASE ("LWDN")
          CALL qs_ot_ref_lwdn(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update)
       CASE ("POLY")
-         CALL qs_ot_ref_poly(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, norm, update, output_unit)
+         CALL qs_ot_ref_poly(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, norm, update)
       CASE DEFAULT
          CPABORT("Wrong argument")
       END SELECT
@@ -630,8 +595,6 @@ CONTAINS
       ! We update the C_i+1 and localization
       IF (update) THEN
          IF (on_the_fly_loc) THEN
-            IF (output_unit > 0) WRITE (output_unit, '(A)') &
-               routineN//' we localize C'
             CALL qs_ot_on_the_fly_localize(qs_ot_env, C_NEW, SC, G_OLD, D)
          ENDIF
          CALL dbcsr_copy(C_OLD, C_NEW)
@@ -648,9 +611,8 @@ CONTAINS
 !> \param T ...
 !> \param irac_degree ...
 !> \param eps_irac_filter_matrix ...
-!> \param output_unit ...
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_refine(P, FY, P2, T, irac_degree, eps_irac_filter_matrix, output_unit)
+   SUBROUTINE qs_ot_refine(P, FY, P2, T, irac_degree, eps_irac_filter_matrix)
       !----------------------------------------------------------------------
       ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
       !----------------------------------------------------------------------
@@ -658,7 +620,6 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(inout)                    :: P, FY, P2, T
       INTEGER, INTENT(in)                                :: irac_degree
       REAL(dp), INTENT(in)                               :: eps_irac_filter_matrix
-      INTEGER, INTENT(in)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine', routineP = moduleN//':'//routineN
 
@@ -677,8 +638,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(fy)
             CALL dbcsr_filter(fy, eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(fy)
-            IF (output_unit > 0 .AND. eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(FY): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          r = -10.0_dp/8.0_dp
          CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r)
@@ -691,8 +650,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(p2)
             CALL dbcsr_filter(p2, eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(p2)
-            IF (output_unit > 0 .AND. eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(P2): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          r = -5.0_dp/16.0_dp
          CALL dbcsr_multiply('N', 'N', r, P2, P, 0.0_dp, FY)
@@ -700,8 +657,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(fy)
             CALL dbcsr_filter(fy, eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(fy)
-            IF (output_unit > 0 .AND. eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(FY): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          r = 21.0_dp/16.0_dp
          CALL dbcsr_add(FY, P2, alpha_scalar=1.0_dp, beta_scalar=r)
@@ -717,8 +672,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(p2)
             CALL dbcsr_filter(p2, eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(p2)
-            IF (output_unit > 0 .AND. eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(P2): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          r = -180.0_dp/128.0_dp
          CALL dbcsr_add(T, P, alpha_scalar=0.0_dp, beta_scalar=r) ! T=-180/128*P
@@ -729,8 +682,6 @@ CONTAINS
             occ_in = dbcsr_get_occupation(fy)
             CALL dbcsr_filter(fy, eps_irac_filter_matrix)
             occ_out = dbcsr_get_occupation(fy)
-            IF (output_unit > 0 .AND. eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(FY): occ_in', occ_in, ' occ_out', occ_out
          ENDIF
          r = 378.0_dp/128.0_dp
          CALL dbcsr_add(FY, P2, alpha_scalar=1.0_dp, beta_scalar=r) ! Y=Y+378/128*P^2
@@ -751,13 +702,11 @@ CONTAINS
 !> \param matrix_sx ...
 !> \param matrix_gx ...
 !> \param qs_ot_env ...
-!> \param output_unit ...
 ! **************************************************************************************************
    SUBROUTINE qs_ot_get_derivative_ref(matrix_hc, matrix_x, matrix_sx, matrix_gx, &
-                                       qs_ot_env, output_unit)
+                                       qs_ot_env)
       TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_x, matrix_sx, matrix_gx
       TYPE(qs_ot_type)                                   :: qs_ot_env
-      INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref', &
          routineP = moduleN//':'//routineN
@@ -783,8 +732,6 @@ CONTAINS
          occ_in = dbcsr_get_occupation(chc)
          CALL dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
          occ_out = dbcsr_get_occupation(chc)
-         IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-            WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(CHC): occ_in', occ_in, ' occ_out', occ_out
       ENDIF
       ! (S*C)*(C'*H*C)
       CALL dbcsr_multiply('N', 'N', 1.0_dp, SC, CHC, 0.0_dp, G)
@@ -792,8 +739,6 @@ CONTAINS
          occ_in = dbcsr_get_occupation(g)
          CALL dbcsr_filter(g, qs_ot_env%settings%eps_irac_filter_matrix)
          occ_out = dbcsr_get_occupation(g)
-         IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-            WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(G): occ_in', occ_in, ' occ_out', occ_out
       ENDIF
       ! G = 2*(1-S*C*C')*H*C
       CALL dbcsr_add(G, HC, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
