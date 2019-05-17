@@ -56,12 +56,10 @@ CONTAINS
 !> \brief ...
 !> \param qs_ot_env ...
 !> \param matrix_hc ...
-!> \param output_unit ...
 ! **************************************************************************************************
-   SUBROUTINE ot_mini(qs_ot_env, matrix_hc, output_unit)
+   SUBROUTINE ot_mini(qs_ot_env, matrix_hc)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
-      INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini', routineP = moduleN//':'//routineN
 
@@ -91,7 +89,7 @@ CONTAINS
                CASE ("REF")
                   CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix, &
                                                 qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, &
-                                                qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin), output_unit)
+                                                qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
                CASE DEFAULT
                   CPABORT("ALGORITHM NYI")
                END SELECT

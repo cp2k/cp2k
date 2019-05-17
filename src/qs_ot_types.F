@@ -980,12 +980,12 @@ CONTAINS
          ENDIF
          IF (settings%ot_algorithm .EQ. 'REF') THEN
             WRITE (output_unit, '(A,1X,A,T49,A,I14)') "  ortho_irac     :", settings%ortho_irac, &
-               "  irac_degree        :", settings%irac_degree
+               "  irac_degree    :", settings%irac_degree
             WRITE (output_unit, '(A,I14,T49,A,E14.5)') "  max_irac       :", settings%max_irac, &
-               "  eps_irac           :", settings%eps_irac
-            WRITE (output_unit, '(A,E14.5,T49,A,E14.5)') "  eps_irac_switch:", settings%eps_irac_switch, &
+               "  eps_irac       :", settings%eps_irac
+            WRITE (output_unit, '(A,E14.5,T49,A,E10.3)') "  eps_irac_switch:", settings%eps_irac_switch, &
                "  eps_irac_quick_exit:", settings%eps_irac_quick_exit
-            WRITE (output_unit, '(A,L2)') "  on_the_fly_loc     :", settings%on_the_fly_loc
+            WRITE (output_unit, '(A,L2)') "  on_the_fly_loc :", settings%on_the_fly_loc
          END IF
          WRITE (output_unit, '(A)') "  ----------------------------------- OT ---------------------------------------"
          WRITE (UNIT=output_unit, &

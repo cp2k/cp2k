@@ -389,11 +389,10 @@ CONTAINS
 
       CALL ot_scf_mini(mos, mo_derivs, smear, orthogonality_metric, &
                        total_energy, energy_only, scf_env%iter_delta, &
-                       scf_env%qs_ot_env, qs_env%input)
+                       scf_env%qs_ot_env)
 
       DO ispin = 1, SIZE(mos)
-         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
-                                smear=smear)
+         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, smear=smear)
       ENDDO
 
       DO ispin = 1, SIZE(mos)
