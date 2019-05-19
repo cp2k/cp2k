@@ -782,7 +782,7 @@ CONTAINS
 
          IF (ASSOCIATED(sm_w)) THEN
 
-            CPWARN("Forces are not yet fully implemented for DFT+U method LOWDIN")
+            CPABORT("Forces are not yet fully implemented for DFT+U method LOWDIN")
 
          END IF ! W matrix update requested
 
@@ -795,8 +795,7 @@ CONTAINS
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &
                       "DFT+U energy contibution is negative possibly due "// &
-                      "to unphysical Lowdin charges. Check your input, "// &
-                      "if this warning persists or try a different method!")
+                      "to unphysical Lowdin charges!")
 
       ! Release (local) full matrices
 
@@ -1456,8 +1455,7 @@ CONTAINS
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &
                       "DFT+U energy contibution is negative possibly due "// &
-                      "to unphysical Mulliken charges. Check your input, "// &
-                      "if this warning persists or try a different method!")
+                      "to unphysical Mulliken charges!")
 
       CALL dbcsr_deallocate_matrix(sm_q)
       CALL dbcsr_deallocate_matrix(sm_v)
@@ -2006,8 +2004,7 @@ CONTAINS
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &
                       "DFT+U energy contibution is negative possibly due "// &
-                      "to unphysical Mulliken charges. Check your input, "// &
-                      "if this warning persists or try a different method!")
+                      "to unphysical Mulliken charges!")
 
       ! Release local work storage
 
