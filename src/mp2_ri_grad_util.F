@@ -416,13 +416,15 @@ CONTAINS
 !> \param ngroup_row ...
 !> \param ngroup_col ...
 !> \param fm_mat ...
+!> \param integ_group_size ...
+!> \param color_group ...
 ! **************************************************************************************************
    SUBROUTINE array2fm(mat2D, fm_struct, num_rows, num_cols, para_env, proc_map, &
                        my_start_row, my_end_row, &
                        my_start_col, my_end_col, &
                        gd_row, gd_col, &
                        group_grid_2_mepos, ngroup_row, ngroup_col, &
-                       fm_mat)
+                       fm_mat, integ_group_size, color_group)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: mat2D
@@ -436,6 +438,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), POINTER                          :: fm_mat
+      INTEGER, INTENT(IN), OPTIONAL                      :: integ_group_size, color_group
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'array2fm', routineP = moduleN//':'//routineN
 
@@ -452,6 +455,7 @@ CONTAINS
                                                             grid_2_mepos, grid_ref_2_send_pos, &
                                                             mepos_2_grid
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: convert_pos
       REAL(KIND=dp)                                      :: part_col, part_row
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
@@ -518,6 +522,10 @@ CONTAINS
       part_row = REAL(num_rows, KIND=dp)/REAL(ngroup_row, KIND=dp)
       part_col = REAL(num_cols, KIND=dp)/REAL(ngroup_col, KIND=dp)
 
+      ! In some cases we have to convert global positions to positions in a subgroup (RPA)
+      convert_pos = .FALSE.
+      IF (PRESENT(integ_group_size) .AND. PRESENT(color_group)) convert_pos = .TRUE.
+
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          ! check the group holding this element
@@ -531,6 +539,13 @@ CONTAINS
             IF (j_global < itmp(1)) rec_pcol = rec_pcol-1
             IF (j_global > itmp(2)) rec_pcol = rec_pcol+1
          END DO
+
+         IF (convert_pos) THEN
+            ! if the group is not in the same RPA group cycle
+            IF ((rec_pcol/integ_group_size) .NE. color_group) CYCLE
+            ! convert global position to position into the RPA group
+            rec_pcol = MOD(rec_pcol, integ_group_size)
+         END IF
 
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)

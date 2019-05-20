@@ -1104,7 +1104,8 @@ CONTAINS
 
          CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, RPA_proc_map, &
                        my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, gd_ia, gd_L, &
-                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S)
+                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S, &
+                       integ_group_size, color_rpa_group)
 
          CALL cp_fm_struct_release(fm_struct)
 
