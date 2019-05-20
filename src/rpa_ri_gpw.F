@@ -67,6 +67,7 @@ MODULE rpa_ri_gpw
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
+                                              maxsize,&
                                               release_group_dist
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
@@ -373,7 +374,7 @@ CONTAINS
          ! has not been given back to the OS yet.
          CALL mp_min(mem_real, para_env%group)
 
-         mem_min = 2.0_dp*REAL(homo, KIND=dp)*MAXVAL(gd_B_virtual%sizes)*MAXVAL(gd_array%sizes)*8.0_dp/(1024**2)
+         mem_min = 2.0_dp*REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
 
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
             mem_min, ' MiB'
