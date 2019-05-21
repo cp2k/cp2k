@@ -1275,9 +1275,9 @@
 !> \param[in] gid          Message passing environment identifier
 ! *****************************************************************************
   SUBROUTINE mp_sum_partial_${nametype1}$m(msg,res,gid)
-    ${type1}$, INTENT(IN)         :: msg( :, : )
-    ${type1}$, INTENT(OUT)        :: res( :, : )
-    INTEGER, INTENT(IN)         :: gid
+    ${type1}$, CONTIGUOUS, INTENT(IN)   :: msg( :, : )
+    ${type1}$, CONTIGUOUS, INTENT(OUT)  :: res( :, : )
+    INTEGER, INTENT(IN)                 :: gid
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_partial_${nametype1}$m'   &
                                  , routineP = moduleN//':'//routineN
