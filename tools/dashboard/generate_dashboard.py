@@ -327,13 +327,16 @@ def gen_plots(archive_reports, log, outdir, full_archive):
         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left',
                   numpoints=1, fancybox=True, shadow=True, borderaxespad=0.0)
         visibles = [[y for x,y in zip(c['x'],c['y']) if x>=-max_age] for c in p['curves'].values()] # visible y-values
-        ymin = min([min(ys) for ys in visibles if ys]) # lowest point from lowest curve
-        ymax = max([max(ys) for ys in visibles if ys]) # highest point from highest curve
-        if(full_archive):
-            ax.set_ylim(0.98*ymin, 1.02*ymax)
+        if not visibles:
+            print("Warning: Found no visible plot point.")
         else:
-            ymax2 = max([min(ys) for ys in visibles if ys]) # lowest point from highest curve
-            ax.set_ylim(0.98*ymin, min(1.02*ymax, 1.3*ymax2))  # protect against outlayers
+            ymin = min([min(ys) for ys in visibles if ys]) # lowest point from lowest curve
+            ymax = max([max(ys) for ys in visibles if ys]) # highest point from highest curve
+            if(full_archive):
+                ax.set_ylim(0.98*ymin, 1.02*ymax)
+            else:
+                ymax2 = max([min(ys) for ys in visibles if ys]) # lowest point from highest curve
+                ax.set_ylim(0.98*ymin, min(1.02*ymax, 1.3*ymax2))  # protect against outlayers
         fig.savefig(outdir+pname+fig_ext)
         plt.close(fig)
 
@@ -554,8 +557,18 @@ def parse_report(report_txt, log):
         report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
         report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
 
+        # Check that every plot has at least one PlotPoint
+        for plot in report['plots']:
+            points = [pp for pp in report['plotpoints'] if pp['plot'] == plot['name']]
+            if not points:
+                report['status'] = 'FAILED'
+                report['summary'] = 'Plot "%s" has no PlotPoints.'%plot['name']
+
+        # Check that CommitSHA belongs to the master branch.
         if report['git-sha'] not in log.index:
-            return( {'status':'UNKNOWN', 'summary':'Unknown CommitSHA.', 'git-sha':None} )
+            report['git-sha'] = None
+            report['status'] = 'FAILED'
+            report['summary'] = 'Unknown CommitSHA.'
 
         return(report)
     except:
