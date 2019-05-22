@@ -94,7 +94,6 @@ def gen_frontpage(config, log, status_fn, outdir):
         print("Working on summary entry of: "+s)
         name        = config.get(s,"name")
         host        = config.get(s,"host")
-        report_type = config.get(s,"report_type")
         report_url  = config.get(s,"report_url")
         do_notify   = config.getboolean(s,"notify") if(config.has_option(s,"notify")) else False
         timeout     = config.getint(s,"timeout") if(config.has_option(s,"timeout")) else 24
@@ -106,7 +105,7 @@ def gen_frontpage(config, log, status_fn, outdir):
 
         # get and parse report
         report_txt = retrieve_report(report_url)
-        report = parse_report(report_txt, report_type, log)
+        report = parse_report(report_txt, log)
 
         if(s not in status):
             status[s] = {'last_ok': None, 'notified': False}
@@ -158,7 +157,6 @@ def gen_archive(config, log, outdir):
     for s in config.sections():
         print("Working on archive page of: "+s)
         name          = config.get(s,"name")
-        report_type   = config.get(s,"report_type")
         info_url      = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
         archive_files = glob(outdir+"archive/%s/rev_*.txt.gz"%s) + \
                         glob(outdir+"archive/%s/commit_*.txt.gz"%s)
@@ -180,7 +178,7 @@ def gen_archive(config, log, outdir):
                 report = reports_cache[fn]
             else:
                 report_txt = gzip.open(fn, 'rb').read().decode("utf-8", errors='replace')
-                report = parse_report(report_txt, report_type, log)
+                report = parse_report(report_txt, log)
                 report['url'] = path.basename(fn)[:-3]
                 reports_cache[fn] = report
             sha = report['git-sha']
@@ -545,82 +543,24 @@ def store_report(report, report_txt, section, outdir):
     write_file(fn, report_txt, gz=True)
 
 #===============================================================================
-def parse_report(report_txt, report_type, log):
+def parse_report(report_txt, log):
     if(report_txt is None):
         return( {'status':'UNKNOWN', 'summary':'Error while retrieving report.', 'git-sha':None} )
     try:
-        if(report_type == "regtest"):
-            report = parse_regtest_report(report_txt)
-        elif(report_type == "generic"):
-            report = parse_generic_report(report_txt)
-        else:
-            raise(Exception("Unknown report_type"))
+        report = dict()
+        report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
+        report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
+        report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
+        report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
+        report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
 
         if report['git-sha'] not in log.index:
             return( {'status':'UNKNOWN', 'summary':'Unknown CommitSHA.', 'git-sha':None} )
 
-        report.update(parse_plots(report_txt))
         return(report)
     except:
         print(traceback.print_exc())
         return( {'status':'UNKNOWN', 'summary':'Error while parsing report.', 'git-sha':None} )
-
-#===============================================================================
-def parse_regtest_report(report_txt):
-    report = dict()
-    report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
-
-    if("LOCKFILE" in report_txt):
-        report['status'] = "UNKNOWN"
-        report['summary'] = "Test directory is locked."
-        return(report)
-
-    m = re.findall("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
-    if(not m and re.search("make: .* Error .*", report_txt)):
-        report['status'] = "FAILED"
-        report['summary'] = "Compilation failed."
-        return(report)
-
-    runtime_errors = int(m[-1][0])
-    wrong_results  = int(m[-1][1])
-    correct_tests  = int(m[-1][2])
-    new_inputs     = int(m[-1][3])
-    num_tests      = int(m[-1][4])
-    memory_leaks   = int(m[-1][5].replace("X", "0"))
-
-    report['summary'] = "correct: %d / %d"%(correct_tests, num_tests)
-    if(new_inputs > 0):
-        report['summary'] += "; new: %d"%new_inputs
-    if(wrong_results > 0):
-        report['summary'] += "; wrong: %d"%wrong_results
-    if(runtime_errors > 0):
-        report['summary'] += "; failed: %d"%runtime_errors
-    if(memory_leaks > 0):
-        report['summary'] += "; memleaks: %d"%memory_leaks
-
-    runtimes = [float(m) for m in re.findall("\nRegtest took (.+) seconds.\n", report_txt)]
-    report['summary'] += "; %.0fmin"%(sum(runtimes)/60.0)
-
-    if(wrong_results>0 or runtime_errors>0 or memory_leaks>0):
-        report['status'] = "FAILED"
-    else:
-        report['status'] = "OK"
-
-    return(report)
-
-#===============================================================================
-def parse_generic_report(report_txt):
-    report = dict()
-    report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
-    report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
-    report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
-    return(report)
-
-#===============================================================================
-def parse_plots(report_txt):
-    plots = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
-    plotpoints = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
-    return({'plots': plots, 'plotpoints': plotpoints})
 
 #===============================================================================
 main()

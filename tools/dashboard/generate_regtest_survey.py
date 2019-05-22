@@ -31,24 +31,21 @@ def main():
     # parse ../../tests/TEST_TYPES
     test_types = parse_test_types()
 
-    # find eligible testers
+    # find eligible testers by parsing latest reports
     tester_names = list()
+    tester_values = dict()
+    inp_names = set()
     config = configparser.ConfigParser()
     config.read(config_fn)
     def get_sortkey(s): return config.getint(s, "sortkey")
-    for s in sorted(config.sections(), key=get_sortkey):
-        if(config.get(s,"report_type") == "regtest"):
-            tester_names.append(s)
-
-    # parse latest reports
-    tester_values = dict()
-    inp_names = set()
-    for tname in tester_names:
+    for tname in sorted(config.sections(), key=get_sortkey):
         list_recent = open(outdir+"archive/%s/list_recent.txt"%tname).readlines()
         latest_report_url = list_recent[0].strip()
         report = parse_report(latest_report_url)
-        inp_names.update(report.keys())
-        tester_values[tname] = report
+        if report:
+            inp_names.update(report.keys())
+            tester_values[tname] = report
+            tester_names.append(tname)
 
     # remove outdated inp-names
     inp_names = inp_names.intersection(test_defs.keys())
@@ -247,14 +244,14 @@ def parse_report(report_url):
     data = urlopen(report_url, timeout=5).read()
     report_txt =  gzip.decompress(data).decode('utf-8', errors='replace')
 
-    values = dict()
     m = re.search("\n-+ ?regtesting cp2k ?-+\n(.*)\n-+ Summary -+\n", report_txt, re.DOTALL)
     if(not m):
-        print("Regtests not finished, skipping.")
-        return values
+        print("Not a complete regtests report - skipping.")
+        return None
 
     main_part = m.group(1)
     curr_dir = None
+    values = dict()
     for line in main_part.split("\n"):
         if("/UNIT/" in line):
             curr_dir = None # ignore unit-tests
