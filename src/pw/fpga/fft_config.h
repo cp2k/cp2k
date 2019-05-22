@@ -27,19 +27,19 @@ typedef struct {
 #endif
 
 // Initialize FPGA
-extern "C" int pw_fpga_initialize_();
+int pw_fpga_initialize_();
 
 // Finalize FPGA
-extern "C" void pw_fpga_final_();
+void pw_fpga_final_();
 
 // Single precision FFT3d procedure
-extern "C" void pw_fpga_fft3d_sp_(int data_path_len, char * data_path, uint32_t direction, uint32_t *N, cmplx *din);
+void pw_fpga_fft3d_sp_(int data_path_len, char *data_path, int direction, int N[3], cmplx *din);
 
-
-extern "C" void pw_fpga_fft3d_dp_(int data_path_len, char * data_path, uint32_t direction, uint32_t *N, cmplx *din);
+// Double precision FFT3d procedure
+void pw_fpga_fft3d_dp_(int data_path_len, char *data_path, int direction, int N[3], cmplx *din);
 
 // Check fpga bitstream present in directory
-extern "C" bool pw_fpga_check_bitstream_(uint32_t *N);
+bool pw_fpga_check_bitstream_(int N[3]);
 
 #endif
 #endif

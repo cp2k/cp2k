@@ -119,6 +119,11 @@ CONTAINS
    SUBROUTINE pw_fpga_init()
 #if defined (__PW_FPGA)
       INTEGER :: stat
+
+#if defined (__PW_CUDA)
+#error "CUDA and FPGA cannot be configured concurrently!"
+#endif
+
       stat = pw_fpga_initialize()
       IF (stat /= 0) &
          CPABORT("pw_fpga_init: failed")
