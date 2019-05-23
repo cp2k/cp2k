@@ -7,17 +7,12 @@ repos:
     -   id: check-yaml
     -   id: check-added-large-files
     -   id: check-ast
-        exclude: &check_ast_exclusion >-
-          (?x)^(
-            tools/autotune_grid/xyz_to_vab/pyratemp.py|
-          )$
     -   id: check-ast
         name: Check python ast (with Python 2.7)
         language_version: python2.7
         stages: [manual]
     -   id: check-ast
         name: Check python ast (with Python 3)
-        exclude: *check_ast_exclusion
         language_version: python3
         stages: [manual]
 -   repo: local
