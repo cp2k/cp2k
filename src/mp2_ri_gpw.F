@@ -2438,8 +2438,8 @@ CONTAINS
          proc_map(para_env_exchange%num_pe+i) = i
       END DO
 
-      CALL create_group_dist(gd_sub_array, my_group_L_size, &
-                             my_group_L_end, my_group_L_start, para_env_exchange)
+      CALL create_group_dist(gd_sub_array, my_group_L_start, &
+                             my_group_L_end, my_group_L_size, para_env_exchange)
 
       ! create the full matrix L defined in the L group
       NULLIFY (fm_matrix_L)
