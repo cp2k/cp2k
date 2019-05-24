@@ -7,7 +7,17 @@ source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
-make -j VERSION=pdbg cp2k_shell
+make -j VERSION=pdbg
+
+echo -e "\n========== Installing CP2K =========="
+# The cp2k main binary is used by ase/test/cp2k/cp2k_dcd.py.
+# https://gitlab.com/ase/ase/merge_requests/1109
+cat > /usr/bin/cp2k << EndOfMessage
+#!/bin/bash -e
+source /opt/cp2k-toolchain/install/setup
+mpiexec -np 2 /workspace/cp2k/exe/local/cp2k.pdbg "\$@"
+EndOfMessage
+chmod +x /usr/bin/cp2k
 
 echo -e "\n========== Installing ASE =========="
 cd /opt/ase/
