@@ -3761,7 +3761,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE get_start_end_size_indx(start_indx, end_indx, size_indx, nblkrows_total, itmp_1, itmp_2, &
                                            row_blk_offset, row_blk_sizes)
-      INTEGER, INTENT(OUT)                               :: start_indx, end_indx, size_indx
+      INTEGER, INTENT(INOUT)                             :: start_indx, end_indx, size_indx
       INTEGER, INTENT(IN)                                :: nblkrows_total, itmp_1, itmp_2
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_offset, row_blk_sizes
 

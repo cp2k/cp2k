@@ -4968,7 +4968,7 @@ CONTAINS
 
          ELSE IF (row_offset+row_size-1 > homo) THEN
 
-            start_data_block = homo-row_offset+2
+            start_data_block = homo-row_offset+1
 
             data_block(start_data_block:row_size, 1) = coeff(1:row_offset+row_size-homo)
 

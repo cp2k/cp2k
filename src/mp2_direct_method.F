@@ -1612,7 +1612,7 @@ CONTAINS
       INTEGER, DIMENSION(elements_ij_proc, 2), &
          INTENT(IN)                                      :: ij_list_proc
       INTEGER, INTENT(IN)                                :: nspins
-      REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_ex
+      REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_virtual_orbitals_and_accumulate', &
          routineP = moduleN//':'//routineN
