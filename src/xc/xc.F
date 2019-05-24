@@ -2755,7 +2755,6 @@ CONTAINS
                   DEALLOCATE (tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, &
                               tmp_c(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d)
                   DEALLOCATE (tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_c(ispin)%pw, tmp_r(ispin)%pw)
-                  DEALLOCATE (tmp_a, tmp_b, tmp_c, tmp_r)
                END IF
             END DO
 
@@ -2993,7 +2992,7 @@ CONTAINS
 
       END IF
 
-      DEALLOCATE (tmp_r, tmp_r2, tmp_a, tmp_b)
+      DEALLOCATE (tmp_r, tmp_r2, tmp_a, tmp_b, tmp_c)
 
       CALL timestop(handle)
    END SUBROUTINE xc_calc_2nd_deriv
