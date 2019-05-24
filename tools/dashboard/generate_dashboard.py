@@ -353,6 +353,7 @@ def send_notification(report, last_ok, log, name, s):
     idx_last_ok = log.index[last_ok]
     if(idx_end == idx_last_ok): return # probably a flapping tester
     emails = set([log[i]['author-email'] for i in range(idx_end, idx_last_ok)])
+    emails = [e for e in emails if "noreply" not in e]
     print("Sending email to: "+", ".join(emails))
 
     msg_txt  = "Dear CP2K developer,\n\n"
