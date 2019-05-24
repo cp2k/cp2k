@@ -68,7 +68,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env, kernel_env_admm_aux
+      TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
 

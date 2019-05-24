@@ -35,6 +35,7 @@ QS/regtest-mp2-grad                                         libint
 QS/regtest-kp-2
 QS/regtest-pao-2
 QS/regtest-tddfpt-2                                         libint
+QS/regtest-tddfpt-3
 QS/regtest-p-efield
 QS/regtest-mp2-stress                                       libint
 QS/regtest-ri-rpa                                           libint

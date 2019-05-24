@@ -28,8 +28,13 @@ MODULE qs_tddfpt2_operators
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_p_type,&
+                                              pw_release,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -37,8 +42,11 @@ MODULE qs_tddfpt2_operators
                                               qs_rho_type
    USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
                                               tddfpt_ground_state_mos
-   USE xc,                              ONLY: xc_calc_2nd_deriv
-   USE xc_rho_set_types,                ONLY: xc_rho_set_update
+   USE xc,                              ONLY: xc_calc_2nd_deriv,&
+                                              xc_vxc_pw_create
+   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
+                                              xc_rho_set_type,&
+                                              xc_rho_set_update
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -182,6 +190,39 @@ CONTAINS
    END SUBROUTINE tddfpt_apply_coulomb
 
 ! **************************************************************************************************
+!> \brief Driver routine for applying fxc (analyic vs. finite difference for testing
+!> \param A_ia_rspace      action of TDDFPT operator on trial vectors expressed in a plane wave
+!>                         representation (modified on exit)
+!> \param kernel_env       kernel environment
+!> \param rho_ia_struct    response density for the given trial vector
+!> \param is_rks_triplets  indicates that the triplet excited states calculation using
+!>                         spin-unpolarised molecular orbitals has been requested
+!> \param pw_env           plain wave environment
+!> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
+!>                         potential with respect to the response density (modified on exit)
+! **************************************************************************************************
+   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
+      TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
+      TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      LOGICAL, INTENT(in)                                :: is_rks_triplets
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc', &
+         routineP = moduleN//':'//routineN
+
+      IF (kernel_env%deriv2_analytic) THEN
+         CALL tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
+                                       pw_env, work_v_xc)
+      ELSE
+         CALL tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
+                                 pw_env, work_v_xc)
+      END IF
+
+   END SUBROUTINE tddfpt_apply_xc
+
+! **************************************************************************************************
 !> \brief Update A_ia_munu by adding exchange-correlation term.
 !> \param A_ia_rspace      action of TDDFPT operator on trial vectors expressed in a plane wave
 !>                         representation (modified on exit)
@@ -201,7 +242,7 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
+   SUBROUTINE tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
@@ -209,7 +250,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_analytic', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
@@ -281,7 +322,165 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE tddfpt_apply_xc
+   END SUBROUTINE tddfpt_apply_xc_analytic
+
+! **************************************************************************************************
+!> \brief Update A_ia_munu by adding exchange-correlation term using finite difference methods.
+!> \param A_ia_rspace      action of TDDFPT operator on trial vectors expressed in a plane wave
+!>                         representation (modified on exit)
+!> \param kernel_env       kernel environment
+!> \param rho_ia_struct    response density for the given trial vector
+!> \param is_rks_triplets  indicates that the triplet excited states calculation using
+!>                         spin-unpolarised molecular orbitals has been requested
+!> \param pw_env           plain wave environment
+!> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
+!>                         potential with respect to the response density (modified on exit)
+! **************************************************************************************************
+   SUBROUTINE tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
+      TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
+      TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      LOGICAL, INTENT(in)                                :: is_rks_triplets
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_fd', &
+         routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: h = 0.001_dp
+
+      INTEGER                                            :: handle, ispin, nspins
+      LOGICAL                                            :: lsd, singlet, triplet
+      REAL(KIND=dp)                                      :: exc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1, rho_g, rho_r, tau, vxc_rho_1, &
+                                                            vxc_rho_2, vxc_rho_3, vxc_rho_4, &
+                                                            vxc_tau
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(A_ia_rspace)
+      CALL qs_rho_get(rho_ia_struct, rho_r=rho1, tau_r=tau)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      DO ispin = 1, nspins
+         CALL pw_zero(work_v_xc(ispin)%pw)
+      END DO
+      rho_set => kernel_env%xc_rho_set
+
+      singlet = .FALSE.
+      triplet = .FALSE.
+      lsd = .FALSE.
+      IF (nspins == 1 .AND. .NOT. is_rks_triplets) THEN
+         singlet = .TRUE.
+      ELSE IF (nspins == 1 .AND. is_rks_triplets) THEN
+         triplet = .TRUE.
+      ELSE IF (nspins == 2) THEN
+         lsd = .TRUE.
+      ELSE
+         CPABORT("illegal options")
+      END IF
+
+      IF (ASSOCIATED(tau)) THEN
+         CPABORT("Tau (meta) functionals not possible")
+      END IF
+      NULLIFY (vxc_tau)
+
+      IF (singlet) THEN
+         NULLIFY (vxc_rho_1, vxc_rho_2, rho_g)
+         ALLOCATE (rho_r(1))
+         NULLIFY (rho_r(1)%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
+         CALL xc_rho_set_get(rho_set, rho=rho)
+         rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(1)%pw)
+         DEALLOCATE (rho_r)
+         CALL pw_axpy(work_v_xc(1)%pw, A_ia_rspace(1)%pw, kernel_env%alpha)
+         CALL pw_release(vxc_rho_1(1)%pw)
+         CALL pw_release(vxc_rho_2(1)%pw)
+         DEALLOCATE (vxc_rho_1, vxc_rho_2)
+      ELSE IF (triplet) THEN
+         NULLIFY (vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4, rho_g)
+         ALLOCATE (rho_r(2))
+         DO ispin = 1, 2
+            NULLIFY (rho_r(ispin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
+         END DO
+         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob)
+         ! K(alpha,alpha)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+         ! K(alpha,beta)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_3, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_4, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         work_v_xc(1)%pw%cr3d(:, :, :) = work_v_xc(1)%pw%cr3d(:, :, :)- &
+                                         (vxc_rho_3(1)%pw%cr3d(:, :, :)-vxc_rho_4(1)%pw%cr3d(:, :, :))/h
+         DO ispin = 1, 2
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
+         END DO
+         DEALLOCATE (rho_r)
+         CALL pw_axpy(work_v_xc(1)%pw, A_ia_rspace(1)%pw, kernel_env%alpha)
+         DO ispin = 1, 2
+            CALL pw_release(vxc_rho_1(ispin)%pw)
+            CALL pw_release(vxc_rho_2(ispin)%pw)
+            CALL pw_release(vxc_rho_3(ispin)%pw)
+            CALL pw_release(vxc_rho_4(ispin)%pw)
+         END DO
+         DEALLOCATE (vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4)
+      ELSE IF (lsd) THEN
+         NULLIFY (vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4, rho_g)
+         ALLOCATE (rho_r(2))
+         DO ispin = 1, 2
+            NULLIFY (rho_r(ispin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
+         END DO
+         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)+0.5_dp*h*rho1(2)%pw%cr3d(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)-0.5_dp*h*rho1(2)%pw%cr3d(:, :, :)
+         CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
+                               auxbas_pw_pool, .FALSE., virial_xc)
+         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+         work_v_xc(2)%pw%cr3d(:, :, :) = (vxc_rho_1(2)%pw%cr3d(:, :, :)-vxc_rho_2(2)%pw%cr3d(:, :, :))/h
+         DO ispin = 1, 2
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
+         END DO
+         DEALLOCATE (rho_r)
+         CALL pw_axpy(work_v_xc(1)%pw, A_ia_rspace(1)%pw, kernel_env%alpha)
+         CALL pw_axpy(work_v_xc(2)%pw, A_ia_rspace(2)%pw, kernel_env%alpha)
+         DO ispin = 1, 2
+            CALL pw_release(vxc_rho_1(ispin)%pw)
+            CALL pw_release(vxc_rho_2(ispin)%pw)
+         END DO
+         DEALLOCATE (vxc_rho_1, vxc_rho_2)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_apply_xc_fd
 
 ! **************************************************************************************************
 !> \brief Update action of TDDFPT operator on trial vectors by adding exact-exchange term.

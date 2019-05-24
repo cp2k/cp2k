@@ -327,11 +327,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       full_kernel_env => kernel_env%full_kernel
-      kernel_env_admm_aux => kernel_env%admm_kernel
 
       nspins = SIZE(evects, 1)
       nvects = SIZE(evects, 2)
       do_admm = ASSOCIATED(sub_env%admm_A)
+      IF (do_admm) THEN
+         kernel_env_admm_aux => kernel_env%admm_kernel
+      ELSE
+         NULLIFY (kernel_env_admm_aux)
+      END IF
       is_rks_triplets = tddfpt_control%rks_triplets
 
       IF (debug_this_module) THEN

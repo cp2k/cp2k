@@ -39,6 +39,7 @@ MODULE qs_tddfpt2_types
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                               ewald_pw_type
    USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
                                               section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -210,13 +211,16 @@ MODULE qs_tddfpt2_types
       !> flags which indicate required components of the exchange-correlation functional
       !> (density, gradient, etc)
       TYPE(xc_rho_cflags_type)                           :: xc_rho1_cflags
-      !> the method used to compute derivatives
+      !> the method used to compute position derivatives of densities and potentials
       INTEGER                                            :: deriv_method_id
       !> the density smoothing method
       INTEGER                                            :: rho_smooth_id
       !> scaling coefficients in the linear combination:
       !> K = alpha * K_{\alpha,\alpha} + beta * K_{\alpha,\beta}
       REAL(kind=dp)                                      :: alpha, beta
+      !> flags for finite differences/analytic XC kernels
+      LOGICAL                                            :: deriv2_analytic
+      LOGICAL                                            :: deriv3_analytic
    END TYPE full_kernel_env_type
 ! **************************************************************************************************
 !> \brief Type to hold environments for the different kernels
@@ -751,8 +755,7 @@ CONTAINS
          CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r2, &
                                 auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r2)
 
-         IF (ASSOCIATED(tau_ij_r)) &
-            DEALLOCATE (tau_ij_r2)
+         IF (ASSOCIATED(tau_ij_r)) DEALLOCATE (tau_ij_r2)
 
          DEALLOCATE (rho_ij_r2)
       ELSE
@@ -766,7 +769,8 @@ CONTAINS
       kernel_env%rho_smooth_id = section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO")
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, add_basic_components=.TRUE.)
+      kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, &
+                                                           add_basic_components=.TRUE.)
 
       CALL xc_rho_set_create(kernel_env%xc_rho1_set, auxbas_pw_pool%pw_grid%bounds_local, &
                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -789,7 +793,12 @@ CONTAINS
          END IF
       END IF
 
+      ! finite differences
+      kernel_env%deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+      kernel_env%deriv3_analytic = section_get_lval(xc_section, "3RD_DERIV_ANALYTICAL")
+
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_create_kernel_env
 
 ! **************************************************************************************************
@@ -799,20 +808,16 @@ CONTAINS
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_release_kernel_env(kernel_env)
-      TYPE(full_kernel_env_type), INTENT(inout)          :: kernel_env
+      TYPE(full_kernel_env_type), POINTER                :: kernel_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_kernel_env', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL xc_rho_set_release(kernel_env%xc_rho1_set)
-      CALL xc_dset_release(kernel_env%xc_deriv_set)
-      CALL xc_rho_set_release(kernel_env%xc_rho_set)
-
-      CALL timestop(handle)
+      IF (ASSOCIATED(kernel_env)) THEN
+         CALL xc_rho_set_release(kernel_env%xc_rho1_set)
+         CALL xc_dset_release(kernel_env%xc_deriv_set)
+         CALL xc_rho_set_release(kernel_env%xc_rho_set)
+      END IF
 
    END SUBROUTINE tddfpt_release_kernel_env
 

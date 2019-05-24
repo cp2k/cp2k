@@ -37,7 +37,6 @@ MODULE qs_tddfpt2_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -120,7 +119,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: tddfpt_print_section, tddfpt_section, &
                                                             xc_section
@@ -387,9 +385,7 @@ CONTAINS
       DEALLOCATE (evects, S_evects, evals)
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
-      IF (do_admm) THEN
-            CALL tddfpt_release_kernel_env(kernel_env%admm_kernel)
-         END IF
+         IF (do_admm) CALL tddfpt_release_kernel_env(kernel_env%admm_kernel)
          CALL tddfpt_release_kernel_env(kernel_env%full_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          CALL deallocate_stda_env(stda_kernel)

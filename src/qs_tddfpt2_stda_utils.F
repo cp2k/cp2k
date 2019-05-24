@@ -124,7 +124,7 @@ CONTAINS
       END IF
 
       ! calculate S_half and Lowdin MO coefficients
-      CALL get_lowdin_mo_coefficients(qs_env, stda_kernel, sub_env, work)
+      CALL get_lowdin_mo_coefficients(qs_env, sub_env, work)
 
       ! initialize Ewald for sTDA
       IF (tddfpt_control%stda_control%do_ewald) THEN
@@ -259,14 +259,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculate Lowdin MO coefficients
 !> \param qs_env ...
-!> \param stda_env ...
 !> \param sub_env ...
 !> \param work ...
 ! **************************************************************************************************
-   SUBROUTINE get_lowdin_mo_coefficients(qs_env, stda_env, sub_env, work)
+   SUBROUTINE get_lowdin_mo_coefficients(qs_env, sub_env, work)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(stda_env_type)                                :: stda_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
 
