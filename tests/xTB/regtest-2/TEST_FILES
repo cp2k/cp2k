@@ -12,7 +12,7 @@ HF-field.inp                                           1      1e-12             
 HF-field-gopt.inp                                      1      1e-10              -5.66007154649222
 HF-field-debug.inp                                     0      1e-12
 HF-dfilter-debug.inp                                   0      1e-12
-HF-dfield-gopt.inp                                     1      1e-10              -5.66113975858277
+HF-dfield-gopt.inp                                     1      1e-09              -5.66113975858277
 HF-dfield.inp                                          1      1e-12              -5.66099020967573
 HF-dfield-debug.inp                                    0      1e-12
 HF-loc-field.inp                                       1      1e-12              -5.65286303322644
