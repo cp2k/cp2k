@@ -3,11 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 libint_ver="2.5.0"
-libint_sha256="e57bb4546a6702fdaa570ad6607712f31903ed4618f051150979a31a038ce960"
-boost_ver="1_70_0"
-boost_sha256="882b48708d211a5f48e60b0124cf5863c1534cd544ecd0664bb534a4b5d506e9"
-gmp_ver="6.1.2"
-gmp_sha256="5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2"
+libint_sha256="7e3d0d9ec0ac3b936d0faa6f32f2f63f8ed9eb17db0f367c52261bd7fb6d55f2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -31,63 +27,23 @@ case "$with_libint" in
         if verify_checksums "${install_lock_file}" ; then
             echo "libint-${libint_ver} is already installed, skipping it."
         else
-            if [ -f v${libint_ver}.tar.gz ] ; then
-                echo "v${libint_ver}.tar.gz is found"
+            if [ -f libint_cp2k-${libint_ver}.tgz ] ; then
+                echo "libint_cp2k-${libint_ver}.tgz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
-                             https://github.com/evaleev/libint/archive/v${libint_ver}.tar.gz
-            fi
-            if [ -f boost_${boost_ver}.tar.gz ] ; then
-                echo "boost_${boost_ver}.tar.gz is found"
-            else
-                download_pkg ${DOWNLOADER_FLAGS} ${boost_sha256} \
-                             https://dl.bintray.com/boostorg/release/1.70.0/source/boost_${boost_ver}.tar.gz
-            fi
-
-            if [ -f gmp-${gmp_ver}.tar.bz2 ] ; then
-                echo "gmp-${gmp_ver}.tar.bz2 is found"
-            else
-                download_pkg ${DOWNLOADER_FLAGS} ${gmp_sha256} \
-                             https://ftp.gnu.org/gnu/gmp/gmp-${gmp_ver}.tar.bz2
+                             https://github.com/cp2k/libint-cp2k/releases/download/v2.5.0/libint_cp2k-2.5.0.tgz
             fi
 
             [ -d libint-${libint_ver} ] && rm -rf libint-${libint_ver}
-            tar -xzf v${libint_ver}.tar.gz
-            [ -d boost_${boost_ver} ] && rm -rf boost_${boost_ver}
-            tar -xzf boost_${boost_ver}.tar.gz
-            [ -d gmp-${gmp_ver} ] && rm -rf gmp-${gmp_ver}
-            tar -xjf gmp-${gmp_ver}.tar.bz2
-
-            echo "Building dependency gmp-${gmp_ver}"
-
-            cd gmp-${gmp_ver}
-            ./configure --enable-cxx --disable-shared > configure.log 2>&1
-            make > make.log 2>&1
-            cd ..
+            tar -xzf libint_cp2k-${libint_ver}.tgz
 
             echo "Installing from scratch into ${pkg_install_dir}"
             cd libint-${libint_ver}
-            ./autogen.sh
-            mkdir build; cd build
+
             # hack for -with-cxx, needed for -fsanitize=thread that also
             # needs to be passed to the linker, but seemingly ldflags is
             # ignored by libint configure
-            ../configure --enable-eri=1 --enable-eri3=1  --enable-eri2=1 \
-                         --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 \
-                         --with-eri2-max-am=5,4 \
-                         --with-opt-am=3 --enable-generic-code --disable-unrolling \
-                         --with-cxx="$CXX $CXXFLAGS" \
-                         --with-cxx-optflags="$CXXFLAGS" \
-                         --with-cxxgen-optflags="$CXXFLAGS" \
-                         --with-incdirs="-I${BUILDDIR}/gmp-${gmp_ver}" \
-                         --with-libdirs="-L${BUILDDIR}/gmp-${gmp_ver}/.libs" \
-                         --with-boost="${BUILDDIR}/boost_${boost_ver}" \
-                         > configure.log 2>&1
 
-            make -j $NPROCS export > make.log 2>&1
-
-            tar -xzf libint-${libint_ver}.tgz
-            cd libint-${libint_ver}
             ./configure --prefix=${pkg_install_dir} \
                         --with-cxx="$CXX $CXXFLAGS" \
                         --with-cxx-optflags="$CXXFLAGS" \
