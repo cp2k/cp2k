@@ -95,7 +95,7 @@ def gen_frontpage(config, log, status_fn, outdir):
         name        = config.get(s,"name")
         host        = config.get(s,"host")
         report_url  = config.get(s,"report_url")
-        do_notify   = config.getboolean(s,"notify") if(config.has_option(s,"notify")) else False
+        do_notify   = config.getboolean(s,"notify") if(config.has_option(s,"notify")) else True
         timeout     = config.getint(s,"timeout") if(config.has_option(s,"timeout")) else 24
 
         # find latest commit that should have been tested by now
