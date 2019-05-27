@@ -107,7 +107,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: buffer_send_axk, buffer_rec_axk
+         DIMENSION(:), INTENT(INOUT)                     :: buffer_send_axk, buffer_rec_axk
       INTEGER, INTENT(IN)                                :: number_of_send_axk
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: map_send_size_axk, map_rec_size_axk
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_size_source_axk
