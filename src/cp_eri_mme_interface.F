@@ -82,7 +82,6 @@ MODULE cp_eri_mme_interface
          POINTER                                         :: mme_section => NULL()
       INTEGER                                            :: G_count_2c, R_count_2c
       INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       LOGICAL                                            :: do_calib
    END TYPE cp_eri_mme_param
 
@@ -411,11 +410,10 @@ CONTAINS
             param%par%do_calib_cutoff = .TRUE.
          ELSE
             ! only calibrate cutoff if parameters (cell, basis coefficients) have changed
-            IF (ALL(ABS(param%hmat-hmat) < eps_changed) .AND. &
+            IF (ALL(ABS(param%par%hmat-hmat) < eps_changed) .AND. &
                 ABS(param%par%zet_min-zet_min) < eps_changed .AND. &
                 ABS(param%par%zet_max-zet_max) < eps_changed .AND. &
-                param%par%l_max_zet == l_max_zet .AND. &
-                param%par%l_max == l_max) THEN
+                param%par%l_max_zet == l_max_zet) THEN
                param%par%do_calib_cutoff = .FALSE.
             ELSE
                param%par%do_calib_cutoff = .TRUE.
@@ -427,8 +425,6 @@ CONTAINS
 
       CALL eri_mme_set_params(param%par, hmat, is_ortho, zet_min, zet_max, l_max_zet, l_max, para_env, &
                               potential, pot_par)
-
-      param%hmat(:, :) = hmat(:, :)
 
       CALL eri_mme_print_info(param)
    END SUBROUTINE eri_mme_set_params_custom

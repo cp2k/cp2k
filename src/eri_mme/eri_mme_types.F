@@ -83,7 +83,7 @@ MODULE eri_mme_types
       TYPE(minimax_grid), DIMENSION(:), &
          ALLOCATABLE                   :: minimax_grid
       REAL(KIND=dp)                    :: zet_max, zet_min
-      INTEGER                          :: l_max, l_mm, l_max_zet
+      INTEGER                          :: l_mm, l_max_zet
       INTEGER                          :: potential
       REAL(KIND=dp)                    :: pot_par
    END TYPE eri_mme_param
