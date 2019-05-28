@@ -978,11 +978,9 @@ CONTAINS
             proc_send = proc_map(para_env%mepos+index_proc_shift)
             proc_receive = proc_map(para_env%mepos-index_proc_shift)
 
-            !DO index_proc_shift=0, para_env%num_pe-1
-            !  proc_send=proc_map(0-para_env%mepos+index_proc_shift)
-            !  proc_receive=proc_send
+            case_send_receive = (proc_send /= para_env%mepos)
 
-            IF (proc_send /= para_env%mepos) THEN
+            IF (case_send_receive) THEN
                ! the processor starts to send (and receive?)
 
                CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
@@ -1007,17 +1005,8 @@ CONTAINS
                DO index_proc_ij = proc_send+1, multiple, para_env%num_pe
 
                   zero_mat = 0.D+00
-                  case_send_receive = -1
-                  IF (proc_send == para_env%mepos) THEN
-                     case_send_receive = 0
-                  ELSE
-                     case_send_receive = 1
-                  END IF
 
-                  SELECT CASE (case_send_receive)
-                  CASE (0)
-                     ! do nothing
-                  CASE (1)
+                  IF (case_send_receive) THEN
 
                      CALL mp_sendrecv(zero_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
 
@@ -1033,24 +1022,13 @@ CONTAINS
                            BIb_RS_mat_rec(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec)
 
                      END IF
-                  CASE DEFAULT
-                     CPABORT("")
-                  END SELECT
+                  END IF
 
                END DO
             ELSE
                zero_mat_big = 0.D+00
-               case_send_receive = -1
-               IF (proc_send == para_env%mepos) THEN
-                  case_send_receive = 0
-               ELSE
-                  case_send_receive = 1
-               END IF
 
-               SELECT CASE (case_send_receive)
-               CASE (0)
-                  ! do nothing
-               CASE (1)
+               IF (case_send_receive) THEN
 
                   CALL mp_sendrecv(zero_mat_big, proc_send, BIb_RS_mat_rec_big, proc_receive, para_env%group)
 
@@ -1062,12 +1040,10 @@ CONTAINS
                      BIb(1:dimen, S_offset_rec+1:S_offset_rec+Ssize_rec, 1:elements_ij_proc)+ &
                      BIb_RS_mat_rec_big(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec, 1:elements_ij_proc)
 
-               CASE DEFAULT
-                  CPABORT("")
-               END SELECT
+               END IF
             END IF
 
-            IF (proc_send /= para_env%mepos) THEN
+            IF (case_send_receive) THEN
                IF (.NOT. mp2_env%direct_canonical%big_send) THEN
                   DEALLOCATE (BIb_RS_mat_rec)
                ELSE
@@ -1281,9 +1257,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: case_send_receive, elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
+      INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
          index_proc_ij, index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, &
          R_offset_rec, R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      LOGICAL                                            :: case_send_receive
       REAL(KIND=dp)                                      :: C_T_R, C_T_S
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec
       REAL(KIND=dp), DIMENSION(dimen, Rsize+Ssize)       :: BIb_RS_mat
@@ -1305,7 +1282,9 @@ CONTAINS
          proc_send = proc_map(para_env%mepos+index_proc_shift)
          proc_receive = proc_map(para_env%mepos-index_proc_shift)
 
-         IF (proc_send /= para_env%mepos) THEN
+         case_send_receive = (proc_send /= para_env%mepos)
+
+         IF (case_send_receive) THEN
             ! the processor starts to send (and receive?)
 
             CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
@@ -1319,13 +1298,6 @@ CONTAINS
 
          ELSE
             elements_ij_proc_rec = elements_ij_proc
-         END IF
-
-         case_send_receive = -1
-         IF (proc_send == para_env%mepos) THEN
-            case_send_receive = 0
-         ELSE
-            case_send_receive = 1
          END IF
 
          index_ij_send = 0
@@ -1368,19 +1340,7 @@ CONTAINS
 
             END IF
 
-            SELECT CASE (case_send_receive)
-            CASE (0)
-               ! the processor is the sender and receiver itself
-               IF (index_ij_send <= elements_ij_proc .AND. elements_ij_proc > 0) THEN
-
-                  BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send) = &
-                     BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send)+BIb_RS_mat(1:dimen, 1:Rsize)
-
-                  BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send) = &
-                     BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send)+BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize)
-
-               END IF
-            CASE (1)
+            IF (case_send_receive) THEN
 
                CALL mp_sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
 
@@ -1396,13 +1356,22 @@ CONTAINS
                      BIb_RS_mat_rec(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec)
 
                END IF
-            CASE DEFAULT
-               CPABORT("")
-            END SELECT
+            ELSE
+               ! the processor is the sender and receiver itself
+               IF (index_ij_send <= elements_ij_proc .AND. elements_ij_proc > 0) THEN
+
+                  BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send) = &
+                     BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send)+BIb_RS_mat(1:dimen, 1:Rsize)
+
+                  BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send) = &
+                     BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send)+BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize)
+
+               END IF
+            END IF
 
          END DO ! loop over the ij of the processor
 
-         IF (proc_send /= para_env%mepos) THEN
+         IF (case_send_receive) THEN
             DEALLOCATE (BIb_RS_mat_rec)
          END IF
 
@@ -1483,7 +1452,9 @@ CONTAINS
          proc_send = proc_map(para_env%mepos+index_proc_shift)
          proc_receive = proc_map(para_env%mepos-index_proc_shift)
 
-         IF (proc_send /= para_env%mepos) THEN
+         case_send_receive = (proc_send /= para_env%mepos)
+
+         IF (case_send_receive) THEN
             ! the processor starts to send (and receive?)
 
             CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
@@ -1501,13 +1472,6 @@ CONTAINS
          index_ij_send = 0
          index_ij_rec = 0
          BIb_RS_mat = zero
-
-         case_send_receive = -1
-         IF (proc_send == para_env%mepos) THEN
-            case_send_receive = 0
-         ELSE
-            case_send_receive = 1
-         END IF
 
          DO index_proc_ij = proc_send+1, Ni_occupied*Nj_occupied, para_env%num_pe
 
@@ -1544,18 +1508,7 @@ CONTAINS
 
          END DO
 
-         SELECT CASE (case_send_receive)
-         CASE (0)
-            ! the processor is the sender and receiver itself
-            BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc) = &
-               BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc)+ &
-               BIb_RS_mat(1:dimen, 1:Rsize, 1:elements_ij_proc)
-
-            BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc) = &
-               BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc)+ &
-               BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize, 1:elements_ij_proc)
-
-         CASE (1)
+         IF (case_send_receive) THEN
 
             CALL mp_sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
 
@@ -1567,12 +1520,17 @@ CONTAINS
                BIb(1:dimen, S_offset_rec+1:S_offset_rec+Ssize_rec, 1:elements_ij_proc)+ &
                BIb_RS_mat_rec(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec, 1:elements_ij_proc)
 
-         CASE DEFAULT
-            CPABORT("")
-         END SELECT
-
-         IF (proc_send /= para_env%mepos) THEN
             DEALLOCATE (BIb_RS_mat_rec)
+         ELSE
+            ! the processor is the sender and receiver itself
+            BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc) = &
+               BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc)+ &
+               BIb_RS_mat(1:dimen, 1:Rsize, 1:elements_ij_proc)
+
+            BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc) = &
+               BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc)+ &
+               BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize, 1:elements_ij_proc)
+
          END IF
 
       END DO ! loop over the processor starting from itself
