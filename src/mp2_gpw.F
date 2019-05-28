@@ -132,7 +132,7 @@ MODULE mp2_gpw
                                               pair_radius_setup
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE rpa_ri_gpw,                      ONLY: rpa_ri_compute_en
+   USE rpa_main,                        ONLY: rpa_ri_compute_en
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&
