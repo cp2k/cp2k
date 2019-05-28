@@ -125,7 +125,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_canonical_direct_single_batch', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: bits_max_val, cache_size, case_index, case_send_receive, counter_proc, &
+      INTEGER :: bits_max_val, cache_size, case_index, counter_proc, &
          elements_ij_proc_rec, elements_kl_proc, global_counter, handle, i, i_list_ij, i_list_kl, &
          i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
          i_set_list_kl_start, i_set_list_kl_stop, i_start, i_thread, iatom, iatom_end, &
@@ -158,7 +158,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER, SAVE            :: shm_is_assoc_atomic_block
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
       INTEGER, SAVE                                      :: shm_number_of_p_entries
-      LOGICAL                                            :: alpha_beta_case, copy_integrals, &
+      LOGICAL                                            :: alpha_beta_case, case_send_receive, copy_integrals, &
                                                             do_periodic, treat_lsd_in_core
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, compression_factor, &
@@ -535,10 +535,7 @@ CONTAINS
 
       proc_num_task = 0
 
-      ! step_size=nsgf_max
-
       counter_proc = 0
-      !!!! DO iiB=nsgf_max**2+1, 0, -step_size
       DO i_list_ij = 1, list_ij%n_element
          iatom = list_ij%elements(i_list_ij)%pair(1)
          jatom = list_ij%elements(i_list_ij)%pair(2)
@@ -550,23 +547,18 @@ CONTAINS
          nsgfb => basis_parameter(jkind)%nsgf
          nsgfa => basis_parameter(ikind)%nsgf
 
-         ! proc_num=MOD(i_list_ij,para_env%num_pe)
-
          DO i_set_list_ij = i_set_list_ij_start, i_set_list_ij_stop
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
             IF (iatom == jatom .AND. jset < iset) CYCLE
 
-            !!!! IF(nsgfa(iset)*nsgfb(jset)>iiB-step_size .AND. nsgfa(iset)*nsgfb(jset)<=iiB) THEN
             counter_proc = counter_proc+1
             proc_num = MOD(counter_proc, para_env%num_pe)
 
             proc_num_task(proc_num) = proc_num_task(proc_num)+1
-            !!!! END IF
 
          END DO
       END DO
-      !!!! END DO
       ! calculate the exact maximum  number of call to the second occupied
       ! orbital transformation
       ! max_num_call_sec_transf=MAXVAL(proc_num_task)
@@ -576,13 +568,8 @@ CONTAINS
 
       kl_list_proc = 0
 
-      !!!! ALLOCATE(same_size_kl_elements_counter((nsgf_max**2+1)/step_size+1))
-      !!!! same_size_kl_elements_counter=0
-
-      !!!! same_size_kl_index=0
       counter_proc = 0
       elements_kl_proc = 0
-      !!!! DO iiB=nsgf_max**2+1, 0, -step_size
       DO i_list_ij = 1, list_ij%n_element
          iatom = list_ij%elements(i_list_ij)%pair(1)
          jatom = list_ij%elements(i_list_ij)%pair(2)
@@ -594,14 +581,11 @@ CONTAINS
          nsgfb => basis_parameter(jkind)%nsgf
          nsgfa => basis_parameter(ikind)%nsgf
 
-         ! proc_num=MOD(i_list_ij,para_env%num_pe)
-
          DO i_set_list_ij = i_set_list_ij_start, i_set_list_ij_stop
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
             IF (iatom == jatom .AND. jset < iset) CYCLE
 
-            !!!! IF(nsgfa(iset)*nsgfb(jset)>iiB-step_size .AND. nsgfa(iset)*nsgfb(jset)<=iiB) THEN
             counter_proc = counter_proc+1
             proc_num = MOD(counter_proc, para_env%num_pe)
 
@@ -611,13 +595,9 @@ CONTAINS
                kl_list_proc(elements_kl_proc, 2) = i_set_list_ij
                kl_list_proc(elements_kl_proc, 3) = counter_proc
             END IF
-            !!!! END IF
 
          END DO
       END DO
-      !!!! same_size_kl_index=same_size_kl_index+1
-      !!!! same_size_kl_elements_counter(same_size_kl_index)=elements_kl_proc
-      !!!! END DO
 
       total_num_RS_task = SUM(proc_num_task)
       ALLOCATE (task_counter_RS(total_num_RS_task, 4))
@@ -669,11 +649,8 @@ CONTAINS
             sphi_b_u2 = UBOUND(sphi_b_ext, 2)
             sphi_b_u3 = UBOUND(sphi_b_ext, 3)
 
-            !!!!!     DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
-
-            !!!!!         IF(iatom==jatom .AND. jset<iset) CYCLE
 
             ncob = npgfb(jset)*ncoset(lb_max(jset))
             max_val1 = screen_coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2+ &
@@ -694,10 +671,7 @@ CONTAINS
 
             BI1 = 0.D+00
 
-            !!!t1=m_walltime()
-
             DO i_list_kl = 1, list_kl%n_element
-               !!!!!DO i_list_kl=1+para_env%mepos,list_kl%n_element,para_env%num_pe
 
                katom = list_kl%elements(i_list_kl)%pair(1)
                latom = list_kl%elements(i_list_kl)%pair(2)
@@ -807,7 +781,6 @@ CONTAINS
                                    sphi_d_ext_set, &
                                    ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                    nimages, do_periodic, p_work)
-                     !END IF
 
                      nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                      neris_total = neris_total+nints
@@ -819,7 +792,6 @@ CONTAINS
 
                      IF (cartesian_estimate < eps_schwarz) CYCLE
 
-                     !IF(case_index==2) THEN
                      primitive_counter = 0
                      DO llB = 1, nsgfd(lset)
                         DO kkB = 1, nsgfc(kset)
@@ -882,7 +854,6 @@ CONTAINS
                END IF
             END IF
 
-            !!!!!!! END DO !i_set_list_ij
          END DO !i_list_ij
 
          IF (case_index == 1) THEN
@@ -1427,9 +1398,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second_big', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: case_send_receive, elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
+      INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
          index_proc_ij, index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, &
          R_offset_rec, R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      LOGICAL                                            :: case_send_receive
       REAL(KIND=dp)                                      :: C_T_R, C_T_S
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_RS_mat_rec
       REAL(KIND=dp), &
@@ -1732,7 +1704,6 @@ CONTAINS
                b_global = b+occ_j
                iajb = BIb(a, b, index_ij)
                parz = iajb*iajb/(Auto_i(i_global)+Auto_j(j_global)-Auto_i(a_global)-Auto_j(b_global))
-               ! Emp2=Emp2+parz/two
                Emp2_Cou = Emp2_Cou+parz/two
                Emp2 = Emp2+parz/two
             END DO
