@@ -50,6 +50,7 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
+   USE mp2_ri_gpw_in,                   ONLY: calc_potential_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -462,10 +463,8 @@ CONTAINS
                                            external_vector=wf_vector)
                rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
             ENDIF
-            CALL pw_transfer(rho_r%pw, rho_g%pw)
-            CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-            CALL pw_transfer(pot_g%pw, rho_r%pw)
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g)
             CALL timestop(handle3)
 
             IF (use_virial) THEN

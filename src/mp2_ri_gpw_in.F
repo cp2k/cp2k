@@ -79,6 +79,8 @@ MODULE mp2_ri_gpw_in
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               do_eri_os,&
+                                              do_hfx_potential_coulomb,&
+                                              do_hfx_potential_id,&
                                               ri_coulomb,&
                                               ri_overlap
    USE kinds,                           ONLY: dp
@@ -154,7 +156,7 @@ MODULE mp2_ri_gpw_in
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw_in'
 
-   PUBLIC :: mp2_ri_gpw_compute_in
+   PUBLIC :: mp2_ri_gpw_compute_in, calc_potential_gpw
 
 CONTAINS
 
@@ -313,13 +315,13 @@ CONTAINS
       INTEGER :: color_sub_3c, cut_memory, cut_RI, eri_method, gw_corr_lev_total, handle, handle2, &
          handle3, handle4, i, i_counter, itmp(2), j, LLL, max_row_col_local, &
          max_row_col_local_beta, max_row_col_local_gw, max_row_col_local_occ_bse, &
-         max_row_col_local_virt_bse, my_B_all_end, my_B_all_size, my_B_all_start, &
-         my_B_occ_bse_end, my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, my_B_size_beta, &
-         my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, my_B_virtual_end, &
-         my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-         my_group_L_size, my_group_L_start, natom
-      INTEGER :: ngroup, ngroup_im_time, ngroup_im_time_P, nproc_sub, num_diff_blk, &
-         num_small_eigen, sqrt_max_bsize, virtual, virtual_beta
+         max_row_col_local_virt_bse, metric_potential, my_B_all_end, my_B_all_size, &
+         my_B_all_start, my_B_occ_bse_end, my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, &
+         my_B_size_beta, my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, &
+         my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
+         my_group_L_end, my_group_L_size
+      INTEGER :: my_group_L_start, natom, ngroup, ngroup_im_time, ngroup_im_time_P, nproc_sub, &
+         num_diff_blk, num_small_eigen, sqrt_max_bsize, virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ao_blk_sizes_split, local_atoms_for_mao_basis, &
          local_atoms_RI, my_group_L_ends_im_time, my_group_L_sizes_im_time, &
          my_group_L_starts_im_time, row_blk_sizes_RI_t, row_blk_sizes_RI_t_split, row_dist_RI_t, &
@@ -331,8 +333,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: ao_blk_sizes
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
                                                             memory_info
-      REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, pair_energy, &
-                                                            wfn_size
+      REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_bse_ab, fm_BIb_bse_ij, fm_BIb_gw, &
@@ -710,6 +711,15 @@ CONTAINS
 
          ELSE IF (eri_method == do_eri_gpw) THEN
 
+            SELECT CASE (ri_metric)
+            CASE (ri_coulomb)
+               metric_potential = do_hfx_potential_coulomb
+            CASE (ri_overlap)
+               metric_potential = do_hfx_potential_id
+            CASE DEFAULT
+               CPABORT("NIY")
+            END SELECT
+
             DO LLL = my_group_L_start, my_group_L_end
                i_counter = i_counter+1
 
@@ -719,19 +729,9 @@ CONTAINS
                                            basis_type="RI_AUX", &
                                            external_vector=my_Lrows(:, LLL-my_group_L_start+1))
 
-               CALL timeset(routineN//"_pot", handle3)
                rho_r%pw%cr3d = psi_L%pw%cr3d
 
-               ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
-               ! overlap metric, we do not need the Coulomb operator
-               IF (ri_metric == ri_coulomb) THEN
-                  CALL pw_transfer(rho_r%pw, rho_g%pw)
-                  CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-                  CALL pw_transfer(pot_g%pw, rho_r%pw)
-               END IF
-
-               CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-               CALL timestop(handle3)
+               CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, metric_potential)
 
                ! and finally (K|mu nu)
                CALL timeset(routineN//"_int", handle3)
@@ -2138,17 +2138,17 @@ CONTAINS
 
       INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, group_size, handle, &
          handle2, handle3, i, i_counter, i_global, iatom, igrid_level, iiB, ikind, ipgf, iproc, &
-         iset, j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, natom, ncoa, &
-         ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, proc_receive_static, &
-         proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, &
-         strat_group_size, sub_sub_color, tp(3), ub(3)
+         iset, j_global, jjB, lb(3), LLL, location(3), metric_potential, my_ri_metric, na1, na2, &
+         natom, ncoa, ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, &
+         proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
+         rec_L_start, sgfa, strat_group_size, sub_sub_color, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, npgfa, &
                                                             nsgfa, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, my_do_im_time, &
                                                             my_external_matrix_struc
-      REAL(KIND=dp)                                      :: min_mem_for_QK, pair_energy, rab2
+      REAL(KIND=dp)                                      :: min_mem_for_QK, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egen_L, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab, L_external_col, L_local_col
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
@@ -2174,7 +2174,18 @@ CONTAINS
 
       ! default: Coulomb metric
       my_ri_metric = ri_coulomb
-      IF (PRESENT(ri_metric)) my_ri_metric = ri_metric
+      metric_potential = do_hfx_potential_coulomb
+      IF (PRESENT(ri_metric)) THEN
+         my_ri_metric = ri_metric
+         SELECT CASE (ri_metric)
+         CASE (ri_coulomb)
+            metric_potential = do_hfx_potential_coulomb
+         CASE (ri_overlap)
+            metric_potential = do_hfx_potential_id
+         CASE DEFAULT
+            CPABORT("NIY")
+         END SELECT
+      END IF
 
       my_external_matrix_struc = .FALSE.
       IF (PRESENT(external_matrix_struc)) THEN
@@ -2254,14 +2265,7 @@ CONTAINS
             CALL timeset(routineN//"_pot_lm", handle3)
             rho_r%pw%cr3d = psi_L%pw%cr3d
 
-            ! in case we do the overlap metric, we have no potential and hence no FT has to be carried out
-            IF (my_ri_metric == ri_coulomb) THEN
-               CALL pw_transfer(rho_r%pw, rho_g%pw)
-               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-               CALL pw_transfer(pot_g%pw, rho_r%pw)
-            END IF
-
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, metric_potential)
 
             NULLIFY (rs_v)
             NULLIFY (rs_descs)
@@ -5732,5 +5736,44 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE setup_group_L_im_time
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param poisson_env ...
+!> \param pot_g ...
+!> \param potential_type ...
+! **************************************************************************************************
+   SUBROUTINE calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type)
+      TYPE(pw_p_type), INTENT(IN)                        :: rho_r, rho_g
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_p_type), INTENT(IN)                        :: pot_g
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, my_potential_type
+
+      CALL timeset(routineN, handle)
+
+      my_potential_type = do_hfx_potential_coulomb
+      IF (PRESENT(potential_type)) THEN
+         my_potential_type = potential_type
+      END IF
+
+      ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
+      ! overlap metric, we do not need the Coulomb operator
+      IF (my_potential_type == do_hfx_potential_coulomb) THEN
+         CALL pw_transfer(rho_r%pw, rho_g%pw)
+         CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
+         CALL pw_transfer(pot_g%pw, rho_r%pw)
+      END IF
+
+      CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+      CALL timestop(handle)
+
+   END SUBROUTINE calc_potential_gpw
 
 END MODULE mp2_ri_gpw_in
