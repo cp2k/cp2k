@@ -116,7 +116,7 @@ CONTAINS
 #else
          default_i_val = do_diag_sl
 #endif
-      ELSE
+      ELSE ! TODO: parse e.g. "SP" or "ELPA" rather than expecting an (internal) integer
          READ (env, "(I32)") default_i_val
       END IF
 
