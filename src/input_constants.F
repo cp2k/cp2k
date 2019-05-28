@@ -732,16 +732,16 @@ MODULE input_constants
                                                clustering_small_on_larger = 3
 
    ! HFX potential type
-   INTEGER, PARAMETER, PUBLIC               :: do_hfx_potential_coulomb = 1, &
-                                               do_hfx_potential_short = 2, &
-                                               do_hfx_potential_long = 3, &
-                                               do_hfx_potential_mix_cl = 4, &
-                                               do_hfx_potential_gaussian = 5, &
-                                               do_hfx_potential_mix_lg = 6, &
-                                               do_hfx_potential_id = 7, &
-                                               do_hfx_potential_truncated = 8, &
-                                               do_hfx_potential_mix_cl_trunc = 9, &
-                                               do_mp2_potential_TShPSC = 1009
+   INTEGER, PARAMETER, PUBLIC               :: do_potential_coulomb = 1, &
+                                               do_potential_short = 2, &
+                                               do_potential_long = 3, &
+                                               do_potential_mix_cl = 4, &
+                                               do_potential_gaussian = 5, &
+                                               do_potential_mix_lg = 6, &
+                                               do_potential_id = 7, &
+                                               do_potential_truncated = 8, &
+                                               do_potential_mix_cl_trunc = 9, &
+                                               do_potential_TShPSC = 1009
 
    ! HFX periodic number of shells
    INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
@@ -954,9 +954,7 @@ MODULE input_constants
                                                ri_mp2_laplace = 9, &
                                                mp2_ri_optimize_basis = 10, &
                                                wfc_mm_style_gemm = 11, &
-                                               wfc_mm_style_syrk = 12, &
-                                               ri_coulomb = 13, &
-                                               ri_overlap = 14
+                                               wfc_mm_style_syrk = 12
 
    ! G0W0 parameter
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none = 0, &

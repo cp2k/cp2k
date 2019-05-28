@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE xc_adiabatic_methods
 
-   USE input_constants,                 ONLY: do_hfx_potential_coulomb
+   USE input_constants,                 ONLY: do_potential_coulomb
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -72,7 +72,7 @@ CONTAINS
 
       do_swap_hf = .FALSE.
       !! Assume the first HF section is the Coulomb one
-      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type /= do_hfx_potential_coulomb) do_swap_hf = .TRUE.
+      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type /= do_potential_coulomb) do_swap_hf = .TRUE.
 
       IF (do_swap_hf) THEN
          swap_value = hf_energy(1)
