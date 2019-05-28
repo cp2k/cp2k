@@ -1,3 +1,4 @@
+@SET NREP 2
 &FORCE_EVAL
   STRESS_TENSOR ANALYTICAL
   &DFT
@@ -5,38 +6,34 @@
       METHOD xTB 
       &xTB
         DO_EWALD            T
-        COULOMB_INTERACTION T
-        TB3_INTERACTION     T
-        &PARAMETER
-          DISPERSION_PARAMETER_FILE   dftd3.dat
-        &END PARAMETER
       &END 
+      EPS_DEFAULT 1.E-14
     &END QS
     &SCF
       SCF_GUESS MOPAC
       &MIXING
           METHOD DIRECT_P_MIXING
-          ALPHA   0.10
+          ALPHA   0.25
       &END
-      MAX_SCF  2000
+      MAX_SCF  200
+      EPS_SCF 1.e-10
     &END SCF
     &KPOINTS
-       SCHEME  NONE
-       #SCHEME  GAMMA
-       #SCHEME  MONKHORST-PACK  1 1 1
+       SCHEME  NONE 
     &END KPOINTS
     &POISSON
       &EWALD
-       ALPHA  2.0
-       EWALD_TYPE SPME
-       GMAX 50
-       O_SPLINE 6
+         ALPHA  3.0
       &END EWALD
     &END POISSON
   &END DFT
   &SUBSYS
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END
     &CELL
       ABC 7.0 7.0 7.0   
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
     &END CELL
     &COORD
     O                  -4.583   5.333   1.560   
@@ -48,14 +45,13 @@
 &GLOBAL
   PROJECT h2o
   RUN_TYPE DEBUG
-#  RUN_TYPE ENERGY_FORCE
   PRINT_LEVEL LOW
 &END GLOBAL
 &DEBUG
    DEBUG_FORCES F
    DEBUG_STRESS_TENSOR T
-   DX 0.001
-   EPS_NO_ERROR_CHECK  0.000001
-   STOP_ON_MISMATCH F
+   DX 0.0002
+   EPS_NO_ERROR_CHECK  0.0001
+   STOP_ON_MISMATCH T
 &END DEBUG
 

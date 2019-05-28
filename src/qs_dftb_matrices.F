@@ -368,6 +368,9 @@ CONTAINS
                      END IF
                   ENDDO
                   IF (use_virial) THEN
+!deb iatom=jatom f0=0.5*f0
+                     IF (iatom == jatom) f0 = 0.5_dp*f0
+!deb
                      CALL virial_pair_force(virial%pv_virial, -f0, force_ab, rij)
                      CALL virial_pair_force(virial%pv_virial, -f0, force_w, rij)
                      IF (atprop%stress) THEN
@@ -413,10 +416,12 @@ CONTAINS
                force(jkind)%repulsive(:, atom_b) = &
                   force(jkind)%repulsive(:, atom_b)+force_rr(:)
                IF (use_virial) THEN
-                  CALL virial_pair_force(virial%pv_virial, -1._dp, force_rr, rij)
+                  f0 = -1.0_dp
+                  IF (iatom == jatom) f0 = -0.5_dp
+                  CALL virial_pair_force(virial%pv_virial, f0, force_rr, rij)
                   IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, force_rr, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), f0*0.5_dp, force_rr, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), f0*0.5_dp, force_rr, rij)
                   END IF
                END IF
             END IF
