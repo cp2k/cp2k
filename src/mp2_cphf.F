@@ -54,6 +54,7 @@ MODULE mp2_cphf
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
+   USE mp2_ri_gpw_in,                   ONLY: calc_potential_gpw
    USE mp2_types,                       ONLY: mp2_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -152,8 +153,7 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
                                                             do_hfx, hfx_treat_lsd_in_core, &
                                                             restore_p_screen, use_virial
-      REAL(KIND=dp)                                      :: e_hartree, factor, out_alpha, &
-                                                            pair_energy, tot_rho_r
+      REAL(KIND=dp)                                      :: e_hartree, factor, out_alpha, tot_rho_r
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -776,11 +776,8 @@ CONTAINS
                               total_rho=tot_rho_r, &
                               ks_env=ks_env, &
                               soft_valid=.FALSE.)
-      ! calculate the MP2 potential
-      CALL pw_transfer(rho_r%pw, rho_g%pw)
-      CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-      CALL pw_transfer(pot_g%pw, rho_r%pw)
-      CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g)
 
       ! calculate core forces
       CALL integrate_v_core_rspace(rho_r, qs_env)
@@ -832,7 +829,7 @@ CONTAINS
          CALL pw_transfer(rho_r%pw, rho_g%pw)
          ! don't forget the core density
          CALL pw_axpy(rho_core%pw, rho_g%pw)
-         CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+         CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
 
          ! finally update virial with the volume contribution
          e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
@@ -964,7 +961,7 @@ CONTAINS
                                                             jjB, ncol_local, nrow_local, ns
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, my_recalc_hfx_integrals
-      REAL(KIND=dp)                                      :: ehfx, pair_energy, total_rho
+      REAL(KIND=dp)                                      :: ehfx, total_rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1215,7 +1212,7 @@ CONTAINS
                               total_rho=total_rho, &
                               ks_env=ks_env)
       ! and calculate potential
-      CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+      CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
       CALL pw_transfer(pot_g%pw, rho_r%pw)
       CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
       ! integrate the potential
