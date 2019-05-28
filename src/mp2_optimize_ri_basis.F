@@ -55,7 +55,6 @@ MODULE mp2_optimize_ri_basis
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_rho_types,                    ONLY: qs_rho_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -85,7 +84,6 @@ CONTAINS
 !> \param Auto ...
 !> \param kind_of ...
 !> \param qs_env ...
-!> \param rho ...
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param homo_beta ...
@@ -95,7 +93,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE optimize_ri_basis_main(Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, dimen, natom, homo, &
                                      mp2_biel, mp2_env, C, Auto, kind_of, &
-                                     qs_env, rho, para_env, &
+                                     qs_env, para_env, &
                                      unit_nr, homo_beta, C_beta, Auto_beta)
 
       REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T
@@ -106,7 +104,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: unit_nr
       INTEGER, OPTIONAL                                  :: homo_beta
@@ -167,7 +164,7 @@ CONTAINS
          Emp2_AA_Cou = 0.0_dp
          Emp2_AA_ex = 0.0_dp
          CALL calc_elem_ij_proc(homo, homo, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2_AA)
@@ -181,7 +178,7 @@ CONTAINS
          Emp2_BB_Cou = 0.0_dp
          Emp2_BB_ex = 0.0_dp
          CALL calc_elem_ij_proc(homo_beta, homo_beta, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C_beta, Auto_beta, 0, homo_beta, homo_beta, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 Integ_MP2=Integ_MP2_BB)
@@ -195,7 +192,7 @@ CONTAINS
          Emp2_AB_Cou = 0.0_dp
          Emp2_AB_ex = 0.0_dp
          CALL calc_elem_ij_proc(homo, homo_beta, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 homo_beta, C_beta, Auto_beta, Integ_MP2=Integ_MP2_AB)
@@ -219,7 +216,7 @@ CONTAINS
       ELSE
          ! close shell case
          CALL calc_elem_ij_proc(homo, homo, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2)

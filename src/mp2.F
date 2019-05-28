@@ -189,7 +189,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_matrix_pools_type), POINTER                :: my_mpools
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
       TYPE(virial_type), POINTER                         :: virial
@@ -220,7 +219,6 @@ CONTAINS
                          para_env=para_env, &
                          blacs_env=blacs_env, &
                          energy=energy, &
-                         rho=rho, &
                          kpoints=kpoints, &
                          scf_env=scf_env, &
                          matrix_ks_kp=matrix_ks_transl, &
@@ -241,7 +239,6 @@ CONTAINS
                          para_env=para_env, &
                          blacs_env=blacs_env, &
                          energy=energy, &
-                         rho=rho, &
                          mos=mos, &
                          scf_env=scf_env, virial=virial, &
                          matrix_ks=matrix_ks, &
@@ -566,8 +563,7 @@ CONTAINS
             Emp2_AA_ex = 0.0_dp
             CALL mp2_direct_energy(dimen, nelec_alpha, nelec_alpha, mp2_biel, &
                                    mp2_env, C_alpha, Auto_alpha, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
-                                   qs_env, rho, para_env, &
-                                   unit_nr)
+                                   qs_env, para_env, unit_nr)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Alpha = ', Emp2_AA
             IF (unit_nr > 0) WRITE (unit_nr, *)
 
@@ -576,8 +572,7 @@ CONTAINS
             Emp2_BB_ex = 0.0_dp
             CALL mp2_direct_energy(dimen, nelec_beta, nelec_beta, mp2_biel, mp2_env, &
                                    C_beta, Auto_beta, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
-                                   qs_env, rho, para_env, &
-                                   unit_nr)
+                                   qs_env, para_env, unit_nr)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy Beta-Beta= ', Emp2_BB
             IF (unit_nr > 0) WRITE (unit_nr, *)
 
@@ -586,8 +581,7 @@ CONTAINS
             Emp2_AB_ex = 0.0_dp
             CALL mp2_direct_energy(dimen, nelec_alpha, nelec_beta, mp2_biel, mp2_env, C_alpha, &
                                    Auto_alpha, Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, &
-                                   qs_env, rho, para_env, &
-                                   unit_nr, C_beta, Auto_beta)
+                                   qs_env, para_env, unit_nr, C_beta, Auto_beta)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Beta= ', Emp2_AB
             IF (unit_nr > 0) WRITE (unit_nr, *)
 
@@ -613,8 +607,7 @@ CONTAINS
             Auto(:) = mo_eigenvalues(:)
 
             CALL mp2_direct_energy(dimen, nelectron/2, nelectron/2, mp2_biel, mp2_env, C, Auto, Emp2, Emp2_Cou, Emp2_ex, &
-                                   qs_env, rho, para_env, &
-                                   unit_nr)
+                                   qs_env, para_env, unit_nr)
 
          END IF
 
@@ -652,16 +645,14 @@ CONTAINS
             ! optimize basis
             CALL optimize_ri_basis_main(Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, dimen, natom, nelectron, &
                                         mp2_biel, mp2_env, C, Auto, &
-                                        kind_of, qs_env, rho, para_env, &
-                                        unit_nr, &
+                                        kind_of, qs_env, para_env, unit_nr, &
                                         nelec_beta, C_beta, Auto_beta)
 
          ELSE
             ! optimize basis
             CALL optimize_ri_basis_main(Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, dimen, natom, nelectron/2, &
                                         mp2_biel, mp2_env, C, Auto, &
-                                        kind_of, qs_env, rho, para_env, &
-                                        unit_nr)
+                                        kind_of, qs_env, para_env, unit_nr)
          END IF
 
       CASE (mp2_method_gpw)
@@ -854,14 +845,13 @@ CONTAINS
 !> \param Emp2_Cou ...
 !> \param Emp2_ex ...
 !> \param qs_env ...
-!> \param rho ...
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param C_j ...
 !> \param Auto_j ...
 ! **************************************************************************************************
    SUBROUTINE mp2_direct_energy(dimen, occ_i, occ_j, mp2_biel, mp2_env, C_i, Auto_i, Emp2, Emp2_Cou, Emp2_ex, &
-                                qs_env, rho, para_env, &
+                                qs_env, para_env, &
                                 unit_nr, C_j, Auto_j)
       INTEGER, INTENT(IN)                                :: dimen, occ_i, occ_j
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
@@ -870,7 +860,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto_i
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_ex
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), DIMENSION(dimen, dimen), &
@@ -1116,11 +1105,11 @@ CONTAINS
          DEALLOCATE (ij_list_proc_temp)
 
          IF (.NOT. alpha_beta_case) THEN
-            CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, rho, para_env_sub, &
+            CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env_sub, &
                                                    mp2_biel, dimen, C_i, Auto_i, i_batch_start, Ni_occupied, occ_i, &
                                                    elements_ij_proc, ij_list_proc, Nj_occupied, j_batch_start)
          ELSE
-            CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, rho, para_env_sub, &
+            CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env_sub, &
                                                    mp2_biel, dimen, C_i, Auto_i, i_batch_start, Ni_occupied, occ_i, &
                                                    elements_ij_proc, ij_list_proc, Nj_occupied, j_batch_start, &
                                                    occ_j, C_j, Auto_j)
