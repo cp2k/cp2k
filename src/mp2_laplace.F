@@ -66,16 +66,16 @@ CONTAINS
                                      fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                      homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
                                      fm_mat_Q_gemm_beta, fm_mat_Q_beta)
-      REAL(KIND=dp)                                      :: Emp2
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
-      INTEGER                                            :: unit_nr, homo, virtual, dimen_RI, &
+      INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI, &
                                                             dimen_ia
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: num_integ_points, num_integ_group, &
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q
-      INTEGER, OPTIONAL                                  :: homo_beta, virtual_beta, dimen_ia_beta
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, virtual_beta, dimen_ia_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta, fm_mat_Q_gemm_beta, &
                                                             fm_mat_Q_beta
 
