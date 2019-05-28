@@ -77,6 +77,7 @@ MODULE library_tests
                                               mp_sync,&
                                               mpi_perf_test
    USE minimax_exp,                     ONLY: validate_exp_minimax
+   USE mp2_weights,                     ONLY: test_least_square_ft
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
                                               check_rng,&
@@ -105,7 +106,6 @@ MODULE library_tests
         pw2rs, realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
         rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
-   USE rpa_ri_gpw,                      ONLY: test_least_square_ft
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
 #include "./base/base_uses.f90"
 
