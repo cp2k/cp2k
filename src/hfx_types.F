@@ -39,10 +39,9 @@ MODULE hfx_types
         cp_libint_set_contrdepth, cp_libint_static_cleanup, cp_libint_static_init, cp_libint_t, &
         prim_data_f_size
    USE input_constants,                 ONLY: &
-        do_hfx_auto_shells, do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
-        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
-        do_hfx_potential_mix_cl_trunc, do_hfx_potential_mix_lg, do_hfx_potential_short, &
-        do_hfx_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces
+        do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
+        do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
+        do_potential_short, do_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -547,8 +546,8 @@ CONTAINS
             actual_x_data%potential_parameter%scale_longrange = real_val
             CALL section_vals_val_get(hf_sub_section, "SCALE_GAUSSIAN", r_val=real_val)
             actual_x_data%potential_parameter%scale_gaussian = real_val
-            IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-                actual_x_data%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+            IF (actual_x_data%potential_parameter%potential_type == do_potential_truncated .OR. &
+                actual_x_data%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
                CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val)
                actual_x_data%potential_parameter%cutoff_radius = real_val
                CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val)
@@ -563,7 +562,7 @@ CONTAINS
                   actual_x_data%potential_parameter%filename = char_val
                END IF
             END IF
-            IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_short) THEN
+            IF (actual_x_data%potential_parameter%potential_type == do_potential_short) THEN
                CALL erfc_cutoff(actual_x_data%screening_parameter%eps_schwarz, &
                                 actual_x_data%potential_parameter%omega, &
                                 actual_x_data%potential_parameter%cutoff_radius)
@@ -1186,8 +1185,8 @@ CONTAINS
       n_threads = 1
 !$    n_threads = omp_get_max_threads()
 
-      IF (x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-          x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+      IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
+          x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          init_t_c_g0_lmax = -1
          CALL free_C0()
       END IF
@@ -1326,9 +1325,9 @@ CONTAINS
 
       ! ** Check some settings
       IF (i_thread == 1) THEN
-         IF (x_data%potential_parameter%potential_type /= do_hfx_potential_truncated .AND. &
-             x_data%potential_parameter%potential_type /= do_hfx_potential_short .AND. &
-             x_data%potential_parameter%potential_type /= do_hfx_potential_mix_cl_trunc) THEN
+         IF (x_data%potential_parameter%potential_type /= do_potential_truncated .AND. &
+             x_data%potential_parameter%potential_type /= do_potential_short .AND. &
+             x_data%potential_parameter%potential_type /= do_potential_mix_cl_trunc) THEN
             CALL cp_warn(__LOCATION__, &
                          "Periodic Hartree Fock calculation requested without use "// &
                          "of a truncated or shortrange potential. This may lead to unphysical total energies. "// &
@@ -1350,7 +1349,7 @@ CONTAINS
       END IF
 
       SELECT CASE (x_data%potential_parameter%potential_type)
-      CASE (do_hfx_potential_truncated, do_hfx_potential_mix_cl_trunc, do_hfx_potential_short)
+      CASE (do_potential_truncated, do_potential_mix_cl_trunc, do_potential_short)
          R_max = 0.0_dp
          DO ikind = 1, SIZE(x_data%basis_parameter)
             la_max => x_data%basis_parameter(ikind)%lmax
@@ -1912,10 +1911,10 @@ CONTAINS
          WRITE (iw, '(T3,A,T61,F20.10)') &
             "HFX_INFO| FRACTION:     ", x_data%general_parameter%fraction
          SELECT CASE (x_data%potential_parameter%potential_type)
-         CASE (do_hfx_potential_coulomb)
+         CASE (do_potential_coulomb)
             WRITE (UNIT=iw, FMT="((T3,A,T74,A))") &
                "HFX_INFO| Interaction Potential:     ", "COULOMB"
-         CASE (do_hfx_potential_short)
+         CASE (do_potential_short)
             WRITE (UNIT=iw, FMT="((T3,A,T71,A))") &
                "HFX_INFO| Interaction Potential:    ", "SHORTRANGE"
             WRITE (iw, '(T3,A,T61,F20.10)') &
@@ -1923,12 +1922,12 @@ CONTAINS
             rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius, "angstrom")
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-         CASE (do_hfx_potential_long)
+         CASE (do_potential_long)
             WRITE (UNIT=iw, FMT="((T3,A,T72,A))") &
                "HFX_INFO| Interaction Potential:     ", "LONGRANGE"
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
-         CASE (do_hfx_potential_mix_cl)
+         CASE (do_potential_mix_cl)
             WRITE (UNIT=iw, FMT="((T3,A,T75,A))") &
                "HFX_INFO| Interaction Potential:     ", "MIX_CL"
             WRITE (iw, '(T3,A,T61,F20.10)') &
@@ -1937,12 +1936,12 @@ CONTAINS
                "HFX_INFO| SCALE_COULOMB:     ", x_data%potential_parameter%scale_coulomb
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| SCALE_LONGRANGE:     ", x_data%potential_parameter%scale_longrange
-         CASE (do_hfx_potential_gaussian)
+         CASE (do_potential_gaussian)
             WRITE (UNIT=iw, FMT="((T3,A,T73,A))") &
                "HFX_INFO| Interaction Potential:     ", "GAUSSIAN"
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
-         CASE (do_hfx_potential_mix_lg)
+         CASE (do_potential_mix_lg)
             WRITE (UNIT=iw, FMT="((T3,A,T75,A))") &
                "HFX_INFO| Interaction Potential:    ", "MIX_LG"
             WRITE (iw, '(T3,A,T61,F20.10)') &
@@ -1951,16 +1950,16 @@ CONTAINS
                "HFX_INFO| SCALE_LONGRANGE:     ", x_data%potential_parameter%scale_longrange
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| SCALE_GAUSSIAN:    ", x_data%potential_parameter%scale_gaussian
-         CASE (do_hfx_potential_id)
+         CASE (do_potential_id)
             WRITE (UNIT=iw, FMT="((T3,A,T73,A))") &
                "HFX_INFO| Interaction Potential:    ", "IDENTITY"
-         CASE (do_hfx_potential_truncated)
+         CASE (do_potential_truncated)
             WRITE (UNIT=iw, FMT="((T3,A,T72,A))") &
                "HFX_INFO| Interaction Potential:    ", "TRUNCATED"
             rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius, "angstrom")
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-         CASE (do_hfx_potential_mix_cl_trunc)
+         CASE (do_potential_mix_cl_trunc)
             WRITE (UNIT=iw, FMT="((T3,A,T65,A))") &
                "HFX_INFO| Interaction Potential:    ", "TRUNCATED MIX_CL"
             rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius, "angstrom")

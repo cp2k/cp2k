@@ -36,8 +36,8 @@ MODULE hfx_admm_utils
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
-        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_hfx_potential_coulomb, &
-        do_hfx_potential_short, do_hfx_potential_truncated, xc_funct_no_shortcut
+        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
+        do_potential_short, do_potential_truncated, xc_funct_no_shortcut
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -668,14 +668,14 @@ CONTAINS
 
          !! ** Add functionals evaluated with auxiliary basis
          SELECT CASE (hfx_potential_type)
-         CASE (do_hfx_potential_coulomb)
+         CASE (do_potential_coulomb)
             CALL section_vals_val_set(xc_fun_section, "PBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_X", &
                                       r_val=-hfx_fraction)
             CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_C", &
                                       r_val=0.0_dp)
-         CASE (do_hfx_potential_short)
+         CASE (do_potential_short)
             omega = qs_env%x_data(1, 1)%potential_parameter%omega
             CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
@@ -685,7 +685,7 @@ CONTAINS
                                       r_val=0.0_dp)
             CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                       r_val=omega)
-         CASE (do_hfx_potential_truncated)
+         CASE (do_potential_truncated)
             cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
@@ -710,7 +710,7 @@ CONTAINS
                                    i_val=xc_funct_no_shortcut)
 
          SELECT CASE (hfx_potential_type)
-         CASE (do_hfx_potential_coulomb)
+         CASE (do_potential_coulomb)
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -735,7 +735,7 @@ CONTAINS
                CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_X", &
                                          r_val=scale_x)
             END IF
-         CASE (do_hfx_potential_short)
+         CASE (do_potential_short)
             omega = qs_env%x_data(1, 1)%potential_parameter%omega
             ifun = 0
             funct_found = .FALSE.
@@ -763,7 +763,7 @@ CONTAINS
                CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
                                          r_val=scale_x)
             END IF
-         CASE (do_hfx_potential_truncated)
+         CASE (do_potential_truncated)
             cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
             ifun = 0
             funct_found = .FALSE.

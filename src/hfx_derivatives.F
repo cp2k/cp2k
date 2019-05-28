@@ -54,8 +54,8 @@ MODULE hfx_derivatives
         hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
         hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
         hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, pair_set_list_type
-   USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
-                                              do_hfx_potential_truncated,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
+                                              do_potential_truncated,&
                                               hfx_do_eval_forces
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
@@ -250,8 +250,8 @@ CONTAINS
       l_max = 4*l_max+1
       CALL init_md_ftable(l_max)
 
-      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-          qs_env%x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
+          qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          IF (l_max > init_t_c_g0_lmax) THEN
             CALL open_file(unit_number=unit_id, file_name=qs_env%x_data(1, 1)%potential_parameter%filename)
             CALL init(l_max, unit_id, para_env%mepos, para_env%group)

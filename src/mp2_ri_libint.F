@@ -47,7 +47,7 @@ MODULE mp2_ri_libint
         hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, hfx_pgf_list, &
         hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, hfx_type, log_zero, &
         pair_set_list_type
-   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
+   USE input_constants,                 ONLY: do_potential_TShPSC
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_sum
@@ -946,7 +946,7 @@ CONTAINS
 
       DEALLOCATE (nimages)
 
-      IF (mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
+      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          init_TShPSC_lmax = -1
          CALL free_C0()
       END IF
@@ -1207,7 +1207,7 @@ CONTAINS
 
       INTEGER                                            :: unit_id
 
-      IF (mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
+      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          IF (l_max > init_TShPSC_lmax) THEN
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=mp2_env%potential_parameter%filename)

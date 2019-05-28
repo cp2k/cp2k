@@ -28,7 +28,7 @@ MODULE mp2_direct_method
                                               hfx_screen_coeff_type,&
                                               hfx_type,&
                                               pair_set_list_type
-   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
+   USE input_constants,                 ONLY: do_potential_TShPSC
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: zero
@@ -832,7 +832,7 @@ CONTAINS
 
       DEALLOCATE (nimages)
 
-      IF (mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
+      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          init_TShPSC_lmax = -1
          CALL free_C0()
       END IF

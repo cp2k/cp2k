@@ -16,10 +16,9 @@ MODULE input_cp2k_hfx
                                               cp_print_key_section_create,&
                                               medium_print_level
    USE input_constants,                 ONLY: &
-        do_hfx_potential_coulomb, do_hfx_potential_gaussian, do_hfx_potential_id, &
-        do_hfx_potential_long, do_hfx_potential_mix_cl, do_hfx_potential_mix_cl_trunc, &
-        do_hfx_potential_mix_lg, do_hfx_potential_short, do_hfx_potential_truncated, ehrenfest, &
-        gaussian
+        do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
+        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
+        do_potential_truncated, ehrenfest, gaussian
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -227,9 +226,9 @@ CONTAINS
          usage="POTENTIAL_TYPE SHORTRANGE", &
          enum_c_vals=s2a("COULOMB", "SHORTRANGE", "LONGRANGE", "MIX_CL", "GAUSSIAN", &
                          "MIX_LG", "IDENTITY", "TRUNCATED", "MIX_CL_TRUNC"), &
-         enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_short, do_hfx_potential_long, &
-                       do_hfx_potential_mix_cl, do_hfx_potential_gaussian, do_hfx_potential_mix_lg, &
-                       do_hfx_potential_id, do_hfx_potential_truncated, do_hfx_potential_mix_cl_trunc/), &
+         enum_i_vals=(/do_potential_coulomb, do_potential_short, do_potential_long, &
+                       do_potential_mix_cl, do_potential_gaussian, do_potential_mix_lg, &
+                       do_potential_id, do_potential_truncated, do_potential_mix_cl_trunc/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "Shortrange potential: erfc(omega*r)/r", &
                        "Longrange potential: erf(omega*r)/r", &
@@ -239,7 +238,7 @@ CONTAINS
                        "Overlap", &
                        "Truncated coulomb potential: if (r &lt; R_c) 1/r else 0", &
                        "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"), &
-         default_i_val=do_hfx_potential_coulomb)
+         default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

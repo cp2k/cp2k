@@ -26,9 +26,9 @@ MODULE hfx_libint_interface
    USE hfx_types,                       ONLY: hfx_pgf_product_list,&
                                               hfx_potential_type
    USE input_constants,                 ONLY: &
-        do_hfx_potential_coulomb, do_hfx_potential_gaussian, do_hfx_potential_id, &
-        do_hfx_potential_long, do_hfx_potential_mix_cl, do_hfx_potential_mix_cl_trunc, &
-        do_hfx_potential_mix_lg, do_hfx_potential_short, do_hfx_potential_truncated
+        do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
+        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
+        do_potential_truncated
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: pi
@@ -117,7 +117,7 @@ CONTAINS
       T = Rho*PQ2
 
       SELECT CASE (potential_parameter%potential_type)
-      CASE (do_hfx_potential_truncated)
+      CASE (do_potential_truncated)
          R = potential_parameter%cutoff_radius*SQRT(rho)
          R1 = R11
          R2 = R22
@@ -127,10 +127,10 @@ CONTAINS
          CALL t_c_g0_n(F(1), use_gamma, R, T, m_max)
          IF (use_gamma) CALL fgamma(m_max, T, F(1))
          factor = 2.0_dp*Pi*RhoInv
-      CASE (do_hfx_potential_coulomb)
+      CASE (do_potential_coulomb)
          CALL fgamma(m_max, T, F(1))
          factor = 2.0_dp*Pi*RhoInv
-      CASE (do_hfx_potential_short)
+      CASE (do_potential_short)
          R = potential_parameter%cutoff_radius*SQRT(rho)
          R1 = R11
          R2 = R22
@@ -149,7 +149,7 @@ CONTAINS
             tmp = tmp*omega_corr2
          END DO
          factor = 2.0_dp*Pi*RhoInv
-      CASE (do_hfx_potential_long)
+      CASE (do_potential_long)
          omega2 = potential_parameter%omega**2
          omega_corr2 = omega2/(omega2+Rho)
          omega_corr = SQRT(omega_corr2)
@@ -161,7 +161,7 @@ CONTAINS
             tmp = tmp*omega_corr2
          END DO
          factor = 2.0_dp*Pi*RhoInv
-      CASE (do_hfx_potential_mix_cl)
+      CASE (do_potential_mix_cl)
          CALL fgamma(m_max, T, F(1))
          omega2 = potential_parameter%omega**2
          omega_corr2 = omega2/(omega2+Rho)
@@ -174,7 +174,7 @@ CONTAINS
             tmp = tmp*omega_corr2
          END DO
          factor = 2.0_dp*Pi*RhoInv
-      CASE (do_hfx_potential_mix_cl_trunc)
+      CASE (do_potential_mix_cl_trunc)
 
          ! truncated
          R = potential_parameter%cutoff_radius*SQRT(rho)
@@ -207,7 +207,7 @@ CONTAINS
          END DO
          factor = 2.0_dp*Pi*RhoInv
 
-      CASE (do_hfx_potential_gaussian)
+      CASE (do_potential_gaussian)
          omega2 = potential_parameter%omega**2
          T = -omega2*T/(Rho+omega2)
          tmp = 1.0_dp
@@ -216,7 +216,7 @@ CONTAINS
             tmp = tmp*omega2/(Rho+omega2)
          END DO
          factor = (Pi/(Rho+omega2))**(1.5_dp)
-      CASE (do_hfx_potential_mix_lg)
+      CASE (do_potential_mix_lg)
          omega2 = potential_parameter%omega**2
          omega_corr2 = omega2/(omega2+Rho)
          omega_corr = SQRT(omega_corr2)
@@ -235,7 +235,7 @@ CONTAINS
             tmp = tmp*omega2/(Rho+omega2)
          END DO
          factor = 1.0_dp
-      CASE (do_hfx_potential_id)
+      CASE (do_potential_id)
          F(1) = (Pi*RhoInv)**(1.5_dp)
          DO i = 2, m_max+1
             F(i) = 0.0_dp

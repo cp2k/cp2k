@@ -71,7 +71,7 @@ MODULE mp2_gpw
                                               group_dist_d1_type,&
                                               release_group_dist
    USE input_constants,                 ONLY: do_eri_gpw,&
-                                              ri_overlap
+                                              do_potential_id
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -371,7 +371,7 @@ CONTAINS
          END IF
 
          ! in imaginary time, we do overlap metric
-         mp2_env%ri_metric = ri_overlap
+         mp2_env%ri_metric = do_potential_id
 
       END IF
 
