@@ -458,7 +458,7 @@ CONTAINS
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, compression_factor, &
          compression_factor_disk, eps_schwarz, eps_storage, hf_fraction, ln_10, log10_eps_schwarz, &
-         log10_pmax, max_contraction_val, pmax_atom, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, &
+         log10_pmax, max_contraction_val, pmax_atom, pmax_entry, ra(3), rb(3), rc(3), &
          rd(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ee_buffer1, ee_buffer2, &
                                                             ee_primitives_tmp, ee_work, ee_work2, &
@@ -776,8 +776,6 @@ CONTAINS
          jkind = kind_of(jatom)
          ra = particle_set(iatom)%r(:)
          rb = particle_set(jatom)%r(:)
-         !rab2=(ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-         rab2 = 0.0_dp
 
          la_max => RI_basis_parameter(ikind)%lmax
          la_min => RI_basis_parameter(ikind)%lmin
@@ -810,16 +808,6 @@ CONTAINS
             lkind = kind_of(latom)
             rc = particle_set(katom)%r(:)
             rd = particle_set(latom)%r(:)
-            !rcd2=(rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
-            rcd2 = 0.0_dp
-
-            !pmax_atom = 0.0_dp
-            !screen_kind_ij = screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
-            !                 screen_coeffs_kind(jkind,ikind)%x(2)
-            !screen_kind_kl = screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-            !                 screen_coeffs_kind(lkind,kkind)%x(2)
-            !IF( max_val1 + screen_kind_kl + pmax_atom < log10_eps_schwarz) CYCLE
-            !IF( screen_kind_ij + screen_kind_kl + pmax_atom < log10_eps_schwarz ) CYCLE
 
             lc_max => RI_basis_parameter(kkind)%lmax
             lc_min => RI_basis_parameter(kkind)%lmin
@@ -850,8 +838,6 @@ CONTAINS
             DO iset = 1, nseta
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
-               !max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-               !           screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
                sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
                sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
 
@@ -864,11 +850,6 @@ CONTAINS
 
                   counter_L_blocks = counter_L_blocks+1
                   IF (MOD(counter_L_blocks, para_env%num_pe) /= para_env%mepos) CYCLE
-                  !max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                  !                screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
-                  !max_val2 = max_val1 + max_val2_set
-                  !!! Near field screening
-                  !IF(max_val2 + pmax_atom <log10_eps_schwarz) CYCLE
 
                   sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
                   sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
@@ -879,15 +860,8 @@ CONTAINS
                   pmax_entry = 0.0_dp
                   log10_pmax = pmax_entry
                   log10_eps_schwarz = log_zero
-                  !max_val2 = max_val2 + log10_pmax
-                  !IF(max_val2<log10_eps_schwarz) CYCLE
-                  !pmax_entry = EXP(log10_pmax*ln_10)
 
                   max_contraction_val = 1.0000_dp
-                  ! tmp_R_1 => radii_pgf(:,:,1,1,1,1)
-                  ! tmp_R_2 => radii_pgf(:,:,1,1,1,1)
-                  ! tmp_screen_pgf1 => screen_coeffs_pgf(:,:,1,1,1,1)
-                  ! tmp_screen_pgf2 => screen_coeffs_pgf(:,:,1,1,1,1)
 
                   ALLOCATE (L_block(nsgfa(iset), nsgfc(kset)))
 
@@ -1015,8 +989,6 @@ CONTAINS
          jkind = kind_of(jatom)
          ra = particle_set(iatom)%r(:)
          rb = particle_set(jatom)%r(:)
-         !rab2=(ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-         rab2 = 0.0_dp
 
          la_max => RI_basis_parameter(ikind)%lmax
          la_min => RI_basis_parameter(ikind)%lmin
@@ -1049,8 +1021,6 @@ CONTAINS
             IF (MOD(counter_L_blocks, para_env%num_pe) /= para_env%mepos) CYCLE
 
             ncob = npgfb(jset)*ncoset(lb_max(jset))
-            !max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-            !           screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
             sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
             sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
 
@@ -1071,19 +1041,8 @@ CONTAINS
                lkind = list_kl%elements(i_list_kl)%kind_pair(2)
                rc = list_kl%elements(i_list_kl)%r1
                rd = list_kl%elements(i_list_kl)%r2
-               rcd2 = list_kl%elements(i_list_kl)%dist2
 
                pmax_atom = 0.0_dp
-
-               !screen_kind_ij = screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
-               !                 screen_coeffs_kind(jkind,ikind)%x(2)
-               !screen_kind_kl = screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-               !                 screen_coeffs_kind(lkind,kkind)%x(2)
-
-               !!!!!! Change the loop order
-               !IF( max_val1 + screen_kind_kl + pmax_atom < log10_eps_schwarz) CYCLE
-               !!!!!!
-               !IF( screen_kind_ij + screen_kind_kl + pmax_atom < log10_eps_schwarz ) CYCLE
 
                lc_max => basis_parameter(kkind)%lmax
                lc_min => basis_parameter(kkind)%lmin
@@ -1118,12 +1077,6 @@ CONTAINS
                   orb_l_start = mp2_biel%index_table(latom, lset)
                   orb_l_end = orb_l_start+nsgfd(lset)-1
 
-                  !max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                  !                screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
-                  !max_val2 = max_val1 + max_val2_set
-
-                  !!! Near field screening
-                  !IF(max_val2 + pmax_atom <log10_eps_schwarz) CYCLE
                   !! get max_vals if we screen on initial density
                   pmax_entry = 0.0_dp
 
@@ -1132,29 +1085,13 @@ CONTAINS
 
                   log10_pmax = pmax_entry
                   log10_eps_schwarz = log_zero
-                  !max_val2 = max_val2 + log10_pmax
-                  !!IF(max_val2<log10_eps_schwarz) CYCLE
-                  !pmax_entry = EXP(log10_pmax*ln_10)
 
                   IF (ALLOCATED(MNRS)) DEALLOCATE (MNRS)
                   ALLOCATE (MNRS(nsgfd(lset), nsgfc(kset), nsgfa(iset)))
 
                   MNRS = 0.0_dp
 
-                  !max_contraction_val =  max_contraction(iset,iatom) * &
-                  !                       max_contraction(jset,jatom) * &
-                  !                       max_contraction(kset,katom) * &
-                  !                       max_contraction(lset,latom) * pmax_entry
-                  !tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
-                  !tmp_R_2 => radii_pgf(:,:,lset,kset,lkind,kkind)
-                  !tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
-                  !tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
-
                   max_contraction_val = max_contraction(kset, katom)*max_contraction(lset, latom)
-                  ! tmp_R_1 => radii_pgf(:,:,kset,kset,kkind,kkind)
-                  ! tmp_R_2 => radii_pgf(:,:,kset,kset,kkind,kkind)
-                  ! tmp_screen_pgf1 => screen_coeffs_pgf(:,:,kset,kset,kkind,kkind)
-                  ! tmp_screen_pgf2 => screen_coeffs_pgf(:,:,kset,kset,kkind,kkind)
 
                   CALL coulomb4(private_lib, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                 la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
@@ -1190,8 +1127,6 @@ CONTAINS
                   estimate_to_store_int = EXPONENT(cartesian_estimate)
                   estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
                   cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
-
-                  !IF(cartesian_estimate<eps_schwarz) CYCLE
 
                   primitive_counter = 0
                   DO llB = 1, nsgfd(lset)
