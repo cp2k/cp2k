@@ -35,7 +35,8 @@ MODULE xtb_parameters
                                               ptable
    USE physcon,                         ONLY: bohr,&
                                               evolt
-   USE string_utilities,                ONLY: remove_word
+   USE string_utilities,                ONLY: remove_word,&
+                                              uppercase
    USE xtb_types,                       ONLY: xtb_atom_type
 #include "./base/base_uses.f90"
 
@@ -165,6 +166,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_init', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=2)                                   :: enam, esym
       CHARACTER(len=default_string_length)               :: aname, filename
       INTEGER                                            :: i, ia, l
       LOGICAL                                            :: at_end, found
@@ -179,7 +181,11 @@ CONTAINS
          CALL parser_get_next_line(parser, 1, at_end)
          IF (at_end) EXIT
          CALL parser_get_object(parser, aname)
-         IF (TRIM(aname) == element_symbol) THEN
+         enam = aname
+         esym = element_symbol
+         CALL uppercase(enam)
+         CALL uppercase(esym)
+         IF (enam == esym) THEN
             found = .TRUE.
             CALL parser_get_object(parser, param%eta)
             CALL parser_get_object(parser, param%xgamma)
