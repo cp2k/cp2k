@@ -86,21 +86,9 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
 :warning: Note that on machines and compilers which support SSE you can configure FFTW3 with `--enable-sse2`. Compilers/systems that do not align memory (NAG f95, Intel IA32/gfortran) should either not use `--enable-sse2` or otherwise set the define `-D__FFTW3_UNALIGNED` in the arch file. When building an OpenMP parallel version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 ### 2g. LIBINT (optional, enables methods including HF exchange)
-Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed. CP2K requires libint version >= 2.5.0 that was build with Fortran bindings (configured with `--enable-fortran`). Build libint by following the [libint wiki](https://github.com/evaleev/libint/wiki) and the additional instructions below.
-  * Recommended options for `configure` to generate a CP2K-compatible libint:
-  ```
-  --enable-eri=1 --enable-eri3=1 --enable-eri2=1 \
-    --with-max-am=4 --with-eri-max-am=5,4 --with-eri3-max-am=5,4 --with-eri2-max-am=5,4 \
-    --with-opt-am=3 --enable-generic-code --disable-unrolling
-  ```
-  CP2K is not hardwired to this specific libint version and the configure options may be adapted to your needs.
-  * *After* generating libint library, configure libint with Fortran interface by setting `FC` to the Fortran compiler and by setting `--enable-fortran`.
-    ```
-    ./configure --enable-fortran FC=... FCFLAGS=...
-    make -j
-    make fortran
-    make install
-    ```
+  * Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed.
+  * Recommended way to build libint: Download a CP2K-configured libint library from [libint-cp2k](https://github.com/cp2k/libint-cp2k). Build and install libint by following the instructions provided there. Note that using a library configured for higher maximum angular momentum will increase build time and binary size of CP2K executable (assuming static linking).
+  * CP2K is not hardwired to these provided libraries and any other libint library (version >= 2.5.0) should be compatible as long as it was compiled with `--enable-eri=1` and default ordering.
   * In the arch file of CP2K: add `-D__LIBINT` to the `DFLAGS`. Add `-L$(LIBINT_DIR)/lib64 -lint2 -lstdc++` to `LIBS` and `-I$(LIBINT_DIR)/include` to `FCFLAGS`. `lstdc++` is needed if you use the GNU C++ compiler.
   * Libint 1 is no longer supported and the previously needed flags `-D__LIBINT_MAX_AM` and `-D__LIBDERIV_MAX_AM1` are ignored.
   * `-D__MAX_CONTR=4` (default=2) can be used to compile efficient contraction kernels up to l=4, but the build time will increase accordingly.

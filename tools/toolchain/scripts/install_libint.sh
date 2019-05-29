@@ -2,8 +2,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
+libint_lmax="4"
 libint_ver="2.5.0"
-libint_sha256="7e3d0d9ec0ac3b936d0faa6f32f2f63f8ed9eb17db0f367c52261bd7fb6d55f2"
+libint_sha256="8b797a518fd5a0fa19c420c84794a7ec5225821ffc56d1666845a406d0b62982"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -22,7 +23,7 @@ cd "${BUILDDIR}"
 case "$with_libint" in
     __INSTALL__)
         echo "==================== Installing LIBINT ===================="
-        pkg_install_dir="${INSTALLDIR}/libint-${libint_ver}"
+        pkg_install_dir="${INSTALLDIR}/libint-v${libint_ver}-cp2k-lmax-${libint_lmax}"
         install_lock_file="$pkg_install_dir/install_successful"
         if verify_checksums "${install_lock_file}" ; then
             echo "libint-${libint_ver} is already installed, skipping it."
@@ -31,14 +32,14 @@ case "$with_libint" in
                 echo "libint_cp2k-${libint_ver}.tgz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
-                             https://github.com/cp2k/libint-cp2k/releases/download/v2.5.0/libint_cp2k-2.5.0.tgz
+                             https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/libint-v${libint_ver}-cp2k-lmax-${libint_lmax}.tgz
             fi
 
-            [ -d libint-${libint_ver} ] && rm -rf libint-${libint_ver}
-            tar -xzf libint_cp2k-${libint_ver}.tgz
+            [ -d libint-v${libint_ver}-cp2k-lmax-${libint_lmax} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${libint_lmax}
+            tar -xzf libint-v${libint_ver}-cp2k-lmax-${libint_lmax}.tgz
 
             echo "Installing from scratch into ${pkg_install_dir}"
-            cd libint-${libint_ver}
+            cd libint-v${libint_ver}-cp2k-lmax-${libint_lmax}
 
             # hack for -with-cxx, needed for -fsanitize=thread that also
             # needs to be passed to the linker, but seemingly ldflags is
