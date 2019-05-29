@@ -486,10 +486,10 @@ CONTAINS
                                  DO j = 1, nj
                                     la = laoa(i)+1
                                     lb = laob(j)+1
-                                    gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1)+gchrg(icol, lb, 1))
+                                    gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1)+gchrg(jatom, lb, 1))
                                  END DO
                               END DO
-                              gmij = 0.5_dp*(gmcharge(irow, 1)+gmcharge(icol, 1))
+                              gmij = 0.5_dp*(gmcharge(iatom, 1)+gmcharge(jatom, 1))
                               icol = MAX(iatom, jatom)
                               irow = MIN(iatom, jatom)
                               NULLIFY (pblock)
@@ -506,7 +506,7 @@ CONTAINS
                                     f1 = -2.0_dp*SUM(TRANSPOSE(pblock)*dsint(:, :, i)*gcij)
                                     f2 = -2.0_dp*gmij*SUM(TRANSPOSE(pblock)*dsint(:, :, i))
                                  END IF
-                                 fij(i) = fij(i)+f1+f2
+                                 fij(i) = f1+f2
                               END DO
                               DEALLOCATE (gcij)
                               fi = 1.0_dp
@@ -576,7 +576,7 @@ CONTAINS
                IF (calculate_forces) THEN
                   atom_i = atom_of_kind(iatom)
                   atom_j = atom_of_kind(jatom)
-                  IF (irow == jatom) THEN
+                  IF (irow /= iatom) THEN
                      gmij = -gmij
                      gcij = -gcij
                   END IF

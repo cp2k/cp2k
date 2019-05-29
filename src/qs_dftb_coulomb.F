@@ -231,10 +231,12 @@ CONTAINS
                END IF
             END DO
             IF (use_virial) THEN
-               CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
+               fi = 1.0_dp
+               IF (iatom == jatom) fi = 0.5_dp
+               CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
                IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+                  CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
+                  CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
                END IF
             END IF
          END IF
@@ -433,10 +435,12 @@ CONTAINS
                                     fij(i) = -2.0_dp*gmij*SUM(TRANSPOSE(pblock)*dsint(:, :, i))
                                  END IF
                               END DO
-                              CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
+                              fi = 1.0_dp
+                              IF (iatom == jatom) fi = 0.5_dp
+                              CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
                               IF (atprop%stress) THEN
-                                 CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
-                                 CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
+                                 CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp*fi, fij, rij)
+                                 CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp*fi, fij, rij)
                               END IF
                            END IF
                         END DO
@@ -492,10 +496,12 @@ CONTAINS
                      fij(i) = fi
                   END DO
                   IF (use_virial) THEN
-                     CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
+                     fi = 1.0_dp
+                     IF (iatom == jatom) fi = 0.5_dp
+                     CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
                      IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
+                        CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
                      END IF
                   END IF
                END IF
@@ -737,7 +743,7 @@ CONTAINS
                   dsblock = dsblock-dsblockm
                   dsblock = dsblock/(2.0_dp*ddr)
 
-                  clist%acint(1:n1, 1:n2, i) = dsblock(1:n1, 1:n2)
+                  clist%acint(1:n1, 1:n2, i) = -dsblock(1:n1, 1:n2)
                ENDDO
                DEALLOCATE (dsblock, dsblockm)
             END IF
