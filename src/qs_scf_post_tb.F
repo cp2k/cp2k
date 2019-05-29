@@ -324,14 +324,20 @@ CONTAINS
 
       ! Hirshfeld
       print_key => section_vals_get_subs_vals(print_section, "HIRSHFELD")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Hirshfeld charges not available for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("Hirshfeld charges not available for TB methods.")
+         END IF
       END IF
 
       ! MAO
       print_key => section_vals_get_subs_vals(print_section, "MAO_ANALYSIS")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("MAO analysis not available for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("MAO analysis not available for TB methods.")
+         END IF
       END IF
 
       ! Dipole Moments
@@ -554,38 +560,56 @@ CONTAINS
 
       ! V_XC CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "V_XC_CUBE")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("XC potential cube file not available for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("XC potential cube file not available for TB methods.")
+         END IF
       END IF
 
       ! Electric field gradients
       print_key => section_vals_get_subs_vals(print_section, "ELECTRIC_FIELD_GRADIENT")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Electric field gradient not implemented for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("Electric field gradient not implemented for TB methods.")
+         END IF
       END IF
 
       ! KINETIC ENERGY
       print_key => section_vals_get_subs_vals(print_section, "KINETIC_ENERGY")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Kinetic energy not available for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("Kinetic energy not available for TB methods.")
+         END IF
       END IF
 
       ! Xray diffraction spectrum
       print_key => section_vals_get_subs_vals(print_section, "XRAY_DIFFRACTION_SPECTRUM")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Xray diffraction spectrum not implemented for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("Xray diffraction spectrum not implemented for TB methods.")
+         END IF
       END IF
 
       ! EPR Hyperfine Coupling
       print_key => section_vals_get_subs_vals(print_section, "HYPERFINE_COUPLING_TENSOR")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Hyperfine Coupling not implemented for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("Hyperfine Coupling not implemented for TB methods.")
+         END IF
       END IF
 
       ! PLUS_U
       print_key => section_vals_get_subs_vals(print_section, "PLUS_U")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("DFT+U method not implemented for TB methods.")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("DFT+U method not implemented for TB methods.")
+         END IF
       END IF
 
       CALL timestop(handle)
