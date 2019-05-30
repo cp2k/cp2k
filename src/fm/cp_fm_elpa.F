@@ -229,7 +229,7 @@ $: "#endif"
       LOGICAL, INTENT(IN)                                :: use_qr, use_qr_unsafe
 
 #if defined(__ELPA)
-#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
+#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711) || (__ELPA==201811)
       elpa_qr = use_qr
       elpa_qr_unsafe = use_qr_unsafe
 #else
@@ -378,7 +378,7 @@ $: "#endif"
       !     - Proper matrix order:  src/elpa2.F90 (src/elpa2_template.X90 in git version)
       !     - Proper block size:    test/Fortran/test_real2_qr.F90
       ! Note that the names of these files might change in different ELPA versions
-#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
+#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711) || (__ELPA==201811)
       ! Matrix order must be even
       use_qr = elpa_qr .AND. MOD(n, 2).EQ.0
       ! Matrix order and block size must be greater than or equal to 64
@@ -441,7 +441,7 @@ $: "#endif"
 
       ! Make actual call to ELPA to calculate eigenvalues/eigenvectors
 
-#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
+#if (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711) || (__ELPA==201811)
       IF (elpa_kernel == -1) THEN ! auto
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
