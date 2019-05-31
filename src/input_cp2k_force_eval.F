@@ -78,7 +78,7 @@ CONTAINS
 
       NULLIFY (subsection)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Which method should be used to compute forces", &
                           usage="METHOD <STRING>", &
                           enum_c_vals=s2a("QS", &
@@ -102,7 +102,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STRESS_TENSOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="STRESS_TENSOR", &
                           description="Controls the calculation of the stress tensor. The combinations defined below"// &
                           " are not implemented for all methods.", &
                           usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
@@ -194,35 +194,35 @@ CONTAINS
                           n_keywords=7, n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           description="Specifies the atoms on which the external potential will act", &
                           usage="ATOMS_LIST {INT} {INT} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the functional form in mathematical notation. Variables must be the atomic "// &
                           "coordinates (X,Y,Z).", usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
                           type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
                           usage="PARAMETERS a b D", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
                           description="Defines the values of  parameter of the functional form", &
                           usage="VALUES ", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNITS", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
                           "It is assumed that the corresponding parameter value is specified in this unit.", &
                           usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
@@ -230,13 +230,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Parameter used for computing the derivative with the Ridders' method.", &
                           usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERROR_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
                           description="Checks that the error in computing the derivative is not larger than "// &
                           "the value set; in case error is larger a warning message is printed.", &
                           usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
@@ -265,7 +265,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="MAX_FORCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FORCE", &
                           description="Specify the Maximum Values of the force. If the force"// &
                           " of one atom exceed this value it's rescaled to the MAX_FORCE"// &
                           " value.", &
@@ -309,7 +309,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "FORCES", &
                                        description="Controls the printing of the forces after each force evaluation", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword=keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="NDIGITS", &
                           description="Specifies the number of digits used "// &
                           "for the printing of the forces", &
@@ -355,7 +355,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "STRESS_TENSOR", &
                                        description="Controls the printing of the stress tensor", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword=keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="NDIGITS", &
                           description="Specifies the number of digits used "// &
                           "for the printing of the stress tensor", &

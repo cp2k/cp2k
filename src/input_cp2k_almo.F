@@ -76,13 +76,13 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="EPS_FILTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Threshold for the matrix sparsity filter", &
                           usage="EPS_FILTER 1.e-6", default_r_val=1.e-7_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALMO_SCF_GUESS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALMO_SCF_GUESS", &
                           description="The method to generate initial ALMOs.", &
                           usage="ALMO_SCF_GUESS MOLECULAR", &
                           default_i_val=atomic_guess, &
@@ -95,7 +95,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MO_OVERLAP_INV_ALG", &
+      CALL keyword_create(keyword, __LOCATION__, name="MO_OVERLAP_INV_ALG", &
                           description="Algorithm to invert MO overlap matrix.", &
                           usage="MO_OVERLAP_INV_ALG LS_HOTELLING", &
                           default_i_val=spd_inversion_ls_hotelling, &
@@ -107,28 +107,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="STOP_SCF_EARLY",&
+      !CALL keyword_create(keyword, __LOCATION__, name="STOP_SCF_EARLY",&
       !     description="Stops SCF using EPS_ERROR_EARLY or MAX_ITER_EARLY", &
       !     usage="STOP_SCF_EARLY .TRUE.", default_l_val=.FALSE.,&
       !     lone_keyword_l_val=.TRUE.)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALMO_EXTRAPOLATION_ORDER", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALMO_EXTRAPOLATION_ORDER", &
                           description="Number of previous states used for the ASPC extrapolation of the ALMO "// &
                           "initial guess. 0 implies that the guess is given by ALMO_SCF_GUESS at each step.", &
                           usage="ALMO_EXTRAPOLATION_ORDER 3", default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="XALMO_EXTRAPOLATION_ORDER", &
+      CALL keyword_create(keyword, __LOCATION__, name="XALMO_EXTRAPOLATION_ORDER", &
                           description="Number of previous states used for the ASPC extrapolation of the initial guess "// &
                           "for the delocalization correction.", &
                           usage="XALMO_EXTRAPOLATION_ORDER 1", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALMO_ALGORITHM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALMO_ALGORITHM", &
                           description="Specifies the algorithm to update block-diagonal ALMOs during the SCF procedure.", &
                           usage="ALMO_ALGORITHM DIAG", &
                           default_i_val=almo_scf_diag, &
@@ -146,7 +146,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="XALMO_TRIAL_WF", &
+      CALL keyword_create(keyword, __LOCATION__, name="XALMO_TRIAL_WF", &
                           description="Determines the form of the trial XALMOs.", &
                           usage="XALMO_TRIAL_WF SIMPLE", &
                           default_i_val=xalmo_trial_r0_out, &
@@ -159,7 +159,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="DELOCALIZE_METHOD", &
+         keyword, __LOCATION__, name="DELOCALIZE_METHOD", &
          description="Methods to reintroduce electron delocalization, which is excluded "// &
          "with the block-diagonal ALMO reference. Electron delocalization can "// &
          "be computed using either fully delocalized MOs or spatially restricted "// &
@@ -181,7 +181,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="XALMO_R_CUTOFF_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="XALMO_R_CUTOFF_FACTOR", &
                           description="Controls the localization radius of XALMOs: "// &
                           !"r0 = r0_factor*(radius(at1)+radius(at2)) + r0_shift",&
                           "R_cutoff = XALMO_R_CUTOFF_FACTOR*(radius(at1)+radius(at2))", &
@@ -189,7 +189,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RETURN_ORTHOGONALIZED_MOS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RETURN_ORTHOGONALIZED_MOS", &
                           description="Orthogonalize final ALMOs before they are returned"// &
                           "to Quickstep (i.e. for calculation of properties)", &
                           usage="RETURN_ORTHOGONALIZED_MOS .TRUE.", default_l_val=.TRUE., &
@@ -197,37 +197,37 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOCALIZE_EPS_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOCALIZE_EPS_ITER",&
       !     description="Obsolete and to be deleted: use EPS_ERROR in XALMO_OPTIMIZER_PCG",&
       !     usage="DELOCALIZE_EPS_ITER 1.e-5", default_r_val=1.e-5_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOCALIZE_EPS_LIN_SEARCH",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOCALIZE_EPS_LIN_SEARCH",&
       !     description="Obsolete and to be deleted: use EPS_ERROR_LIN_SEARCH in XALMO_OPTIMIZER_PCG",&
       !     usage="DELOCALIZE_EPS_LIN_SEARCH 1.e-6", default_r_val=1.e-7_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="BLOCKED_MAX_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="BLOCKED_MAX_ITER",&
       !     description="Obsolete and to be deleted: use MAX_ITER in ALMO_OPTIMIZER_DIIS or ALMO_OPTIMIZER_PCG",&
       !     usage="BLOCKED_MAX_ITER 200", default_i_val=100)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="BLOCKED_EPS_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="BLOCKED_EPS_ITER",&
       !     description="Obsolete and to be deleted: use EPS_ERROR in ALMO_OPTIMIZER_DIIS or ALMO_OPTIMIZER_PCG",&
       !     usage="BLOCKED_EPS_ITER 1.e-5", default_r_val=1.e-5_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOCALIZE_MAX_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOCALIZE_MAX_ITER",&
       !     description="Obsolete and to be deleted: use MAX_ITER in XALMO_OPTIMIZER_PCG",&
       !     usage="DELOCALIZE_MAX_ITER 200", default_i_val=100)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DOMAIN_LAYOUT_MOS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DOMAIN_LAYOUT_MOS",&
       !     description="Each electron in the system is constrained to its own delocalization domain."//&
       !     " This keyword creates groups of electrons that share the same domain.",&
       !     usage="DOMAIN_LAYOUT_MOS MOLECULAR",&
@@ -241,7 +241,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DOMAIN_LAYOUT_AOS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DOMAIN_LAYOUT_AOS",&
       !     description="Atomic orbitals or groups of atomic orbitals represent domains over which electrons "//&
       !     "can be delocalized. This keyword imposes constraints on the structure of domains",&
       !     usage="DOMAIN_LAYOUT_MOS MOLECULAR",&
@@ -256,7 +256,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="MATRIX_CLUSTERING_MOS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="MATRIX_CLUSTERING_MOS",&
       !     description="Blocks of matrices in the MO basis set are distributed for parallel computations. "//&
       !     "This keywords specifies the type of matrix blocks.",&
       !     usage="MATRIX_CLUSTERING_MOS MOLECULAR",&
@@ -268,7 +268,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="MATRIX_CLUSTERING_AOS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="MATRIX_CLUSTERING_AOS",&
       !     description="Blocks of matrices in the AO basis set are distributed for parallel computations."//&
       !     " This keywords specifies the type of matrix blocks.",&
       !     usage="MATRIX_CLUSTERING_AOS MOLECULAR",&
@@ -282,7 +282,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="CONSTRAINT_TYPE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="CONSTRAINT_TYPE",&
       !     description="Determines the type of ALMO constraints",&
       !     usage="CONSTRAINT_TYPE BLOCK_DIAGONAL",&
       !     default_i_val=almo_constraint_block_diagonal,&
@@ -295,26 +295,26 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="OUTER_MAX_SCF_Q",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="OUTER_MAX_SCF_Q",&
       !!     description="Maximum number of the outer loop SCF iterations for optimization of quenched ALMOs",&
       !!     usage="OUTER_MAX_SCF_Q 10", default_i_val=0)
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="EPS_USE_PREV_AS_GUESS",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="EPS_USE_PREV_AS_GUESS",&
       !!     description="SCF convergence below which quantities from previous iterations"//&
       !!                 " can be used as initial guess for the current iteration.",&
       !!     usage="EPS_USE_PREV_AS_GUESS 0.01", default_r_val=0.001_dp)
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="MIXING_FRACTION",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="MIXING_FRACTION",&
       !!     description="Weight of the new KS matrix in the mixing during the SCF procedure.",&
       !!     usage="MIXING_FRACTION 0.45", default_r_val=0.45_dp)
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="FIXED_MU",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="FIXED_MU",&
       !!     description="Fix chemical potential or optimize it to get "//&
       !!                 "the correct number of electrons",&
       !!     usage="FIXED_MU .TRUE.", default_l_val=.FALSE.,&
@@ -322,14 +322,14 @@ CONTAINS
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="MU",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="MU",&
       !!     description="Value (or initial guess) for the chemical potential."//&
       !!                 " Provide energy between HOMO and LUMO energy.",&
       !!     usage="MU 0.0", default_r_val=-0.1_dp)
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="XALMO_ALGORITHM",&
+      !CALL keyword_create(keyword, __LOCATION__, name="XALMO_ALGORITHM",&
       !     description="Specifies the algorithm to update ALMOs on eXtended domains (XALMOs).",&
       !     usage="XALMO_ALGORITHM PCG",&
       !     default_i_val=almo_scf_diag,&
@@ -340,7 +340,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="QUENCHER_RADIUS_TYPE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_RADIUS_TYPE",&
       !     description="Determines the type of atomic radii used for imposing the ALMO constraints",&
       !     usage="QUENCHER_RADIUS_TYPE VDW",&
       !     default_i_val=do_bondparm_vdw,&
@@ -351,7 +351,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="QUENCHER_R0_FACTOR",&
+      !CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_R0_FACTOR",&
       !     description="Parameter to calculate the inner soft cutoff radius: "//&
       !     !"r0 = r0_factor*(radius(at1)+radius(at2)) + r0_shift",&
       !     "r0 = r0_factor*(radius(at1)+radius(at2))",&
@@ -359,7 +359,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="QUENCHER_R0_SHIFT",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_R0_SHIFT",&
       !!     description="Parameter to calculate the inner soft cutoff radius (in Angstrom): "//&
       !!     "r0 = r0_factor*(radius(at1)+radius(at2)) + r0_shift",&
       !!     usage="QUENCHER_R0_SHIFT 0.0", default_r_val=0.0_dp)
@@ -367,7 +367,7 @@ CONTAINS
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="QUENCHER_R1_FACTOR",&
+      !CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_R1_FACTOR",&
       !     description="Parameter to calculate the outer soft cutoff radius: "//&
       !     !"r1 = r1_factor*(radius(at1)+radius(at2)) + r1_shift",&
       !     "r1 = r1_factor*(radius(at1)+radius(at2))",&
@@ -375,7 +375,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !!CALL keyword_create(keyword, name="QUENCHER_R1_SHIFT",&
+      !!CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_R1_SHIFT",&
       !!     description="Parameter to calculate the outer soft cutoff radius (in Angstrom): "//&
       !!     "r1 = r1_factor*(radius(at1)+radius(at2)) + r1_shift",&
       !!     usage="QUENCHER_R1_SHIFT 0.0", default_r_val=0.0_dp)
@@ -383,25 +383,25 @@ CONTAINS
       !!CALL section_add_keyword(section,keyword)
       !!CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="QUENCHER_AO_OVERLAP_0",&
+      !CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_AO_OVERLAP_0",&
       !     description="Overlap value of the inner soft cutoff",&
       !     usage="QUENCHER_AO_OVERLAP_0 1.0E-4", default_r_val=1.0E-4_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="QUENCHER_AO_OVERLAP_1",&
+      !CALL keyword_create(keyword, __LOCATION__, name="QUENCHER_AO_OVERLAP_1",&
       !     description="Overlap value of the outer soft cutoff",&
       !     usage="QUENCHER_AO_OVERLAP_1 1.0E-6", default_r_val=1.0E-6_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="ENVELOPE_AMPLITUDE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="ENVELOPE_AMPLITUDE",&
       !     description="Defines an upper bound on the maximum norm of the MO coefficients",&
       !     usage="ENVELOPE_AMPLITUDE 1.0", default_r_val=1.0_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_TENSOR_TYPE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_TENSOR_TYPE",&
       !     description="Tensor properties of occupied and virtual indices",&
       !     usage="DELOC_CAYLEY_TENSOR_TYPE ORTHOGONAL",&
       !     default_i_val=tensor_orthogonal,&
@@ -412,7 +412,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_CONJUGATOR",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_CONJUGATOR",&
       !     description="Various methods to compute step directions in the CG algorithm",&
       !     usage="DELOC_CAYLEY_CONJUGATOR POLAK_RIBIERE",&
       !     default_i_val=cg_hager_zhang,&
@@ -428,33 +428,33 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_MAX_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_MAX_ITER",&
       !     description="Maximum number of CG iterations to solve Ricatti equations",&
       !     usage="DELOC_CAYLEY_MAX_ITER 100",default_i_val=50)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_EPS_CONVERGENCE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_EPS_CONVERGENCE",&
       !     description="Convergence criterion of the CG algorithm",&
       !     usage="DELOC_CAYLEY_EPS_CONVERGENCE 1.e-6", default_r_val=1.e-7_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_VIR_PRECOND",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_VIR_PRECOND",&
       !     description="Use preconditioner for the virtual subspace",&
       !     usage="DELOC_CAYLEY_VIR_PRECOND .TRUE.", default_l_val=.TRUE.,&
       !     lone_keyword_l_val=.TRUE.)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_OCC_PRECOND",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_OCC_PRECOND",&
       !     description="Use preconditioner for the occupied subspace",&
       !     usage="DELOC_CAYLEY_OCC_PRECOND .TRUE.", default_l_val=.TRUE.,&
       !     lone_keyword_l_val=.TRUE.)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_TRUNCATE_VIRTUALS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_TRUNCATE_VIRTUALS",&
       !     description="Truncation of the virtual subspace",&
       !     usage="DELOC_TRUNCATE_VIRTUALS MINIMAL",&
       !     default_i_val=virt_full,&
@@ -468,14 +468,14 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_VIRT_PER_DOMAIN",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_VIRT_PER_DOMAIN",&
       !     description="Number of virtual orbitals (per domain, atom or molecule) "//&
       !     "retained to obtain the delocalization correction",&
       !     usage="DELOC_VIRT_PER_DOMAIN",default_i_val=-1)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_USE_OCC_ORBS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_USE_OCC_ORBS",&
       !     description="Use occupied orbitals (as opposed to density matrix) "//&
       !     "to calculate correction for electron delocalization",&
       !     usage="DELOC_USE_OCC_ORBS .TRUE.", default_l_val=.TRUE.,&
@@ -483,7 +483,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_USE_VIRT_ORBS",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_USE_VIRT_ORBS",&
       !     description="Use virtual orbitals (as opposed to the 1-P projector) "//&
       !     "to calculate correction for electron delocalization. Works only if "//&
       !     "DELOC_USE_OCC_ORBS is set to TRUE",&
@@ -492,7 +492,7 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="DELOC_CAYLEY_LINEAR",&
+      !CALL keyword_create(keyword, __LOCATION__, name="DELOC_CAYLEY_LINEAR",&
       !     description="Neglect the quadratic term in the Riccati equations. "//&
       !     "Equivalent to the first order correction to the occupied orbitals "//&
       !     "(second order correction to the energy)",&
@@ -501,51 +501,51 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_OUTER_MAX_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_OUTER_MAX_ITER",&
       !     description="Maximum number of outer loop iterations to optimize retained virtual orbitals",&
       !     usage="OPT_K_OUTER_MAX_ITER 10",default_i_val=1)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_MAX_ITER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_MAX_ITER",&
       !     description="Maximum number of iterations to optimize retained virtual orbitals",&
       !     usage="OPT_K_MAX_ITER 100",default_i_val=100)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_EPS_CONVERGENCE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_EPS_CONVERGENCE",&
       !     description="Convergence criterion of the optimization algorithm",&
       !     usage="OPT_K_EPS_CONVERGENCE 1.e-5", default_r_val=1.e-5_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_TRIAL_STEP_SIZE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_TRIAL_STEP_SIZE",&
       !     description="Size of the trial step along the gradient",&
       !     usage="OPT_K_TRIAL_STEP_SIZE 0.05", default_r_val=0.05_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_TRIAL_STEP_SIZE_MULTIPLIER",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_TRIAL_STEP_SIZE_MULTIPLIER",&
       !     description="The trial step size is obtained by multiplying the optimal step size "//&
       !     "from the previous iteration",&
       !     usage="OPT_K_TRIAL_STEP_SIZE_multiplier 1.0", default_r_val=1.4_dp)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_CONJ_ITER_START",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_CONJ_ITER_START",&
       !     description="Iteration for switching from the steepest descent algorithm "//&
       !     "to conjugate gradient",&
       !     usage="OPT_K_CONJ_ITER_START 5",default_i_val=0)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_CONJ_ITER_FREQ_RESET",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_CONJ_ITER_FREQ_RESET",&
       !     description="Reset frequency of the conjugate gradient direction",&
       !     usage="OPT_K_CONJ_ITER_FREQ_RESET 20",default_i_val=1000000)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_CONJUGATOR",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_CONJUGATOR",&
       !     description="Various methods to compute step directions in the CG algorithm",&
       !     usage="OPT_K_CONJUGATOR POLAK_RIBIERE",&
       !     default_i_val=cg_hager_zhang,&
@@ -561,14 +561,14 @@ CONTAINS
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_PREC_ITER_START",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_PREC_ITER_START",&
       !     description="Start using the preconditioner (approximate preconditioners "//&
       !     "might not be valid on early iterations)",&
       !     usage="OPT_K_PREC_ITER_START 2",default_i_val=0)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="OPT_K_PREC_ITER_FREQ_UPDATE",&
+      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_PREC_ITER_FREQ_UPDATE",&
       !     description="Frequency for updating the preconditioner",&
       !     usage="OPT_K_PREC_ITER_FREQ_UPDATE 10",default_i_val=1)
       !CALL section_add_keyword(section,keyword)
@@ -664,27 +664,27 @@ CONTAINS
       NULLIFY (keyword)
 
       ! add common keywords
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of iterations", &
                           usage="MAX_ITER 100", default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_ERROR", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ERROR", &
                           description="Target value of the MAX norm of the error", &
                           usage="EPS_ERROR 1.E-6", default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! add common keywords
-      CALL keyword_create(keyword, name="MAX_ITER_EARLY", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_EARLY", &
                           description="Maximum number of iterations for truncated SCF "// &
                           "(e.g. Langevin-corrected MD). Negative values mean that this keyword is not used.", &
                           usage="MAX_ITER_EARLY 5", default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_ERROR_EARLY", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ERROR_EARLY", &
                           description="Target value of the MAX norm of the error for truncated SCF "// &
                           "(e.g. Langevin-corrected MD). Negative values mean that this keyword is not used.", &
                           usage="EPS_ERROR_EARLY 1.E-2", default_r_val=-1.0_dp)
@@ -695,7 +695,7 @@ CONTAINS
       SELECT CASE (optimizer_type)
       CASE (optimizer_diis)
 
-         CALL keyword_create(keyword, name="N_DIIS", &
+         CALL keyword_create(keyword, __LOCATION__, name="N_DIIS", &
                              description="Number of error vectors to be used in the DIIS "// &
                              "optimization procedure", &
                              usage="N_DIIS 5", default_i_val=6)
@@ -706,19 +706,19 @@ CONTAINS
 
          IF (optimizer_type .EQ. optimizer_pcg) THEN
 
-            CALL keyword_create(keyword, name="LIN_SEARCH_EPS_ERROR", &
+            CALL keyword_create(keyword, __LOCATION__, name="LIN_SEARCH_EPS_ERROR", &
                                 description="Target value of the gradient norm during the linear search", &
                                 usage="LIN_SEARCH_EPS_ERROR 1.E-2", default_r_val=1.0E-3_dp)
             CALL section_add_keyword(section, keyword)
             CALL keyword_release(keyword)
 
-            CALL keyword_create(keyword, name="LIN_SEARCH_STEP_SIZE_GUESS", &
+            CALL keyword_create(keyword, __LOCATION__, name="LIN_SEARCH_STEP_SIZE_GUESS", &
                                 description="The size of the first step in the linear search", &
                                 usage="LIN_SEARCH_STEP_SIZE_GUESS 0.1", default_r_val=1.0_dp)
             CALL section_add_keyword(section, keyword)
             CALL keyword_release(keyword)
 
-            CALL keyword_create(keyword, name="CONJUGATOR", &
+            CALL keyword_create(keyword, __LOCATION__, name="CONJUGATOR", &
                                 description="Various methods to compute step directions in the PCG optimization", &
                                 usage="CONJUGATOR POLAK_RIBIERE", &
                                 default_i_val=cg_hager_zhang, &
@@ -734,7 +734,7 @@ CONTAINS
             CALL section_add_keyword(section, keyword)
             CALL keyword_release(keyword)
 
-            CALL keyword_create(keyword, name="PRECOND_FILTER_THRESHOLD", &
+            CALL keyword_create(keyword, __LOCATION__, name="PRECOND_FILTER_THRESHOLD", &
                                 description="Select eigenvalues of the preconditioner "// &
                                 "that are smaller than the threshold and project out the "// &
                                 "corresponding eigenvectors from the gradient. No matter "// &
@@ -747,7 +747,7 @@ CONTAINS
 
          ENDIF
 
-         CALL keyword_create(keyword, name="MAX_ITER_OUTER_LOOP", &
+         CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_OUTER_LOOP", &
                              description="Maximum number of iterations in the outer loop. "// &
                              "Use the outer loop to update the preconditioner and reset the conjugator. "// &
                              "This can speed up convergence significantly.", &
@@ -755,7 +755,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="PRECONDITIONER", &
+         CALL keyword_create(keyword, __LOCATION__, name="PRECONDITIONER", &
                              description="Select a preconditioner for the conjugate gradient optimization", &
                              usage="PRECONDITIONER DOMAIN", &
                              default_i_val=1, &
@@ -797,26 +797,26 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="EPS_TARGET_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_TARGET_FACTOR", &
                           description="Multiplication factor that determines acceptable error in the iterative procedure. "// &
                           "Acceptable error = EPS_TARGET_FACTOR * EPS_FILTER", &
                           usage="EPS_TARGET_FACTOR 100.0", default_r_val=10.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_LANCZOS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_LANCZOS", &
                           description="Threshold for Lanczos eigenvalue estimation.", &
                           usage="EPS_LANCZOS 1.0E-4", default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ORDER_LANCZOS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ORDER_LANCZOS", &
                           description="Order of the Lanczos estimator. Use 0 to turn off. Do not use 1.", &
                           usage="ORDER_LANCZOS 5", default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER_LANCZOS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_LANCZOS", &
                           description="Maximum number of Lanczos iterations.", &
                           usage="MAX_ITER_LANCZOS 64", default_i_val=128)
       CALL section_add_keyword(section, keyword)
@@ -847,7 +847,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create( &
-         keyword, name="OCCUPIED_VOLUME_PENALTY_METHOD", &
+         keyword, __LOCATION__, name="OCCUPIED_VOLUME_PENALTY_METHOD", &
          description="Penalty that prevents nonorthogonal orbitals from becoming linear dependent.", &
          usage="OCCUPIED_VOLUME_PENALTY_METHOD LNDET", &
          default_i_val=almo_occ_vol_penalty_none, &
@@ -858,7 +858,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OCCUPIED_VOLUME_PENALTY_COEFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="OCCUPIED_VOLUME_PENALTY_COEFF", &
                           description="Multiplication factor that determines the strength of the penalty term.", &
                           usage="OCCUPIED_VOLUME_PENALTY_COEFF 10.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -893,7 +893,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Activation of ALMO-based electronic structure analysis.", &
                           usage="&ANALYSIS T", &
                           default_l_val=.FALSE., &
@@ -901,7 +901,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FROZEN_MO_ENERGY_TERM", &
+      CALL keyword_create(keyword, __LOCATION__, name="FROZEN_MO_ENERGY_TERM", &
                           description="Perform calculations on single molecules to compute the frozen density term", &
                           usage="FROZEN_MO_ENERGY_TERM SUBLATTICE", default_i_val=almo_frz_none, &
                           !enum_c_vals=s2a("SKIP", "ISOLATED", "SUBLATTICE"),&

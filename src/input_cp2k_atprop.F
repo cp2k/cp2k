@@ -51,7 +51,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ENERGY", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY", &
                           description="Calculate atomic energies ", &
                           usage="ENERGY {logical}", &
                           repeats=.FALSE., &
@@ -61,7 +61,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRESSURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRESSURE", &
                           description="Calculate atomic pressure tensors ", &
                           usage="PRESSURE {logical}", &
                           repeats=.FALSE., &

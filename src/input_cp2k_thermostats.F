@@ -84,7 +84,7 @@ CONTAINS
       NULLIFY (keyword)
 
       IF (.NOT. my_coupled_thermostat) THEN
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_nose, &
@@ -94,7 +94,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="REGION", &
+         CALL keyword_create(keyword, __LOCATION__, name="REGION", &
                              description="Determines the defined region for slow thermostat", &
                              usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
                              enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
@@ -108,7 +108,7 @@ CONTAINS
          CALL section_add_subsection(section, region_section)
          CALL section_release(region_section)
       ELSE
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_same_as_part, &
@@ -160,7 +160,7 @@ CONTAINS
       NULLIFY (keyword)
 
       IF (.NOT. my_coupled_thermostat) THEN
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_nose, &
@@ -170,7 +170,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="REGION", &
+         CALL keyword_create(keyword, __LOCATION__, name="REGION", &
                              description="Determines the defined region for fast thermostat", &
                              usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
                              enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
@@ -184,7 +184,7 @@ CONTAINS
          CALL section_add_subsection(section, region_section)
          CALL section_release(region_section)
       ELSE
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_same_as_part, &
@@ -238,7 +238,7 @@ CONTAINS
       NULLIFY (keyword)
 
       IF (.NOT. my_coupled_thermostat) THEN
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_nose, &
@@ -252,7 +252,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="REGION", &
+         CALL keyword_create(keyword, __LOCATION__, name="REGION", &
                              description="Determines the region each thermostat is attached to.", &
                              usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
                              enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
@@ -266,7 +266,7 @@ CONTAINS
          CALL section_add_subsection(section, region_section)
          CALL section_release(region_section)
       ELSE
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_same_as_part, &
@@ -367,14 +367,14 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="LIST", &
                           description="Specifies a list of atoms to thermostat.", &
                           usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the name of the molecules to thermostat", &
                           usage="MOLNAME WAT MEOH", repeats=.TRUE., &
@@ -382,7 +382,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MM_SUBSYS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MM_SUBSYS", &
                           variants=(/"PROTEIN"/), &
                           description="In a QM/MM run all  MM atoms are specified as a whole ensemble to be thermostated", &
                           usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
@@ -395,7 +395,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QM_SUBSYS", &
+      CALL keyword_create(keyword, __LOCATION__, name="QM_SUBSYS", &
                           description="In a QM/MM run all QM atoms are specified as a whole ensemble to be thermostated", &
                           usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
                           enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
@@ -429,20 +429,20 @@ CONTAINS
                           citations=(/Nose1984a, Nose1984b/))
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="length", &
+      CALL keyword_create(keyword, __LOCATION__, name="length", &
                           description="length of the Nose-Hoover chain", usage="length integer", &
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Yoshida", &
+      CALL keyword_create(keyword, __LOCATION__, name="Yoshida", &
                           description="order of the yoshida integretor used for the thermostat", &
                           usage="Yoshida integer", &
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="timecon", &
+      CALL keyword_create(keyword, __LOCATION__, name="timecon", &
                           description="timeconstant of the thermostat chain", &
                           usage="timecon <REAL>", &
                           default_r_val=cp_unit_to_cp2k(1000.0_dp, "fs"), &
@@ -450,7 +450,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="mts", &
+      CALL keyword_create(keyword, __LOCATION__, name="mts", &
                           variants=s2a("multiple_time_steps", "mult_t_steps"), &
                           description="number of multiple timesteps to be used for the NoseHoover chain", &
                           usage="mts integer", &
@@ -499,20 +499,20 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="NDIM", &
+      CALL keyword_create(keyword, __LOCATION__, name="NDIM", &
                           description="Size of the gle matrix", usage="NDIM 6", &
                           default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A_SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="A_SCALE", &
                           description="scaling factor for matrix A (for generic matrix A, depends "// &
                           "on the characteristic frequency of the system).", usage="A_SCALE 0.5", &
                           default_r_val=cp_unit_to_cp2k(1.0_dp, "ps^-1"), unit_str="ps^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="A_LIST", &
                           description="A matrix The defaults give optimal sampling for most "// &
                           "cristalline and liquid compounds. Generated with the parameters set kv_4-4.a"// &
                           "centered on w_0=40 cm^-1.", usage="A_LIST real real real", &
@@ -527,7 +527,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="C_LIST", &
                           description="C matrix", usage="C_LIST real real real", &
                           unit_str="K_e", &
                           type_of_var=real_t, n_var=-1, repeats=.TRUE.)
@@ -567,7 +567,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify s variable for GLE thermostat ", repeats=.FALSE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -596,7 +596,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="timecon", &
+      CALL keyword_create(keyword, __LOCATION__, name="timecon", &
                           description="Time constant of the CSVR thermostat. A small time "// &
                           "constant will result in strong thermostatting (useful for "// &
                           "initial equilibrations) and a large time constant would be adequate "// &
@@ -642,7 +642,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="timecon_nh", &
+      CALL keyword_create(keyword, __LOCATION__, name="timecon_nh", &
                           description="Time constant of the Nose-Hoover part of the AD_LANGEVIN thermostat. A small time "// &
                           "constant will result in strong thermostatting (useful for "// &
                           "initial equilibrations) and a large time constant would be adequate "// &
@@ -653,7 +653,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="timecon_langevin", &
+      CALL keyword_create(keyword, __LOCATION__, name="timecon_langevin", &
                           description="Time constant of the Langevin part of the AD_LANGEVIN thermostat. A small time "// &
                           "constant will result in strong thermostatting (useful for "// &
                           "initial equilibrations) and a large time constant would be adequate "// &
@@ -695,7 +695,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify an initial thermostat DOF "//TRIM(sec_name)// &
                           " for Ad-Langevin thermostat.", repeats=.TRUE., &
                           unit_str="fs^-1", type_of_var=real_t)
@@ -723,7 +723,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify an initial thermostat energy for CSVR thermostat.", &
                           repeats=.TRUE., unit_str="internal_cp2k", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
@@ -752,7 +752,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify masses of the system", repeats=.FALSE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -781,7 +781,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify masses of the system", repeats=.FALSE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -810,7 +810,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify velocities of the system", repeats=.TRUE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -839,7 +839,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify positions of the system", repeats=.TRUE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)

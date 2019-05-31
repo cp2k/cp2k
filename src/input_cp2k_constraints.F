@@ -71,7 +71,7 @@ CONTAINS
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword, print_key)
-      CALL keyword_create(keyword, name="SHAKE_TOLERANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHAKE_TOLERANCE", &
                           variants=s2a("SHAKE_TOL", "SHAKE"), &
                           description="Set the tolerance for the shake/rattle constraint algorithm.", &
                           usage="SHAKE_TOLERANCE <REAL>", &
@@ -79,7 +79,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROLL_TOLERANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ROLL_TOLERANCE", &
                           variants=s2a("ROLL_TOL", "ROLL"), &
                           description="Set the tolerance for the roll constraint algorithm.", &
                           usage="ROLL_TOLERANCE <REAL>", &
@@ -87,7 +87,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONSTRAINT_INIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="CONSTRAINT_INIT", &
                           description="Apply constraints to the initial position and velocities."// &
                           " Default is to apply constraints only after the first MD step.", &
                           usage="CONSTRAINT_INIT <LOGICAL>", &
@@ -169,7 +169,7 @@ CONTAINS
                           description="Specify restart position only for COLVAR restraints.", &
                           n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The restarting values for COLVAR restraints."// &
                           " The order is an internal order. So if you decide to modify these values by hand"// &
                           " first think what you're doing!", repeats=.TRUE., &
@@ -200,7 +200,7 @@ CONTAINS
                           description="Specify restart position only for FIXED_ATOMS restraints.", &
                           n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The restarting position of fixed atoms for restraints."// &
                           " The order is an internal order. So if you decide to modify these values by hand"// &
                           " first think what you're doing!", repeats=.TRUE., &
@@ -230,7 +230,7 @@ CONTAINS
                           description="Activate and specify information on restraint instead of constraint", &
                           n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Specifies the force constant for the harmonic restraint. The functional "// &
                           "form for the restraint is: K*(X-TARGET)^2.", &
                           usage="K {real}", &
@@ -263,14 +263,14 @@ CONTAINS
                           n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="COLVAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="COLVAR", &
                           description="Specifies the index (in input file order) of the type of colvar to constrain.", &
                           usage="COLVAR {int}", &
                           type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLECULE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
                           description="Specifies the index of the molecule kind (in input file order)"// &
                           "on which the constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
@@ -278,21 +278,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERMOLECULAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERMOLECULAR", &
                           description="Specify if the constraint/restraint is intermolecular.", &
                           usage="INTERMOLECULAR <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET", &
                           description="Specifies the target value of the constrained collective"// &
                           " variable (units depend on the colvar).", &
                           usage="TARGET {real}", &
@@ -300,7 +300,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_GROWTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_GROWTH", &
                           description="Specifies the growth speed of the target value of the constrained collective"// &
                           " variable.", &
                           usage="TARGET_GROWTH {real}", &
@@ -308,7 +308,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_LIMIT", &
                           description="Specifies the limit of the growth of the target value of the constrained collective"// &
                           " variable. By default no limit at the colvar growth is set.", &
                           usage="TARGET_LIMIT {real}", type_of_var=real_t, &
@@ -316,14 +316,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_QM", &
                           description="Does not apply the constraint to the QM region within a QM/MM calculation", &
                           usage="EXCLUDE_QM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_MM", &
                           description="Does not apply the constraint to the MM region within a QM/MM calculation", &
                           usage="EXCLUDE_MM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -354,7 +354,7 @@ CONTAINS
       NULLIFY (keyword)
 
       ! Section Parameter
-      CALL keyword_create(keyword, name="COMPONENTS_TO_FIX", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS_TO_FIX", &
                           description="Specify which components (X,Y,Z or combinations) of the atoms specified in the section "// &
                           "will be constrained/restrained.", &
                           usage="COMPONENTS_TO_FIX (x|y|z|xy|xz|yz|xyz)", &
@@ -375,14 +375,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Integer
-      CALL keyword_create(keyword, name="LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="LIST", &
                           description="Specifies a list of atoms to freeze.", &
                           usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the name of the molecule to fix", &
                           usage="MOLNAME WAT MEOH", repeats=.TRUE., &
@@ -391,7 +391,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="MM_SUBSYS", &
+         keyword, __LOCATION__, name="MM_SUBSYS", &
          variants=(/"PROTEIN"/), &
          description="In a QM/MM run all  MM atoms are fixed according to the argument.", &
          usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
@@ -405,7 +405,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="QM_SUBSYS", &
+         keyword, __LOCATION__, name="QM_SUBSYS", &
          description="In a QM/MM run all QM atoms are fixed according to the argument.", &
          usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
          enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
@@ -417,7 +417,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_QM", &
                           description="Does not apply the constraint to the QM region within a QM/MM calculation."// &
                           " This keyword is active only together with MOLNAME", &
                           usage="EXCLUDE_QM <LOGICAL>", &
@@ -425,7 +425,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_MM", &
                           description="Does not apply the constraint to the MM region within a QM/MM calculation."// &
                           " This keyword is active only together with MOLNAME", &
                           usage="EXCLUDE_MM <LOGICAL>", &
@@ -456,7 +456,7 @@ CONTAINS
       NULLIFY (keyword)
 
       ! Integer
-      CALL keyword_create(keyword, name="MOLECULE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
                           variants=(/"MOL"/), &
                           description="Specifies the molecule kind number on which constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
@@ -464,28 +464,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERMOLECULAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERMOLECULAR", &
                           description="Specify if the constraint/restraint is intermolecular.", &
                           usage="INTERMOLECULAR <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Atoms' index on which apply the constraint", usage="ATOMS 1 3 6", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Real
-      CALL keyword_create(keyword, name="DISTANCES", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISTANCES", &
                           description="The constrained distances' values.", &
                           usage="DISTANCES {real} {real} {real}", type_of_var=real_t, &
                           unit_str="internal_cp2k", n_var=-1)
@@ -493,14 +493,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Logical
-      CALL keyword_create(keyword, name="EXCLUDE_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_QM", &
                           description="Does not apply the constraint to the QM region within a QM/MM calculation", &
                           usage="EXCLUDE_QM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_MM", &
                           description="Does not apply the constraint to the MM region within a QM/MM calculation", &
                           usage="EXCLUDE_MM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -529,7 +529,7 @@ CONTAINS
 
       NULLIFY (keyword)
       ! Character
-      CALL keyword_create(keyword, name="ATOM_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_TYPE", &
                           description="Defines the atoms' type forming a bond with an hydrogen. If not specified "// &
                           " the default bond value of the first molecule is used as constraint target", &
                           usage="ATOMS <CHARACTER>", &
@@ -537,7 +537,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLECULE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
                           description="Specifies the indexes of the molecule kind (in input file order)"// &
                           "on which the constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
@@ -546,7 +546,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the names of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character} .. {character} ", n_var=-1, &
@@ -554,14 +554,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_QM", &
                           description="Does not shake HBONDS in the QM region within a QM/MM calculation", &
                           usage="EXCLUDE_QM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_MM", &
                           description="Does not shake HBONDS in the MM region within a QM/MM calculation", &
                           usage="EXCLUDE_MM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -569,7 +569,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Real
-      CALL keyword_create(keyword, name="TARGETS", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGETS", &
                           description="The constrained distances' values  for the types defines in ATOM_TYPE.", &
                           usage="TARGETS {real} {real} {real}", type_of_var=real_t, n_var=-1, &
                           unit_str="internal_cp2k")
@@ -599,7 +599,7 @@ CONTAINS
       NULLIFY (keyword)
 
       ! Integer
-      CALL keyword_create(keyword, name="MOLECULE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
                           variants=(/"MOL"/), &
                           description="Specifies the molecule number on which constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
@@ -607,28 +607,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERMOLECULAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERMOLECULAR", &
                           description="Specify if the constraint/restraint is intermolecular.", &
                           usage="INTERMOLECULAR <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Atoms' index on which apply the constraint", usage="ATOMS 1 3 6 4", &
                           n_var=4, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Real
-      CALL keyword_create(keyword, name="DISTANCES", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISTANCES", &
                           description="The constrained distances' values.", &
                           usage="DISTANCES {real} {real} {real} {real} {real} {real}", &
                           type_of_var=real_t, n_var=6, unit_str="internal_cp2k")
@@ -636,14 +636,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Logical
-      CALL keyword_create(keyword, name="EXCLUDE_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_QM", &
                           description="Does not apply the constraint to the QM region within a QM/MM calculation", &
                           usage="EXCLUDE_QM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_MM", &
                           description="Does not apply the constraint to the MM region within a QM/MM calculation", &
                           usage="EXCLUDE_MM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -673,7 +673,7 @@ CONTAINS
       NULLIFY (keyword)
 
       ! Integer
-      CALL keyword_create(keyword, name="MOLECULE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
                           variants=(/"MOL"/), &
                           description="Specifies the molecule number on which constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
@@ -681,21 +681,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           variants=(/"SEGNAME"/), &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERMOLECULAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERMOLECULAR", &
                           description="Specify if the constraint/restraint is intermolecular.", &
                           usage="INTERMOLECULAR <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Atoms' index on which apply the constraint (v i j k), first is virtual site", &
                           usage="ATOMS 1 2 3 4", &
                           n_var=4, type_of_var=integer_t)
@@ -703,7 +703,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Real
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="The constrained paramters' values to construct virtual site."// &
                           "r_v=a*r_ij+b*r_kj", &
                           usage="PARAMETERS {real} {real}", &
@@ -712,14 +712,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Logical
-      CALL keyword_create(keyword, name="EXCLUDE_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_QM", &
                           description="Does not apply the constraint to the QM region within a QM/MM calculation", &
                           usage="EXCLUDE_QM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCLUDE_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_MM", &
                           description="Does not apply the constraint to the MM region within a QM/MM calculation", &
                           usage="EXCLUDE_MM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

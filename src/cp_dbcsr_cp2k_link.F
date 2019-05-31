@@ -102,7 +102,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="mm_stack_size", &
+      CALL keyword_create(keyword, __LOCATION__, name="mm_stack_size", &
                           description="Size of multiplication parameter stack." &
                           //" A negative value leaves the decision up to DBCSR.", &
                           usage="mm_stack_size 1000", &
@@ -110,7 +110,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="mm_driver", &
+      CALL keyword_create(keyword, __LOCATION__, name="mm_driver", &
                           description="Select which backend to use preferably "// &
                           "for matrix block multiplications on the host.", &
                           usage="mm_driver blas", &
@@ -128,7 +128,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(avg_elements_images=idefault)
-      CALL keyword_create(keyword, name="avg_elements_images", &
+      CALL keyword_create(keyword, __LOCATION__, name="avg_elements_images", &
                           description="Average number of elements (dense limit)" &
                           //" for each image, which also corresponds to" &
                           //" the average number of elements exchanged between MPI processes" &
@@ -140,7 +140,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(num_mult_images=idefault)
-      CALL keyword_create(keyword, name="num_mult_images", &
+      CALL keyword_create(keyword, __LOCATION__, name="num_mult_images", &
                           description="Multiplicative factor for number of virtual images.", &
                           usage="num_mult_images 2", &
                           default_i_val=idefault)
@@ -148,7 +148,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(use_mpi_allocator=ldefault)
-      CALL keyword_create(keyword, name="use_mpi_allocator", &
+      CALL keyword_create(keyword, __LOCATION__, name="use_mpi_allocator", &
                           description="Use MPI allocator" &
                           //" to allocate buffers used in MPI communications.", &
                           usage="use_mpi_allocator T", &
@@ -157,7 +157,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(use_mpi_rma=ldefault)
-      CALL keyword_create(keyword, name="use_mpi_rma", &
+      CALL keyword_create(keyword, __LOCATION__, name="use_mpi_rma", &
                           description="Use RMA for MPI communications" &
                           //" for each image, which also corresponds to" &
                           //" the number of elements exchanged between MPI processes" &
@@ -168,7 +168,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(num_layers_3D=idefault)
-      CALL keyword_create(keyword, name="num_layers_3D", &
+      CALL keyword_create(keyword, __LOCATION__, name="num_layers_3D", &
                           description="Number of layers for the 3D multplication algorithm.", &
                           usage="num_layers_3D 1", &
                           default_i_val=idefault)
@@ -176,7 +176,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(nstacks=idefault)
-      CALL keyword_create(keyword, name="n_size_mnk_stacks", &
+      CALL keyword_create(keyword, __LOCATION__, name="n_size_mnk_stacks", &
                           description="Number of stacks to use for distinct atomic sizes" &
                           //" (e.g., 2 for a system of mostly waters). ", &
                           usage="n_size_mnk_stacks 2", &
@@ -185,7 +185,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(use_comm_thread=ldefault)
-      CALL keyword_create(keyword, name="use_comm_thread", &
+      CALL keyword_create(keyword, __LOCATION__, name="use_comm_thread", &
                           description="During multiplication, use a thread to periodically poll" &
                           //" MPI to progress outstanding message completions.  This is" &
                           //" beneficial on systems without a DMA-capable network adapter" &
@@ -195,14 +195,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ELEMENTS_PER_BLOCK", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ELEMENTS_PER_BLOCK", &
                           description="Default block size for turning dense matrices in blocked ones", &
                           usage="MAX_ELEMENTS_PER_BLOCK 32", &
                           default_i_val=max_elements_per_block)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="comm_thread_load", &
+      CALL keyword_create(keyword, __LOCATION__, name="comm_thread_load", &
                           description="If a communications thread is used, specify how much " &
                           //"multiplication workload (%) the thread should perform in " &
                           //"addition to communication tasks. " &
@@ -213,7 +213,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(multrec_limit=idefault)
-      CALL keyword_create(keyword, name="multrec_limit", &
+      CALL keyword_create(keyword, __LOCATION__, name="multrec_limit", &
                           description="Recursion limit of cache oblivious multrec algorithm.", &
                           default_i_val=idefault)
       CALL section_add_keyword(section, keyword)
@@ -226,35 +226,35 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       CALL dbcsr_get_default_config(accdrv_priority_buffers=idefault)
-      CALL keyword_create(keyword, name="priority_buffers", &
+      CALL keyword_create(keyword, __LOCATION__, name="priority_buffers", &
                           description="Number of transfer-buffers associated with high priority streams.", &
                           default_i_val=idefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_posterior_buffers=idefault)
-      CALL keyword_create(keyword, name="posterior_buffers", &
+      CALL keyword_create(keyword, __LOCATION__, name="posterior_buffers", &
                           description="Number of transfer-buffers associated with low priority streams.", &
                           default_i_val=idefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_priority_streams=idefault)
-      CALL keyword_create(keyword, name="priority_streams", &
+      CALL keyword_create(keyword, __LOCATION__, name="priority_streams", &
                           description="Number of acc streams created with high priority.", &
                           default_i_val=idefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_posterior_streams=idefault)
-      CALL keyword_create(keyword, name="posterior_streams", &
+      CALL keyword_create(keyword, __LOCATION__, name="posterior_streams", &
                           description="Number of acc streams created with low priority.", &
                           default_i_val=idefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_avoid_after_busy=ldefault)
-      CALL keyword_create(keyword, name="avoid_after_busy", &
+      CALL keyword_create(keyword, __LOCATION__, name="avoid_after_busy", &
                           description="If enabled, stacks are not processed by the acc-driver " &
                           //"after it has signaled congestion during a round of flushing. " &
                           //"For the next round of flusing the driver is used again.", &
@@ -263,7 +263,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_min_flop_process=idefault)
-      CALL keyword_create(keyword, name="min_flop_process", &
+      CALL keyword_create(keyword, __LOCATION__, name="min_flop_process", &
                           description="Only process stacks with more than the given number of " &
                           //"floating-point operations per stack-entry (2*m*n*k).", &
                           default_i_val=idefault)
@@ -271,14 +271,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_stack_sort=ldefault)
-      CALL keyword_create(keyword, name="stack_sort", &
+      CALL keyword_create(keyword, __LOCATION__, name="stack_sort", &
                           description="Sort multiplication stacks according to C-access.", &
                           default_l_val=ldefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_min_flop_sort=idefault)
-      CALL keyword_create(keyword, name="min_flop_sort", &
+      CALL keyword_create(keyword, __LOCATION__, name="min_flop_sort", &
                           description="Only sort stacks with more than the given number of " &
                           //"floating-point operations per stack-entry (2*m*n*k). " &
                           //"Alternatively, the stacks are roughly ordered through a " &
@@ -288,14 +288,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_do_inhomogenous=ldefault)
-      CALL keyword_create(keyword, name="process_inhomogenous", &
+      CALL keyword_create(keyword, __LOCATION__, name="process_inhomogenous", &
                           description="If enabled, inhomogenous stacks are also processed by the acc driver.", &
                           default_l_val=ldefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_binning_nbins=idefault)
-      CALL keyword_create(keyword, name="binning_nbins", &
+      CALL keyword_create(keyword, __LOCATION__, name="binning_nbins", &
                           description="Number of bins used when ordering " &
                           //"the stacks with the binning-scheme.", &
                           default_i_val=idefault)
@@ -303,7 +303,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL dbcsr_get_default_config(accdrv_binning_binsize=idefault)
-      CALL keyword_create(keyword, name="binning_binsize", &
+      CALL keyword_create(keyword, __LOCATION__, name="binning_binsize", &
                           description="Size of bins used when ordering " &
                           //"the stacks with the binning-scheme.", &
                           default_i_val=idefault)

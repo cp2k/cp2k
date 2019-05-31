@@ -68,7 +68,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the MOM procedure", &
                           usage="MOM ON", &
@@ -77,7 +77,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOM_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOM_TYPE", &
                           description="Revision of the maximum overlap method to be used", &
                           usage="MOM_TYPE mom", default_i_val=momtype_mom, &
                           enum_c_vals=s2a("MOM", "IMOM"), &
@@ -89,7 +89,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="START_ITER", &
                           description="SCF iteration cycle to start the MOM procedure. "// &
                           "Could be used for ground state calculations only "// &
@@ -102,7 +102,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DEOCC_ALPHA", &
                           description="Alpha orbitals to be deoccupied", &
                           repeats=.FALSE., &
@@ -113,7 +113,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DEOCC_BETA", &
                           description="Beta orbitals to be deoccupied", &
                           repeats=.FALSE., &
@@ -124,7 +124,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="OCC_ALPHA", &
                           description="Alpha orbitals to be occupied", &
                           repeats=.FALSE., &
@@ -135,7 +135,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="OCC_BETA", &
                           description="Beta orbitals to be occupied", &
                           repeats=.FALSE., &
@@ -146,7 +146,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PROJ_FORMULA", &
+      CALL keyword_create(keyword, __LOCATION__, name="PROJ_FORMULA", &
                           description="Projection formula to be used", &
                           usage="PROJ_FORMULA norm", default_i_val=momproj_norm, &
                           enum_c_vals=s2a("NORM", "SUM"), &

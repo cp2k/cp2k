@@ -68,7 +68,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="SCHEME", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCHEME", &
                           description="Kpoint scheme to be used.<br>"// &
                           "Available options: NONE, GAMMA, MONKHORST-PACK, MACDONALD, and GENERAL.<br>"// &
                           "For MONKHORST-PACK and MACDONALD the number of k points in all "// &
@@ -80,14 +80,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KPOINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="KPOINT", &
                           description="Specify kpoint coordinates and weight. ", &
                           usage="KPOINT x  y  z  w", repeats=.TRUE., &
                           n_var=4, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNITS", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Special k-points are defined either in units"// &
                           " of reciprocal lattice vectors or in Cartesian coordinates in uints of 2Pi/len."// &
                           " B_VECTOR: in multiples of the reciprocal lattice vectors (b)."// &
@@ -97,35 +97,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SYMMETRY", &
+      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY", &
                           description="Use symmetry to reduce the number of kpoints.", &
                           usage="SYMMETRY <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FULL_GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="FULL_GRID", &
                           description="Use full non-reduced kpoint grid.", &
                           usage="FULL_GRID <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VERBOSE", &
+      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
                           description="Verbose output information.", &
                           usage="VERBOSE <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_GEO", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GEO", &
                           description="Accuracy in symmetry determination.", &
                           usage="EPS_GEO <real>", &
                           default_r_val=1.0e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARALLEL_GROUP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_GROUP_SIZE", &
                           description="Number of processors to be used for a single kpoint. "// &
                           " This number must divide the total number of processes."// &
                           " The number of groups must divide the total number of kpoints."// &
@@ -137,7 +137,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WAVEFUNCTIONS", &
+      CALL keyword_create(keyword, __LOCATION__, name="WAVEFUNCTIONS", &
                           description="Use real/complex wavefunctions if possible.", &
                           usage="WAVEFUNCTIONS REAL", &
                           default_i_val=use_complex_wfn, &

@@ -171,63 +171,63 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="NSTEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="NSTEP", &
                           description="Specifies the number of MC cycles.", &
                           usage="NSTEP {integer}", &
                           default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IPRINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="IPRINT", &
                           description="Prints coordinate/cell/etc information every IPRINT steps.", &
                           usage="IPRINT {integer}", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NMOVES", &
+      CALL keyword_create(keyword, __LOCATION__, name="NMOVES", &
                           description="Specifies the number of classical moves between energy evaluations. ", &
                           usage="NMOVES {integer}", &
                           default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NSWAPMOVES", &
+      CALL keyword_create(keyword, __LOCATION__, name="NSWAPMOVES", &
                           description="How many insertions to try per swap move.", &
                           usage="NSWAPMOVES {integer}", &
                           default_i_val=16)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LBIAS", &
+      CALL keyword_create(keyword, __LOCATION__, name="LBIAS", &
                           description="Dictates if we presample moves with a different potential.", &
                           usage="LBIAS {logical}", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LSTOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="LSTOP", &
                           description="Makes nstep in terms of steps, instead of cycles.", &
                           usage="LSTOP {logical}", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LDISCRETE", &
+      CALL keyword_create(keyword, __LOCATION__, name="LDISCRETE", &
                           description="Changes the volume of the box in discrete steps, one side at a time.", &
                           usage="LDISCRETE {logical}", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCLUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCLUS", &
                           description="The cluster cut off radius in angstroms.", &
                           usage="RCLUS {real}", &
                           default_r_val=1.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART", &
                           description="Read initial configuration from restart file.", &
                           usage="RESTART {logical}", &
                           default_l_val=.FALSE.)
@@ -235,14 +235,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="NVIRIAL", &
+         keyword, __LOCATION__, name="NVIRIAL", &
          description="Use this many random orientations to compute the second virial coefficient (ENSEMBLE=VIRIAL)", &
          usage="NVIRIAL {integer}", &
          default_i_val=1000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENSEMBLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENSEMBLE", &
                           description="Specify the type of simulation", &
                           usage="PROGRAM (TRADITIONAL|GEMC_NVT|GEMC_NPT|VIRIAL)", &
                           enum_c_vals=s2a("TRADITIONAL", "GEMC_NVT", "GEMC_NPT", "VIRIAL"), &
@@ -251,77 +251,77 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", &
                           description="Name of the restart file for MC information.", &
                           usage="RESTART_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOVES_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOVES_FILE_NAME", &
                           description="The file to print the move statistics to.", &
                           usage="MOVES_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLECULES_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULES_FILE_NAME", &
                           description="The file to print the number of molecules to.", &
                           usage="MOLECULES_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COORDINATE_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORDINATE_FILE_NAME", &
                           description="The file to print the current coordinates to.", &
                           usage="COORDINATE_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENERGY_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_FILE_NAME", &
                           description="The file to print current energies to.", &
                           usage="ENERGY_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DATA_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="DATA_FILE_NAME", &
                           description="The file to print current configurational info to.", &
                           usage="DATA_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CELL_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_NAME", &
                           description="The file to print current cell length info to.", &
                           usage="CELL_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_DISP_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_DISP_FILE_NAME", &
                           description="The file to print current maximum displacement info to.", &
                           usage="MAX_DISP_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BOX2_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="BOX2_FILE_NAME", &
                           description="For GEMC, the name of the input file for the other box.", &
                           usage="BOX2_FILE_NAME {filename}", &
                           default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRESSURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRESSURE", &
                           description="The pressure for NpT simulations, in bar.", &
                           usage="PRESSURE {real}", &
                           type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMPERATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="The temperature of the simulation, in Kelvin.", &
                           usage="TEMPERATURE {real}", &
                           type_of_var=real_t)
@@ -329,28 +329,28 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="VIRIAL_TEMPS", &
+         keyword, __LOCATION__, name="VIRIAL_TEMPS", &
          description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.", &
          usage="VIRIAL_TEMPS {real} {real} ... ", &
          n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DISCRETE_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISCRETE_STEP", &
                           description="The size of the discrete volume move step, in angstroms.", &
                           usage="DISCRETE_STEP {real}", &
                           default_r_val=1.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ETA", &
+      CALL keyword_create(keyword, __LOCATION__, name="ETA", &
                           description="The free energy bias (in Kelvin) for swapping a molecule of each type into this box.", &
                           usage="ETA {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANDOMTOSKIP", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANDOMTOSKIP", &
                           description="Number of random numbers from the acceptance/rejection stream to skip", &
                           usage="RANDOMTOSKIP {integer}", &
                           default_i_val=0)
@@ -399,28 +399,28 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create( &
-         keyword, name="PBIAS", &
+         keyword, __LOCATION__, name="PBIAS", &
          description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.", &
          usage="PBIAS {real} {real} ... ", &
          n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AVBMC_ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="AVBMC_ATOM", &
                           description="The target atom for an AVBMC swap move for each molecule type.", &
                           usage="AVBMC_ATOM {integer} {integer} ... ", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AVBMC_RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="AVBMC_RMIN", &
                           description="The inner radius for an AVBMC swap move, in angstroms for every molecule type.", &
                           usage="AVBMC_RMIN {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AVBMC_RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="AVBMC_RMAX", &
                           description="The outer radius for an AVBMC swap move, in angstroms, for every molecule type.", &
                           usage="AVBMC_RMAX {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
@@ -452,49 +452,49 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="PMHMC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMHMC", &
                           description="The probability of attempting a hybrid MC move.", &
                           usage="PMHMC {real}", &
                           type_of_var=real_t, default_r_val=0.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMTRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMTRANS", &
                           description="The probability of attempting a molecule translation.", &
                           usage="PMTRANS {real}", &
                           type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMCLTRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMCLTRANS", &
                           description="The probability of attempting a cluster translation.", &
                           usage="PMCLTRANS {real}", &
                           type_of_var=real_t, default_r_val=0.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMAVBMC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMAVBMC", &
                           description="The probability of attempting an AVBMC swap move.", &
                           usage="PMAVBMC {real}", &
                           default_r_val=0.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMTRAION", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMTRAION", &
                           description="The probability of attempting a conformational change.", &
                           usage="PMTRAION {real}", &
                           type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMSWAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMSWAP", &
                           description="The probability of attempting a swap move.", &
                           usage="PMSWAP {real}", &
                           type_of_var=real_t, default_r_val=0.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMVOLUME", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMVOLUME", &
                           description="The probability of attempting a volume move.", &
                           usage="PMVOLUME {real}", &
                           type_of_var=real_t, default_r_val=0.0E0_dp)
@@ -534,35 +534,35 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="PMAVBMC_MOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMAVBMC_MOL", &
                           description="The probability of attempting an AVBMC swap move on each molecule type.", &
                           usage="PMAVBMC_MOL {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMSWAP_MOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMSWAP_MOL", &
                           description="The probability of attempting a molecule swap of a given molecule type.", &
                           usage="PMSWAP_MOL {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMROT_MOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMROT_MOL", &
                           description="The probability of attempting a molecule rotation of a given molecule type.", &
                           usage="PMROT_MOL {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMTRAION_MOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMTRAION_MOL", &
                           description="The probability of attempting a conformational change of a given molecule type.", &
                           usage="PMTRAION_MOL {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMTRANS_MOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMTRANS_MOL", &
                           description="The probability of attempting a molecule translation of a given molecule type.", &
                           usage="PMTRANS_MOL {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
@@ -594,21 +594,21 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="PMHMC_BOX", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMHMC_BOX", &
                           description="The probability of attempting a HMC move on this box.", &
                           usage="PMHMC_BOX {real}", &
                           type_of_var=real_t, default_r_val=1.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMVOL_BOX", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMVOL_BOX", &
                           description="The probability of attempting a volume move on this box (GEMC_NpT).", &
                           usage="PMVOL_BOX {real}", &
                           type_of_var=real_t, default_r_val=1.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PMCLUS_BOX", &
+      CALL keyword_create(keyword, __LOCATION__, name="PMCLUS_BOX", &
                           description="The probability of attempting a cluster move in this box", &
                           usage="PMCLUS_BOX {real}", &
                           type_of_var=real_t, default_r_val=1.0E0_dp)
@@ -639,14 +639,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="IUPVOLUME", &
+      CALL keyword_create(keyword, __LOCATION__, name="IUPVOLUME", &
                           description="Every iupvolume steps update maximum volume displacement.", &
                           usage="IUPVOLUME {integer}", &
                           default_i_val=10000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IUPTRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="IUPTRANS", &
                           description="Every iuptrans steps update maximum translation/rotation/"// &
                           "configurational changes.", &
                           usage="IUPTRANS {integer}", &
@@ -654,7 +654,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IUPCLTRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="IUPCLTRANS", &
                           description="Every iupcltrans steps update maximum cluster translation.", &
                           usage="IUPCLTRANS {integer}", &
                           default_i_val=10000)
@@ -717,35 +717,35 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="RMBOND", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMBOND", &
                           description="Maximum bond length displacement, in angstroms, for each molecule type.", &
                           usage="RMBOND {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMANGLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMANGLE", &
                           description="Maximum bond angle displacement, in degrees, for each molecule type.", &
                           usage="RMANGLE {real} {real} ...", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMDIHEDRAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMDIHEDRAL", &
                           description="Maximum dihedral angle distplacement, in degrees, for each molecule type.", &
                           usage="RMDIHEDRAL {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMROT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMROT", &
                           description="Maximum rotational displacement, in degrees, for each molecule type.", &
                           usage="RMROT {real} {real} ... ", &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMTRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMTRANS", &
                           description="Maximum translational displacement, in angstroms, for each molecule type.", &
                           usage="RMTRANS {real} {real} ...", &
                           n_var=-1, type_of_var=real_t)
@@ -777,14 +777,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="RMVOLUME", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMVOLUME", &
                           description="Maximum volume displacement, in angstrom**3.", &
                           usage="RMVOLUME {real}", &
                           type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMCLTRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMCLTRANS", &
                           description="Maximum translational displacement, in angstroms, for each cluster.", &
                           usage="RMCLTRANS {real}", &
                           default_r_val=1.0E0_dp)
@@ -819,7 +819,7 @@ CONTAINS
 
       NULLIFY (keyword)
       IF (.NOT. just_optimizers) THEN
-         CALL keyword_create(keyword, name="TYPE", &
+         CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify which kind of geometry optimization to perform", &
                              usage="TYPE (MINIMIZATION|TRANSITION_STATE)", &
                              enum_c_vals=s2a("MINIMIZATION", "TRANSITION_STATE"), &
@@ -832,7 +832,7 @@ CONTAINS
       END IF
 
       CALL keyword_create( &
-         keyword, name="OPTIMIZER", &
+         keyword, __LOCATION__, name="OPTIMIZER", &
          variants=(/"MINIMIZER"/), &
          citations=(/Byrd1995/), &
          description="Specify which method to use to perform a geometry optimization.", &
@@ -847,7 +847,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Specifies the maximum number of geometry optimization steps. "// &
                           "One step might imply several force evaluations for the CG and LBFGS optimizers.", &
                           usage="MAX_ITER {integer}", &
@@ -855,7 +855,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_DR", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_DR", &
                           description="Convergence criterion for the maximum geometry change "// &
                           "between the current and the last optimizer iteration.", &
                           usage="MAX_DR {real}", &
@@ -863,14 +863,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_FORCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FORCE", &
                           description="Convergence criterion for the maximum force component of the current configuration.", &
                           usage="MAX_FORCE {real}", &
                           default_r_val=0.00045_dp, unit_str="hartree/bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMS_DR", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMS_DR", &
                           description="Convergence criterion for the root mean square (RMS) geometry"// &
                           " change between the current and the last optimizer iteration.", &
                           usage="RMS_DR {real}", unit_str="bohr", &
@@ -878,14 +878,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMS_FORCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMS_FORCE", &
                           description="Convergence criterion for the root mean square (RMS) force of the current configuration.", &
                           usage="RMS_FORCE {real}", unit_str="hartree/bohr", &
                           default_r_val=0.00030_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="step_start_val", &
+      CALL keyword_create(keyword, __LOCATION__, name="step_start_val", &
                           description="The starting step value for the "//TRIM(label)//" module.", &
                           usage="step_start_val <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
@@ -990,7 +990,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
-         keyword, name="TYPE", &
+         keyword, __LOCATION__, name="TYPE", &
          description="Specify which kind of method to use for the optimization of the simulation cell", &
          usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)", &
          enum_c_vals=s2a("GEO_OPT", "MD", "DIRECT_CELL_OPT"), &
@@ -1007,7 +1007,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="EXTERNAL_PRESSURE", &
+         keyword, __LOCATION__, name="EXTERNAL_PRESSURE", &
          description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "// &
          "applied during the cell optimization.", &
          usage="EXTERNAL_PRESSURE {REAL} .. {REAL}", unit_str="bar", &
@@ -1018,7 +1018,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="KEEP_ANGLES", &
+         keyword, __LOCATION__, name="KEEP_ANGLES", &
          description="Keep angles between the cell vectors constant, but allow the lenghts of the"// &
          " cell vectors to change independently."// &
          " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.", &
@@ -1026,7 +1026,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KEEP_SYMMETRY", &
+      CALL keyword_create(keyword, __LOCATION__, name="KEEP_SYMMETRY", &
                           description="Keep the requested initial cell symmetry (e.g. during a cell optimisation). "// &
                           "The initial symmetry must be specified in the &CELL section.", &
                           usage="KEEP_SYMMETRY yes", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1034,7 +1034,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="CONSTRAINT", &
+         keyword, __LOCATION__, name="CONSTRAINT", &
          description="Imposes a constraint on the pressure tensor by fixing the specified cell components.", &
          usage="CONSTRAINT (none|x|y|z|xy|xz|yz)", &
          enum_desc=s2a("Fix nothing", &
@@ -1050,7 +1050,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRESSURE_TOLERANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRESSURE_TOLERANCE", &
                           description="Specifies the Pressure tolerance (compared to the external pressure) to achieve "// &
                           "during the cell optimization.", &
                           usage="PRESSURE_TOLERANCE {REAL}", unit_str="bar", &
@@ -1103,7 +1103,7 @@ CONTAINS
                           description="Specifies parameters to perform a transition state search", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Specify which kind of method to use for locating transition states", &
                           citations=(/Henkelman1999/), &
                           usage="TYPE (DIMER)", &
@@ -1118,14 +1118,14 @@ CONTAINS
                           description="Specifies parameters for Dimer Method", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="DR", &
+      CALL keyword_create(keyword, __LOCATION__, name="DR", &
                           description="This keyword sets the value for the DR parameter.", &
                           usage="DR {real}", unit_str='angstrom', &
                           default_r_val=cp_unit_to_cp2k(0.01_dp, "angstrom"))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERPOLATE_GRADIENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERPOLATE_GRADIENT", &
                           description="This keyword controls the interpolation of the gradient whenever possible"// &
                           " during the optimization of the Dimer. The use of this keywords saves 1 evaluation "// &
                           " of energy/forces.", usage="INTERPOLATE_GRADIENT {logical}", default_l_val=.TRUE., &
@@ -1133,7 +1133,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ANGLE_TOLERANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ANGLE_TOLERANCE", &
                           description="This keyword sets the value of the tolerance angle for the line search "// &
                           " performed to optimize the orientation of the dimer.", &
                           usage="ANGLE_TOL {real}", unit_str='rad', &
@@ -1141,7 +1141,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K-DIMER", &
+      CALL keyword_create(keyword, __LOCATION__, name="K-DIMER", &
                           description="This keyword activates the constrained k-dimer translation"// &
                           " J. Chem. Phys. 141, 164111 (2014).", &
                           citations=(/Henkelman2014/), &
@@ -1151,7 +1151,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BETA", &
+      CALL keyword_create(keyword, __LOCATION__, name="BETA", &
                           description="Exponential factor for the switching function used in K-DIMER", &
                           usage="BETA {real}", &
                           default_r_val=5.0_dp, &
@@ -1180,7 +1180,7 @@ CONTAINS
                                        description="Controls the printing basic info during the cleaning of the "// &
                                        "rotational degrees of freedom.", print_level=low_print_level, &
                                        add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL keyword_create(keyword, name="COORDINATES", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORDINATES", &
                           description="Prints atomic coordinates after rotation", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -1197,7 +1197,7 @@ CONTAINS
                           description="Specifies the initial dimer vector (used frequently to restart DIMER calculations)."// &
                           " If not provided the starting orientation of the dimer is chosen randomly.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify on each line the components of the dimer vector.", repeats=.TRUE., &
                           usage="{Real} {Real} {Real}", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection2, keyword)
@@ -1233,7 +1233,7 @@ CONTAINS
                           description="Provides parameters to tune the BFGS optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="TRUST_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRUST_RADIUS", &
                           description="Trust radius used in BFGS. Previously set to 0.1. "// &
                           "Large values can lead to instabilities", &
                           usage="TRUST_RADIUS {real}", unit_str='angstrom', &
@@ -1241,7 +1241,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="USE_MODEL_HESSIAN", &
+      CALL keyword_create(keyword, __LOCATION__, name="USE_MODEL_HESSIAN", &
                           description="Uses a model Hessian as initial guess instead of a unit matrix."// &
                           " Should lead in general to improved convergence might be switched off for exotic cases", &
                           usage="USE_MODEL_HESSIAN", &
@@ -1249,7 +1249,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="USE_RAT_FUN_OPT", &
+      CALL keyword_create(keyword, __LOCATION__, name="USE_RAT_FUN_OPT", &
                           description="Includes a rational function optimization to determine the step."// &
                           " Previously default but did not improve convergence in many cases", &
                           usage="USE_RAT_FUN_OPT", &
@@ -1257,14 +1257,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_HESSIAN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HESSIAN", &
                           description="Controls the reading of the initial Hessian from file.", &
                           usage="RESTART_HESSIAN", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", &
                           description="Specifies the name of the file used to read the initial Hessian.", &
                           usage="RESTART_FILE_NAME {filename}", &
                           default_lc_val="")
@@ -1301,7 +1301,7 @@ CONTAINS
                           description="Provides parameters to tune the conjugate gradient optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="MAX_STEEP_STEPS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_STEEP_STEPS", &
                           description="Maximum number of steepest descent steps before starting the"// &
                           " conjugate gradients optimization.", &
                           usage="MAX_STEEP_STEPS {integer}", &
@@ -1309,7 +1309,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_LIMIT", &
                           description="Cosine of the angle between two consecutive searching directions."// &
                           " If the angle during a CG optimization is less than the one corresponding to "// &
                           " to the RESTART_LIMIT the CG is reset and one step of steepest descent is "// &
@@ -1319,7 +1319,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FLETCHER_REEVES", &
+      CALL keyword_create(keyword, __LOCATION__, name="FLETCHER_REEVES", &
                           description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients", &
                           usage="FLETCHER-REEVES", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1331,7 +1331,7 @@ CONTAINS
                           description="Provides parameters to tune the line search during the conjugate gradient optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="1D line search algorithm to be used with the CG optimizer,"// &
                           " in increasing order of robustness and cost. ", &
                           usage="TYPE GOLD", &
@@ -1353,7 +1353,7 @@ CONTAINS
                           description="Provides parameters to tune the line search for the two point based line search.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="MAX_ALLOWED_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ALLOWED_STEP", &
                           description="Max allowed value for the line search step.", &
                           usage="MAX_ALLOWED_STEP {real}", unit_str="internal_cp2k", &
                           default_r_val=0.25_dp)
@@ -1361,7 +1361,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="LINMIN_GRAD_ONLY", &
+         keyword, __LOCATION__, name="LINMIN_GRAD_ONLY", &
          description="Use only the gradient, not the energy for line minimizations (e.g. in conjugate gradients).", &
          usage="LINMIN_GRAD_ONLY T", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1377,7 +1377,7 @@ CONTAINS
                           description="Provides parameters to tune the line search for the gold search.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="INITIAL_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="INITIAL_STEP", &
                           description="Initial step size used, e.g. for bracketing or minimizers. "// &
                           "Might need to be reduced for systems with close contacts", &
                           usage="INITIAL_STEP {real}", unit_str="internal_cp2k", &
@@ -1385,21 +1385,21 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BRACK_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="BRACK_LIMIT", &
                           description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.", &
                           usage="BRACK_LIMIT {real}", unit_str="internal_cp2k", &
                           default_r_val=100.0_dp)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BRENT_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="BRENT_TOL", &
                           description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.", &
                           usage="BRENT_TOL {real}", unit_str="internal_cp2k", &
                           default_r_val=0.01_dp)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BRENT_MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="BRENT_MAX_ITER", &
                           description="Maximum number of iterations in brent algorithm "// &
                           "(used for the line search in Conjugated Gradients Optimization)", &
                           usage="BRENT_MAX_ITER {integer}", &
@@ -1434,7 +1434,7 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
                           citations=(/Byrd1995/))
 
-      CALL keyword_create(keyword, name="MAX_H_RANK", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_H_RANK", &
                           description="Maximum rank (and consequently size) of the "// &
                           "approximate Hessian matrix used by the LBFGS optimizer. "// &
                           "Larger values (e.g. 30) will accelerate the convergence behaviour "// &
@@ -1444,7 +1444,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_F_PER_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_F_PER_ITER", &
                           description="Maximum number of force evaluations per iteration"// &
                           "(used for the line search)", &
                           usage="MAX_F_PER_ITER {integer}", &
@@ -1452,7 +1452,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="WANTED_PROJ_GRADIENT", &
                           description="Convergence criterion (overrides the general ones):"// &
                           "Requested norm threshold of the gradient multiplied "// &
                           "by the approximate Hessian.", &
@@ -1461,7 +1461,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WANTED_REL_F_ERROR", &
+      CALL keyword_create(keyword, __LOCATION__, name="WANTED_REL_F_ERROR", &
                           description="Convergence criterion (overrides the general ones):"// &
                           "Requested relative error on the objective function"// &
                           "of the optimizer (the energy)", &
@@ -1471,7 +1471,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="TRUST_RADIUS", &
+         keyword, __LOCATION__, name="TRUST_RADIUS", &
          description="Trust radius used in LBFGS. Not completely in depth tested. Negativ values means no trust radius is used.", &
          usage="TRUST_RADIUS {real}", unit_str='angstrom', &
          default_r_val=-1.0_dp)
@@ -1501,61 +1501,61 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
 
-      CALL keyword_create(keyword, name="CENTRAL_ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTRAL_ATOM", &
                           description="Specifies the central atom.", &
                           usage="CENTRAL_ATOM {integer}", &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INNER_ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="INNER_ATOMS", &
                           description="Specifies the list of atoms that should remain close to the central atom.", &
                           usage="INNER_ATOMS {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OUTER_ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="OUTER_ATOMS", &
                           description="Specifies the list of atoms that should remain far from the central atom.", &
                           usage="OUTER_ATOMS {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INNER_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="INNER_RADIUS", &
                           description="radius of the inner wall", &
                           usage="INNER_RADIUS {real} ", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OUTER_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="OUTER_RADIUS", &
                           description="radius of the outer wall", &
                           usage="OUTER_RADIUS {real} ", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STRENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="STRENGTH", &
                           description="Sets the force constant of the repulsive harmonic potential", &
                           usage="STRENGTH 1.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BIAS", &
+      CALL keyword_create(keyword, __LOCATION__, name="BIAS", &
                           description="If a bias potential counter-acting the weight term should be applied (recommended).", &
                           usage="BIAS F", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMPERATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="Sets the temperature parameter that is used in the baising potential."// &
                           "It is recommended to use the actual simulation temperature", &
                           usage="TEMPERATURE 300", default_r_val=300.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SMOOTH_WIDTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="SMOOTH_WIDTH", &
                           description="Sets the width of the smooth counting function.", &
                           usage="SMOOTH_WIDTH 0.2", default_r_val=0.02_dp, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
@@ -1597,28 +1597,28 @@ CONTAINS
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="unix", &
+      CALL keyword_create(keyword, __LOCATION__, name="unix", &
                           description="Use a UNIX socket rather than an INET socket.", &
                           usage="unix LOGICAL", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="port", &
+      CALL keyword_create(keyword, __LOCATION__, name="port", &
                           description="Port number for the i-PI server.", &
                           usage="port <INTEGER>", &
                           default_i_val=12345)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="host", &
+      CALL keyword_create(keyword, __LOCATION__, name="host", &
                           description="Host name for the i-PI server.", &
                           usage="host <HOSTNAME>", &
                           default_c_val="localhost")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SLEEP_TIME", &
+      CALL keyword_create(keyword, __LOCATION__, name="SLEEP_TIME", &
                           description="Sleeping time while waiting for for driver commands [s].", &
                           usage="SLEEP_TIME 0.1", &
                           default_r_val=0.01_dp)
@@ -1647,53 +1647,53 @@ CONTAINS
                           n_keywords=13, n_subsections=9, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="p", &
+      CALL keyword_create(keyword, __LOCATION__, name="p", &
                           description="Specify number beads to use", repeats=.FALSE., &
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="proc_per_replica", &
+      CALL keyword_create(keyword, __LOCATION__, name="proc_per_replica", &
                           description="Specify number of processors to use for each replica", &
                           repeats=.FALSE., default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="num_steps", &
+      CALL keyword_create(keyword, __LOCATION__, name="num_steps", &
                           description="Number of steps (if MAX_STEP is not explicitly given"// &
                           " the program will perform this number of steps)", repeats=.FALSE., &
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="MAX_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_STEP", &
                           description="Maximum step number (the program will stop if"// &
                           " ITERATION >= MAX_STEP even if NUM_STEPS has not been reached)", &
                           repeats=.FALSE., default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="iteration", &
+      CALL keyword_create(keyword, __LOCATION__, name="iteration", &
                           description="Specify the iteration number from which it should be "// &
                           "counted", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="Temp", &
+      CALL keyword_create(keyword, __LOCATION__, name="Temp", &
                           description="The temperature you want to simulate", &
                           default_r_val=cp_unit_to_cp2k(300._dp, "K"), &
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="T_tol", variants=(/"temp_to"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="T_tol", variants=(/"temp_to"/), &
                           description="threshold for the oscillations of the temperature "// &
                           "excedeed which the temperature is rescaled. 0 means no rescaling.", &
                           default_r_val=0._dp, unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="dt", &
+      CALL keyword_create(keyword, __LOCATION__, name="dt", &
                           description="timestep (might be subdivised in nrespa subtimesteps", &
                           repeats=.FALSE., &
                           default_r_val=cp_unit_to_cp2k(1.0_dp, "fs"), &
                           usage="dt 1.0", unit_str="fs")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="HARM_INT", &
+      CALL keyword_create(keyword, __LOCATION__, name="HARM_INT", &
                           description="integrator scheme for integrating the harmonic bead springs.", &
                           usage="HARM_INT (NUMERIC|EXACT)", &
                           default_i_val=integrate_numeric, &
@@ -1701,13 +1701,13 @@ CONTAINS
                           enum_i_vals=(/integrate_numeric, integrate_exact/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="nrespa", &
+      CALL keyword_create(keyword, __LOCATION__, name="nrespa", &
                           description="number of respa steps for the bead for each md step", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="transformation", &
+      CALL keyword_create(keyword, __LOCATION__, name="transformation", &
                           description="Specifies the coordinate transformation to use", &
                           usage="TRANSFORMATION (NORMAL|STAGE)", &
                           default_i_val=transformation_normal, &
@@ -1716,7 +1716,7 @@ CONTAINS
 
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="propagator", &
+      CALL keyword_create(keyword, __LOCATION__, name="propagator", &
                           description="Specifies the real time propagator to use", &
                           usage="PROPAGATOR (PIMD|RPMD)", &
                           default_i_val=propagator_pimd, &
@@ -1724,7 +1724,7 @@ CONTAINS
                           enum_i_vals=(/propagator_pimd, propagator_rpmd/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="FIX_CENTROID_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="FIX_CENTROID_POS", &
                           description="Propagate all DOF but the centroid - "// &
                           "useful for equilibration of the non-centroid modes "// &
                           "(activated only if TRANSFORMATION==NORMAL)", &
@@ -1737,17 +1737,17 @@ CONTAINS
       CALL section_create(subsection, name="NORMALMODE", &
                           description="Controls the normal mode transformation", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="Q_CENTROID", &
+      CALL keyword_create(keyword, __LOCATION__, name="Q_CENTROID", &
                           description="Value of the thermostat mass of centroid degree of freedom", &
                           repeats=.FALSE., default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="Q_BEAD", &
+      CALL keyword_create(keyword, __LOCATION__, name="Q_BEAD", &
                           description="Value of the thermostat mass of non-centroid degrees of freedom", &
                           repeats=.FALSE., default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="MODEFACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="MODEFACTOR", &
                           description="mass scale factor for non-centroid degrees of freedom", &
                           repeats=.FALSE., default_r_val=1.0_dp)
       CALL section_add_keyword(subsection, keyword)
@@ -1758,12 +1758,12 @@ CONTAINS
       CALL section_create(subsection, name="staging", &
                           description="The section that controls the staging transformation", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="j", &
+      CALL keyword_create(keyword, __LOCATION__, name="j", &
                           description="Value of the j parameter for the staging transformation", &
                           repeats=.FALSE., default_i_val=2)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="Q_END", &
+      CALL keyword_create(keyword, __LOCATION__, name="Q_END", &
                           description="Value of the nose-hoover mass for the endbead (Q_end)", &
                           repeats=.FALSE., default_i_val=2)
       CALL section_add_keyword(subsection, keyword)
@@ -1788,7 +1788,7 @@ CONTAINS
                           description="Controls the Nose-Hoover thermostats", &
                           n_keywords=1, n_subsections=2, &
                           repeats=.FALSE.)
-      CALL keyword_create(keyword, name="nnos", &
+      CALL keyword_create(keyword, __LOCATION__, name="nnos", &
                           description="length of nose-hoover chain. 0 means no thermostat", &
                           repeats=.FALSE., default_i_val=2)
       CALL section_add_keyword(subsection, keyword)
@@ -1817,14 +1817,14 @@ CONTAINS
       CALL create_rng_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
-      CALL keyword_create(keyword, name="TAU", &
+      CALL keyword_create(keyword, __LOCATION__, name="TAU", &
                           description="Time constant for centroid motion. "// &
                           "If zero or negative the centroid is not thermostated.", &
                           usage="TAU {real}", type_of_var=real_t, &
                           unit_str="fs", n_var=1, default_r_val=1000.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Scaling of friction to mode coupling", &
                           usage="LAMBDA {real}", type_of_var=real_t, &
                           n_var=1, default_r_val=0.5_dp)
@@ -1845,7 +1845,7 @@ CONTAINS
       CALL section_create(subsubsection, name="EXTRA_DOF", &
                           description="Additional degrees of freedom to ensure Markovian Dynamics.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Restart values for additional degrees of freedom" &
                           //" (only for restarts, do not set explicitly)", &
                           repeats=.FALSE., &
@@ -1854,18 +1854,18 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
-      CALL keyword_create(keyword, name="NEXTRA_DOF", &
+      CALL keyword_create(keyword, __LOCATION__, name="NEXTRA_DOF", &
                           description="Number of extra degrees of freedom to ensure markovian dynamics", &
                           repeats=.FALSE., default_i_val=8)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="MATRICES_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MATRICES_FILE_NAME", &
                           description="Filename containig the raw matrices from "// &
                           "https://epfl-cosmo.github.io/gle4md/index.html?page=matrix", &
                           repeats=.FALSE., default_lc_val="PIGLET.MAT")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="SMATRIX_INIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="SMATRIX_INIT", &
                           description="Select algorithm to initialize piglet S-matrices", &
                           usage="SMATRIX_INIT (CHOLESKY|DIAGONAL)", &
                           default_i_val=matrix_init_cholesky, &
@@ -1885,38 +1885,38 @@ CONTAINS
       CALL create_rng_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
-      CALL keyword_create(keyword, name="TAU", &
+      CALL keyword_create(keyword, __LOCATION__, name="TAU", &
                           description="Time constant for centroid motion. ", &
                           usage="TAU {real}", type_of_var=real_t, &
                           unit_str="fs", n_var=1, default_r_val=1000.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Scaling of friction to ring polymer NM freq.", &
                           usage="LAMBDA {real}", type_of_var=real_t, &
                           n_var=1, default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="FP", &
+      CALL keyword_create(keyword, __LOCATION__, name="FP", &
                           description="Defines which version to use "// &
                           "0: f_P^(0), 1: f_P^(1)", &
                           usage="FP {integer}", type_of_var=integer_t, &
                           n_var=1, default_i_val=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="TAUCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="TAUCUT", &
                           description="Inverse of cutoff freq. for the centroid mode", &
                           usage="TAUCUT {real}", type_of_var=real_t, &
                           unit_str="fs", n_var=1, default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="LAMBCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBCUT", &
                           description="Scaling of cutoff freq. to ring polymer NM freq.", &
                           usage="LAMBCUT {real}", type_of_var=real_t, &
                           n_var=1, default_r_val=2.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NF", &
+      CALL keyword_create(keyword, __LOCATION__, name="NF", &
                           description="Number of points used for the convolution product.", &
                           usage="NF {integer}", type_of_var=integer_t, &
                           n_var=1, default_i_val=128)
@@ -1929,7 +1929,7 @@ CONTAINS
                           description="Controls the initialization if the beads are not present", &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="LEVY_POS_SAMPLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="LEVY_POS_SAMPLE", &
                           description="Sample bead positions assuming free particle "// &
                           "behavior (performs a Levy random walk of length P around "// &
                           "the classical position of each atom at the physical "// &
@@ -1938,14 +1938,14 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="LEVY_CORRELATED", &
+      CALL keyword_create(keyword, __LOCATION__, name="LEVY_CORRELATED", &
                           description="Use the same Levy path for all atoms, though "// &
                           "with mass-dependent variances (might help at very low T)", &
                           repeats=.FALSE., default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="LEVY_TEMP_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="LEVY_TEMP_FACTOR", &
                           description="Multiplicative correction factor for the "// &
                           "temperature at which the Levy walk is performed "// &
                           "(correction is due to the interactions that modify "// &
@@ -1953,39 +1953,39 @@ CONTAINS
                           repeats=.FALSE., default_r_val=1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="LEVY_SEED", &
+      CALL keyword_create(keyword, __LOCATION__, name="LEVY_SEED", &
                           description="Initial seed for the (pseudo)random number "// &
                           "generator that controls Levy walk for bead positions.", &
                           usage="LEVY_SEED <INTEGER>", default_i_val=1234, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="THERMOSTAT_SEED", &
+      CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_SEED", &
                           description="Initial seed for the (pseudo)random number "// &
                           "generator that controls the PILE and PIGLET thermostats.", &
                           usage="THERMOSTAT_SEED <INTEGER>", default_i_val=12345, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RANDOMIZE_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANDOMIZE_POS", &
                           description="add gaussian noise to the positions of the beads", &
                           repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CENTROID_SPEED", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_SPEED", &
                           description="adds random velocity component to the centroid modes "// &
                           "(useful to correct for the averaging out of the speed of various beads)", &
                           repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VELOCITY_QUENCH", &
+      CALL keyword_create(keyword, __LOCATION__, name="VELOCITY_QUENCH", &
                           description="set the initial velocities to zero", &
                           repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="VELOCITY_SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="VELOCITY_SCALE", &
                           description="scale initial velocities to the temperature given in MOTION%PINT%TEMP", &
                           repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
@@ -2047,7 +2047,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL keyword_create(keyword, name="IMAGINARY_TIME_STRIDE", &
+      CALL keyword_create(keyword, __LOCATION__, name="IMAGINARY_TIME_STRIDE", &
                           description="Prints only every nth bead trajectory", &
                           repeats=.FALSE., default_i_val=1)
       CALL section_add_keyword(subsection, keyword)
@@ -2083,13 +2083,13 @@ CONTAINS
                           n_keywords=31, n_subsections=9, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Whether or not to actually use this section", &
                           usage="silent", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HELIUM_ONLY", &
+      CALL keyword_create(keyword, __LOCATION__, name="HELIUM_ONLY", &
                           description="Simulate helium solvent only, "// &
                           "disregard solute entirely", &
                           repeats=.FALSE., default_l_val=.FALSE., &
@@ -2097,7 +2097,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERACTION_POT_SCAN", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERACTION_POT_SCAN", &
                           description="Scan solute-helium interaction potential, "// &
                           "cubefile parameters set in subsection RHO", &
                           repeats=.FALSE., default_l_val=.FALSE., &
@@ -2105,19 +2105,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_ENV", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_ENV", &
                           description="Number of independent helium environments", &
                           repeats=.FALSE., default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_FILE_NAME", &
                           description="Name of the Helium interaction potential file", &
                           repeats=.FALSE., default_lc_val="HELIUM.POT")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GET_FORCES", &
+      CALL keyword_create(keyword, __LOCATION__, name="GET_FORCES", &
                           description="Get average MC forces or last MC forces to propagate MD", &
                           usage="GET_FORCES (AVERAGE|LAST)", &
                           default_i_val=helium_forces_average, &
@@ -2126,7 +2126,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SOLUTE_INTERACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_INTERACTION", &
                           description="Interaction potential between helium and the solute", &
                           usage="SOLUTE_INTERACTION (NONE | MWATER)", &
                           default_i_val=helium_solute_intpot_none, &
@@ -2140,19 +2140,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NATOMS", &
                           description="Number of helium atoms", &
                           repeats=.FALSE., default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NBEADS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NBEADS", &
                           description="Number of helium path integral beads", &
                           repeats=.FALSE., default_i_val=25)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RNG_SEED", &
+      CALL keyword_create(keyword, __LOCATION__, name="RNG_SEED", &
                           description="Initial seed for the (pseudo)random number "// &
                           "generator that controls helium coordinate generation and propagation.", &
                           usage="RNG_SEED <INTEGER>", default_i_val=12345, &
@@ -2160,7 +2160,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_INNER", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_INNER", &
                           variants=s2a("INOROT"), &
                           description="Number of MC iterations at the same time slice(s) "// &
                           "(number of inner MC loop iterations)", &
@@ -2168,7 +2168,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_OUTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_OUTER", &
                           variants=s2a("IROT"), &
                           description="how often to reselect the time slice(s) to work on "// &
                           "(number of outer MC loop iterations)", &
@@ -2176,7 +2176,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SAMPLING_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="SAMPLING_METHOD", &
                           description="Choose between Ceperley or the worm algorithm", &
                           usage="SAMPLING_METHOD (CEPERLEY|WORM)", &
                           default_i_val=helium_sampling_ceperley, &
@@ -2185,7 +2185,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COORD_INIT_TEMP", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORD_INIT_TEMP", &
                           description="Temperature for thermal gaussian initialization of the helium."// &
                           "Negative values correspond to a hot start.", &
                           default_r_val=cp_unit_to_cp2k(300._dp, "K"), &
@@ -2193,7 +2193,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SOLUTE_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_RADIUS", &
                           description="Radius of the solute molecule for prevention of"// &
                           "coordinate collision during initialization", &
                           default_r_val=cp_unit_to_cp2k(0.0_dp, "angstrom"), &
@@ -2206,14 +2206,14 @@ CONTAINS
                           description="Enables sampling with Ceperley's algorithm", &
                           n_keywords=2, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="BISECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="BISECTION", &
                           description="how many time slices to change at once (+1). "// &
                           "Must be a power of 2 currently", &
                           repeats=.FALSE., default_i_val=8)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_PERM_CYCLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_PERM_CYCLE", &
                           description="how large cyclic permutations to try", &
                           repeats=.FALSE., default_i_val=6)
       CALL section_add_keyword(subsection, keyword)
@@ -2223,7 +2223,7 @@ CONTAINS
       CALL section_create(subsubsection, name="M-SAMPLING", &
                           description="Permutation cycle length sampling settings", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="DISTRIBUTION-TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISTRIBUTION-TYPE", &
                           description="Distribution from which the cycle length m is sampled", &
                           usage="DISTRIBUTION-TYPE (SINGLEV|UNIFORM|LINEAR|QUADRATIC|EXPONENTIAL|GAUSSIAN)", &
                           default_i_val=helium_mdist_uniform, &
@@ -2243,14 +2243,14 @@ CONTAINS
                           helium_mdist_gaussian/))
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="M-VALUE", &
+      CALL keyword_create(keyword, __LOCATION__, name="M-VALUE", &
                           description="Value of m treated in a special way "// &
                           "(specific behavior depends on the distribution type chosen)", &
                           repeats=.FALSE., &
                           default_i_val=1)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="M-RATIO", &
+      CALL keyword_create(keyword, __LOCATION__, name="M-RATIO", &
                           description="Probability ratio betw M-VALUE and other cycle lengths", &
                           repeats=.FALSE., &
                           default_r_val=1.0_dp)
@@ -2267,85 +2267,85 @@ CONTAINS
                           description="Enables sampling with the worm algorithm by Bonisegni", &
                           n_keywords=13, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="CENTROID_MOVE_DRMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_MOVE_DRMAX", &
                           description="Maximum displacement allowed for the centroid moves", &
                           repeats=.FALSE., default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CENTROID_MOVE_FREQ", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_MOVE_FREQ", &
                           description="Moves are performed each CENTROID_MOVE_FREQ steps", &
                           repeats=.FALSE., default_i_val=20)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STAGING_MOVE_L", &
+      CALL keyword_create(keyword, __LOCATION__, name="STAGING_MOVE_L", &
                           description="L-1 beads will be moved", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STAGING_MOVE_REP", &
+      CALL keyword_create(keyword, __LOCATION__, name="STAGING_MOVE_REP", &
                           description="Number of repetitions for staging moves", &
                           repeats=.FALSE., default_i_val=10)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OPEN_CLOSE_MOVE_C", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPEN_CLOSE_MOVE_C", &
                           description="Open/Close acceptance adjustment parameter", &
                           repeats=.FALSE., default_r_val=0.01_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OPEN_CLOSE_MOVE_LMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPEN_CLOSE_MOVE_LMAX", &
                           description="1 to OPEN_CLOSE_MOVE_LMAX-1 beads"// &
                           "will be moved in Open/Close moves", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HEAD_TAIL_MOVE_LMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="HEAD_TAIL_MOVE_LMAX", &
                           description="1 to HEAD_TAIL_MOVE_LMAX-1 beads"// &
                           "will be moved in head/tail moves", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SWAP_MOVE_LMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="SWAP_MOVE_LMAX", &
                           description="1 to SWAP_MOVE_LMAX-1 beads"// &
                           "will be moved in Swap moves", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="G-SECTOR_MOVE_REP", &
+      CALL keyword_create(keyword, __LOCATION__, name="G-SECTOR_MOVE_REP", &
                           description="Repetitions of G-sector moves", &
                           repeats=.FALSE., default_i_val=20)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="G-SECTOR_MOVE", &
+      CALL keyword_create(keyword, __LOCATION__, name="G-SECTOR_MOVE", &
                           description="Switch on/off G-sector moves, i.e.,"// &
                           "switch on/off bosonic symmetry", &
                           repeats=.FALSE., default_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WRITE", &
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE", &
                           description="Switch on/off writing"// &
                           "statistics of the different moves", &
                           repeats=.FALSE., default_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
                           description="WORM ATOM", &
                           repeats=.TRUE., usage="<INT> <INT> .. <INT>", &
                           type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COORD", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORD", &
                           description="WORM ATOM COORDINATES", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
@@ -2357,13 +2357,13 @@ CONTAINS
 
 ! end of worm parameters
 
-      CALL keyword_create(keyword, name="PERIODIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Use periodic boundary conditions for helium", &
                           repeats=.FALSE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CELL_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_SIZE", &
                           description="PBC unit cell size (NOTE 1: density, number of atoms"// &
                           " and volume are interdependent - give only two of them; "// &
                           "NOTE 2: for small cell sizes specify NATOMS instead)", &
@@ -2371,7 +2371,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CELL_SHAPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CELL_SHAPE", &
                           description="PBC unit cell shape for helium", &
                           usage="CELL_SHAPE (CUBE|OCTAHEDRON)", &
                           default_i_val=helium_cell_shape_cube, &
@@ -2380,7 +2380,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DROPLET_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="DROPLET_RADIUS", &
                           description="Reject a move if any of the new positions does not lie within"// &
                           "  this range from the center of gravity", &
                           repeats=.FALSE., type_of_var=real_t, default_r_val=HUGE(1.0_dp), &
@@ -2388,7 +2388,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DENSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="DENSITY", &
                           description="trial density of helium for determining the helium "// &
                           "box size", &
                           repeats=.FALSE., &
@@ -2397,7 +2397,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRESAMPLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRESAMPLE", &
                           description="Presample He coordinates before first PIMD step", &
                           repeats=.FALSE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -2407,27 +2407,27 @@ CONTAINS
                           description="Radial distribution settings", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Whether or not to actually calculate this property", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAXR", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAXR", &
                           description="Maximum RDF range, defaults to unit cell size", &
                           repeats=.FALSE., type_of_var=real_t, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NBIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NBIN", &
                           description="Number of bins", &
                           repeats=.FALSE., &
                           default_i_val=250)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CENTERS_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTERS_FILE_NAME", &
                           description="Calculate RDFs wrt centers read from a file", &
                           repeats=.FALSE., default_lc_val="centers.xyz")
       CALL section_add_keyword(subsection, keyword)
@@ -2440,20 +2440,20 @@ CONTAINS
       CALL section_create(subsection, name="RHO", &
                           description="Spatial distribution settings", &
                           n_keywords=10, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Whether or not to actually calculate densities "// &
                           "(requires significant amount of memory, depending on the value of NBIN)", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NBIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NBIN", &
                           description="Number of grid points in each direction for density binning", &
                           repeats=.FALSE., &
                           default_i_val=100)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="MIN_CYCLE_LENGTHS_WDG", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_CYCLE_LENGTHS_WDG", &
                           description="Density of winding paths "// &
                           "not shorter than the given length", &
                           repeats=.FALSE., usage="<INT> <INT> .. <INT>", &
@@ -2461,7 +2461,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="MIN_CYCLE_LENGTHS_NON", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_CYCLE_LENGTHS_NON", &
                           description="Density of non-winding paths "// &
                           "not shorter than the given length", &
                           repeats=.FALSE., usage="<INT> <INT> .. <INT>", &
@@ -2469,7 +2469,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="MIN_CYCLE_LENGTHS_ALL", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_CYCLE_LENGTHS_ALL", &
                           description="Density of all paths "// &
                           "not shorter than the given length", &
                           repeats=.FALSE., usage="<INT> <INT> .. <INT>", &
@@ -2477,7 +2477,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="ATOM_NUMBER", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_NUMBER", &
                           description="Atom number density", &
                           repeats=.FALSE., &
                           type_of_var=logical_t, &
@@ -2486,7 +2486,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="PROJECTED_AREA_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="PROJECTED_AREA_2", &
                           description="Projected area squared density, A*A(r)", &
                           repeats=.FALSE., &
                           type_of_var=logical_t, &
@@ -2495,7 +2495,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="WINDING_NUMBER_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="WINDING_NUMBER_2", &
                           description="Winding number squared density, W*W(r)", &
                           repeats=.FALSE., &
                           type_of_var=logical_t, &
@@ -2504,7 +2504,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="WINDING_CYCLE_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="WINDING_CYCLE_2", &
                           description="Winding number squared density, W^2(r)", &
                           repeats=.FALSE., &
                           type_of_var=logical_t, &
@@ -2513,7 +2513,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="MOMENT_OF_INERTIA", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOMENT_OF_INERTIA", &
                           description="Moment of inertia density", &
                           repeats=.FALSE., &
                           type_of_var=logical_t, &
@@ -2533,7 +2533,7 @@ CONTAINS
       CALL section_create(subsection, name="PERM", &
                           description="Permutation state used for restart", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify particle index permutation for every "// &
                           "helium atom", repeats=.TRUE., usage="<INT> <INT> .. <INT>", &
                           type_of_var=integer_t, n_var=-1)
@@ -2545,43 +2545,43 @@ CONTAINS
       CALL section_create(subsection, name="AVERAGES", &
                           description="Average properties (used for restarts)", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="PROJECTED_AREA", &
+      CALL keyword_create(keyword, __LOCATION__, name="PROJECTED_AREA", &
                           description="Projected area vector for all environments", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="PROJECTED_AREA_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="PROJECTED_AREA_2", &
                           description="Projected area vector squared for all environments", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="WINDING_NUMBER_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="WINDING_NUMBER_2", &
                           description="Winding number vector squared for all environments", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="MOMENT_OF_INERTIA", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOMENT_OF_INERTIA", &
                           description="Moment of inertia vector for all environments", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RDF", &
+      CALL keyword_create(keyword, __LOCATION__, name="RDF", &
                           description="Radial distributions averaged over all environments", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RHO", &
+      CALL keyword_create(keyword, __LOCATION__, name="RHO", &
                           description="Spatial distributions averaged over all environments", &
                           repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="IWEIGHT", &
+      CALL keyword_create(keyword, __LOCATION__, name="IWEIGHT", &
                           description="Weight for the restarted quantities "// &
                           "(number of MC steps used to calculate the accumulated averages)", &
                           repeats=.FALSE., &
@@ -2595,7 +2595,7 @@ CONTAINS
                           description="Forces exerted by the helium on the solute system"// &
                           " (used for restarts)", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Number of real values should be 3 * "// &
                           "<num_solute_atoms> * <num_solute_beads>", repeats=.TRUE., &
                           usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, &
@@ -2608,7 +2608,7 @@ CONTAINS
       CALL section_create(subsection, name="RNG_STATE", &
                           description="Random number generator state for all processors", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Three real arrays of DIMENSION(3,2) times two RNG "// &
                           "streams - 36 real values per processor", &
                           repeats=.TRUE., usage="automatically filled, do not edit by hand", &
@@ -2671,7 +2671,7 @@ CONTAINS
                                        each_iter_names=s2a("PINT"), each_iter_values=(/100/), &
                                        print_level=medium_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric)
-      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=1)
@@ -2715,7 +2715,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "COORDINATES", &
                                        description="Controls the output of helium coordinates", &
                                        print_level=high_print_level, common_iter_levels=1)
-      CALL keyword_create(keyword, name="FORMAT", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
                           description="Output file format for the coordinates", &
                           usage="FORMAT (PDB|XYZ)", &
                           default_i_val=fmt_id_pdb, &
@@ -2731,7 +2731,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "PERM", &
                                        description="Controls the output of the helium permutation state", &
                                        print_level=high_print_level, common_iter_levels=1)
-      CALL keyword_create(keyword, name="FORMAT", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
                           description="Output format for the permutation", &
                           usage="FORMAT (CYCLE|PLAIN)", &
                           default_i_val=perm_cycle, &

@@ -63,7 +63,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="EIP_MODEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EIP_MODEL", &
                           description="Selects the empirical interaction potential model", &
                           usage="EIP_MODEL BAZANT", type_of_var=enum_t, &
                           n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &

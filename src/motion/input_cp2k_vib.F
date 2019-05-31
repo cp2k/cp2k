@@ -73,14 +73,14 @@ CONTAINS
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Specify the increment to be used to construct the HESSIAN with "// &
                           "finite difference method", &
                           default_r_val=1.0E-2_dp, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NPROC_REP", &
+      CALL keyword_create(keyword, __LOCATION__, name="NPROC_REP", &
                           description="Specify the number of processors to be used per replica "// &
                           "environment (for parallel runs). "// &
                           "In case of mode selective calculations more than one replica will start"// &
@@ -89,7 +89,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PROC_DIST_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PROC_DIST_TYPE", &
                           description="Specify the topology of the mapping of processors into replicas.", &
                           usage="PROC_DIST_TYPE (INTERLEAVED|BLOCKED)", &
                           enum_c_vals=s2a("INTERLEAVED", &
@@ -101,32 +101,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FULLY_PERIODIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="FULLY_PERIODIC", &
                           description="Avoids to clean rotations from the Hessian matrix.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTENSITIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTENSITIES", &
                           description="Calculation of the IR-Intensities. Calculation of dipoles has to be specified explicitly ", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="THERMOCHEMISTRY", &
+      CALL keyword_create(keyword, __LOCATION__, name="THERMOCHEMISTRY", &
                           description="Calculation of the thermochemical data. Valid for molecules in the gas phase. ", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TC_TEMPERATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TC_TEMPERATURE", &
                           description="Temperature for the calculation of the thermochemical data ", &
                           usage="tc_temperature 325.0", default_r_val=cp_unit_to_cp2k(value=273.150_dp, unit_str="K"), &
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TC_PRESSURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TC_PRESSURE", &
                           description="Pressure for the calculation of the thermochemical data  ", &
                           default_r_val=cp_unit_to_cp2k(value=101325.0_dp, unit_str="Pa"), unit_str="Pa")
       CALL section_add_keyword(section, keyword)
@@ -185,7 +185,7 @@ CONTAINS
                                        "rotational degrees of freedom.", &
                                        print_level=debug_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       ! Print_key keywords
-      CALL keyword_create(keyword, name="COORDINATES", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORDINATES", &
                           description="Prints atomic coordinates after rotation", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -203,7 +203,7 @@ CONTAINS
                                        print_level=low_print_level, &
                                        add_last=add_last_numeric, &
                                        filename="VIBRATIONS")
-      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum index of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=3)
@@ -242,14 +242,14 @@ CONTAINS
                           "The keywords FREQUENCY, RANGE, and the subsection INVOLVED_ATOMS are mutually exclusive.", &
                           n_keywords=8, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
                           description="value close to the expected value of the frequency to look for. "// &
                           "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ", &
                           usage="FREQUENCY {REAL}", default_r_val=-1._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANGE", &
                           description="Track modes in a given range of frequencies. "// &
                           "No warranty that the set of frequencies is complete.", &
                           usage="RANGE {REAL} {REAL}", &
@@ -257,7 +257,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LOWEST_FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="LOWEST_FREQUENCY", &
                           description="Lowest frequency mode to include when writing output. "// &
                           "Use a negative value to print imaginary frequencies. "// &
                           "Useful for visualizing the imaginary frequency along a reaction path coordinate "// &
@@ -267,14 +267,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Specifies the list of atoms which should be displaced for the Initial guess", &
                           usage="ATOMS {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_MAX_VAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_MAX_VAL", &
                           description="Convergence criterion for the davidson algorithm. Specifies the maximal value in the "// &
                           "residuum vectors ", &
                           usage="EPS_MAX_VAL {REAL}", default_r_val=5.0E-7_dp)
@@ -282,7 +282,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="EPS_NORM", &
+         keyword, __LOCATION__, name="EPS_NORM", &
          description="Convergence criterion for the davidson algorithm. Specifies the maximal value of the norm "// &
          "of the residuum vectors ", &
          usage="EPS_NORM {REAL}", default_r_val=2.0E-6_dp)
@@ -290,7 +290,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="INITIAL_GUESS", &
+         keyword, __LOCATION__, name="INITIAL_GUESS", &
          description="The type of initial guess for the normal modes", &
          usage="INITIAL_GUESS BFGS_HESS", &
          default_i_val=ms_guess_atomic, &
@@ -305,7 +305,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", &
                           description="Specifies the name of the file used to create the restarted vectors", &
                           usage="RESTART_FILE_NAME {filename}", &
                           default_lc_val="")
@@ -355,7 +355,7 @@ CONTAINS
          n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create( &
-         keyword, name="RANGE", &
+         keyword, __LOCATION__, name="RANGE", &
          description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked. "// &
          " If not specified frequencies >400cm-1 will be used to avoid tracking of translational or rotational modes", &
          usage="RANGE {REAL} {REAL}", &
@@ -364,7 +364,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="INVOLVED_ATOMS", &
+         keyword, __LOCATION__, name="INVOLVED_ATOMS", &
          description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "// &
          "similar to looking for the vibration of a set of atoms", &
          usage="INVOLVED_ATOMS {integer} {integer} .. {integer}", &

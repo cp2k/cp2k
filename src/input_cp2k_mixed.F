@@ -73,7 +73,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create( &
-         keyword, name="MIXING_TYPE", &
+         keyword, __LOCATION__, name="MIXING_TYPE", &
          description="The type of mixing to be employed", &
          usage="MIXING_TYPE LINEAR_COMBINATION", &
          default_i_val=mix_linear_combination, &
@@ -97,7 +97,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GROUP_PARTITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_PARTITION", &
                           description="gives the exact number of processors for each group."// &
                           " If not specified processors allocated will be equally distributed for"// &
                           " the specified subforce_eval, trying to build a number of groups equal to the"// &
@@ -106,7 +106,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
                           description="Gives the wanted number of groups. If not specified the number"// &
                           " of groups is set to the number of subforce_eval defined.", &
                           usage="ngroups 4", type_of_var=integer_t)
@@ -118,7 +118,7 @@ CONTAINS
                           description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
                           usage="lambda <REAL>", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
@@ -139,20 +139,20 @@ CONTAINS
                           "by the linear combination F= lambda F1 + (1-lambda) F2.", &
                           n_keywords=11, n_subsections=2, repeats=.FALSE., citations=(/Holmberg2017, Holmberg2018/))
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
                           usage="lambda <REAL>", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FORCE_STATES", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_STATES", &
                           description="Defines the CDFT states used to translate the system. ", &
                           usage="FORCE_STATES 1 1", n_var=2, &
                           default_i_vals=(/1, 2/), type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COUPLING", &
+      CALL keyword_create(keyword, __LOCATION__, name="COUPLING", &
                           description="Parameter determining how often the CDFT electronic coupling element "// &
                           "is calculated. Use a negative number to disable and 0 means every step. By default, "// &
                           "the coupling is calculated by rotating the CDFT states to eigenstates of the weight "// &
@@ -166,7 +166,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARALLEL_BUILD", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_BUILD", &
                           description="Build CDFT weight function and gradients in parallel on all "// &
                           "N MPI processors before starting the CDFT SCF calculations of the 2 "// &
                           "involved CDFT states in parallel on N/2 processors. Supports only Becke "// &
@@ -178,7 +178,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DLB", &
+      CALL keyword_create(keyword, __LOCATION__, name="DLB", &
                           description="Controls the activation of dynamic load balancing during a mixed CDFT calculation."// &
                           " Requires Gaussian cavity confinement. Works only in conjunction with keyword PARALLEL_BUILD.", &
                           usage="DLB", type_of_var=logical_t, &
@@ -186,7 +186,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="METRIC", variants=(/"COUPLING_METRIC"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="METRIC", variants=(/"COUPLING_METRIC"/), &
                           description="Compute reliability metric for the CDFT electronic coupling element by "// &
                           "diagonalizing the difference density matrix.", &
                           usage="METRIC", type_of_var=logical_t, &
@@ -195,7 +195,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WFN_OVERLAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="WFN_OVERLAP", &
                           description="Compute the CDFT electronic coupling element using the wavefunction overlap "// &
                           "method in addition to the standard method defined by the keyword COUPLING. "// &
                           "In this method, the unconstrained KS ground state wavefunction (WFN_RESTART_FILE_NAME) "// &
@@ -207,7 +207,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LOWDIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="LOWDIN", &
                           description="Compute the CDFT electronic coupling element using Lowdin orthogonalization. "// &
                           "This is the default behavior with multiple constraints and nonidentical constraints. "// &
                           "By activating this keyword, this method is also used to compute the coupling "// &
@@ -217,7 +217,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CI", variants=(/"CONFIGURATION_INTERACTION"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="CI", variants=(/"CONFIGURATION_INTERACTION"/), &
                           description="Perform a CDFT configuration interaction calculation (CDFT-CI). "// &
                           "The CI vector is expanded in the basis of the CDFT states. Diagonalizes the "// &
                           "nonorthogonal diabatic CDFT Hamiltonian. The energies and expansion coefficients "// &
@@ -228,7 +228,8 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NONORTHOGONAL_COUPLING", variants=(/"NONORTHO_COUPLING"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NONORTHOGONAL_COUPLING", &
+                          variants=(/"NONORTHO_COUPLING"/), &
                           description="Print out the nonorthogonal diabatic CDFT coupling between states, "// &
                           "as it appears in the mixed CDFT Hamiltonian before orthogonalization (coupling "// &
                           "calculations) and CDFT-CI. Useful for (re)constructing the Hamiltonian for additional "// &
@@ -238,7 +239,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCALE_WITH_OCCUPATION_NUMBERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_WITH_OCCUPATION_NUMBERS", &
                           description="Scale molecular orbitals with occupation numbers before calculating "// &
                           "the electronic coupling. Affects only simulations which employ MO smearing. "// &
                           "Disabling this keyword in conjunction with a properly selected EPS_OCCUPIED "// &
@@ -249,7 +250,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
                           description="Name of the wavefunction restart file that defines the unconstrained"// &
                           " KS ground state, which is used to compute the electronic coupling with"// &
                           " the wavefunction overlap method. May include a path.", &
@@ -258,7 +259,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_SVD", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
                           description="Determines the matrix inversion solver needed to compute the coupling."// &
                           " Default value implies LU decomposition, while values between 0.0 and 1.0"// &
                           " imply SVD decomposition. For SVD, the value acts as a threshold"// &
@@ -269,7 +270,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_OCCUPIED", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_OCCUPIED", &
                           description="Threshold for determining which molecular orbitals are considered occupied"// &
                           " when fractional and/or empty orbitals are employed. Can and usually should be less than"// &
                           " the threshold EPS_FERMI_DIRAC defined in section SCF&SMEAR. Note that the number occupied"// &
@@ -281,7 +282,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LOAD_SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="LOAD_SCALE", &
                           description="Control parameter for dynamic load balancing during a mixed CDFT calculation."// &
                           " See code for details. Works only in conjunction with keyword PARALLEL_BUILD.", &
                           usage="LOAD_SCALE <REAL>", type_of_var=real_t, &
@@ -289,7 +290,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MORE_WORK", &
+      CALL keyword_create(keyword, __LOCATION__, name="MORE_WORK", &
                           description="Control parameter for dynamic load balancing during a mixed CDFT calculation."// &
                           " See code for details. Works only in conjunction with keyword PARALLEL_BUILD.", &
                           usage="MORE_WORK <INT>", type_of_var=integer_t, &
@@ -297,7 +298,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VERY_OVERLOADED", &
+      CALL keyword_create(keyword, __LOCATION__, name="VERY_OVERLOADED", &
                           description="Control parameter for dynamic load balancing during a mixed CDFT calculation."// &
                           " See code for details. Works only in conjunction with keyword PARALLEL_BUILD.", &
                           usage="VERY_OVERLOADED <REAL>", type_of_var=real_t, &
@@ -305,7 +306,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BLOCK_DIAGONALIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BLOCK_DIAGONALIZE", &
                           description="Block diagonalize the CDFT Hamiltonian. Control settings should be given in "// &
                           "section &BLOCK_DIAGONALIZE. All requested electronic couplings are printed out after "// &
                           "block diagonalization. When CDFT-CI and block diagonalization are both requested, "// &
@@ -330,7 +331,7 @@ CONTAINS
       CALL section_create(subsection, name="COUPLING", &
                           description="Coupling between two force_eval: E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="COUPLING_PARAMETER", &
+      CALL keyword_create(keyword, __LOCATION__, name="COUPLING_PARAMETER", &
                           description="Coupling parameter H12 used in the coupling", &
                           usage="COUPLING_PARAMETER <REAL>", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
@@ -341,13 +342,13 @@ CONTAINS
       CALL section_create(subsection, name="RESTRAINT", &
                           description="Restraint between two force_eval: E = E1 + k*(E1-E2-t)**2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="RESTRAINT_TARGET", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTRAINT_TARGET", &
                           description="Target value of the restraint (t) ", &
                           usage="RESTRAINT_TARGET <REAL>", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTRAINT_STRENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTRAINT_STRENGTH", &
                           description="Strength of the restraint (k) in "// &
                           "k*(E1-E2-t)**2", &
                           usage="RESTRAINT_STRENGTH <REAL>", type_of_var=real_t)
@@ -360,14 +361,14 @@ CONTAINS
       CALL section_create(subsection, name="GENERIC", &
                           description="User driven coupling between two or more force_eval.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="MIXING_FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIXING_FUNCTION", &
                           description="Specifies the mixing functional form in mathematical notation.", &
                           usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t, &
                           n_var=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VARIABLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
                           description="Defines the variables of the functional form. To allow an efficient"// &
                           " mapping the order of the energy variables will be considered identical to the"// &
                           " order of the force_eval in the force_eval_order list.", &
@@ -376,21 +377,21 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
                           usage="PARAMETERS a b D", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
                           description="Defines the values of parameter of the functional form", &
                           usage="VALUES ", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNITS", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
                           "It is assumed that the corresponding parameter value is specified in this unit.", &
                           usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
@@ -398,13 +399,13 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Parameter used for computing the derivative with the Ridders' method.", &
                           usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERROR_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
                           description="Checks that the error in computing the derivative is not larger than "// &
                           "the value set; in case error is larger a warning message is printed.", &
                           usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
@@ -431,13 +432,13 @@ CONTAINS
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Starting and ending atomic index defining one fragment must be provided", &
                           usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.TRUE.)
       CALL section_add_keyword(sub3section, keyword)
@@ -455,7 +456,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create( &
-         keyword, name="DEFINE_FRAGMENTS", &
+         keyword, __LOCATION__, name="DEFINE_FRAGMENTS", &
          description="Specify the fragments definition of the force_eval through the fragments of the"// &
          " force_eval_mixed. This avoids the pedantic definition of the fragments for the force_eval,"// &
          " assuming the order of the fragments for the specified force_eval is the same as the sequence "// &
@@ -464,7 +465,7 @@ CONTAINS
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the force_eval for which fragments and mappings are provided", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub2section, keyword)
@@ -474,19 +475,19 @@ CONTAINS
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Starting and ending atomic index defining one fragment must be provided", &
                           usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.FALSE.)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAP", &
                           description="Provides the index of the fragment of the MIXED force_eval mapped on the"// &
                           " locally defined fragment.", &
                           usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.)
@@ -567,7 +568,7 @@ CONTAINS
                                        "the mixed CDFT environment. ", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 
-      CALL keyword_create(keyword, "MO_OVERLAP_MATRIX", &
+      CALL keyword_create(keyword, __LOCATION__, name="MO_OVERLAP_MATRIX", &
                           description="Controls the printing of the MO overlap matrices between CDFT states. "// &
                           "The matrices are printed out in plain text.", &
                           usage="MO_OVERLAP_MATRIX TRUE", type_of_var=logical_t, &
@@ -575,7 +576,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, "MO_OVERLAP_EIGENVALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="MO_OVERLAP_EIGENVALUES", &
                           description="Controls the printing of the eigenvalues/singular values of the CDFT MO overlap "// &
                           "matrices. The product of the eigenvalues/singular values is the CDFT MO overlap. "// &
                           "Useful mainly for checking which singular values will get screened for a particular EPS_SVD.", &
@@ -611,7 +612,7 @@ CONTAINS
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="BLOCK", &
+      CALL keyword_create(keyword, __LOCATION__, name="BLOCK", &
                           description="Defines which CDFT states are included in a block. Each repetition of this keyword "// &
                           "defines a new block. The Hamiltonian matrix elements of the requested states are collected "// &
                           "into a new matrix and subsequently diagonalized. The eigenvectors of this matrix are used to "// &
@@ -621,7 +622,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, "IGNORE_EXCITED", &
+      CALL keyword_create(keyword, __LOCATION__, name="IGNORE_EXCITED", &
                           description="Ignore excited states related to each block when constructing the new mixed "// &
                           "CDFT Hamiltonian. This reduces the dimensionality of the Hamiltonian.", &
                           usage="IGNORE_EXCITED FALSE", type_of_var=logical_t, &
@@ -629,7 +630,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, "RECURSIVE_DIAGONALIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="RECURSIVE_DIAGONALIZATION", &
                           description="Perform block diagonalization recursively until only two blocks remain. "// &
                           "For example, if the elements of a 8x8 matrix are first collected into 4 blocks "// &
                           "(using keyword BLOCK), this keyword will transform the matrix to a 2x2 matrix "// &

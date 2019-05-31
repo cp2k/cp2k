@@ -119,7 +119,7 @@ CONTAINS
                           "than numerical GPW.", &
                           n_keywords=5, n_subsections=1)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="N_MINIMAX", &
                           description="Number of terms in minimax approximation of "// &
                           "reciprocal space potential. ", &
@@ -127,7 +127,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="CUTOFF", &
                           description="User-defined energy cutoff to be used only if "// &
                           "DO_CALIBRATE_CUTOFF is set to .FALSE. ", &
@@ -135,14 +135,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="SUM_PRECISION", &
                           description="Terms in lattice sums are ignored if absolute value smaller than this value.", &
                           default_r_val=1.0E-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DO_CALIBRATE_CUTOFF", &
                           description="Whether the energy cutoff shall be calibrated to "// &
                           "minimize upper bound error estimate. ", &
@@ -151,7 +151,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DO_ERROR_ESTIMATE", &
                           description="Whether the error due to minimax approx. and cutoff shall be estimated", &
                           default_l_val=.TRUE., &
@@ -165,7 +165,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="PRINT_CALIB", &
                           description="Print detailed info on calibration. ", &
                           default_l_val=.FALSE., &
@@ -173,7 +173,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DEBUG", &
                           description="debug mode (consistency of summation methods is checked).", &
                           default_l_val=.FALSE., &
@@ -181,14 +181,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DEBUG_TOLERANCE", &
                           description="tolerance for rel. numerical error in debug mode.", &
                           default_r_val=1.0E-06_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DEBUG_NSUM_MAX", &
                           description="restrict debug mode for non-ortho cells to this number of summands. "// &
                           "Sums with more terms are not checked.", &
@@ -203,21 +203,21 @@ CONTAINS
                           "implemented for non-orthorhombic cells. ", &
                           n_keywords=5, n_subsections=0)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="MIN", &
                           description="Initial guess of lower bound for cutoff. ", &
                           default_r_val=10.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="MAX", &
                           description="Initial guess of upper bound for cutoff. ", &
                           default_r_val=10000.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="DELTA", &
                           description="Relative widening of cutoff interval in case starting "// &
                           "values are not valid. ", &
@@ -225,7 +225,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="EPS", &
                           description="Relative cutoff precision required to stop calibration. ", &
                           default_r_val=0.01_dp)
@@ -608,7 +608,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation the ERI_MME test. ", &
                           default_l_val=.FALSE., &
@@ -616,40 +616,40 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_3C", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_3C", &
                           description="Whether to test 3-center integrals.", &
                           default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_2C", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_2C", &
                           description="Whether to test 2-center integrals.", &
                           default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ABC", &
+      CALL keyword_create(keyword, __LOCATION__, name="ABC", &
                           description="Specify the lengths of the cell vectors A, B, and C. ", &
                           usage="ABC 10.000 10.000 10.000", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIN_NPOS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_NPOS", &
                           description="Minimum number of atomic distances to consider. ", &
                           default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NREP", &
+      CALL keyword_create(keyword, __LOCATION__, name="NREP", &
                           description="Number of repeated calculation of each integral. ", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHECK_2C_ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_2C_ACCURACY", &
                           description="Whether integrals should be compared to reference values, "// &
                           "created on the fly by exact method (G-space sum on grid without "// &
                           "minimax approximation). Note: only feasible for not too many "// &
@@ -660,37 +660,37 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="LMAX", &
                           description="Maximum total angular momentum quantum number. ", &
                           default_i_val=6)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ZET_MIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="ZET_MIN", &
                           description="Minimum exponent. ", &
                           default_r_val=0.001_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ZET_MAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="ZET_MAX", &
                           description="Maximum exponent. ", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NZET", &
+      CALL keyword_create(keyword, __LOCATION__, name="NZET", &
                           description="Number of exponents (logarithmic partition between ZET_MIN and ZET_MAX). ", &
                           default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NSAMPLE_3C", &
+      CALL keyword_create(keyword, __LOCATION__, name="NSAMPLE_3C", &
                           description="If NSAMPLE_3C = N, only calculate every Nth 3-center integral.", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POTENTIAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL", &
                           description="Operator to test", &
                           default_i_val=eri_mme_coulomb, &
                           enum_i_vals=(/eri_mme_coulomb, eri_mme_yukawa, eri_mme_longrange/), &
@@ -699,7 +699,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POTENTIAL_PARAM", &
+      CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_PARAM", &
                           description="Parameter 'a' for chosen potential, ignored for Coulomb", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)

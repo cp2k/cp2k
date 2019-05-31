@@ -70,20 +70,20 @@ CONTAINS
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMIC_NUMBER", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMIC_NUMBER", &
                           description="Specify the atomic number", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELEMENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ELEMENT", &
                           description="Specify the element to be calculated", &
                           usage="ELEMENT char", n_var=1, type_of_var=char_t, &
                           default_c_val="H")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RUN_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RUN_TYPE", &
                           description="Type of run that you want to perform "// &
                           "[ENERGY,BASIS_OPTIMIZATION,PSEUDOPOTENTIAL_OPTIMIZATION,,...] ", &
                           usage="RUN_TYPE (NONE|ENERGY|BASIS_OPTIMIZATION|PSEUDOPOTENTIAL_OPTIMIZATION)", &
@@ -97,7 +97,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COULOMB_INTEGRALS", &
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB_INTEGRALS", &
                           description="Method to calculate Coulomb integrals", &
                           usage="COULOMB_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)", &
                           default_i_val=do_numeric, &
@@ -111,7 +111,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCHANGE_INTEGRALS", &
                           description="Method to calculate Exchange integrals", &
                           usage="EXCHANGE_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)", &
                           default_i_val=do_numeric, &
@@ -125,14 +125,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CORE", &
                           description="Specifies the core electrons for a pseudopotential", &
                           usage="CORE 1s2 ... or CORE [Ne] or CORE none for 0 electron cores", repeats=.FALSE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELECTRON_CONFIGURATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ELECTRON_CONFIGURATION", &
                           description="Specifies the electron configuration. "// &
                           "Optional the multiplicity (m) and a core state [XX] can be declared", &
                           usage="ELECTRON_CONFIGURATION (1) [Ne] 3s2 ... ", repeats=.TRUE., &
@@ -140,14 +140,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ANGULAR_MOMENTUM", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ANGULAR_MOMENTUM", &
                           description="Specifies the largest angular momentum calculated [0-3]", &
                           usage="MAX_ANGULAR_MOMENTUM 3", repeats=.FALSE., &
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CALCULATE_STATES", &
+      CALL keyword_create(keyword, __LOCATION__, name="CALCULATE_STATES", &
                           description="Specifies the number of states calculated per l value", &
                           usage="CALCULATE_STATES  5 5 5 3 ", repeats=.FALSE., &
                           default_i_val=0, n_var=-1, type_of_var=integer_t)
@@ -238,7 +238,7 @@ CONTAINS
          print_key, "FIT_DENSITY", &
          description="Fit the total electronic density to a linear combination of Gaussian functions", &
          print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword, name="NUM_GTO", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO", &
                           description="Number of Gaussian type functions for density fit", &
                           usage="NUM_GTO integer ", type_of_var=integer_t, &
                           default_i_val=40)
@@ -252,13 +252,13 @@ CONTAINS
                                        description="Fit an approximation to the non-additive"// &
                                        " kinetic energy potential used in KG", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword, name="NUM_GAUSSIAN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GAUSSIAN", &
                           description="Number of Gaussian terms for the fit", &
                           usage="NUM_GAUSSIAN integer ", type_of_var=integer_t, &
                           default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NUM_POLYNOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_POLYNOM", &
                           description="Number of terms in the polynomial expansion", &
                           usage="NUM_POLYNOM integer ", type_of_var=integer_t, &
                           default_i_val=4)
@@ -271,13 +271,13 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "RESPONSE_BASIS", &
                                        description="Calculate a response basis set contraction scheme", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword, name="DELTA_CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_CHARGE", &
                           description="Variation of charge used in finite difference calculation", &
                           usage="DELTA_CHARGE real ", type_of_var=real_t, &
                           default_r_val=0.05_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="DERIVATIVES", &
+      CALL keyword_create(keyword, __LOCATION__, name="DERIVATIVES", &
                           description="Number of wavefunction derivatives to calculate", &
                           usage="DERIVATIVES integer ", type_of_var=integer_t, &
                           default_i_val=2)
@@ -291,21 +291,21 @@ CONTAINS
                                        description="Calculate a response basis set based on a set of geometrical exponents", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       !
-      CALL keyword_create(keyword, name="DELTA_CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_CHARGE", &
                           description="Variation of charge used in finite difference calculation", &
                           usage="DELTA_CHARGE real ", type_of_var=real_t, &
                           default_r_val=0.05_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="DERIVATIVES", &
+      CALL keyword_create(keyword, __LOCATION__, name="DERIVATIVES", &
                           description="Number of wavefunction derivatives to calculate", &
                           usage="DERIVATIVES integer ", type_of_var=integer_t, &
                           default_i_val=3)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="QUADRATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="QUADRATURE", &
                           description="Algorithm to construct the atomic radial grids", &
                           usage="QUADRATURE (GC_SIMPLE|GC_TRANSFORMED|GC_LOG)", &
                           enum_c_vals=s2a("GC_SIMPLE", "GC_TRANSFORMED", "GC_LOG"), &
@@ -317,59 +317,59 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="GRID_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_POINTS", &
                           description="Number of radial grid points", &
                           usage="GRID_POINTS integer", &
                           default_i_val=400)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="NUM_GTO_CORE", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_CORE", &
                           description="Number of Gaussian type functions for s, p, d, ... "// &
                           "for the main body of the basis", &
                           usage="NUM_GTO 6 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NUM_GTO_EXTENDED", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_EXTENDED", &
                           description="Number of Gaussian type functions for s, p, d, ... "// &
                           "for the extension set", &
                           usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NUM_GTO_POLARIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_POLARIZATION", &
                           description="Number of Gaussian type functions for the polarization set", &
                           usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="EXTENSION_BASIS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXTENSION_BASIS", &
                           description="Number of basis functions for s, p, d, ... "// &
                           "for the extension set", &
                           usage="EXTENSION_BASIS 4 3 2 1 ", n_var=-1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="GEOMETRICAL_FACTOR", &
                           description="Geometrical basis: factor C in a*C^k (initial value for optimization)", &
                           usage="GEOMETRICAL_FACTOR real", &
                           default_r_val=2.3_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="GEO_START_VALUE", &
+      CALL keyword_create(keyword, __LOCATION__, name="GEO_START_VALUE", &
                           description="Geometrical basis: starting value a in a*C^k (initial value for optimization)", &
                           usage="GEO_START_VALUE real", &
                           default_r_val=0.06_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="CONFINEMENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="CONFINEMENT", &
                           description="Onset value of barrier confinement potential [Bohr]", &
                           usage="CONFINEMENT real", &
                           default_r_val=8.00_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NAME_BODY", &
+      CALL keyword_create(keyword, __LOCATION__, name="NAME_BODY", &
                           description="Specifies the body of the basis set name ", &
                           usage="NAME_BODY <char>", &
                           type_of_var=char_t, default_c_val="GRB", n_var=-1)
@@ -397,12 +397,12 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "ANALYZE_BASIS", &
                                        description="Calculates some basis set analysis data", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword, name="OVERLAP_CONDITION_NUMBER", &
+      CALL keyword_create(keyword, __LOCATION__, name="OVERLAP_CONDITION_NUMBER", &
                           description="Condition number of the basis set overlap matrix calculated for a cubic crystal", &
                           usage="OVERLAP_CONDITION_NUMBER <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="COMPLETENESS", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMPLETENESS", &
                           description="Calculate a completeness estimate for the basis set.", &
                           usage="COMPLETENESS <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
@@ -513,7 +513,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(section))
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="BASIS_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_TYPE", &
                           description="Basis set type", &
                           usage="BASIS_TYPE (GAUSSIAN|GEOMETRICAL_GTO|CONTRACTED_GTO|SLATER|NUMERICAL)", &
                           default_i_val=gaussian, &
@@ -531,91 +531,91 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_GTO", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO", &
                           description="Number of Gaussian type functions for s, p, d, ...", &
                           usage="NUM_GTO 5 5 5 ", n_var=-1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_SLATER", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_SLATER", &
                           description="Number of Slater type functions for s, p, d, ...", &
                           usage="NUM_SLATER 5 5 5 ", n_var=-1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="START_INDEX", &
+      CALL keyword_create(keyword, __LOCATION__, name="START_INDEX", &
                           description="Starting index for Geometrical Basis sets", &
                           usage="START_INDEX 0 2 5 4 ", n_var=-1, type_of_var=integer_t, &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="S_EXPONENTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="S_EXPONENTS", &
                           description="Exponents for s functions", &
                           usage="S_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="P_EXPONENTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="P_EXPONENTS", &
                           description="Exponents for p functions", &
                           usage="P_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="D_EXPONENTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="D_EXPONENTS", &
                           description="Exponents for d functions", &
                           usage="D_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="F_EXPONENTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="F_EXPONENTS", &
                           description="Exponents for f functions", &
                           usage="F_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="S_QUANTUM_NUMBERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="S_QUANTUM_NUMBERS", &
                           description="Main quantum numbers for s functions", &
                           usage="S_QUANTUM_NUMBERS 1 2 ... ", n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="P_QUANTUM_NUMBERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="P_QUANTUM_NUMBERS", &
                           description="Main quantum numbers for p functions", &
                           usage="P_QUANTUM_NUMBERS 2 3 ... ", n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="D_QUANTUM_NUMBERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="D_QUANTUM_NUMBERS", &
                           description="Main quantum numbers for d functions", &
                           usage="D_QUANTUM_NUMBERS 3 4 ... ", n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="F_QUANTUM_NUMBERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="F_QUANTUM_NUMBERS", &
                           description="Main quantum numbers for f functions", &
                           usage="F_QUANTUM_NUMBERS 4 5 ... ", n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="GEOMETRICAL_FACTOR", &
                           description="Geometrical basis: factor C in a*C^k", &
                           usage="GEOMETRICAL_FACTOR real", &
                           default_r_val=2.6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GEO_START_VALUE", &
+      CALL keyword_create(keyword, __LOCATION__, name="GEO_START_VALUE", &
                           description="Geometrical basis: starting value a in a*C^k", &
                           usage="GEO_START_VALUE real", &
                           default_r_val=0.016_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_SET_FILE_NAME", &
                           description="Name of the basis set file, may include a path", &
                           usage="BASIS_SET_FILE_NAME <FILENAME>", &
                           default_lc_val="BASIS_SET")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIS_SET", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_SET", &
                           variants=s2a("ORBITAL_BASIS_SET", "ORB_BASIS"), &
                           description="The contracted Gaussian basis set", &
                           usage="BASIS_SET DZVP", default_c_val=" ", &
@@ -623,7 +623,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QUADRATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="QUADRATURE", &
                           description="Algorithm to construct the atomic radial grids", &
                           usage="QUADRATURE (GC_SIMPLE|GC_TRANSFORMED|GC_LOG)", &
                           enum_c_vals=s2a("GC_SIMPLE", "GC_TRANSFORMED", "GC_LOG"), &
@@ -635,14 +635,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GRID_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_POINTS", &
                           description="Number of radial grid points", &
                           usage="GRID_POINTS integer", &
                           default_i_val=400)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_EIGENVALUE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_EIGENVALUE", &
                           description="Cutoff of overlap matrix eigenvalues included into basis", &
                           usage="EPS_EIGENVALUE real", &
                           default_r_val=1.e-12_dp)
@@ -676,7 +676,7 @@ CONTAINS
                           description="Section of information on method to use.", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="METHOD_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD_TYPE", &
                           description="Type of electronic structure method to be used", &
                           usage="METHOD_TYPE (KOHN-SHAM|RKS|UKS|HARTREE-FOCK|RHF|UHF|ROHF)", &
                           default_i_val=do_rks_atom, &
@@ -699,7 +699,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RELATIVISTIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="RELATIVISTIC", &
                           description="Type of scalar relativistic method to be used", &
                           usage="RELATIVISTIC (OFF|ZORA(MP)|scZORA(MP)|DKH(0)|DKH(1)|DKH(2)|DKH(3))", &
                           default_i_val=do_nonrel_atom, &
@@ -758,26 +758,26 @@ CONTAINS
                           description="Section used to specify ZMP Potentials.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="FILE_DENSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
                           description="Specifies the filename containing the target density ", &
                           usage="FILE_DENSITY <FILENAME>", &
                           type_of_var=char_t, default_c_val="RHO_O.dat", n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GRID_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_TOL", &
                           description="Tolerance in the equivalence of read-grid in ZMP method", &
                           usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Parameter used for the constraint in ZMP method", &
                           usage="LAMBDA <REAL>", default_r_val=10.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DM", &
+      CALL keyword_create(keyword, __LOCATION__, name="DM", &
                           description="read external density from density matrix", &
                           usage="DM <LOGICAL>", type_of_var=logical_t, default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -810,7 +810,7 @@ CONTAINS
                           "procedure, and the file that must be read.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="FILE_RESTART", &
+      CALL keyword_create(keyword, __LOCATION__, name="FILE_RESTART", &
                           description="Specifies the filename containing the restart file density ", &
                           usage="FILE_RESTART <FILENAME>", &
                           type_of_var=char_t, default_c_val="RESTART.wfn", n_var=-1)
@@ -839,14 +839,14 @@ CONTAINS
                           description="Section used to specify exernal VXC Potentials.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="FILE_VXC", &
+      CALL keyword_create(keyword, __LOCATION__, name="FILE_VXC", &
                           description="Specifies the filename containing the external vxc ", &
                           usage="FILE_VXC <FILENAME>", &
                           type_of_var=char_t, default_c_val="VXC.dat", n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GRID_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_TOL", &
                           description="Tolerance in the equivalence of read-grid in ZMP method", &
                           usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp)
       CALL section_add_keyword(section, keyword)
@@ -873,31 +873,31 @@ CONTAINS
                           description="Section of information on optimization thresholds and algorithms.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of iterations for optimization", &
                           usage="MAX_ITER  50", default_i_val=200)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_SCF", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SCF", &
                           description="Convergence criterion for SCF", &
                           usage="EPS_SCF 1.e-10", default_r_val=1.e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DAMPING", &
+      CALL keyword_create(keyword, __LOCATION__, name="DAMPING", &
                           description="Damping parameter for extrapolation method", &
                           usage="DAMPING 0.4", default_r_val=0.4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_DIIS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DIIS", &
                           description="Starting DIIS method at convergence to EPS_DIIS", &
                           usage="EPS_DIIS  0.01", default_r_val=10000._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_DIIS", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_DIIS", &
                           description="Maximum number of DIIS vectors", &
                           usage="N_DIIS  6", default_i_val=5)
       CALL section_add_keyword(section, keyword)
@@ -925,7 +925,7 @@ CONTAINS
                           description="Section of information on potential.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="CONFINEMENT_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CONFINEMENT_TYPE", &
                           description="Define functional form of confinement potential.", &
                           usage="CONFINEMENT_TYPE (NONE|POLYNOM|BARRIER)", &
                           default_i_val=poly_conf, &
@@ -939,7 +939,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONFINEMENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="CONFINEMENT", &
                           description="Definition of parameters for confinement potential (a,b,c)", &
                           usage="CONFINEMENT prefactor range exponent (POLYNOM)"// &
                           "CONFINEMENT prefactor range r_onset (BARRIER)", &
@@ -948,7 +948,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PSEUDO_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PSEUDO_TYPE", &
                           description="Pseudopotential type", &
                           usage="PSEUDO_TYPE (NONE|GTH|UPF|ECP)", &
                           default_i_val=no_pseudo, &
@@ -966,14 +966,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_FILE_NAME", &
                           description="Name of the pseudo potential file, may include a path", &
                           usage="POTENTIAL_FILE_NAME <FILENAME>", &
                           default_lc_val="POTENTIAL")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POTENTIAL_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_NAME", &
                           variants=(/"POT_NAME"/), &
                           description="The name of the pseudopotential for the defined kind.", &
                           usage="POTENTIAL_NAME <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1)
@@ -1009,7 +1009,7 @@ CONTAINS
                           description="Section used to specify Potentials.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)", &
                           repeats=.TRUE., type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -1033,7 +1033,7 @@ CONTAINS
                           description="Section used to specify ECP's.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Effective Core Potentials definition", &
                           repeats=.TRUE., type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -1057,7 +1057,7 @@ CONTAINS
                           description="Section used to specify a general basis set for QM calculations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="CP2K Basis Set Standard Format", repeats=.TRUE., &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -1082,119 +1082,119 @@ CONTAINS
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="ACCURACY", &
                           description="Final accuracy requested in optimization (RHOEND)", &
                           usage="ACCURACY 0.00001", &
                           default_r_val=1.e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_SIZE", &
                           description="Initial step size for search algorithm (RHOBEG)", &
                           usage="STEP_SIZE 0.005", &
                           default_r_val=0.005_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_FUN", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FUN", &
                           description="Maximum number of function evaluations", &
                           usage="MAX_FUN 1000", &
                           default_i_val=5000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_INIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_INIT", &
                           description="Maximum number of re-initialization of Powell method", &
                           usage="MAX_INIT 5", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STEP_SIZE_SCALING", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_SIZE_SCALING", &
                           description="Scaling of Step Size on re-initialization of Powell method", &
                           usage="STEP_SIZE_SCALING 0.80", &
                           default_r_val=0.75_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_POT_VIRTUAL", &
                           description="Weight for virtual states in pseudopotential optimization", &
                           usage="WEIGHT_POT_VIRTUAL 1.0", &
                           default_r_val=1._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_POT_SEMICORE", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_POT_SEMICORE", &
                           description="Weight for semi core states in pseudopotential optimization", &
                           usage="WEIGHT_POT_SEMICORE 1.0", &
                           default_r_val=1._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_POT_VALENCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_POT_VALENCE", &
                           description="Weight for valence states in pseudopotential optimization", &
                           usage="WEIGHT_POT_VALENCE 1.0", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_POT_NODE", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_POT_NODE", &
                           description="Weight for node mismatch in pseudopotential optimization", &
                           usage="WEIGHT_POT_NODE 1.0", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_DELTA_ENERGY", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_DELTA_ENERGY", &
                           description="Weight for energy differences in pseudopotential optimization", &
                           usage="WEIGHT_DELTA_ENERGY 1.0", &
                           default_r_val=1._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_ELECTRON_CONFIGURATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_ELECTRON_CONFIGURATION", &
                           description="Weight for different electronic states in optimization", &
                           usage="WEIGHT_ELECTRON_CONFIGURATION 1.0 0.1 ...", &
                           n_var=-1, type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_METHOD", &
                           description="Weight for different methods in optimization", &
                           usage="WEIGHT_METHOD 1.0 0.1 ...", &
                           n_var=-1, type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_POT_VIRTUAL", &
                           description="Target accuracy for virtual state eigenvalues in pseudopotential optimization", &
                           usage="TARGET_POT_VIRTUAL 0.0001", &
                           default_r_val=1.0e-3_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_POT_VALENCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_POT_VALENCE", &
                           description="Target accuracy for valence state eigenvalues in pseudopotential optimization", &
                           usage="TARGET_POT_VALENCE 0.0001", &
                           default_r_val=1.0e-5_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_POT_SEMICORE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_POT_SEMICORE", &
                           description="Target accuracy for semicore state eigenvalues in pseudopotential optimization", &
                           usage="TARGET_POT_SEMICORE 0.01", &
                           default_r_val=1.0e-3_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_DELTA_ENERGY", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_DELTA_ENERGY", &
                           description="Target accuracy for energy differences in pseudopotential optimization", &
                           usage="TARGET_DELTA_ENERGY 0.01", &
                           default_r_val=1.0e-4_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TARGET_PSIR0", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET_PSIR0", &
                           description="Minimum value for the wavefunctions at r=0 (only occupied states)"// &
                           " Value=0 means keeping wfn(r=0)=0", &
                           usage="TARGET_PSIR0 0.50", &
@@ -1202,21 +1202,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHT_PSIR0", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_PSIR0", &
                           description="Weight for the wavefunctions at r=0 (only occupied states)", &
                           usage="WEIGHT_PSIR0 0.01", &
                           default_r_val=0._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCOV_MULTIPLICATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCOV_MULTIPLICATION", &
                           description="Multiply Rcov integration limit for charge conservation", &
                           usage="RCOV_MULTIPLICATION  1.10", &
                           default_r_val=1._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SEMICORE_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="SEMICORE_LEVEL", &
                           description="Energy at which to consider a full shell as semicore", &
                           usage="SEMICORE_LEVEL 1.0", &
                           default_r_val=1._dp, unit_str="hartree")

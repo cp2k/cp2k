@@ -60,6 +60,7 @@ MODULE input_keyword_types
 !> \brief represent a keyword in the input
 !> \param names the names of the current keyword (at least one should be
 !>        present) for example "MAXSCF"
+!> \param location is where in the source code (file and line) the keyword is created
 !> \param usage how to use it "MAXSCF 10"
 !> \param description what does it do: "MAXSCF : determines the maximum
 !>        number of steps in an SCF run"
@@ -86,6 +87,7 @@ MODULE input_keyword_types
    TYPE keyword_type
       INTEGER :: ref_count, id_nr
       CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
+      CHARACTER(LEN=usage_string_length) :: location
       CHARACTER(LEN=usage_string_length) :: usage
       CHARACTER, DIMENSION(:), POINTER :: description => Null()
       INTEGER, POINTER, DIMENSION(:) :: citations
@@ -102,6 +104,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a keyword object
 !> \param keyword the keyword object to be created
+!> \param location from where in the source code keyword_create() is called
 !> \param name the name of the keyword
 !> \param description ...
 !> \param usage ...
@@ -137,7 +140,7 @@ CONTAINS
 !> \param citations ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var, &
+   SUBROUTINE keyword_create(keyword, location, name, description, usage, type_of_var, &
                              n_var, repeats, variants, default_val, &
                              default_l_val, default_r_val, default_lc_val, default_c_val, default_i_val, &
                              default_l_vals, default_r_vals, default_c_vals, default_i_vals, &
@@ -146,7 +149,7 @@ CONTAINS
                              lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
                              enum, enum_strict, enum_desc, unit_str, citations)
       TYPE(keyword_type), POINTER                        :: keyword
-      CHARACTER(len=*), INTENT(in)                       :: name, description
+      CHARACTER(len=*), INTENT(in)                       :: location, name, description
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: usage
       INTEGER, INTENT(in), OPTIONAL                      :: type_of_var, n_var
       LOGICAL, INTENT(in), OPTIONAL                      :: repeats
@@ -193,6 +196,7 @@ CONTAINS
       last_keyword_id = last_keyword_id+1
       keyword%id_nr = last_keyword_id
       NULLIFY (keyword%unit)
+      keyword%location = location
 
       IF (PRESENT(variants)) THEN
          ALLOCATE (keyword%names(SIZE(variants)+1))
@@ -923,6 +927,9 @@ CONTAINS
                REPEAT(" ", l1)//"</REFERENCE>"
          END DO
       END IF
+
+      WRITE (UNIT=unit_number, FMT="(A)") &
+         REPEAT(" ", l1)//"<LOCATION>"//TRIM(keyword%location)//"</LOCATION>"
 
       ! Close (special) keyword section
 
