@@ -65,14 +65,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="INTENSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
                           description="Intensity of the electric field in a.u", &
                           usage="INTENSITY  0.001", &
                           default_r_val=0._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POLARISATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
                           description="Polarisation vector of electric field", &
                           usage="POLARISIATION  0.0 0.0 1.0", &
                           repeats=.FALSE., n_var=3, &
@@ -80,7 +80,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DISPLACEMENT_FIELD", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISPLACEMENT_FIELD", &
                           description="Use the displacement field formulation.", &
                           usage="DISPLACEMENT_FIELD T", &
                           citations=(/Stengel2009/), &
@@ -89,7 +89,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="D_FILTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="D_FILTER", &
                           description="Filter for displacement field (x,y,z-dirction)", &
                           usage="D_FILTER  1.0 0.0 0.0", &
                           repeats=.FALSE., n_var=3, &
@@ -119,7 +119,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="INTENSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
                           description="Intensity of the electric field. For real-time propagation (RTP) units are "// &
                           "in W*cm-2 which corresponds "// &
                           "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16)). "// &
@@ -129,7 +129,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POLARISATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
                           description="Polarisation vector of electric field", &
                           usage="POLARISATION  0.0 0.0 1.0", &
                           repeats=.FALSE., n_var=3, &
@@ -137,14 +137,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WAVELENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="WAVELENGTH", &
                           description="Wavelength of efield field for real-time propagation (RTP) calculations.", &
                           usage="Wavelength  1.E0", &
                           default_r_val=0._dp, unit_str="nm")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHASE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="Phase offset of the cosine given in multiples of pi. "// &
                           "Used in real-time propagation (RTP) calculations.", &
                           usage="Phase  1.E0", &
@@ -152,7 +152,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENVELOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENVELOP", &
                           description="Shape of the efield pulse used in real-time propagation (RTP) calculations.", &
                           usage="ENVELOP CONSTANT", &
                           default_i_val=constant_env, &
@@ -202,14 +202,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="START_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="START_STEP", &
                           description="First step the field is applied ", &
                           usage="START_STEP 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="END_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="END_STEP", &
                           description="Last step the field is applied", &
                           usage="END_STEP 2", &
                           default_i_val=-1)
@@ -237,7 +237,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="T0", &
+      CALL keyword_create(keyword, __LOCATION__, name="T0", &
                           description="Center of the gaussian envelop (maximum of the gaussian)", &
                           usage="T0 2.0E0", &
                           default_r_val=0.0E0_dp, &
@@ -245,7 +245,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIGMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="SIGMA", &
                           description="Width of the gaussian ", &
                           usage="SIGMA 2.0E0", &
                           default_r_val=-1.0E0_dp, &
@@ -274,28 +274,28 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="START_STEP_IN", &
+      CALL keyword_create(keyword, __LOCATION__, name="START_STEP_IN", &
                           description="Step when the electric field starts to be applied ", &
                           usage="START_STEP_IN 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="END_STEP_IN", &
+      CALL keyword_create(keyword, __LOCATION__, name="END_STEP_IN", &
                           description="Step when the field reaches the full strength", &
                           usage="END_STEP_IN 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="START_STEP_OUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="START_STEP_OUT", &
                           description="Step when the field starts to vanish ", &
                           usage="START_STEP 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="END_STEP_OUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="END_STEP_OUT", &
                           description="Step when the field disappears", &
                           usage="END_TIME 2", &
                           default_i_val=-1)
@@ -323,14 +323,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="EFIELD_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="EFIELD_FILE_NAME", &
                           description="Specify file that contains the electric field [V/m].", &
                           usage="EFIELD_FILE_NAME filename", &
                           n_var=1, type_of_var=char_t, default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TIMESTEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="TIMESTEP", &
                           description="The time step between the entries in the list with the electric field.", &
                           usage="TIME_STEP 1", &
                           unit_str="fs", &

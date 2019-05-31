@@ -68,7 +68,7 @@ CONTAINS
                           " with different possible methods", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Defines the method to use to compute free energy.", &
                           usage="METHOD (METADYN|UI|AC)", &
                           enum_c_vals=s2a("METADYN", "UI", "AC"), &
@@ -124,21 +124,21 @@ CONTAINS
 
       NULLIFY (subsection, keyword, print_key)
 
-      CALL keyword_create(keyword, name="USE_PLUMED", &
+      CALL keyword_create(keyword, __LOCATION__, name="USE_PLUMED", &
                           description="Specify whether to use plumed as an external metadynamics driver.", &
                           usage="USE_PLUMED .FALSE./.TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PLUMED_INPUT_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PLUMED_INPUT_FILE", &
                           description="Specify the file name of the external plumed input file", &
                           usage="PLUMED_INPUT_FILE ./FILENAME", &
                           default_c_val="./plumed.dat")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIN_NT_HILLS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_NT_HILLS", &
                           description="Specify the minimum MD step interval between spawning "// &
                           "two hills. If specified, it must be >= than NT_HILLS. In case MIN_DISP "// &
                           "is used, if MIN_DISP is satisfied before MIN_NT_HILLS MD steps have been "// &
@@ -148,7 +148,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NT_HILLS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NT_HILLS", &
                           description="Specify the maximum MD step interval between spawning "// &
                           "two hills. When negative, no new hills are spawned and only "// &
                           "the hills read from SPAWNED_HILLS_* are in effect. The latter"// &
@@ -157,7 +157,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMPERATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="If a Lagrangian scheme is used the temperature for the collective "// &
                           "variables is specified. ", usage="TEMPERATURE <REAL>", &
                           default_r_val=0.0_dp, unit_str='K')
@@ -165,20 +165,20 @@ CONTAINS
       CALL keyword_release(keyword)
 
       !RG Adaptive hills
-      CALL keyword_create(keyword, name="MIN_DISP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_DISP", &
                           description="Minimum displacement between hills before placing a new hill.", &
                           usage="MIN_DISP <REAL>", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OLD_HILL_NUMBER", &
+      CALL keyword_create(keyword, __LOCATION__, name="OLD_HILL_NUMBER", &
                           description="Index of the last hill spawned for this walker.Needed to calculate MIN_DISP", &
                           usage="OLD_HILL_NUMBER <INT>", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="OLD_HILL_STEP", &
+      CALL keyword_create(keyword, __LOCATION__, name="OLD_HILL_STEP", &
                           description="Timestep of the last hill spawned for this walker.Needed to calculate MIN_DISP", &
                           usage="OLD_HILL_STEP <INT>", &
                           default_i_val=0)
@@ -187,7 +187,7 @@ CONTAINS
       !RG Adaptive hills
 
       !Hills tail damping
-      CALL keyword_create(keyword, name="HILL_TAIL_CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="HILL_TAIL_CUTOFF", &
                           description="By setting this variable larger than 0 the tail of the Gaussian hill "// &
                           " is damped to zero faster. The Gaussian function is multiplied by a cutoff function"// &
                           " that becomes active at |x-X0|>HILL_TAIL_CUTOFF*SCALE, where X0 is the location of "// &
@@ -198,34 +198,34 @@ CONTAINS
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="P_EXPONENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="P_EXPONENT", &
                           description="Exponent at the numerator of the cutoff function to damp the tail of the Gaussian.", &
                           usage="P_EXPONENT <INT>", &
                           default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="Q_EXPONENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="Q_EXPONENT", &
                           description="Exponent at the denominator of the cutoff function to damp the tail of the Gaussian.", &
                           usage="Q_EXPONENT <INT>", &
                           default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SLOW_GROWTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="SLOW_GROWTH", &
                           description="Let the last hill grow slowly over NT_HILLS. ", &
                           usage="SLOW_GROWTH {logical}", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMP_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMP_TOL", &
                           description="If a Lagrangian scheme is used the temperature tolerance for the collective "// &
                           "variables is specified.", usage="TEMP_TOL <REAL>", &
                           unit_str='K', default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LANGEVIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="LANGEVIN", &
                           description="If a Lagrangian scheme is used the eq. motion of the COLVARS are integrated "// &
                           "with a LANGEVIN scheme.", &
                           usage="LANGEVIN {logical}", &
@@ -234,70 +234,70 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WW", &
+      CALL keyword_create(keyword, __LOCATION__, name="WW", &
                           description="Specifies the height of the gaussian to spawn. Default 0.1 .", &
                           usage="WW <REAL>", unit_str='hartree', default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DO_HILLS", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_HILLS", &
                           description="This keyword enables the spawning of the hills. Default .FALSE.", &
                           usage="DO_HILLS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WELL_TEMPERED", &
+      CALL keyword_create(keyword, __LOCATION__, name="WELL_TEMPERED", &
                           description="This keyword enables Well-tempered metadynamics. Default .FALSE.", &
                           usage="WELL_TEMPERED", citations=(/BarducBus2008/), &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DELTA_T", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_T", &
                           description="If Well-tempered metaD is used, the temperature parameter "// &
                           "must be specified.", usage="DELTA_T <REAL>", &
                           unit_str='K', default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WTGAMMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="WTGAMMA", &
                           description="If Well-tempered metaD is used, the gamma parameter "// &
                           "must be specified if not DELTA_T.", usage="WTGAMMA <REAL>", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAGRANGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAGRANGE", &
                           description="Specifies whether an extended-lagrangian should be used. Default .FALSE.", &
                           usage="LAGRANGE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="step_start_val", &
+      CALL keyword_create(keyword, __LOCATION__, name="step_start_val", &
                           description="The starting step value for metadynamics", &
                           usage="step_start_val <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="nhills_start_val", &
+      CALL keyword_create(keyword, __LOCATION__, name="nhills_start_val", &
                           description="The starting value of previously spawned hills", &
                           usage="nhills_start_val <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="COLVAR_AVG_TEMPERATURE_RESTART", &
+      CALL keyword_create(keyword, __LOCATION__, name="COLVAR_AVG_TEMPERATURE_RESTART", &
                           description="COLVAR average temperature. Only for restarting purposes.", &
                           usage="COLVAR_AVG_TEMPERATURE_RESTART 0.0", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="TAMCSteps", &
+      CALL keyword_create(keyword, __LOCATION__, name="TAMCSteps", &
                           description="Number of sampling points for z", &
                           usage="TAMCSteps <integer>", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="timestep", &
+      CALL keyword_create(keyword, __LOCATION__, name="timestep", &
                           description="The length of an integration step for colvars (TAMC only)", &
                           usage="timestep <real>", default_r_val=cp_unit_to_cp2k(value=0.5_dp, unit_str="fs"), &
                           unit_str="fs")
@@ -387,25 +387,25 @@ CONTAINS
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the usage of the multiple walkers in a metadynamics run.", &
                           usage="&MULTIPLE_WALKERS T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WALKER_ID", &
+      CALL keyword_create(keyword, __LOCATION__, name="WALKER_ID", &
                           description="Sets the walker ID for the local metadynamics run.", &
                           usage="WALKER_ID <INTEGER>", type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUMBER_OF_WALKERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_WALKERS", &
                           description="Sets the total number of walkers in the metadynamic run.", &
                           usage="NUMBER_OF_WALKERS <INTEGER>", type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WALKER_COMM_FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="WALKER_COMM_FREQUENCY", &
                           description="Sets the frequency (in unit of spawned hills) for the "// &
                           "communication between the several walkers, in order to update the "// &
                           "local list of hills with the ones coming from the other walkers", &
@@ -413,7 +413,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WALKERS_STATUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="WALKERS_STATUS", &
                           description="Stores the status of the several walkers in the local run.", &
                           usage="WALKERS_STATUS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -424,7 +424,7 @@ CONTAINS
                           "communicate between the walkers. Absolute path can be input as well "// &
                           "together with the filename. One file will be created for each spawned hill.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specified the communication filename for each walker.", repeats=.TRUE., &
                           usage="{String}", type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(subsection, keyword)
@@ -453,28 +453,28 @@ CONTAINS
                           " with the alchemical change method.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="PARAMETER", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETER", &
                           description="Defines the perturbing parameter of the alchemical change tranformation", &
                           usage="PARAMETERS k", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHTING_FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHTING_FUNCTION", &
                           description="Specifies the weighting function (umbrella potential, part of the mixing function)", &
                           usage="WEIGHTING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t, &
                           n_var=1, default_lc_val="0")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_CONV", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CONV", &
                           description="Set the relative tolerance for the convergence of the free energy derivative", &
                           usage="EPS_CONV <REAL>", &
                           default_r_val=1.0E-2_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NEQUIL_STEPS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NEQUIL_STEPS", &
                           description="Set the number of equilibration steps, skipped to compute averages", &
                           usage="NEQUIL_STEPS <INTEGER>", &
                           default_i_val=0)
@@ -533,7 +533,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify the spawned hills", repeats=.TRUE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -550,7 +550,7 @@ CONTAINS
                           "metadynamics run.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify the spawned hills", repeats=.TRUE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -563,7 +563,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify the spawned hills", repeats=.TRUE., &
                           usage="{Real}", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -576,7 +576,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify the spawned hills", repeats=.TRUE., &
                           usage="{Real}", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -591,7 +591,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specified the positions", repeats=.TRUE., &
                           usage="{Real}", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -604,7 +604,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specified the velocities", repeats=.TRUE., &
                           usage="{Real}", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -617,7 +617,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specified the theta", repeats=.TRUE., &
                           usage="{Real}", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -630,7 +630,7 @@ CONTAINS
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specified the theta", repeats=.TRUE., &
                           usage="{Real}", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -660,20 +660,20 @@ CONTAINS
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
      description="Specifies the lambda parameter for the coupling of the collective variable with the system coordinates in the"// &
                           " extended lagrangian scheme.", &
                           usage="LAMBDA <REAL>", unit_str='internal_cp2k', type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MASS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MASS", &
                           description="Specifies the mass parameter of the collective variable in the"// &
                           " extended lagrangian scheme.", usage="MASS <REAL>", unit_str='amu', type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GAMMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="GAMMA", &
                           description="Specifies the friction term in Langevin integration of the collective variable in the"// &
                           " extended lagrangian scheme.", &
                           citations=(/VandenCic2006/), &
@@ -681,7 +681,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
                           variants=(/"WIDTH"/), &
                           description="Specifies the scale factor for the following collective variable. The history "// &
                           "dependent term has the expression: WW * Sum_{j=1}^{nhills} Prod_{k=1}^{ncolvar} "// &
@@ -691,7 +691,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COLVAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="COLVAR", &
                           description="Specifies the colvar on which to apply metadynamics.", &
                           usage="COLVAR {integer}", type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -704,7 +704,7 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
       CALL keyword_create( &
-         keyword, name="TYPE", &
+         keyword, __LOCATION__, name="TYPE", &
          description="Specify the type of wall", &
          usage=" TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)", &
          enum_c_vals=s2a("REFLECTIVE", "QUADRATIC", "QUARTIC", "GAUSSIAN", "NONE"), &
@@ -718,7 +718,7 @@ CONTAINS
       CALL section_add_keyword(wall_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POSITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="POSITION", &
                           description="Specify the value of the colvar for the wall position", &
                           usage="POSITION <REAL>", unit_str='internal_cp2k', &
                           type_of_var=real_t)
@@ -730,7 +730,7 @@ CONTAINS
                           description="Parameters controlling the reflective wall", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="DIRECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTION", &
                           description="Specify the direction of the wall.", &
                           usage=" TYPE (WALL_PLUS|WALL_MINUS)", &
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
@@ -747,7 +747,7 @@ CONTAINS
                           description="Parameters controlling the quadratic wall", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="DIRECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTION", &
                           description="Specify the direction of the wall.", &
                           usage=" TYPE (WALL_PLUS|WALL_MINUS)", &
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
@@ -757,7 +757,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Specify the value of the quadratic potential constant: K*(CV-POS)^2", &
                           usage="K <REAL>", unit_str='hartree', &
                           type_of_var=real_t)
@@ -772,7 +772,7 @@ CONTAINS
                           description="Parameters controlling the quartic wall", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="DIRECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTION", &
                           description="Specify the direction of the wall.", &
                           usage=" TYPE (WALL_PLUS|WALL_MINUS)", &
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
@@ -782,7 +782,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Specify the value of the quartic potential constant: K*(CV-(POS+/-(1/K^(1/4))))^4", &
                           usage="K <REAL>", unit_str='hartree', &
                           type_of_var=real_t)
@@ -797,14 +797,14 @@ CONTAINS
                           description="Parameters controlling the gaussian wall.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="WW", &
+      CALL keyword_create(keyword, __LOCATION__, name="WW", &
                           description="Specify the height of the gaussian: WW*e^(-((CV-POS)/sigma)^2)", &
                           usage="K <REAL>", unit_str='hartree', &
                           type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIGMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="SIGMA", &
                           description="Specify the width of the gaussian: WW*e^(-((CV-POS)/sigma)^2)", &
                           usage="SIGMA <REAL>", unit_str='internal_cp2k', &
                           type_of_var=real_t)
@@ -840,7 +840,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="COLVAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="COLVAR", &
                           description="Specifies the colvar used to compute free energy", &
                           usage="COLVAR {integer}", type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -868,7 +868,7 @@ CONTAINS
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="COARSE_GRAINED_WIDTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="COARSE_GRAINED_WIDTH", &
                           variants=(/"CG_WIDTH"/), &
                           description="Width of segments in MD steps to generate the set of"// &
                           " coarse grained data, providing a correlation independent data set.", &
@@ -876,7 +876,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_COARSE_GRAINED_WIDTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_COARSE_GRAINED_WIDTH", &
                           variants=(/"MAX_CG_WIDTH"/), &
                           description="Max Width of segments in MD steps to generate the set of"// &
                           " coarse grained data.", &
@@ -884,7 +884,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COARSE_GRAINED_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="COARSE_GRAINED_POINTS", &
                           variants=(/"CG_POINTS"/), &
                           description="Set the minimum amount of coarse grained points to collect"// &
                           " before starting the statistical analysis", &
@@ -892,7 +892,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_CONV", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CONV", &
                           description="Set the relative tolerance for the convergence of the collective"// &
                           " variable averages used to compute the free energy.", &
                           usage="EPS_CONV <REAL>", &
@@ -900,21 +900,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K_CONFIDENCE_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="K_CONFIDENCE_LIMIT", &
                           description="Set the confidence limit for the Mann-Kendall trend test.", &
                           usage="K_CONFIDENCE_LIMIT <REAL>", &
                           default_r_val=0.90_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SW_CONFIDENCE_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="SW_CONFIDENCE_LIMIT", &
                           description="Set the confidence limit for the Shapiro-Wilks normality test.", &
                           usage="SW_CONFIDENCE_LIMIT <REAL>", &
                           default_r_val=0.90_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VN_CONFIDENCE_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="VN_CONFIDENCE_LIMIT", &
                           description="Set the confidence limit for the Von Neumann serial correlation test.", &
                           usage="VN_CONFIDENCE_LIMIT <REAL>", &
                           default_r_val=0.90_dp)

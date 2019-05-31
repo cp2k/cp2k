@@ -202,14 +202,14 @@ CONTAINS
                                        print_level=silent_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric, filename="")
 
-      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=3)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SPLIT_RESTART_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SPLIT_RESTART_FILE", &
                           description="If specified selected input sections, which are growing with the "// &
                           "number of atoms in the system, are written to another restart file "// &
                           "in binary format instead of the default restart file in human "// &
@@ -268,7 +268,7 @@ CONTAINS
       IF (pos) THEN
 
          CALL keyword_create( &
-            keyword, name="FORMAT", &
+            keyword, __LOCATION__, name="FORMAT", &
             description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)", &
             default_i_val=dump_xmol, &
             enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ"), &
@@ -284,7 +284,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="CHARGE_OCCUP", &
+         CALL keyword_create(keyword, __LOCATION__, name="CHARGE_OCCUP", &
                              variants=(/"CHARGE_O"/), &
                              description="Write the MM charges to the OCCUP field of the PDB file", &
                              usage="CHARGE_OCCUP logical", &
@@ -292,7 +292,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="CHARGE_BETA", &
+         CALL keyword_create(keyword, __LOCATION__, name="CHARGE_BETA", &
                              variants=(/"CHARGE_B"/), &
                              description="Write the MM charges to the BETA field of the PDB file", &
                              usage="CHARGE_BETA logical", &
@@ -300,7 +300,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="CHARGE_EXTENDED", &
+         CALL keyword_create(keyword, __LOCATION__, name="CHARGE_EXTENDED", &
                              description="Write the MM charges to the very last field of the PDB file (starting from column 81)", &
                              usage="CHARGE_EXTENDED logical", &
                              default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -309,7 +309,7 @@ CONTAINS
 
       ELSE
 
-         CALL keyword_create(keyword, name="FORMAT", &
+         CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
                              description=description, usage="FORMAT (ATOMIC|DCD|XMOL|XYZ)", &
                              default_i_val=dump_xmol, &
                              enum_c_vals=s2a("ATOMIC", "DCD", "XMOL", "XYZ"), &

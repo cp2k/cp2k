@@ -59,7 +59,7 @@ CONTAINS
                           citations=(/Huang2011, Heaton_Burgess2007/))
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="EMBED_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="EMBED_METHOD", &
                           description="Select DFET or DMFET.", &
                           usage="EMBED_METHOD DFET", &
                           default_i_val=dfet, &
@@ -70,7 +70,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Group partitioning
-      CALL keyword_create(keyword, name="GROUP_PARTITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_PARTITION", &
                           description="gives the exact number of processors for each group."// &
                           " If not specified processors allocated will be equally distributed for"// &
                           " the specified subforce_eval, trying to build a number of groups equal to the"// &
@@ -79,7 +79,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
                           description="Gives the wanted number of groups. Currently must be set to 1", &
                           usage="ngroups 4", type_of_var=integer_t, default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -103,13 +103,13 @@ CONTAINS
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Starting and ending atomic index defining one fragment must be provided", &
                           usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.TRUE.)
       CALL section_add_keyword(sub3section, keyword)
@@ -127,7 +127,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create( &
-         keyword, name="DEFINE_FRAGMENTS", &
+         keyword, __LOCATION__, name="DEFINE_FRAGMENTS", &
          description="Specify the fragments definition of the force_eval through the fragments of the"// &
          " force_eval_embed. This avoids the pedantic definition of the fragments for the force_eval,"// &
          " assuming the order of the fragments for the specified force_eval is the same as the sequence "// &
@@ -136,7 +136,7 @@ CONTAINS
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the force_eval for which fragments and mappings are provided", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub2section, keyword)
@@ -146,19 +146,19 @@ CONTAINS
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Starting and ending atomic index defining one fragment must be provided", &
                           usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.FALSE.)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAP", &
                           description="Provides the index of the fragment of the MIXED force_eval mapped on the"// &
                           " locally defined fragment.", &
                           usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.)

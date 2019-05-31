@@ -77,53 +77,53 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="DISABLE_CACHE", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISABLE_CACHE", &
                           description="Do not keep contact self-energy matrices for future reuse", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! convergence thresholds
-      CALL keyword_create(keyword, name="EPS_DENSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DENSITY", &
                           description="Target accuracy for electronic density.", &
                           n_var=1, type_of_var=real_t, default_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_GREEN", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GREEN", &
                           description="Target accuracy for surface Green's functions.", &
                           n_var=1, type_of_var=real_t, default_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_SCF", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SCF", &
                           description="Target accuracy for SCF convergence.", &
                           n_var=1, type_of_var=real_t, default_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_GEO", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GEO", &
                           description="Accuracy in mapping atoms between different force environments.", &
                           n_var=1, type_of_var=real_t, unit_str="angstrom", &
                           default_r_val=1.0e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENERGY_LBOUND", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_LBOUND", &
                           description="Lower bound energy of the conductance band.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=-5.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ETA", &
+      CALL keyword_create(keyword, __LOCATION__, name="ETA", &
                           description="Infinitesimal offset from the real axis.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HOMO_LUMO_GAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="HOMO_LUMO_GAP", &
                           description="The gap between the HOMO and some fictitious LUMO. This option is used as"// &
                           " an initial offset to determine the actual Fermi level of bulk contacts."// &
                           " It does not need to be exact HOMO-LUMO gap, just some value to start with.", &
@@ -132,14 +132,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DELTA_NPOLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_NPOLES", &
                           description="Number of poles of Fermi function to consider.", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GAMMA_KT", &
+      CALL keyword_create(keyword, __LOCATION__, name="GAMMA_KT", &
                           description="Offset from the axis (in terms of k*T)"// &
                           " where poles of the Fermi function reside.", &
                           n_var=1, type_of_var=integer_t, &
@@ -147,7 +147,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTEGRATION_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTEGRATION_METHOD", &
                           description="Method to integrate Green's functions along a closed-circuit contour.", &
                           default_i_val=negfint_method_cc, &
                           enum_c_vals=s2a("CLENSHAW-CURTIS", "SIMPSON"), &
@@ -158,28 +158,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTEGRATION_MIN_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTEGRATION_MIN_POINTS", &
                           description="Initial (minimal) number of grid point for adaptive numerical integration.", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=16)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTEGRATION_MAX_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTEGRATION_MAX_POINTS", &
                           description="Maximal number of grid point for adaptive numerical integration.", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=512)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_SCF", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_SCF", &
                           description="Maximum number of SCF iterations to be performed.", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=30)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NPROC_POINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="NPROC_POINT", &
                           description="Number of MPI processes to be used per energy point. "// &
                           " Default is to use all processors (0).", &
                           n_var=1, type_of_var=integer_t, &
@@ -187,20 +187,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="V_SHIFT", &
+      CALL keyword_create(keyword, __LOCATION__, name="V_SHIFT", &
                           description="Initial value of the Hartree potential shift", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="V_SHIFT_OFFSET", &
+      CALL keyword_create(keyword, __LOCATION__, name="V_SHIFT_OFFSET", &
                           description="Initial offset to determine the optimal shift in Hartree potential.", &
                           n_var=1, type_of_var=real_t, default_r_val=0.10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="V_SHIFT_MAX_ITERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="V_SHIFT_MAX_ITERS", &
                           description="Maximal number of iteration to determine the optimal shift in Hartree potential.", &
                           n_var=1, type_of_var=integer_t, default_i_val=30)
       CALL section_add_keyword(section, keyword)
@@ -256,20 +256,20 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="FORCE_EVAL_SECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_EVAL_SECTION", &
                           description=" Index of the FORCE_EVAL section which will be used for bulk calculation.", &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELECTRIC_POTENTIAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="ELECTRIC_POTENTIAL", &
                           description="External electrostatic potential applied to the given contact.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FERMI_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="FERMI_LEVEL", &
                           description="Contact Fermi level at the given temperature."// &
                           " If this keyword is not given explicitly, the Fermi level"// &
                           " will be automatically computed prior the actual NEGF calculation.", &
@@ -278,7 +278,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REFINE_FERMI_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="REFINE_FERMI_LEVEL", &
                           description="Compute the Fermi level using the value from the FERMI_LEVEL keyword"// &
                           " as a starting point. By default the Fermi level is computed only"// &
                           " when the keyword FERMI_LEVEL is not given explicitly.", &
@@ -286,7 +286,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMPERATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="Electronic temperature.", &
                           n_var=1, type_of_var=real_t, unit_str="K", &
                           default_r_val=300.0_dp/kelvin)
@@ -331,14 +331,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="LIST", &
                           description="Specifies a list of atoms.", &
                           usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOLNAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
                           description="Specifies a list of named molecular fragments.", &
                           usage="MOLNAME WAT MEOH", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
@@ -368,21 +368,21 @@ CONTAINS
                                        print_level=high_print_level, filename="__STD_OUT__")
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="FROM_ENERGY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FROM_ENERGY", &
                           description="Energy point to start with.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TILL_ENERGY", &
+      CALL keyword_create(keyword, __LOCATION__, name="TILL_ENERGY", &
                           description="Energy point to end with.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_GRIDPOINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_GRIDPOINTS", &
                           description="Number of points to compute.", &
                           n_var=1, type_of_var=integer_t, default_i_val=201)
       CALL section_add_keyword(section, keyword)

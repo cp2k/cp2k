@@ -113,7 +113,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="POISSON_SOLVER", &
+      CALL keyword_create(keyword, __LOCATION__, name="POISSON_SOLVER", &
                           variants=(/"POISSON", "PSOLVER"/), &
                           description="Specify which kind of solver to use to solve the Poisson equation.", &
                           usage="POISSON_SOLVER char", &
@@ -125,7 +125,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PERIODIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Specify the directions in which PBC apply. Important notice, "// &
                           " this only applies to the electrostatics."// &
                           " See the CELL section to specify the periodicity used for e.g. the pair lists."// &
@@ -182,28 +182,28 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Real space cutoff for the Ewald sum.", &
                           usage="RCUT {real}", n_var=1, type_of_var=real_t, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EWALD_PRECISION", &
+      CALL keyword_create(keyword, __LOCATION__, name="EWALD_PRECISION", &
                           description="Precision achieved in the Ewald sum.", &
                           usage="EWALD_PRECISION {real}", n_var=1, type_of_var=real_t, &
                           unit_str="hartree", default_r_val=1.0E-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ANALYTICAL_GTERM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ANALYTICAL_GTERM", &
                           description="Evaluates the Gterm in the Ewald Scheme analytically instead of using Splines.", &
                           usage="ANALYTICAL_GTERM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGRIDS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
                           usage="NGRIDS <integer> <iteger> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
       CALL section_add_keyword(section, keyword)
@@ -251,14 +251,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ALPHA", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Convergence parameter ALPHA*RMIN. Default value 7.0", &
                           usage="ALPHA real", &
                           n_var=1, default_r_val=7.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REL_CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="REL_CUTOFF", &
                           description="Specify the multiplicative factor for the CUTOFF keyword in MULTI_GRID "// &
                           " section. The result gives the cutoff at which the 1/r non-periodic FFT3D is evaluated."// &
                           "Default is 2.0", &
@@ -291,7 +291,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
-         keyword, name="EWALD_TYPE", &
+         keyword, __LOCATION__, name="EWALD_TYPE", &
          description="The type of ewald you want to perform.", &
          citations=(/Ewald1921, Essmann1995, Darden1993/), &
          usage="EWALD_TYPE (NONE|EWALD|PME|SPME)", &
@@ -311,7 +311,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EWALD_ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="EWALD_ACCURACY", &
                           description="Expected accuracy in the Ewald sum. This number affects only the calculation of "// &
                           "the cutoff for the real-space term of the ewald summation (EWALD|PME|SPME) as well as the "// &
                           "construction of the neighbor lists (if the cutoff for non-bonded terms is smaller than the "// &
@@ -322,7 +322,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Explicitly provide the real-space cutoff of the ewald summation (EWALD|PME|SPME). "// &
                           "This value is ignored in Tight-binding applications (rcut from basis overlap is used). "// &
                           "If present, overwrites the estimate of EWALD_ACCURACY and may affect the "// &
@@ -332,7 +332,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="alpha", &
+      CALL keyword_create(keyword, __LOCATION__, name="alpha", &
                           description="alpha parameter associated with Ewald (EWALD|PME|SPME). "// &
                           "Recommended for small systems is alpha = 3.5 / r_cut. "// &
                           "For Tight-binding application a recommended value is alpha = 1.0. "// &
@@ -343,7 +343,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="gmax", &
+      CALL keyword_create(keyword, __LOCATION__, name="gmax", &
                           description="number of grid points (SPME and EWALD). If a single number is specified,"// &
                           "the same number of points is used for all three directions on the grid."// &
                           "If three numbers are given, each direction can have a different number of points."// &
@@ -353,19 +353,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ns_max", &
+      CALL keyword_create(keyword, __LOCATION__, name="ns_max", &
                           description="number of grid points on small mesh (PME only), should be odd.", &
                           usage="ns_max 11", default_i_val=11)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="o_spline", &
+      CALL keyword_create(keyword, __LOCATION__, name="o_spline", &
                           description="order of the beta-Euler spline (SPME only)", &
                           usage="o_spline 6", default_i_val=6)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="epsilon", &
+      CALL keyword_create(keyword, __LOCATION__, name="epsilon", &
                           description="tolerance of gaussians for fft interpolation (PME only)", &
                           usage="epsilon 1e-6", default_r_val=1.e-6_dp)
       CALL section_add_keyword(section, keyword)
@@ -382,13 +382,13 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
                           citations=(/Aguado2003, Laino2008/))
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Multipoles", &
                           usage="&MULTIPOLES T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_MULTIPOLE_EXPANSION", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_MULTIPOLE_EXPANSION", &
                           description="Specify the maximum level of multipoles expansion used "// &
                           " for the electrostatics.", &
                           usage="MAX_MULTIPOLE_EXPANSION DIPOLE", &
@@ -402,7 +402,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POL_SCF", &
+      CALL keyword_create(keyword, __LOCATION__, name="POL_SCF", &
                           description="Specify the method to obtain self consistent induced "// &
                           "multipole moments.", &
                           usage="POL_SCF CONJUGATE_GRADIENT", &
@@ -418,7 +418,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_IPOL_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_IPOL_ITER", &
                           description="Specify the maximum number of iterations for induced "// &
                           "dipoles", &
                           usage="MAX_IPOL_ITER {int}", type_of_var=integer_t, &
@@ -426,7 +426,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_POL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_POL", &
                           description="Specify the rmsd threshold for the derivatives "// &
                           "of the energy towards the Cartesian dipoles components", &
                           usage="EPS_POL {real}", type_of_var=real_t, &
@@ -473,7 +473,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
 
-      CALL keyword_create(keyword, name="aint_precond", &
+      CALL keyword_create(keyword, __LOCATION__, name="aint_precond", &
                           description="the approximate inverse to use to get the starting point"// &
                           " for the linear solver of the spline3 methods", &
                           usage="kind spline3", &
@@ -485,7 +485,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="precond", &
+      CALL keyword_create(keyword, __LOCATION__, name="precond", &
                           description="The preconditioner used"// &
                           " for the linear solver of the spline3 methods", &
                           usage="kind spline3", &
@@ -497,19 +497,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="eps_x", &
+      CALL keyword_create(keyword, __LOCATION__, name="eps_x", &
                           description="accuracy on the solution for spline3 the interpolators", &
                           usage="eps_x 1.e-15", default_r_val=1.e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="eps_r", &
+      CALL keyword_create(keyword, __LOCATION__, name="eps_r", &
                           description="accuracy on the residual for spline3 the interpolators", &
                           usage="eps_r 1.e-15", default_r_val=1.e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="max_iter", &
+      CALL keyword_create(keyword, __LOCATION__, name="max_iter", &
                           variants=(/'maxiter'/), &
                           description="the maximum number of iterations", &
                           usage="max_iter 200", default_i_val=100)
@@ -557,7 +557,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create( &
-         keyword, name="SCF_TYPE", &
+         keyword, __LOCATION__, name="SCF_TYPE", &
          description="Type of scaling function used in the wavelet approach, the total energy depends on this choice,"// &
          "and the convergence with respect to cutoff depends on the selected scaling functions."// &
          "Possible values are 8,14,16,20,24,30,40,50,60,100 ", &
@@ -599,7 +599,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create( &
-         keyword, name="BOUNDARY_CONDITIONS", &
+         keyword, __LOCATION__, name="BOUNDARY_CONDITIONS", &
          enum_c_vals=s2a('PERIODIC', 'MIXED', 'MIXED_PERIODIC', 'NEUMANN'), &
          enum_desc=s2a('periodic boundary conditions', 'Dirichlet + homogeneous Neumann boundary conditions', &
                        'Dirichlet + periodic boundary conditions', 'homogeneous Neumann BC (zero-average solution)'), &
@@ -610,32 +610,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ZERO_INITIAL_GUESS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ZERO_INITIAL_GUESS", &
                           description="Whether or not to use zero potential as initial guess.", &
                           usage="ZERO_INITIAL_GUESS <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="max_iter", &
+      CALL keyword_create(keyword, __LOCATION__, name="max_iter", &
                           description="Maximum number of iterations.", &
                           usage="max_iter <integer>", default_i_val=30)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="tol", &
+      CALL keyword_create(keyword, __LOCATION__, name="tol", &
                           description="Stopping tolerance.", &
                           usage="tol <real>", default_r_val=1.0E-8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OR_PARAMETER", variants=s2a('omega'), &
+      CALL keyword_create(keyword, __LOCATION__, name="OR_PARAMETER", variants=s2a('omega'), &
                           description="Over-relaxation parameter (large epsilon requires smaller omega ~0.1).", &
                           usage="OR_PARAMETER <real>", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="NEUMANN_DIRECTIONS", &
+         keyword, __LOCATION__, name="NEUMANN_DIRECTIONS", &
          enum_c_vals=s2a('XYZ', 'XY', 'XZ', 'YZ', 'X', 'Y', 'Z'), &
          enum_i_vals=(/neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ/), &
          description="Directions in which homogeneous Neumann conditions are imposed. In the remaining directions "// &
@@ -671,7 +671,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="DIELECTRIC_CORE_CORRECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIELECTRIC_CORE_CORRECTION", &
                           description="Avoid spurious values of the dielectric constant at the ionic core for pseudopotentials "// &
                           "where the electron density goes to zero at the core (e.g. GTH). "// &
                           "The correction is based on rho_core.", &
@@ -680,7 +680,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="DIELECTRIC_FUNCTION_TYPE", &
+         keyword, __LOCATION__, name="DIELECTRIC_FUNCTION_TYPE", &
          enum_c_vals=s2a('density_dependent', 'spatially_dependent', 'spatially_rho_dependent'), &
          enum_i_vals=(/rho_dependent, spatially_dependent, spatially_rho_dependent/), &
          enum_desc=s2a("Dielectric constant as a function of the electron density "// &
@@ -693,26 +693,26 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
+      CALL keyword_create(keyword, __LOCATION__, name="dielectric_constant", variants=s2a('epsilon'), &
                           description="Dielectric constant in the bulk of the solvent.", &
                           usage="dielectric_constant <real>", default_r_val=80.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="rho_min", &
+      CALL keyword_create(keyword, __LOCATION__, name="rho_min", &
                           description="Lower density threshold.", &
                           usage="rho_min <real>", default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="rho_max", &
+      CALL keyword_create(keyword, __LOCATION__, name="rho_max", &
                           description="Upper density threshold.", &
                           usage="rho_max <real>", default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="DERIVATIVE_METHOD", &
+         keyword, __LOCATION__, name="DERIVATIVE_METHOD", &
          enum_c_vals=s2a('fft', 'fft_use_deps', 'fft_use_drho', 'cd3', 'cd5', 'cd7'), &
          enum_i_vals=(/derivative_fft, derivative_fft_use_deps, derivative_fft_use_drho, &
                        derivative_cd3, derivative_cd5, derivative_cd7/), &
@@ -760,34 +760,34 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
+      CALL keyword_create(keyword, __LOCATION__, name="dielectric_constant", variants=s2a('epsilon'), &
                           description="value of the dielectric constant inside the region.", &
                           usage="dielectric_constant <real>", default_r_val=80.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="X_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="X_xtnt", &
                           description="The X extents of the cuboid.", &
                           usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Y_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="Y_xtnt", &
                           description="The Y extents of the cuboid.", &
                           usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Z_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="Z_xtnt", &
                           description="The Z extents of the cuboid.", &
                           usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('zeta'), &
+      CALL keyword_create(keyword, __LOCATION__, name="SMOOTHING_WIDTH", variants=s2a('zeta'), &
                           description="The width of the standard mollifier.", &
                           usage="SMOOTHING_WIDTH <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="angstrom"))
@@ -819,34 +819,34 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
+      CALL keyword_create(keyword, __LOCATION__, name="dielectric_constant", variants=s2a('epsilon'), &
                           description="value of the dielectric constant inside the region.", &
                           usage="dielectric_constant <real>", default_r_val=80.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="X_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="X_xtnt", &
                           description="The X extents of the annulus.", &
                           usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="base_center", &
+      CALL keyword_create(keyword, __LOCATION__, name="base_center", &
                           description="The y and z coordinates of the annulus' base center.", &
                           usage="base_center <y(real)> <z(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="base_radii", &
+      CALL keyword_create(keyword, __LOCATION__, name="base_radii", &
                           description="The base radius of the annulus.", &
                           usage="base_radius <r1(real)> <r2(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="smoothing_width", variants=s2a('zeta'), &
+      CALL keyword_create(keyword, __LOCATION__, name="smoothing_width", variants=s2a('zeta'), &
                           description="The width of the standard mollifier.", &
                           usage="smoothing_width <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="angstrom"))
@@ -876,7 +876,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="VERBOSE_OUTPUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE_OUTPUT", &
                           description="Print out the coordinates of the vertices defining Dirichlet regions and their "// &
                           "tessellations (in Angstrom), the values of the electrostatic potential at the regions (in a.u.), "// &
                           "and their corresponding evaluated Lagrange multipliers.", &
@@ -924,31 +924,31 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="v_D", &
+      CALL keyword_create(keyword, __LOCATION__, name="v_D", &
                           description="The value of the fixed potential to be imposed at the axis-aligned Dirichlet boundary.", &
                           usage="v_D <real>", unit_str="volt", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="OSCILLATING_FRACTION", &
                           description="A fraction of the field can be set to oscilate over time.", &
                           usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
                           description="The frequency with which the oscillating fraction oscillates.", &
                           usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHASE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
                           usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARALLEL_PLANE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_PLANE", &
                           enum_c_vals=s2a('XY', 'YZ', 'XZ'), &
                           enum_i_vals=(/xy_plane, yz_plane, xz_plane/), &
                           description="The coordinate plane that the region is parallel to.", &
@@ -957,35 +957,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTERCEPT", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTERCEPT", &
                           description="The intercept of the rectangle's plane.", &
                           usage="INTERCEPT <real>", unit_str="angstrom", &
                           type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="X_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="X_xtnt", &
                           description="The X extents of the rectangle.", &
                           usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Y_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="Y_xtnt", &
                           description="The Y extents of the rectangle.", &
                           usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Z_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="Z_xtnt", &
                           description="The Z extents of the rectangle.", &
                           usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_PRTN", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_PRTN", &
                           description="The number of partitions in the directions of the unit vectors generating the "// &
                           "corresponding PARALLEL_PLANE (e1, e2 or e3) for tiling the rectangluar region.", &
                           usage="N_PRTN <integer> <integer>", &
@@ -993,21 +993,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="THICKNESS", &
+      CALL keyword_create(keyword, __LOCATION__, name="THICKNESS", &
                           description="The thickness of the planar Dirichlet region.", &
                           usage="THICKNESS <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.75_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
+      CALL keyword_create(keyword, __LOCATION__, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
                           description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
                           usage="SMOOTHING_WIDTH <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PERIODIC_REGION", &
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REGION", &
                           description="Whether or not to take into consideration the effects of the periodicity of the "// &
                           "simulation cell (MIXED_PERIODIC bc) for regions defined sufficiently close to the boundaries.", &
                           usage="PERIODIC_REGION <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1037,45 +1037,45 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="v_D", &
+      CALL keyword_create(keyword, __LOCATION__, name="v_D", &
                           description="The value of the fixed potential to be imposed at the planar Dirichlet boundary.", &
                           usage="v_D <real>", unit_str="volt", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="OSCILLATING_FRACTION", &
                           description="A fraction of the field can be set to oscilate over time.", &
                           usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
                           description="The frequency with which the oscillating fraction oscillates.", &
                           usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHASE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
                           usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A", &
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Coordinates of the vertex A.", &
                           usage="A <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Coordinates of the vertex B.", &
                           usage="B <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C", &
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Coordinates of the vertex C.", &
                           usage="C <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t)
@@ -1083,7 +1083,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="N_PRTN", &
+         keyword, __LOCATION__, name="N_PRTN", &
          description="The number of partitions along the edges for tiling the rectangular region. If the edges "// &
          "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
          usage="N_PRTN <integer> <integer>", &
@@ -1091,14 +1091,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="THICKNESS", &
+      CALL keyword_create(keyword, __LOCATION__, name="THICKNESS", &
                           description="The thickness of the planar Dirichlet region.", &
                           usage="THICKNESS <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.75_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
+      CALL keyword_create(keyword, __LOCATION__, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
                           description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
                           usage="SMOOTHING_WIDTH <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="angstrom"))
@@ -1127,31 +1127,31 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="v_D", &
+      CALL keyword_create(keyword, __LOCATION__, name="v_D", &
                           description="The value of the fixed potential to be imposed at the cylindrical Dirichlet boundary.", &
                           usage="v_D <real>", unit_str="volt", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="OSCILLATING_FRACTION", &
                           description="A fraction of the field can be set to oscilate over time.", &
                           usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
                           description="The frequency with which the oscillating fraction oscillates.", &
                           usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHASE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
                           usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARALLEL_AXIS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_AXIS", &
                           enum_c_vals=s2a('X', 'Y', 'Z'), &
                           enum_i_vals=(/x_axis, y_axis, z_axis/), &
                           description="The coordinate axis that the cylindrical region extends along.", &
@@ -1160,14 +1160,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="xtnt", &
                           description="The extents of the cylinder along its central axis.", &
                           usage="xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASE_CENTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASE_CENTER", &
                           description="The y and z coordinates (x and z or x and y coordinates, "// &
                           "depending on the choice of the parallel axis) of the cylinder's base center.", &
                           usage="BASE_CENTER <y(real)> <z(real)>", unit_str="angstrom", &
@@ -1175,20 +1175,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASE_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASE_RADIUS", &
                           description="The base radius of the cylinder.", &
                           usage="BASE_RADIUS <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_SIDES", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_SIDES", &
                           description="The number of sides (faces) of the n-gonal prism approximating the cylinder.", &
                           usage="N_SIDES <integer>", default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="APX_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="APX_TYPE", &
                           enum_c_vals=s2a('CIRCUMSCRIBED', 'INSCRIBED'), &
                           enum_i_vals=(/CIRCUMSCRIBED, INSCRIBED/), &
                           description="Specifies the type of the n-gonal prism approximating the cylinder.", &
@@ -1197,7 +1197,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="N_PRTN", &
+         keyword, __LOCATION__, name="N_PRTN", &
          description="The number of partitions along the face edges of the prism for tiling. If the edges "// &
          "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
          usage="N_PRTN <integer> <integer>", &
@@ -1205,14 +1205,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="THICKNESS", &
+      CALL keyword_create(keyword, __LOCATION__, name="THICKNESS", &
                           description="The thickness of the cylinder.", &
                           usage="THICKNESS <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.75_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
+      CALL keyword_create(keyword, __LOCATION__, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
                           description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
                           usage="SMOOTHING_WIDTH <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="angstrom"))
@@ -1220,7 +1220,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="delta_alpha", &
+         keyword, __LOCATION__, name="delta_alpha", &
          description="A central angle specifying the gap between the faces of the n-gonal prism. To avoide overlap "// &
          "between the cuboids (of the given thickness) built on top of the faces, a larger value is required if the"// &
          " number of faces (N_SIDES) is quite few and/or the base radius is fairly small.", &
@@ -1250,66 +1250,66 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="v_D", &
+      CALL keyword_create(keyword, __LOCATION__, name="v_D", &
                           description="The value of the fixed potential to be imposed at the region.", &
                           usage="v_D <real>", unit_str="volt", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="OSCILLATING_FRACTION", &
                           description="A fraction of the field can be set to oscilate over time.", &
                           usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
                           description="The frequency with which the oscillating fraction oscillates.", &
                           usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHASE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
                           usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="X_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="X_xtnt", &
                           description="The X extents of the cuboid.", &
                           usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Y_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="Y_xtnt", &
                           description="The Y extents of the cuboid.", &
                           usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Z_xtnt", &
+      CALL keyword_create(keyword, __LOCATION__, name="Z_xtnt", &
                           description="The Z extents of the cuboid.", &
                           usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_PRTN", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_PRTN", &
                           description="The number of partitions in the x, y and z directions for partitioning the cuboid.", &
                           usage="N_PRTN <integer> <integer> <integer>", &
                           n_var=3, default_i_vals=(/1, 1, 1/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
+      CALL keyword_create(keyword, __LOCATION__, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
                           description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
                           usage="SMOOTHING_WIDTH <real>", unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PERIODIC_REGION", &
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REGION", &
                           description="Whether or not to take into consideration the effects of the periodicity of the "// &
                           "simulation cell (MIXED_PERIODIC bc) for regions defined sufficiently close to the boundaries.", &
                           usage="PERIODIC_REGION <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

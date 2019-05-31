@@ -202,7 +202,7 @@ CONTAINS
                           citations=citations)
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Level starting at which this property is printed", &
                           usage="silent", &
                           default_i_val=my_print_level, lone_keyword_i_val=silent_print_level, &
@@ -213,7 +213,7 @@ CONTAINS
       CALL section_add_keyword(print_key_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="__CONTROL_VAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="__CONTROL_VAL", &
                           description=' hidden parameter that controls storage, printing,...'// &
                           ' of the print_key', &
                           default_i_val=cp_out_default)
@@ -247,7 +247,7 @@ CONTAINS
                END IF
             END DO
          END IF
-         CALL keyword_create(keyword, name=TRIM(each_possible_labels(i_each)), &
+         CALL keyword_create(keyword, __LOCATION__, name=TRIM(each_possible_labels(i_each)), &
                              description=TRIM(each_desc_labels(i_each)), &
                              usage=TRIM(each_possible_labels(i_each))//" <INTEGER>", &
                              default_i_val=my_value)
@@ -261,7 +261,7 @@ CONTAINS
       IF (PRESENT(add_last)) THEN
          my_add_last = add_last
       END IF
-      CALL keyword_create(keyword, name="ADD_LAST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ADD_LAST", &
                           description="If the last iteration should be added, and if it "// &
                           "should be marked symbolically (with lowercase letter l) or with "// &
                           "the iteration number. "// &
@@ -280,7 +280,7 @@ CONTAINS
 
       my_comm_iter_levels = 0
       IF (PRESENT(common_iter_levels)) my_comm_iter_levels = common_iter_levels
-      CALL keyword_create(keyword, name="COMMON_ITERATION_LEVELS", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMMON_ITERATION_LEVELS", &
                           description="How many iterations levels should be written"// &
                           " in the same file (no extra information about the actual"// &
                           " iteration level is written to the file)", &
@@ -291,7 +291,7 @@ CONTAINS
 
       my_filename = ""
       IF (PRESENT(filename)) my_filename = filename
-      CALL keyword_create(keyword, name="FILENAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
                           description=' controls part of the filename for output. '// &
                           ' use __STD_OUT__ (exactly as written here) for the screen or standard logger. '// &
                           ' use filename to obtain projectname-filename. '// &
@@ -307,7 +307,7 @@ CONTAINS
       CALL section_add_keyword(print_key_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LOG_PRINT_KEY", &
+      CALL keyword_create(keyword, __LOCATION__, name="LOG_PRINT_KEY", &
                           description="This keywords enables the logger for the print_key (a message is printed on "// &
                           "screen everytime data, controlled by this print_key, are written)", &
                           usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -315,7 +315,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       IF (PRESENT(unit_str)) THEN
-         CALL keyword_create(keyword, name="UNIT", &
+         CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
                              description='Specify the unit of measurement for the quantity in output. '// &
                              "All available CP2K units can be used.", &
                              usage="UNIT angstrom", default_c_val=TRIM(unit_str))

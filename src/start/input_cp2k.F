@@ -166,13 +166,13 @@ CONTAINS
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key)
-      CALL keyword_create(keyword, name="MEMORY", &
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY", &
                           description="Set the maximum amount of memory allocated for a given test (in bytes)", &
                           usage="MEMORY <REAL>", default_r_val=256.e6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COPY", &
+      CALL keyword_create(keyword, __LOCATION__, name="COPY", &
                           description="Tests the performance to copy two vectors."// &
                           "The results of these tests allow to determine the size of the cache "// &
                           "of the CPU. This can be used to optimize the performance of the"// &
@@ -181,34 +181,34 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MATMUL", &
+      CALL keyword_create(keyword, __LOCATION__, name="MATMUL", &
                           description="Tests the performance of different kinds of matrix matrix "// &
                           "multiply kernels for the F95 INTRINSIC matmul. Matrices up to 2**N+1 will be tested. ", &
                           usage="matmul 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DGEMM", &
+      CALL keyword_create(keyword, __LOCATION__, name="DGEMM", &
                           description="Tests the performance of different kinds of matrix matrix "// &
                           "multiply kernels for the BLAS INTRINSIC DGEMM. Matrices up to 2**N+1 will be tested. ", &
                           usage="DGEMM 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FFT", &
+      CALL keyword_create(keyword, __LOCATION__, name="FFT", &
                           description="Tests the performance of all available FFT libraries for "// &
                           "3D FFTs Tests are repeated the given number of times.", &
                           usage="fft 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERI", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERI", &
                           description="Tests the performance and correctness of ERI libraries ", &
                           usage="eri 1", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CLEBSCH_GORDON", variants=(/"CLEBSCH"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="CLEBSCH_GORDON", variants=(/"CLEBSCH"/), &
                           description="Tests the Clebsch-Gordon Coefficients. "// &
                           "Tests are repeated the given number of times.", &
                           usage="clebsch_gordon 10", default_i_val=0)
@@ -216,7 +216,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MPI", &
+      CALL keyword_create(keyword, __LOCATION__, name="MPI", &
                           description="Tests mpi, quickly adapted benchmark code,"// &
                           "will ONLY work on an even number of CPUs. comm is the relevant, "// &
                           "initialized communicator. This test will produce messages "// &
@@ -227,13 +227,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANDOM_NUMBER_GENERATOR", variants=(/"rng"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="RANDOM_NUMBER_GENERATOR", variants=(/"rng"/), &
                           description=" Tests the parallel random number generator (RNG)", &
                           usage="rng 1000000", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MINIMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="MINIMAX", &
                           description="Tests validity of minimax coefficients for approximating 1/x "// &
                           "as a sum of exponentials. "// &
                           "Checks numerical error against tabulated error, testing "// &
@@ -242,7 +242,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LEAST_SQ_FT", &
+      CALL keyword_create(keyword, __LOCATION__, name="LEAST_SQ_FT", &
                           description="Tests accuracy of the integration weights gamma_ik from Kaltak, "// &
                           "Klimes, Kresse, JCTC 10, 2498 (2014), Eq. 30. Printed is the L1-error (=minimax "// &
                           "error for a given range and a given number of grid points. The input parameter is "// &
@@ -316,27 +316,27 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
 
-      CALL keyword_create(keyword, name="DEBUG_FORCES", &
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCES", &
                           description="Activates the debugging of the atomic forces", &
                           usage="DEBUG_FORCES {LOGICAL}", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DEBUG_STRESS_TENSOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_STRESS_TENSOR", &
                           description="Activates the debugging of the stress tensor", &
                           usage="DEBUG_STRESS_TENSOR {LOGICAL}", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Increment for the calculation of the numerical derivatives", &
                           usage="DX {REAL}", default_r_val=0.001_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_NO_ERROR_CHECK", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_NO_ERROR_CHECK", &
                           description="The mismatch between the numerical and the "// &
                           "analytical value is not checked for analytical "// &
                           "values smaller than this threshold value", &
@@ -344,7 +344,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STOP_ON_MISMATCH", &
+      CALL keyword_create(keyword, __LOCATION__, name="STOP_ON_MISMATCH", &
                           description="Stop the debug run when a mismatch between the numerical and "// &
                           "the analytical value is detected", &
                           usage="STOP_ON_MISMATCH {LOGICAL}", default_l_val=.TRUE., &
@@ -379,7 +379,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="FORCE_EVAL_ORDER", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_EVAL_ORDER", &
                           description='Specify the orders of the different force_eval. When using a MIXED force_eval'// &
                           " this does not need to be specified in this list, because it that takes into account only the real"// &
                           " energy contributions", &
@@ -388,7 +388,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MULTIPLE_SUBSYS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MULTIPLE_SUBSYS", &
                           description="Specify if force_eval have different subsys. In case they share the same subsys,"// &
                           " it needs to be specified only in the MIXED force_eval (if using MIXED) or"// &
                           " in the force_eval corresponding to first force_eval of the previous order (when not using MIXED).", &
@@ -419,7 +419,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="RESTART_FILE_NAME", variants=(/"EXTERNAL_FILE"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", variants=(/"EXTERNAL_FILE"/), &
                           description="Specifies the name of restart file (or any other input file)"// &
                           " to be read. Only fields relevant to a restart will be used"// &
                           " (unless switched off with the keywords in this section)", &
@@ -427,7 +427,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BINARY_RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="BINARY_RESTART_FILE_NAME", &
                           variants=(/"BINARY_RESTART_FILE"/), &
                           description="Specifies the name of an additional restart file "// &
                           "from which selected input sections are read in binary format "// &
@@ -436,7 +436,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_DEFAULT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_DEFAULT", &
                           description="This keyword controls the default value for all possible "// &
                           " restartable keywords, unless explicitly defined. For example setting"// &
                           " this keyword to .FALSE. does not restart any quantity. If, at the "// &
@@ -444,190 +444,190 @@ CONTAINS
                           " restarted.", default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_COUNTERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_COUNTERS", &
                           description="Restarts the counters in MD schemes and optimization STEP", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_POS", &
                           description="Takes the positions from the external file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_VEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_VEL", &
                           description="Takes the velocities from the external file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_RANDOMG", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_RANDOMG", &
                           description="Restarts the random number generator from the external file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_SHELL_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_SHELL_POS", &
                           description="Takes the positions of the shells from the external file (only if shell-model)", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_CORE_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_CORE_POS", &
                           description="Takes the positions of the cores from the external file (only if shell-model)", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_OPTIMIZE_INPUT_VARIABLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_OPTIMIZE_INPUT_VARIABLES", &
                           description="Restart with the optimize input variables", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_SHELL_VELOCITY", &
                           description="Takes the velocities of the shells from the external file (only if shell-model)", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_CORE_VELOCITY", &
                           description="Takes the velocities of the shells from the external file (only if shell-model)", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_BAROSTAT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_BAROSTAT", &
                           description="Restarts the barostat from the external file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_BAROSTAT_THERMOSTAT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_BAROSTAT_THERMOSTAT", &
                           description="Restarts the barostat thermostat from the external file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_SHELL_THERMOSTAT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_SHELL_THERMOSTAT", &
                           description="Restarts the shell thermostat from the external file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_THERMOSTAT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_THERMOSTAT", &
                           description="Restarts the nose thermostats of the particles "// &
                           "from the EXTERNAL file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_TEMPERATURE_ANNEALING", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_TEMPERATURE_ANNEALING", &
                           description="Restarts external temperature when using TEMPERATURE_ANNEALING.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_CELL", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_CELL", &
                           description="Restarts the cell (and cell_ref) "// &
                           "from the EXTERNAL file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_METADYNAMICS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_METADYNAMICS", &
                           description="Restarts hills from a previous metadynamics run "// &
                           "from the EXTERNAL file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_WALKERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_WALKERS", &
                           description="Restarts walkers informations from a previous metadynamics run "// &
                           "from the EXTERNAL file", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_BAND", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_BAND", &
                           description="Restarts positions and velocities of the Band.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_QMMM", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_QMMM", &
                           description="Restarts the following specific QMMM info: translation vectors.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_CONSTRAINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_CONSTRAINT", &
                           description="Restarts constraint section. It's necessary when doing restraint"// &
                           " calculation to have a perfect energy conservation. For constraints only it's"// &
                           " use is optional.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_BSSE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_BSSE", &
                           description="Restarts information for BSSE calculations.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_DIMER", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_DIMER", &
                           description="Restarts information for DIMER geometry optimizations.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_AVERAGES", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_AVERAGES", &
                           description="Restarts information for AVERAGES.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_RTP", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_RTP", &
                           description="Restarts information for REAL TIME PROPAGATION and EHRENFEST DYNAMICS.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="CUSTOM_PATH", &
+      CALL keyword_create(keyword, __LOCATION__, name="CUSTOM_PATH", &
                           description="Restarts the given path from the EXTERNAL file. Allows a major flexibility for restarts.", &
                           type_of_var=char_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! PIMD
-      CALL keyword_create(keyword, name="RESTART_PINT_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_PINT_POS", &
                           description="Restart bead positions from PINT%BEADS%COORD.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_PINT_VEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_PINT_VEL", &
                           description="Restart bead velocities from PINT%BEADS%VELOCITY.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_PINT_NOSE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_PINT_NOSE", &
                           description="Restart Nose thermostat for beads from PINT%NOSE.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_PINT_GLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_PINT_GLE", &
                           description="Restart GLE thermostat for beads from PINT%GLE.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! PIMC
-      CALL keyword_create(keyword, name="RESTART_HELIUM_POS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HELIUM_POS", &
                           description="Restart helium positions from PINT%HELIUM%COORD.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_HELIUM_PERMUTATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HELIUM_PERMUTATION", &
                           description="Restart helium permutation state from PINT%HELIUM%PERM.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_HELIUM_FORCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HELIUM_FORCE", &
                           description="Restart helium forces exerted on the solute from PINT%HELIUM%FORCE.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_HELIUM_RNG", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HELIUM_RNG", &
                           description="Restarts helium random number generators from PINT%HELIUM%RNG_STATE.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_HELIUM_DENSITIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HELIUM_DENSITIES", &
                           description="Restarts helium density distributions from PINT%HELIUM%RHO.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="RESTART_HELIUM_AVERAGES", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_HELIUM_AVERAGES", &
                           description="Restarts average properties from PINT%HELIUM%AVERAGES.", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -658,7 +658,7 @@ CONTAINS
       NULLIFY (keyword, print_key)
 
       CALL keyword_create( &
-         keyword, name="MASTER_SLAVE", &
+         keyword, __LOCATION__, name="MASTER_SLAVE", &
          description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "// &
          "This is most useful to load-balance if not all jobs have the same length, "// &
          "and a lot of CPUs/groups are available.", &
@@ -666,33 +666,33 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
                           description="Gives the preferred number of working groups.", &
                           usage="ngroups 4", type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GROUP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE", &
                           description="Gives the preferred size of a working group, "// &
                           "groups will always be equal or larger than this size.", &
                           usage="group_size 2", default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STRIDE", &
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="Stride to be used when building working groups from the parent MPI comm."// &
                           "Can be used to layout slave groups over nodes in advanced ways (1 rank per node / 2 groups per node).", &
                           usage="STRIDE 2", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GROUP_PARTITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_PARTITION", &
                           description="gives the exact number of processors for each group.", &
                           usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_JOBS_PER_GROUP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_JOBS_PER_GROUP", &
                           variants=(/"MAX_JOBS"/), &
                           description="maximum number of jobs executed per group", &
                           usage="max_step 4", default_i_val=65535)
@@ -700,14 +700,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="CYCLE", &
+         keyword, __LOCATION__, name="CYCLE", &
          description="If farming should process all jobs in a cyclic way, stopping only if MAX_JOBS_PER_GROUP is exceeded.", &
          usage="CYCLE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="WAIT_TIME", &
+         keyword, __LOCATION__, name="WAIT_TIME", &
          description="Time to wait [s] for a new task if no task is currently available, make this zero if no clock is available", &
          usage="WAIT_TIME 0.1", default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
@@ -718,14 +718,14 @@ CONTAINS
                           description="description of the jobs to be executed", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="DIRECTORY", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTORY", &
                           description="the directory in which the job should be executed", &
                           usage="DIRECTORY /my/path", &
                           default_lc_val=".")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INPUT_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="INPUT_FILE_NAME", &
                           description="the filename of the input file", &
                           usage="INPUT_FILE_NAME my_input.inp", &
                           default_lc_val="input.inp")
@@ -733,14 +733,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="OUTPUT_FILE_NAME", &
+         keyword, __LOCATION__, name="OUTPUT_FILE_NAME", &
          description="the filename of the output file, if not specified will use the project name in the &GLOBAL section.", &
          usage="OUTPUT_FILE_NAME my_input.inp", &
          default_lc_val="")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="JOB_ID", &
+      CALL keyword_create(keyword, __LOCATION__, name="JOB_ID", &
                           description="An ID used to indentify a job in DEPENDENCIES. "// &
                           "JOB_IDs do not need to be unique, dependencies will be on all jobs with a given ID. "// &
                           "If no JOB_ID is given, the index of the &JOB section in the input file will be used. ", &
@@ -749,7 +749,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="DEPENDENCIES", &
+         keyword, __LOCATION__, name="DEPENDENCIES", &
          description="specifies a list of JOB_IDs on which the current job depends. "// &
          "The current job will not be executed before all the dependencies have finished. "// &
          "The keyword requires a MASTER_SLAVE farming run. "// &
@@ -773,13 +773,13 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL keyword_create(keyword, name="DO_RESTART", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_RESTART", &
                           description="Restart a farming job (and should pick up where the previous left off)", &
                           usage="DO_RESTART", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", &
                           description="Name of the restart file to use for restarting a FARMING run. If not "// &
                           "specified the name is determined from PROJECT name.", &
                           usage="RESTART_FILE_NAME <FILENAME>", type_of_var=lchar_t)
@@ -815,26 +815,26 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID", &
                           description="Specify the number of grid points (not all grid points are allowed)", &
                           usage="GRID_DIMENSIONS 128 128 128", type_of_var=integer_t, n_var=3, &
                           default_i_vals=(/128, 128, 128/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HALO_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="HALO_SIZE", &
                           description="number of grid points of the halo", &
                           usage="HALO_SIZE 17", default_i_val=17)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_LOOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_LOOP", &
                           description="Number of rs_pw_transfers being timed", &
                           usage="N_LOOP 100", default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RS2PW", &
+      CALL keyword_create(keyword, __LOCATION__, name="RS2PW", &
                           description="should the direction be rs2pw (pw2rs otherwise)", &
                           usage="rs2pw TRUE", default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -867,20 +867,20 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID", &
                           description="Specify the number of grid points (not all grid points are allowed)", &
                           usage="GRID_DIMENSIONS 128 128 128", type_of_var=integer_t, n_var=3, &
                           default_i_vals=(/128, 128, 128/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_LOOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_LOOP", &
                           description="Number of pw_transfers (backward&forward) being timed", &
                           usage="N_LOOP 100", default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PW_GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="PW_GRID", &
                           description="What kind of PW_GRID should be employed", &
                           usage="PW_GRID NS-FULLSPACE", &
                           enum_c_vals=s2a("SPHERICAL", "NS-FULLSPACE", "NS-HALFSPACE"), &
@@ -890,19 +890,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PW_GRID_LAYOUT_ALL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PW_GRID_LAYOUT_ALL", &
                           description="loop overal all PW_GRID_LAYOUTs that are compatible with a given number of CPUs ", &
                           usage="PW_GRID_LAYOUT_ALL", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DEBUG", &
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG", &
                           description="Do the FFT in debug mode in all cases", &
                           usage="DEBUG", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PW_GRID_LAYOUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="PW_GRID_LAYOUT", &
                           description="Expert use only, leave the default..."// &
                           "Can be used to set the distribution for ray-distributed FFT.", &
                           usage="PW_GRID_LAYOUT", &
@@ -911,7 +911,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PW_GRID_BLOCKED", &
+      CALL keyword_create(keyword, __LOCATION__, name="PW_GRID_BLOCKED", &
                           description="Expert use only, leave the default..."// &
                           "Can be used to set the distribution in g-space for the pw grids and their FFT.", &
                           usage="PW_GRID_BLOCKED FREE", &
@@ -944,53 +944,53 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="N_LOOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_LOOP", &
                           description="Number of cp_fm_gemm operations being timed (useful for small matrices).", &
                           usage="N_LOOP 10", default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Dimension 1 of C", &
                           usage="A 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="M", &
+      CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Inner dimension M   ", &
                           usage="A 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="N", &
+      CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
                           usage="A 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NROW_BLOCK", &
+      CALL keyword_create(keyword, __LOCATION__, name="NROW_BLOCK", &
                           description="block_size for rows", &
                           usage="nrow_block 64", default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NCOL_BLOCK", &
+      CALL keyword_create(keyword, __LOCATION__, name="NCOL_BLOCK", &
                           description="block_size for cols", &
                           usage="nrow_block 64", default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROW_MAJOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="ROW_MAJOR", &
                           description="Use a row major blacs grid", &
                           usage="ROW_MAJOR .FALSE.", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FORCE_BLOCKSIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_BLOCKSIZE", &
                           description="Forces the blocksize, even if this implies that a few processes might have no data", &
                           usage="FORCE_BLOCKSIZE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GRID_2D", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_2D", &
                           description="Explicitly set the blacs 2D processor layout."// &
                           " If the product differs from the number of MPI ranks,"// &
                           " it is ignored and a default nearly square layout is used.", n_var=2, &
@@ -998,13 +998,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRANSA", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSA", &
                           description="Transpose matrix A", &
                           usage="TRANSA", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRANSB", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSB", &
                           description="Transpose matrix B", &
                           usage="TRANSB", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1032,19 +1032,19 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="N", &
+      CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension of the square matrix", &
                           usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_LOOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_LOOP", &
                           description="Number of operations being timed (useful for small matrices).", &
                           usage="N_LOOP 10", default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DIAG_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIAG_METHOD", &
                           description="Diagonalization strategy", &
                           usage="DIAG_METHOD syevd", &
                           enum_c_vals=s2a("syevd", "syevx"), &
@@ -1054,13 +1054,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EIGENVALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="EIGENVALUES", &
                           description="number of eigenvalues to be computed (all=<0) ", &
                           usage="EIGENVALUES 13", default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INIT_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="INIT_METHOD", &
                           description="Initialization approach", &
                           usage="INIT_METHOD RANDOM", &
                           enum_c_vals=s2a("random", "read"), &
@@ -1092,13 +1092,13 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="N_LOOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_LOOP", &
                           description="Number of operations being timed (useful for small matrices).", &
                           usage="N_LOOP 10", default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DATA_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="DATA_TYPE", &
                           description="Data type of the matrices", &
                           usage="DATA_TYPE real_4", &
                           default_i_val=dbcsr_type_real_8, &
@@ -1113,7 +1113,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_TYPE", &
                           description="Which part of DBCSR is tested", &
                           usage="TEST_TYPE MM", &
                           default_i_val=dbcsr_test_mm, &
@@ -1125,117 +1125,117 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="M", &
+      CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Dimension 1 of C", &
                           usage="A 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="N", &
+      CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
                           usage="A 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Inner dimension M   ", &
                           usage="A 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRANSA", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSA", &
                           description="Transpose matrix A", &
                           usage="TRANSA", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRANSB", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSB", &
                           description="Transpose matrix B", &
                           usage="TRANSB", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BS_M", &
+      CALL keyword_create(keyword, __LOCATION__, name="BS_M", &
                           description="Row block sizes of C", n_var=-1, &
                           usage="BS_M 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BS_N", &
+      CALL keyword_create(keyword, __LOCATION__, name="BS_N", &
                           description="Column block sizes of C", n_var=-1, &
                           usage="BS_N 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BS_K", &
+      CALL keyword_create(keyword, __LOCATION__, name="BS_K", &
                           description="Block sizes of inner dimension", n_var=-1, &
                           usage="BS_K 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATYPE", &
                           description="Matrix A type", &
                           usage="ATYPE N", default_c_val='N')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="BTYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BTYPE", &
                           description="Matrix B type", &
                           usage="BTYPE N", default_c_val='N')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="CTYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CTYPE", &
                           description="Matrix C type", &
                           usage="CTYPE N", default_c_val='N')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NPROC", &
+      CALL keyword_create(keyword, __LOCATION__, name="NPROC", &
                           description="Number of processors to test", n_var=-1, &
                           usage="NPROC 128 16 1", default_i_vals=(/0/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KEEPSPARSE", &
+      CALL keyword_create(keyword, __LOCATION__, name="KEEPSPARSE", &
                           description="Keep product sparse", &
                           usage="KEEPSPARSE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ASPARSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="ASPARSITY", &
                           description="Sparsity of A matrix", &
                           usage="ASPARSITY 70", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BSPARSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="BSPARSITY", &
                           description="Sparsity of B matrix", &
                           usage="ASPARSITY 80", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CSPARSITY", &
+      CALL keyword_create(keyword, __LOCATION__, name="CSPARSITY", &
                           description="Sparsity of C matrix", &
                           usage="ASPARSITY 90", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALPHA", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Multiplication factor", &
                           usage="ALPHA 2.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BETA", &
+      CALL keyword_create(keyword, __LOCATION__, name="BETA", &
                           description="Product premultiplication factor", &
                           usage="BETA 1.0", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FILTER_EPS", &
+      CALL keyword_create(keyword, __LOCATION__, name="FILTER_EPS", &
                           description="Threshold for on-the-fly and final filtering.", &
                           usage="FILTER_EPS 1.0", default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALWAYS_CHECKSUM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALWAYS_CHECKSUM", &
                           description="perform a checksum after each multiplication", &
                           usage="ALWAYS_CHECKSUM", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

@@ -52,7 +52,7 @@ CONTAINS
                           "The swarm framework provides a common ground for master/worker algorithms.", &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="BEHAVIOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="BEHAVIOR", &
                           description="Which behaviour should control the swarm.", &
                           usage="BEHAVIOR <STRING>", &
                           default_i_val=swarm_do_glbopt, &
@@ -62,7 +62,7 @@ CONTAINS
       CALL section_add_keyword(swarm_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUMBER_OF_WORKERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_WORKERS", &
                           description="Number of workers used for swarm. "// &
                           "Of the total number of processors one is used for the master, "// &
                           "the remaining processors should be divisible by the number of workers.", &
@@ -70,14 +70,14 @@ CONTAINS
       CALL section_add_keyword(swarm_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REPLAY_COMMUNICATION_LOG", &
+      CALL keyword_create(keyword, __LOCATION__, name="REPLAY_COMMUNICATION_LOG", &
                           description="Filename of communication log of previous run. Use this to restart a swarm.", &
                           repeats=.FALSE., &
                           usage="REPLAY_COMMUNICATION_LOG <CHARACTER>", default_lc_val="swarm_translog_replay.xyz")
       CALL section_add_keyword(swarm_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="The maximum number iterations the master should perform", &
                           type_of_var=integer_t, default_i_val=HUGE(1))
       CALL section_add_keyword(swarm_section, keyword)

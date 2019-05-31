@@ -539,7 +539,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the mixing procedure", &
                           usage="&MIXING ON", &
@@ -554,7 +554,7 @@ CONTAINS
          default_mix = broy_mix
       ENDIF
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="METHOD", &
                           description="Mixing method to be applied", &
                           repeats=.FALSE., &
@@ -578,7 +578,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="ALPHA", &
                           description="Fraction of new density to be included", &
                           repeats=.FALSE., &
@@ -589,7 +589,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BETA", &
                           description="Denominator parameter in Kerker damping "// &
                           "introduced to suppress charge sloshing: rho_mix(g) ="// &
@@ -604,7 +604,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="PULAY_ALPHA", &
                           description="Fraction of new density to be added to the Pulay expansion", &
                           repeats=.FALSE., &
@@ -615,7 +615,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="PULAY_BETA", &
                           description="Fraction of residual contribution to be added to Pulay expansion", &
                           repeats=.FALSE., &
@@ -626,21 +626,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NMIXING", &
+      CALL keyword_create(keyword, __LOCATION__, name="NMIXING", &
                           description="Minimal number of density mixing (should be greater than 0),"// &
                           "before starting DIIS", &
                           usage="NMIXING 1", default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NBUFFER", &
+      CALL keyword_create(keyword, __LOCATION__, name="NBUFFER", &
                           variants=s2a("NPULAY", "NBROYDEN", "NMULTISECANT"), &
                           description="Number of previous steps stored for the actual mixing scheme", &
                           usage="NBUFFER 2", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_W0", &
                           description=" w0 parameter used in Broyden mixing", &
                           repeats=.FALSE., &
@@ -651,7 +651,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_WREF", &
                           description="", &
                           repeats=.FALSE., &
@@ -662,7 +662,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_WMAX", &
                           description="", &
                           repeats=.FALSE., &
@@ -673,7 +673,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="REGULARIZATION", &
                           description="Regularization parameter to stabilize "// &
                           "the inversion of the residual matrix {Yn^t Yn} in the "// &
@@ -686,7 +686,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="MAX_STEP", &
                           description="Upper bound for the magnitude of the "// &
                           "unpredicted step size in the update by the "// &
@@ -699,7 +699,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="R_FACTOR", &
                           description="Control factor for the magnitude of the "// &
                           "unpredicted step size in the update by the "// &
@@ -712,21 +712,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NSKIP", &
+      CALL keyword_create(keyword, __LOCATION__, name="NSKIP", &
                           variants=(/"NSKIP_MIXING"/), &
                           description="Number of initial iteration for which the mixing is skipped", &
                           usage="NSKIP 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_SIMPLE_MIX", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_SIMPLE_MIX", &
                           variants=(/"NSIMPLEMIX"/), &
                           description="Number of kerker damping iterations before starting other mixing procedures", &
                           usage="NSIMPLEMIX", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_GVEC_EXP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_GVEC_EXP", &
                           description="Restricts the G-space mixing to lower part of G-vector spectrum,"// &
                           " up to a G0, by assigning the exponent of the Gaussian that can be "// &
                           "represented by vectors smaller than G0 within a certain accuracy. ", &
@@ -738,7 +738,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GMIX_P", &
+      CALL keyword_create(keyword, __LOCATION__, name="GMIX_P", &
                           description="Activate the mixing of the denisty matrix, using the same"// &
                           " mixing coefficient applied for the g-space mixing.", &
                           repeats=.FALSE., &

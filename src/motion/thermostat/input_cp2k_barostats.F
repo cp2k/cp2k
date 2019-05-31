@@ -66,14 +66,14 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, thermo_section)
-      CALL keyword_create(keyword, name="PRESSURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRESSURE", &
                           description="Initial pressure", &
                           usage="PRESSURE real", &
                           default_r_val=0._dp, unit_str='bar')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TIMECON", &
+      CALL keyword_create(keyword, __LOCATION__, name="TIMECON", &
                           description="Barostat time constant", &
                           usage="TIMECON real", &
                           default_r_val=cp_unit_to_cp2k(1000.0_dp, "fs"), &
@@ -81,21 +81,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMPERATURE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="Barostat initial temperature. If not set, the ensemble temperature is used instead.", &
                           usage="TEMPERATURE real", type_of_var=real_t, &
                           unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMP_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMP_TOL", &
                           description="Maximum oscillation of the Barostat temperature imposed by rescaling.", &
                           usage="TEMP_TOL real", default_r_val=0._dp, &
                           unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VIRIAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="VIRIAL", &
                           description="For NPT_F only: allows the screening of one or more components of the virial in order"// &
                           " to relax the cell only along specific cartesian axis", &
                           usage="VIRIAL (XYZ | X | Y | Z | XY| XZ | YZ)", &

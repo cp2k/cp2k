@@ -185,14 +185,14 @@ CONTAINS
                                        "Controls the printing of information in the forcefield settings", &
                                        print_level=high_print_level, filename="__STD_OUT__")
 
-      CALL keyword_create(keyword, "spline_info", &
+      CALL keyword_create(keyword, __LOCATION__, name="spline_info", &
                           description="if the printkey is active prints information regarding the splines"// &
                           " used in the nonbonded interactions", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, "spline_data", &
+      CALL keyword_create(keyword, __LOCATION__, name="spline_data", &
                           description="if the printkey is active prints on separated files the splined function"// &
                           " together with the reference one. Useful to check the spline behavior.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -228,7 +228,7 @@ CONTAINS
       NULLIFY (subsection, keyword)
 
       CALL keyword_create( &
-         keyword, name="PARMTYPE", &
+         keyword, __LOCATION__, name="PARMTYPE", &
          description="Define the kind of torsion potential", &
          usage="PARMTYPE {OFF,CHM,G87,G96}", &
          enum_c_vals=s2a("OFF", "CHM", "G87", "G96", "AMBER"), &
@@ -246,25 +246,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARM_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
                           description="Specifies the filename that contains the parameters of the FF.", &
                           usage="PARM_FILE_NAME {FILENAME}", type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VDW_SCALE14", &
+      CALL keyword_create(keyword, __LOCATION__, name="VDW_SCALE14", &
                           description="Scaling factor for the VDW 1-4 ", &
                           usage="VDW_SCALE14 1.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EI_SCALE14", &
+      CALL keyword_create(keyword, __LOCATION__, name="EI_SCALE14", &
                           description="Scaling factor for the electrostatics 1-4 ", &
                           usage="EI_SCALE14 1.0", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHIFT_CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHIFT_CUTOFF", &
                           description="Add a constant energy shift to the real-space "// &
                           "non-bonding interactions (both Van der Waals and "// &
                           "electrostatic) such that the energy at the cutoff radius is "// &
@@ -274,7 +274,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DO_NONBONDED", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_NONBONDED", &
                           description="Controls the computation of all the real-space "// &
                           "(short-range) nonbonded interactions. This also "// &
                           "includes the real-space corrections for excluded "// &
@@ -285,7 +285,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IGNORE_MISSING_CRITICAL_PARAMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="IGNORE_MISSING_CRITICAL_PARAMS", &
                           description="Do not abort when critical force-field parameters "// &
                           "are missing. CP2K will run as if the terms containing the "// &
                           "missing parameters are zero.", &
@@ -294,14 +294,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="MULTIPLE_POTENTIAL", &
                           description="Enables the possibility to define NONBONDED and NONBONDED14 as a"// &
                           " sum of different kinds of potential. Useful for piecewise defined potentials.", &
                           usage="MULTIPLE_POTENTIAL T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       !Universal scattering potential at very short distances
-      CALL keyword_create(keyword, name="ZBL_SCATTERING", &
+      CALL keyword_create(keyword, __LOCATION__, name="ZBL_SCATTERING", &
                           description="A short range repulsive potential is added, to simulate "// &
                           "collisions and scattering.", &
                           usage="ZBL_SCATTERING T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -386,7 +386,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="R0_NB", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0_NB", &
                           description="Specify the minimum value of the distance interval "// &
                           " that brackets the value of emax_spline.", &
                           usage="R0_NB <REAL>", default_r_val=cp_unit_to_cp2k(value=0.9_dp, &
@@ -395,7 +395,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT_NB", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT_NB", &
                           description="Cutoff radius for nonbonded interactions. This value overrides "// &
                           " the value specified in the potential definition and is global for all potentials.", &
                           usage="RCUT_NB {real}", default_r_val=cp_unit_to_cp2k(value=-1.0_dp, &
@@ -404,7 +404,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EMAX_SPLINE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EMAX_SPLINE", &
                           description="Specify the maximum value of the potential up to which"// &
                           " splines will be constructed", &
                           usage="EMAX_SPLINE <REAL>", &
@@ -412,7 +412,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EMAX_ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="EMAX_ACCURACY", &
                           description="Specify the maximum value of energy used to check the accuracy"// &
                           " requested through EPS_SPLINE. Energy values larger than EMAX_ACCURACY"// &
                           " generally do not  satisfy the requested accuracy", &
@@ -420,7 +420,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_SPLINE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SPLINE", &
                           description="Specify the threshold for the choice of the number of"// &
                           " points used in the splines (comparing the splined value with the "// &
                           " analytically evaluated one)", &
@@ -429,13 +429,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="NPOINTS", &
+         keyword, __LOCATION__, name="NPOINTS", &
          description="Override the default search for an accurate spline by specifying a fixed number of spline points.", &
          usage="NPOINTS 1024", default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNIQUE_SPLINE", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNIQUE_SPLINE", &
                           description="For few potentials (Lennard-Jones) one global optimal spline is generated instead"// &
                           " of different optimal splines for each kind of potential", &
                           usage="UNIQUE_SPLINE <LOGICAL>", lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -463,14 +463,14 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the tors.", &
                           usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", type_of_var=char_t, &
                           n_var=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="KIND", &
                           description="Define the kind of torsion potential", &
                           usage="KIND CHARMM", &
                           enum_c_vals=s2a("CHARMM", "G87", "G96", "AMBER", "OPLS"), &
@@ -488,21 +488,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Defines the force constant of the potential", &
                           usage="K {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHI0", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHI0", &
                           description="Defines the phase of the potential.", &
                           usage="PHI0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="rad", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="M", &
+      CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Defines the multiplicity of the potential.", &
                           usage="M {integer}", type_of_var=integer_t, &
                           n_var=1)
@@ -530,14 +530,14 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the improper tors.", &
                           usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", type_of_var=char_t, &
                           n_var=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="KIND", &
                           description="Define the kind of improper torsion potential", &
                           usage="KIND CHARMM", &
                           enum_c_vals=s2a("CHARMM", "G87", "G96", "HARMONIC"), &
@@ -553,14 +553,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Defines the force constant of the potential", &
                           usage="K {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*rad^-2")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHI0", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHI0", &
                           description="Defines the phase of the potential.", &
                           usage="PHI0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="rad")
@@ -590,14 +590,14 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the opbend.", &
                           usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", type_of_var=char_t, &
                           n_var=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="KIND", &
                           description="Define the kind of out of plane bend potential", &
                           usage="KIND HARMONIC", &
                           enum_c_vals=s2a("HARMONIC", "MM2", "MM3", "MM4"), &
@@ -613,14 +613,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Defines the force constant of the potential", &
                           usage="K {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*rad^-2")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PHI0", &
+      CALL keyword_create(keyword, __LOCATION__, name="PHI0", &
                           description="Defines the phase of the potential.", &
                           usage="PHI0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="rad")
@@ -650,7 +650,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the bend.", &
                           usage="ATOMS {KIND1} {KIND2} {KIND3}", type_of_var=char_t, &
                           n_var=3)
@@ -658,7 +658,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, name="KIND", &
+         keyword, __LOCATION__, name="KIND", &
          description="Define the kind of bend potential", &
          usage="KIND HARMONIC", &
          enum_c_vals=s2a("HARMONIC", "CHARMM", "AMBER", "G87", "G96", "CUBIC", "MIXED_BEND_STRETCH", "MM3", &
@@ -688,59 +688,59 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Defines the force constant of the potential", &
                           usage="K {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*rad^-2")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CB", &
+      CALL keyword_create(keyword, __LOCATION__, name="CB", &
                           description="Defines the the cubic force constant of the bend", &
                           usage="CB {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="rad^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R012", &
+      CALL keyword_create(keyword, __LOCATION__, name="R012", &
                           description="Mixed bend stretch parameter", &
                           usage="R012 {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="R032", &
+      CALL keyword_create(keyword, __LOCATION__, name="R032", &
                           description="Mixed bend stretch parameter", &
                           usage="R032 {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="KBS12", &
+      CALL keyword_create(keyword, __LOCATION__, name="KBS12", &
                           description="Mixed bend stretch parameter", &
                           usage="KBS12 {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="hartree*bohr^-1*rad^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="KBS32", &
+      CALL keyword_create(keyword, __LOCATION__, name="KBS32", &
                           description="Mixed bend stretch parameter", &
                           usage="KBS32 {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="hartree*bohr^-1*rad^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="KSS", &
+      CALL keyword_create(keyword, __LOCATION__, name="KSS", &
                           description="Mixed bend stretch parameter", &
                           usage="KSS {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="hartree*bohr^-2")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="THETA0", &
+      CALL keyword_create(keyword, __LOCATION__, name="THETA0", &
                           description="Defines the equilibrium angle.", &
                           usage="THETA0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str='rad')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LEGENDRE", &
+      CALL keyword_create(keyword, __LOCATION__, name="LEGENDRE", &
                           description="Specifies the coefficients for the legendre"// &
                           " expansion of the bending potential."// &
                           "'THETA0' and 'K' are not used, but need to be specified."// &
@@ -789,7 +789,7 @@ CONTAINS
                              description="Specifies the bond potential", &
                              n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-         CALL keyword_create(keyword, name="ATOMS", &
+         CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                              description="Defines the atomic kinds involved in the bond.", &
                              usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                              n_var=2)
@@ -797,7 +797,7 @@ CONTAINS
          CALL keyword_release(keyword)
       END IF
 
-      CALL keyword_create(keyword=keyword, name="KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="KIND", &
                           description="Define the kind of"//TRIM(tag)//"potential.", &
                           usage="KIND HARMONIC", &
                           enum_c_vals=s2a("HARMONIC", "CHARMM", "AMBER", "G87", "G96", "QUARTIC", &
@@ -824,7 +824,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Defines the force constant of the potential. "// &
                           "For MORSE potentials 2 numbers are expected. "// &
                           "For QUARTIC potentials 3 numbers are expected.", &
@@ -833,14 +833,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CS", &
+      CALL keyword_create(keyword, __LOCATION__, name="CS", &
                           description="Defines the cubic stretch term.", &
                           usage="CS {real}", default_r_val=0.0_dp, type_of_var=real_t, &
                           n_var=1, unit_str="bohr^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R0", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0", &
                           description="Defines the equilibrium distance.", &
                           usage="R0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="bohr")
@@ -869,7 +869,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Value of the charge for the individual atom. Order MUST reflect"// &
                           " the one specified for the geometry.", repeats=.TRUE., usage="{Real}", &
                           type_of_var=real_t)
@@ -898,14 +898,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
                           description="Defines the atomic kind of the charge.", &
                           usage="ATOM {KIND1}", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHARGE", &
                           description="Defines the charge of the MM atom in electron charge unit.", &
                           usage="CHARGE {real}", type_of_var=real_t, &
                           n_var=1)
@@ -936,14 +936,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
                           description="Defines the atomic kind of the SCF quadrupole.", &
                           usage="ATOM {KIND1}", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CPOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="CPOL", &
                           description="Defines the isotropic polarizability of the MM atom.", &
                           usage="CPOL {real}", type_of_var=real_t, &
                           n_var=1, unit_str='internal_cp2k')
@@ -974,14 +974,14 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
                           description="Defines the atomic kind of the SCF dipole.", &
                           usage="ATOM {KIND1}", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="APOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="APOL", &
                           description="Defines the isotropic polarizability of the MM atom.", &
                           usage="APOL {real}", type_of_var=real_t, &
                           n_var=1, unit_str='angstrom^3')
@@ -1013,35 +1013,35 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
                           description="Defines the atomic kind for this damping function.", &
                           usage="ATOM {KIND1}", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Defines the damping type.", &
                           usage="TYPE {string}", type_of_var=char_t, &
                           n_var=1, default_c_val="TANG-TOENNIES")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ORDER", &
+      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
                           description="Defines the order for this damping.", &
                           usage="ORDER {integer}", type_of_var=integer_t, &
                           n_var=1, default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BIJ", &
+      CALL keyword_create(keyword, __LOCATION__, name="BIJ", &
                           description="Defines the BIJ parameter for this damping.", &
                           usage="BIJ {real}", type_of_var=real_t, &
                           n_var=1, unit_str='angstrom^-1')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CIJ", &
+      CALL keyword_create(keyword, __LOCATION__, name="CIJ", &
                           description="Defines the CIJ parameter for this damping.", &
                           usage="CIJ {real}", type_of_var=real_t, &
                           n_var=1, unit_str='')
@@ -1071,13 +1071,13 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="The kind for which the shell potential parameters are given ", &
                           usage="H", default_c_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORE_CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CORE_CHARGE", &
                           variants=(/"CORE"/), &
                           description="Partial charge assigned to the core (electron charge units)", &
                           usage="CORE_CHARGE {real}", &
@@ -1085,7 +1085,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHELL_CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHELL_CHARGE", &
                           variants=(/"SHELL"/), &
                           description="Partial charge assigned to the shell (electron charge units)", &
                           usage="SHELL_CHARGE {real}", &
@@ -1093,7 +1093,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MASS_FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="MASS_FRACTION", &
                           variants=(/"MASS"/), &
                           description="Fraction of the mass of the atom to be assigned to the shell", &
                           usage="MASS_FRACTION {real}", &
@@ -1101,7 +1101,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K2_SPRING", &
+      CALL keyword_create(keyword, __LOCATION__, name="K2_SPRING", &
                           variants=s2a("K2", "SPRING"), &
                           description="Force constant k2 of the spring potential 1/2*k2*r^2 + 1/24*k4*r^4 "// &
                           "binding a core-shell pair when a core-shell potential is employed.", &
@@ -1112,7 +1112,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K4_SPRING", &
+      CALL keyword_create(keyword, __LOCATION__, name="K4_SPRING", &
                           variants=s2a("K4"), &
                           description="Force constant k4 of the spring potential 1/2*k2*r^2 + 1/24*k4*r^4 "// &
                           "binding a core-shell pair when a core-shell potential is employed. "// &
@@ -1124,7 +1124,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_DISTANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_DISTANCE", &
                           description="Assign a maximum elongation of the spring, "// &
                           "if negative no limit is imposed", &
                           usage="MAX_DISTANCE 0.0", &
@@ -1133,7 +1133,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHELL_CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHELL_CUTOFF", &
                           description="Define a screening function to exclude some neighbors "// &
                           " of the shell when electrostatic interaction are considered, "// &
                           "if negative no screening is operated", &
@@ -1278,7 +1278,7 @@ CONTAINS
                           " neighbor lists.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="VERLET_SKIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="VERLET_SKIN", &
                           description="Defines the Verlet Skin for the generation of the neighbor lists", &
                           usage="VERLET_SKIN {real}", default_r_val=cp_unit_to_cp2k(value=1.0_dp, &
                                                                                     unit_str="angstrom"), &
@@ -1286,14 +1286,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="neighbor_lists_from_scratch", &
+      CALL keyword_create(keyword, __LOCATION__, name="neighbor_lists_from_scratch", &
                           description="This keyword enables the building of the neighbouring list from scratch.", &
                           usage="neighbor_lists_from_scratch logical", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GEO_CHECK", &
+      CALL keyword_create(keyword, __LOCATION__, name="GEO_CHECK", &
                           description="This keyword enables the check that two atoms are never below the minimum"// &
                           " value used to construct the splines during the construction of the neighbouring list."// &
                           " Disabling this keyword avoids CP2K to abort in case two atoms are below the minimum "// &
@@ -1330,42 +1330,42 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the generic potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the functional form in mathematical notation.", &
                           usage="FUNCTION a*EXP(-b*x^2)/x+D*log10(x)", type_of_var=lchar_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VARIABLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
                           description="Defines the variable of the functional form.", &
                           usage="VARIABLES x", type_of_var=char_t, &
                           n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
                           usage="PARAMETERS a b D", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
                           description="Defines the values of parameter of the functional form", &
                           usage="VALUES ", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNITS", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
                           "It is assumed that the corresponding parameter value is specified in this unit.", &
                           usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
@@ -1373,7 +1373,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the generic potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -1381,14 +1381,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1417,14 +1417,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARM_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
                           variants=(/"PARMFILE"/), &
                           description="Specifies the filename that contains the tabulated EAM potential. "// &
                           "File structure: the first line of the potential file contains a title. "// &
@@ -1466,7 +1466,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the QUIP potential. "// &
                           "For more than 2 elements, &QUIP section must be repeated until each element "// &
                           "has been mentioned at least once. Set IGNORE_MISSING_CRITICAL_PARAMS to T "// &
@@ -1476,14 +1476,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARM_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
                           variants=(/"PARMFILE"/), &
                           description="Specifies the filename that contains the QUIP potential.", &
                           usage="PARM_FILE_NAME {FILENAME}", default_lc_val="quip_params.xml")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INIT_ARGS", &
+      CALL keyword_create(keyword, __LOCATION__, name="INIT_ARGS", &
                           description="Specifies the potential initialization arguments for the QUIP potential. "// &
                           "If blank (default) first potential defined in QUIP parameter file will be used.", &
                           usage="INIT_ARGS", default_c_vals=(/""/), &
@@ -1491,7 +1491,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CALC_ARGS", &
+      CALL keyword_create(keyword, __LOCATION__, name="CALC_ARGS", &
                           description="Specifies the potential calculation arguments for the QUIP potential.", &
                           usage="CALC_ARGS", default_c_vals=(/""/), &
                           n_var=-1, type_of_var=char_t)
@@ -1521,28 +1521,28 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPSILON", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPSILON", &
                           description="Defines the EPSILON parameter of the LJ potential", &
                           usage="EPSILON {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIGMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="SIGMA", &
                           description="Defines the SIGMA parameter of the LJ potential", &
                           usage="SIGMA {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the LJ potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -1550,14 +1550,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1587,35 +1587,35 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A", &
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Defines the A parameter of the Williams potential", &
                           usage="A {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Defines the B parameter of the Williams potential", &
                           usage="B {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C", &
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Defines the C parameter of the Williams potential", &
                           usage="C {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e*angstrom^6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the Williams potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -1623,14 +1623,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1659,49 +1659,49 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VR0", &
+      CALL keyword_create(keyword, __LOCATION__, name="VR0", &
                           description="Defines the VR0 parameter of the Goodwin potential", &
                           usage="VR0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="D", &
+      CALL keyword_create(keyword, __LOCATION__, name="D", &
                           description="Defines the D parameter of the Goodwin potential", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DC", &
+      CALL keyword_create(keyword, __LOCATION__, name="DC", &
                           description="Defines the DC parameter of the Goodwin potential", &
                           usage="DC {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="M", &
+      CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Defines the M parameter of the Goodwin potential", &
                           usage="M {real}", type_of_var=integer_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MC", &
+      CALL keyword_create(keyword, __LOCATION__, name="MC", &
                           description="Defines the MC parameter of the Goodwin potential", &
                           usage="MC {real}", type_of_var=integer_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the Goodwin potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -1709,14 +1709,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1746,14 +1746,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the IPBV nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the IPBV potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -1761,14 +1761,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1799,14 +1799,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the BMHFT nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAP_ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAP_ATOMS", &
                           description="Defines the kinds for which internally is defined the BMHFT nonbond potential"// &
                           " at the moment only Na and Cl.", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
@@ -1814,49 +1814,49 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the BMHFT potential", &
                           usage="RCUT {real}", default_r_val=7.8_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A", &
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Defines the A parameter of the Fumi-Tosi Potential", &
                           usage="A {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Defines the B parameter of the Fumi-Tosi Potential", &
                           usage="B {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C", &
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Defines the C parameter of the Fumi-Tosi Potential", &
                           usage="C {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*angstrom^6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="D", &
+      CALL keyword_create(keyword, __LOCATION__, name="D", &
                           description="Defines the D parameter of the Fumi-Tosi Potential", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*angstrom^8")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1889,14 +1889,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the BMHFTD nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAP_ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAP_ATOMS", &
                           description="Defines the kinds for which internally is defined the BMHFTD nonbond potential"// &
                           " at the moment no species included.", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
@@ -1904,63 +1904,63 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the BMHFTD potential", &
                           usage="RCUT {real}", default_r_val=7.8_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A", &
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Defines the A parameter of the dispersion-damped Fumi-Tosi Potential", &
                           usage="A {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Defines the B parameter of the dispersion-damped Fumi-Tosi Potential", &
                           usage="B {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C", &
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Defines the C parameter of the dispersion-damped Fumi-Tosi Potential", &
                           usage="C {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*angstrom^6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="D", &
+      CALL keyword_create(keyword, __LOCATION__, name="D", &
                           description="Defines the D parameter of the dispersion-damped Fumi-Tosi Potential", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*angstrom^8")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BD", &
+      CALL keyword_create(keyword, __LOCATION__, name="BD", &
                           description="Defines the BD parameter of the dispersion-damped Fumi-Tosi Potential", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ORDER", &
+      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
                           description="Defines the order for this damping.", &
                           usage="ORDER {integer}", type_of_var=integer_t, &
                           n_var=1, default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -1995,56 +1995,56 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A", &
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Defines the A parameter of the Buckingham potential", &
                           usage="A {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Defines the B parameter of the Buckingham potential", &
                           usage="B {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C", &
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Defines the C parameter of the Buckingham  potential", &
                           usage="C {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e*angstrom^6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R1", &
+      CALL keyword_create(keyword, __LOCATION__, name="R1", &
                           description="Defines the upper bound of the first range ", &
                           usage="R1 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R2", &
+      CALL keyword_create(keyword, __LOCATION__, name="R2", &
                           description="Defines the upper bound of the second range ", &
                           usage="R2 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R3", &
+      CALL keyword_create(keyword, __LOCATION__, name="R3", &
                           description="Defines the upper bound of the third range ", &
                           usage="R3 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POLY1", &
+      CALL keyword_create(keyword, __LOCATION__, name="POLY1", &
                           description="Coefficients of the polynomial used in the second range"// &
                           "This keyword can be repeated several times.", &
                           usage="POLY1 C1 C2 C3 ..", &
@@ -2052,7 +2052,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="POLY2", &
+      CALL keyword_create(keyword, __LOCATION__, name="POLY2", &
                           description="Coefficients of the polynomial used in the third range"// &
                           "This keyword can be repeated several times.", &
                           usage="POLY1 C1 C2 C3 ..", &
@@ -2060,7 +2060,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the Buckingham potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -2068,14 +2068,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -2107,77 +2107,77 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="F0", &
+      CALL keyword_create(keyword, __LOCATION__, name="F0", &
                           description="Defines the f0 parameter of Buckingham+Morse potential", &
                           usage="F0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e*angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A1", &
+      CALL keyword_create(keyword, __LOCATION__, name="A1", &
                           description="Defines the A1 parameter of Buckingham+Morse potential", &
                           usage="A1 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A2", &
+      CALL keyword_create(keyword, __LOCATION__, name="A2", &
                           description="Defines the A2 parameter of Buckingham+Morse potential", &
                           usage="A2 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B1", &
+      CALL keyword_create(keyword, __LOCATION__, name="B1", &
                           description="Defines the B1 parameter of Buckingham+Morse potential", &
                           usage="B1 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B2", &
+      CALL keyword_create(keyword, __LOCATION__, name="B2", &
                           description="Defines the B2 parameter of Buckingham+Morse potential", &
                           usage="B2 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="C", &
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Defines the C parameter of Buckingham+Morse  potential", &
                           usage="C {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e*angstrom^6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="D", &
+      CALL keyword_create(keyword, __LOCATION__, name="D", &
                           description="Defines the amplitude for the Morse part ", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="K_e")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R0", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0", &
                           description="Defines the equilibrium distance for the Morse part ", &
                           usage="R0 {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Beta", &
+      CALL keyword_create(keyword, __LOCATION__, name="Beta", &
                           description="Defines the width for the Morse part ", &
                           usage="Beta {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the Buckingham potential", &
                           usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp, &
                                                                              unit_str="angstrom"), &
@@ -2185,14 +2185,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Defines the lower bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMIN {real}", &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Defines the upper bound of the potential. If not set the range is the"// &
                           " full range generate by the spline", usage="RMAX {real}", &
                           type_of_var=real_t, unit_str="angstrom")
@@ -2221,14 +2221,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="A", &
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Defines the A parameter of Tersoff potential", &
                           usage="A {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=1.8308E3_dp, &
@@ -2237,7 +2237,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Defines the B parameter of Tersoff potential", &
                           usage="B {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=4.7118E2_dp, &
@@ -2246,7 +2246,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="lambda1", &
+      CALL keyword_create(keyword, __LOCATION__, name="lambda1", &
                           description="Defines the lambda1 parameter of Tersoff potential", &
                           usage="lambda1 {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=2.4799_dp, &
@@ -2255,7 +2255,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="lambda2", &
+      CALL keyword_create(keyword, __LOCATION__, name="lambda2", &
                           description="Defines the lambda2 parameter of Tersoff potential", &
                           usage="lambda2 {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=1.7322_dp, &
@@ -2264,7 +2264,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="alpha", &
+      CALL keyword_create(keyword, __LOCATION__, name="alpha", &
                           description="Defines the alpha parameter of Tersoff potential", &
                           usage="alpha {real}", type_of_var=real_t, &
                           default_r_val=0.0_dp, &
@@ -2272,7 +2272,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="beta", &
+      CALL keyword_create(keyword, __LOCATION__, name="beta", &
                           description="Defines the beta parameter of Tersoff potential", &
                           usage="beta {real}", type_of_var=real_t, &
                           default_r_val=1.0999E-6_dp, &
@@ -2280,7 +2280,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="n", &
+      CALL keyword_create(keyword, __LOCATION__, name="n", &
                           description="Defines the n parameter of Tersoff potential", &
                           usage="n {real}", type_of_var=real_t, &
                           default_r_val=7.8734E-1_dp, &
@@ -2288,7 +2288,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="c", &
+      CALL keyword_create(keyword, __LOCATION__, name="c", &
                           description="Defines the c parameter of Tersoff potential", &
                           usage="c {real}", type_of_var=real_t, &
                           default_r_val=1.0039E5_dp, &
@@ -2296,7 +2296,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="d", &
+      CALL keyword_create(keyword, __LOCATION__, name="d", &
                           description="Defines the d parameter of Tersoff potential", &
                           usage="d {real}", type_of_var=real_t, &
                           default_r_val=1.6218E1_dp, &
@@ -2304,7 +2304,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="h", &
+      CALL keyword_create(keyword, __LOCATION__, name="h", &
                           description="Defines the h parameter of Tersoff potential", &
                           usage="h {real}", type_of_var=real_t, &
                           default_r_val=-5.9826E-1_dp, &
@@ -2312,7 +2312,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="lambda3", &
+      CALL keyword_create(keyword, __LOCATION__, name="lambda3", &
                           description="Defines the lambda3 parameter of Tersoff potential", &
                           usage="lambda3 {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=1.7322_dp, &
@@ -2321,7 +2321,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="bigR", &
+      CALL keyword_create(keyword, __LOCATION__, name="bigR", &
                           description="Defines the bigR parameter of Tersoff potential", &
                           usage="bigR {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=2.85_dp, &
@@ -2330,7 +2330,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="bigD", &
+      CALL keyword_create(keyword, __LOCATION__, name="bigD", &
                           description="Defines the D parameter of Tersoff potential", &
                           usage="bigD {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=0.15_dp, &
@@ -2339,7 +2339,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of the tersoff potential. "// &
                           " This parameter is in principle already defined by the values of "// &
                           " bigD and bigR. But it is necessary to define it when using the tersoff "// &
@@ -2378,14 +2378,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kind involved in the nonbond potential", &
                           usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="B", &
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Defines the B parameter of Siepmann potential", &
                           usage="B {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=0.6_dp, &
@@ -2394,7 +2394,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="D", &
+      CALL keyword_create(keyword, __LOCATION__, name="D", &
                           description="Defines the D parameter of Siepmann potential", &
                           usage="D {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=3.688388_dp, &
@@ -2403,7 +2403,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="E", &
+      CALL keyword_create(keyword, __LOCATION__, name="E", &
                           description="Defines the E parameter of Siepmann potential", &
                           usage="E {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=9.069025_dp, &
@@ -2412,21 +2412,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="F", &
+      CALL keyword_create(keyword, __LOCATION__, name="F", &
                           description="Defines the F parameter of Siepmann potential", &
                           usage="B {real}", type_of_var=real_t, &
                           default_r_val=13.3_dp, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 !
-      CALL keyword_create(keyword, name="beta", &
+      CALL keyword_create(keyword, __LOCATION__, name="beta", &
                           description="Defines the beta parameter of Siepmann potential", &
                           usage="beta {real}", type_of_var=real_t, &
                           default_r_val=10.0_dp, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 !
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Defines the cutoff parameter of Siepmann potential", &
                           usage="RCUT {real}", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=3.2_dp, &
@@ -2435,7 +2435,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 !
-      CALL keyword_create(keyword, name="ALLOW_OH_FORMATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALLOW_OH_FORMATION", &
                           description=" The Siepmann-Sprik potential is actually designed for intact"// &
                           " water molecules only. If water is treated at the QM level,"// &
                           " water molecules can potentially dissociate, i.e."// &
@@ -2449,7 +2449,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALLOW_H3O_FORMATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALLOW_H3O_FORMATION", &
                           description=" The Siepmann-Sprik potential is designed for intact water"// &
                           " molecules only. If water is treated at the QM level"// &
                           " and an acid is present, hydronium ions might occur."// &
@@ -2461,7 +2461,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALLOW_O_FORMATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALLOW_O_FORMATION", &
                           description=" The Siepmann-Sprik potential is actually designed for intact"// &
                           " water molecules only. If water is treated at the QM level,"// &
                           " water molecules can potentially dissociate, i.e."// &
@@ -2502,7 +2502,7 @@ CONTAINS
                                        print_level=print_level, filename="__STD_OUT__")
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword=keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="PERIODIC", &
                           description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F). "// &
                           "The latter normally requires that the CELL is periodic NONE.", &
@@ -2513,7 +2513,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="REFERENCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE", &
                           variants=s2a("REF"), &
                           description="Define the reference point for the calculation of the electrostatic moment.", &
                           usage="REFERENCE COM", &
@@ -2530,7 +2530,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="REFERENCE_POINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_POINT", &
                           variants=s2a("REF_POINT"), &
                           description="Fixed reference point for the calculations of the electrostatic moment.", &
                           usage="REFERENCE_POINT x y z", &

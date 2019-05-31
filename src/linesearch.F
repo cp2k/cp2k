@@ -132,7 +132,7 @@ CONTAINS
                           description="Detail settings or linesearch method.")
 
       CALL keyword_create( &
-         keyword, name="METHOD", &
+         keyword, __LOCATION__, name="METHOD", &
          description="Linesearch method.", &
          default_i_val=linesearch_method_adapt, &
          enum_c_vals=s2a("ADAPT", "3PNT", "2PNT", "GOLD", "NONE"), &
@@ -146,25 +146,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INITIAL_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="INITIAL_STEP_SIZE", &
                           description="Initial step length", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_STEP_SIZE", &
                           description="Maximum step length", &
                           default_r_val=3.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TINY_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TINY_STEP_SIZE", &
                           description="Step length taken if negative step is suggested.", &
                           default_r_val=0.002_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_STEP_SIZE", &
                           description="Convergence criterion of GOLD method.", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)

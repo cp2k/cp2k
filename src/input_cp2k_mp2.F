@@ -79,7 +79,7 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="METHOD", &
          citations=(/DelBen2012, DelBen2013/), &
          description="Which method should be used to compute the MP2 energy", &
@@ -100,7 +100,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="MEMORY", &
          description="Maximum allowed total memory usage during MP2 methods [MiB].", &
          usage="MEMORY 1500 ", &
@@ -109,7 +109,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="SCALE_S", &
          description="Scaling factor of the singlet energy component (opposite spin, OS). ", &
          usage="SCALE_S  1.0", &
@@ -118,7 +118,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="SCALE_T", &
          description="Scaling factor of the triplet energy component (same spin, SS).", &
          usage="SCALE_T  1.0", &
@@ -127,7 +127,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="GROUP_SIZE", &
          variants=(/"NUMBER_PROC"/), &
          description="Group size used in the computation of the integrals. To use all processors set GROUP_SIZE -1 "// &
@@ -140,7 +140,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="ROW_BLOCK", &
          variants=(/"ROW_BLOCK_SIZE"/), &
          description="Size of the row block used in the SCALAPACK block cyclic data distribution."// &
@@ -152,7 +152,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="COL_BLOCK", &
          variants=(/"COL_BLOCK_SIZE"/), &
          description="Size of the column block used in the SCALAPACK block cyclic data distribution."// &
@@ -164,7 +164,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="CALC_COND_NUM", &
          variants=(/"CALC_CONDITION_NUMBER"/), &
          description="Calculate the condition number of the (P|Q) matrix for the RI methods.", &
@@ -175,7 +175,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="RI_METRIC", &
          variants=(/"RI"/), &
          description="Define which RI metric should be used for calculating B^P_ia.", &
@@ -188,7 +188,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERI_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERI_METHOD", &
                           description="Method for calculating periodic electron repulsion integrals "// &
                           "(MME method is faster but experimental, forces not yet implemented)."// &
                           "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
@@ -204,7 +204,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERI_BLKSIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERI_BLKSIZE", &
                           description="block sizes for tensors (only used if ERI_METHOD=MME). First value "// &
                           "is the block size for ORB basis, second value is the block size for RI_AUX basis.", &
                           usage="ERI_BLKSIZE", &
@@ -220,7 +220,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
          description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
@@ -294,7 +294,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="BIG_SEND", &
          description="Send big messages between processes (useful for >48 processors).", &
          usage="BIG_SEND", &
@@ -324,7 +324,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="BLOCK_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           variants=(/"MESSAGE_SIZE"/), &
                           description="Determines the blocking used for communication in RI-MP2. Larger BLOCK_SIZE "// &
                           "reduces communication but requires more memory. The default (-1) is automatic.", &
@@ -333,7 +333,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_CANONICAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CANONICAL", &
                           description="Threshold for discriminate if a given ij pairs "// &
                           "of the unrelaxed MP2 density matrix has to be "// &
                           "calculated with a canonical reformulation based "// &
@@ -344,7 +344,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="FREE_HFX_BUFFER", &
          description="Free the buffer containing the 4 center integrals used in the Hartree-Fock exchange calculation. "// &
          "This will be effective only for gradients calculations, since for the energy only "// &
@@ -379,7 +379,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="DELTA_I_REL", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_I_REL", &
                           variants=(/"DI_REL"/), &
                           description="Target accuracy in the relative deviation of the amplitudes calculated with "// &
                           "and without RI approximation, (more details in Chem.Phys.Lett.294(1998)143).", &
@@ -388,7 +388,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DELTA_RI", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_RI", &
                           variants=(/"DRI"/), &
                           description="Target accuracy in the absolute difference between the RI-MP2 "// &
                           "and the exact MP2 energy, DRI=ABS(E_MP2-E_RI-MP2).", &
@@ -397,7 +397,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_DERIV", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DERIV", &
                           variants=(/"EPS_NUM_DERIV"/), &
                           description="The derivatives of the MP2 energy with respect to the "// &
                           "exponents of the basis are calculated numerically. "// &
@@ -408,7 +408,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           variants=(/"MAX_NUM_ITER"/), &
                           description="Specifies the maximum number of steps in the RI basis optimization.", &
                           usage="MAX_ITER 100", &
@@ -416,7 +416,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_FUNC", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_FUNC", &
                           description="Specifies the number of function, for each angular momentum (s, p, d ...), "// &
                           "employed in the automatically generated initial guess. "// &
                           "This will be effective only if RI_AUX_BASIS_SET in the KIND section is not specified.", &
@@ -425,7 +425,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="BASIS_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_SIZE", &
                           description="Specifies the size of the auxiliary basis set automatically "// &
                           "generated as initial guess. This will be effective only if RI_AUX_BASIS_SET "// &
                           "in the KIND section and NUM_FUNC are not specified.", &
@@ -460,7 +460,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create( &
-         keyword, name="QUADRATURE_POINTS", &
+         keyword, __LOCATION__, name="QUADRATURE_POINTS", &
          variants=(/"LAPLACE_NUM_QUAD_POINTS"/), &
          description="Number of quadrature points for the numerical integration in the RI-SOS-MP2-Laplace method.", &
          usage="QUADRATURE_POINTS 6", &
@@ -469,7 +469,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="SIZE_INTEG_GROUP", &
+         keyword, __LOCATION__, name="SIZE_INTEG_GROUP", &
          variants=(/"LAPLACE_GROUP_SIZE"/), &
          description="Group size for the integration in the Laplace method, that is the number of processes involved in "// &
          "the computation of each integration point. SIZE_INTEG_GROUP has to be a multiple "// &
@@ -481,7 +481,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
          description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
@@ -518,7 +518,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="QUADRATURE_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="QUADRATURE_POINTS", &
                           variants=(/"RPA_NUM_QUAD_POINTS"/), &
                           description="Number of quadrature points for the numerical integration in the RI-RPA method.", &
                           usage="QUADRATURE_POINTS 60", &
@@ -526,7 +526,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIZE_FREQ_INTEG_GROUP", &
+      CALL keyword_create(keyword, __LOCATION__, name="SIZE_FREQ_INTEG_GROUP", &
                           variants=(/"RPA_GROUP_SIZE"/), &
                           description="Group size for frequency integration, that is the number of processes involved in "// &
                           "the computation of each integration point. SIZE_FREQ_INTEG_GROUP has to be a multiple "// &
@@ -537,7 +537,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="MM_STYLE", &
                           description="Matrix multiplication style for the Q matrix.", &
                           usage="MM_STYLE GEMM", &
@@ -550,7 +550,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="MINIMAX_QUADRATURE", &
          variants=(/"MINIMAX"/), &
          description="Use the Minimax quadrature scheme for performing the numerical integration. "// &
@@ -562,7 +562,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="RI_G0W0", &
          variants=(/"GW"/), &
          description="Decide whether to perform an RI_G0W0 calculation on top of RI_RPA. "// &
@@ -574,7 +574,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="RI_AXK", &
          variants=(/"AXK"/), &
          description="Decide whether to perform an RPA-AXK calculation.", &
@@ -585,7 +585,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="ADMM", &
          description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "// &
          "Not really recommended. In most cases, the Hartree-Fock exchange is not expensive "// &
@@ -599,7 +599,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
          description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
@@ -672,7 +672,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="CORR_MOS_OCC", &
+      CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_OCC", &
                           variants=(/"CORR_OCC"/), &
                           description="Number of occupied MOs whose energies are corrected by RI-G0W0. "// &
                           "Counting beginning from HOMO, e.g. 3 corrected occ. MOs correspond "// &
@@ -685,7 +685,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORR_MOS_VIRT", &
+      CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_VIRT", &
                           variants=(/"CORR_VIRT"/), &
                           description="Number of virtual MOs whose energies are corrected by RI-G0W0. "// &
                           "Counting beginning from LUMO, e.g. 3 corrected occ. MOs correspond "// &
@@ -698,14 +698,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUMB_POLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUMB_POLES", &
                           description="Number of poles for the fitting. Usually, two poles are sufficient. ", &
                           usage="NUMB_POLES 2", &
                           default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OMEGA_MAX_FIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="OMEGA_MAX_FIT", &
                           description="Determines fitting range for the self-energy on the imaginary axis: "// &
                           "[0, OMEGA_MAX_FIT] for virt orbitals, [-OMEGA_MAX_FIT,0] for occ orbitals. "// &
                           "Unit: Hartree. Default: 0.734996 H = 20 eV. ", &
@@ -714,7 +714,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRINT_FIT_ERROR", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_FIT_ERROR", &
                           variants=(/"FIT_ERROR"/), &
                           description="Print the statistical error due to the fitting. This error in most cases "// &
                           "is very pessimistic (e.g. can be a factor of 10 too large).", &
@@ -724,14 +724,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER_FIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_FIT", &
                           description="Maximum number of iterations for the Levenberg-Marquard fit.", &
                           usage="MAX_ITER_FIT 10000", &
                           default_i_val=10000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHECK_FIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_FIT", &
                           description="If true, the self-energy on the imaginary axis and the fit are printed"// &
                           "the file self_energy_of_MO_<level>_for_imaginary_frequency.", &
                           usage="CHECK_FIT", &
@@ -740,7 +740,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CROSSING_SEARCH", &
+      CALL keyword_create(keyword, __LOCATION__, name="CROSSING_SEARCH", &
                           description="Determines, how the self_energy is evaluated on the real axis.", &
                           usage="CROSSING_SEARCH Z_SHOT", &
                           enum_c_vals=s2a("NONE", "Z_SHOT", "NEWTON", "BISECTION"), &
@@ -754,7 +754,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FERMI_LEVEL_OFFSET", &
+      CALL keyword_create(keyword, __LOCATION__, name="FERMI_LEVEL_OFFSET", &
                           description="Fermi level for occ. orbitals: e_HOMO + FERMI_LEVEL_OFFSET; "// &
                           "Fermi level for virt. orbitals: e_LUMO - FERMI_LEVEL_OFFSET. "// &
                           "In case e_homo + FERMI_LEVEL_OFFSET < e_lumo - FERMI_LEVEL_OFFSET, "// &
@@ -765,7 +765,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EV_SC_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="EV_SC_ITER", &
                           description="Maximum number of iterations for eigenvalue self-consistency cycle. The "// &
                           "computational effort of RPA and GW scales linearly with this number. "// &
                           "Eigenvalue self-consistency is not implemented for cubic-scaling GW.", &
@@ -774,7 +774,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_EV_SC_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_EV_SC_ITER", &
                           description="Target accuracy for the eigenvalue self-consistency. "// &
                           "If the G0W0 HOMO-LUMO gap differs by less than the "// &
                           "target accuracy during the iteration, the eigenvalue "// &
@@ -785,7 +785,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HF_LIKE_EV_START", &
+      CALL keyword_create(keyword, __LOCATION__, name="HF_LIKE_EV_START", &
                           description="If true, take as input for GW/RPA corrected HF-like eigenvalues according "// &
                           "to PRB 83, 115103 (2011), Sec. IV.", &
                           usage="HF_LIKE_EV_START", &
@@ -794,7 +794,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES", &
                           variants=(/"REMOVE_NEG"/), &
                           description="Set all GW energies of virtual orbitals which are below the HOMO to the "// &
                           "value of the last eigenvalue-selfconsistency cycle.", &
@@ -804,7 +804,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRINT_GW_DETAILS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_GW_DETAILS", &
                           description="If true, prints additional information on the quasiparticle energies.", &
                           usage="PRINT_GW_DETAILS", &
                           default_l_val=.TRUE., &
@@ -812,7 +812,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRINT_EXX", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_EXX", &
                           description="Print exchange self-energy minus exchange correlation potential for Gamma-only "// &
                           "calculation (PRINT). For a GW calculation with k-points we use this output as "// &
                           "exchange self-energy (READ). This is a temporary solution because the hybrid MPI/OMP "// &
@@ -841,7 +841,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RI_SIGMA_X", &
+      CALL keyword_create(keyword, __LOCATION__, name="RI_SIGMA_X", &
                           description="If true, the exchange self-energy is calculated approximatively with RI. "// &
                           "This is only recommended in case exact exchange is very costly, e.g. when "// &
                           "using diffuse basis functions (seems not to work for periodic systems).", &
@@ -851,7 +851,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IC_CORR_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="IC_CORR_LIST", &
                           description="List of image charge correction from a previous calculation to be applied in G0W0 "// &
                           "or evGW. Keyword is active, if the first entry is positive (since IC corrections are positive "// &
                           "occupied MOs. The start corresponds to the first corrected GW level.", &
@@ -861,7 +861,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IC_CORR_LIST_BETA", &
+      CALL keyword_create(keyword, __LOCATION__, name="IC_CORR_LIST_BETA", &
                           description="IC_CORR_LIST for beta spins in case of open shell calculation.", &
                           usage="IC_CORR_LIST_BETA <REAL> ... <REAL>", &
                           default_r_vals=(/-1.0_dp/), &
@@ -869,7 +869,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PERIODIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="If true, the periodic correction scheme is used employing k-points.", &
                           usage="PERIODIC", &
                           default_l_val=.FALSE., &
@@ -877,7 +877,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BSE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BSE", &
                           description="If true, electronic excitation energies are computed from the Bethe-"// &
                           "Salpeter equation on top of GW eigenvalues.  Parameter of BSE can be adjusted in "// &
                           "the corresponding section.", &
@@ -887,7 +887,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IMAGE_CHARGE_MODEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="IMAGE_CHARGE_MODEL", &
                           variants=(/"IC"/), &
                           description="If true, an image charge model is applied to mimic the renormalization of "// &
                           "electronic levels of a molecule at a metallic surface. For this calculation, the molecule "// &
@@ -900,7 +900,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ANALYTIC_CONTINUATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ANALYTIC_CONTINUATION", &
                           description="Defines which type of analytic continuation for the self energy is used", &
                           usage="ANALYTIC_CONTINUATION", &
                           enum_c_vals=s2a("TWO_POLE", "PADE"), &
@@ -911,7 +911,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NPARAM_PADE", &
+      CALL keyword_create(keyword, __LOCATION__, name="NPARAM_PADE", &
                           description="Number of parameters for the Pade approximation "// &
                           "when using the latter for the analytic continuation of the "// &
                           "self energy. 16 parameters (corresponding to 8 poles) are "// &
@@ -921,7 +921,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GAMMA_ONLY_SIGMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="GAMMA_ONLY_SIGMA", &
                           variants=(/"GAMMA"/), &
                           description="If true, the correlation self-energy is only computed at the Gamma point. "// &
                           "The Gamma point itself is obtained by averaging over all kpoints of the DFT mesh.", &
@@ -967,7 +967,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="KPOINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="KPOINTS", &
                           description="Specify number of k-points for a single k-point grid. Internally, a "// &
                           "Monkhorst-Pack grid is used. Typically, even numbers are chosen such that the Gamma "// &
                           "point is excluded from the k-point mesh.", &
@@ -976,7 +976,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_KP_GRIDS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_KP_GRIDS", &
                           description="Number of k-point grids around the Gamma point with different resolution. "// &
                           "E.g. for KPOINTS 4 4 4 and NUM_KP_GRIDS 3, there will be a 3x3x3 Monkhorst-Pack (MP) k-point "// &
                           "grid for the whole Brillouin zone (excluding Gamma), another 3x3x3 MP grid with smaller  "// &
@@ -986,7 +986,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_KPOINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_KPOINT", &
                           description="If the absolute value of a k-point is below EPS_KPOINT, this kpoint is "// &
                           "neglected since the Gamma point is not included in the periodic correction.", &
                           usage="EPS_KPOINT 1.0E-4", &
@@ -994,7 +994,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MO_COEFF_GAMMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="MO_COEFF_GAMMA", &
                           description="If true, only the MO coefficients at the Gamma point are used for the periodic  "// &
                           "correction. Otherwise, the MO coeffs are computed at every k-point which is much more "// &
                           "expensive. It should be okay to use the Gamma MO coefficients.", &
@@ -1004,7 +1004,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AVERAGE_DEGENERATE_LEVELS", &
+      CALL keyword_create(keyword, __LOCATION__, name="AVERAGE_DEGENERATE_LEVELS", &
                           variants=(/"ADL"/), &
                           description="If true, the correlation self-energy of degenerate levels is averaged.", &
                           usage="AVERAGE_DEGENERATE_LEVELS", &
@@ -1013,14 +1013,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_EIGENVAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_EIGENVAL", &
                           description="Threshold for considering levels as degenerate. Unit: Hartree.", &
                           usage="EPS_EIGENVAL 1.0E-5", &
                           default_r_val=2.0E-04_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXTRAPOLATE_KPOINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXTRAPOLATE_KPOINTS", &
                           variants=(/"EXTRAPOLATE"/), &
                           description="If true, extrapolates the k-point mesh. Only working if k-point mesh numbers are "// &
                           "divisible by 4, e.g. 8x8x8 or 12x12x12 is recommended.", &
@@ -1030,7 +1030,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DO_AUX_BAS_GW", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_AUX_BAS_GW", &
                           description="If true, use a different basis for the periodic correction. This can be necessary "// &
                           "in case a diffused basis is used for GW to converge the HOMO-LUMO gap. In this case, "// &
                           "numerical problems may occur due to diffuse functions in the basis. This keyword only works if "// &
@@ -1041,14 +1041,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRACTION_AUX_MOS", &
+      CALL keyword_create(keyword, __LOCATION__, name="FRACTION_AUX_MOS", &
                           description="Fraction how many MOs are used in the auxiliary basis.", &
                           usage="FRACTION_AUX_MOS 0.6", &
                           default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_OMEGA_POINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_OMEGA_POINTS", &
                           description="Number of Clenshaw-Curtis integration points for the periodic correction in cubic- "// &
                           "scaling GW. This variable is a dummy variable for canonical N^4 GW calculations.", &
                           usage="NUM_OMEGA_POINTS 200", &
@@ -1078,7 +1078,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="NUM_Z_VECTORS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_Z_VECTORS", &
                           description="Number Z vectors used in the subspace iterations. This is a convergence "// &
                           "parameter: Increasing NUM_Z_VECTORS should keep the result constant in case of convergence,.", &
                           usage="NUM_Z_VECTORS 50", &
@@ -1086,7 +1086,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="THRESHOLD_MIN_TRANS", &
+      CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD_MIN_TRANS", &
                           variants=(/"EPS"/), &
                           description="Threshold for stopping the iteration for computing the transistion energies. "// &
                           "If the lowest excitation changes by less than THRESHOLD_MIN_TRANS (in eV), the ieration"// &
@@ -1096,7 +1096,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of iterations for determining the transistion energies.", &
                           usage="MAX_ITER 200", &
                           default_i_val=200)
@@ -1126,7 +1126,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="PRINT_IC_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_IC_LIST", &
                           description="If true, the image charge correction values are printed in a list, "// &
                           "such that it can be used as input for a subsequent evGW calculation.", &
                           usage="PRINT_IC_VALUES", &
@@ -1135,14 +1135,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_DIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DIST", &
                           description="Threshold where molecule and image molecule have to coincide. ", &
                           usage="EPS_DIST 0.1", unit_str="angstrom", &
                           type_of_var=real_t, default_r_val=3.0E-02_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OPTIMIZE_HOMO_LUMO", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE_HOMO_LUMO", &
                           variants=(/"OPTIMIZE"/), &
                           description="If true, the image charge correction values are printed in a list, "// &
                           "such that it can be used as input for a subsequent evGW calculation.", &
@@ -1152,7 +1152,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GW_EIGENVALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="GW_EIGENVALUES", &
                           description="List of GW eigenvalues from a previous GW calculation to be used in the "// &
                           "optimization of the HOMO and the LUMO. The number of eigenvalues has to match "// &
                           "CORR_MOS_OCC+CORR_MOS_VIRT for the IC calculation. Is only active if "// &
@@ -1163,7 +1163,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GW_EIGENVALUES_BETA", &
+      CALL keyword_create(keyword, __LOCATION__, name="GW_EIGENVALUES_BETA", &
                           description="List of beta GW eigenvalues from a previous GW calculation to be used in the "// &
                           "optimization of the HOMO and the LUMO. The number of eigenvalues has to match "// &
                           "CORR_MOS_OCC+CORR_MOS_VIRT for the IC calculation. Is only active if "// &
@@ -1197,14 +1197,14 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Activates cubic-scaling RPA and Laplace-SOS-MP2 calculations.", &
                           usage="&im_time .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MEMORY_CUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
                           description="Cuts the memory of the M_munu_P^occ/virt matrix by the factor given. "// &
                           "The calculation is slowed down when using a high value of MEMORY_CUT. A high value for "// &
                           "MEMORY_CUT is recommended for large systems in order not to run out of memory.", &
@@ -1213,7 +1213,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MEMORY_INFO", &
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_INFO", &
                           description="Decide whether to print memory info on the sparse matrices.", &
                           usage="MEMORY_INFO", &
                           default_l_val=.FALSE., &
@@ -1221,7 +1221,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAO", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAO", &
                           description="Decide whether to use modified atomic orbitals to reduce the "// &
                           "prefactor of the quadratic-scaling step in im. time RPA. The number of MAOs"// &
                           "per atom have to be specified in the KIND section for all elements.", &
@@ -1231,7 +1231,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="GROUP_SIZE_3c", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_3c", &
                           description="Group size used for cutting the RI index P in (alpha beta P) and for "// &
                           "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt. Has to be increased "// &
                           "for larger systems, at least linearly with system size, at most quadratically in  "// &
@@ -1241,7 +1241,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="GROUP_SIZE_P", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_P", &
                           description="Group size used for the calculation of P(it)=(Mocc(it))^T*Mvirt(it). "// &
                           "Default is to use a single process. A larger group size (for example the node size), "// &
                           "could be recommended for larger systems, since the P matrix is replicated in every group. ", &
@@ -1250,7 +1250,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="POINTS_PER_MAGNITUDE", &
+      CALL keyword_create(keyword, __LOCATION__, name="POINTS_PER_MAGNITUDE", &
                           variants=(/"PPM"/), &
                           description="Number of evaluation points (x) of the function 2x/(x^2+omega^2) per order of  "// &
                           "magnitude of the range Rc. Normally, this parameter needs not to be touched.", &
@@ -1260,7 +1260,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="EPS_FILTER_IM_TIME", &
+         keyword, __LOCATION__, name="EPS_FILTER_IM_TIME", &
          description="Determines threshold for DBCSR based multiply P(it)=(Mocc(it))^T*Mvirt(it). Threshold "// &
          "for Mocc/virt(it)=(abP)*D_ad^occ/virt(it) is determined by EPS_FILTER in WFC_GPW. Default should be kept.", &
          usage="EPS_FILTER_IM_TIME 1.0E-10 ", type_of_var=real_t, &
@@ -1269,7 +1269,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="STABILIZE_EXP", &
+         keyword, __LOCATION__, name="STABILIZE_EXP", &
          description="It is observed that EXP(-alpha) gives NaN if alpha is larger than 100-300. Using "// &
          "the STABILIZE_EXP keyword, all EXP(-alpha) are not computed but set to zero for alpha > STABILIZE_EXP.", &
          usage="EPS_FILTER_IM_TIME 1.0E-10 ", type_of_var=real_t, &
@@ -1278,7 +1278,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="RI_G0W0", &
          variants=(/"GW"/), &
          description="Decide whether to perform a cubic scaling GW calculation on top of imag. time RPA. "// &
@@ -1291,7 +1291,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="DO_KPOINTS", &
          description="Besides in DFT, this keyword has to be switched on if one wants to do kpoints in. "// &
          "cubic RPA.", &
@@ -1302,7 +1302,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="DO_DBCSR_T", &
          description="Uses DBCSR tensors for cubic scaling RPA/L-SOS-MP2", &
          usage="DO_DBCSR_T", &
@@ -1312,7 +1312,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="CUTOFF_W", &
          description="Cutoff for screened Coulomb interaction for GW kpoints.", &
          usage="CUTOFF_W 0.5", &
@@ -1321,7 +1321,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="KPOINTS", &
+         keyword, __LOCATION__, name="KPOINTS", &
          description="For periodic calculations, using kpoints for the density response and the "// &
          "Coulomb operator are strongly recommended. For 2d periodic systems (e.g. xy "// &
          "periodicity, please specify KPOINTS  N_x  0  N_z.", &
@@ -1331,7 +1331,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="EXP_KPOINTS", &
          description="For kpoints in low-scaling GW, a Monkhorst-Pack mesh is used. Because the screened Coulomb "// &
          "interaction W(k) diverges at the Gamma point with W(k) ~ k^alpha, we adapt the weights of the "// &
@@ -1347,7 +1347,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="MAX_BLOCK_SIZE_SQRT", &
          description="Square root of maximum block size for splitting blocks of matrix representation of large tensors "// &
          "along the combined dimension. "// &
@@ -1383,7 +1383,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="MAO_OCC", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAO_OCC", &
                           description="Specifies the number of MAOs per atom kind for the scaled occupied "// &
                           "density matrix. The first MAO number corresponds to the first atom kind. If MAO_OCC "// &
                           "is not specified, no MAOs are done for the occupied density matrix.", &
@@ -1391,7 +1391,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAO_VIRT", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAO_VIRT", &
                           description="Specifies the number of MAOs per atom kind for the scaled virtual "// &
                           "density matrix. The first MAO number corresponds to the first atom kind. If MAO_OCC "// &
                           "is not specified, no MAOs are done for the virtual density matrix.", &
@@ -1399,31 +1399,31 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="MAX_ITER_OCC", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_OCC", &
                           description="Number of MAO iterations for the MAO basis for the occupied density matrix.", &
                           usage="MAX_ITER_OCC 1000", default_i_val=200)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="MAX_ITER_VIRT", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_VIRT", &
                           description="Number of MAO iterations for the MAO basis for the virtual density matrix.", &
                           usage="MAX_ITER_VIRT 1000", default_i_val=200)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="EPS_GRAD_OCC", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GRAD_OCC", &
                           description="Convergence criterion for creating the MAO basis for the occupied density matrix.", &
                           usage="EPS_GRAD_OCC 1.0E-8", type_of_var=real_t, default_r_val=1.0E-07_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="EPS_GRAD_VIRT", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GRAD_VIRT", &
                           description="Convergence criterion for creating the MAO basis for the occupied density matrix.", &
                           usage="EPS_GRAD_VIRT 1.0E-8", type_of_var=real_t, default_r_val=1.0E-07_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="OPTIMIZE_SCALED_OCC_DM", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE_SCALED_OCC_DM", &
                           variants=(/"OPT_SC_DM_OCC"/), &
                           description="If switched on, the MAOs are optimized to a scaled occupied density matrix.", &
                           usage="OPT_SC_DM_OCC TRUE", &
@@ -1432,7 +1432,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="OPTIMIZE_SCALED_VIRT_DM", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE_SCALED_VIRT_DM", &
                           variants=(/"OPT_SC_DM_VIRT"/), &
                           description="If switched on, the MAOs are optimized to a scaled virtual density matrix.", &
                           usage="OPT_SC_DM_VIRT TRUE", &
@@ -1460,7 +1460,7 @@ CONTAINS
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="EPS_GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GRID", &
                           description="Determines a threshold for the GPW based integration", &
                           usage="EPS_GRID 1.0E-9 ", type_of_var=real_t, &
                           default_r_val=1.0E-8_dp)
@@ -1468,7 +1468,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="EPS_FILTER", &
+         keyword, __LOCATION__, name="EPS_FILTER", &
          description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID)."// &
          "Normally, this EPS_FILTER determines accuracy and timing of cubic-scaling RPA calculation.", &
          usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
@@ -1476,14 +1476,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF", &
                           description="The cutoff of the finest grid level in the MP2 gpw integration.", &
                           usage="CUTOFF 300", type_of_var=real_t, &
                           default_r_val=300.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REL_CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="REL_CUTOFF", &
                           variants=(/"RELATIVE_CUTOFF"/), &
                           description="Determines the grid at which a Gaussian is mapped.", &
                           usage="REL_CUTOFF 50", type_of_var=real_t, &
@@ -1491,7 +1491,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRINT_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
                           variants=(/"IOLEVEL"/), &
                           description="How much output is written by the individual groups.", &
                           usage="PRINT_LEVEL HIGH", &
@@ -1506,7 +1506,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="EPS_PGF_ORB_S", &
+         keyword, __LOCATION__, name="EPS_PGF_ORB_S", &
          description="Screening for overlap matrix in RI. Usually, it is best to choose this parameter "// &
          "to be very small since the inversion of overlap matrix might be ill-conditioned.", &
          usage="EPS_PGF_ORB_S 1.0E-10 ", type_of_var=real_t, &
@@ -1514,7 +1514,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIZE_LATTICE_SUM", &
+      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM", &
                           description="Size of sum range L. ", &
                           usage="SIZE_LATTICE_SUM  10", &
                           default_i_val=1)
@@ -1543,7 +1543,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           variants=(/"MAX_NUM_ITER"/), &
                           description="Maximum number of iterations allowed for the solution of the Z-vector equations.", &
                           usage="MAX_ITER  50", &
@@ -1551,7 +1551,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_CONV", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CONV", &
                           description="Convergence threshold for the solution of the Z-vector equations. "// &
                           "The Z-vector equations have the form of a linear system of equations Ax=b, "// &
                           "convergence is achieved when |Ax-b|<=EPS_CONV.", &
@@ -1581,7 +1581,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="POTENTIAL_TYPE", &
          description="Which interaction potential should be used "// &
          "(Coulomb, TShPSC operator).", &
@@ -1600,7 +1600,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRUNCATION_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRUNCATION_RADIUS", &
                           description="Determines truncation radius for the truncated TShPSC potential. "// &
                           "Only valid when doing truncated calculation", &
                           usage="TRUNCATION_RADIUS 10.0", type_of_var=real_t, &
@@ -1610,7 +1610,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword=keyword, &
+         keyword, __LOCATION__, &
          name="TShPSC_DATA", &
          description="Location of the file TShPSC.dat that contains the data for the "// &
          "evaluation of the TShPSC G0 ", &

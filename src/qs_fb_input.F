@@ -47,7 +47,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="FILTER_TEMPERATURE", &
                           description="Temperature used for the filter function used "// &
                           "to construct the filter matrix.", &
@@ -62,7 +62,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="AUTO_CUTOFF_SCALE", &
                           description="Scalar constant multiplied to maximum orbital "// &
                           "size of each atom, used for automatically "// &
@@ -76,7 +76,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="EPS_FB", &
                           description="Default tolerance used in generating the filter "// &
                           "matrix. Anything less than EPS_FB will be "// &
@@ -90,7 +90,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="COLLECTIVE_COMMUNICATION", &
                           description="If set to TRUE, then all MPI communications "// &
                           "required for the construction of the "// &
