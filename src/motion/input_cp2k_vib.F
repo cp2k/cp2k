@@ -64,7 +64,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="VIBRATIONAL_ANALYSIS", &
+         section, __LOCATION__, name="VIBRATIONAL_ANALYSIS", &
          description="Section to setup parameters to perform a Normal Modes, vibrational, or phonon analysis. "// &
          "Vibrations are computed using finite differences, "// &
          "which implies a very tight (e.g. 1E-8) threshold is needed for EPS_SCF to get accurate low frequencies. "// &
@@ -156,7 +156,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Section controlling the print information during a vibrational "// &
                           "analysis.", n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, print_key)
@@ -237,7 +237,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MODE_SELECTIVE", &
+      CALL section_create(section, __LOCATION__, name="MODE_SELECTIVE", &
                           description="All parameters needed for to run a mode selective vibrational analysis. "// &
                           "The keywords FREQUENCY, RANGE, and the subsection INVOLVED_ATOMS are mutually exclusive.", &
                           n_keywords=8, n_subsections=1, repeats=.FALSE.)
@@ -316,7 +316,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls the printing mode selective vibrational analysis", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -348,7 +348,7 @@ CONTAINS
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="INVOLVED_ATOMS", &
+         section, __LOCATION__, name="INVOLVED_ATOMS", &
          description="All parameters needed for the tracking of modes dominated by the motion of selected atoms. "// &
          "Warning, if many atoms are involved, only low frequency modes are detected, "// &
          "since they are more delocalized and match the tracked eigenvector.", &

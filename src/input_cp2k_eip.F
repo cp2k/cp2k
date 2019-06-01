@@ -56,7 +56,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EIP", &
+      CALL section_create(section, __LOCATION__, name="EIP", &
                           description="This section contains all information to run an "// &
                           "Empirical Interatomic Potential (EIP) calculation.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -100,7 +100,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Section of possible print options in EIP code.", &
                           n_keywords=0, n_subsections=6, repeats=.FALSE.)
 

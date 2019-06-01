@@ -41,7 +41,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, "FILTER_MATRIX", &
+      CALL section_create(section, __LOCATION__, name="FILTER_MATRIX", &
                           description=" ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 

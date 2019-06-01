@@ -166,7 +166,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DFT", &
+      CALL section_create(section, __LOCATION__, name="DFT", &
                           description="Parameter needed by LCAO DFT programs", &
                           n_keywords=3, n_subsections=4, repeats=.FALSE.)
 
@@ -447,7 +447,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SCRF", &
+      CALL section_create(section, __LOCATION__, name="SCRF", &
                           description="Adds an implicit solvation model to the DFT calculation."// &
                           " Know also as Self Consistent Reaction Field.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -494,7 +494,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SPHERE", &
+      CALL section_create(section, __LOCATION__, name="SPHERE", &
                           description="Treats the implicit solvent environment like a sphere", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
@@ -527,7 +527,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CENTER", &
+      CALL section_create(section, __LOCATION__, name="CENTER", &
                           description="Defines the center of the sphere.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="XYZ", &
@@ -583,7 +583,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
 
       NULLIFY (keyword, print_key)
-      CALL section_create(section, name="LOCALIZE", &
+      CALL section_create(section, __LOCATION__, name="LOCALIZE", &
                           description="Use one of the available methods to define the localization "// &
                           " and possibly to optimize it to a minimum or a maximum.", &
                           n_keywords=8, n_subsections=0, repeats=.FALSE.)
@@ -759,7 +759,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_section)
-      CALL section_create(print_section, name="PRINT", &
+      CALL section_create(print_section, __LOCATION__, name="PRINT", &
                           description="Collects all printing options related to the Wannier centers and "// &
                           "properties computed with Wannier centers.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -894,7 +894,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, sub_print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Section of possible print options in DFT code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1272,7 +1272,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="GAPW", &
+      CALL section_create(subsection, __LOCATION__, name="GAPW", &
                           description="Controls the printing of some gapw related information (debug).", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       CALL cp_print_key_section_create(print_key, "projectors", &
@@ -2180,7 +2180,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BAND_STRUCTURE", &
+      CALL section_create(section, __LOCATION__, name="BAND_STRUCTURE", &
                           description="Specifies the k-points used in band structure calculation.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
@@ -2200,7 +2200,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="KPOINT_SET", &
+      CALL section_create(subsection, __LOCATION__, name="KPOINT_SET", &
                           description="Specifies a k-point line to be calculated.", &
                           n_keywords=0, n_subsections=0, repeats=.TRUE.)
       ! keywords
@@ -2341,7 +2341,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 !
-      CALL section_create(subsection, name="LDOS", &
+      CALL section_create(subsection, __LOCATION__, name="LDOS", &
                           description="Controls the printing of local PDOS, projected on subsets"// &
                           " of atoms given through lists", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
@@ -2362,7 +2362,7 @@ CONTAINS
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="R_LDOS", &
+      CALL section_create(subsection, __LOCATION__, name="R_LDOS", &
                           description="Controls the printing of local PDOS, projected on 3D volume in real space,"// &
                           " the volume is defined in terms of position with respect to atoms in the lists", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
@@ -2552,7 +2552,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="WFN_MIX", &
+      CALL section_create(section, __LOCATION__, name="WFN_MIX", &
                           description="A section that allows manipulation of the MO coeffs,"// &
                           " e.g. for changing a ground state into an excited state."// &
                           "Starting from a copy of the original MOs, changes can be made"// &
@@ -2566,7 +2566,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="UPDATE", &
+      CALL section_create(subsection, __LOCATION__, name="UPDATE", &
                           description="update a result MO with with a linear combination of of original MOs."// &
                           " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -2763,7 +2763,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "qs", &
+      CALL section_create(section, __LOCATION__, name="qs", &
                           description="parameters needed to set up the Quickstep framework", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -3227,7 +3227,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "AUXILIARY_DENSITY_MATRIX_METHOD", &
+      CALL section_create(section, __LOCATION__, name="AUXILIARY_DENSITY_MATRIX_METHOD", &
                           description="Parameters needed for the ADMM method.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
                           citations=(/Guidon2010/))
@@ -3343,7 +3343,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "SE", &
+      CALL section_create(section, __LOCATION__, name="SE", &
                           description="Parameters needed to set up the Semi-empirical methods", &
                           n_keywords=8, n_subsections=0, repeats=.FALSE.)
 
@@ -3493,7 +3493,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="LR_CORRECTION", &
+      CALL section_create(section, __LOCATION__, name="LR_CORRECTION", &
                           description="Setup parameters for the evaluation of the long-range correction term in SE "// &
                           "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -3536,7 +3536,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="COULOMB", &
+      CALL section_create(section, __LOCATION__, name="COULOMB", &
                           description="Setup parameters for the evaluation of the COULOMB term in SE "// &
                           "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -3582,7 +3582,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXCHANGE", &
+      CALL section_create(section, __LOCATION__, name="EXCHANGE", &
                           description="Setup parameters for the evaluation of the EXCHANGE and "// &
                           " core Hamiltonian terms in SE calculations.", n_keywords=0, n_subsections=1, &
                           repeats=.FALSE.)
@@ -3630,7 +3630,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SCREENING", &
+      CALL section_create(section, __LOCATION__, name="SCREENING", &
                           description="Setup parameters for the tapering of the Coulomb/Exchange Screening in "// &
                           "KDSO-D integral scheme,", n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -3665,7 +3665,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in SE code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -3707,7 +3707,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "GA", &
+      CALL section_create(section, __LOCATION__, name="GA", &
                           description="Sets up memory parameters for the storage of the integrals", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -3737,7 +3737,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "MEMORY", &
+      CALL section_create(section, __LOCATION__, name="MEMORY", &
                           description="Sets up memory parameters for the storage of the integrals", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -3783,7 +3783,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "MULLIKEN_RESTRAINT", &
+      CALL section_create(section, __LOCATION__, name="MULLIKEN_RESTRAINT", &
                           description="Use mulliken charges in a restraint (check code for details)", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
@@ -3823,7 +3823,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "DENSITY_FITTING", &
+      CALL section_create(section, __LOCATION__, name="DENSITY_FITTING", &
                           description="Setup parameters for density fitting (Bloechl charges or density derived "// &
                           " atomic point charges (DDAPC) charges)", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE., &
@@ -3899,7 +3899,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, TRIM(ADJUSTL(section_name)), &
+      CALL section_create(section, __LOCATION__, name=TRIM(ADJUSTL(section_name)), &
                           description="Use DDAPC charges in a restraint (check code for details)", &
                           n_keywords=7, n_subsections=0, repeats=.TRUE.)
 
@@ -3971,7 +3971,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "BECKE_CONSTRAINT", &
+      CALL section_create(section, __LOCATION__, name="BECKE_CONSTRAINT", &
                           description="Define settings influencing the construction of the Becke weight function.", &
                           n_keywords=13, repeats=.FALSE., citations=(/Becke1988b/))
 
@@ -4116,7 +4116,7 @@ CONTAINS
       NULLIFY (keyword, subsection, group_section, print_key)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CDFT", &
+      CALL section_create(section, __LOCATION__, name="CDFT", &
                           description="Parameters needed to set up a constrained DFT calculation."// &
                           " Each repetition of the ATOM_GROUP section defines a new constraint."// &
                           " The constraint(s) is (are) converged in a separate external SCF loop with settings"// &
@@ -4248,7 +4248,7 @@ CONTAINS
                                        description="Controls the printing of basic info about the method.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 
-      CALL section_create(subsection, "WEIGHT_FUNCTION", &
+      CALL section_create(subsection, __LOCATION__, name="WEIGHT_FUNCTION", &
                           description="Controls the printing of cube files with "// &
                           "the CDFT weight function(s). Intended for single-point testing. "// &
                           "In multistep simulations, generated cube files are overwritten each step.", &
@@ -4268,7 +4268,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL section_create(group_section, "ATOM_GROUP", &
+      CALL section_create(group_section, __LOCATION__, name="ATOM_GROUP", &
                           description="Define a group of atoms for use in a CDFT constraint. Each repetition of "// &
                           "this section creates a new constraint.", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
@@ -4318,7 +4318,7 @@ CONTAINS
       CALL section_add_subsection(section, group_section)
       CALL section_release(group_section)
 
-      CALL section_create(group_section, "DUMMY_ATOMS", &
+      CALL section_create(group_section, __LOCATION__, name="DUMMY_ATOMS", &
                           description="Define an extra group of atoms for which only atomic CDFT charges "// &
                           "should be computed. The section cannot contain any constraint "// &
                           "atoms that were included in section ATOM_GROUP.", &
@@ -4402,7 +4402,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "HIRSHFELD_CONSTRAINT", &
+      CALL section_create(section, __LOCATION__, name="HIRSHFELD_CONSTRAINT", &
                           description="Parameters for CDFT with a Gaussian Hirshfeld constraint.", &
                           n_keywords=11, n_subsections=0, repeats=.FALSE.)
 
@@ -4476,7 +4476,7 @@ CONTAINS
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, "S2_RESTRAINT", &
+      CALL section_create(section, __LOCATION__, name="S2_RESTRAINT", &
                           description="Use S2 in a re/constraint (OT only)", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
@@ -4519,7 +4519,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "tddfpt", &
+      CALL section_create(section, __LOCATION__, name="tddfpt", &
                           description="parameters needed to set up the Time Dependent Density Functional PT", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
@@ -4670,7 +4670,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "relativistic", &
+      CALL section_create(section, __LOCATION__, name="relativistic", &
                           description="parameters needed and setup for relativistic calculations", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -4748,7 +4748,7 @@ CONTAINS
       NULLIFY (print_key)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "scf", &
+      CALL section_create(section, __LOCATION__, name="scf", &
                           description="Parameters needed to perform an SCF run.", &
                           n_keywords=18, n_subsections=7, repeats=.FALSE.)
 
@@ -4940,8 +4940,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, "PRINT", "Printing of information during the SCF.", &
-                          repeats=.FALSE.)
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                          description="Printing of information during the SCF.", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, "RESTART", &
                                        description="Controls the dumping of the MO restart file during SCF."// &
@@ -5086,7 +5086,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "KG_METHOD", &
+      CALL section_create(section, __LOCATION__, name="KG_METHOD", &
                           description="Specifies the parameters for a Kim-Gordon-like partitioning"// &
                           " into molecular subunits", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
@@ -5135,7 +5135,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Print section", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -5178,7 +5178,7 @@ CONTAINS
 
       !!!!!!!!!!!!!!!  ENERGY_CORRECTION SECTION !!!!!!!!!!!!!!!!!!!
       NULLIFY (keyword, subsection, print_key)
-      CALL section_create(subsection, name="ENERGY_CORRECTION", &
+      CALL section_create(subsection, __LOCATION__, name="ENERGY_CORRECTION", &
                           description="Sets the various options for the Energy Correction", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -5281,7 +5281,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "OUTER_SCF", &
+      CALL section_create(section, __LOCATION__, name="OUTER_SCF", &
                           description="parameters controlling the outer SCF loop", &
                           n_keywords=13, n_subsections=1, repeats=.FALSE.)
 
@@ -5405,7 +5405,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BSSE", &
+      CALL section_create(section, __LOCATION__, name="BSSE", &
                           description="This section is used to set up the BSSE calculation. "// &
                           "It also requires that for each atomic kind X a kind X_ghost is present, "// &
                           "with the GHOST keyword specified, in addition to the other required fields.", &
@@ -5413,7 +5413,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       ! FRAGMENT SECTION
-      CALL section_create(subsection, name="FRAGMENT", &
+      CALL section_create(subsection, __LOCATION__, name="FRAGMENT", &
                           description="Specify the atom number belonging to this fragment.", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
@@ -5428,7 +5428,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! CONFIGURATION SECTION
-      CALL section_create(subsection, name="CONFIGURATION", &
+      CALL section_create(subsection, __LOCATION__, name="CONFIGURATION", &
                           description="Specify additional parameters for the combinatorial configurations.", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
@@ -5466,7 +5466,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="FRAGMENT_ENERGIES", &
+      CALL section_create(subsection, __LOCATION__, name="FRAGMENT_ENERGIES", &
                           description="This section contains the energies of the fragments already"// &
                           " computed. It is useful as a summary and specifically for restarting BSSE runs.", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
@@ -5498,7 +5498,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in BSSE code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -5535,7 +5535,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="interpolator", &
+      CALL section_create(section, __LOCATION__, name="interpolator", &
                           description="controls the interpolation for the G-space term", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -5611,7 +5611,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="LRIGPW", &
+      CALL section_create(section, __LOCATION__, name="LRIGPW", &
                           description="This section specifies optional parameters for LRIGPW.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE., citations=(/Golze2017b/))
 
@@ -5748,7 +5748,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZE_LRI_BASIS", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZE_LRI_BASIS", &
                           description="This section specifies the parameters for optimizing "// &
                           "the lri auxiliary basis sets for LRIGPW. The Powell optimizer is used.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -5830,7 +5830,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPT_EMBED", &
+      CALL section_create(section, __LOCATION__, name="OPT_EMBED", &
                           description="This section specifies optional parameters for DFT embedding potential optimization.", &
                           n_keywords=17, n_subsections=4, repeats=.FALSE.)
 
@@ -6000,7 +6000,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPT_DMFET", &
+      CALL section_create(section, __LOCATION__, name="OPT_DMFET", &
                           description="This section specifies optional parameters for DMFET matrix potential optimization.", &
                           n_keywords=8, n_subsections=4, repeats=.FALSE.)
 
@@ -6212,7 +6212,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RIGPW", &
+      CALL section_create(section, __LOCATION__, name="RIGPW", &
                           description="This section specifies optional parameters for RIGPW.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -6256,7 +6256,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="CONSTRAIN_EXPONENTS", &
+      CALL section_create(section, __LOCATION__, name="CONSTRAIN_EXPONENTS", &
                           description="specifies constraints for the exponents of the "// &
                           "lri auxiliary basis sets in the optimization.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -6297,7 +6297,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="mgrid", &
+      CALL section_create(section, __LOCATION__, name="mgrid", &
                           description="multigrid information", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -6406,7 +6406,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="interpolator", &
+      CALL section_create(section, __LOCATION__, name="interpolator", &
                           description="kind of interpolation used between the multigrids", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -6499,7 +6499,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "sic", &
+      CALL section_create(section, __LOCATION__, name="sic", &
                           description="parameters for the self interaction correction", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE., &
                           citations=(/VandeVondele2005b, Perdew1981, Avezac2005/))
@@ -6566,7 +6566,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "LOW_SPIN_ROKS", &
+      CALL section_create(section, __LOCATION__, name="LOW_SPIN_ROKS", &
                           description="Specify the details of the low spin ROKS method."// &
                           "In particular, one can specify various terms added to the energy of the high spin roks configuration"// &
                           " with a energy scaling factor, and a prescription of the spin state.", &
@@ -6606,7 +6606,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXTERNAL_POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
                           description="Section controlling the presence of an electrostatic "// &
                           "external potential dependent on the atomic positions (X,Y,Z). "// &
                           "As the external potential is currently applied via a grid, "// &
@@ -6696,7 +6696,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXTERNAL_DENSITY", &
+      CALL section_create(section, __LOCATION__, name="EXTERNAL_DENSITY", &
                           description="Section for the use of the ZMP technique on external densities.", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE., &
                           citations=(/Zhao1994, Tozer1996/))
@@ -6763,7 +6763,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXTERNAL_VXC", &
+      CALL section_create(section, __LOCATION__, name="EXTERNAL_VXC", &
                           description="SCF convergence with external v_xc calculated through previous ZMP"// &
                           "calculation", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -6797,7 +6797,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "OT", &
+      CALL section_create(section, __LOCATION__, name="OT", &
                           description="Sets the various options for the orbital transformation (OT) method. "// &
                           "Default settings already provide an efficient, yet robust method. "// &
                           "Most systems benefit from using the FULL_ALL preconditioner "// &
@@ -7177,7 +7177,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "DIAGONALIZATION", &
+      CALL section_create(section, __LOCATION__, name="DIAGONALIZATION", &
                           description="Set up type and parameters for Kohn-Sham matrix diagonalization.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -7289,7 +7289,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "DAVIDSON", &
+      CALL section_create(section, __LOCATION__, name="DAVIDSON", &
                           description=" ", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
@@ -7377,7 +7377,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "KRYLOV", &
+      CALL section_create(section, __LOCATION__, name="KRYLOV", &
                           description=" ", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
@@ -7438,7 +7438,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "DIAG_SUB_SCF", &
+      CALL section_create(section, __LOCATION__, name="DIAG_SUB_SCF", &
                           description="Activation of self-consistenf subspace refinement by diagonalization "// &
                           "of H by adjusting the occupation but keeping the MOS unchanged.", &
                           n_keywords=2, n_subsections=1, repeats=.FALSE.)
@@ -7505,7 +7505,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "xas", &
+      CALL section_create(section, __LOCATION__, name="xas", &
                           description="Sets the method of choice to calculate core-level excitation spectra. "// &
                           "The occupied states from  which we calculate the "// &
                           "excitation should be specified. "// &
@@ -7694,8 +7694,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, "PRINT", &
-                          "printing of information during the core-level spectroscopy simulation", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                          description="printing of information during the core-level spectroscopy simulation", &
                           repeats=.FALSE.)
 
       ! Add printing of wannier infos
@@ -7806,7 +7806,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name="SMEAR", &
                           description="Define the smearing of the MO occupation numbers", &
                           n_keywords=6, &
@@ -7914,7 +7914,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "REAL_TIME_PROPAGATION", &
+      CALL section_create(section, __LOCATION__, name="REAL_TIME_PROPAGATION", &
                           description="Parameters needed to set up the real time propagation"// &
                           " for the electron dynamics. This currently works only in the NVE ensemble.", &
                           n_keywords=4, n_subsections=4, repeats=.FALSE., &
@@ -8077,7 +8077,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_section)
-      CALL section_create(print_section, name="PRINT", &
+      CALL section_create(print_section, __LOCATION__, name="PRINT", &
                           description="Section of possible print options for an RTP runs", &
                           repeats=.FALSE.)
 
@@ -8168,7 +8168,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name="SCCS", &
                           description="Define the parameters for self-consistent continuum solvation (SCCS) model", &
                           citations=(/Fattebert2002, Andreussi2012/), &
@@ -8332,7 +8332,7 @@ CONTAINS
 
       NULLIFY (subsection)
 
-      CALL section_create(subsection, &
+      CALL section_create(subsection, __LOCATION__, &
                           name="ANDREUSSI", &
                           description="Define the parameters of the dielectric smoothing function proposed by "// &
                           "Andreussi et al.", &
@@ -8366,7 +8366,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, &
+      CALL section_create(subsection, __LOCATION__, &
                           name="FATTEBERT-GYGI", &
                           description="Define the parameters of the dielectric smoothing function proposed by "// &
                           "Fattebert and Gygi", &
@@ -8423,7 +8423,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="ACTIVE_SPACE", &
+      CALL section_create(section, __LOCATION__, name="ACTIVE_SPACE", &
                           description="Define parameters and method to calculate an electronic active space", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -8546,7 +8546,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PRINT_ORBITAL_CUBES", &
+      CALL section_create(section, __LOCATION__, name="PRINT_ORBITAL_CUBES", &
                           description="Controls printing of active orbital cube files.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -8596,7 +8596,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ERI", &
+      CALL section_create(section, __LOCATION__, name="ERI", &
                           description="Parameters for the electron repulsion integrals.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -8671,7 +8671,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ERI_GPW", &
+      CALL section_create(section, __LOCATION__, name="ERI_GPW", &
                           description="Parameters for the GPW approach to electron repulsion integrals.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -8739,7 +8739,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="IMPLICIT_PSOLVER", &
+      CALL section_create(section, __LOCATION__, name="IMPLICIT_PSOLVER", &
                           description="Controls printing of cube files for data from the implicit "// &
                           "(generalized) Poisson solver.", &
                           citations=(/BaniHashemian2016/), &
@@ -8843,7 +8843,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CDFT_OPT", &
+      CALL section_create(section, __LOCATION__, name="CDFT_OPT", &
                           description="Parameters controlling optimization methods that are compatible "// &
                           "only with CDFT based constraints (i.e. CDFT SCF is active). Specifically, "// &
                           "the control parameters for the Broyden and Newton optimizers are defined in this "// &

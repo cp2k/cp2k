@@ -53,7 +53,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="TMC", &
+         section, __LOCATION__, name="TMC", &
          description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements", &
          citations=(/Schonherr2014/), &
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -382,7 +382,7 @@ CONTAINS
       NULLIFY (subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="NMC_MOVES", &
+      CALL section_create(section, __LOCATION__, name="NMC_MOVES", &
                           description="This section specifies the TMC move types, "// &
                           "which are performed within the nested Monte Carlo (NMC). "// &
                           "thus using the approximate potential.", &
@@ -443,7 +443,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MOVE_TYPE", &
+      CALL section_create(section, __LOCATION__, name="MOVE_TYPE", &
                           description="This section specifies the TMC move type, "// &
                           "and its properties. "// &
                           "Selectable types are: "// &
@@ -514,7 +514,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TMC_ANALYSIS", &
+      CALL section_create(section, __LOCATION__, name="TMC_ANALYSIS", &
                           description="Analysing the Markov Chain elments with the specified methods", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -538,7 +538,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TMC_ANALYSIS_FILES", &
+      CALL section_create(section, __LOCATION__, name="TMC_ANALYSIS_FILES", &
                           description="Analysing the Markov Chain elments with the specified methods, "// &
                           "reading form default or specified files", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)

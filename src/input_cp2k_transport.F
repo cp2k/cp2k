@@ -59,7 +59,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "TRANSPORT", &
+      CALL section_create(section, __LOCATION__, name="TRANSPORT", &
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
@@ -320,7 +320,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONTACT", &
+      CALL section_create(section, __LOCATION__, name="CONTACT", &
                           description="Parameters for defining device contacts.", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
@@ -378,7 +378,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BEYN", &
+      CALL section_create(section, __LOCATION__, name="BEYN", &
                           description="Parameters for the Beyn eigenvalue solver.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
@@ -436,7 +436,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PEXSI", &
+      CALL section_create(section, __LOCATION__, name="PEXSI", &
                           description="Parameters for the PEXSI solver to be used within OMEN.", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
@@ -496,7 +496,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Section of possible print options for transport calculations.", &
                           repeats=.FALSE.)
 

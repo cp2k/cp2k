@@ -197,7 +197,7 @@ CONTAINS
       my_print_level = debug_print_level
       IF (PRESENT(print_level)) my_print_level = print_level
 
-      CALL section_create(print_key_section, name=name, description=description, &
+      CALL section_create(print_key_section, __LOCATION__, name=name, description=description, &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
                           citations=citations)
 
@@ -220,7 +220,7 @@ CONTAINS
       CALL section_add_keyword(print_key_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="EACH", &
+      CALL section_create(subsection, __LOCATION__, name="EACH", &
                           description="This section specifies how often this proprety is printed."// &
                           "Each keyword inside this section is mapping to a specific iteration level and "// &
                           "the value of each of these keywords is matched with the iteration level during "// &

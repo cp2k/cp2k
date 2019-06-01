@@ -71,7 +71,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "WF_CORRELATION", &
+      CALL section_create(section, __LOCATION__, name="WF_CORRELATION", &
                           description="Sets up the Wavefunction-based Correlation parameters if requested ", &
                           n_keywords=8, n_subsections=6, repeats=.TRUE., &
                           citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016/))
@@ -287,7 +287,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "DIRECT_CANONICAL", &
+      CALL section_create(section, __LOCATION__, name="DIRECT_CANONICAL", &
                           description="Parameters influencing the direct canonical method", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -317,7 +317,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RI_MP2", &
+      CALL section_create(section, __LOCATION__, name="RI_MP2", &
                           description="Parameters influencing the RI MP2 method", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE., &
                           citations=(/DelBen2013/))
@@ -370,7 +370,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "OPT_RI_BASIS", &
+      CALL section_create(section, __LOCATION__, name="OPT_RI_BASIS", &
                           description="Parameters influencing the optimization of the RI MP2 basis. "// &
                           "Only exponents of non-contracted auxiliary basis can be optimized. "// &
                           "An initial RI auxiliary basis has to be specified.", &
@@ -452,7 +452,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RI_LAPLACE", &
+      CALL section_create(section, __LOCATION__, name="RI_LAPLACE", &
                           description="Parameters influencing the RI-SOS-MP2-Laplace method", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
@@ -511,7 +511,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RI_RPA", &
+      CALL section_create(section, __LOCATION__, name="RI_RPA", &
                           description="Parameters influencing the RI RPA method", &
                           n_keywords=8, n_subsections=4, repeats=.FALSE., &
                           citations=(/DelBen2013, DelBen2015/))
@@ -644,7 +644,7 @@ CONTAINS
       !TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RI_AXK", &
+      CALL section_create(section, __LOCATION__, name="RI_AXK", &
                           description="Parameters influencing the RI-RPA-AXK method", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Bates2013/))
@@ -666,7 +666,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RI_G0W0", &
+      CALL section_create(section, __LOCATION__, name="RI_G0W0", &
                           description="Parameters influencing the RI-G0W0 method", &
                           n_keywords=24, n_subsections=1, repeats=.FALSE.)
 
@@ -961,7 +961,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PERIODIC", &
+      CALL section_create(section, __LOCATION__, name="PERIODIC", &
                           description="Parameters influencing correction for periodic GW.", &
                           n_keywords=12, n_subsections=1, repeats=.FALSE.)
 
@@ -1071,7 +1071,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "BSE", &
+      CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters influencing the Bethe-Salpeter calculations on "// &
                           "top of GW eigenvalues.", &
                           n_keywords=12, n_subsections=1, repeats=.FALSE.)
@@ -1118,7 +1118,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "IC", &
+      CALL section_create(section, __LOCATION__, name="IC", &
                           description="Parameters influencing the image charge correction. "// &
                           "The image plane is always an xy plane, so adjust the molecule according "// &
                           "to that. ", &
@@ -1190,7 +1190,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "IM_TIME", &
+      CALL section_create(section, __LOCATION__, name="IM_TIME", &
                           description="Parameters influencing the cubic-scaling RPA or Laplace-SOS-MP2 method."// &
                           "Use either IM_TIME, RI_RPA%IM_TIME or RI_LAPLACE%IM_TIME.", &
                           n_keywords=12, n_subsections=2, repeats=.FALSE.)
@@ -1376,7 +1376,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "MAO", &
+      CALL section_create(section, __LOCATION__, name="MAO", &
                           description="Parameters influencing the modified atomic orbitals for cubic RPA. "// &
                           "Is only turned on if DO_MAO TRUE in IM_TIME section.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
@@ -1455,7 +1455,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "WFC_GPW", &
+      CALL section_create(section, __LOCATION__, name="WFC_GPW", &
                           description="Parameters for the GPW approach in Wavefunction-based Correlation methods", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -1536,7 +1536,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, "CPHF", &
+         section, __LOCATION__, name="CPHF", &
          description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.", &
          n_keywords=2, n_subsections=0, repeats=.FALSE., &
          citations=(/DelBen2013/))
@@ -1575,7 +1575,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "INTERACTION_POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="INTERACTION_POTENTIAL", &
                           description="Parameters the interaction potential in computing the biel integrals", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 

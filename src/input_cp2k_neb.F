@@ -64,7 +64,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="band", &
+      CALL section_create(section, __LOCATION__, name="band", &
                           description="The section that controls a BAND run", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004/))
@@ -157,7 +157,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Convergence_control
-      CALL section_create(subsection, name="CONVERGENCE_CONTROL", &
+      CALL section_create(subsection, __LOCATION__, name="CONVERGENCE_CONTROL", &
                           description="Setup parameters to control the convergence criteria for BAND", &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_DR", &
@@ -192,7 +192,7 @@ CONTAINS
 
       NULLIFY (subsection, subsubsection)
       ! CI-NEB section
-      CALL section_create(subsection, name="CI_NEB", &
+      CALL section_create(subsection, __LOCATION__, name="CI_NEB", &
                           description="Controls parameters for CI-NEB type calculation only.", &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="NSTEPS_IT", &
@@ -205,7 +205,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! String Method section
-      CALL section_create(subsection, name="STRING_METHOD", &
+      CALL section_create(subsection, __LOCATION__, name="STRING_METHOD", &
                           description="Controls parameters for String Method type calculation only.", &
                           repeats=.FALSE.)
 
@@ -224,7 +224,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Optimization section
-      CALL section_create(subsection, name="optimize_band", &
+      CALL section_create(subsection, __LOCATION__, name="optimize_band", &
                           description="Specify the optimization method for the band", &
                           repeats=.TRUE.)
       CALL create_opt_band_section(subsection)
@@ -233,7 +233,7 @@ CONTAINS
 
       ! replica section: to specify coordinates and velocities (possibly) of the
       ! different replica used in the BAND
-      CALL section_create(subsection, name="replica", &
+      CALL section_create(subsection, __LOCATION__, name="replica", &
                           description="Specify coordinates and velocities (possibly) of the replica", &
                           repeats=.TRUE.)
       ! Colvar
@@ -341,7 +341,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! MD optimization section
-      CALL section_create(subsection, name="MD", &
+      CALL section_create(subsection, __LOCATION__, name="MD", &
                           description="Activate the MD based optimization procedure for BAND", &
                           repeats=.FALSE.)
 
@@ -371,7 +371,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Temp_control
-      CALL section_create(subsubsection, name="TEMP_CONTROL", &
+      CALL section_create(subsubsection, __LOCATION__, name="TEMP_CONTROL", &
                           description="Setup parameters to control the temperature during a BAND MD run.", &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
@@ -397,7 +397,7 @@ CONTAINS
       CALL section_release(subsubsection)
 
       ! Vel_control
-      CALL section_create(subsubsection, name="VEL_CONTROL", &
+      CALL section_create(subsubsection, __LOCATION__, name="VEL_CONTROL", &
                           description="Setup parameters to control the velocity during a BAND MD run.", &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="ANNEALING", &
@@ -427,7 +427,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! DIIS optimization section
-      CALL section_create(subsection, name="DIIS", &
+      CALL section_create(subsection, __LOCATION__, name="DIIS", &
                           description="Activate the DIIS based optimization procedure for BAND", &
                           repeats=.FALSE.)
 

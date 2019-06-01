@@ -95,7 +95,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="qmmm", &
+      CALL section_create(section, __LOCATION__, name="qmmm", &
                           description="Input for QM/MM calculations.", &
                           n_keywords=6, n_subsections=3, repeats=.FALSE., &
                           citations=(/Laino2005, Laino2006/))
@@ -287,7 +287,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MM_KIND", &
+      CALL section_create(section, __LOCATION__, name="MM_KIND", &
                           description="Information about the MM kind in the QM/MM scheme", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
@@ -329,7 +329,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FORCE_MIXING", &
+      CALL section_create(section, __LOCATION__, name="FORCE_MIXING", &
                           description="This section enables and defines parameters for force-mixing based QM/MM,"// &
                           " which actually does two conventional QM/MM calculations, on a small "// &
                           " and a large QM region, and combines the MM forces from one and QM "// &
@@ -452,7 +452,7 @@ CONTAINS
 
       ! QM_NON_ADAPTIVE subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="QM_NON_ADAPTIVE", &
+      CALL section_create(subsection, __LOCATION__, name="QM_NON_ADAPTIVE", &
                           description="List of atoms always in QM region, non-adaptively", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -466,7 +466,7 @@ CONTAINS
 
       ! BUFFER_NON_ADAPTIVE subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="BUFFER_NON_ADAPTIVE", &
+      CALL section_create(subsection, __LOCATION__, name="BUFFER_NON_ADAPTIVE", &
                           description="List of atoms always in buffer region, non-adaptively, and any needed LINK sections", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -488,7 +488,7 @@ CONTAINS
       ! BUFFER_LINKS subsection
       NULLIFY (subsection)
       CALL section_create( &
-         subsection, name="BUFFER_LINKS", &
+         subsection, __LOCATION__, name="BUFFER_LINKS", &
          description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."// &
          "Ignored - need to implement buffer selection by atom and walking of connectivity data.", &
          n_keywords=0, n_subsections=1, repeats=.TRUE.)
@@ -503,7 +503,7 @@ CONTAINS
 
       ! RESTART_INFO subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="RESTART_INFO", &
+      CALL section_create(subsection, __LOCATION__, name="RESTART_INFO", &
                           description="This section provides information about old force-mixing indices and labels, "// &
                           "for restarts.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
@@ -526,7 +526,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! PRINT subsection, with keys for neighbor list
-      CALL section_create(subsection, name="print", &
+      CALL section_create(subsection, __LOCATION__, name="print", &
                           description="Section of possible print options in FORCE_MIXING.", &
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
       NULLIFY (print_key)
@@ -564,7 +564,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="QM_KIND", &
+      CALL section_create(section, __LOCATION__, name="QM_KIND", &
                           description="Information about the QM kind in the QM/MM scheme", &
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
 
@@ -598,7 +598,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="WALLS", &
+      CALL section_create(section, __LOCATION__, name="WALLS", &
                           description="Enables Walls for the QM box. This can be used to avoid that QM "// &
                           " atoms move out of the QM box.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -651,7 +651,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="IMAGE_CHARGE", &
+      CALL section_create(section, __LOCATION__, name="IMAGE_CHARGE", &
                           description="Inclusion of polarization effects within the image charge "// &
                           "approach for systems where QM molecules are physisorbed on e.g. metal "// &
                           "surfaces described by MM. This correction introduces only a very small overhead. "// &
@@ -746,7 +746,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PERIODIC", &
+      CALL section_create(section, __LOCATION__, name="PERIODIC", &
                           description="Specify parameters for QM/MM periodic boundary conditions calculations", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Laino2006/))
@@ -810,7 +810,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="MULTIPOLE", &
+      CALL section_create(section, __LOCATION__, name="MULTIPOLE", &
                           description="This section is used to set up the decoupling of QM periodic images with "// &
                           "the use of density derived atomic point charges. Switched on by default even if not "// &
                           "explicitly given. Can be switched off if e.g. QM and MM box are of the same size.", &
@@ -890,7 +890,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FORCEFIELD", &
+      CALL section_create(section, __LOCATION__, name="FORCEFIELD", &
                           description="Specify information on the QM/MM forcefield", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
@@ -927,7 +927,7 @@ CONTAINS
 
       NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="NONBONDED", &
+      CALL section_create(section, __LOCATION__, name="NONBONDED", &
                           description="Specify information on the QM/MM non-bonded forcefield", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
@@ -965,7 +965,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="LINK", &
+      CALL section_create(section, __LOCATION__, name="LINK", &
                           description="Specify information on the QM/MM link treatment", &
                           n_keywords=7, n_subsections=2, repeats=.TRUE.)
 
@@ -1055,7 +1055,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="MOVE_MM_CHARGE", &
+      CALL section_create(subsection, __LOCATION__, name="MOVE_MM_CHARGE", &
                           description="Specify information to move a classical charge before the"// &
                           " QM/MM energies and forces evaluation", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
@@ -1096,7 +1096,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="ADD_MM_CHARGE", &
+      CALL section_create(subsection, __LOCATION__, name="ADD_MM_CHARGE", &
                           description="Specify information to add a classical charge before the"// &
                           " QM/MM energies and forces evaluation", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
@@ -1163,7 +1163,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="interpolator", &
+      CALL section_create(section, __LOCATION__, name="interpolator", &
                           description="kind of interpolation used between the multigrids", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -1263,7 +1263,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword, print_key)
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options specific of the QMMM code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 

@@ -65,7 +65,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ATOM", &
+      CALL section_create(section, __LOCATION__, name="ATOM", &
                           description="Section handling input for atomic calculations.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
@@ -199,7 +199,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options specific of the ATOM code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -445,7 +445,7 @@ CONTAINS
                                        print_level=high_print_level, filename="__STD_OUT__")
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="ADMM_BASIS", &
+      CALL section_create(subsection, __LOCATION__, name="ADMM_BASIS", &
                           description="Section of basis set information for ADMM calculations.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL atom_basis_section(subsection)
@@ -468,7 +468,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="AE_BASIS", &
+      CALL section_create(section, __LOCATION__, name="AE_BASIS", &
                           description="Section of basis set information for all-electron calculations.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
@@ -488,7 +488,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PP_BASIS", &
+      CALL section_create(section, __LOCATION__, name="PP_BASIS", &
                           description="Section of basis set information for pseudopotential calculations.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
@@ -672,7 +672,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="METHOD", &
+      CALL section_create(section, __LOCATION__, name="METHOD", &
                           description="Section of information on method to use.", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
@@ -754,7 +754,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ZMP", &
+      CALL section_create(section, __LOCATION__, name="ZMP", &
                           description="Section used to specify ZMP Potentials.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
@@ -805,7 +805,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESTART", &
+      CALL section_create(section, __LOCATION__, name="RESTART", &
                           description="Section used to specify the restart option in the ZMP"// &
                           "procedure, and the file that must be read.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -835,7 +835,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXTERNAL_VXC", &
+      CALL section_create(section, __LOCATION__, name="EXTERNAL_VXC", &
                           description="Section used to specify exernal VXC Potentials.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -869,7 +869,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZATION", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZATION", &
                           description="Section of information on optimization thresholds and algorithms.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -921,7 +921,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="POTENTIAL", &
                           description="Section of information on potential.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1005,7 +1005,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="GTH_POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="GTH_POTENTIAL", &
                           description="Section used to specify Potentials.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -1029,7 +1029,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="ECP", &
+      CALL section_create(section, __LOCATION__, name="ECP", &
                           description="Section used to specify ECP's.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -1053,7 +1053,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="basis", &
+      CALL section_create(section, __LOCATION__, name="basis", &
                           description="Section used to specify a general basis set for QM calculations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -1077,7 +1077,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="powell", &
+      CALL section_create(section, __LOCATION__, name="powell", &
                           description="Section defines basic parameters for Powell optimization", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 

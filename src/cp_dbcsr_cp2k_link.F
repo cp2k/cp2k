@@ -95,7 +95,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DBCSR", &
+      CALL section_create(section, __LOCATION__, name="DBCSR", &
                           description="Configuration options for the DBCSR library.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/Borstnik2014, Schuett2016/))
@@ -221,7 +221,7 @@ CONTAINS
 
       !---------------------------------------------------------------------------
       NULLIFY (subsection)
-      CALL section_create(subsection, name="ACC", &
+      CALL section_create(subsection, __LOCATION__, name="ACC", &
                           description="Configuration options for the ACC-Driver.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 

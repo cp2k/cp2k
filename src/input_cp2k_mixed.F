@@ -66,7 +66,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: sub2section, sub3section, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MIXED", &
+      CALL section_create(section, __LOCATION__, name="MIXED", &
                           description="This section contains all information to run with a hamiltonian "// &
                           "defined by a mixing of force_evals", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -114,7 +114,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Double force_eval
-      CALL section_create(subsection, name="LINEAR", &
+      CALL section_create(subsection, __LOCATION__, name="LINEAR", &
                           description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -127,7 +127,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
       ! Mixed CDFT section
-      CALL section_create(subsection, name="MIXED_CDFT", &
+      CALL section_create(subsection, __LOCATION__, name="MIXED_CDFT", &
                           description="Calculate properties involving multiple constrained states. "// &
                           "Each repetition of the FORCE_EVAL section defines a new CDFT state that is "// &
                           "included in the simulation. The DFT&QS&CDFT section must be active in each "// &
@@ -328,7 +328,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
       !
-      CALL section_create(subsection, name="COUPLING", &
+      CALL section_create(subsection, __LOCATION__, name="COUPLING", &
                           description="Coupling between two force_eval: E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="COUPLING_PARAMETER", &
@@ -339,7 +339,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="RESTRAINT", &
+      CALL section_create(subsection, __LOCATION__, name="RESTRAINT", &
                           description="Restraint between two force_eval: E = E1 + k*(E1-E2-t)**2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="RESTRAINT_TARGET", &
@@ -358,7 +358,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Multiple force_eval
-      CALL section_create(subsection, name="GENERIC", &
+      CALL section_create(subsection, __LOCATION__, name="GENERIC", &
                           description="User driven coupling between two or more force_eval.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="MIXING_FUNCTION", &
@@ -416,7 +416,7 @@ CONTAINS
 
       ! Mapping of atoms
       NULLIFY (sub2section, sub3section)
-      CALL section_create(subsection, name="MAPPING", &
+      CALL section_create(subsection, __LOCATION__, name="MAPPING", &
                           description="Defines the mapping of atoms for the different force_eval with the mixed force_eval."// &
                           " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"// &
                           " geometrical structure). The mapping is based on defining fragments and the mapping the "// &
@@ -424,11 +424,11 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       ! Mixed force_eval
-      CALL section_create(sub2section, name="FORCE_EVAL_MIXED", &
+      CALL section_create(sub2section, __LOCATION__, name="FORCE_EVAL_MIXED", &
                           description="Defines the fragments for the mixed force_eval (reference)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL section_create(sub3section, name="FRAGMENT", &
+      CALL section_create(sub3section, __LOCATION__, name="FRAGMENT", &
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -450,7 +450,7 @@ CONTAINS
       CALL section_release(sub2section)
 
       ! All other force_eval
-      CALL section_create(sub2section, name="FORCE_EVAL", &
+      CALL section_create(sub2section, __LOCATION__, name="FORCE_EVAL", &
                           description="Defines the fragments and the mapping for each force_eval (an integer index (ID) "// &
                           "needs to be provided as parameter)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -471,7 +471,7 @@ CONTAINS
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(sub3section, name="FRAGMENT", &
+      CALL section_create(sub3section, __LOCATION__, name="FRAGMENT", &
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -521,7 +521,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in MIXED env.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -557,7 +557,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options for the mixed CDFT environment.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -604,7 +604,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BLOCK_DIAGONALIZE", &
+      CALL section_create(section, __LOCATION__, name="BLOCK_DIAGONALIZE", &
                           description="Control section to setup block diagonalization of the mixed CDFT Hamiltonian. "// &
                           "Constructs a new Hamiltonian by diagonalizing the initial matrix within each block and "// &
                           "by rotating the off-diagonal blocks (which represent the interactions between different "// &

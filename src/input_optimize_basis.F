@@ -53,7 +53,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZE_BASIS", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZE_BASIS", &
                           description="describes a basis optimization job, in which an ADMM like approach is used to"// &
                           " find the best exponents and/or coefficients to match a given training set.", &
                           repeats=.FALSE.)
@@ -168,7 +168,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FIT_KIND", &
+      CALL section_create(section, __LOCATION__, name="FIT_KIND", &
                           description="specicifies the atomic kinds to be fitted and the basis"// &
                           " sets associated with the kind.", &
                           repeats=.TRUE.)
@@ -255,7 +255,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DERIVED_BASIS_SETS", &
+      CALL section_create(section, __LOCATION__, name="DERIVED_BASIS_SETS", &
                           description="This section can be used to create subsets of a basis "// &
                           " which will be fitted at the same time. This is especially useful if connected"// &
                           " bsis sets e.g. TZVP, DZVP, SZV should be fitted. ", &
@@ -309,7 +309,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONSTRAIN_EXPONENTS", &
+      CALL section_create(section, __LOCATION__, name="CONSTRAIN_EXPONENTS", &
                           description="specicifies contraints for the exponents to be fitted."// &
                           " Only a single constraint can be applied to an exponent", &
                           repeats=.TRUE.)
@@ -351,7 +351,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TRAINING_FILES", &
+      CALL section_create(section, __LOCATION__, name="TRAINING_FILES", &
                           description="specicifies the location in which the files necessary for"// &
                           " fitting procedure are located. Each Training set needs a reptition of this section.", &
                           repeats=.TRUE.)
@@ -386,7 +386,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZATION", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZATION", &
                           description="sets the parameters for optimizition, output frequency and restarts", &
                           repeats=.FALSE.)
 

@@ -83,7 +83,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(.NOT. ASSOCIATED(root_section))
-      CALL section_create(root_section, name="__ROOT__", &
+      CALL section_create(root_section, __LOCATION__, name="__ROOT__", &
                           description="input file of cp2k", n_keywords=0, n_subsections=10, &
                           repeats=.FALSE.)
       NULLIFY (section)
@@ -161,7 +161,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
-      CALL section_create(section, name="TEST", &
+      CALL section_create(section, __LOCATION__, name="TEST", &
                           description="Tests to perform on the supported libraries.", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
@@ -310,7 +310,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
 
-      CALL section_create(section, name="DEBUG", &
+      CALL section_create(section, __LOCATION__, name="DEBUG", &
                           description="Section to setup parameters for debug runs.", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
@@ -374,7 +374,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MULTIPLE_FORCE_EVALS", &
+      CALL section_create(section, __LOCATION__, name="MULTIPLE_FORCE_EVALS", &
                           description="Describes how to handle multiple force_evals.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -412,7 +412,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXT_RESTART", &
+      CALL section_create(section, __LOCATION__, name="EXT_RESTART", &
                           description="Section for external restart, specifies an external "// &
                           "input file where to take positions, etc. "// &
                           "By default they are all set to TRUE", &
@@ -650,7 +650,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="farming", &
+      CALL section_create(section, __LOCATION__, name="farming", &
                           description="Describes a farming job, in which multiple inputs are executed."//newline// &
                           "The RUN_TYPE in the global section has to be set to NONE for FARMING."//newline// &
                           "The different groups are executed in parallel. The jobs inside the same groups in series.", &
@@ -714,7 +714,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (sub_section)
-      CALL section_create(sub_section, name="JOB", &
+      CALL section_create(sub_section, __LOCATION__, name="JOB", &
                           description="description of the jobs to be executed", &
                           repeats=.TRUE.)
 
@@ -810,7 +810,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RS_PW_TRANSFER", &
+      CALL section_create(section, __LOCATION__, name="RS_PW_TRANSFER", &
                           description="Describes how to benchmark the rs_pw_transfer routines.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -862,7 +862,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PW_TRANSFER", &
+      CALL section_create(section, __LOCATION__, name="PW_TRANSFER", &
                           description="Benchmark and test the pw_transfer routines.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -939,7 +939,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CP_FM_GEMM", &
+      CALL section_create(section, __LOCATION__, name="CP_FM_GEMM", &
                           description="Benchmark and test the cp_fm_gemm routines by multiplying C=A*B  ", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -1027,7 +1027,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EIGENSOLVER", &
+      CALL section_create(section, __LOCATION__, name="EIGENSOLVER", &
                           description="Benchmark and test the eigensolver routines.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -1087,7 +1087,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CP_DBCSR", &
+      CALL section_create(section, __LOCATION__, name="CP_DBCSR", &
                           description="Benchmark and test the cp_dbcsr routines", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 

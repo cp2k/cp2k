@@ -108,7 +108,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="poisson", &
+      CALL section_create(section, __LOCATION__, name="poisson", &
                           description="Sets up the poisson resolutor.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -176,7 +176,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="MULTIPOLE", &
+      CALL section_create(section, __LOCATION__, name="MULTIPOLE", &
                           description="This section is used to set up the decoupling of QM periodic images with "// &
                           "the use of density derived atomic point charges.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -241,7 +241,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="mt", &
+      CALL section_create(section, __LOCATION__, name="mt", &
                           description="Sets up parameters of  Martyna-Tuckerman poisson solver. "// &
                           "Note that exact results are only guaranteed if the unit cell is "// &
                           "twice as large as charge density (and serious artefacts can result "// &
@@ -284,7 +284,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ewald", &
+      CALL section_create(section, __LOCATION__, name="ewald", &
                           description="Ewald parameters controlling electrostatic only for CLASSICAL MM.", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE., &
                           citations=(/Ewald1921, Darden1993, Essmann1995, Toukmaji1996, Laino2008/))
@@ -377,7 +377,7 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="MULTIPOLES", &
+      CALL section_create(subsection, __LOCATION__, name="MULTIPOLES", &
                           description="Enables the use of multipoles in the treatment of the electrostatics.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
                           citations=(/Aguado2003, Laino2008/))
@@ -438,7 +438,7 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls printing of Ewald properties", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (print_key)
@@ -467,7 +467,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="interpolator", &
+      CALL section_create(section, __LOCATION__, name="interpolator", &
                           description="controls the interpolation for the G-space term", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -545,7 +545,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="wavelet", &
+         section, __LOCATION__, name="wavelet", &
          description="Sets up parameters of  wavelet based poisson solver."// &
          "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "// &
          "(but only PERIODIC XZ)."// &
@@ -583,7 +583,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="IMPLICIT", &
+      CALL section_create(section, __LOCATION__, name="IMPLICIT", &
                           description="Parameters for the implicit (generalized) Poisson solver.", &
                           citations=(/BaniHashemian2016/), &
                           n_keywords=6, n_subsections=2, repeats=.FALSE.)
@@ -665,7 +665,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DIELECTRIC", &
+      CALL section_create(section, __LOCATION__, name="DIELECTRIC", &
                           description="Parameters for the dielectric constant function.", &
                           n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
@@ -751,7 +751,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DIELEC_AA_CUBOIDAL", &
+      CALL section_create(section, __LOCATION__, name="DIELEC_AA_CUBOIDAL", &
                           description="Parameters for creating axis-aligned cuboidal dielectric region. "// &
                           "Note that once such a region is defined, the 'background' dielectric constant "// &
                           "would be the default (80.0), unless a different value is specified using the "// &
@@ -810,7 +810,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DIELEC_XAA_ANNULAR", &
+      CALL section_create(section, __LOCATION__, name="DIELEC_XAA_ANNULAR", &
                           description="Parameters for creating x-axis-aligned annular dielectric region. "// &
                           "Note that once such a region is defined, the 'background' dielectric constant "// &
                           "would be the default (80.0), unless a different value is specified using the "// &
@@ -870,7 +870,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DIRICHLET_BC", &
+      CALL section_create(section, __LOCATION__, name="DIRICHLET_BC", &
                           description="Parameters for creating Dirichlet type boundary conditions.", &
                           n_keywords=1, n_subsections=4, repeats=.FALSE.)
 
@@ -918,7 +918,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="AA_PLANAR", &
+      CALL section_create(section, __LOCATION__, name="AA_PLANAR", &
                           description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary regions.", &
                           n_keywords=10, n_subsections=0, repeats=.TRUE.)
 
@@ -1031,7 +1031,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="PLANAR", &
+         section, __LOCATION__, name="PLANAR", &
          description="Parameters for creating planar (rectangular) Dirichlet boundary regions with given vertices.", &
          n_keywords=7, n_subsections=0, repeats=.TRUE.)
 
@@ -1121,7 +1121,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="AA_CYLINDRICAL", &
+      CALL section_create(section, __LOCATION__, name="AA_CYLINDRICAL", &
                           description="Parameters for creating axis-aligned cylindrical Dirichlet boundary regions.", &
                           n_keywords=11, n_subsections=0, repeats=.TRUE.)
 
@@ -1244,7 +1244,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="AA_CUBOIDAL", &
+      CALL section_create(section, __LOCATION__, name="AA_CUBOIDAL", &
                           description="Parameters for creating axis-aligned cuboidal Dirichlet regions.", &
                           n_keywords=7, n_subsections=0, repeats=.TRUE.)
 

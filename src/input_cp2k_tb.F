@@ -58,7 +58,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "DFTB", &
+      CALL section_create(section, __LOCATION__, name="DFTB", &
                           description="Parameters needed to set up the DFTB methods", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
                           citations=(/Porezag1995, Seifert1996, Elstner1998, Zhechkov2005/))
@@ -132,7 +132,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "xTB", &
+      CALL section_create(section, __LOCATION__, name="xTB", &
                           description="Parameters needed to set up the xTB methods", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
                           citations=(/GRIMME2017/))
@@ -200,7 +200,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="PARAMETER", &
+      CALL section_create(section, __LOCATION__, name="PARAMETER", &
                           description="Information on where to find DFTB parameters", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -300,7 +300,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="PARAMETER", &
+      CALL section_create(section, __LOCATION__, name="PARAMETER", &
                           description="Information on and where to find xTB parameters", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -413,7 +413,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="ATOM_PARAMETER", &
+      CALL section_create(section, __LOCATION__, name="ATOM_PARAMETER", &
                           description="Section used to specify a atom parameter set for xTB calclulations.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 

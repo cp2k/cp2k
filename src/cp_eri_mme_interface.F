@@ -111,7 +111,7 @@ CONTAINS
          my_default_n_minimax = 20
       ENDIF
 
-      CALL section_create(section, "ERI_MME", &
+      CALL section_create(section, __LOCATION__, name="ERI_MME", &
                           description="Parameters for the calculation of periodic electron repulsion "// &
                           "integrals (ERI) using the Minimax-Ewald (MME) method. "// &
                           "Note: N_MINIMAX is the only parameter to be tuned for accuracy, "// &
@@ -196,7 +196,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, "CUTOFF_CALIB", &
+      CALL section_create(subsection, __LOCATION__, name="CUTOFF_CALIB", &
                           description="Parameters for the calibration of the energy cutoff by "// &
                           "minimizing the errors due to finite cutoff and minimax approximation. "// &
                           "Implemented as bisection of error(minimax) - error(cutoff). Not "// &
@@ -599,7 +599,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ERI_MME_TEST", &
+      CALL section_create(section, __LOCATION__, name="ERI_MME_TEST", &
                           description="Parameters for testing the ERI_MME method for electron repulsion integrals. "// &
                           "Testing w.r.t. performance and accuracy. ", &
                           n_keywords=5, n_subsections=1)

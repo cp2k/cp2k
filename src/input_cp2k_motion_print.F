@@ -58,7 +58,7 @@ CONTAINS
 
       NULLIFY (keyword, section, print_key)
 
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Controls the printing properties during an MD run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 

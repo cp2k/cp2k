@@ -75,7 +75,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="xc_functional", &
+      CALL section_create(section, __LOCATION__, name="xc_functional", &
                           description="The xc functional to use", &
                           n_keywords=0, n_subsections=4, repeats=.FALSE., &
                           citations=(/Ortiz1994, Becke1988, Perdew1996, Zhang1998, Lee1988, &
@@ -102,7 +102,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="BECKE88", &
+      CALL section_create(subsection, __LOCATION__, name="BECKE88", &
                           description="Uses the Becke 88 exchange functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Becke1988/))
@@ -121,7 +121,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="LYP_ADIABATIC", &
+      CALL section_create(subsection, __LOCATION__, name="LYP_ADIABATIC", &
                           description="Uses the LYP correlation functional in an adiabatic fashion", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Lee1988/))
@@ -139,7 +139,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BECKE88_LR_ADIABATIC", &
+      CALL section_create(subsection, __LOCATION__, name="BECKE88_LR_ADIABATIC", &
                           description="Uses the Becke 88 longrange exchange functional in an adiabatic fashion", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Becke1988/))
@@ -167,7 +167,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BECKE88_LR", &
+      CALL section_create(subsection, __LOCATION__, name="BECKE88_LR", &
                           description="Uses the Becke 88 longrange exchange functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Becke1988/))
@@ -190,7 +190,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="LYP", &
+      CALL section_create(subsection, __LOCATION__, name="LYP", &
                           description="Uses the LYP functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Lee1988/))
@@ -207,7 +207,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PADE", &
+      CALL section_create(subsection, __LOCATION__, name="PADE", &
                           description="Uses the PADE functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Goedecker1996/))
@@ -219,7 +219,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="HCTH", &
+      CALL section_create(subsection, __LOCATION__, name="HCTH", &
                           description="Uses the HCTH class of functionals", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_SET", &
@@ -238,7 +238,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="OPTX", &
+      CALL section_create(subsection, __LOCATION__, name="OPTX", &
                           description="Uses the OPTX functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -283,7 +283,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="CS1", &
+      CALL section_create(subsection, __LOCATION__, name="CS1", &
                           description="Uses the CS1 functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -294,7 +294,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="XGGA", &
+      CALL section_create(subsection, __LOCATION__, name="XGGA", &
                           description="Uses one of the XGGA functionals (optimized versions of "// &
                           "some of these functionals might be available outside this section).", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -321,7 +321,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="KE_GGA", &
+      CALL section_create(subsection, __LOCATION__, name="KE_GGA", &
                           description="Uses one of the KE_GGA functionals (optimized versions of "// &
                           "some of these functionals might be available outside this section). "// &
                           "These functionals are needed for the computation of the kinetic "// &
@@ -351,7 +351,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="P86C", &
+      CALL section_create(subsection, __LOCATION__, name="P86C", &
                           description="Uses the P86C functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -367,7 +367,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PW92", &
+      CALL section_create(subsection, __LOCATION__, name="PW92", &
                           description="Uses the PerdewWang correlation functional.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -394,7 +394,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PZ81", &
+      CALL section_create(subsection, __LOCATION__, name="PZ81", &
                           description="Uses the PZ functional.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/Perdew1981, Ortiz1994/))
@@ -422,7 +422,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="TFW", &
+      CALL section_create(subsection, __LOCATION__, name="TFW", &
                           description="Uses the TFW functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -433,7 +433,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="TF", &
+      CALL section_create(subsection, __LOCATION__, name="TF", &
                           description="Uses the TF functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -444,7 +444,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="VWN", &
+      CALL section_create(subsection, __LOCATION__, name="VWN", &
                           description="Uses the VWN functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Vosko1980/))
@@ -474,7 +474,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="XALPHA", &
+      CALL section_create(subsection, __LOCATION__, name="XALPHA", &
                           description="Uses the XALPHA (SLATER) functional.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -496,7 +496,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="TPSS", &
+      CALL section_create(subsection, __LOCATION__, name="TPSS", &
                           description="Uses the TPSS functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Tao2003/))
@@ -518,7 +518,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PBE", &
+      CALL section_create(subsection, __LOCATION__, name="PBE", &
                           description="Uses the PBE functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Perdew1996, Zhang1998, Perdew2008/))
@@ -554,7 +554,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="XWPBE", &
+      CALL section_create(subsection, __LOCATION__, name="XWPBE", &
                           description="Uses the short range PBE functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Heyd2004/))
@@ -581,7 +581,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BECKE97", &
+      CALL section_create(subsection, __LOCATION__, name="BECKE97", &
                           description="Uses the Becke 97 exchange correlation functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Becke1997, Grimme2006/))
@@ -611,7 +611,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BECKE_ROUSSEL", &
+      CALL section_create(subsection, __LOCATION__, name="BECKE_ROUSSEL", &
                           description="Becke Roussel exchange hole model. Can be used"// &
                           "as long range correction with a truncated coulomb potential", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
@@ -641,7 +641,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="LDA_HOLE_T_C_LR", &
+      CALL section_create(subsection, __LOCATION__, name="LDA_HOLE_T_C_LR", &
                           description="LDA exchange hole model in truncated coulomb potential", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -662,7 +662,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PBE_HOLE_T_C_LR", &
+      CALL section_create(subsection, __LOCATION__, name="PBE_HOLE_T_C_LR", &
                           description="PBE exchange hole model in trucanted coulomb potential", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -683,7 +683,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="GV09", &
+      CALL section_create(subsection, __LOCATION__, name="GV09", &
                           description="Combination of three different exchange hole models", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -709,7 +709,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BEEF", & !rk: BEEF Exchange
+      CALL section_create(subsection, __LOCATION__, name="BEEF", & !rk: BEEF Exchange
                           description="Uses the BEEFvdW exchange functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Wellendorff2012/))
@@ -746,7 +746,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CPASSERT(name == "LIBXC" .OR. name == "KE_LIBXC")
       NULLIFY (keyword)
-      CALL section_create(section, name, description, &
+      CALL section_create(section, __LOCATION__, name, description, &
                           n_keywords=3, n_subsections=0, repeats=.TRUE., &
                           citations=(/Marques2012, Lehtola2018/))
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -791,7 +791,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="xc_potential", &
+      CALL section_create(section, __LOCATION__, name="xc_potential", &
                           description="The xc potential to use (CAREFUL: xc potential here refers "// &
                           "to potentials that are not derived from an xc functional, but rather are "// &
                           "modelled directly. Therefore there is no consistent xc energy available. "// &
@@ -799,7 +799,7 @@ CONTAINS
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
-      CALL section_create(subsection, name="SAOP", &
+      CALL section_create(subsection, __LOCATION__, name="SAOP", &
                           description="Uses the SAOP potential", &
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
@@ -850,7 +850,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="vdw_potential", &
+      CALL section_create(section, __LOCATION__, name="vdw_potential", &
                           description="This section combines all possible additional dispersion "// &
                           "corrections to the normal XC functionals. This can be more functionals "// &
                           "or simple empirical pair potentials. ", &
@@ -871,7 +871,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="PAIR_POTENTIAL", &
+      CALL section_create(subsection, __LOCATION__, name="PAIR_POTENTIAL", &
                           description="Information on the pair potential to calculate dispersion", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="R_CUTOFF", &
@@ -1025,7 +1025,7 @@ CONTAINS
 
       ! nonlocal section
       NULLIFY (subsection, keyword)
-      CALL section_create(subsection, name="NON_LOCAL", &
+      CALL section_create(subsection, __LOCATION__, name="NON_LOCAL", &
                           description="Information on the non local dispersion functional", &
                           n_keywords=0, n_subsections=0, repeats=.TRUE.)
 
@@ -1090,7 +1090,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "xc", &
+      CALL section_create(section, __LOCATION__, name="xc", &
                           description="Parameters needed for the calculation of the eXchange and Correlation potential", &
                           n_keywords=5, n_subsections=2, repeats=.FALSE.)
 
@@ -1137,7 +1137,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="xc_grid", & !FM to do
+      CALL section_create(subsection, __LOCATION__, name="xc_grid", & !FM to do
                           description="The xc parameters used when calculating the xc on the grid", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="xc_smooth_rho", &
@@ -1212,7 +1212,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ADIABATIC_RESCALING", &
+      CALL section_create(section, __LOCATION__, name="ADIABATIC_RESCALING", &
                           description="Parameters for self interation corrected hybrid functionals", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)

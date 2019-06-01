@@ -96,6 +96,7 @@ MODULE input_section_types
 !>      - ref_count: reference count (see doc/ReferenceCounting.html)
 !>      - n_keywords: the number of keywords in this section
 !>      - name: name of the section
+!>      - location where in the source code (file and line) the section is created
 !>      - description: description of the section
 !>      - citations: references to literature associated to this section
 !>      - keywords: array with the keywords of this section (might be
@@ -107,6 +108,7 @@ MODULE input_section_types
       LOGICAL :: frozen, repeats
       INTEGER :: id_nr, ref_count, n_keywords, n_subsections
       CHARACTER(len=default_string_length)        :: name
+      CHARACTER(len=default_string_length)        :: location
       CHARACTER, DIMENSION(:), POINTER              :: description => Null()
       INTEGER, POINTER, DIMENSION(:)              :: citations
       TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
@@ -144,6 +146,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a list of keywords
 !> \param section the list to be created
+!> \param location from where in the source code section_create() is called
 !> \param name ...
 !> \param description ...
 !> \param n_keywords hint about the number of keywords, defaults to 10
@@ -153,10 +156,10 @@ CONTAINS
 !> \param citations ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE section_create(section, name, description, n_keywords, &
+   SUBROUTINE section_create(section, location, name, description, n_keywords, &
                              n_subsections, repeats, citations)
       TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: name, description
+      CHARACTER(len=*), INTENT(in)                       :: location, name, description
       INTEGER, INTENT(in), OPTIONAL                      :: n_keywords, n_subsections
       LOGICAL, INTENT(in), OPTIONAL                      :: repeats
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: citations
@@ -178,6 +181,7 @@ CONTAINS
 
       section%n_keywords = 0
       section%n_subsections = 0
+      section%location = location
       section%name = name
       CALL uppercase(section%name)
 
@@ -1769,6 +1773,9 @@ CONTAINS
                   REPEAT(" ", l1)//"</REFERENCE>"
             END DO
          END IF
+
+         WRITE (UNIT=unit_number, FMT="(A)") &
+            REPEAT(" ", l1)//"<LOCATION>"//TRIM(section%location)//"</LOCATION>"
 
          DO i = -1, section%n_keywords
             IF (ASSOCIATED(section%keywords(i)%keyword)) THEN

@@ -128,7 +128,7 @@ CONTAINS
       NULLIFY (keyword, print_section, printkey)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "LINE_SEARCH", repeats=.FALSE., &
+      CALL section_create(section, __LOCATION__, name="LINE_SEARCH", repeats=.FALSE., &
                           description="Detail settings or linesearch method.")
 
       CALL keyword_create( &
@@ -170,7 +170,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(print_section, name="PRINT", &
+      CALL section_create(print_section, __LOCATION__, name="PRINT", &
                           description="Print section", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 

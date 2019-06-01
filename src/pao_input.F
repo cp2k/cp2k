@@ -267,7 +267,7 @@ CONTAINS
       NULLIFY (keyword, subsection, subsubsection, printkey)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PAO", repeats=.FALSE., &
+      CALL section_create(section, __LOCATION__, name="PAO", repeats=.FALSE., &
                           description="Polarized Atomic Orbital Method", &
                           citations=(/Schuett2018, Berghold2011/))
 
@@ -406,7 +406,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Machine Learning *********************************************************
-      CALL section_create(subsection, name="MACHINE_LEARNING", description="Machine learning section")
+      CALL section_create(subsection, __LOCATION__, name="MACHINE_LEARNING", description="Machine learning section")
 
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Machine learning scheme used to predict PAO basis sets.", &
@@ -457,7 +457,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! special free-text section similar to SUBSYS%COORD
-      CALL section_create(subsubsection, name="TRAINING_SET", &
+      CALL section_create(subsubsection, __LOCATION__, name="TRAINING_SET", &
                           description="Lists PAO-restart file used for training")
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="One file name per line.", &
@@ -471,7 +471,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Output *******************************************************************
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printkey section", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 

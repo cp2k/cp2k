@@ -63,7 +63,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="free_energy", &
+      CALL section_create(section, __LOCATION__, name="free_energy", &
                           description="Controls the calculation of free energy and free energy derivatives"// &
                           " with different possible methods", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -117,7 +117,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="metadyn", &
+      CALL section_create(section, __LOCATION__, name="metadyn", &
                           description="This section sets parameters to set up a calculation of metadynamics.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
                           citations=(/VandenCic2006/))
@@ -313,7 +313,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="print", &
+      CALL section_create(subsection, __LOCATION__, name="print", &
                           description="Controls the printing properties during an metadynamics run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
@@ -382,7 +382,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MULTIPLE_WALKERS", &
+      CALL section_create(section, __LOCATION__, name="MULTIPLE_WALKERS", &
                           description="Enables and configures the metadynamics using multiple walkers.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
@@ -419,7 +419,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="WALKERS_FILE_NAME", &
+      CALL section_create(subsection, __LOCATION__, name="WALKERS_FILE_NAME", &
                           description="Specify the basename for the NUMBER_OF_WALKERS files used to "// &
                           "communicate between the walkers. Absolute path can be input as well "// &
                           "together with the filename. One file will be created for each spawned hill.", &
@@ -448,7 +448,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ALCHEMICAL_CHANGE", &
+      CALL section_create(section, __LOCATION__, name="ALCHEMICAL_CHANGE", &
                           description="Controls the calculation of delta free energies"// &
                           " with the alchemical change method.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -497,7 +497,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="umbrella_integration", &
+      CALL section_create(section, __LOCATION__, name="umbrella_integration", &
                           description="Controls the calculation of free energy derivatives"// &
                           " with the umbrella integration method.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -528,7 +528,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SPAWNED_HILLS_POS", &
+      CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_POS", &
                           description="The position of the spawned hills during metadynamics."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -541,7 +541,7 @@ CONTAINS
       CALL section_add_subsection(metadyn_section, section)
       CALL section_release(section)
 
-      CALL section_create(section, name="SPAWNED_HILLS_SCALE", &
+      CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_SCALE", &
                           description="The scales of the spawned hills during metadynamics."// &
                           "Used for RESTART. When a scale is zero in one or more "// &
                           "directions, the Gaussian hill is assumed to be infinitely wide "// &
@@ -558,7 +558,7 @@ CONTAINS
       CALL section_add_subsection(metadyn_section, section)
       CALL section_release(section)
 
-      CALL section_create(section, name="SPAWNED_HILLS_HEIGHT", &
+      CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_HEIGHT", &
                           description="The height of the spawned hills during metadynamics."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -571,7 +571,7 @@ CONTAINS
       CALL section_add_subsection(metadyn_section, section)
       CALL section_release(section)
 
-      CALL section_create(section, name="SPAWNED_HILLS_INVDT", &
+      CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_INVDT", &
                           description="The inverse of the DELTA_T parameter used for Well-Tempered metadynamics."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -586,7 +586,7 @@ CONTAINS
       !
       ! Extended Lagrangian
       !
-      CALL section_create(section, name="EXT_LAGRANGE_SS0", &
+      CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_SS0", &
                           description="Colvar position within an extended Lagrangian formalism."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -599,7 +599,7 @@ CONTAINS
       CALL section_add_subsection(metadyn_section, section)
       CALL section_release(section)
 
-      CALL section_create(section, name="EXT_LAGRANGE_VVP", &
+      CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_VVP", &
                           description="Colvar velocities within an extended Lagrangian formalism."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -612,7 +612,7 @@ CONTAINS
       CALL section_add_subsection(metadyn_section, section)
       CALL section_release(section)
 
-      CALL section_create(section, name="EXT_LAGRANGE_SS", &
+      CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_SS", &
                           description="Colvar Theta within an extended Lagrangian formalism."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -625,7 +625,7 @@ CONTAINS
       CALL section_add_subsection(metadyn_section, section)
       CALL section_release(section)
 
-      CALL section_create(section, name="EXT_LAGRANGE_FS", &
+      CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_FS", &
                           description="Colvar force within an extended Lagrangian formalism."// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -655,7 +655,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection, wall_section
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="METAVAR", &
+      CALL section_create(section, __LOCATION__, name="METAVAR", &
                           description="This section specify the nature of the collective variables.", &
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
 
@@ -699,7 +699,7 @@ CONTAINS
 
       ! Wall section
       NULLIFY (wall_section, subsection)
-      CALL section_create(wall_section, name="WALL", &
+      CALL section_create(wall_section, __LOCATION__, name="WALL", &
                           description="Controls the activation of walls on COLVAR during a metadynamic run.", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -726,7 +726,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Reflective wall
-      CALL section_create(subsection, name="REFLECTIVE", &
+      CALL section_create(subsection, __LOCATION__, name="REFLECTIVE", &
                           description="Parameters controlling the reflective wall", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -743,7 +743,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Quadratic wall
-      CALL section_create(subsection, name="QUADRATIC", &
+      CALL section_create(subsection, __LOCATION__, name="QUADRATIC", &
                           description="Parameters controlling the quadratic wall", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -768,7 +768,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Quartic wall
-      CALL section_create(subsection, name="QUARTIC", &
+      CALL section_create(subsection, __LOCATION__, name="QUARTIC", &
                           description="Parameters controlling the quartic wall", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -793,7 +793,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Gaussian wall
-      CALL section_create(subsection, name="GAUSSIAN", &
+      CALL section_create(subsection, __LOCATION__, name="GAUSSIAN", &
                           description="Parameters controlling the gaussian wall.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -833,7 +833,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="UVAR", &
+      CALL section_create(section, __LOCATION__, name="UVAR", &
                           description="This section specify the nature of the collective variables"// &
                           " used in computing the free energy.", &
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
@@ -862,7 +862,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONVERGENCE_CONTROL", &
+      CALL section_create(section, __LOCATION__, name="CONVERGENCE_CONTROL", &
                           description="This section specify parameters controlling the convergence"// &
                           " of the free energy.", &
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)

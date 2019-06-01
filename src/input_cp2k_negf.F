@@ -56,7 +56,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "NEGF", &
+      CALL section_create(section, __LOCATION__, name="NEGF", &
                           description="Parameters which control quantum transport calculation"// &
                           " based on Non-Equilibrium Green's Function method.", &
                           citations=(/Bailey2006, Papior2017/), &
@@ -207,7 +207,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! PRINT subsection
-      CALL section_create(subsection, "PRINT", "Print properties for the scattering region.", &
+      CALL section_create(subsection, __LOCATION__, "PRINT", "Print properties for the scattering region.", &
                           repeats=.FALSE.)
 
       CALL create_print_dos_section(print_key, "DOS", "the Density of States (DOS)")
@@ -240,7 +240,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, "CONTACT", &
+      CALL section_create(section, __LOCATION__, name="CONTACT", &
                           description="Section defining the contact region of NEGF setup.", &
                           n_keywords=5, n_subsections=3, repeats=.TRUE.)
 
@@ -294,7 +294,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! PRINT subsection
-      CALL section_create(subsection, "PRINT", "Print properties for the given contact.", &
+      CALL section_create(subsection, __LOCATION__, "PRINT", "Print properties for the given contact.", &
                           repeats=.FALSE.)
 
       CALL create_print_dos_section(print_key, "DOS", "the Density of States (DOS)")
@@ -325,7 +325,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, TRIM(ADJUSTL(name)), &
+      CALL section_create(section, __LOCATION__, name=TRIM(ADJUSTL(name)), &
                           description="Atoms belonging to "//TRIM(ADJUSTL(description)), &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 

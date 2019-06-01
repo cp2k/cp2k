@@ -61,7 +61,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESP", &
+      CALL section_create(section, __LOCATION__, name="RESP", &
                           description="Requests a RESP fit of charges. When using a periodic "// &
                           "Poisson solver and a periodic cell, the periodic RESP routines are "// &
                           "used. If the Hartree potential matches with the one of an isolated "// &
@@ -167,7 +167,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONSTRAINT", &
+      CALL section_create(section, __LOCATION__, name="CONSTRAINT", &
                           description="specifies a linear constraint on the fitted charges."// &
                           "This can be used to give equal values to equivalent atoms."// &
                           "sum over atom_list c_i * q_i = t", &
@@ -223,7 +223,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESTRAINT", &
+      CALL section_create(section, __LOCATION__, name="RESTRAINT", &
                           description="specifies a restraint on the fitted charges."// &
                           "This can be used to restrain values to zero."// &
                           "s*(sum over atom_list q_i - t)**2", &
@@ -278,7 +278,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SPHERE_SAMPLING", &
+      CALL section_create(section, __LOCATION__, name="SPHERE_SAMPLING", &
                           description="Specifies the parameter for sampling the RESP fitting points "// &
                           "for molecular structures, i.e. systems that do not involve "// &
                           "surfaces. Fitting points are sampled in spheres around the "// &
@@ -422,7 +422,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SLAB_SAMPLING", &
+      CALL section_create(section, __LOCATION__, name="SLAB_SAMPLING", &
                           description="Specifies the parameter for sampling the RESP fitting "// &
                           "points for slab-like periodic systems, i.e. systems that "// &
                           "involve surfaces. This section can only be used with periodic  "// &
@@ -496,7 +496,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (print_key, keyword)
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options specific for the RESP code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 

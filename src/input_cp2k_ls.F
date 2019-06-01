@@ -61,7 +61,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "LS_SCF", &
+      CALL section_create(section, __LOCATION__, name="LS_SCF", &
                           description="Specifies the parameters of the linear scaling SCF routines", &
                           n_keywords=24, n_subsections=3, repeats=.FALSE., &
                           citations=(/VandeVondele2012/))
@@ -336,7 +336,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, "CHEBYSHEV", &
+      CALL section_create(section, __LOCATION__, name="CHEBYSHEV", &
                           description="Specifies the parameters needed for the chebyshev expansion based properties.", &
                           n_keywords=24, n_subsections=3, repeats=.FALSE.)
 
@@ -413,7 +413,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CURVY_STEPS", &
+      CALL section_create(section, __LOCATION__, name="CURVY_STEPS", &
                           description="Specifies the parameters of the linear scaling SCF routines", &
                           n_keywords=24, n_subsections=3, repeats=.FALSE., &
                           citations=(/Shao2003/))
@@ -486,7 +486,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, "PEXSI", &
+      CALL section_create(section, __LOCATION__, name="PEXSI", &
                           description="Specifies the parameters of the PEXSI library. The density matrix is calculated "// &
                           "with PEXSI if PURIFICATION_METHOD (in LS_SCF section) is set to PEXSI. "// &
                           "The computational cost of PEXSI is at most quadratically scaling w.r.t. the system size "// &

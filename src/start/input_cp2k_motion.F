@@ -87,13 +87,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="motion", &
+      CALL section_create(section, __LOCATION__, name="motion", &
                           description="This section defines a set of tool connected with the motion of the nuclei.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (subsection)
 
-      CALL create_geoopt_section(subsection, label="GEO_OPT", &
+      CALL create_geoopt_section(subsection, __LOCATION__, label="GEO_OPT", &
                                  description="This section sets the environment of the geometry optimizer.", &
                                  just_optimizers=.FALSE., &
                                  use_model_hessian=.TRUE.)
@@ -165,7 +165,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="mc", &
+      CALL section_create(section, __LOCATION__, name="mc", &
                           description="This section sets parameters to set up a MonteCarlo calculation.", &
                           n_keywords=10, n_subsections=2, repeats=.FALSE.)
 
@@ -390,7 +390,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="avbmc", &
+      CALL section_create(section, __LOCATION__, name="avbmc", &
                           description="Parameters for Aggregation Volume Bias Monte Carlo (AVBMC) "// &
                           "which explores cluster formation and destruction. "// &
                           "Chen and Siepmann, J. Phys. Chem. B 105, 11275-11282 (2001).", &
@@ -446,7 +446,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="move_probabilities", &
+      CALL section_create(section, __LOCATION__, name="move_probabilities", &
                           description="Parameters for fraction of moves performed for each move type.", &
                           n_keywords=5, n_subsections=2, repeats=.FALSE.)
 
@@ -527,7 +527,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="mol_probabilities", &
+      CALL section_create(section, __LOCATION__, name="mol_probabilities", &
                           description="Probabilities of attempting various moves types on "// &
                           "the various molecular types present in the simulation.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -587,7 +587,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="BOX_PROBABILITIES", &
+      CALL section_create(section, __LOCATION__, name="BOX_PROBABILITIES", &
                           description="Probabilities of attempting various moves types on "// &
                           "the box.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
@@ -633,7 +633,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="MOVE_UPDATES", &
+      CALL section_create(section, __LOCATION__, name="MOVE_UPDATES", &
                           description="Frequency for updating move maximum displacements.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
@@ -678,7 +678,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="max_displacements", &
+      CALL section_create(section, __LOCATION__, name="max_displacements", &
                           description="The maximum displacements for all attempted moves.", &
                           n_keywords=1, n_subsections=2, repeats=.FALSE.)
 
@@ -710,7 +710,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="mol_displacements", &
+      CALL section_create(section, __LOCATION__, name="mol_displacements", &
                           description="Maximum displacements for every move type that requires "// &
                           "a value for each molecular type in the simulation.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -770,7 +770,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="BOX_DISPLACEMENTS", &
+      CALL section_create(section, __LOCATION__, name="BOX_DISPLACEMENTS", &
                           description="Maximum displacements for any move that is performed on each"// &
                           " simulation box.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -796,15 +796,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates the geometry optimization section
 !> \param section the section to be created
+!> \param location ...
 !> \param label ...
 !> \param description ...
 !> \param just_optimizers ...
 !> \param use_model_hessian ...
 !> \author teo
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE create_geoopt_section(section, label, description, just_optimizers, use_model_hessian)
+   RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, use_model_hessian)
       TYPE(section_type), POINTER                        :: section
-      CHARACTER(LEN=*), INTENT(IN)                       :: label, description
+      CHARACTER(LEN=*), INTENT(IN)                       :: location, label, description
       LOGICAL, INTENT(IN)                                :: just_optimizers, use_model_hessian
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_geoopt_section', &
@@ -814,7 +815,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name=label, description=description, &
+      CALL section_create(section, location=location, name=label, description=description, &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -911,7 +912,7 @@ CONTAINS
 
          ! Create the PRINT subsection
          NULLIFY (subsection)
-         CALL section_create(subsection, name="PRINT", &
+         CALL section_create(subsection, __LOCATION__, name="PRINT", &
                              description="Controls the printing properties during a geometry optimization run", &
                              n_keywords=0, n_subsections=1, repeats=.TRUE.)
          NULLIFY (print_key)
@@ -941,7 +942,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CALL create_geoopt_section( &
-         section, label="SHELL_OPT", &
+         section, __LOCATION__, label="SHELL_OPT", &
          description="This section sets the environment for the optimization of the shell-core distances"// &
          " that might turn to be necessary along a MD run using a shell-model potential. "// &
          " The optimization procedure is activated when at least one of the shell-core "// &
@@ -953,7 +954,7 @@ CONTAINS
 
       ! Create the PRINT subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls the printing properties during a shell-core optimization procedure", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
@@ -981,7 +982,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
-      CALL create_geoopt_section(section, label="CELL_OPT", &
+      CALL create_geoopt_section(section, __LOCATION__, label="CELL_OPT", &
                                  description="This section sets the environment for the optimization of the simulation cell."// &
                                  " Two possible schemes are available: (1) Zero temperature optimization; "// &
                                  " (2) Finite temperature optimization. ", &
@@ -1060,7 +1061,7 @@ CONTAINS
 
       ! Create the PRINT subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls the printing properties during a geometry optimization run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
@@ -1099,7 +1100,7 @@ CONTAINS
 ! Create the Transition State subsection
 
       NULLIFY (section, keyword, subsection, subsection2)
-      CALL section_create(section, name="TRANSITION_STATE", &
+      CALL section_create(section, __LOCATION__, name="TRANSITION_STATE", &
                           description="Specifies parameters to perform a transition state search", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1114,7 +1115,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="DIMER", &
+      CALL section_create(subsection, __LOCATION__, name="DIMER", &
                           description="Specifies parameters for Dimer Method", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1160,12 +1161,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL create_geoopt_section( &
-         subsection2, label="ROT_OPT", &
+         subsection2, __LOCATION__, label="ROT_OPT", &
          description="This section sets the environment for the optimization of the rotation of the Dimer.", &
          just_optimizers=.TRUE., &
          use_model_hessian=.FALSE.)
       NULLIFY (subsection3)
-      CALL section_create(subsection3, name="PRINT", &
+      CALL section_create(subsection3, __LOCATION__, name="PRINT", &
                           description="Controls the printing properties during the dimer rotation optimization run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
@@ -1193,7 +1194,7 @@ CONTAINS
       CALL section_add_subsection(subsection, subsection2)
       CALL section_release(subsection2)
 
-      CALL section_create(subsection2, name="DIMER_VECTOR", &
+      CALL section_create(subsection2, __LOCATION__, name="DIMER_VECTOR", &
                           description="Specifies the initial dimer vector (used frequently to restart DIMER calculations)."// &
                           " If not provided the starting orientation of the dimer is chosen randomly.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -1229,7 +1230,7 @@ CONTAINS
 ! create the BFGS subsection
 
       NULLIFY (section, keyword, print_key)
-      CALL section_create(section, name="BFGS", &
+      CALL section_create(section, __LOCATION__, name="BFGS", &
                           description="Provides parameters to tune the BFGS optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1297,7 +1298,7 @@ CONTAINS
 ! create the CG subsection
 
       NULLIFY (section, subsection, subsubsection, keyword)
-      CALL section_create(section, name="CG", &
+      CALL section_create(section, __LOCATION__, name="CG", &
                           description="Provides parameters to tune the conjugate gradient optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1327,7 +1328,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Line Search section
-      CALL section_create(subsection, name="LINE_SEARCH", &
+      CALL section_create(subsection, __LOCATION__, name="LINE_SEARCH", &
                           description="Provides parameters to tune the line search during the conjugate gradient optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1349,7 +1350,7 @@ CONTAINS
 
       ! 2PNT
       NULLIFY (subsubsection)
-      CALL section_create(subsubsection, name="2PNT", &
+      CALL section_create(subsubsection, __LOCATION__, name="2PNT", &
                           description="Provides parameters to tune the line search for the two point based line search.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1373,7 +1374,7 @@ CONTAINS
 
       ! GOLD
       NULLIFY (subsubsection)
-      CALL section_create(subsubsection, name="GOLD", &
+      CALL section_create(subsubsection, __LOCATION__, name="GOLD", &
                           description="Provides parameters to tune the line search for the gold search.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -1429,7 +1430,7 @@ CONTAINS
 ! create the LBFGS section
 
       NULLIFY (section, keyword)
-      CALL section_create(section, name="LBFGS", &
+      CALL section_create(section, __LOCATION__, name="LBFGS", &
                           description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
                           citations=(/Byrd1995/))
@@ -1495,7 +1496,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FLEXIBLE_PARTITIONING", &
+      CALL section_create(section, __LOCATION__, name="FLEXIBLE_PARTITIONING", &
                           description="This section sets up flexible_partitioning", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -1591,7 +1592,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DRIVER", &
+      CALL section_create(section, __LOCATION__, name="DRIVER", &
                           description="This section defines the parameters needed to run in i-PI driver mode.", &
                           citations=(/Ceriotti2014, Kapil2016/), &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
@@ -1642,7 +1643,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PINT", &
+      CALL section_create(section, __LOCATION__, name="PINT", &
                           description="The section that controls a path integral run", &
                           n_keywords=13, n_subsections=9, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -1734,7 +1735,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection, subsubsection)
-      CALL section_create(subsection, name="NORMALMODE", &
+      CALL section_create(subsection, __LOCATION__, name="NORMALMODE", &
                           description="Controls the normal mode transformation", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="Q_CENTROID", &
@@ -1755,7 +1756,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="staging", &
+      CALL section_create(subsection, __LOCATION__, name="staging", &
                           description="The section that controls the staging transformation", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="j", &
@@ -1771,7 +1772,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BEADS", &
+      CALL section_create(subsection, __LOCATION__, name="BEADS", &
                           description="Sets positions and velocities of the beads", &
                           n_keywords=0, n_subsections=2, &
                           repeats=.FALSE.)
@@ -1784,7 +1785,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="NOSE", &
+      CALL section_create(subsection, __LOCATION__, name="NOSE", &
                           description="Controls the Nose-Hoover thermostats", &
                           n_keywords=1, n_subsections=2, &
                           repeats=.FALSE.)
@@ -1806,7 +1807,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PILE", &
+      CALL section_create(subsection, __LOCATION__, name="PILE", &
                           description="Controls the PI Langevin Equation thermostat."// &
                           " Needs the exact harmonic integrator."// &
                           " May lead to unphysical motions if constraint e.g. FIXED_ATOMS, is applied."// &
@@ -1833,7 +1834,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PIGLET", &
+      CALL section_create(subsection, __LOCATION__, name="PIGLET", &
                           description="Controls the PI Generalized Langevin Equation thermostat."// &
                           " Needs the exact harmonic integrator", &
                           citations=(/Ceriotti2012/), &
@@ -1842,7 +1843,7 @@ CONTAINS
       CALL create_rng_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
-      CALL section_create(subsubsection, name="EXTRA_DOF", &
+      CALL section_create(subsubsection, __LOCATION__, name="EXTRA_DOF", &
                           description="Additional degrees of freedom to ensure Markovian Dynamics.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -1876,7 +1877,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="QTB", &
+      CALL section_create(subsection, __LOCATION__, name="QTB", &
                           description="Controls the QTB-PILE thermostat."// &
                           " Needs the exact harmonic integrator", &
                           citations=(/Brieuc2016/), &
@@ -1925,7 +1926,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="INIT", &
+      CALL section_create(subsection, __LOCATION__, name="INIT", &
                           description="Controls the initialization if the beads are not present", &
                           repeats=.FALSE.)
 
@@ -1998,7 +1999,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls the path integral-specific output", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
@@ -2077,7 +2078,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="HELIUM", &
+      CALL section_create(section, __LOCATION__, name="HELIUM", &
                           description="The section that controls optional helium solvent"// &
                           " environment (highly experimental, not for general use yet)", &
                           n_keywords=31, n_subsections=9, repeats=.FALSE.)
@@ -2202,7 +2203,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="CEPERLEY", &
+      CALL section_create(subsection, __LOCATION__, name="CEPERLEY", &
                           description="Enables sampling with Ceperley's algorithm", &
                           n_keywords=2, n_subsections=1, repeats=.FALSE.)
 
@@ -2220,7 +2221,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsubsection)
-      CALL section_create(subsubsection, name="M-SAMPLING", &
+      CALL section_create(subsubsection, __LOCATION__, name="M-SAMPLING", &
                           description="Permutation cycle length sampling settings", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="DISTRIBUTION-TYPE", &
@@ -2263,7 +2264,7 @@ CONTAINS
 
 ! worm algorithm parameters:
       NULLIFY (subsection)
-      CALL section_create(subsection, name="WORM", &
+      CALL section_create(subsection, __LOCATION__, name="WORM", &
                           description="Enables sampling with the worm algorithm by Bonisegni", &
                           n_keywords=13, n_subsections=0, repeats=.FALSE.)
 
@@ -2403,7 +2404,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="RDF", &
+      CALL section_create(subsection, __LOCATION__, name="RDF", &
                           description="Radial distribution settings", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
@@ -2437,7 +2438,7 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="RHO", &
+      CALL section_create(subsection, __LOCATION__, name="RHO", &
                           description="Spatial distribution settings", &
                           n_keywords=10, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -2530,7 +2531,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PERM", &
+      CALL section_create(subsection, __LOCATION__, name="PERM", &
                           description="Permutation state used for restart", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -2542,7 +2543,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="AVERAGES", &
+      CALL section_create(subsection, __LOCATION__, name="AVERAGES", &
                           description="Average properties (used for restarts)", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="PROJECTED_AREA", &
@@ -2591,7 +2592,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="FORCE", &
+      CALL section_create(subsection, __LOCATION__, name="FORCE", &
                           description="Forces exerted by the helium on the solute system"// &
                           " (used for restarts)", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -2605,7 +2606,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="RNG_STATE", &
+      CALL section_create(subsection, __LOCATION__, name="RNG_STATE", &
                           description="Random number generator state for all processors", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -2618,7 +2619,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="The section that controls the output of the helium code", &
                           n_keywords=16, n_subsections=0, repeats=.FALSE.)
 

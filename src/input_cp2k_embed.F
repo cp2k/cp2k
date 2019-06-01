@@ -52,7 +52,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: sub2section, sub3section, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EMBED", &
+      CALL section_create(section, __LOCATION__, name="EMBED", &
                           description="This section contains all information to run embedded "// &
                           "calculations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -87,7 +87,7 @@ CONTAINS
 
       ! Mapping of atoms
       NULLIFY (sub2section, sub3section)
-      CALL section_create(subsection, name="MAPPING", &
+      CALL section_create(subsection, __LOCATION__, name="MAPPING", &
                           description="Defines the mapping of atoms for the different force_eval with the mixed force_eval."// &
                           " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"// &
                           " geometrical structure). The mapping is based on defining fragments and the mapping the "// &
@@ -95,11 +95,11 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       ! Mixed force_eval
-      CALL section_create(sub2section, name="FORCE_EVAL_EMBED", &
+      CALL section_create(sub2section, __LOCATION__, name="FORCE_EVAL_EMBED", &
                           description="Defines the fragments for the embedding force_eval (reference)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL section_create(sub3section, name="FRAGMENT", &
+      CALL section_create(sub3section, __LOCATION__, name="FRAGMENT", &
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -121,7 +121,7 @@ CONTAINS
       CALL section_release(sub2section)
 
       ! All other force_eval
-      CALL section_create(sub2section, name="FORCE_EVAL", &
+      CALL section_create(sub2section, __LOCATION__, name="FORCE_EVAL", &
                           description="Defines the fragments and the mapping for each force_eval (an integer index (ID) "// &
                           "needs to be provided as parameter)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -142,7 +142,7 @@ CONTAINS
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(sub3section, name="FRAGMENT", &
+      CALL section_create(sub3section, __LOCATION__, name="FRAGMENT", &
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -192,7 +192,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in EMBED env.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 

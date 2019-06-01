@@ -63,7 +63,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="KPOINTS", &
+      CALL section_create(section, __LOCATION__, name="KPOINTS", &
                           description="Sets up the kpoints.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
