@@ -213,7 +213,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "MP2_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
                                        description="Controls the printing basic info about MP2 method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)

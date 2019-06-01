@@ -152,7 +152,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "PRINT_ELPA", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT_ELPA", &
                                        description="Controls the printing of ELPA diagonalization information."// &
                                        "Useful for testing purposes, especially together with keyword ELPA_QR.", &
                                        filename="__STD_OUT__")
@@ -437,7 +437,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "TIMINGS", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TIMINGS", description= &
                                        "Controls the printing of the timing report at the end of CP2K execution", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
 
@@ -484,19 +484,19 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "REFERENCES", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "REFERENCES", description= &
                                        "Controls the printing of the references relevant to the calculations performed", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="controls the printing of  initialization controlled by the global section", &
                                        print_level=silent_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PRINT", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT", description= &
                                        "controls the printing of physical and mathematical constants", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
 

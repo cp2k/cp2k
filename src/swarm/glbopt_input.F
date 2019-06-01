@@ -100,7 +100,7 @@ CONTAINS
       !CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create( &
-         printkey, "PROGRESS_TRAJECTORY", &
+         printkey, __LOCATION__, "PROGRESS_TRAJECTORY", &
          description="Printkey to controll the writting of the progress trajectory. "// &
          "This trajectory contains the minima, which are lower in energy than the by then lowerest.", &
          print_level=low_print_level, common_iter_levels=1, &
@@ -292,7 +292,7 @@ CONTAINS
       CALL section_add_keyword(mincrawl_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(printkey, "MINIMA_TRAJECTORY", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "MINIMA_TRAJECTORY", &
                                        description="Printkey to controll the writting of the minima trajectory. "// &
                                        "This trajectory contains all encountered local minima.", &
                                        print_level=low_print_level, common_iter_levels=1, &

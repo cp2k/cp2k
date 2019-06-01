@@ -152,6 +152,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a print_key section
 !> \param print_key_section the print key to create
+!> \param location from where in the source code cp_print_key_section_create() is called
 !> \param name the name of the print key
 !> \param description the description of the print key
 !> \param print_level print level starting at which the printing takes place
@@ -167,11 +168,11 @@ CONTAINS
 !>        (i.e. USERS have no possibility to change it)
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
+   SUBROUTINE cp_print_key_section_create(print_key_section, location, name, description, &
                                           print_level, each_iter_names, each_iter_values, add_last, filename, &
                                           common_iter_levels, citations, unit_str)
       TYPE(section_type), POINTER                        :: print_key_section
-      CHARACTER(len=*), INTENT(IN)                       :: name, description
+      CHARACTER(len=*), INTENT(IN)                       :: location, name, description
       INTEGER, INTENT(IN), OPTIONAL                      :: print_level
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: each_iter_names
@@ -197,7 +198,7 @@ CONTAINS
       my_print_level = debug_print_level
       IF (PRESENT(print_level)) my_print_level = print_level
 
-      CALL section_create(print_key_section, __LOCATION__, name=name, description=description, &
+      CALL section_create(print_key_section, location=location, name=name, description=description, &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
                           citations=citations)
 

@@ -501,7 +501,7 @@ CONTAINS
                           repeats=.FALSE.)
 
       NULLIFY (keyword, print_key)
-      CALL cp_print_key_section_create(print_key, "CURRENT", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CURRENT", &
                                        description="Controls the printing of current into cube files.", &
                                        print_level=high_print_level, filename="current")
 

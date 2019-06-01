@@ -363,7 +363,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL cp_print_key_section_create(section, TRIM(ADJUSTL(name)), &
+      CALL cp_print_key_section_create(section, __LOCATION__, TRIM(ADJUSTL(name)), &
                                        description="Controls the printing of "//TRIM(ADJUSTL(description))//".", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       NULLIFY (keyword)

@@ -206,28 +206,28 @@ CONTAINS
       NULLIFY (print_key, keyword)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_BANNER", &
                                        description="Controls the printing of the banner of the ATOM program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "METHOD_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "METHOD_INFO", &
                                        description="Controls the printing of method information", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "BASIS_SET", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "BASIS_SET", &
                                        description="Controls the printing of the basis sets", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "POTENTIAL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POTENTIAL", &
                                        description="Controls the printing of the potentials", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -235,7 +235,7 @@ CONTAINS
 
       ! Print key section
       CALL cp_print_key_section_create( &
-         print_key, "FIT_DENSITY", &
+         print_key, __LOCATION__, "FIT_DENSITY", &
          description="Fit the total electronic density to a linear combination of Gaussian functions", &
          print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO", &
@@ -248,7 +248,7 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "FIT_KGPOT", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FIT_KGPOT", &
                                        description="Fit an approximation to the non-additive"// &
                                        " kinetic energy potential used in KG", &
                                        print_level=high_print_level, filename="__STD_OUT__")
@@ -268,7 +268,7 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "RESPONSE_BASIS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESPONSE_BASIS", &
                                        description="Calculate a response basis set contraction scheme", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_CHARGE", &
@@ -287,7 +287,7 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "GEOMETRICAL_RESPONSE_BASIS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "GEOMETRICAL_RESPONSE_BASIS", &
                                        description="Calculate a response basis set based on a set of geometrical exponents", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       !
@@ -380,21 +380,21 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "SCF_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SCF_INFO", &
                                        description="Controls the printing of SCF information", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "ORBITALS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ORBITALS", &
                                        description="Controls the printing of the optimized orbitals information", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "ANALYZE_BASIS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ANALYZE_BASIS", &
                                        description="Calculates some basis set analysis data", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="OVERLAP_CONDITION_NUMBER", &
@@ -411,28 +411,28 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "FIT_PSEUDO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FIT_PSEUDO", &
                                        description="Controls the printing of FIT PSEUDO task", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "FIT_BASIS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FIT_BASIS", &
                                        description="Controls the printing of FIT BASIS task", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "UPF_FILE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "UPF_FILE", &
                                        description="Write GTH pseudopotential in UPF format", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "SEPARABLE_GAUSSIAN_PSEUDO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SEPARABLE_GAUSSIAN_PSEUDO", &
                                        description="Creates a representation of the pseudopotential in separable "// &
                                        " form using Gaussian functions.", &
                                        print_level=debug_print_level, filename="__STD_OUT__")
@@ -440,7 +440,7 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section: ADMM Analysis
-      CALL cp_print_key_section_create(print_key, "ADMM", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ADMM", &
                                        description="Analysis of ADMM approximation to exact exchange", &
                                        print_level=high_print_level, filename="__STD_OUT__")
 

@@ -142,7 +142,7 @@ CONTAINS
                           description="Collects all print_keys for barostat", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the output of kinetic energy, and potential energy "// &
                                        " of the defined barostat.", print_level=high_print_level, common_iter_levels=1, &
                                        filename="")

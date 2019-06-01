@@ -92,7 +92,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(print_key, "free_energy_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "free_energy_info", &
                                        description="Controls the printing of basic and summary information during the"// &
                                        " Free Energy calculation", &
                                        print_level=low_print_level, each_iter_names=s2a("MD"), &
@@ -318,7 +318,7 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "program_run_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
                                        description="Controls the printing of basic and summary information during"// &
                                        " metadynamics.", &
                                        print_level=low_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
@@ -326,7 +326,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "temperature_colvar", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "temperature_colvar", &
                                        description="Controls the printing of the temperature of COLVARS in an "// &
                                        "extended lagrangian scheme.", &
                                        print_level=low_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
@@ -334,7 +334,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COLVAR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COLVAR", &
                                        description="Controls the printing of COLVAR summary information during"// &
                                        " metadynamics. When an extended Lagrangian use used, the files"// &
                                        " contain (in order): colvar value of the extended Lagrangian, "// &
@@ -351,7 +351,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "HILLS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "HILLS", &
                                        description="Controls the printing of HILLS summary information during"// &
                                        " metadynamics. The file contains: instantaneous colvar value, width of "// &
                                        " the spawned gaussian and height of the gaussian. According the value of "// &

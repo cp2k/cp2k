@@ -948,7 +948,7 @@ CONTAINS
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
       ! create print keys within this subsection
-      CALL cp_print_key_section_create(print_key, "ALMO_EDA_CT", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ALMO_EDA_CT", &
                                        description="Controls printing of the electron transfer terms in "// &
                                        "ALMO energy decomposition analysis. "// &
                                        "File format: first column is the index of the electron acceptor "// &
@@ -959,7 +959,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ALMO_CTA", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ALMO_CTA", &
                                        description="Controls printing of the electron transfer terms in "// &
                                        "ALMO charge transfer analysis. "// &
                                        "File format: first column is the index of the electron acceptor "// &

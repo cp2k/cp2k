@@ -396,21 +396,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the output the ener file", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SHELL_ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SHELL_ENERGY", &
                                        description="Controls the output of the shell-energy file (only if shell-model)", &
                                        print_level=medium_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "TEMP_KIND", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TEMP_KIND", &
                                        description="Controls the output of the temperature"// &
                                        " computed separately for each kind", &
                                        print_level=high_print_level, common_iter_levels=1, &
@@ -418,7 +418,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "TEMP_SHELL_KIND", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TEMP_SHELL_KIND", &
                                        description="Controls the output of the temperature of the"// &
                                        " shell-core motion computed separately for each kind", &
                                        print_level=high_print_level, common_iter_levels=1, &
@@ -426,21 +426,21 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CENTER_OF_MASS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CENTER_OF_MASS", &
                                        description="Controls the printing of COM velocity during an MD", &
                                        print_level=medium_print_level, common_iter_levels=1, &
                                        filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COEFFICIENTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COEFFICIENTS", &
                                        description="Controls the printing of coefficients during an MD run.", &
                                        print_level=medium_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ROTATIONAL_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ROTATIONAL_INFO", &
                                        description="Controls the printing basic info during the calculation of the "// &
                                        "translational/rotational degrees of freedom.", print_level=low_print_level, &
                                        add_last=add_last_numeric, filename="__STD_OUT__")
@@ -453,7 +453,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of basic and summary information during the"// &
                                        " Molecular Dynamics", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
@@ -586,21 +586,21 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "msd_kind", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "msd_kind", &
                                        description="Controls the output of msd per kind", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "msd_molecule", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "msd_molecule", &
                                        description="Controls the output of msd per molecule kind", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "displaced_atom", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "displaced_atom", &
                                        description="Controls the output of index and dislacement of "// &
                                        "atoms that moved away from the initial position of more than a"// &
                                        "given distance (see msd%disp_tol)", &
@@ -1049,14 +1049,14 @@ CONTAINS
                           description="Collects all print_keys for thermal_regions", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "TEMPERATURE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TEMPERATURE", &
                                        description="Controls output of temperature per region.", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "LANGEVIN_REGIONS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "LANGEVIN_REGIONS", &
                                        description="Controls output of information on which atoms "// &
                                        "underwent Langevin MD and which atoms did not.", &
                                        print_level=high_print_level, &
@@ -1178,7 +1178,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "PRINT_AVERAGES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT_AVERAGES", &
                                        description="Controls the output the averaged quantities", &
                                        print_level=debug_print_level+1, common_iter_levels=1, &
                                        filename="")

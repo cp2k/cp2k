@@ -917,7 +917,7 @@ CONTAINS
                              n_keywords=0, n_subsections=1, repeats=.TRUE.)
          NULLIFY (print_key)
          CALL cp_print_key_section_create( &
-            print_key, "program_run_info", &
+            print_key, __LOCATION__, "program_run_info", &
             description="Controls the printing of basic information during the Geometry Optimization", &
             print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
          CALL section_add_subsection(subsection, print_key)
@@ -958,7 +958,7 @@ CONTAINS
                           description="Controls the printing properties during a shell-core optimization procedure", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "program_run_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
                                        description="Controls the printing of basic information during the Optimization", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
@@ -1065,16 +1065,15 @@ CONTAINS
                           description="Controls the printing properties during a geometry optimization run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "program_run_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
                                        description="Controls the printing of basic information during the Geometry Optimization", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
-      CALL cp_print_key_section_create( &
-         print_key, "cell", &
-         description="Controls the printing of the cell eveytime a calculation using a new cell is started.", &
-         print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__", &
-         unit_str="angstrom")
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "cell", &
+                              description="Controls the printing of the cell eveytime a calculation using a new cell is started.", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__", &
+                                       unit_str="angstrom")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       CALL section_add_subsection(section, subsection)
@@ -1171,13 +1170,13 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of basic information during the Geometry Optimization", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection3, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ROTATIONAL_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ROTATIONAL_INFO", &
                                        description="Controls the printing basic info during the cleaning of the "// &
                                        "rotational degrees of freedom.", print_level=low_print_level, &
                                        add_last=add_last_numeric, filename="__STD_OUT__")
@@ -1272,7 +1271,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the printing of Hessian Restart file", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="BFGS", &
                                        common_iter_levels=2)
@@ -1562,14 +1561,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "WEIGHTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "WEIGHTS", &
                                        description="Controls the printing of FP info during flexible partitioning simulations.", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="FLEXIBLE_PARTIONING")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CONTROL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CONTROL", &
                                        description="Controls the printing of FP info at startup", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="__STD_OUT__")
@@ -2005,19 +2004,19 @@ CONTAINS
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the output of the path integral energies", &
                                        print_level=low_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ACTION", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ACTION", &
                                        description="Controls the output of the path integral action", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CENTROID_POS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CENTROID_POS", &
                                        description="Controls the output of the centroid's position", &
                                        unit_str="angstrom", &
                                        print_level=low_print_level, common_iter_levels=1)
@@ -2026,7 +2025,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CENTROID_VEL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CENTROID_VEL", &
                                        description="Controls the output of the centroid's velocity", &
                                        unit_str="bohr*au_t^-1", &
                                        print_level=low_print_level, common_iter_levels=1)
@@ -2035,14 +2034,14 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CENTROID_GYR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CENTROID_GYR", &
                                        description="Controls the output of the centroid's radii of gyration", &
                                        unit_str="angstrom", &
                                        print_level=low_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COM", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COM", &
                                        description="Controls the output of the center of mass", &
                                        print_level=high_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
@@ -2633,26 +2632,26 @@ CONTAINS
 
       ! Properties printed at LOW print level
       !
-      CALL cp_print_key_section_create(print_key, "ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the output of helium energies"// &
                                        " (averaged over MC step)", &
                                        print_level=low_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "PROJECTED_AREA_2_AVG", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROJECTED_AREA_2_AVG", &
                                        description="Controls the output of the average projected area squared vector", &
                                        print_level=low_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "WINDING_NUMBER_2_AVG", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "WINDING_NUMBER_2_AVG", &
                                        description="Controls the output of the average winding number vector squared", &
                                        print_level=low_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "MOMENT_OF_INERTIA_AVG", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENT_OF_INERTIA_AVG", &
                                        description="Controls the output of the average moment of inertia vector", &
                                        print_level=low_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
@@ -2660,13 +2659,13 @@ CONTAINS
 
       ! Properties printed at MEDIUM print level
       !
-      CALL cp_print_key_section_create(print_key, "RDF", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RDF", &
                                        description="Controls the output of helium radial distribution functions", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RHO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RHO", &
                                        description="Controls the output of the helium density "// &
                                        "(Gaussian cube file format)", &
                                        each_iter_names=s2a("PINT"), each_iter_values=(/100/), &
@@ -2681,31 +2680,31 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "PROJECTED_AREA", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROJECTED_AREA", &
                                        description="Controls the output of the projected area vector", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "WINDING_NUMBER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "WINDING_NUMBER", &
                                        description="Controls the output of the winding number vector", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "MOMENT_OF_INERTIA", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENT_OF_INERTIA", &
                                        description="Controls the output of the moment of inertia vector", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "PLENGTH", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PLENGTH", &
                                        description="Controls the output of the helium permutation length", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ACTION", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ACTION", &
                                        description="Controls the output of the total helium action", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
@@ -2713,7 +2712,7 @@ CONTAINS
 
       ! Properties printed at HIGH print level
       !
-      CALL cp_print_key_section_create(print_key, "COORDINATES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COORDINATES", &
                                        description="Controls the output of helium coordinates", &
                                        print_level=high_print_level, common_iter_levels=1)
       CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
@@ -2729,7 +2728,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "PERM", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PERM", &
                                        description="Controls the output of the helium permutation state", &
                                        print_level=high_print_level, common_iter_levels=1)
       CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
@@ -2747,7 +2746,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FORCES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FORCES", &
                                        description="Controls the output of the helium forces on the solute", &
                                        print_level=high_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
@@ -2755,13 +2754,13 @@ CONTAINS
 
       ! Properties printed at DEBUG print level
       !
-      CALL cp_print_key_section_create(print_key, "ACCEPTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ACCEPTS", &
                                        description="Controls the output of the helium acceptance data", &
                                        print_level=debug_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       !
-      CALL cp_print_key_section_create(print_key, "FORCES_INST", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FORCES_INST", &
                                        description="Controls the output of the instantaneous helium forces on the solute", &
                                        print_level=debug_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)

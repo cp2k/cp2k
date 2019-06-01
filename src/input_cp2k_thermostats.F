@@ -321,14 +321,14 @@ CONTAINS
                           description="Collects all print_keys for thermostat", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "THERMOSTAT_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "THERMOSTAT_INFO", &
                                        description="Controls output information of the corresponding thermostat.", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "TEMPERATURE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TEMPERATURE", &
                                        description="Controls the output of the temperatures of the regions corresponding to "// &
                                        "the present thermostat", &
                                        print_level=high_print_level, common_iter_levels=1, &
@@ -336,7 +336,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the output of kinetic energy, and potential energy "// &
                                        " of the defined thermostat.", print_level=high_print_level, common_iter_levels=1, &
                                        filename="")

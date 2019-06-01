@@ -358,7 +358,7 @@ CONTAINS
                           description="Controls printings related to the subsys", &
                           n_keywords=0, n_subsections=9, repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "atomic_coordinates", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "atomic_coordinates", &
                                        description="controls the output of the atomic coordinates when setting up the"// &
                                        "force environment. For printing coordinates during MD or GEO refer to the keyword"// &
                                        " trajectory.", unit_str="angstrom", &
@@ -370,14 +370,14 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "interatomic_distances", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "interatomic_distances", &
                                        description="controls the output of the interatomic distances when setting up the"// &
                                        "force environment", unit_str="angstrom", &
                                        print_level=debug_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "topology_info", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "topology_info", description= &
                                        "controls the printing of information in the topology settings", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="xtl_info", &
@@ -438,14 +438,14 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "cell", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "cell", &
                                        description="controls the output of the cell parameters", &
                                        print_level=medium_print_level, filename="__STD_OUT__", &
                                        unit_str="angstrom")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "kinds", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "kinds", &
                                        description="controls the output of information on the kinds", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="potential", &
@@ -468,7 +468,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SYMMETRY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SYMMETRY", &
                                        description="controls the output of symmetry information", &
                                        print_level=debug_print_level+1, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
@@ -515,13 +515,13 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "molecules", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "molecules", &
                                        description="controls the output of information on the molecules", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "radii", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "radii", &
                                        description="controls the output of radii information", unit_str="angstrom", &
                                        print_level=high_print_level, filename="__STD_OUT__")
 
@@ -646,7 +646,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL cp_print_key_section_create(print_key, name="STRUCTURE_DATA", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="STRUCTURE_DATA", &
                                        description="Request the printing of special structure data during a structure "// &
                                        "optimization (in MOTION%PRINT) or when setting up a subsys (in SUBSYS%PRINT).", &
                                        print_level=high_print_level, filename="__STD_OUT__", unit_str="angstrom")
@@ -1733,7 +1733,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "DUMP_PDB", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DUMP_PDB", &
                                        description="controls the dumping of the PDB at the starting geometry", &
                                        print_level=debug_print_level, filename="dump")
       CALL section_add_subsection(section, print_key)
@@ -1763,7 +1763,7 @@ CONTAINS
 
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DUMP_PSF", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DUMP_PSF", &
                                        description="controls the dumping of the PSF connectivity", &
                                        print_level=debug_print_level, filename="dump")
       CALL section_add_subsection(section, print_key)
@@ -2170,14 +2170,14 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "NEIGHBOR_LISTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "NEIGHBOR_LISTS", &
                                        description="Activates the printing of the neighbor lists used"// &
                                        " for generating the connectivity.", print_level=high_print_level, &
                                        filename="", unit_str="angstrom")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SUBCELL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
                                        description="Activates the printing of the subcells used for the"// &
                                        "generation of neighbor lists for connectivity.", &
                                        print_level=high_print_level, filename="__STD_OUT__")

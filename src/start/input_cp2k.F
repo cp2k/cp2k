@@ -252,14 +252,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create( &
-         print_key, "GRID_INFORMATION", &
+         print_key, __LOCATION__, "GRID_INFORMATION", &
          description="Controls the printing of information regarding the PW and RS grid structures"// &
          " (ONLY for TEST run).", &
          print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="controls the printing of tests output", &
                                        print_level=silent_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -352,7 +352,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of the DEBUG specific output", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -767,7 +767,7 @@ CONTAINS
       CALL section_add_subsection(section, sub_section)
       CALL section_release(sub_section)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="controls the printing of FARMING specific output", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -786,7 +786,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="controls the printing of the restart for FARMING.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="FARMING")
       CALL section_add_subsection(section, print_key)

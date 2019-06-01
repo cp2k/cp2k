@@ -527,14 +527,14 @@ CONTAINS
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information during the evaluation of "// &
                                        "the mixed environment. ", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DIPOLE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DIPOLE", &
                                        description="Controls the printing of dipole information. "// &
                                        "Requires the DIPOLE calculation be active for all subforce_eval.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
@@ -563,7 +563,7 @@ CONTAINS
 
       NULLIFY (print_key, keyword)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information during the evaluation of "// &
                                        "the mixed CDFT environment. ", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")

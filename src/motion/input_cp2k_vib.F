@@ -161,26 +161,26 @@ CONTAINS
                           "analysis.", n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, print_key)
 
-      CALL cp_print_key_section_create(print_key, "BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "BANNER", &
                                        description="Controls the printing of the vibrational analysis banner", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing basic info about the vibrational method", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "MOLDEN_VIB", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOLDEN_VIB", &
                                        description="Controls the printing for visualization in molden format", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="VIBRATIONS")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ROTATIONAL_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ROTATIONAL_INFO", &
                                        description="Controls the printing basic info during the cleaning of the "// &
                                        "rotational degrees of freedom.", &
                                        print_level=debug_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
@@ -193,7 +193,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CARTESIAN_EIGS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CARTESIAN_EIGS", &
                                        description="Controls the printing of Cartesian "// &
                                        "frequencies and eigenvectors of the Hessian used "// &
                                        "for initializing ensemble for MD calculations. "// &
@@ -212,7 +212,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "HESSIAN", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "HESSIAN", &
                                        description="Write the Hessian matrix from a vibrational analysis calculation "// &
                                        "into a binary file.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="Hessian")
@@ -320,7 +320,7 @@ CONTAINS
                           description="Controls the printing mode selective vibrational analysis", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
-      CALL cp_print_key_section_create(print_key, "MS_RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MS_RESTART", &
                                        description="Controls the printing of the Mode Selective Restart file.", &
                                        print_level=silent_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric, filename="")

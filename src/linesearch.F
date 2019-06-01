@@ -174,7 +174,7 @@ CONTAINS
                           description="Print section", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
-      CALL cp_print_key_section_create(printkey, "RUN_INFO", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "RUN_INFO", &
                                        description="General run information", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 
