@@ -61,7 +61,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection, thermo_section
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="barostat", &
+      CALL section_create(section, __LOCATION__, name="barostat", &
                           description="Parameters of barostat.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -138,7 +138,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (print_key)
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Collects all print_keys for barostat", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 

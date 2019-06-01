@@ -43,7 +43,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ATOMIC", &
+      CALL section_create(section, __LOCATION__, name="ATOMIC", &
                           description="Controls the calculation of atomic properties. "// &
                           "Printing is controlled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO", &
                           repeats=.FALSE., &

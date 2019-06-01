@@ -78,7 +78,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "SHG_INTEGRALS_TEST", &
+      CALL section_create(section, __LOCATION__, name="SHG_INTEGRALS_TEST", &
                           description="Parameters for testing the SHG 2-center integrals for "// &
                           "different r12 operators. Test w.r.t. performance and accurarcy.", &
                           n_keywords=4, n_subsections=1)

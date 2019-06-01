@@ -525,7 +525,7 @@ CONTAINS
          section_name = "MIXING"
       ENDIF
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name=section_name, &
                           description="Define type and parameters for mixing "// &
                           "procedures to be applied to the density matrix. Normally, "// &

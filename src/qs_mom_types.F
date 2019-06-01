@@ -56,7 +56,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name="MOM", &
                           description="Define type and parameters for the maximum overlap method (MOM) "// &
                           "to determine orbital occupancies. "// &

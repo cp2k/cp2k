@@ -59,7 +59,7 @@ CONTAINS
 !     ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PW_DFT", &
+      CALL section_create(section, __LOCATION__, name="PW_DFT", &
                           description="This section contains all information to run an "// &
                           "SIRIUS PW calculation.", &
                           n_subsections=4, &
@@ -109,7 +109,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL sirius_option_get_length(TRIM(ADJUSTL(section_name))//CHAR(0), length)
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name=TRIM(ADJUSTL(section_name)), &
                           description=TRIM(section_name)//" section", &
                           n_subsections=0, &
@@ -273,7 +273,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="PW_DFT", &
+      CALL section_create(section, __LOCATION__, name="PW_DFT", &
                           description="This section contains all information to run an "// &
                           "SIRIUS PW calculation.", &
                           n_subsections=0, &

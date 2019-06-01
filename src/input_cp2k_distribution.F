@@ -47,7 +47,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DISTRIBUTION", &
+      CALL section_create(section, __LOCATION__, name="DISTRIBUTION", &
                           description="can be used used to tune the parallel distribution of the data", &
                           n_keywords=2, n_subsections=2, repeats=.FALSE.)
 

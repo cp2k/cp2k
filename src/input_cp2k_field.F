@@ -55,7 +55,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PERIODIC_EFIELD", &
+      CALL section_create(section, __LOCATION__, name="PERIODIC_EFIELD", &
                           description="parameters for finite periodic electric field computed using "// &
                           "the Berry phase approach. IMPORTANT: Can only be used in combination "// &
                           " with OT. Can not be used in combination with RTP or EMD,"// &
@@ -113,7 +113,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "EFIELD", &
+      CALL section_create(section, __LOCATION__, name="EFIELD", &
                           description="parameters for finite, time dependent, nonperiodic electric fields", &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
@@ -196,7 +196,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CONSTANT_ENV", &
+      CALL section_create(section, __LOCATION__, name="CONSTANT_ENV", &
                           description="parameters for a constant envelop", &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
@@ -231,7 +231,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "GAUSSIAN_ENV", &
+      CALL section_create(section, __LOCATION__, name="GAUSSIAN_ENV", &
                           description="parameters for a gaussian envelop", &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
@@ -268,7 +268,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RAMP_ENV", &
+      CALL section_create(section, __LOCATION__, name="RAMP_ENV", &
                           description="Parameters for an trapeziodal envelop ", &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
@@ -317,7 +317,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CUSTOM_ENV", &
+      CALL section_create(section, __LOCATION__, name="CUSTOM_ENV", &
                           description="Parameters for a custom efield", &
                           n_keywords=2, n_subsections=1, repeats=.TRUE.)
 

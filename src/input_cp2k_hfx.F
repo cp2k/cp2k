@@ -58,7 +58,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "HF", &
+      CALL section_create(section, __LOCATION__, name="HF", &
                           description="Sets up the Hartree-Fock parameters if requested ", &
                           n_keywords=5, n_subsections=2, repeats=.TRUE., &
                           citations=(/Guidon2008, Guidon2009/))
@@ -142,7 +142,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "LOAD_BALANCE", &
+      CALL section_create(section, __LOCATION__, name="LOAD_BALANCE", &
                           description="Parameters influencing the load balancing of the HF", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/guidon2008/))
@@ -213,7 +213,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "INTERACTION_POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="INTERACTION_POTENTIAL", &
                           description="Sets up interaction potential if requested ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/guidon2008, guidon2009/))
@@ -310,7 +310,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "SCREENING", &
+      CALL section_create(section, __LOCATION__, name="SCREENING", &
                           description="Sets up screening parameters if requested ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/guidon2008, guidon2009/))
@@ -386,7 +386,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PERIODIC", &
+      CALL section_create(section, __LOCATION__, name="PERIODIC", &
                           description="Sets up periodic boundary condition parameters if requested ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/guidon2008, guidon2009/))
@@ -419,7 +419,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "MEMORY", &
+      CALL section_create(section, __LOCATION__, name="MEMORY", &
                           description="Sets up memory parameters for the storage of the ERI's if requested ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/guidon2008/))

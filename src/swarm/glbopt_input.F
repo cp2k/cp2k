@@ -49,7 +49,7 @@ CONTAINS
 
       NULLIFY (glbopt_section, keyword, printkey)
 
-      CALL section_create(glbopt_section, name="GLOBAL_OPT", &
+      CALL section_create(glbopt_section, __LOCATION__, name="GLOBAL_OPT", &
                           description="Section to control global geometry optimizations.", &
                           repeats=.FALSE.)
 
@@ -129,7 +129,7 @@ CONTAINS
 
       NULLIFY (history_section, keyword)
 
-      CALL section_create(history_section, name="HISTORY", &
+      CALL section_create(history_section, __LOCATION__, name="HISTORY", &
                           description="Section controling the history of visited minima and "// &
                           "how minima are recognized at a later point.", &
                           repeats=.FALSE.)
@@ -165,7 +165,7 @@ CONTAINS
 
       NULLIFY (minhop_section, keyword)
 
-      CALL section_create(minhop_section, name="MINIMA_HOPPING", &
+      CALL section_create(minhop_section, __LOCATION__, name="MINIMA_HOPPING", &
                           description="Section controlling the Minima Hopping method.", &
                           citations=(/Goedecker2004/), &
                           repeats=.FALSE.)
@@ -240,7 +240,7 @@ CONTAINS
 
       NULLIFY (mincrawl_section, keyword, printkey)
 
-      CALL section_create(mincrawl_section, name="MINIMA_CRAWLING", &
+      CALL section_create(mincrawl_section, __LOCATION__, name="MINIMA_CRAWLING", &
                           description="Section controls Minima Crawling run.", &
                           repeats=.FALSE.)
 

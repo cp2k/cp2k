@@ -47,7 +47,7 @@ CONTAINS
 
       NULLIFY (swarm_section, print_section, printkey, keyword)
 
-      CALL section_create(swarm_section, name="SWARM", &
+      CALL section_create(swarm_section, __LOCATION__, name="SWARM", &
                           description="Section to control swarm runs. "// &
                           "The swarm framework provides a common ground for master/worker algorithms.", &
                           repeats=.FALSE.)
@@ -83,7 +83,7 @@ CONTAINS
       CALL section_add_keyword(swarm_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(print_section, name="PRINT", &
+      CALL section_create(print_section, __LOCATION__, name="PRINT", &
                           description="Controls the printing properties during a global optimization run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 

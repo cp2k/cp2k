@@ -70,7 +70,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MD", &
+      CALL section_create(section, __LOCATION__, name="MD", &
                           description="This section defines the whole set of parameters needed perform an MD run.", &
                           n_keywords=13, n_subsections=6, repeats=.FALSE.)
 
@@ -329,7 +329,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="Langevin", &
+      CALL section_create(section, __LOCATION__, name="Langevin", &
                           description="Controls the set of parameters to run a Langevin MD. "// &
                           "The integrator used follows that given in the article by Ricci et al. "// &
                           "The user can define regions in the system where the atoms inside "// &
@@ -381,7 +381,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Controls the printing properties during an MD run", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (print_key, keyword)
@@ -476,7 +476,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="RESPA", &
+      CALL section_create(section, __LOCATION__, name="RESPA", &
                           description="Multiple timestep integration based on RESPA (implemented for NVE only)."// &
                           " RESPA exploits multiple force_eval."// &
                           " In this case the order of the force_eval maps "// &
@@ -512,7 +512,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="REFTRAJ", &
+      CALL section_create(section, __LOCATION__, name="REFTRAJ", &
                           description="Loads an external trajectory file and performs analysis on the"// &
                           " loaded snapshots.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -581,7 +581,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="print", &
+      CALL section_create(subsection, __LOCATION__, name="print", &
                           description="The section that controls the output of a reftraj run", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -630,7 +630,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="MSD", &
+      CALL section_create(section, __LOCATION__, name="MSD", &
                           description="Loads an external trajectory file and performs analysis on the"// &
                           " loaded snapshots.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
@@ -709,7 +709,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="msst", &
+      CALL section_create(section, __LOCATION__, name="msst", &
                           description="Parameters for Multi-Scale Shock Technique (MSST) "// &
                           "which simulate the effect of a steady planar shock on a unit cell. "// &
                           "Reed et. al. Physical Review Letters 90, 235503 (2003).", &
@@ -776,7 +776,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="shell", &
+      CALL section_create(section, __LOCATION__, name="shell", &
                           description="Parameters of shell model in adiabatic dynamics.", &
                           n_keywords=4, n_subsections=1, repeats=.FALSE.)
 
@@ -840,7 +840,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="ADIABATIC_DYNAMICS", &
+      CALL section_create(section, __LOCATION__, name="ADIABATIC_DYNAMICS", &
                           description="Parameters used in canonical adiabatic free energy sampling (CAFES).", &
                           n_keywords=5, n_subsections=2, repeats=.FALSE., &
                           citations=(/VandeVondele2002/))
@@ -910,7 +910,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="VELOCITY_SOFTENING", &
+      CALL section_create(section, __LOCATION__, name="VELOCITY_SOFTENING", &
                           description="A method to initialize the velocities along low-curvature " &
                           //"directions in order to favors MD trajectories to cross rapidly over " &
                           //"small energy barriers into neighboring basins. " &
@@ -962,7 +962,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="thermal_region", &
+      CALL section_create(section, __LOCATION__, name="thermal_region", &
                           description="Define regions where different initialization and control "// &
                           "of the temperature is used. When MOTION%MD%ENSEMBLE is set to LANGEVIN, "// &
                           "this section controls if the atoms defined inside and outside the "// &
@@ -992,7 +992,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(region_section, name="DEFINE_REGION", &
+      CALL section_create(region_section, __LOCATION__, name="DEFINE_REGION", &
                           description="This section provides the possibility to define arbitrary region ", &
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
 
@@ -1045,7 +1045,7 @@ CONTAINS
       CALL section_release(region_section)
 
       NULLIFY (print_key)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Collects all print_keys for thermal_regions", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1090,7 +1090,7 @@ CONTAINS
       NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="CASCADE", &
+      CALL section_create(section, __LOCATION__, name="CASCADE", &
                           description="Defines the parameters for the setup of a cascade simulation.", &
                           n_keywords=1, &
                           n_subsections=1, &
@@ -1113,7 +1113,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="ATOM_LIST", &
+      CALL section_create(subsection, __LOCATION__, name="ATOM_LIST", &
                           description="Defines a list of atoms for which the initial velocities are modified", &
                           n_keywords=1, &
                           n_subsections=0, &
@@ -1152,7 +1152,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="Averages", &
+      CALL section_create(section, __LOCATION__, name="Averages", &
                           description="Controls the calculation of the averages during an MD run.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword, print_key, subsection)
@@ -1204,7 +1204,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESTART_AVERAGES", &
+      CALL section_create(section, __LOCATION__, name="RESTART_AVERAGES", &
                           description="Stores information for restarting averages.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -1386,7 +1386,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="INITIAL_VIBRATION", &
+      CALL section_create(section, __LOCATION__, name="INITIAL_VIBRATION", &
                           description="Controls the set of parameters for MD initialisation "// &
                           "based on vibration analysis data. The starting atomic coordinates "// &
                           "should be based on the relaxed positions obtained from a previous "// &

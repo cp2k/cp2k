@@ -79,7 +79,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PROPERTIES", &
+      CALL section_create(section, __LOCATION__, name="PROPERTIES", &
                           description="This section is used to set up the PROPERTIES calculation.", &
                           n_keywords=0, n_subsections=6, repeats=.FALSE.)
 
@@ -142,7 +142,7 @@ CONTAINS
       NULLIFY (keyword, subsection, print_key)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="linres", &
+      CALL section_create(section, __LOCATION__, name="linres", &
                           description="The linear response is used to calculate one of the "// &
                           " following properties: nmr, epr, raman, ... ", &
                           n_keywords=5, n_subsections=2, repeats=.FALSE., &
@@ -239,7 +239,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, "PRINT", "printing of information during the linear response calculation", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                          description="printing of information during the linear response calculation", &
                           repeats=.FALSE.)
 
       CALL cp_print_key_section_create( &
@@ -284,7 +285,7 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="current", &
+      CALL section_create(section, __LOCATION__, name="current", &
                           description="The induced current density is calculated by DFPT.", &
                           n_keywords=4, n_subsections=1, repeats=.FALSE., &
                           citations=(/Sebastiani2001, Weber2009/))
@@ -394,7 +395,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="print results of induced current density calculation", &
                           repeats=.FALSE.)
 
@@ -483,7 +484,7 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="nmr", &
+      CALL section_create(section, __LOCATION__, name="nmr", &
                           description="The chemical shift is calculated by DFPT.", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
                           citations=(/Weber2009/))
@@ -535,7 +536,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="print results of nmr calculation", &
                           repeats=.FALSE.)
 
@@ -632,7 +633,7 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="spinspin", &
+      CALL section_create(section, __LOCATION__, name="spinspin", &
                           description="Compute indirect spin-spin coupling constants.", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE.)
 
@@ -687,7 +688,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="print results of the indirect spin-spin calculation", &
                           repeats=.FALSE.)
 
@@ -735,7 +736,7 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection, subsubsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EPR", &
+      CALL section_create(section, __LOCATION__, name="EPR", &
                           description="The g tensor is calculated by DFPT ", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
                           citations=(/Weber2009/))
@@ -756,7 +757,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="print results of epr calculation", &
                           repeats=.FALSE.)
 
@@ -868,7 +869,7 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="POLAR", &
+      CALL section_create(section, __LOCATION__, name="POLAR", &
                           description="Compute polarizabilities.", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
                           citations=(/Putrino2002/))
@@ -890,7 +891,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="print results of the polarizability calculation", &
                           repeats=.FALSE.)
 
@@ -926,7 +927,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ET_COUPLING", &
+      CALL section_create(section, __LOCATION__, name="ET_COUPLING", &
                           description="specifies the two constraints/restraints for extracting ET coupling elements", &
                           n_keywords=1, n_subsections=4, repeats=.FALSE.)
 
@@ -995,7 +996,7 @@ CONTAINS
       NULLIFY (section_print)
 
       ! Input-file section definition
-      CALL section_create(section, TRIM(ADJUSTL(section_name)), &
+      CALL section_create(section, __LOCATION__, name=TRIM(ADJUSTL(section_name)), &
                           description="Projection-operator approach fo ET coupling calculation", &
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
 
@@ -1007,7 +1008,7 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Subsection #1: Atomic blocks
-      CALL section_create(section_block, 'BLOCK', &
+      CALL section_create(section_block, __LOCATION__, name='BLOCK', &
                           description="Part of the system (donor, acceptor, bridge,...)", &
                           n_keywords=2, n_subsections=1, repeats=.TRUE.)
       CALL section_add_subsection(section, section_block)
@@ -1028,7 +1029,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! S#1 - Subsection #1: Printing setting
-      CALL section_create(section_print, 'PRINT', &
+      CALL section_create(section_print, __LOCATION__, name='PRINT', &
                           description="Possible printing options in ET system part", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL section_add_subsection(section_block, section_print)
@@ -1112,7 +1113,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "TDDFPT", &
+      CALL section_create(section, __LOCATION__, name="TDDFPT", &
                           description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
@@ -1219,7 +1220,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! DIPOLE subsection
-      CALL section_create(subsection, "DIPOLE_MOMENTS", &
+      CALL section_create(subsection, __LOCATION__, name="DIPOLE_MOMENTS", &
                           description="Parameters to compute oscillator strengths in the dipole approximation.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
@@ -1271,8 +1272,8 @@ CONTAINS
       CALL section_release(subsection)
 
       ! PRINT subsection
-      CALL section_create(subsection, "PRINT", "Printing of information during the TDDFT run.", &
-                          repeats=.FALSE.)
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                          description="Printing of information during the TDDFT run.", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, "GUESS_VECTORS", &
                                        description="Controls the printing of initial guess vectors.", &

@@ -92,7 +92,7 @@ CONTAINS
       IF (PRESENT(periodic)) my_periodic = periodic
       IF (PRESENT(label)) my_label = label
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, TRIM(my_label), &
+      CALL section_create(section, __LOCATION__, TRIM(my_label), &
                           description="Input parameters needed to set up the "//TRIM(my_label)//".", &
                           n_keywords=6, n_subsections=1, repeats=.FALSE.)
 
@@ -236,7 +236,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RNG_INIT", &
+      CALL section_create(section, __LOCATION__, name="RNG_INIT", &
                           description="Information to initialize the parallel random number generator streams", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -265,7 +265,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="subsys", &
+      CALL section_create(section, __LOCATION__, name="subsys", &
                           description="a subsystem: coordinates, topology, molecules and cell", &
                           n_keywords=1, n_subsections=9, repeats=.FALSE.)
 
@@ -354,7 +354,7 @@ CONTAINS
 
       NULLIFY (print_key, keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Controls printings related to the subsys", &
                           n_keywords=0, n_subsections=9, repeats=.FALSE.)
 
@@ -595,12 +595,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="multipoles", &
+      CALL section_create(section, __LOCATION__, name="multipoles", &
                           description="Specifies the dipoles and quadrupoles for particles.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
-      CALL section_create(subsection, name="dipoles", &
+      CALL section_create(subsection, __LOCATION__, name="dipoles", &
                           description="Specifies the dipoles of the particles.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -613,7 +613,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="quadrupoles", &
+      CALL section_create(subsection, __LOCATION__, name="quadrupoles", &
                           description="Specifies the quadrupoles of the particles.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -705,7 +705,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="velocity", &
+      CALL section_create(section, __LOCATION__, name="velocity", &
                           description="The velocities for simple systems or "// &
                           "the centroid mode in PI runs, xyz format by default", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -744,7 +744,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="shell_velocity", &
+      CALL section_create(section, __LOCATION__, name="shell_velocity", &
                           description="The velocities of shells for shell-model potentials, "// &
                           "in xyz format  ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -775,7 +775,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="core_velocity", &
+      CALL section_create(section, __LOCATION__, name="core_velocity", &
                           description="The velocities of cores for shell-model potentials, "// &
                           "in xyz format  ", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -805,7 +805,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="potential", &
+      CALL section_create(section, __LOCATION__, name="potential", &
                           description="Section used to specify Potentials.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -830,7 +830,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="kg_potential", &
+      CALL section_create(section, __LOCATION__, name="kg_potential", &
                           description="Section used to specify KG Potentials.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -855,7 +855,7 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CALL section_create(section, name="BASIS", &
+      CALL section_create(section, __LOCATION__, name="BASIS", &
                           description="Section used to specify a general basis set for QM calculations.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -913,7 +913,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="coord", &
+      CALL section_create(section, __LOCATION__, name="coord", &
                           description="The coordinates for simple systems (like small QM cells)"// &
                           " are specified here by default using explicit XYZ coordinates.  "// &
                           " More complex systems should be given via an external coordinate "// &
@@ -960,7 +960,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="shell_coord", &
+      CALL section_create(section, __LOCATION__, name="shell_coord", &
                           description="The shell coordinates for the shell-model potentials"// &
                           " xyz format with an additional column for the index of the corresponding particle", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1005,7 +1005,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="core_coord", &
+      CALL section_create(section, __LOCATION__, name="core_coord", &
                           description="The core coordinates for the shell-model potentials"// &
                           " xyz format with an additional column for the index of the corresponding particle", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1052,7 +1052,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="KIND", &
+      CALL section_create(section, __LOCATION__, name="KIND", &
                           description="The description of the kind of the atoms (mostly for QM)", &
                           n_keywords=19, n_subsections=1, repeats=.TRUE.)
 
@@ -1357,7 +1357,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
 
-      CALL section_create(section, name="PAO_POTENTIAL", repeats=.TRUE., &
+      CALL section_create(section, __LOCATION__, name="PAO_POTENTIAL", repeats=.TRUE., &
                           description="Settings of the PAO potentials, which are atomic kind specific.")
 
       CALL keyword_create(keyword, __LOCATION__, name="MAXL", &
@@ -1399,7 +1399,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
 
-      CALL section_create(section, name="PAO_DESCRIPTOR", repeats=.TRUE., &
+      CALL section_create(section, __LOCATION__, name="PAO_DESCRIPTOR", repeats=.TRUE., &
                           description="Settings of the PAO descriptor, which are atomic kind specific.")
 
       CALL keyword_create(keyword, __LOCATION__, name="BETA", &
@@ -1443,7 +1443,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name="BS", &
                           description="Define the required atomic orbital occupation "// &
                           "assigned in initialization of the density matrix, by adding or "// &
@@ -1464,7 +1464,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="ALPHA", description="alpha spin", &
+      CALL section_create(subsection, __LOCATION__, name="ALPHA", description="alpha spin", &
                           n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)
@@ -1507,7 +1507,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="BETA", description="beta spin", &
+      CALL section_create(subsection, __LOCATION__, name="BETA", description="beta spin", &
                           n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)
@@ -1569,7 +1569,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TOPOLOGY", &
+      CALL section_create(section, __LOCATION__, name="TOPOLOGY", &
                           description="Section specifying information regarding how to handle the topology"// &
                           " for classical runs.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -1809,7 +1809,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
-      CALL section_create(section, TRIM(header), &
+      CALL section_create(section, __LOCATION__, TRIM(header), &
                           description="Speficy bonds (via atom kinds) for fine tuning of 1-2 "// &
                           "exclusion lists. If this section is not present the 1-2 exclusion is "// &
                           "applied to all bond kinds. When this section is present the 1-2 exclusion "// &
@@ -1840,7 +1840,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
-      CALL section_create(section, "CENTER_COORDINATES", &
+      CALL section_create(section, __LOCATION__, "CENTER_COORDINATES", &
                           description="Allows centering the coordinates of the system in the box. "// &
                           "The centering point can be defined by the user.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1877,13 +1877,13 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword, subsection, subsubsection)
-      CALL section_create(section, name="MOL_SET", &
+      CALL section_create(section, __LOCATION__, name="MOL_SET", &
                           description="Specify the connectivity of a full system specifying the connectivity"// &
                           " of the fragments of the system.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       ! MOLECULES
-      CALL section_create(subsection, name="MOLECULE", &
+      CALL section_create(subsection, __LOCATION__, name="MOLECULE", &
                           description="Specify information about the connectivity of single molecules", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
@@ -1898,12 +1898,12 @@ CONTAINS
       CALL section_release(subsection)
 
       ! MERGE MOLECULES
-      CALL section_create(subsection, name="MERGE_MOLECULES", &
+      CALL section_create(subsection, __LOCATION__, name="MERGE_MOLECULES", &
                           description="Enables the creation of connecting bridges (bonds, angles, torsions, impropers)"// &
                           " between the two or more molecules defined with independent connectivity.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
-      CALL section_create(subsubsection, name="bonds", &
+      CALL section_create(subsubsection, __LOCATION__, name="bonds", &
                           description="Defines new bonds", n_keywords=2, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Two integer indexes per line defining the new bond."// &
@@ -1915,7 +1915,7 @@ CONTAINS
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
 
-      CALL section_create(subsubsection, name="angles", &
+      CALL section_create(subsubsection, __LOCATION__, name="angles", &
                           description="Defines new angles", n_keywords=2, n_subsections=0, &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -1927,7 +1927,7 @@ CONTAINS
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
 
-      CALL section_create(subsubsection, name="torsions", &
+      CALL section_create(subsubsection, __LOCATION__, name="torsions", &
                           description="Defines new torsions", n_keywords=2, n_subsections=0, &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -1939,7 +1939,7 @@ CONTAINS
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
 
-      CALL section_create(subsubsection, name="impropers", &
+      CALL section_create(subsubsection, __LOCATION__, name="impropers", &
                           description="Defines new impropers", n_keywords=2, n_subsections=0, &
                           repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
@@ -1972,7 +1972,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword, subsection)
-      CALL section_create(section, name="GENERATE", &
+      CALL section_create(section, __LOCATION__, name="GENERATE", &
                           description="Setup of keywords controlling the generation of the connectivity", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
@@ -2027,7 +2027,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! BONDS
-      CALL section_create(subsection, name="BOND", &
+      CALL section_create(subsection, __LOCATION__, name="BOND", &
                           description="Section used to add/remove  bonds in the connectivity."// &
                           " Useful for systems with a complex connectivity, difficult to find out automatically.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -2052,7 +2052,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! ANGLES
-      CALL section_create(subsection, name="ANGLE", &
+      CALL section_create(subsection, __LOCATION__, name="ANGLE", &
                           description="Section used to add/remove angles in the connectivity."// &
                           " Useful for systems with a complex connectivity, difficult to find out automatically.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -2077,7 +2077,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! TORSIONS
-      CALL section_create(subsection, name="TORSION", &
+      CALL section_create(subsection, __LOCATION__, name="TORSION", &
                           description="Section used to add/remove torsion in the connectivity."// &
                           " Useful for systems with a complex connectivity, difficult to find out automatically.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -2102,7 +2102,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! IMPROPERS
-      CALL section_create(subsection, name="IMPROPER", &
+      CALL section_create(subsection, __LOCATION__, name="IMPROPER", &
                           description="Section used to add/remove improper in the connectivity."// &
                           " Useful for systems with a complex connectivity, difficult to find out automatically.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -2127,7 +2127,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! ISOLATED ATOMS
-      CALL section_create(subsection, name="ISOLATED_ATOMS", &
+      CALL section_create(subsection, __LOCATION__, name="ISOLATED_ATOMS", &
                           description=" This section specifies the  atoms that one considers isolated. Useful when present "// &
                           " ions in solution.", n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
@@ -2165,7 +2165,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in GENERATE code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -2261,7 +2261,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name="DFT_PLUS_U", &
                           description="Define the parameters for a DFT+U run", &
                           n_keywords=3, &
@@ -2341,7 +2341,7 @@ CONTAINS
 
       NULLIFY (subsection)
 
-      CALL section_create(subsection, &
+      CALL section_create(subsection, __LOCATION__, &
                           name="ENFORCE_OCCUPATION", &
                           description="Enforce and control a special (initial) orbital occupation. "// &
                           "Note, this feature works only for the methods MULLIKEN and LOWDIN. "// &

@@ -81,7 +81,7 @@ CONTAINS
 
       NULLIFY (print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="GLOBAL", &
+      CALL section_create(section, __LOCATION__, name="GLOBAL", &
                           description="Section with general information regarding which kind "// &
                           "of simulation to perform an parameters for the whole PROGRAM", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
@@ -571,7 +571,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FM", &
+      CALL section_create(section, __LOCATION__, name="FM", &
                           description="Configuration options for the full matrices.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -631,7 +631,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FM_DIAG_SETTINGS", &
+      CALL section_create(section, __LOCATION__, name="FM_DIAG_SETTINGS", &
                           description="This section defines a set of heuristic rules which are "// &
                           "used to calculate the optimal number of CPUs, M, needed to diagonalize a "// &
                           "full matrix distributed on N processors (FM type). If M &lt N, the matrix "// &

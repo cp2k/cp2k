@@ -71,7 +71,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="force_eval", &
+      CALL section_create(section, __LOCATION__, name="force_eval", &
                           description="parameters needed to calculate energy and forces and"// &
                           " describe the system you want to analyze.", &
                           n_keywords=1, n_subsections=9, repeats=.TRUE.)
@@ -188,7 +188,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXTERNAL_POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
                           description="Section controlling the presence of an external potential dependent "// &
                           " on the atomic positions (X,Y,Z)", &
                           n_keywords=7, n_subsections=0, repeats=.TRUE.)
@@ -259,7 +259,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESCALE_FORCES", &
+      CALL section_create(section, __LOCATION__, name="RESCALE_FORCES", &
                           description="Section controlling the rescaling of forces. Useful when"// &
                           " starting from quite bad geometries with unphysically large forces.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -296,7 +296,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Properties that you want to output and that are common to all methods", &
                           n_keywords=0, n_subsections=5, repeats=.FALSE.)
 

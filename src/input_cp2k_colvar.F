@@ -70,7 +70,7 @@ CONTAINS
       skip = .FALSE.
       IF (PRESENT(skip_recursive_colvar)) skip = skip_recursive_colvar
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="COLVAR", &
+      CALL section_create(section, __LOCATION__, name="COLVAR", &
                           description="This section specifies the nature of the collective variables.", &
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
       NULLIFY (subsection, print_key)
@@ -78,7 +78,7 @@ CONTAINS
       CALL create_colvar_var_section(subsection=subsection, &
                                      section=section, skip_recursive_colvar=skip)
 
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls the printing of the colvar specifications", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
@@ -113,7 +113,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
-      CALL section_create(section, name="COLVAR_FUNC_INFO", &
+      CALL section_create(section, __LOCATION__, name="COLVAR_FUNC_INFO", &
                           description="Specify further data possibly used by colvars, depending "// &
                           "on the starting geometry, for computing the functions value.", &
                           n_subsections=0, repeats=.FALSE.)
@@ -268,7 +268,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="coordination", &
+      CALL section_create(section, __LOCATION__, name="coordination", &
                           description="Section to define the coordination number as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -397,7 +397,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONDITIONED_DISTANCE", &
+      CALL section_create(section, __LOCATION__, name="CONDITIONED_DISTANCE", &
                           description="Section to define the conditioned distance as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -496,7 +496,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="population", &
+      CALL section_create(section, __LOCATION__, name="population", &
                           description="Section to define the population of specie as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -594,7 +594,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="GYRATION_RADIUS", &
+      CALL section_create(section, __LOCATION__, name="GYRATION_RADIUS", &
                           description="Section to define the gyration radius as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -637,7 +637,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DISTANCE_FUNCTION", &
+      CALL section_create(section, __LOCATION__, name="DISTANCE_FUNCTION", &
                           description="Section to define functions between two distances as collective variables."// &
                           " The function is defined as d1+coeff*d2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -690,7 +690,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="torsion", &
+      CALL section_create(section, __LOCATION__, name="torsion", &
                           description="Section to define the torsion as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -726,7 +726,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="bond_rotation", &
+      CALL section_create(section, __LOCATION__, name="bond_rotation", &
                           description="Section to define the rotation of a bond/line with respect to"// &
                           "another bond/line", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -787,7 +787,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="angle", &
+      CALL section_create(section, __LOCATION__, name="angle", &
                           description="Section to define the angle as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
@@ -822,7 +822,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="distance", &
+      CALL section_create(section, __LOCATION__, name="distance", &
                           description="Section to define the distance as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
@@ -865,7 +865,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="XYZ_DIAG", &
+      CALL section_create(section, __LOCATION__, name="XYZ_DIAG", &
                           description="Section to define the distance of an atom from its starting "// &
                           "position ((X-X(0))^2+(Y-Y(0))^2+(Z-Z(0))^2) or part of its components as a collective variable."// &
                           "If absolute_position is specified, instead the CV is represented by the "// &
@@ -928,7 +928,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="XYZ_OUTERDIAG", &
+      CALL section_create(section, __LOCATION__, name="XYZ_OUTERDIAG", &
                           description="Section to define the cross term (XA-XA(0))*(XB-XB(0))+(XA-XA(0))*(YB-YB(0))"// &
                           " or part of its components as a collective variable. The final term is given by the product "// &
                           " of the components of A with the components of B.", &
@@ -993,12 +993,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="u", &
+      CALL section_create(section, __LOCATION__, name="u", &
                           description="Section to define the energy as a generalized collective variable.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
-      CALL section_create(subsection, name="MIXED", &
+      CALL section_create(subsection, __LOCATION__, name="MIXED", &
                           description="This section allows to use any function of the energy subsystems "// &
                           " in a mixed_env calculation as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1075,7 +1075,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="distance_point_plane", &
+      CALL section_create(section, __LOCATION__, name="distance_point_plane", &
                           description="Section to define the distance of a point from a plane "// &
                           "as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1128,13 +1128,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="angle_plane_plane", &
+      CALL section_create(section, __LOCATION__, name="angle_plane_plane", &
                           description="This section defines the angle between two planes "// &
                           "as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL section_create(subsection, name="PLANE", &
+      CALL section_create(subsection, __LOCATION__, name="PLANE", &
                           description="This section defines the plane. When using this colvar, "// &
                           "two plane section must be defined!", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1188,7 +1188,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="POINT", &
+      CALL section_create(section, __LOCATION__, name="POINT", &
                           description="Enables the possibility to use geometrical centers instead of single atoms"// &
                           " to define colvars", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1246,7 +1246,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="qparm", &
+      CALL section_create(section, __LOCATION__, name="qparm", &
                           description="Section to define the Q parameter (crystalline order parameter) as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1325,7 +1325,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="HYDRONIUM_SHELL", &
+      CALL section_create(section, __LOCATION__, name="HYDRONIUM_SHELL", &
                           description="Section to define the formation of a hydronium as a"// &
                           " collective variable. Number of oxygens in the 1st shell of the"// &
                           " hydronium. Adapted from Equation (3) in Supplementary Info of"// &
@@ -1451,7 +1451,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="HYDRONIUM_DISTANCE", &
+      CALL section_create(section, __LOCATION__, name="HYDRONIUM_DISTANCE", &
                           description="Section to define the formation of a hydronium as a"// &
                           " collective variable. Distance between hydronium and hydroxide ion"// &
                           " Experimental at this point, i.e. not proved to be an effective "// &
@@ -1571,7 +1571,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ACID_HYDRONIUM_DISTANCE", &
+      CALL section_create(section, __LOCATION__, name="ACID_HYDRONIUM_DISTANCE", &
                           description="Section to define the dissociation of a carboxylic acid in"// &
                           " water. Distance between hydronium ion and acetate ion. Equation (2)"// &
                           " in Supplementary Info of J. Am. Chem. Soc.,128,  2006, 11318.", &
@@ -1700,7 +1700,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ACID_HYDRONIUM_SHELL", &
+      CALL section_create(section, __LOCATION__, name="ACID_HYDRONIUM_SHELL", &
                           description="Section to define the dissociation of a carboxylic acid in"// &
                           " water. Number of oxygens in the 1st shell of the hydronium. Equation (3)"// &
                           " in Supplementary Info of J. Am. Chem. Soc.,128,  2006, 11318. Similar to"// &
@@ -1875,7 +1875,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="rmsd", &
+      CALL section_create(section, __LOCATION__, name="rmsd", &
                           description="Section to define a CV as function of RMSD computed with respect to"// &
                           " given reference configurations. For 2 configurations the colvar is equal to:"// &
                           " ss = (RMSDA-RMSDB)/(RMSDA+RMSDB), while if only 1 configuration is given, then the"// &
@@ -1913,7 +1913,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="FRAME", &
+      CALL section_create(subsection, __LOCATION__, name="FRAME", &
                           description="Specify coordinates of the frame (number of frames can be either 1 or 2)", &
                           repeats=.TRUE.)
 
@@ -1946,7 +1946,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="REACTION_PATH", &
+      CALL section_create(section, __LOCATION__, name="REACTION_PATH", &
                           description="Section defining a one dimensional reaction path in an Q-dimensional space of colvars. "// &
                           "Constraining this colvar, allows to sample the space orthogonal to the reaction path, "// &
                           "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "// &
@@ -1969,7 +1969,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DISTANCE_FROM_PATH", &
+      CALL section_create(section, __LOCATION__, name="DISTANCE_FROM_PATH", &
                           description="Section defining the distance from a one dimensional reaction "// &
                           "path in an Q-dimensional space of colvars. "// &
                           "Constraining this colvar, allows to sample the space equidistant to the reaction path, "// &
@@ -2038,7 +2038,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="FRAME", &
+      CALL section_create(subsection, __LOCATION__, name="FRAME", &
                           description="Specify coordinates of the frame", &
                           repeats=.TRUE.)
 
@@ -2140,7 +2140,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="COMBINE_COLVAR", &
+      CALL section_create(section, __LOCATION__, name="COMBINE_COLVAR", &
                           description="Allows the possibility to combine several COLVARs into one COLVAR "// &
                           "with a generic function.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -2220,7 +2220,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="coord", &
+      CALL section_create(section, __LOCATION__, name="coord", &
                           description="The positions for "//TRIM(name)//" used for restart", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -2248,7 +2248,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="wc", &
+      CALL section_create(section, __LOCATION__, name="wc", &
                           description="Section to define the hbond wannier centre as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
@@ -2291,7 +2291,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="hbp", &
+      CALL section_create(section, __LOCATION__, name="hbp", &
                           description="Section to define the hbond wannier centre as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
@@ -2349,7 +2349,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RING_PUCKERING", &
+      CALL section_create(section, __LOCATION__, name="RING_PUCKERING", &
                           description="Section to define general ring puckering collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 

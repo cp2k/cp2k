@@ -67,7 +67,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ALMO_SCF", &
+      CALL section_create(section, __LOCATION__, name="ALMO_SCF", &
                           description="Settings for a class of efficient linear scaling methods based "// &
                           "on absolutely localized orbitals"// &
                           " (ALMOs). ALMO methods are currently restricted to closed-shell molecular systems.", &
@@ -634,17 +634,17 @@ CONTAINS
       ! choose the name of the section
       SELECT CASE (optimizer_id)
       CASE (optimizer_block_diagonal_diis)
-         CALL section_create(section, "ALMO_OPTIMIZER_DIIS", &
+         CALL section_create(section, __LOCATION__, name="ALMO_OPTIMIZER_DIIS", &
                              description="Controls the iterative DIIS-accelerated optimization of block-diagonal ALMOs.", &
                              n_keywords=5, n_subsections=0, repeats=.FALSE.)
          optimizer_type = optimizer_diis
       CASE (optimizer_block_diagonal_pcg)
-         CALL section_create(section, "ALMO_OPTIMIZER_PCG", &
+         CALL section_create(section, __LOCATION__, name="ALMO_OPTIMIZER_PCG", &
                              description="Controls the PCG optimization of block-diagonal ALMOs.", &
                              n_keywords=9, n_subsections=0, repeats=.FALSE.)
          optimizer_type = optimizer_pcg
       CASE (optimizer_xalmo_pcg)
-         CALL section_create(section, "XALMO_OPTIMIZER_PCG", &
+         CALL section_create(section, __LOCATION__, name="XALMO_OPTIMIZER_PCG", &
                              description="Controls the PCG optimization of extended ALMOs.", &
                              n_keywords=10, n_subsections=1, repeats=.FALSE.)
          NULLIFY (subsection)
@@ -653,7 +653,7 @@ CONTAINS
          CALL section_release(subsection)
          optimizer_type = optimizer_pcg
       CASE (optimizer_newton_pcg_solver)
-         CALL section_create(section, "XALMO_NEWTON_PCG_SOLVER", &
+         CALL section_create(section, __LOCATION__, name="XALMO_NEWTON_PCG_SOLVER", &
                              description="Controls an iterative solver of the Newton-Raphson linear equation.", &
                              n_keywords=4, n_subsections=0, repeats=.FALSE.)
          optimizer_type = optimizer_lin_eq_pcg
@@ -790,7 +790,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (section)
 
-      CALL section_create(section, "MATRIX_ITERATE", &
+      CALL section_create(section, __LOCATION__, name="MATRIX_ITERATE", &
                           description="Controls linear scaling iterative procedure on matrices: inversion, sqrti, etc. "// &
                           "High-order Lanczos accelerates convergence provided it can estimate the eigenspectrum correctly.", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
@@ -840,7 +840,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (section)
 
-      CALL section_create(section, "PENALTY", &
+      CALL section_create(section, __LOCATION__, name="PENALTY", &
                           description="Add penalty terms to the energy functional.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
@@ -886,7 +886,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (section)
 
-      CALL section_create(section, "ANALYSIS", &
+      CALL section_create(section, __LOCATION__, name="ANALYSIS", &
                           description="Controls electronic structure analysis based on ALMOs and XALMOs.", &
                           n_keywords=2, n_subsections=1, repeats=.FALSE., &
                           citations=(/Khaliullin2007, Khaliullin2008/))
@@ -943,7 +943,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (section, print_key)
 
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Controls printing of detailed ALMO decomosition analysis results", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 

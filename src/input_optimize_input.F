@@ -50,7 +50,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: sub_section, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZE_INPUT", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZE_INPUT", &
                           description="describes an input optimization job, in which parameters in input files get optimized.", &
                           repeats=.FALSE.)
       NULLIFY (keyword)
@@ -105,7 +105,7 @@ CONTAINS
       !
 
       NULLIFY (sub_section)
-      CALL section_create(sub_section, name="VARIABLE", &
+      CALL section_create(sub_section, __LOCATION__, name="VARIABLE", &
                           description="Defines initial values for variables and their labels", &
                           n_subsections=0, repeats=.TRUE.)
 
@@ -138,7 +138,7 @@ CONTAINS
       !
 
       NULLIFY (sub_section)
-      CALL section_create(sub_section, name="FORCE_MATCHING", &
+      CALL section_create(sub_section, __LOCATION__, name="FORCE_MATCHING", &
                           description="Specify the force matching input.", &
                           repeats=.TRUE.)
 

@@ -77,7 +77,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="mm", &
+      CALL section_create(section, __LOCATION__, name="mm", &
                           description="This section contains all information to run a MM calculation.", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
@@ -120,7 +120,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in MM code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -220,7 +220,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FORCEFIELD", &
+      CALL section_create(section, __LOCATION__, name="FORCEFIELD", &
                           description="Section specifying information regarding how to set up properly"// &
                           " a force_field for the classical calculations.", &
                           n_keywords=2, n_subsections=2, repeats=.FALSE.)
@@ -379,7 +379,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SPLINE", &
+      CALL section_create(section, __LOCATION__, name="SPLINE", &
                           description="specifies parameters to set up the splines used in the"// &
                           " nonboned interactions (both pair body potential and many body potential)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -458,7 +458,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TORSION", &
+      CALL section_create(section, __LOCATION__, name="TORSION", &
                           description="Specifies the torsion potential of the MM system.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -525,7 +525,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="IMPROPER", &
+      CALL section_create(section, __LOCATION__, name="IMPROPER", &
                           description="Specifies the improper torsion potential of the MM system.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -583,7 +583,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPBEND", &
+      CALL section_create(section, __LOCATION__, name="OPBEND", &
                           description="Specifies the out of plane bend potential of the MM system."// &
                           "(Only defined for atom quadruples which are also defined as an improper"// &
                           " pattern in the topology.)", &
@@ -644,7 +644,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BEND", &
+      CALL section_create(section, __LOCATION__, name="BEND", &
                           description="Specifies the bend potential of the MM system.", &
                           n_keywords=11, n_subsections=1, repeats=.TRUE.)
 
@@ -778,14 +778,14 @@ CONTAINS
 
       IF (TRIM(label) == "UB") THEN
          tag = " Urey-Bradley "
-         CALL section_create(section, name=TRIM(label), &
+         CALL section_create(section, __LOCATION__, name=TRIM(label), &
                              description="Specifies the Urey-Bradley potential between the external atoms"// &
                              " defining the angle", &
                              n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       ELSE
          tag = " Bond "
-         CALL section_create(section, name=TRIM(label), &
+         CALL section_create(section, __LOCATION__, name=TRIM(label), &
                              description="Specifies the bond potential", &
                              n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -863,7 +863,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="charges", &
+      CALL section_create(section, __LOCATION__, name="charges", &
                           description="Allow to specify an array of classical charges, thus avoiding the"// &
                           " packing and permitting the usage of different charges for same atomic types.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -892,7 +892,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="charge", &
+      CALL section_create(section, __LOCATION__, name="charge", &
                           description="This section specifies the charge of the MM atoms", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -929,7 +929,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="QUADRUPOLE", &
+         section, __LOCATION__, name="QUADRUPOLE", &
          description="This section specifies that we will perform an SCF quadrupole calculation of the MM atoms. "// &
          "Needs KEYWORD POL_SCF in POISSON secton", &
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -967,7 +967,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DIPOLE", &
+      CALL section_create(section, __LOCATION__, name="DIPOLE", &
                           description="This section specifies that we will perform an SCF dipole calculation of the MM atoms. "// &
                           "Needs KEYWORD POL_SCF in POISSON secton", &
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
@@ -1007,7 +1007,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DAMPING", &
+      CALL section_create(section, __LOCATION__, name="DAMPING", &
                           description="This section specifies optional electric field damping for the polarizable atoms. ", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
 
@@ -1064,7 +1064,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SHELL", &
+      CALL section_create(section, __LOCATION__, name="SHELL", &
                           description="This section specifies the parameters for shell-model potentials", &
                           n_keywords=6, n_subsections=0, repeats=.TRUE., &
                           citations=(/Dick1958, Mitchell1993, Devynck2012/))
@@ -1160,7 +1160,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="nonbonded14", &
+      CALL section_create(section, __LOCATION__, name="nonbonded14", &
                           description="This section specifies the input parameters for 1-4 NON-BONDED interactions.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1198,7 +1198,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="nonbonded", &
+      CALL section_create(section, __LOCATION__, name="nonbonded", &
                           description="This section specifies the input parameters for NON-BONDED interactions.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1273,7 +1273,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="neighbor_lists", &
+      CALL section_create(section, __LOCATION__, name="neighbor_lists", &
                           description="This section specifies the input parameters for the construction of"// &
                           " neighbor lists.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1319,7 +1319,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="GENPOT", &
+      CALL section_create(section, __LOCATION__, name="GENPOT", &
                           description="This section specifies the input parameters for a generic potential type. "// &
                           "A functional form is specified. Mathematical Operators recognized are +, -, *, /, ** "// &
                           "or alternatively ^, whereas symbols for brackets must be (). "// &
@@ -1411,7 +1411,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EAM", &
+      CALL section_create(section, __LOCATION__, name="EAM", &
                           description="This section specifies the input parameters for EAM potential type.", &
                           citations=(/Foiles1986/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -1456,7 +1456,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="QUIP", &
+      CALL section_create(section, __LOCATION__, name="QUIP", &
                           description="This section specifies the input parameters for QUIP potential type. "// &
                           "Mainly intended for things like GAP corrections to DFT "// &
                           "to achieve correlated-wavefunction-like accuracy. "// &
@@ -1514,7 +1514,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="lennard-jones", &
+      CALL section_create(section, __LOCATION__, name="lennard-jones", &
                           description="This section specifies the input parameters for LENNARD-JONES potential type."// &
                           "Functional form: V(r) = 4.0 * EPSILON * [(SIGMA/r)^12-(SIGMA/r)^6].", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1580,7 +1580,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="williams", &
+      CALL section_create(section, __LOCATION__, name="williams", &
                           description="This section specifies the input parameters for WILLIAMS potential type."// &
                           "Functional form: V(r) = A*EXP(-B*r) - C / r^6 .", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1653,7 +1653,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="goodwin", &
+      CALL section_create(section, __LOCATION__, name="goodwin", &
                           description="This section specifies the input parameters for GOODWIN potential type."// &
                           "Functional form: V(r) = EXP(M*(-(r/DC)**MC+(D/DC)**MC))*VR0*(D/r)**M.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1739,7 +1739,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ipbv", &
+      CALL section_create(section, __LOCATION__, name="ipbv", &
                           description="This section specifies the input parameters for IPBV potential type."// &
                           "Functional form: Implicit table function.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1791,7 +1791,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BMHFT", &
+      CALL section_create(section, __LOCATION__, name="BMHFT", &
                           description="This section specifies the input parameters for BMHFT potential type."// &
                           "Functional form: V(r) = A * EXP(-B*r) - C/r^6 - D/r^8."// &
                           "Values available inside cp2k only for the Na/Cl pair.", &
@@ -1879,7 +1879,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BMHFTD", &
+      CALL section_create(section, __LOCATION__, name="BMHFTD", &
                           description="This section specifies the input parameters for BMHFTD potential type."// &
                           "Functional form: V(r) = A*exp(-B*r) - f_6*(r)C/r^6 - f_8(r)*D/r^8."// &
                           "where f_order(r)=1-exp(-BD * r) * \sum_{k=0}^order (BD * r)^k / k! ."// &
@@ -1983,7 +1983,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BUCK4RANGES", &
+      CALL section_create(section, __LOCATION__, name="BUCK4RANGES", &
                           description="This section specifies the input parameters for the Buckingham 4-ranges"// &
                           " potential type."// &
                           " Functional form:<ul>"// &
@@ -2099,7 +2099,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, name="BUCKMORSE", &
+         section, __LOCATION__, name="BUCKMORSE", &
          description="This section specifies the input parameters for"// &
          " Buckingham plus Morse potential type "// &
          " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.", &
@@ -2215,7 +2215,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TERSOFF", &
+      CALL section_create(section, __LOCATION__, name="TERSOFF", &
                           description="This section specifies the input parameters for Tersoff potential type.", &
                           citations=(/Tersoff1988/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -2367,7 +2367,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SIEPMANN", &
+      CALL section_create(section, __LOCATION__, name="SIEPMANN", &
                           description="This section specifies the input parameters for the"// &
                           " Siepmann-Sprik potential type. Consists of 4 terms:"// &
                           " T1+T2+T3+T4. The terms T1=A/rij^alpha and T2=-C/rij^6"// &
