@@ -101,7 +101,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, name="FIT_CHARGE", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, name="FIT_CHARGE", &
                                        description="This section is used to print the density derived atomic point charges."// &
                                        "The fit of the charges is controlled through the DENSITY_FITTING section", &
                                        print_level=high_print_level, filename="__STD_OUT__")
@@ -244,13 +244,13 @@ CONTAINS
                           repeats=.FALSE.)
 
       CALL cp_print_key_section_create( &
-         print_key, "program_run_info", &
+         print_key, __LOCATION__, "program_run_info", &
          description="Controls the printing of basic iteration information during the LINRES calculation", &
          print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of restart file of the response wavefunction."// &
                                        "For each set of response functions, i.e. for each perturbation,"// &
                                        "one different restart file is dumped. These restart files should be"// &
@@ -399,7 +399,7 @@ CONTAINS
                           description="print results of induced current density calculation", &
                           repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "CURRENT_CUBES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CURRENT_CUBES", &
                                        description="Controls the printing of the induced current density (not working yet).", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -418,7 +418,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESPONSE_FUNCTION_CUBES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESPONSE_FUNCTION_CUBES", &
                                        description="Controls the printing of the response functions (not working yet).", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -540,7 +540,7 @@ CONTAINS
                           description="print results of nmr calculation", &
                           repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "RESPONSE_FUNCTION_CUBES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESPONSE_FUNCTION_CUBES", &
                                        description="Controls the printing of the response functions ", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -576,13 +576,13 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CHI_TENSOR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CHI_TENSOR", &
                                        description="Controls the printing of susceptibility", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SHIELDING_TENSOR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SHIELDING_TENSOR", &
                                        description="Controls the printing of the chemical shift", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="")
 
@@ -692,7 +692,7 @@ CONTAINS
                           description="print results of the indirect spin-spin calculation", &
                           repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "K_MATRIX", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "K_MATRIX", &
                                        description="Controls the printing of the indirect spin-spin matrix", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="")
 
@@ -761,7 +761,7 @@ CONTAINS
                           description="print results of epr calculation", &
                           repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "NABLAVKS_CUBES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "NABLAVKS_CUBES", &
                                        description="Controls the printing of the components of nabla v_ks ", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -780,7 +780,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "G_TENSOR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "G_TENSOR", &
                                        description="Controls the printing of the g tensor", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL create_xc_section(subsubsection)
@@ -803,7 +803,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESPONSE_FUNCTION_CUBES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESPONSE_FUNCTION_CUBES", &
                                        description="Controls the printing of the response functions ", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -895,7 +895,7 @@ CONTAINS
                           description="print results of the polarizability calculation", &
                           repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "POLAR_MATRIX", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POLAR_MATRIX", &
                                        description="Controls the printing of the polarizabilities", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="")
 
@@ -957,7 +957,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing basic info about the method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -1001,7 +1001,7 @@ CONTAINS
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
 
       ! Subsection #0: Log printing
-      CALL cp_print_key_section_create(print_key, 'PROGRAM_RUN_INFO', &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, 'PROGRAM_RUN_INFO', &
                                        description="Controls printing of data and informations to log file", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -1051,7 +1051,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! S#1 - S#1 - Subsection #1: Saving MOs to CUBE files
-      CALL cp_print_key_section_create(print_key, 'MO_CUBES', &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, 'MO_CUBES', &
                                        description="Controls saving of MO cube files", &
                                        print_level=high_print_level, filename="")
 
@@ -1275,27 +1275,27 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of information during the TDDFT run.", repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "GUESS_VECTORS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "GUESS_VECTORS", &
                                        description="Controls the printing of initial guess vectors.", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ITERATION_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ITERATION_INFO", &
                                        description="Controls the printing of basic iteration information "// &
                                        "during the TDDFT run.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DETAILED_ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DETAILED_ENERGY", &
                                        description="Controls the printing of detailed energy information "// &
                                        "during the TDDFT run.", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of the MO restart file during TDDFPT. "// &
                                        "By default keeps a short history of three restarts.", &
                                        print_level=low_print_level, common_iter_levels=3, &

@@ -88,20 +88,20 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
       CALL cp_print_key_section_create( &
-         printkey, "WORKER_RUN_INFO", &
+         printkey, __LOCATION__, "WORKER_RUN_INFO", &
          description="Controls the printing of the worker's basic information during the global optimization", &
          print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(print_section, printkey)
       CALL section_release(printkey)
 
       CALL cp_print_key_section_create( &
-         printkey, "MASTER_RUN_INFO", &
+         printkey, __LOCATION__, "MASTER_RUN_INFO", &
          description="Controls the printing of the masters's basic information during the global optimization", &
          print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(print_section, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "COMMUNICATION_LOG", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "COMMUNICATION_LOG", &
                                        description="Log all the communication between workers and master. Needed for restart.", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="", unit_str="angstrom")

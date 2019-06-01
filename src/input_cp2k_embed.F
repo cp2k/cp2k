@@ -198,7 +198,7 @@ CONTAINS
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information during the evaluation of "// &
                                        "the embedding environment. ", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")

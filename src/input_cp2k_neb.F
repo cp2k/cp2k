@@ -264,7 +264,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, "program_run_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
                                        description="Controls the printing basic info about the BAND run", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 
@@ -278,26 +278,26 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "convergence_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "convergence_info", &
                                        description="Controls the printing of the convergence criteria during a BAND run", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "replica_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "replica_info", &
                                        description="Controls the printing of each replica info during a BAND run", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the printing of the ENER file in a BAND run", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "BANNER", &
                                        description="Controls the printing of the BAND banner", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="__STD_OUT__")
@@ -490,7 +490,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "diis_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "diis_info", &
                                        description="Controls the printing of DIIS info during a BAND run", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)

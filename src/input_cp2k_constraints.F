@@ -133,14 +133,14 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(print_key, "constraint_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "constraint_info", &
                                        description="Prints information about iterative constraints solutions", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
-         print_key, "lagrange_multipliers", &
+         print_key, __LOCATION__, "lagrange_multipliers", &
          description="Prints out the lagrange multipliers of the specified constraints during an MD.", &
          print_level=high_print_level, filename="")
       CALL section_add_subsection(section, print_key)

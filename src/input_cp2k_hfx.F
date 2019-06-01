@@ -97,7 +97,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "HF_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "HF_INFO", &
                                        description="Controls the printing basic info about hf method", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -180,7 +180,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "PRINT", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT", &
                                        description="Controls the printing of info about load balance", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)

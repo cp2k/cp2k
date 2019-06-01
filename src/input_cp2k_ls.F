@@ -350,7 +350,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! A DOS print key
-      CALL cp_print_key_section_create(print_key, "DOS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DOS", &
                                        description="Controls the printing of the Density of States (DOS).", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="N_GRIDPOINTS", &
@@ -363,7 +363,7 @@ CONTAINS
 
       ! Energy specific electron density cubes
       CALL cp_print_key_section_create( &
-         print_key, &
+         print_key, __LOCATION__, &
          name="PRINT_SPECIFIC_E_DENSITY_CUBE", &
          description="Controls the printing of cube files with "// &
          "the electronic density (states) "// &

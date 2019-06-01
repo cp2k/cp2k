@@ -228,14 +228,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsubsection)
-      CALL cp_print_key_section_create(subsubsection, "COMPARE_ENERGIES", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "COMPARE_ENERGIES", &
                                        description="A comparison of energies between fit and reference", &
                                        print_level=low_print_level, filename="compare_energies", common_iter_levels=1)
       CALL section_add_subsection(sub_section, subsubsection)
       CALL section_release(subsubsection)
 
       NULLIFY (subsubsection)
-      CALL cp_print_key_section_create(subsubsection, "COMPARE_FORCES", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "COMPARE_FORCES", &
                                        description="A comparison of forces between fit and reference", &
                                        print_level=low_print_level, filename="compare_forces", common_iter_levels=1)
       CALL section_add_subsection(sub_section, subsubsection)
@@ -245,13 +245,13 @@ CONTAINS
       CALL section_release(sub_section)
 
       NULLIFY (subsubsection)
-      CALL cp_print_key_section_create(subsubsection, "HISTORY", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "HISTORY", &
                                        description="writes a history of the function value and parameters", &
                                        print_level=low_print_level, filename="history", common_iter_levels=1)
       CALL section_add_subsection(section, subsubsection)
       CALL section_release(subsubsection)
 
-      CALL cp_print_key_section_create(subsubsection, "RESTART", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "RESTART", &
                                        description="writes an input file that can be used to restart ", &
                                        print_level=low_print_level, filename="optimize", common_iter_levels=1)
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &

@@ -530,14 +530,14 @@ CONTAINS
                           description="Section of possible print options in FORCE_MIXING.", &
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "SUBCELL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
                                        description="Activates the printing of the subcells used for the"// &
                                        "generation of neighbor lists.", unit_str="angstrom", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "NEIGHBOR_LISTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "NEIGHBOR_LISTS", &
                                        description="Activates the printing of the neighbor lists used"// &
                                        " for the hysteretic region calculations.", &
                                        print_level=high_print_level, filename="", unit_str="angstrom")
@@ -783,7 +783,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "check_spline", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "check_spline", &
                                        description="Controls the checking of the G-space term Spline Interpolation.", &
                                        print_level=medium_print_level, filename="GSpace-SplInterp")
       CALL section_add_subsection(section, subsection)
@@ -859,13 +859,13 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "check_spline", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "check_spline", &
                                        description="Controls the checking of the G-space term Spline Interpolation.", &
                                        print_level=medium_print_level, filename="GSpace-SplInterp")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "program_run_info", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "program_run_info", &
                                        description="Controls the printing of basic information during the run", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, subsection)
@@ -1230,7 +1230,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "conv_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "conv_info", &
                                        description="if convergence information about the linear solver"// &
                                        " of the spline methods should be printed", &
                                        print_level=medium_print_level, each_iter_names=s2a("SPLINE_FIND_COEFFS"), &
@@ -1239,7 +1239,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "spl_coeffs", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "spl_coeffs", &
                                        description="outputs a cube with the coefficents calculated for "// &
                                        "the spline interpolation", &
                                        print_level=debug_print_level)
@@ -1269,7 +1269,7 @@ CONTAINS
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "DIPOLE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DIPOLE", &
                                        description="Controls the printing of the DIPOLE in a QM/MM calculations."// &
                                        " It requires that the DIPOLE calculations is "// &
                                        " requested both for the QS  and for the MM  part.", &
@@ -1277,14 +1277,14 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PGF", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PGF", &
                                        description="Controls the printing of the gaussian expansion basis set of the"// &
                                        " electrostatic potential", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "POTENTIAL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POTENTIAL", &
                                        description="Controls the printing of the QMMM  potential", &
                                        print_level=high_print_level, filename="MM_ELPOT_QMMM", &
                                        common_iter_levels=1)
@@ -1300,14 +1300,14 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "MM_POTENTIAL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MM_POTENTIAL", &
                                        description="Controls the printing of the MM unidimensional potential on file", &
                                        print_level=high_print_level, filename="MM_ELPOT", &
                                        common_iter_levels=1)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "QMMM_MATRIX", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "QMMM_MATRIX", &
                                        description="Controls the printing of the QMMM 1 electron Hamiltonian Matrix"// &
                                        " for methods like semiempirical and DFTB", &
                                        print_level=high_print_level, filename="__STD_OUT__", &
@@ -1315,63 +1315,63 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_BANNER", &
                                        description="Controls the printing of the banner of the MM program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information regarding the run.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
-         print_key, "PERIODIC_INFO", &
+         print_key, __LOCATION__, "PERIODIC_INFO", &
          description="Controls the printing of information regarding the periodic boundary condition.", &
          print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "GRID_INFORMATION", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "GRID_INFORMATION", &
                                        description="Controls the printing of information regarding the PW grid structures"// &
                                        " for PERIODIC QM/MM calculations.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "derivatives", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "derivatives", &
                                        description="Print all derivatives after QM/MM calculation", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "qmmm_charges", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "qmmm_charges", &
                                        description="Print all charges generating the QM/MM potential", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "qmmm_link_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "qmmm_link_info", &
                                        description="Print all information on QM/MM links", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "qs_derivatives", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "qs_derivatives", &
                                        description="Print QM derivatives after QS calculation", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "image_charge_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "image_charge_info", &
                                        description="Prints image charge coefficients and detailed energy info", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "image_charge_restart", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "image_charge_restart", &
                                        description="Controls the printing of the restart file for "// &
                                        "the image matrix when using the iterative scheme", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="RESTART", &

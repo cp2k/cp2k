@@ -159,7 +159,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "ERI_MME_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ERI_MME_INFO", &
                                        description="Controls the printing info.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)

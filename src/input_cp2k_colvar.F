@@ -82,7 +82,7 @@ CONTAINS
                           description="Controls the printing of the colvar specifications", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of basic information during colvar setup.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
@@ -2100,7 +2100,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create( &
-         print_key, name="MAP", &
+         print_key, __LOCATION__, name="MAP", &
          description="Activating this print key will print once a file with the values of the FUNCTION on a grid "// &
          "of COLVAR values in a specified range. "// &
          "GRID_SPACING and RANGE for every COLVAR has to be specified again in the same order as they are in the input.", &

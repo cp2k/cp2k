@@ -213,13 +213,13 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "check_spline", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "check_spline", &
                                        description="Controls the checking of the G-space term Spline Interpolation.", &
                                        print_level=medium_print_level, filename="GSpace-SplInterp")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "program_run_info", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "program_run_info", &
                                        description="Controls the printing of basic information during the run", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, subsection)
@@ -442,7 +442,7 @@ CONTAINS
                           description="Controls printing of Ewald properties", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="controls the printing of ewald setup", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
@@ -517,7 +517,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "conv_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "conv_info", &
                                        description="if convergence information about the linear solver"// &
                                        " of the spline methods should be printed", &
                                        print_level=medium_print_level, each_iter_names=s2a("SPLINE_FIND_COEFFS"), &

@@ -1014,7 +1014,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "PRINT_DFTD", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT_DFTD", &
                                        description="Controls the printing of some info about DFTD contributions", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL section_add_subsection(subsection, print_key)

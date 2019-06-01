@@ -126,13 +126,13 @@ CONTAINS
 
       NULLIFY (print_key, keyword)
 
-      CALL cp_print_key_section_create(print_key, "DERIVATIVES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DERIVATIVES", &
                                        description="Controls the printing of derivatives.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "EWALD_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "EWALD_INFO", &
                                        description="Controls the printing of Ewald energy components during the "// &
                                        "evaluation of the electrostatics.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
@@ -143,45 +143,45 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "NEIGHBOR_LISTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "NEIGHBOR_LISTS", &
                                        description="Activates the printing of the neighbor lists.", &
                                        print_level=high_print_level, filename="", unit_str="angstrom")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ITER_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ITER_INFO", &
                                        description="Activates the printing of iteration info during the self-consistent "// &
                                        "calculation of a polarizable forcefield.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SUBCELL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
                                        description="Activates the printing of the subcells used for the"// &
                                        "generation of neighbor lists.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_BANNER", &
                                        description="Controls the printing of the banner of the MM program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information regarding the run.", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FF_PARAMETER_FILE", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FF_PARAMETER_FILE", description= &
                                        "Controls the printing of Force Field parameter file", &
                                        print_level=debug_print_level+1, filename="", common_iter_levels=2)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FF_INFO", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FF_INFO", description= &
                                        "Controls the printing of information in the forcefield settings", &
                                        print_level=high_print_level, filename="__STD_OUT__")
 
@@ -2495,7 +2495,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(print_key))
-      CALL cp_print_key_section_create(print_key_section=print_key, name=TRIM(label), &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name=TRIM(label), &
                                        description="Section controlling the calculation of "//TRIM(label)//"."// &
                                        " Note that the result in the periodic case might be defined modulo a certain period,"// &
                                        " determined by the lattice vectors. During MD, this can lead to jumps.", &
