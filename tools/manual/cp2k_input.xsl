@@ -296,8 +296,7 @@
         </xsl:if>
        </em>
        <xsl:call-template name="link_edit_text">
-        <xsl:with-param name="txt_id" select="$local_path"/>
-        <xsl:with-param name="root" select="$root"/>
+        <xsl:with-param name="location" select="string(LOCATION)"/>
        </xsl:call-template>
       </li>
      </ul>
@@ -496,7 +495,7 @@
          <big class="tt">&#160;{<xsl:value-of select="$vartype"/>}&#160;...</big>
          <xsl:if test="contains(upper-case(NAME[@type='default']),'LIST')">
           <big class="tt">&#160;or&#160;a&#160;range&#160;{<xsl:value-of select="$vartype"/>}..{<xsl:value-of select="$vartype"/>}</big>
-         </xsl:if>      
+         </xsl:if>
         </xsl:if>
        </xsl:otherwise>
       </xsl:choose>
@@ -515,8 +514,7 @@
        </xsl:if>
       </em>
       <xsl:call-template name="link_edit_text">
-       <xsl:with-param name="txt_id" select="$keyword_path"/>
-       <xsl:with-param name="root" select="$root"/>
+       <xsl:with-param name="location" select="string(LOCATION)"/>
       </xsl:call-template>
      </td>
     </tr>
@@ -615,10 +613,6 @@
               Without description, yet.
              </xsl:if>
             </em>
-            <xsl:call-template name="link_edit_text">
-             <xsl:with-param name="txt_id" select="concat($keyword_path,'/',string(NAME))"/>
-             <xsl:with-param name="root" select="$root"/>
-            </xsl:call-template>
            </dd>
           </dl>
          </li>
@@ -737,16 +731,12 @@
 </xsl:template>
 
 <xsl:template name="link_edit_text">
- <xsl:param name="txt_id"/>
- <xsl:param name="root"/>
+ <xsl:param name="location"/>
  <xsl:if test="$add_edit_links = 'yes'">
-  <!-- <span style="position:relative;">
-  <a title="Edit this text" href="{concat('https://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">
-  <img src="{concat($root,'edit.png')}" style="height:25px; position:absolute; top:-22px; left:5px;"/>
-  </a>
-  </span> -->
+ <xsl:variable name="link_path" select="concat(substring-before($location, ':'), '#L', substring-after($location, ':'))"/>
+ <xsl:variable name="link_url" select="concat('https://github.com/cp2k/cp2k/blob/master/src/', $link_path)"/>
   <span style="font-size: small;">
-   &#160;[<a title="Edit this text" href="{concat('https://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">Edit</a>]
+   &#160;[<a title="See corresponding source code location." href="{$link_url}">Edit on GitHub</a>]
   </span>
  </xsl:if>
 </xsl:template>
