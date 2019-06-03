@@ -53,7 +53,6 @@ case "$with_libint" in
                         > configure.log 2>&1
 
             make -j $NPROCS > make.log 2>&1
-            make -j $NPROCS fortran >> make.log 2>&1
             make install > install.log 2>&1
             cd ../../..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
