@@ -671,10 +671,10 @@ CONTAINS
                      hij = 0.5_dp*pia(na)*pib(nb)
                      IF (iatom <= jatom) THEN
                         fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
-                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, ikind)*henb(nb)
+                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, jkind)*henb(nb)
                      ELSE
-                        fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, jkind)*hena(na)
-                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, ikind)*henb(nb)
+                        fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, jkind)*henb(nb)
                      END IF
                   END DO
                END DO
