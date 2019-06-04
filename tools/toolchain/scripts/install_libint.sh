@@ -2,9 +2,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libint_lmax="4"
+libint_lmax="5"
 libint_ver="2.5.0"
-libint_sha256="8b797a518fd5a0fa19c420c84794a7ec5225821ffc56d1666845a406d0b62982"
+libint_sha256="5f2f1f1ee2cd04ec302415ea9b20e2ef01173e083d05b02cd633fd6f640e8e4c"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -41,20 +41,24 @@ case "$with_libint" in
             echo "Installing from scratch into ${pkg_install_dir}"
             cd libint-v${libint_ver}-cp2k-lmax-${libint_lmax}
 
+            # reduce debug information to level 1 since
+            # level 2 (default for -g flag) leads to very large binary size
+            LIBINT_CXXFLAGS="$CXXFLAGS -g1"
+
             # hack for -with-cxx, needed for -fsanitize=thread that also
             # needs to be passed to the linker, but seemingly ldflags is
             # ignored by libint configure
 
             ./configure --prefix=${pkg_install_dir} \
-                        --with-cxx="$CXX $CXXFLAGS" \
-                        --with-cxx-optflags="$CXXFLAGS" \
+                        --with-cxx="$CXX $LIBINT_CXXFLAGS" \
+                        --with-cxx-optflags="$LIBINT_CXXFLAGS" \
                         --enable-fortran \
                         --libdir="${pkg_install_dir}/lib" \
                         > configure.log 2>&1
 
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
-            cd ../../..
+            cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
 
