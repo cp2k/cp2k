@@ -579,7 +579,7 @@ CONTAINS
             f1 = 2.0_dp
             force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a)-f1*force_ab(:)
             force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b)+f1*force_ab(:)
-            IF (use_virial) THEN
+            IF (use_virial .AND. dr > 1.e-3_dp) THEN
                IF (iatom == jatom) f1 = 1.0_dp
                CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
                IF (atprop%stress) THEN
@@ -691,18 +691,20 @@ CONTAINS
                atom_c = atom_of_kind(katom)
                rik = dcnum(iatom)%rik(:, i)
                drk = SQRT(SUM(rik(:)**2))
-               fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
-               force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdika(:)
-               force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdika(:)
-               fdikb(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
-               force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdikb(:)
-               force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdikb(:)
-               IF (use_virial) THEN
-                  fdik = fdika+fdikb
-                  CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                     CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+               IF (drk > 1.e-3_dp) THEN
+                  fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
+                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdika(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdika(:)
+                  fdikb(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
+                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdikb(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdikb(:)
+                  IF (use_virial) THEN
+                     fdik = fdika+fdikb
+                     CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                     IF (atprop%stress) THEN
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                     END IF
                   END IF
                END IF
             END DO
@@ -714,14 +716,16 @@ CONTAINS
                atom_c = atom_of_kind(katom)
                rik = dcnum(jatom)%rik(:, i)
                drk = SQRT(SUM(rik(:)**2))
-               fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
-               force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b)-fdik(:)
-               force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdik(:)
-               IF (use_virial) THEN
-                  CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                     CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+               IF (drk > 1.e-3_dp) THEN
+                  fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
+                  force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b)-fdik(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdik(:)
+                  IF (use_virial) THEN
+                     CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                     IF (atprop%stress) THEN
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                     END IF
                   END IF
                END IF
             END DO
