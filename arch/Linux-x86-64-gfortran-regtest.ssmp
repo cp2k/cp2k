@@ -1,5 +1,5 @@
-# Tested with: GFortran 6.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 1.1.6, Libxc 4.3.4
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2019)
+# Tested with: GFortran 7.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 1.1.6, Libxc 4.3.4
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2019)
 CC          = gcc
 CPP         =
 FC          = gfortran
