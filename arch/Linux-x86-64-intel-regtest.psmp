@@ -1,6 +1,7 @@
 # Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206 
 #              Intel MPI, MKL, Libint 1.1.6, Libxc 4.3.4, libxsmm 1.12, ELPA 2017.05.003, PLUMED 2.4.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2019)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2019)
 
 include      $(MPI_PATH)/plumed/2.4.1/lib/plumed/src/lib/Plumed.inc.static
 
@@ -15,7 +16,7 @@ LIBXC_LIB   = $(INTEL_DIR)/libxc/4.3.4/lib
 LIBXSMM_INC = $(INTEL_DIR)/libxsmm/1.12/include
 LIBXSMM_LIB = $(INTEL_DIR)/libxsmm/1.12/lib
 
-CC          = mpicc
+CC          = mpiicc
 CPP         =
 FC          = mpiifort
 LD          = mpiifort
@@ -26,7 +27,7 @@ DFLAGS      = -D__ELPA=201705 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4 \
               -D__parallel -D__SCALAPACK -D__CHECK_DIAG
 CFLAGS      = $(DFLAGS) -O2 -fopenmp
-FCFLAGS     = $(DFLAGS) -O2 -fopenmp
+FCFLAGS     = $(DFLAGS) -O2 -fopenmp -xHost
 FCFLAGS    += -fpp -free -funroll-loops
 FCFLAGS    += -fp-model precise
 FCFLAGS    += -g -traceback
@@ -40,6 +41,9 @@ LDFLAGS_C   = $(FCFLAGS) -static-intel -nofor_main
 MKL_LIB     = ${MKLROOT}/lib/intel64
 LIBS        = $(PLUMED_DEPENDENCIES) -lgsl -lgslcblas -lz
 LIBS       += $(ELPA_LIB)/libelpa_openmp.a -lstdc++
+LIBS       += $(LIBXC_LIB)/libxcf03.a $(LIBXC_LIB)/libxc.a
+LIBS       += $(LIBINT_LIB)/libderiv.a $(LIBINT_LIB)/libint.a
+LIBS       += $(LIBXSMM_LIB)/libxsmmf.a $(LIBXSMM_LIB)/libxsmm.a
 LIBS       += $(MKL_LIB)/libmkl_scalapack_lp64.a \
               -Wl,--start-group \
               $(MKL_LIB)/libmkl_intel_lp64.a \
@@ -47,9 +51,6 @@ LIBS       += $(MKL_LIB)/libmkl_scalapack_lp64.a \
               $(MKL_LIB)/libmkl_core.a \
               ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a \
               -Wl,--end-group
-LIBS       += $(LIBXC_LIB)/libxcf03.a $(LIBXC_LIB)/libxc.a
-LIBS       += $(LIBINT_LIB)/libderiv.a $(LIBINT_LIB)/libint.a
-LIBS       += $(LIBXSMM_LIB)/libxsmmf.a $(LIBXSMM_LIB)/libxsmm.a
 
 # Required due to memory leak that occurs if high optimisations are used
 mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
