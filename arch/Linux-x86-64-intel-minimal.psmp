@@ -13,9 +13,8 @@ AR          = ar -r
 CPPFLAGS    =
 DFLAGS      = -D__FFTW3 -D__MKL -D__MPI_VERSION=3 \
               -D__parallel -D__SCALAPACK
-CFLAGS      = $(DFLAGS) -O2
-FCFLAGS     = $(DFLAGS) -O2 -xHost
-FCFLAGS    += -fopenmp
+CFLAGS      = $(DFLAGS) -O2 -fopenmp
+FCFLAGS     = $(DFLAGS) -O2 -fopenmp -xHost
 FCFLAGS    += -fpp -fp-model precise -free -funroll-loops
 FCFLAGS    += -g -traceback
 FCFLAGS    += -I${MKLROOT}/include -I${MKLROOT}/include/fftw
