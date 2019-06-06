@@ -9,7 +9,7 @@
 !>      06.2012 created [Mauro Del Ben]
 !>      03.2019 separated from mp2_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
-MODULE mp2_ri_gpw_in
+MODULE mp2_integrals
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               abc_contract
    USE ai_overlap3,                     ONLY: overlap3
@@ -152,7 +152,7 @@ MODULE mp2_ri_gpw_in
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw_in'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_integrals'
 
    PUBLIC :: mp2_ri_gpw_compute_in, calc_potential_gpw
 
@@ -5754,4 +5754,4 @@ CONTAINS
 
    END SUBROUTINE calc_potential_gpw
 
-END MODULE mp2_ri_gpw_in
+END MODULE mp2_integrals

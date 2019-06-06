@@ -4,12 +4,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate RI-GPW-MP2 energy using pw
+!> \brief Routines to calculate RI-GPW-MP2 energy using pw
 !> \par History
 !>      06.2012 created [Mauro Del Ben]
 !>      03.2019 Refactored from mp2_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
-MODULE mp2_ri_gpw_en
+MODULE mp2_ri_gpw
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -37,7 +37,7 @@ MODULE mp2_ri_gpw_en
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw_en'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw'
 
    PUBLIC :: mp2_ri_gpw_compute_en
 
@@ -3033,4 +3033,4 @@ CONTAINS
 
    END SUBROUTINE Find_quasi_degenerate_ij
 
-END MODULE mp2_ri_gpw_en
+END MODULE mp2_ri_gpw

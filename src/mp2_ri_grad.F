@@ -50,7 +50,7 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
-   USE mp2_ri_gpw_in,                   ONLY: calc_potential_gpw
+   USE mp2_integrals,                   ONLY: calc_potential_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type

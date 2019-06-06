@@ -88,8 +88,8 @@ MODULE mp2_gpw
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_cphf,                        ONLY: solve_z_vector_eq
-   USE mp2_ri_gpw_en,                   ONLY: mp2_ri_gpw_compute_en
-   USE mp2_ri_gpw_in,                   ONLY: mp2_ri_gpw_compute_in
+   USE mp2_ri_gpw,                      ONLY: mp2_ri_gpw_compute_en
+   USE mp2_integrals,                   ONLY: mp2_ri_gpw_compute_in
    USE mp2_ri_grad,                     ONLY: calc_ri_mp2_nonsep
    USE mp2_types,                       ONLY: mp2_type
    USE particle_methods,                ONLY: get_particle_set
