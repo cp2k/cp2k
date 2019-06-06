@@ -11,12 +11,14 @@
     &END QS
     &SCF
       SCF_GUESS MOPAC
+      EPS_SCF 1.e-5
       &OT
          PRECONDITIONER FULL_SINGLE_INVERSE
          MINIMIZER DIIS
       &END
       &OUTER_SCF
          MAX_SCF  10
+         EPS_SCF 1.e-5
       &END
       MAX_SCF  10
     &END SCF
@@ -133,7 +135,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 5
+    STEPS 3
     TIMESTEP 0.48
     TEMPERATURE 330.0
   &END MD

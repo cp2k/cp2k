@@ -16,7 +16,8 @@
       &END 
     &END QS
     &SCF
-      SCF_GUESS CORE
+      SCF_GUESS MOPAC
+      EPS_SCF 1.E-5
       &MIXING
           METHOD DIRECT_P_MIXING
           ALPHA   0.75
@@ -25,7 +26,7 @@
     &END SCF
     &POISSON
       &EWALD
-       O_SPLINE 8
+       O_SPLINE 6
       &END EWALD
     &END POISSON
   &END DFT
@@ -141,7 +142,7 @@
 &MOTION
   &MD
     ENSEMBLE NPT_I
-    STEPS 5
+    STEPS 3
     TIMESTEP 0.48
     TEMPERATURE 330.0
     &THERMOSTAT
