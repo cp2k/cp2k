@@ -327,6 +327,9 @@ CONTAINS
 
       INTEGER                                            :: ilg
 
+      CPASSERT(init_lebedev_grids_done)
+      init_lebedev_grids_done = .FALSE.
+
       DO ilg = 1, nlg
          DEALLOCATE (lebedev_grid(ilg)%r, lebedev_grid(ilg)%w)
       END DO
