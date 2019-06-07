@@ -223,7 +223,7 @@
          DENS_CONV_MAX 0.07
          GRID_OPT .TRUE.
          TRUST_RAD 0.1
-         ADD_CONST_POT .TRUE.
+         POT_GUESS Fermi_Amaldi
          LEEUWEN-BAERENDS .TRUE.
       &END
     &END QS
