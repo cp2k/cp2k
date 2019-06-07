@@ -8,9 +8,9 @@
     &END QS
     &SCF
       SCF_GUESS MOPAC
-      &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   0.2
+      &OT
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_SINGLE_INVERSE
       &END
       MAX_SCF  20
     &END SCF
@@ -31,7 +31,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 9.865 9.865 9.865
+      ABC 6.000 6.000 6.000
     &END CELL
     &COORD
     O                  -4.583   5.333   1.560   H2O
@@ -48,7 +48,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 20
+    STEPS 10
     TIMESTEP [au_t] 0.5
     TEMPERATURE 330.0
   &END MD

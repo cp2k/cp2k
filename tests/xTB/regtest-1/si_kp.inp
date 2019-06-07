@@ -5,16 +5,12 @@
       METHOD xTB
       &xTB
          DO_EWALD T
-         &PARAMETER
-             DISPERSION_PARAMETER_FILE dftd3.dat
-         &END PARAMETER
       &END XTB
     &END QS
     &POISSON
       &EWALD
        ALPHA 2.0
        EWALD_TYPE SPME
-       GMAX 24
       &END EWALD
     &END POISSON
     &KPOINTS

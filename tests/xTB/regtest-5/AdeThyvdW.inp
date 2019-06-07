@@ -1,26 +1,34 @@
 &GLOBAL
   PROJECT     ATvdW
   RUN_TYPE    DEBUG
-  PRINT_LEVEL MEDIUM
+  PRINT_LEVEL LOW
 &END GLOBAL
 &FORCE_EVAL
   &DFT
     &QS
       METHOD xTB
-      EPS_DEFAULT 1.0e-12
+      EPS_DEFAULT 1.0e-20
       &xTB
         DO_EWALD FALSE
       &END xTB
     &END QS
     &SCF
       SCF_GUESS MOPAC
-      MAX_SCF   200
-      EPS_SCF   1.0e-7
+      MAX_SCF   10
+      EPS_SCF   5.0e-6
+      &OT ON
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+         MAX_SCF   10
+         EPS_SCF   5.0e-6
+      &END
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
+      ABC 12.0 12.0 12.0
       PERIODIC NONE
     &END CELL
     &COORD
@@ -60,5 +68,7 @@
 &END FORCE_EVAL
 &DEBUG
   DEBUG_FORCES     .TRUE.
-  STOP_ON_MISMATCH .FALSE.
+  STOP_ON_MISMATCH .TRUE.
+  DX 1.0E-3 
+  EPS_NO_ERROR_CHECK 2.0E-5
 &END DEBUG

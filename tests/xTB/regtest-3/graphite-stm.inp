@@ -6,6 +6,7 @@
       &xTB
         DO_EWALD T
       &END
+      EPS_DEFAULT 1.e-8
     &END QS
     &MGRID
        CUTOFF  100
@@ -16,6 +17,7 @@
       EPS_SCF 1.E-6
       MAX_SCF 30
       &OT
+        MINIMIZER DIIS
         PRECONDITIONER FULL_ALL
         ENERGY_GAP 0.01
       &END
