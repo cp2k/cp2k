@@ -6,12 +6,12 @@
 CH2O_tddfpt_stda-s-1.inp                                   37    1.0E-05               0.349917E+00
 CH2O_tddfpt_stda-pbe-s.inp                                 37    1.0E-05               0.125452E+00
 CH2O_tddfpt_stda-xtb-s.inp                                 37    1.0E-05               0.150482E+00
-CH2O_stda-xtb-s.inp                                        37    1.0E-05               0.219006E-01
+CH2O_stda-xtb-s.inp                                        37    1.0E-05               0.256891E-01
 H2O_tddfpt_stda-pbe-s.inp                                  37    1.0E-05               0.599658E+00
 H2O_tddfpt_stda-pbe-t.inp                                  37    1.0E-05               0.595565E+00
 H2O_tddfpt_stda-pbe0-s.inp                                 37    1.0E-05               0.637391E+00
 H2O_tddfpt_stda-pbe0-t.inp                                 37    1.0E-05               0.633489E+00
 H2O_tddfpt_stda-s-1.inp                                    37    1.0E-05               0.173064E+00
 NO_tddfpt_stda-s-1.inp                                     37    1.0E-05               0.375614E+00
-water_xTB.inp                                              37    1.0E-05               0.184417E+00
+water_xTB.inp                                              37    1.0E-05               0.185372E+00
 #EOF

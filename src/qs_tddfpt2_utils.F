@@ -29,13 +29,14 @@ MODULE qs_tddfpt2_utils
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add_on_diag,&
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
@@ -665,9 +666,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, n_spins, na, nb, nhomo, &
-                                                            nl, nos, nu
+                                                            nl, nos, nrow, nu, nvirt
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: coeff, cvec
+      TYPE(cp_fm_type), POINTER                          :: cmos, coeff, cvec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -677,24 +678,85 @@ CONTAINS
       n_spins = SIZE(gs_mos)
       CPASSERT(n_spins == SIZE(matrix_ks))
 
-      ! virtual shift
-      IF (ev_shift /= 0.0_dp) THEN
-         CALL get_qs_env(qs_env, mos=mos, matrix_s=matrix_s)
-         smat => matrix_s(1)%matrix
-         DO ispin = 1, n_spins
-            CALL dbcsr_add_on_diag(matrix_ks(ispin)%matrix, ev_shift)
-            coeff => gs_mos(ispin)%mos_occ
-            CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
-            CALL cp_fm_create(cvec, fmstruct)
-            CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nhomo, 1.0_dp, 0.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, coeff, cvec, nhomo, &
-                                       -ev_shift, keep_sparsity=.TRUE.)
-            CALL cp_fm_release(cvec)
-         END DO
-      END IF
-      ! open shell orbital shift
       IF (eos_shift /= 0.0_dp .AND. n_spins > 1) THEN
          CPABORT("eos_shift not implemented")
+         CALL get_qs_env(qs_env, mos=mos, matrix_s=matrix_s)
+         smat => matrix_s(1)%matrix
+         CALL cp_fm_get_info(gs_mos(1)%mos_occ, ncol_global=na)
+         CALL cp_fm_get_info(gs_mos(2)%mos_occ, ncol_global=nb)
+         nl = MIN(na, nb)
+         nu = MAX(na, nb)
+         ! open shell orbital shift
+         DO ispin = 1, n_spins
+            coeff => gs_mos(ispin)%mos_occ
+            CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
+            IF (nhomo == nu) THEN
+               ! downshift with -eos_shift using occupied orbitals
+               nos = nu-nl
+               CALL cp_fm_create(cmos, fmstruct)
+               CALL cp_fm_get_info(coeff, nrow_global=nrow)
+               CALL cp_fm_to_fm_submat(coeff, cmos, nrow, nos, 1, nl+1, 1, 1)
+               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_dbcsr_sm_fm_multiply(smat, cmos, cvec, nos, 1.0_dp, 0.0_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
+                                          alpha=-eos_shift, keep_sparsity=.TRUE.)
+               CALL cp_fm_release(cmos)
+               CALL cp_fm_release(cvec)
+            ELSE
+               ! upshift with eos_shift using virtual orbitals
+               coeff => gs_mos(ispin)%mos_virt
+               CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nvirt)
+               nos = nu-nhomo
+               CPASSERT(nvirt >= nos)
+               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nos, 1.0_dp, 0.0_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
+                                          alpha=eos_shift, keep_sparsity=.TRUE.)
+               CALL cp_fm_release(cvec)
+            END IF
+         END DO
+         ! virtual shift
+         IF (ev_shift /= 0.0_dp) THEN
+            DO ispin = 1, n_spins
+               CALL dbcsr_add(matrix_ks(ispin)%matrix, smat, &
+                              alpha_scalar=1.0_dp, beta_scalar=ev_shift)
+               coeff => gs_mos(ispin)%mos_occ
+               CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
+               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nhomo, 1.0_dp, 0.0_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nhomo, &
+                                          alpha=-ev_shift, keep_sparsity=.TRUE.)
+               CALL cp_fm_release(cvec)
+               IF (nhomo < nu) THEN
+                  nos = nu-nhomo
+                  coeff => gs_mos(ispin)%mos_virt
+                  CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nvirt)
+                  CPASSERT(nvirt >= nos)
+                  CALL cp_fm_create(cvec, fmstruct)
+                  CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nos, 1.0_dp, 0.0_dp)
+                  CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
+                                             alpha=-ev_shift, keep_sparsity=.TRUE.)
+                  CALL cp_fm_release(cvec)
+               END IF
+            END DO
+         END IF
+      ELSE
+         ! virtual shift
+         IF (ev_shift /= 0.0_dp) THEN
+            CALL get_qs_env(qs_env, mos=mos, matrix_s=matrix_s)
+            smat => matrix_s(1)%matrix
+            DO ispin = 1, n_spins
+               CALL dbcsr_add(matrix_ks(ispin)%matrix, smat, &
+                              alpha_scalar=1.0_dp, beta_scalar=ev_shift)
+               coeff => gs_mos(ispin)%mos_occ
+               CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
+               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nhomo, 1.0_dp, 0.0_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nhomo, &
+                                          alpha=-ev_shift, keep_sparsity=.TRUE.)
+               CALL cp_fm_release(cvec)
+            END DO
+         END IF
       END IF
       ! set eigenvalues
       IF (eos_shift == 0.0_dp .OR. n_spins == 1) THEN
