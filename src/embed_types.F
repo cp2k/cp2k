@@ -75,15 +75,16 @@ MODULE embed_types
                                                    max_grid_step, max_subsys_dens_diff
       INTEGER                                   :: n_iter, i_iter, dimen_aux, last_accepted, dimen_var_aux
       REAL(KIND=dp)                             :: lambda, allowed_decrease, max_trad, min_trad, &
-                                                   grad_norm, vw_cutoff, vw_smooth_cutoff_range
-      TYPE(pw_p_type), POINTER                  :: const_pot, prev_embed_pot, prev_spin_embed_pot
+                                                   grad_norm, vw_cutoff, vw_smooth_cutoff_range, eta
+      TYPE(pw_p_type), POINTER                  :: const_pot, prev_embed_pot, prev_spin_embed_pot, pot_diff
       TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad, prev_grid_pot, prev_subsys_dens, v_w
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
                                                    conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
                                                    add_const_pot, converged, read_embed_pot, &
                                                    read_embed_pot_cube, change_spin, open_shell_embed, &
-                                                   grid_opt, leeuwen, fab
+                                                   grid_opt, leeuwen, fab, Coulomb_guess, Fermi_Amaldi, &
+                                                   diff_guess
       INTEGER, ALLOCATABLE, DIMENSION(:)        :: all_nspins
       TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
 

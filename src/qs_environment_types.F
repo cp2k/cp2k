@@ -300,6 +300,8 @@ MODULE qs_environment_types
       TYPE(pw_p_type), POINTER                              :: spin_embed_pot
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env
+      ! Resp charges
+      REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs
    END TYPE qs_environment_type
 
 ! **************************************************************************************************
@@ -477,6 +479,7 @@ CONTAINS
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 !> \param polar_env ...
+!> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -507,7 +510,7 @@ CONTAINS
                          lri_env, lri_density, dispersion_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
-                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env)
+                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, rhs)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -638,6 +641,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', routineP = moduleN//':'//routineN
 
@@ -705,6 +709,9 @@ CONTAINS
 
       ! Polarisability tensor
       IF (PRESENT(polar_env)) polar_env => qs_env%polar_env
+
+      ! Resp charges
+      IF (PRESENT(rhs)) rhs => qs_env%rhs
 
       IF (PRESENT(rho_atom_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -1015,6 +1022,7 @@ CONTAINS
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 !> \param polar_env ...
+!> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -1033,7 +1041,7 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env)
+                         spin_embed_pot, polar_env, rhs)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1102,6 +1110,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', routineP = moduleN//':'//routineN
 
@@ -1275,6 +1284,9 @@ CONTAINS
       IF (PRESENT(dispersion_env)) qs_env%dispersion_env => dispersion_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
+
+      ! Resp charges
+      IF (PRESENT(rhs)) qs_env%rhs => rhs
 
    END SUBROUTINE set_qs_env
 
@@ -1506,6 +1518,11 @@ CONTAINS
                ENDDO
                DEALLOCATE (qs_env%WannierCentres)
             ENDIF
+
+            ! Resp charges
+            IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
+
+            ! Embedding potentials if provided as input
             ! now we are ready to deallocate the full structure
             DEALLOCATE (qs_env)
          END IF

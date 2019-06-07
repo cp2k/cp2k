@@ -85,7 +85,8 @@ MODULE qs_resp
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_rho_resp_single
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
@@ -144,9 +145,11 @@ CONTAINS
                                                             output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       LOGICAL                                            :: has_resp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs_to_save
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -225,6 +228,15 @@ CONTAINS
          CALL print_resp_charges(qs_env, resp_env, output_unit, natom)
          CALL print_fitting_points(qs_env, resp_env)
          CALL print_pot_from_resp_charges(qs_env, resp_env, particles, natom, output_unit)
+
+         ! In case of density functional embedding we need to save  the charges to qs_env
+         NULLIFY (dft_control)
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         IF (dft_control%qs_control%ref_embed_subsys) THEN
+            ALLOCATE (rhs_to_save(SIZE(resp_env%rhs)))
+            rhs_to_save = resp_env%rhs
+            CALL set_qs_env(qs_env, rhs=rhs_to_save)
+         ENDIF
 
          DEALLOCATE (ipiv)
          CALL resp_dealloc(resp_env, rep_sys)

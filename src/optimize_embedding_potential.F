@@ -42,11 +42,9 @@ MODULE optimize_embedding_potential
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE embed_types,                     ONLY: opt_embed_pot_type
    USE force_env_types,                 ONLY: force_env_type
-   USE input_constants,                 ONLY: embed_grid_angstrom,&
-                                              embed_grid_bohr,&
-                                              embed_level_shift,&
-                                              embed_quasi_newton,&
-                                              embed_steep_desc
+   USE input_constants,                 ONLY: &
+        embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
+        embed_quasi_newton, embed_resp, embed_steep_desc
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_rval,&
@@ -56,9 +54,11 @@ MODULE optimize_embedding_potential
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE lri_environment_types,           ONLY: lri_kind_type
+   USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
                                               mp_sum
+   USE mixed_environment_utils,         ONLY: get_subsys_map_index
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -66,6 +66,8 @@ MODULE optimize_embedding_potential
    USE pw_methods,                      ONLY: &
         pw_axpy, pw_copy, pw_derive, pw_dr2, pw_integral_ab, pw_integrate_function, pw_scale, &
         pw_transfer, pw_zero
+   USE pw_poisson_methods,              ONLY: pw_poisson_solve
+   USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -76,7 +78,7 @@ MODULE optimize_embedding_potential
                                               pw_p_type,&
                                               pw_release,&
                                               pw_type
-   USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
+   USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -112,7 +114,7 @@ MODULE optimize_embedding_potential
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
              conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
              read_embed_pot, understand_spin_states, given_embed_pot, print_rho_spin_diff, &
-             print_pot_simple_grid, get_prev_density, get_max_subsys_diff
+             print_pot_simple_grid, get_prev_density, get_max_subsys_diff, Coulomb_guess
 
 CONTAINS
 
@@ -199,23 +201,29 @@ CONTAINS
 !> \param qs_env ...
 !> \param embed_pot ...
 !> \param add_const_pot ...
+!> \param Fermi_Amaldi ...
 !> \param const_pot ...
 !> \param open_shell_embed ...
 !> \param spin_embed_pot ...
+!> \param pot_diff ...
+!> \param Coulomb_guess ...
+!> \param grid_opt ...
 ! **************************************************************************************************
-   SUBROUTINE init_embed_pot(qs_env, embed_pot, add_const_pot, const_pot, open_shell_embed, spin_embed_pot)
+   SUBROUTINE init_embed_pot(qs_env, embed_pot, add_const_pot, Fermi_Amaldi, const_pot, open_shell_embed, &
+                             spin_embed_pot, pot_diff, Coulomb_guess, grid_opt)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: embed_pot
-      LOGICAL                                            :: add_const_pot
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: const_pot
+      LOGICAL                                            :: add_const_pot, Fermi_Amaldi
+      TYPE(pw_p_type), POINTER                           :: const_pot
       LOGICAL                                            :: open_shell_embed
-      TYPE(pw_p_type), POINTER                           :: spin_embed_pot
+      TYPE(pw_p_type), POINTER                           :: spin_embed_pot, pot_diff
+      LOGICAL                                            :: Coulomb_guess, grid_opt
 
       INTEGER                                            :: nelectrons
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       REAL(KIND=dp)                                      :: factor
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_hartree_r_space, vppl
+      TYPE(pw_p_type)                                    :: v_hartree_r_space
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       ! Extract  plane waves environment
@@ -246,44 +254,49 @@ CONTAINS
          CALL pw_zero(spin_embed_pot%pw)
       ENDIF
 
-      ! Add constant potential if requested
-      IF (add_const_pot) THEN
-         ! First, pseudopotentials without error function
-         NULLIFY (vppl%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, &
+      ! Coulomb guess/constant potential
+      IF (Coulomb_guess) THEN
+         NULLIFY (pot_diff)
+         ALLOCATE (pot_diff)
+         NULLIFY (pot_diff%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, pot_diff%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
+         CALL pw_zero(pot_diff%pw)
+      ENDIF
 
-         CALL calculate_ppl_grid(vppl, qs_env)
-
-         ! Add Fermi-Amaldi potential on the reference density
+      ! Initialize constant part of the embedding potential
+      IF ((add_const_pot) .AND. (.NOT. (grid_opt))) THEN
+         ! Now the constant potential is the Coulomb one
          NULLIFY (const_pot)
          ALLOCATE (const_pot)
-         NULLIFY (const_pot%pw, v_hartree_r_space%pw)
+         NULLIFY (const_pot%pw)
 
          CALL pw_pool_create_pw(auxbas_pw_pool, const_pot%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
+         CALL pw_zero(const_pot%pw)
+      ENDIF
+
+      ! Add Fermi-Amaldi potential if requested
+      IF (Fermi_Amaldi) THEN
 
          ! Extract  Hartree potential
+         NULLIFY (v_hartree_r_space%pw)
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, &
                          v_hartree_rspace=v_hartree_r_space%pw)
-         CALL pw_copy(v_hartree_r_space%pw, const_pot%pw)
+         CALL pw_copy(v_hartree_r_space%pw, embed_pot%pw)
 
          ! Calculate the number of electrons
          nelectrons = nelectron_spin(1)+nelectron_spin(2)
          factor = (REAL(nelectrons)-1.0_dp)/(REAL(nelectrons))
-         !factor = (-1.0_dp)/(REAL(nelectrons))
 
          ! Scale the Hartree potential to get Fermi-Amaldi
-         CALL pw_scale(const_pot%pw, a=factor)
+         CALL pw_scale(embed_pot%pw, a=factor)
 
-         ! Sum pseudo and Fermi-Amaldi
-         CALL pw_axpy(vppl%pw, const_pot%pw)
-         CALL pw_copy(const_pot%pw, embed_pot%pw)
+         ! Copy Fermi-Amaldi to embedding potential for basis-based optimization
+         IF (.NOT. (grid_opt)) CALL pw_copy(embed_pot%pw, embed_pot%pw)
 
-         ! Give back plane waves pool for pseudo
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vppl%pw)
       ENDIF
 
    END SUBROUTINE init_embed_pot
@@ -474,7 +487,7 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(section_vals_type), POINTER                   :: opt_embed_section
 
-      INTEGER                                            :: embed_optimizer
+      INTEGER                                            :: embed_guess, embed_optimizer
 
       ! Read keywords
       CALL section_vals_val_get(opt_embed_section, "REG_LAMBDA", &
@@ -498,8 +511,8 @@ CONTAINS
       CALL section_vals_val_get(opt_embed_section, "SPIN_DENS_CONV_INT", &
                                 r_val=opt_embed%conv_int_spin)
 
-      CALL section_vals_val_get(opt_embed_section, "ADD_CONST_POT", &
-                                l_val=opt_embed%add_const_pot)
+      CALL section_vals_val_get(opt_embed_section, "CHARGE_DISTR_WIDTH", &
+                                r_val=opt_embed%eta)
 
       CALL section_vals_val_get(opt_embed_section, "READ_EMBED_POT", &
                                 l_val=opt_embed%read_embed_pot)
@@ -535,6 +548,36 @@ CONTAINS
       CASE DEFAULT
          opt_embed%steep_desc = .TRUE.
       END SELECT
+
+      CALL section_vals_val_get(opt_embed_section, "POT_GUESS", i_val=embed_guess)
+      SELECT CASE (embed_guess)
+      CASE (embed_none)
+         opt_embed%add_const_pot = .FALSE.
+         opt_embed%Fermi_Amaldi = .FALSE.
+         opt_embed%Coulomb_guess = .FALSE.
+         opt_embed%diff_guess = .FALSE.
+      CASE (embed_diff)
+         opt_embed%add_const_pot = .TRUE.
+         opt_embed%Fermi_Amaldi = .FALSE.
+         opt_embed%Coulomb_guess = .FALSE.
+         opt_embed%diff_guess = .TRUE.
+      CASE (embed_fa)
+         opt_embed%add_const_pot = .TRUE.
+         opt_embed%Fermi_Amaldi = .TRUE.
+         opt_embed%Coulomb_guess = .FALSE.
+         opt_embed%diff_guess = .FALSE.
+      CASE (embed_resp)
+         opt_embed%add_const_pot = .TRUE.
+         opt_embed%Fermi_Amaldi = .TRUE.
+         opt_embed%Coulomb_guess = .TRUE.
+         opt_embed%diff_guess = .FALSE.
+      CASE DEFAULT
+         opt_embed%add_const_pot = .FALSE.
+         opt_embed%Fermi_Amaldi = .FALSE.
+         opt_embed%Coulomb_guess = .FALSE.
+         opt_embed%diff_guess = .FALSE.
+      END SELECT
+
    END SUBROUTINE read_opt_embed_section
 
 ! **************************************************************************************************
@@ -908,9 +951,14 @@ CONTAINS
 
       DEALLOCATE (opt_embed%all_nspins)
 
-      IF (opt_embed%add_const_pot) THEN
+      IF ((opt_embed%add_const_pot) .AND. (.NOT. (opt_embed%grid_opt))) THEN
          CALL pw_release(opt_embed%const_pot%pw)
          DEALLOCATE (opt_embed%const_pot)
+      ENDIF
+
+      IF (opt_embed%Coulomb_guess) THEN
+         CALL pw_release(opt_embed%pot_diff%pw)
+         DEALLOCATE (opt_embed%pot_diff)
       ENDIF
 
       IF (opt_embed%fab) THEN
@@ -927,6 +975,106 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE release_opt_embed
+
+! **************************************************************************************************
+!> \brief Calculates subsystem Coulomb potential from the RESP charges of the total system
+!> \param v_rspace ...
+!> \param rhs ...
+!> \param mapping_section ...
+!> \param qs_env ...
+!> \param nforce_eval ...
+!> \param iforce_eval ...
+!> \param eta ...
+! **************************************************************************************************
+   SUBROUTINE Coulomb_guess(v_rspace, rhs, mapping_section, qs_env, nforce_eval, iforce_eval, eta)
+      TYPE(pw_p_type)                                    :: v_rspace
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs
+      TYPE(section_vals_type), POINTER                   :: mapping_section
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: nforce_eval, iforce_eval
+      REAL(KIND=dp)                                      :: eta
+
+      INTEGER                                            :: iparticle, jparticle, natom
+      INTEGER, DIMENSION(:), POINTER                     :: map_index
+      REAL(KIND=dp)                                      :: dvol, normalize_factor
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs_subsys
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: rho_resp, v_resp_gspace, v_resp_rspace
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      ! Get available particles
+      NULLIFY (subsys)
+      CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env)
+      CALL qs_subsys_get(subsys, particles=particles)
+      natom = particles%n_els
+
+      ALLOCATE (rhs_subsys(natom))
+
+      NULLIFY (map_index)
+      CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
+                                map_index, .TRUE.)
+
+      ! Mapping particles from iforce_eval environment to the embed env
+      DO iparticle = 1, natom
+         jparticle = map_index(iparticle)
+         rhs_subsys(iparticle) = rhs(jparticle)
+      END DO
+
+      ! Prepare plane waves
+      NULLIFY (auxbas_pw_pool)
+
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                      poisson_env=poisson_env)
+
+      CALL pw_pool_create_pw(auxbas_pw_pool, &
+                             v_resp_gspace%pw, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+
+      CALL pw_pool_create_pw(auxbas_pw_pool, &
+                             v_resp_rspace%pw, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_resp%pw, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+
+      ! Calculate charge density
+      CALL pw_zero(rho_resp%pw)
+      CALL calculate_rho_resp_all(rho_resp, rhs_subsys, natom, eta, qs_env)
+
+      ! Calculate potential
+      CALL pw_zero(v_resp_gspace%pw)
+      CALL pw_poisson_solve(poisson_env, rho_resp%pw, &
+                            vhartree=v_resp_gspace%pw)
+      CALL pw_zero(v_resp_rspace%pw)
+      CALL pw_transfer(v_resp_gspace%pw, v_resp_rspace%pw)
+      dvol = v_resp_rspace%pw%pw_grid%dvol
+      CALL pw_scale(v_resp_rspace%pw, dvol)
+      normalize_factor = SQRT((eta/pi)**3)
+      !normalize_factor = -2.0_dp
+      CALL pw_scale(v_resp_rspace%pw, normalize_factor)
+
+      ! Hard copy potential
+      v_rspace%pw%cr3d(:, :, :) = v_resp_rspace%pw%cr3d(:, :, :)
+
+      ! Release plane waves
+      CALL pw_release(v_resp_gspace%pw)
+      CALL pw_release(v_resp_rspace%pw)
+      CALL pw_release(rho_resp%pw)
+
+      ! Deallocate map_index array
+      IF (ASSOCIATED(map_index)) THEN
+         DEALLOCATE (map_index)
+      END IF
+      ! Deallocate charges
+      DEALLOCATE (rhs_subsys)
+
+   END SUBROUTINE Coulomb_guess
 
 ! **************************************************************************************************
 !> \brief Creates a subsystem embedding potential

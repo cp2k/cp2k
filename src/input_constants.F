@@ -1115,5 +1115,9 @@ MODULE input_constants
                                                embed_level_shift = 2
    INTEGER, PARAMETER, PUBLIC               :: embed_grid_bohr = 0, &
                                                embed_grid_angstrom = 1
+   INTEGER, PARAMETER, PUBLIC               :: embed_none = 0, &
+                                               embed_diff = 1, &
+                                               embed_fa = 2, &
+                                               embed_resp = 3
 
 END MODULE input_constants

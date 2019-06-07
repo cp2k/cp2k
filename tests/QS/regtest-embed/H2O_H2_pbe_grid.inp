@@ -213,10 +213,11 @@
       &OPT_EMBED
          REG_LAMBDA 0.00001
          N_ITER 50
-         DENS_CONV_INT 0.6
-         DENS_CONV_MAX 0.035
+         DENS_CONV_INT 0.55
+         DENS_CONV_MAX 0.03
          GRID_OPT .TRUE.
          TRUST_RAD 1.0
+         POT_GUESS DIFF
       &END
     &END QS
     &SCF

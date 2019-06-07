@@ -240,7 +240,7 @@ H    6.0     6.2645     7.42105263158
          TRUST_RAD 0.1
          DENS_CONV_INT 1.35
          DENS_CONV_MAX 0.2
-         ADD_CONST_POT .TRUE.
+         POT_GUESS Fermi_Amaldi
          OPTIMIZER LEVEL_SHIFT
          GRID_OPT .FALSE.
          &EMBED_POT_CUBE MEDIUM
