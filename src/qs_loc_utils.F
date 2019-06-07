@@ -48,7 +48,7 @@ MODULE qs_loc_utils
                                               dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_constants,                 ONLY: &
-        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, &
+        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, &
         energy_loc_range, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_all, state_loc_list, &
         state_loc_none, state_loc_range
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -1465,6 +1465,8 @@ CONTAINS
                                    i_val=localized_wfn_control%min_or_max)
          CALL section_vals_val_get(loc_section, "JACOBI_FALLBACK", &
                                    l_val=localized_wfn_control%jacobi_fallback)
+         CALL section_vals_val_get(loc_section, "JACOBI_REFINEMENT", &
+                                   l_val=localized_wfn_control%jacobi_refinement)
          CALL section_vals_val_get(loc_section, "METHOD", &
                                    i_val=localized_wfn_control%localization_method)
          CALL section_vals_val_get(loc_section, "OPERATOR", &
@@ -1648,6 +1650,9 @@ CONTAINS
             CASE (do_loc_none)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "LOCALIZE| No unitary transformation is applied"
+            CASE (do_loc_scdm)
+                    WRITE(UNIT=output_unit, FMT="(T2,A)") &
+                  "LOCALIZE| Pivoted QR decomposition is used to transform coefficients"
             END SELECT
 
          END IF ! process has output_unit
