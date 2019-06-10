@@ -20,8 +20,8 @@
 #include "CL/opencl.h"
 
 // local dependencies
-#include "fft_config.h"
-#include "openclUtils.h"
+#include "fft_fpga.h"
+#include "opencl_utils.h"
 
 // host variables
 static cl_platform_id platform = NULL;

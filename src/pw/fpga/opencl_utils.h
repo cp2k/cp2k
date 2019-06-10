@@ -7,8 +7,8 @@
  *  Author: Arjun Ramaswami
  *****************************************************************************/
 
-#ifndef openclUtils_h__
-#define openclUtils_h__
+#ifndef OPENCL_UTILS_H
+#define OPENCL_UTILS_H
 
 #if defined ( __PW_FPGA )
 
@@ -38,4 +38,4 @@ void _checkError(const char *file, int line, const char *func, cl_int err, const
 
 #endif
 
-#endif // openclUtils_h__
+#endif // OPENCL_UTILS_H
