@@ -1732,7 +1732,6 @@ CONTAINS
          opt_embed%i_iter = i_iter
 
          ! Set the density difference as the negative reference one
-         WRITE (*, *) 'embed pot norm', pw_integrate_function(fun=embed_pot%pw, oprt='ABS')
          CALL pw_zero(diff_rho_r%pw)
          CALL get_qs_env(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, dft_control=dft_control)
          nspins = dft_control%nspins
