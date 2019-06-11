@@ -128,7 +128,6 @@ MODULE force_env_methods
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_integral_ab,&
-                                              pw_integrate_function,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
