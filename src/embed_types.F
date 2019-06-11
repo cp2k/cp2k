@@ -83,7 +83,7 @@ MODULE embed_types
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
                                                    add_const_pot, converged, read_embed_pot, &
                                                    read_embed_pot_cube, change_spin, open_shell_embed, &
-                                                   grid_opt, leeuwen, fab, Coulomb_guess, Fermi_Amaldi, &
+                                                   grid_opt, leeuwen, fab, coulomb_guess, fermi_amaldi, &
                                                    diff_guess
       INTEGER, ALLOCATABLE, DIMENSION(:)        :: all_nspins
       TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
