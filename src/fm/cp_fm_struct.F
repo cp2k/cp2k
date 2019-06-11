@@ -186,8 +186,13 @@ CONTAINS
       CALL cp_blacs_env_retain(fmstruct%context)
       CALL cp_para_env_retain(fmstruct%para_env)
 
-      IF (PRESENT(nrow_global)) fmstruct%nrow_global = nrow_global
-      IF (PRESENT(ncol_global)) fmstruct%ncol_global = ncol_global
+      IF (PRESENT(nrow_global)) THEN
+         fmstruct%nrow_global = nrow_global
+         fmstruct%local_leading_dimension = 1
+      END IF
+      IF (PRESENT(ncol_global)) THEN
+         fmstruct%ncol_global = ncol_global
+      END IF
 
       ! try to avoid small left-over blocks (anyway naive)
       IF (PRESENT(nrow_block)) THEN
@@ -237,7 +242,8 @@ CONTAINS
       fmstruct%nrow_locals(:) = fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
       fmstruct%ncol_locals(:) = fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
 
-      IF (SUM(fmstruct%ncol_locals) .NE. fmstruct%ncol_global .OR. SUM(fmstruct%nrow_locals) .NE. fmstruct%nrow_global) THEN
+      IF (SUM(fmstruct%ncol_locals) .NE. fmstruct%ncol_global .OR. &
+          SUM(fmstruct%nrow_locals) .NE. fmstruct%nrow_global) THEN
          ! try to collect some output if this is going to happen again
          ! this seems to trigger on blanc, but should really never happen
          logger => cp_get_default_logger()
