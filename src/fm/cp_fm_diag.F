@@ -283,7 +283,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
 #else
-      INTEGER                                  :: liwork, lwork
+      INTEGER                                  :: liwork, lwork, nl
       INTEGER, DIMENSION(:), POINTER           :: iwork
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m
       REAL(KIND=dp), DIMENSION(:), POINTER     :: work
@@ -322,8 +322,9 @@ CONTAINS
       work(:) = 0.0_dp
       ALLOCATE (iwork(1))
       iwork(:) = 0
+      nl = SIZE(m, 1)
 
-      CALL dsyevd('V', 'U', n, m(1, 1), n, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
+      CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
          CPABORT("ERROR in DSYEVD: Could not retrieve work array sizes")
@@ -340,7 +341,7 @@ CONTAINS
       ALLOCATE (iwork(liwork))
       iwork(:) = 0
 
-      CALL dsyevd('V', 'U', n, m(1, 1), n, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
+      CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
          CPABORT("Matrix diagonalization failed")
@@ -521,6 +522,7 @@ CONTAINS
       LOGICAL, DIMENSION(5)                        :: halt
 #endif
 #else
+      INTEGER                                               :: nla, nlz
       INTEGER, EXTERNAL                            :: ilaenv
 #endif
 
@@ -670,9 +672,11 @@ CONTAINS
       ALLOCATE (iwork(liwork))
       ALLOCATE (work(lwork))
       info = 0
+      nla = SIZE(a, 1)
+      nlz = SIZE(z, 1)
 
-      CALL dsyevx(job_type, "I", "U", n, a(1, 1), n, vl, vu, 1, neig_local, abstol, m, w, z(1, 1), n, work(1), lwork, &
-                  iwork(1), ifail(1), info)
+      CALL dsyevx(job_type, "I", "U", n, a(1, 1), nla, vl, vu, 1, neig_local, &
+                  abstol, m, w, z(1, 1), nlz, work(1), lwork, iwork(1), ifail(1), info)
 
       ! Error handling
 
