@@ -666,12 +666,12 @@ CONTAINS
                        do_loc_jacobi, &
                        do_loc_crazy, &
                        do_loc_l1_norm_sd, &
-                       do_loc_direct,do_loc_scdm/), &
+                       do_loc_direct, do_loc_scdm/), &
          enum_desc=s2a("No localization is applied", &
                        "Using 2 x 2 rotations of the orbitals, slow but robust", &
                        "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster", &
                        "Steepest descent minimization of an approximate l1 norm", &
-                       "Using a direct minimisation approacha","Use QR factorization"), &
+                       "Using a direct minimisation approacha", "Use QR factorization"), &
          default_i_val=do_loc_jacobi)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -690,7 +690,6 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART", &
                           description="Restart the localization from a set of orbitals"// &

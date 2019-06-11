@@ -1651,7 +1651,7 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "LOCALIZE| No unitary transformation is applied"
             CASE (do_loc_scdm)
-                    WRITE(UNIT=output_unit, FMT="(T2,A)") &
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "LOCALIZE| Pivoted QR decomposition is used to transform coefficients"
             END SELECT
 
