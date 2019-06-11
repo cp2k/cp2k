@@ -28,8 +28,7 @@ MODULE qs_localization_methods
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                               cp_fm_gemm,&
@@ -1971,18 +1970,22 @@ CONTAINS
 
    END SUBROUTINE eberlein
 
-   SUBROUTINE zij_matrix(vectors,op_sm_set,zij_fm_set)
+! **************************************************************************************************
+!> \brief ...
+!> \param vectors ...
+!> \param op_sm_set ...
+!> \param zij_fm_set ...
+! **************************************************************************************************
+   SUBROUTINE zij_matrix(vectors, op_sm_set, zij_fm_set)
 
       TYPE(cp_fm_type), POINTER                          :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
 
+      CHARACTER(len=*), PARAMETER :: routineN = 'zij_matrix', routineP = moduleN//':'//routineN
+
       INTEGER                                            :: handle, i, j, nao, nmoloc
-
       TYPE(cp_fm_type), POINTER                          :: opvec
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'zij_matrix', &
-           routineP = moduleN//':'//routineN
 
       CALL timeset(routineN, handle)
 
@@ -2007,21 +2010,23 @@ CONTAINS
 
    END SUBROUTINE zij_matrix
 
-
+! **************************************************************************************************
+!> \brief ...
+!> \param vectors ...
+! **************************************************************************************************
    SUBROUTINE scdm_qrfact(vectors)
 
       TYPE(cp_fm_type), POINTER                          :: vectors
 
-      INTEGER                                            :: handle, info, lwork, ncolT, nrowT
-      INTEGER, DIMENSION(9)                              :: descc
-      integer, allocatable, dimension(:)                 :: ipiv
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: work, tau
-      REAL(KIND=dp), DIMENSION(:,:), POINTER             :: a
-      TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
-      TYPE(cp_fm_struct_type), POINTER                   :: cstruct
+      CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact', &
-           routineP = moduleN//':'//routineN
+      INTEGER                                            :: handle, info, lwork, ncolT, nrowT
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
+      INTEGER, DIMENSION(9)                              :: descc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tau, work
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
+      TYPE(cp_fm_struct_type), POINTER                   :: cstruct
+      TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
 
       CALL timeset(routineN, handle)
 
@@ -2029,85 +2034,83 @@ CONTAINS
       nrowT = vectors%matrix_struct%ncol_global
       ncolT = vectors%matrix_struct%nrow_global
 
-      call cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
-                vectors%matrix_struct%context,nrowT,ncolT,vectors%matrix_struct%ncol_block, &
-                vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
-      descc(:)=cstruct%descriptor(:)
-      call cp_fm_create(CTp,cstruct)
-      call cp_fm_struct_release(cstruct)
+      CALL cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
+                               vectors%matrix_struct%context, nrowT, ncolT, vectors%matrix_struct%ncol_block, &
+                               vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
+      descc(:) = cstruct%descriptor(:)
+      CALL cp_fm_create(CTp, cstruct)
+      CALL cp_fm_struct_release(cstruct)
 
-      allocate(tau(nrowT))
+      ALLOCATE (tau(nrowT))
 
 #if defined(__SCALAPACK)
-      call pdtran(nrowT,ncolT,1.0_dp,vectors%local_data(1,1),1,1,vectors%matrix_struct%descriptor,&
-                0.0_dp,CTp%local_data(1,1),1,1,descc)
+      CALL pdtran(nrowT, ncolT, 1.0_dp, vectors%local_data(1, 1), 1, 1, vectors%matrix_struct%descriptor, &
+                  0.0_dp, CTp%local_data(1, 1), 1, 1, descc)
 
       ! Prepare work variables
       a => CTp%local_data
-      lwork=-1
-      allocate(work(2*nrowT))
-      allocate(ipiv(ncolT))
+      lwork = -1
+      ALLOCATE (work(2*nrowT))
+      ALLOCATE (ipiv(ncolT))
 #endif
 
       ! Call SCALAPACK routine to get optimal work dimension
 #if defined(__SCALAPACK)
-      call pdgeqpf(nrowT,ncolT,a,1,1,descc,ipiv,tau,work,lwork,info)
-      lwork=INT(work(1))
-      deallocate(work)
-      allocate(work(lwork))
-      tau=0.0_dp
-      ipiv=0
+      CALL pdgeqpf(nrowT, ncolT, a, 1, 1, descc, ipiv, tau, work, lwork, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      tau = 0.0_dp
+      ipiv = 0
 
       ! Call SCALAPACK routine to get QR decomposition of CTs
-      call pdgeqpf(nrowT,ncolT,a,1,1,descc,ipiv, tau,work,lwork,info)
-      CPASSERT(INFO==0)
-      deallocate(work)
-      deallocate(ipiv)
+      CALL pdgeqpf(nrowT, ncolT, a, 1, 1, descc, ipiv, tau, work, lwork, info)
+      CPASSERT(INFO == 0)
+      DEALLOCATE (work)
+      DEALLOCATE (ipiv)
 #endif
 
       ! Construction of Q from the scalapack output
-      call cp_fm_struct_create(cstruct,para_env=CTp%matrix_struct%para_env, &
-                context=CTp%matrix_struct%context, nrow_global=CTp%matrix_struct%nrow_global, &
-                ncol_global=CTp%matrix_struct%nrow_global)
+      CALL cp_fm_struct_create(cstruct, para_env=CTp%matrix_struct%para_env, &
+                               context=CTp%matrix_struct%context, nrow_global=CTp%matrix_struct%nrow_global, &
+                               ncol_global=CTp%matrix_struct%nrow_global)
       descc(:) = cstruct%descriptor(:)
-      call cp_fm_create(Qf,cstruct)
-      call cp_fm_struct_release(cstruct)
-      call cp_fm_to_fm_submat(CTp,Qf,nrowT,nrowT,1,1,1,1)
+      CALL cp_fm_create(Qf, cstruct)
+      CALL cp_fm_struct_release(cstruct)
+      CALL cp_fm_to_fm_submat(CTp, Qf, nrowT, nrowT, 1, 1, 1, 1)
 
 #if defined(__SCALAPACK)
       a => Qf%local_data
       ! Call SCALAPACK routine to get optimal work dimension
-      lwork=-1
-      allocate(work(2*nrowT))
-      call pdorgqr(nrowT,nrowT,nrowT,a,1,1,descc,tau,work,lwork,info)
-      CPASSERT(info==0)
-      lwork=int(work(1))
-      deallocate(work)
-      allocate(work(lwork))
+      lwork = -1
+      ALLOCATE (work(2*nrowT))
+      CALL pdorgqr(nrowT, nrowT, nrowT, a, 1, 1, descc, tau, work, lwork, info)
+      CPASSERT(info == 0)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
 #endif
 
       ! Call SCALAPACK routine to get Q
 #if defined(__SCALAPACK)
-      call pdorgqr(nrowT,nrowT,nrowT,a,1,1,descc,tau,work,lwork,info)
-      CPASSERT(info==0)
-      deallocate(work)
+      CALL pdorgqr(nrowT, nrowT, nrowT, a, 1, 1, descc, tau, work, lwork, info)
+      CPASSERT(info == 0)
+      DEALLOCATE (work)
 #endif
 
       ! Transform original coefficient matrix vectors
-      call cp_fm_create(tmp,vectors%matrix_struct)
+      CALL cp_fm_create(tmp, vectors%matrix_struct)
       CALL cp_fm_set_all(tmp, 0.0_dp, 1.0_dp)
-      call cp_fm_to_fm(vectors, tmp)
-      call cp_fm_gemm('N','N',ncolT,nrowT,nrowT,1.0_dp,tmp,Qf,0.0_dp,vectors) 
+      CALL cp_fm_to_fm(vectors, tmp)
+      CALL cp_fm_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
 
       ! Cleanup
-      call cp_fm_release(CTp)
-      call cp_fm_release(tmp)
-      call cp_fm_release(Qf)
-      deallocate(tau)
-
+      CALL cp_fm_release(CTp)
+      CALL cp_fm_release(tmp)
+      CALL cp_fm_release(Qf)
+      DEALLOCATE (tau)
 
       CALL timestop(handle)
-
 
    END SUBROUTINE scdm_qrfact
 

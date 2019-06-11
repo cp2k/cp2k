@@ -23,8 +23,7 @@ MODULE qs_loc_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -47,8 +46,9 @@ MODULE qs_loc_methods
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: &
-        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, dump_dcd, &
-        dump_dcd_aligned_cell, dump_xmol, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_list
+        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, &
+        dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, op_loc_boys, op_loc_pipek, &
+        state_loc_list
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -91,7 +91,9 @@ MODULE qs_loc_methods
    USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
                                               crazy_rotations,&
                                               direct_mini,&
-                                              jacobi_rotations, scdm_qrfact, zij_matrix
+                                              jacobi_rotations,&
+                                              scdm_qrfact,&
+                                              zij_matrix
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -156,14 +158,16 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, max_iter, nao, nmoloc, &
-                                                            out_each, output_unit, sweeps
-!      INTEGER :: i,j
-      LOGICAL                                            :: converged, crazy_use_diag, do_jacobi_refinement
+      INTEGER                                            :: handle, max_iter, nao, nmoloc, out_each, &
+                                                            output_unit, sweeps
+      LOGICAL                                            :: converged, crazy_use_diag, &
+                                                            do_jacobi_refinement
       REAL(dp)                                           :: crazy_scale, eps_localization, &
                                                             max_crazy_angle, start_time, &
                                                             target_time
       TYPE(cp_logger_type), POINTER                      :: logger
+
+!      INTEGER :: i,j
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -173,7 +177,7 @@ CONTAINS
       ! get rows and cols of the input
       CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
 
-      CALL zij_matrix(vectors,op_sm_set,zij_fm_set)
+      CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
 
       max_iter = qs_loc_env%localized_wfn_control%max_iter
       max_crazy_angle = qs_loc_env%localized_wfn_control%max_crazy_angle
@@ -195,15 +199,15 @@ CONTAINS
          ! Decomposition
          CALL scdm_qrfact(vectors)
          ! Calculation of Zij
-         CALL zij_matrix(vectors,op_sm_set,zij_fm_set)
-         IF(do_jacobi_refinement) THEN
+         CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
+         IF (do_jacobi_refinement) THEN
             ! Intermediate spread and centers
             CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
-                                 ispin, print_loc_section, only_initial_out=.TRUE.)
+                                       ispin, print_loc_section, only_initial_out=.TRUE.)
             CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
-                               eps_localization=eps_localization, sweeps=sweeps, &
-                               out_each=out_each, target_time=target_time, start_time=start_time)
-         END IF 
+                                  eps_localization=eps_localization, sweeps=sweeps, &
+                                  out_each=out_each, target_time=target_time, start_time=start_time)
+         END IF
       CASE (do_loc_crazy)
          CALL crazy_rotations(weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle=max_crazy_angle, &
                               crazy_scale=crazy_scale, crazy_use_diag=crazy_use_diag, &
@@ -232,7 +236,7 @@ CONTAINS
          ELSE
             CALL approx_l1_norm_sd(vectors, max_iter, eps_localization, converged, sweeps)
             ! here we need to set zij for the computation of the centers and spreads
-            CALL zij_matrix(vectors,op_sm_set,zij_fm_set)
+            CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
          END IF
       CASE (do_loc_none)
          IF (output_unit > 0) THEN
