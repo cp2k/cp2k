@@ -2021,12 +2021,16 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, info, lwork, ncolT, nrowT
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       INTEGER, DIMENSION(9)                              :: descc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: tau, work
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       TYPE(cp_fm_struct_type), POINTER                   :: cstruct
       TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
+#if defined(__SCALAPACK)
+      INTEGER                                            :: lwork
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: work
+#endif
 
       CALL timeset(routineN, handle)
 
