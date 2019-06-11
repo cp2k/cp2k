@@ -1286,7 +1286,10 @@ CONTAINS
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
 
       ! Resp charges
-      IF (PRESENT(rhs)) qs_env%rhs => rhs
+      IF (PRESENT(rhs)) THEN
+         CPASSERT(.NOT. ASSOCIATED(qs_env%rhs))
+         qs_env%rhs => rhs
+      ENDIF
 
    END SUBROUTINE set_qs_env
 

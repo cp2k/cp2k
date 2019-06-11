@@ -266,7 +266,7 @@ CONTAINS
       ENDIF
 
       ! Initialize constant part of the embedding potential
-      IF ((add_const_pot) .AND. (.NOT. (grid_opt))) THEN
+      IF (add_const_pot .AND. (.NOT. grid_opt)) THEN
          ! Now the constant potential is the Coulomb one
          NULLIFY (const_pot)
          ALLOCATE (const_pot)
@@ -295,7 +295,7 @@ CONTAINS
          CALL pw_scale(embed_pot%pw, a=factor)
 
          ! Copy Fermi-Amaldi to embedding potential for basis-based optimization
-         IF (.NOT. (grid_opt)) CALL pw_copy(embed_pot%pw, embed_pot%pw)
+         IF (.NOT. grid_opt) CALL pw_copy(embed_pot%pw, embed_pot%pw)
 
       ENDIF
 
@@ -951,7 +951,7 @@ CONTAINS
 
       DEALLOCATE (opt_embed%all_nspins)
 
-      IF ((opt_embed%add_const_pot) .AND. (.NOT. (opt_embed%grid_opt))) THEN
+      IF (opt_embed%add_const_pot .AND. (.NOT. opt_embed%grid_opt)) THEN
          CALL pw_release(opt_embed%const_pot%pw)
          DEALLOCATE (opt_embed%const_pot)
       ENDIF
@@ -1068,9 +1068,7 @@ CONTAINS
       CALL pw_release(rho_resp%pw)
 
       ! Deallocate map_index array
-      IF (ASSOCIATED(map_index)) THEN
-         DEALLOCATE (map_index)
-      END IF
+      DEALLOCATE (map_index)
       ! Deallocate charges
       DEALLOCATE (rhs_subsys)
 
