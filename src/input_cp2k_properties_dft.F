@@ -1152,7 +1152,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "TDDFPT", &
+      CALL section_create(section, __LOCATION__, name="TDDFPT", &
                           description="Parameters needed to set up the Time-Dependent "// &
                           "Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
@@ -1210,7 +1210,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! kernel type
-      CALL keyword_create(keyword, name="KERNEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="KERNEL", &
                           description="Options to compute the kernel", &
                           usage="KERNEL FULL", &
                           enum_c_vals=s2a("FULL", "sTDA"), &
@@ -1219,7 +1219,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OE_CORR", &
+      CALL keyword_create(keyword, __LOCATION__, name="OE_CORR", &
                           description="Orbital energy correction potential.", &
                           enum_c_vals=s2a("NONE", "LB94", "GLLB", "SAOP", "SHIFT"), &
                           enum_i_vals=(/oe_none, oe_lb, oe_gllb, oe_saop, oe_shift/), &
@@ -1233,7 +1233,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! SHIFTS
-      CALL keyword_create(keyword, name="EV_SHIFT", &
+      CALL keyword_create(keyword, __LOCATION__, name="EV_SHIFT", &
                           variants=s2a("VIRTUAL_SHIFT"), &
                           description="Constant shift of virtual state eigenvalues.", &
                           usage="EV_SHIFT 0.500", &
@@ -1243,7 +1243,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       !
-      CALL keyword_create(keyword, name="EOS_SHIFT", &
+      CALL keyword_create(keyword, __LOCATION__, name="EOS_SHIFT", &
                           variants=s2a("OPEN_SHELL_SHIFT"), &
                           description="Constant shift of open shell eigenvalues.", &
                           usage="EOS_SHIFT 0.200", &
@@ -1365,33 +1365,33 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of information during the TDDFT run.", repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="PROGRAM_BANNER", &
                                        description="Controls the printing of the banner for TDDFPT program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "GUESS_VECTORS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="GUESS_VECTORS", &
                                        description="Controls the printing of initial guess vectors.", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "ITERATION_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="ITERATION_INFO", &
                                        description="Controls the printing of basic iteration information "// &
                                        "during the TDDFT run.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "DETAILED_ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="DETAILED_ENERGY", &
                                        description="Controls the printing of detailed energy information "// &
                                        "during the TDDFT run.", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="RESTART", &
                                        description="Controls the dumping of the MO restart file during TDDFPT. "// &
                                        "By default keeps a short history of three restarts.", &
                                        print_level=low_print_level, common_iter_levels=3, &
@@ -1406,8 +1406,42 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
+                                       description="Perform a natural transition orbital analysis.", &
+                                       print_level=medium_print_level, &
+                                       add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD", &
+                          description="Threshold for sum of NTO eigenvalues considered", &
+                          usage="Threshold 0.95", &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.975_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CUBE_FILES", &
+                          description="Print NTOs on Cube Files", &
+                          usage="CUBE_FILES {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). Provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
    END SUBROUTINE create_tddfpt2_section
 
 ! **************************************************************************************************
@@ -1423,12 +1457,12 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "sTDA", &
+      CALL section_create(section, __LOCATION__, name="sTDA", &
                           description="parameters needed and setup for sTDA calculations", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FRACTION", &
                           variants=(/"HFX_FRACTION"/), &
                           description="The fraction of Hartree-Fock to add to the total energy. "// &
                           "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE. "// &
@@ -1438,13 +1472,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DO_EWALD", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_EWALD", &
                           description="Use Ewald type method for Coulomb interaction", &
                           usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_TD_FILTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_TD_FILTER", &
                           description="Threshold for filtering the transition density matrix", &
                           usage="EPS_TD_FILTER", default_r_val=1.e-10_dp)
       CALL section_add_keyword(section, keyword)

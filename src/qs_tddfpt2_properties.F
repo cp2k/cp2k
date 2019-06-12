@@ -14,11 +14,16 @@ MODULE qs_tddfpt2_properties
                                               cp_cfm_to_fm,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: tddfpt2_control_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              cp_dbcsr_plus_fm_fm_t,&
+                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+                                              cp_fm_scale_and_add,&
                                               cp_fm_trace
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -27,18 +32,30 @@ MODULE qs_tddfpt2_properties
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorsnorm
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_should_output
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_get_info,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix,&
+                                              create_replicated_col_vec_from_matrix,&
+                                              create_replicated_row_vec_from_matrix,&
+                                              dbcsr_matrix_colvec_multiply
    USE input_constants,                 ONLY: tddfpt_dipole_berry,&
                                               tddfpt_dipole_length,&
                                               tddfpt_dipole_velocity
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -47,6 +64,7 @@ MODULE qs_tddfpt2_properties
                                               z_zero
    USE message_passing,                 ONLY: mp_irecv,&
                                               mp_isend,&
+                                              mp_sum,&
                                               mp_wait
    USE moments_utils,                   ONLY: get_reference_point
    USE physcon,                         ONLY: evolt
@@ -55,6 +73,11 @@ MODULE qs_tddfpt2_properties
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              init_mo_set,&
+                                              mo_set_p_type,&
+                                              set_mo_set
    USE qs_moments,                      ONLY: build_berry_moment_matrix
    USE qs_operators_ao,                 ONLY: rRc_xyz_ao
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
@@ -72,7 +95,8 @@ MODULE qs_tddfpt2_properties
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt_dipole_operator, tddfpt_print_summary, tddfpt_print_excitation_analysis
+   PUBLIC :: tddfpt_dipole_operator, tddfpt_print_summary, tddfpt_print_excitation_analysis, &
+             tddfpt_print_nto_analysis
 
 ! **************************************************************************************************
 
@@ -195,7 +219,8 @@ CONTAINS
          ALLOCATE (dBerry_mos_occ(nderivs, nspins))
          DO ispin = 1, nspins
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), &
+                                     ncol_global=nmo_occ(ispin), context=blacs_env)
 
             NULLIFY (gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
             CALL cp_cfm_create(gamma_00(ispin)%matrix, fm_struct)
@@ -227,7 +252,8 @@ CONTAINS
             DO i_cos_sin = 1, 2
                CALL dbcsr_set(berry_cossin_xyz(i_cos_sin)%matrix, 0.0_dp)
             END DO
-            CALL build_berry_moment_matrix(qs_env, berry_cossin_xyz(1)%matrix, berry_cossin_xyz(2)%matrix, kvec)
+            CALL build_berry_moment_matrix(qs_env, berry_cossin_xyz(1)%matrix, &
+                                           berry_cossin_xyz(2)%matrix, kvec)
 
             DO ispin = 1, nspins
                ! i_cos_sin = 1: cos (real) component; opvec(1) = gamma_real C_0
@@ -345,7 +371,8 @@ CONTAINS
                                   reference=tddfpt_control%dipole_reference, &
                                   ref_point=tddfpt_control%dipole_ref_point)
 
-         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, minimum_image=.FALSE., soft=.FALSE.)
+         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, &
+                         minimum_image=.FALSE., soft=.FALSE.)
 
          NULLIFY (fm_struct, wfm_ao_ao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
@@ -381,12 +408,13 @@ CONTAINS
 
       CASE (tddfpt_dipole_velocity)
          IF (SIZE(matrix_s) < nderivs+1) THEN
-            CPABORT("Where is the derivative?")
+            CPABORT("Where are the overlap matrix derivatives?")
          END IF
 
          DO ispin = 1, nspins
             NULLIFY (fm_struct, ediff_inv, wfm_mo_virt_mo_occ)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), &
+                                     ncol_global=nmo_occ(ispin), context=blacs_env)
             CALL cp_fm_create(ediff_inv, fm_struct)
             CALL cp_fm_create(wfm_mo_virt_mo_occ, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
@@ -421,7 +449,8 @@ CONTAINS
                             0.0_dp, wfm_mo_virt_mo_occ)
 
                ! in-place element-wise (Schur) product;
-               ! avoid allocation of a temporary [nmo_virt x nmo_occ] matrix which is needed for cp_fm_schur_product() subroutine call
+               ! avoid allocation of a temporary [nmo_virt x nmo_occ] matrix which is needed
+               ! for cp_fm_schur_product() subroutine call
 
 !$OMP          PARALLEL DO DEFAULT(NONE), &
 !$OMP                   PRIVATE(icol, irow), &
@@ -820,5 +849,336 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_print_excitation_analysis
+
+! **************************************************************************************************
+!> \brief Print natural transition orbital analysis.
+!> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
+!>                           SIZE(evects,2) -- number of excited states to print)
+!> \param evals              TDDFPT eigenvalues
+!> \param gs_mos             molecular orbitals optimised for the ground state
+!> \param matrix_s           overlap matrix
+!> \param print_section      ...
+!> \par History
+!>    * 06.2019 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_print_nto_analysis(evects, evals, gs_mos, matrix_s, print_section)
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      TYPE(section_vals_type), POINTER                   :: print_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_nto_analysis', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: ntomax = 10
+
+      CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
+      INTEGER                                            :: handle, i, ia, icg, info, iounit, ispin, &
+                                                            istate, nao, nmax, nmo, nnto, nspins, &
+                                                            nstates
+      INTEGER, DIMENSION(2)                              :: iv
+      INTEGER, DIMENSION(2, ntomax)                      :: ia_index
+      REAL(KIND=dp)                                      :: alpha, beta, dkz, rkrk, rr, sume, &
+                                                            threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(ntomax)                   :: ia_eval
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: teig
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_mo_struct, fm_struct
+      TYPE(cp_fm_type), POINTER                          :: ev, Sev, tmat, wvec
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: dvec, pdens, rep_col_vec, rep_row_vec, &
+                                                            rvec, tvec, xvec, zvec
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: nto_set
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
+                                           "NTO_ANALYSIS"), cp_p_file)) THEN
+
+         CALL section_vals_val_get(print_section, "NTO_ANALYSIS%THRESHOLD", r_val=threshold)
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(1X,A)") "", &
+               "-------------------------------------------------------------------------------", &
+               "-                            Natural Orbital analysis                         -", &
+               "-------------------------------------------------------------------------------"
+         END IF
+
+         nspins = SIZE(evects, 1)
+         nstates = SIZE(evects, 2)
+         CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
+
+         DO istate = 1, nstates
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(1X,A,I3,T30,F10.5,A)") "  STATE NR. ", istate, evals(istate)*evolt, " eV"
+            END IF
+            nmax = 0
+            DO ispin = 1, nspins
+               ev => evects(ispin, istate)%matrix
+               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
+               nmax = MAX(nmax, nmo)
+            END DO
+            ALLOCATE (eigenvalues(nmax, nspins))
+            eigenvalues = 0.0_dp
+            ! SET 1: Hole states
+            ! SET 2: Particle states
+            nto_name(1) = 'Hole_states'
+            nto_name(2) = 'Particle_states'
+            ALLOCATE (nto_set(2))
+            DO i = 1, 2
+               NULLIFY (nto_set(i)%mo_set)
+               CALL allocate_mo_set(nto_set(i)%mo_set, nao, ntomax, 0, 0.0_dp, 1.0_dp, 0.0_dp)
+               ev => evects(1, istate)%matrix
+               CALL cp_fm_get_info(ev, matrix_struct=fm_struct)
+               CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
+                                        ncol_global=ntomax)
+               CALL cp_fm_create(tmat, fm_mo_struct)
+               CALL init_mo_set(nto_set(i)%mo_set, fm_ref=tmat, name=nto_name(i))
+               CALL cp_fm_release(tmat)
+            END DO
+            !
+            ALLOCATE (teig(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (teig(ispin)%matrix)
+            END DO
+            ! hole states
+            DO ispin = 1, nspins
+               ev => evects(ispin, istate)%matrix
+               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
+               CALL cp_fm_create(Sev, fm_struct)
+               CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
+                                        nrow_global=nmo, ncol_global=nmo)
+               CALL cp_fm_create(tmat, fm_mo_struct)
+               CALL cp_fm_create(teig(ispin)%matrix, fm_mo_struct)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+               CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
+
+               CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(:, ispin), info)
+               CPASSERT(info == 0)
+
+               CALL cp_fm_struct_release(fm_mo_struct)
+               CALL cp_fm_release(tmat)
+               CALL cp_fm_release(Sev)
+            END DO
+            ! find major determinants i->a
+            ia_index = 0
+            sume = 0.0_dp
+            nnto = 0
+            DO i = 1, ntomax
+               iv = MAXLOC(eigenvalues)
+               ia_eval(i) = eigenvalues(iv(1), iv(2))
+               ia_index(1:2, i) = iv(1:2)
+               sume = sume+ia_eval(i)
+               eigenvalues(iv(1), iv(2)) = 0.0_dp
+               nnto = nnto+1
+               IF (sume > threshold) EXIT
+            END DO
+            ! store hole states
+            CALL set_mo_set(nto_set(1)%mo_set, nmo=nnto)
+            DO i = 1, nnto
+               ia = ia_index(1, i)
+               ispin = ia_index(2, i)
+               CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nmo)
+               CALL cp_fm_get_info(teig(ispin)%matrix, matrix_struct=fm_struct)
+               CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
+                                        nrow_global=nmo, ncol_global=1)
+               CALL cp_fm_create(tmat, fm_mo_struct)
+               CALL cp_fm_struct_release(fm_mo_struct)
+               CALL cp_fm_get_info(gs_mos(1)%mos_occ, matrix_struct=fm_struct)
+               CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
+                                        ncol_global=1)
+               CALL cp_fm_create(wvec, fm_mo_struct)
+               CALL cp_fm_struct_release(fm_mo_struct)
+               CALL cp_fm_to_fm(teig(ispin)%matrix, tmat, 1, ia, 1)
+               CALL cp_gemm('N', 'N', nao, 1, nmo, 1.0_dp, gs_mos(ispin)%mos_occ, &
+                            tmat, 0.0_dp, wvec)
+               CALL cp_fm_to_fm(wvec, nto_set(1)%mo_set%mo_coeff, 1, 1, i)
+               CALL cp_fm_release(wvec)
+               CALL cp_fm_release(tmat)
+            END DO
+            ! particle states
+            CALL set_mo_set(nto_set(2)%mo_set, nmo=nnto)
+            DO i = 1, nnto
+               ispin = ia_index(2, i)
+               ev => evects(ispin, istate)%matrix
+               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
+               CALL cp_fm_create(Sev, fm_struct)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+               CALL dbcsr_create(pdens, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
+               ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
+               CALL cp_dbcsr_plus_fm_fm_t(pdens, ev, Sev, nmo, 1.0_dp, keep_sparsity=.FALSE.)
+               CALL dbcsr_filter(pdens, 1.0e-6_dp)
+               CALL dbcsr_add_on_diag(pdens, -ia_eval(i))
+               ! Conjugate Gradient search for particle states
+               CALL create_col_vec_from_matrix(rvec, pdens, 1)
+               CALL create_col_vec_from_matrix(dvec, pdens, 1)
+               CALL create_col_vec_from_matrix(zvec, pdens, 1)
+               CALL create_col_vec_from_matrix(tvec, pdens, 1)
+               CALL create_col_vec_from_matrix(xvec, pdens, 1)
+               CALL create_replicated_col_vec_from_matrix(rep_col_vec, pdens, 1)
+               CALL create_replicated_row_vec_from_matrix(rep_row_vec, pdens, 1)
+               !
+               CALL dbcsr_set(rvec, 1.0_dp)
+               CALL project_vector(rvec, xvec, gs_mos(ispin)%mos_occ, matrix_s)
+               CALL dbcsr_matrix_colvec_multiply(pdens, xvec, rvec, -1.0_dp, &
+                                                 0.0_dp, rep_row_vec, rep_col_vec)
+               CALL dbcsr_copy(dvec, rvec)
+               CALL vec_product(rvec, rvec, rkrk)
+               DO icg = 1, 20
+                  CALL dbcsr_matrix_colvec_multiply(pdens, dvec, tvec, 1.0_dp, &
+                                                    0.0_dp, rep_row_vec, rep_col_vec)
+                  CALL project_vector(tvec, zvec, gs_mos(ispin)%mos_occ, matrix_s)
+                  CALL vec_product(dvec, zvec, dkz)
+                  alpha = rkrk/dkz
+                  CALL dbcsr_add(xvec, dvec, 1.0_dp, alpha)
+                  CALL dbcsr_add(rvec, zvec, 1.0_dp, -alpha)
+                  rr = rkrk
+                  CALL vec_product(rvec, rvec, rkrk)
+                  IF (rkrk < 1.E-8_dp) EXIT
+                  beta = rkrk/rr
+                  CALL dbcsr_add(dvec, rvec, beta, 1.0_dp)
+               END DO
+               !
+               CALL cp_fm_get_info(gs_mos(1)%mos_occ, matrix_struct=fm_struct)
+               CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
+                                        nrow_global=nao, ncol_global=1)
+               CALL cp_fm_create(wvec, fm_mo_struct)
+               CALL cp_fm_struct_release(fm_mo_struct)
+               CALL copy_dbcsr_to_fm(xvec, wvec)
+               CALL cp_fm_to_fm(wvec, nto_set(2)%mo_set%mo_coeff, 1, 1, i)
+               CALL cp_fm_release(wvec)
+               !
+               CALL dbcsr_release(rep_col_vec)
+               CALL dbcsr_release(rep_row_vec)
+               CALL dbcsr_release(rvec)
+               CALL dbcsr_release(dvec)
+               CALL dbcsr_release(zvec)
+               CALL dbcsr_release(tvec)
+               CALL dbcsr_release(xvec)
+
+               CALL cp_fm_release(Sev)
+               CALL dbcsr_release(pdens)
+            END DO
+            ! print
+            IF (iounit > 0) THEN
+               sume = 0.0_dp
+               DO i = 1, nnto
+                  sume = sume+ia_eval(i)
+                  WRITE (iounit, "(T6,A,i2,T30,A,i1,T42,A,F8.5,T63,A,F8.5)") &
+                     "Particle-Hole state:", i, " Spin:", ia_index(2, i), &
+                     "Eigenvalue:", ia_eval(i), " Sum Eigv:", sume
+               END DO
+            END IF
+            !
+            DEALLOCATE (eigenvalues)
+            DO ispin = 1, nspins
+               CALL cp_fm_release(teig(ispin)%matrix)
+            END DO
+            DEALLOCATE (teig)
+            !
+            DO i = 1, 2
+               CALL deallocate_mo_set(nto_set(i)%mo_set)
+            END DO
+            DEALLOCATE (nto_set)
+         END DO
+
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(1X,A)") &
+               "-------------------------------------------------------------------------------"
+         END IF
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_print_nto_analysis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param vin ...
+!> \param vout ...
+!> \param mos_occ ...
+!> \param matrix_s ...
+! **************************************************************************************************
+   SUBROUTINE project_vector(vin, vout, mos_occ, matrix_s)
+      TYPE(dbcsr_type)                                   :: vin, vout
+      TYPE(cp_fm_type), POINTER                          :: mos_occ
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'project_vector', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, nao, nmo
+      REAL(KIND=dp)                                      :: alpha, beta, norm(1)
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_vec_struct
+      TYPE(cp_fm_type), POINTER                          :: csvec, svec, vec
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(mos_occ, matrix_struct=fm_struct, nrow_global=nao, ncol_global=nmo)
+      CALL cp_fm_struct_create(fmstruct=fm_vec_struct, template_fmstruct=fm_struct, &
+                               nrow_global=nao, ncol_global=1)
+      CALL cp_fm_create(vec, fm_vec_struct)
+      CALL cp_fm_create(svec, fm_vec_struct)
+      CALL cp_fm_struct_release(fm_vec_struct)
+      CALL cp_fm_struct_create(fmstruct=fm_vec_struct, template_fmstruct=fm_struct, &
+                               nrow_global=nmo, ncol_global=1)
+      CALL cp_fm_create(csvec, fm_vec_struct)
+      CALL cp_fm_struct_release(fm_vec_struct)
+
+      CALL copy_dbcsr_to_fm(vin, vec)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s, vec, svec, ncol=1, alpha=1.0_dp, beta=0.0_dp)
+      CALL cp_gemm('T', 'N', nmo, 1, nao, 1.0_dp, mos_occ, svec, 0.0_dp, csvec)
+      CALL cp_gemm('N', 'N', nao, 1, nmo, -1.0_dp, mos_occ, csvec, 1.0_dp, vec)
+      CALL cp_fm_vectorsnorm(vec, norm)
+      CPASSERT(norm(1) > 1.e-14_dp)
+      norm(1) = SQRT(1._dp/norm(1))
+      CALL cp_fm_scale(norm(1), vec)
+      CALL copy_fm_to_dbcsr(vec, vout, keep_sparsity=.FALSE.)
+
+      CALL cp_fm_release(svec)
+      CALL cp_fm_release(vec)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE project_vector
+
+! **************************************************************************************************
+!> \brief ...
+!> \param va ...
+!> \param vb ...
+!> \param res ...
+! **************************************************************************************************
+   SUBROUTINE vec_product(va, vb, res)
+      TYPE(dbcsr_type)                                   :: va, vb
+      REAL(KIND=dp), INTENT(OUT)                         :: res
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'vec_product', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk, group, handle, icol, irow
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vba, vbb
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      res = 0.0_dp
+
+      CALL dbcsr_get_info(va, group=group)
+      CALL dbcsr_iterator_start(iter, va)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, vba, blk)
+         CALL dbcsr_get_block_p(vb, row=irow, col=icol, block=vbb, found=found)
+         res = res+SUM(vba*vbb)
+         CPASSERT(found)
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
+      CALL mp_sum(res, group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE vec_product
 
 END MODULE qs_tddfpt2_properties
