@@ -2096,15 +2096,19 @@ CONTAINS
 !>        sub( A ) = A(IA:IA+M-1,JA:JA+N-1)
 !> \param matrix   : input M-by-N distributed matrix sub( A ) which is to be factored
 !> \param tau      :  scalar factors TAU of the elementary reflectors. TAU is tied to the distributed matrix A
+!> \param nrow ...
+!> \param ncol ...
+!> \param first_row ...
+!> \param first_col ...
 !> \author MI
 ! **************************************************************************************************
 
-  SUBROUTINE cp_fm_pdgeqpf(matrix, tau, nrow, ncol, first_row, first_col)
+   SUBROUTINE cp_fm_pdgeqpf(matrix, tau, nrow, ncol, first_row, first_col)
 
       TYPE(cp_fm_type), POINTER                          :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, ncol, first_row, first_col
-      
+
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_pdgeqpf', &
                                      routineP = moduleN//':'//routineN
 
@@ -2143,9 +2147,9 @@ CONTAINS
       CPASSERT(INFO == 0)
 #else
       ! NIY
-       ii = 1 
-       tau(first_row) = 0
-       tau(first_col) = 0       
+      ii = 1
+      tau(first_row) = 0
+      tau(first_col) = 0
 #endif
 
       DEALLOCATE (work)
@@ -2153,21 +2157,23 @@ CONTAINS
 
       CALL timestop(handle)
 
-  END SUBROUTINE cp_fm_pdgeqpf
-
+   END SUBROUTINE cp_fm_pdgeqpf
 
 ! **************************************************************************************************
-!> \brief generates an M-by-N real distributed matrix Q denoting A(IA:IA+M-1,JA:JA+N-1) 
-!>         with orthonormal columns, which is defined as the first N columns of a product of K 
+!> \brief generates an M-by-N real distributed matrix Q denoting A(IA:IA+M-1,JA:JA+N-1)
+!>         with orthonormal columns, which is defined as the first N columns of a product of K
 !>         elementary reflectors of order M
 !> \param matrix : On entry, the j-th column must contain the vector which defines the elementary reflector
 !>                  as returned from PDGEQRF
-!>                 On exit it contains  the M-by-N distributed matrix Q  
+!>                 On exit it contains  the M-by-N distributed matrix Q
 !> \param tau :   contains the scalar factors TAU of elementary reflectors  as returned by PDGEQRF
+!> \param nrow ...
+!> \param first_row ...
+!> \param first_col ...
 !> \author MI
 ! **************************************************************************************************
 
-  SUBROUTINE cp_fm_pdorgqr(matrix, tau, nrow, first_row, first_col)
+   SUBROUTINE cp_fm_pdorgqr(matrix, tau, nrow, first_row, first_col)
 
       TYPE(cp_fm_type), POINTER                          :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
@@ -2207,14 +2213,14 @@ CONTAINS
       CPASSERT(INFO == 0)
 #else
       ! NIY
-       ii = 1
-       tau(first_row) = 0
-       tau(first_col) = 0
+      ii = 1
+      tau(first_row) = 0
+      tau(first_col) = 0
 #endif
 
       DEALLOCATE (work)
       CALL timestop(handle)
 
-  END SUBROUTINE cp_fm_pdorgqr
+   END SUBROUTINE cp_fm_pdorgqr
 
 END MODULE cp_fm_basic_linalg
