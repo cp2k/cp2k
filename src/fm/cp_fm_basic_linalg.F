@@ -2138,7 +2138,7 @@ CONTAINS
       ipiv = 0
 
       ! Call SCALAPACK routine to get QR decomposition of CTs
-      CALL pdgeqpf(nrow, ncol, a, firtst_row, first_col, descc, ipiv, tau, work, lwork, info)
+      CALL pdgeqpf(nrow, ncol, a, first_row, first_col, descc, ipiv, tau, work, lwork, info)
       CPASSERT(INFO == 0)
 #endif
 
