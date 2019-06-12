@@ -2126,6 +2126,7 @@ CONTAINS
       ALLOCATE (work(2*nrow))
       ALLOCATE (ipiv(ncol))
       info = 0
+      tau = 0
 
 #if defined(__SCALAPACK)
       descc(:) = matrix%matrix_struct%descriptor(:)
@@ -2140,6 +2141,11 @@ CONTAINS
       ! Call SCALAPACK routine to get QR decomposition of CTs
       CALL pdgeqpf(nrow, ncol, a, first_row, first_col, descc, ipiv, tau, work, lwork, info)
       CPASSERT(INFO == 0)
+#else
+      ! NIY
+       ii = 1 
+       tau(first_row) = 0
+       tau(first_col) = 0       
 #endif
 
       DEALLOCATE (work)
@@ -2199,6 +2205,11 @@ CONTAINS
       ! Call SCALAPACK routine to get Q
       CALL pdorgqr(nrow, nrow, nrow, a, first_row, first_col, descc, tau, work, lwork, info)
       CPASSERT(INFO == 0)
+#else
+      ! NIY
+       ii = 1
+       tau(first_row) = 0
+       tau(first_col) = 0
 #endif
 
       DEALLOCATE (work)
