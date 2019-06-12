@@ -1522,10 +1522,6 @@ CONTAINS
                DEALLOCATE (qs_env%WannierCentres)
             ENDIF
 
-            ! Resp charges
-            IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
-
-            ! Embedding potentials if provided as input
             ! now we are ready to deallocate the full structure
             DEALLOCATE (qs_env)
          END IF
