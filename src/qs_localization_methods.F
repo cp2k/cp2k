@@ -31,7 +31,6 @@ MODULE qs_localization_methods
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                              cp_fm_gemm,&
                                               cp_fm_pdgeqpf,&
                                               cp_fm_pdorgqr,&
                                               cp_fm_scale,&
@@ -2061,7 +2060,7 @@ CONTAINS
       CALL cp_fm_create(tmp, vectors%matrix_struct)
       CALL cp_fm_set_all(tmp, 0.0_dp, 1.0_dp)
       CALL cp_fm_to_fm(vectors, tmp)
-      CALL cp_fm_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
+      CALL cp_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
 
       ! Cleanup
       CALL cp_fm_release(CTp)
