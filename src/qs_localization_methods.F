@@ -32,6 +32,8 @@ MODULE qs_localization_methods
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                               cp_fm_gemm,&
+                                              cp_fm_pdgeqpf,&
+                                              cp_fm_pdorgqr,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace,&
@@ -2021,16 +2023,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ncolT, nrowT
-      INTEGER, DIMENSION(9)                              :: descc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       TYPE(cp_fm_struct_type), POINTER                   :: cstruct
       TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
-#if defined(__SCALAPACK)
-      INTEGER                                            :: info, lwork
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: work
-#endif
 
       CALL timeset(routineN, handle)
 
@@ -2041,66 +2036,26 @@ CONTAINS
       CALL cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
                                vectors%matrix_struct%context, nrowT, ncolT, vectors%matrix_struct%ncol_block, &
                                vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
-      descc(:) = cstruct%descriptor(:)
       CALL cp_fm_create(CTp, cstruct)
       CALL cp_fm_struct_release(cstruct)
 
       ALLOCATE (tau(nrowT))
 
-#if defined(__SCALAPACK)
-      CALL pdtran(nrowT, ncolT, 1.0_dp, vectors%local_data(1, 1), 1, 1, vectors%matrix_struct%descriptor, &
-                  0.0_dp, CTp%local_data(1, 1), 1, 1, descc)
-
-      ! Prepare work variables
-      a => CTp%local_data
-      lwork = -1
-      ALLOCATE (work(2*nrowT))
-      ALLOCATE (ipiv(ncolT))
-#endif
-
-      ! Call SCALAPACK routine to get optimal work dimension
-#if defined(__SCALAPACK)
-      CALL pdgeqpf(nrowT, ncolT, a, 1, 1, descc, ipiv, tau, work, lwork, info)
-      lwork = INT(work(1))
-      DEALLOCATE (work)
-      ALLOCATE (work(lwork))
-      tau = 0.0_dp
-      ipiv = 0
+      CALL cp_fm_transpose(vectors, CTp)
 
       ! Call SCALAPACK routine to get QR decomposition of CTs
-      CALL pdgeqpf(nrowT, ncolT, a, 1, 1, descc, ipiv, tau, work, lwork, info)
-      CPASSERT(INFO == 0)
-      DEALLOCATE (work)
-      DEALLOCATE (ipiv)
-#endif
+      CALL cp_fm_pdgeqpf(CTp, tau, nrowT, ncolT, 1, 1)
 
       ! Construction of Q from the scalapack output
       CALL cp_fm_struct_create(cstruct, para_env=CTp%matrix_struct%para_env, &
                                context=CTp%matrix_struct%context, nrow_global=CTp%matrix_struct%nrow_global, &
                                ncol_global=CTp%matrix_struct%nrow_global)
-      descc(:) = cstruct%descriptor(:)
       CALL cp_fm_create(Qf, cstruct)
       CALL cp_fm_struct_release(cstruct)
       CALL cp_fm_to_fm_submat(CTp, Qf, nrowT, nrowT, 1, 1, 1, 1)
 
-#if defined(__SCALAPACK)
-      a => Qf%local_data
-      ! Call SCALAPACK routine to get optimal work dimension
-      lwork = -1
-      ALLOCATE (work(2*nrowT))
-      CALL pdorgqr(nrowT, nrowT, nrowT, a, 1, 1, descc, tau, work, lwork, info)
-      CPASSERT(info == 0)
-      lwork = INT(work(1))
-      DEALLOCATE (work)
-      ALLOCATE (work(lwork))
-#endif
-
       ! Call SCALAPACK routine to get Q
-#if defined(__SCALAPACK)
-      CALL pdorgqr(nrowT, nrowT, nrowT, a, 1, 1, descc, tau, work, lwork, info)
-      CPASSERT(info == 0)
-      DEALLOCATE (work)
-#endif
+      CALL cp_fm_pdorgqr(Qf, tau, nrowT, 1, 1)
 
       ! Transform original coefficient matrix vectors
       CALL cp_fm_create(tmp, vectors%matrix_struct)
