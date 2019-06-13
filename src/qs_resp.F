@@ -233,7 +233,7 @@ CONTAINS
          NULLIFY (dft_control)
          CALL get_qs_env(qs_env, dft_control=dft_control)
          IF (dft_control%qs_control%ref_embed_subsys) THEN
-            ALLOCATE (rhs_to_save, source=resp_env%rhs)
+            ALLOCATE (rhs_to_save(SIZE(resp_env%rhs)))
             rhs_to_save = resp_env%rhs
             CALL set_qs_env(qs_env, rhs=rhs_to_save)
          ENDIF
