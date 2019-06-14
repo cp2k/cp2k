@@ -113,6 +113,8 @@ MODULE cp_control_types
       LOGICAL                              :: xb_interaction
       LOGICAL                              :: coulomb_interaction
       LOGICAL                              :: tb3_interaction
+      LOGICAL                              :: check_atomic_charges
+      !
       REAL(KIND=dp)                        :: xb_radius
       !
       CHARACTER(LEN=default_string_length), &

@@ -20,13 +20,12 @@ MODULE scf_control_types
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, &
-        ot_algo_taylor_or_diag, outer_scf_basis_center_opt, outer_scf_cdft_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_optimizer_secant, outer_scf_s2_constraint, smear_energy_window, &
-        smear_fermi_dirac, smear_list
+        atomic_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, ot_algo_taylor_or_diag, &
+        outer_scf_basis_center_opt, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, smear_energy_window, smear_fermi_dirac, smear_list
    USE input_cp2k_dft,                  ONLY: create_scf_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -475,9 +474,6 @@ CONTAINS
       CALL section_vals_val_get(scf_section, "eps_scf_history", r_val=scf_control%eps_scf_hist)
 
       IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
-      IF (scf_control%use_ot .AND. (scf_control%density_guess == core_guess)) THEN
-         CPABORT("SCF_GUESS CORE is not supported for OT")
-      END IF
 
       ! Outer SCF subsection
       outer_scf_section => section_vals_get_subs_vals(scf_section, "OUTER_SCF")

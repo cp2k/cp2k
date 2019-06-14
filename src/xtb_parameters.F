@@ -133,7 +133,29 @@ MODULE xtb_parameters
                                      2.42_dp, 2.11_dp, 2.01_dp, &
                                      1.90_dp, 1.84_dp, 1.83_dp, 1.80_dp, 1.80_dp, 1.51_dp, 0.96_dp, 1.54_dp, &
                                      1.83_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, & !  Actinides
-                                     1.50_dp, 1.50_dp,10.50_dp/)
+                                     1.50_dp, 1.50_dp, 1.50_dp/)
+!&>
+
+!&<
+   ! Charge Limits
+   REAL(KIND=dp), DIMENSION(0:nelem), &
+      PARAMETER, PRIVATE :: clmt = (/0.00_dp, & ! 0
+                                     1.00_dp, 0.50_dp, & ! 2
+                                     1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 10
+                                     1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 18
+                                     1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
+                                     3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 2.03_dp, 2.00_dp, 2.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 36
+                                     1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
+                                     3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 2.00_dp, 2.00_dp, 2.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 54
+                                     1.00_dp, 2.00_dp, 3.00_dp, &
+                                     3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
+                                     3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, & ! Lanthanides
+                                     3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
+                                     2.00_dp, 2.00_dp, 2.00_dp, 2.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 86
+                                     1.00_dp, 2.00_dp, 3.00_dp, &
+                                     3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
+                                     3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, & !  Actinides
+                                     3.00_dp, 3.00_dp, 3.00_dp/)
 !&>
 
 ! *** Global parameters ***
@@ -449,6 +471,8 @@ CONTAINS
                param%kx = 0.1_dp*0.220000_dp
             END SELECT
          END IF
+         ! chmax
+         param%chmax = clmt(i)
       END IF
 
    END SUBROUTINE xtb_parameters_set
