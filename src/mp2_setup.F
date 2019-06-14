@@ -298,8 +298,6 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
       CALL section_vals_val_get(im_time_section, "CUTOFF_W", &
                                 r_val=mp2_env%ri_rpa_im_time%cutoff)
-      CALL section_vals_val_get(im_time_section, "RI_G0W0", &
-                                l_val=mp2_env%ri_rpa_im_time%do_gw_im_time)
       CALL section_vals_val_get(im_time_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
       CALL section_vals_val_get(im_time_section, "EXP_KPOINTS", &

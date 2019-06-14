@@ -62,11 +62,11 @@
           DO_KPOINTS
           EPS_FILTER_IM_TIME 1.0E-7
           DO_DBCSR_T FALSE
-          GW
         &END IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
+          GW
           &RI_G0W0
            CORR_OCC   1
            CORR_VIRT  1

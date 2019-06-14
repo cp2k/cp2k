@@ -496,30 +496,29 @@ CONTAINS
 
          END IF
 
-      END IF
+         ! in the GW case, BIb_C_2D_gw is an nm x K matrix, with n: number of corr GW levels, m=nmo
+         IF (my_do_gw) THEN
 
-      ! in the GW case, BIb_C_2D_gw is an nm x K matrix, with n: number of corr GW levels, m=nmo
-      IF (my_do_gw) THEN
+            CALL timeset(routineN//"_reorder_gw", handle3)
 
-         CALL timeset(routineN//"_reorder_gw", handle3)
-
-         CALL calculate_BIb_C_2D(BIb_C_2D_gw, BIb_C_gw, para_env_sub, dimen_nm_gw, &
-                                 gw_corr_lev_occ+gw_corr_lev_virt, nmo, gd_B_all, &
-                                 sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
-
-         ! The same for open shell
-         IF (my_open_shell) THEN
-            CALL calculate_BIb_C_2D(BIb_C_2D_gw_beta, BIb_C_gw_beta, para_env_sub, dimen_nm_gw, &
+            CALL calculate_BIb_C_2D(BIb_C_2D_gw, BIb_C_gw, para_env_sub, dimen_nm_gw, &
                                     gw_corr_lev_occ+gw_corr_lev_virt, nmo, gd_B_all, &
                                     sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
-            DEALLOCATE (BIb_C_gw_beta)
+
+            ! The same for open shell
+            IF (my_open_shell) THEN
+               CALL calculate_BIb_C_2D(BIb_C_2D_gw_beta, BIb_C_gw_beta, para_env_sub, dimen_nm_gw, &
+                                       gw_corr_lev_occ+gw_corr_lev_virt, nmo, gd_B_all, &
+                                       sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
+               DEALLOCATE (BIb_C_gw_beta)
+            END IF
+
+            DEALLOCATE (BIb_C_gw)
+            CALL release_group_dist(gd_B_all)
+
+            CALL timestop(handle3)
+
          END IF
-
-         DEALLOCATE (BIb_C_gw)
-         CALL release_group_dist(gd_B_all)
-
-         CALL timestop(handle3)
-
       END IF
 
       IF (do_bse) THEN
@@ -607,7 +606,7 @@ CONTAINS
       END IF
 
       ! for GW, we need other matrix fm_mat_S
-      IF (my_do_gw) THEN
+      IF (my_do_gw .AND. .NOT. do_im_time) THEN
 
          CALL create_integ_mat(BIb_C_2D_gw, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_nm_gw, dimen_ia, color_rpa_group, &
@@ -718,7 +717,7 @@ CONTAINS
          CALL cp_fm_release(fm_mat_Q_beta)
       END IF
 
-      IF (my_do_gw) THEN
+      IF (my_do_gw .AND. .NOT. do_im_time) THEN
          CALL cp_fm_release(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw)
          IF (my_open_shell) THEN
@@ -1522,7 +1521,7 @@ CONTAINS
 
       nmo = homo+virtual
 
-      do_gw_im_time = mp2_env%ri_rpa_im_time%do_gw_im_time
+      do_gw_im_time = my_do_gw .AND. do_im_time
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
       do_ic_model = mp2_env%ri_g0w0%do_ic_model
       do_ic_opt_homo_lumo = mp2_env%ri_g0w0%do_opt_homo_lumo
@@ -1537,7 +1536,7 @@ CONTAINS
       mm_style = wfc_mm_style_gemm
       IF (.NOT. do_ri_sos_laplace_mp2) mm_style = mp2_env%ri_rpa%mm_style
 
-      IF (my_do_gw .OR. mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
+      IF (my_do_gw) THEN
          ext_scaling = 0.2_dp
          omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
          fermi_level_offset = mp2_env%ri_g0w0%fermi_level_offset
@@ -1592,7 +1591,7 @@ CONTAINS
                             mat_dm_loc_virt_cut, mat_dm_loc_occ, mat_dm_loc_virt, offset_combi_block, &
                             mat_P_omega_beta)
 
-         IF (do_gw_im_time) THEN
+         IF (my_do_gw) THEN
 
             num_points_corr = mp2_env%ri_g0w0%num_omega_points
 
@@ -1631,7 +1630,7 @@ CONTAINS
             END IF
          END IF
 
-         CALL get_mat_3c_overl_int_cut(para_env_sub, do_mao, do_gw_im_time, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
+         CALL get_mat_3c_overl_int_cut(para_env_sub, do_mao, my_do_gw, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
                                        mat_3c_overl_int_mao_for_virt, do_dbcsr_t, t_3c_O, t_3c_O_cut, eps_filter, cut_RI, &
                                        cut_memory, num_3c_repl, my_group_L_sizes_im_time, &
                                        non_zero_blocks_3c_cut_col, ends_array_cm, ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
@@ -1699,13 +1698,13 @@ CONTAINS
          alpha = 4.0_dp
       END IF
 
-      IF (my_do_gw .OR. do_gw_im_time) THEN
+      IF (my_do_gw) THEN
          IF (my_open_shell) THEN
             CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
                                       gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                       nmo, num_integ_points, num_integ_group, unit_nr, &
                                       gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                      do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
+                                      do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                       first_cycle_periodic_correction, do_GW_corr, &
                                       a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                       delta_corr, Eigenval_last, Eigenval_scf, m_value, &
@@ -1722,7 +1721,7 @@ CONTAINS
                                       gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                       nmo, num_integ_points, num_integ_group, unit_nr, &
                                       gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                      do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
+                                      do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                       first_cycle_periodic_correction, do_GW_corr, &
                                       a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                       delta_corr, Eigenval_last, Eigenval_scf, m_value, &
@@ -1757,7 +1756,7 @@ CONTAINS
       my_num_dgemm_call = 0
       my_flop_rate = 0.0_dp
 
-      IF (my_do_gw .OR. do_gw_im_time) THEN
+      IF (my_do_gw) THEN
          iter_ev_sc = mp2_env%ri_g0w0%iter_ev_sc
       ELSE
          iter_ev_sc = 1
@@ -1768,7 +1767,7 @@ CONTAINS
          IF (do_ic_model) CYCLE
 
          ! reset some values, important when doing eigenvalue self-consistent GW
-         IF (my_do_gw .OR. do_gw_im_time) THEN
+         IF (my_do_gw) THEN
             Erpa = 0.0_dp
             vec_Sigma_c_gw = (0.0_dp, 0.0_dp)
             vec_gw_energ = 0.0_dp
@@ -2009,11 +2008,11 @@ CONTAINS
 
             CALL timestop(handle3)
 
-            IF (my_do_gw .OR. do_gw_im_time) THEN
+            IF (my_do_gw) THEN
                IF (my_open_shell) THEN
                   CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                             gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                            do_bse, do_gw_im_time, do_periodic, my_do_gw, &
+                                            do_bse, do_im_time, do_periodic, &
                                             first_cycle_periodic_correction, fermi_level_offset, &
                                             omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                             vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
@@ -2026,7 +2025,7 @@ CONTAINS
                ELSE
                   CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                             gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                            do_bse, do_gw_im_time, do_periodic, my_do_gw, &
+                                            do_bse, do_im_time, do_periodic, &
                                             first_cycle_periodic_correction, fermi_level_offset, &
                                             omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                             vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
@@ -2082,13 +2081,13 @@ CONTAINS
          END IF
 
          ! G0W0 postprocessing: Fitting + correction of MO energies
-         IF (my_do_gw .OR. do_gw_im_time) THEN
+         IF (my_do_gw) THEN
             IF (my_open_shell) THEN
                CALL GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                       gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                       nmo, num_fit_points, num_integ_points, &
-                                      num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_gw_im_time, &
-                                      do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, my_do_gw, &
+                                      num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                      do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                       do_GW_corr, e_fermi, eps_filter, &
                                       fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                       Eigenval_last, Eigenval_scf, m_value, &
@@ -2111,8 +2110,8 @@ CONTAINS
                CALL GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                       gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                       nmo, num_fit_points, num_integ_points, &
-                                      num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_gw_im_time, &
-                                      do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, my_do_gw, &
+                                      num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                      do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                       do_GW_corr, e_fermi, eps_filter, &
                                       fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                       Eigenval_last, Eigenval_scf, m_value, &
@@ -2194,12 +2193,12 @@ CONTAINS
                              map_send_size_beta, map_rec_size_beta, local_size_source_beta)
       END IF
 
-      IF (my_do_gw .OR. do_gw_im_time) THEN
+      IF (my_do_gw) THEN
          IF (my_open_shell) THEN
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, z_value, m_value, &
                                         vec_gw_energ, vec_gw_energ_error_fit, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, my_do_gw, &
+                                        kpoints, do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time, &
                                         fm_mat_S_gw_work_beta, vec_W_gw_beta, &
                                         vec_Sigma_c_gw_beta, z_value_beta, m_value_beta, vec_gw_energ_beta, &
                                         vec_gw_energ_error_fit_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
@@ -2207,7 +2206,7 @@ CONTAINS
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, z_value, m_value, &
                                         vec_gw_energ, vec_gw_energ_error_fit, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, my_do_gw)
+                                        kpoints, do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
          END IF
       END IF
 
@@ -2239,7 +2238,7 @@ CONTAINS
                                  mat_dm_loc_occ, mat_dm_loc_virt)
          END IF
 
-         IF (do_gw_im_time) THEN
+         IF (my_do_gw) THEN
             IF (my_open_shell) THEN
                CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
                                                    do_kpoints_cubic_RPA, fm_mat_W_tau, mat_3c_overl_int_gw, mat_greens_fct_occ, &

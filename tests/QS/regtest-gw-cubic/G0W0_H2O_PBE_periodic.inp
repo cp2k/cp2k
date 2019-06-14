@@ -52,7 +52,6 @@
         IM_TIME
         &IM_TIME
           DO_DBCSR_T .FALSE.
-          GW
           GROUP_SIZE_3c 1
           GROUP_SIZE_P 1
         &END
@@ -66,6 +65,7 @@
           &END HF
           MINIMAX
           RPA_NUM_QUAD_POINTS     10
+          GW
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10

@@ -222,7 +222,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
-         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         description="Turns on cubic scaling RI-RPA, GW and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
          "If no IM_TIME section is present, the default parameters are used.", &
          usage="IM_TIME", &
          default_l_val=.FALSE., &
@@ -564,8 +564,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="RI_G0W0", &
          variants=(/"GW"/), &
-         description="Decide whether to perform an RI_G0W0 calculation on top of RI_RPA. "// &
-         "For cubic-scaling GW, please use IM_TIME_GW.", &
+         description="Decide whether to perform an RI_G0W0 calculation on top of RI_RPA. ", &
          usage="RI_G0W0", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -1197,7 +1196,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Activates cubic-scaling RPA and Laplace-SOS-MP2 calculations.", &
+                          description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
                           usage="&im_time .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1273,19 +1272,6 @@ CONTAINS
          "the STABILIZE_EXP keyword, all EXP(-alpha) are not computed but set to zero for alpha > STABILIZE_EXP.", &
          usage="EPS_FILTER_IM_TIME 1.0E-10 ", type_of_var=real_t, &
          default_r_val=70.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="RI_G0W0", &
-         variants=(/"GW"/), &
-         description="Decide whether to perform a cubic scaling GW calculation on top of imag. time RPA. "// &
-         "The corresponding RI_G0W0 section has to be placed inside the RI_RPA section. The keyword RI_G0W0 "// &
-         "inside RI_RPA must not be set.", &
-         usage="IM_TIME_GW", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

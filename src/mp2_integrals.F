@@ -364,11 +364,6 @@ CONTAINS
       ! imag. time only without Coulomb metric implemented
       CPASSERT(.NOT. (ri_metric == do_potential_coulomb .AND. do_im_time))
 
-      ! for cubic scaling GW, overlap metric is necessary
-      IF (qs_env%mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
-         CPASSERT(ri_metric == do_potential_id)
-      END IF
-
       virtual = nmo-homo
       gw_corr_lev_total = gw_corr_lev_virt+gw_corr_lev_occ
 
@@ -411,34 +406,33 @@ CONTAINS
 
          END IF
 
-      END IF ! not for imaginary time
+         ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
+         IF (my_do_gw) THEN
 
-      ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
-      IF (my_do_gw) THEN
-
-         CALL create_intermediate_matrices(matrix_in_jnu, matrix_in_jm, mo_coeff_gw, &
-                                           nmo, gw_corr_lev_total, &
-                                           fm_BIb_gw, "fm_BIb_gw", &
-                                           max_row_col_local_gw, &
-                                           blacs_env_sub, para_env_sub, local_col_row_info_gw)
-
-         CALL create_group_dist(gd_B_all, para_env_sub%num_pe, nmo)
-         CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
-
-         IF (do_alpha_beta) THEN
-            ! deallocate local_col_row_info_gw, otherwise it gets twice allocated in create_intermediate_m
-            DEALLOCATE (local_col_row_info_gw)
-            CALL create_intermediate_matrices(matrix_in_jnu_beta, matrix_in_jm_beta, mo_coeff_gw_beta, &
+            CALL create_intermediate_matrices(matrix_in_jnu, matrix_in_jm, mo_coeff_gw, &
                                               nmo, gw_corr_lev_total, &
-                                              fm_BIb_gw_beta, "fm_BIb_gw_beta", &
+                                              fm_BIb_gw, "fm_BIb_gw", &
                                               max_row_col_local_gw, &
                                               blacs_env_sub, para_env_sub, local_col_row_info_gw)
 
-            ! we don"t need parallelization arrays for beta since the matrix sizes of B_nm^P is the same
-            ! for the beta case and therefore the parallelization of beta is the same than for alpha
+            CALL create_group_dist(gd_B_all, para_env_sub%num_pe, nmo)
+            CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
 
+            IF (do_alpha_beta) THEN
+               ! deallocate local_col_row_info_gw, otherwise it gets twice allocated in create_intermediate_m
+               DEALLOCATE (local_col_row_info_gw)
+               CALL create_intermediate_matrices(matrix_in_jnu_beta, matrix_in_jm_beta, mo_coeff_gw_beta, &
+                                                 nmo, gw_corr_lev_total, &
+                                                 fm_BIb_gw_beta, "fm_BIb_gw_beta", &
+                                                 max_row_col_local_gw, &
+                                                 blacs_env_sub, para_env_sub, local_col_row_info_gw)
+
+               ! we don"t need parallelization arrays for beta since the matrix sizes of B_nm^P is the same
+               ! for the beta case and therefore the parallelization of beta is the same than for alpha
+
+            END IF
          END IF
-      END IF
+      END IF ! not for imaginary time
 
       IF (do_bse) THEN
 
@@ -554,7 +548,7 @@ CONTAINS
 
          WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
             mem_for_iaK, ' MiB'
-         IF (my_do_gw) THEN
+         IF (my_do_gw .AND. .NOT. do_im_time) THEN
             mem_for_iaK = dimen_RI*REAL(nmo, KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
 
             WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:', &
@@ -578,19 +572,18 @@ CONTAINS
             BIb_C_beta = 0.0_dp
          END IF
 
-      END IF ! imag. time
+         ! in the case of GW, we also need (nm|K)
+         IF (my_do_gw) THEN
 
-      ! in the case of GW, we also need (nm|K)
-      IF (my_do_gw) THEN
+            ALLOCATE (BIb_C_gw(my_group_L_size, my_B_all_size, gw_corr_lev_total))
+            BIb_C_gw = 0.0_dp
+            IF (do_alpha_beta) THEN
+               ALLOCATE (BIb_C_gw_beta(my_group_L_size, my_B_all_size, gw_corr_lev_total))
+               BIb_C_gw_beta = 0.0_dp
+            END IF
 
-         ALLOCATE (BIb_C_gw(my_group_L_size, my_B_all_size, gw_corr_lev_total))
-         BIb_C_gw = 0.0_dp
-         IF (do_alpha_beta) THEN
-            ALLOCATE (BIb_C_gw_beta(my_group_L_size, my_B_all_size, gw_corr_lev_total))
-            BIb_C_gw_beta = 0.0_dp
          END IF
-
-      END IF
+      END IF ! imag. time
 
       IF (do_bse) THEN
 
@@ -942,7 +935,7 @@ CONTAINS
 
       END IF
 
-      IF (my_do_gw) THEN
+      IF (my_do_gw .AND. .NOT. do_im_time) THEN
          CALL dbcsr_release(matrix_in_jnu)
          CALL dbcsr_release(matrix_in_jm)
          CALL cp_fm_release(fm_BIb_gw)

@@ -261,7 +261,7 @@ CONTAINS
 
       ! GW and SOS-MP2 cannot be used together
       IF (my_do_ri_sos_laplace_mp2) THEN
-         CPASSERT(.NOT. (mp2_env%ri_rpa_im_time%do_gw_im_time .OR. mp2_env%ri_rpa%do_ri_g0w0))
+         CPASSERT(.NOT. mp2_env%ri_rpa%do_ri_g0w0)
       END IF
 
       ! check if we want to do imaginary time
@@ -521,7 +521,7 @@ CONTAINS
                pw_env_sub, poisson_env, auxbas_pw_pool, &
                task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
-               mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
+               mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw .AND. .NOT. do_im_time, &
                do_bse, gd_B_all, starts_array_mc_t, ends_array_mc_t, gw_corr_lev_occ, gw_corr_lev_virt, &
                do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
                mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, &
@@ -542,7 +542,7 @@ CONTAINS
                                        task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                                        mp2_env%mp2_gpw%eps_filter, unit_nr, &
                                        mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, &
-                                       blacs_env_sub, my_do_gw, do_bse, gd_B_all, &
+                                       blacs_env_sub, my_do_gw .AND. .NOT. do_im_time, do_bse, gd_B_all, &
                                        starts_array_mc_t, ends_array_mc_t, &
                                        gw_corr_lev_occ, gw_corr_lev_virt, &
                                        do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
@@ -902,7 +902,7 @@ CONTAINS
 
       !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
       ! moved from above
-      IF (my_do_gw) THEN
+      IF (my_do_gw .AND. .NOT. do_im_time) THEN
          CALL dbcsr_release(mo_coeff_gw)
          DEALLOCATE (mo_coeff_gw)
          IF (nspins == 2) THEN
