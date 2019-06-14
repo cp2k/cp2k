@@ -145,7 +145,7 @@ CONTAINS
                                                             output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       LOGICAL                                            :: has_resp
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs_to_save
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs_to_save = > Null()
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger

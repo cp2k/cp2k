@@ -1715,7 +1715,6 @@ CONTAINS
          ENDDO
          embed_pot%pw%cr3d(:, :, :) = embed_pot%pw%cr3d(:, :, :)+opt_embed%pot_diff%pw%cr3d(:, :, :)
          IF (.NOT. opt_embed%grid_opt) CALL pw_copy(embed_pot%pw, opt_embed%const_pot%pw)
-         DEALLOCATE (rhs)
 
       ENDIF
 
