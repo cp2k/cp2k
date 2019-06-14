@@ -18,9 +18,14 @@ MODULE mp2_types
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type,&
                                               pair_list_element_type
-   USE input_constants,                 ONLY: &
-        do_eri_mme, mp2_method_direct, mp2_method_gpw, mp2_method_laplace, mp2_method_none, &
-        mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
+   USE input_constants,                 ONLY: do_eri_mme,&
+                                              mp2_method_direct,&
+                                              mp2_method_gpw,&
+                                              mp2_method_none,&
+                                              mp2_ri_optimize_basis,&
+                                              ri_mp2_laplace,&
+                                              ri_mp2_method_gpw,&
+                                              ri_rpa_method_gpw
    USE kinds,                           ONLY: default_path_length,&
                                               dp
 #include "./base/base_uses.f90"
@@ -35,7 +40,6 @@ MODULE mp2_types
              integ_mat_buffer_type, &
              integ_mat_buffer_type_2D, &
              mp2_method_none, &
-             mp2_method_laplace, &
              mp2_method_direct, &
              mp2_method_gpw, &
              mp2_ri_optimize_basis, &

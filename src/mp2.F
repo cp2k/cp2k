@@ -93,9 +93,14 @@ MODULE mp2
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
    USE mp2_gpw,                         ONLY: mp2_gpw_main
    USE mp2_optimize_ri_basis,           ONLY: optimize_ri_basis_main
-   USE mp2_types,                       ONLY: &
-        mp2_biel_type, mp2_method_direct, mp2_method_gpw, mp2_method_laplace, &
-        mp2_ri_optimize_basis, mp2_type, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
+   USE mp2_types,                       ONLY: mp2_biel_type,&
+                                              mp2_method_direct,&
+                                              mp2_method_gpw,&
+                                              mp2_ri_optimize_basis,&
+                                              mp2_type,&
+                                              ri_mp2_laplace,&
+                                              ri_mp2_method_gpw,&
+                                              ri_rpa_method_gpw
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -524,8 +529,6 @@ CONTAINS
 
       t1 = m_walltime()
       SELECT CASE (mp2_env%method)
-      CASE (mp2_method_laplace)
-         CPABORT("laplace not implemented")
       CASE (mp2_method_direct)
          IF (unit_nr > 0) WRITE (unit_nr, *)
 
