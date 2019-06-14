@@ -1096,6 +1096,9 @@ CONTAINS
                                    l_val=qs_control%xtb_control%coulomb_interaction)
          CALL section_vals_val_get(xtb_section, "TB3_INTERACTION", &
                                    l_val=qs_control%xtb_control%tb3_interaction)
+         ! Check for bad atomic charges
+         CALL section_vals_val_get(xtb_section, "CHECK_ATOMIC_CHARGES", &
+                                   l_val=qs_control%xtb_control%check_atomic_charges)
          IF (n_rep > 0) THEN
             ALLOCATE (qs_control%xtb_control%kab_param(3, n_rep))
             DO j = 1, n_rep

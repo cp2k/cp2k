@@ -8,7 +8,6 @@
        CUTOFF  100
     &END MGRID
     &SCF
-      SCF_GUESS MOPAC
       MAX_SCF  100
       EPS_SCF 1.e-8
     &END SCF

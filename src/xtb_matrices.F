@@ -29,6 +29,7 @@ MODULE xtb_matrices
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -956,7 +957,8 @@ CONTAINS
                                                             nimg, nkind, ns, nsgf, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
-      REAL(KIND=dp)                                      :: pc_ener, qmmm_el
+      LOGICAL                                            :: pass_check
+      REAL(KIND=dp)                                      :: achrg, chmax, pc_ener, qmmm_el
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -980,8 +982,10 @@ CONTAINS
 
       NULLIFY (dft_control, logger, scf_section, matrix_p, particle_set, ks_env, &
                ks_matrix, rho, energy)
-      logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(qs_env))
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1061,6 +1065,32 @@ CONTAINS
                                 calculate_forces, just_energy)
 
          CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+
+         IF (dft_control%qs_control%xtb_control%check_atomic_charges) THEN
+            pass_check = .TRUE.
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
+               CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+               CALL get_xtb_atom_param(xtb_kind, chmax=chmax)
+               DO iatom = 1, na
+                  atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+                  achrg = mcharge(atom_a)
+                  IF (ABS(achrg) > chmax) THEN
+                     IF (iounit > 0) THEN
+                        WRITE (iounit, "(A,A,I3,I6,A,F4.2,A,F6.2)") " Charge outside chemical range:", &
+                           "  Kind Atom=", ikind, atom_a, "   Limit=", chmax, "  Charge=", achrg
+                     END IF
+                     pass_check = .FALSE.
+                  END IF
+               END DO
+            END DO
+            IF (.NOT. pass_check) THEN
+               CALL cp_warn(__LOCATION__, "Atomic charges outside chemical range were detected."// &
+                            " Switch-off CHECK_ATOMIC_CHARGES keyword in the &xTB section"// &
+                            " if you want to force to continue the calculation.")
+               CPABORT("xTB Charges")
+            END IF
+         END IF
 
          DEALLOCATE (mcharge, charges)
       END IF

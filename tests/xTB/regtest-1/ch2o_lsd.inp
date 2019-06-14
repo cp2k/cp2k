@@ -19,7 +19,6 @@
       &END XTB
     &END QS
     &SCF
-      SCF_GUESS MOPAC
       MAX_SCF  100
       EPS_SCF 1.e-8
       &MIXING

@@ -183,6 +183,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_ATOMIC_CHARGES", &
+                          description="Stop calculation if atomic charges are outside chemical range.", &
+                          usage="CHECK_ATOMIC_CHARGES T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_xtb_control_section
 
 ! **************************************************************************************************
