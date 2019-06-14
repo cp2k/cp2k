@@ -37,7 +37,6 @@ MODULE rpa_main
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -88,6 +87,7 @@ MODULE rpa_main
                                               RPA_postprocessing_start,&
                                               alloc_im_time,&
                                               calc_mat_Q,&
+                                              contract_P_omega_with_mat_L,&
                                               dealloc_im_time,&
                                               get_mat_3c_overl_int_cut
    USE util,                            ONLY: get_limit
@@ -1934,27 +1934,14 @@ CONTAINS
 
                IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
 
-                  ! multiplication with RI metric/Coulomb operator
-                  CALL dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega(jquad, 1)%matrix, mat_L%matrix, &
-                                      0.0_dp, mat_P_global%matrix, filter_eps=eps_filter_im_time)
+                  CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1)%matrix, mat_L%matrix, mat_P_global%matrix, &
+                                                   eps_filter_im_time, fm_mat_work, dimen_RI, fm_mat_L(1, 1)%matrix, fm_mat_Q)
 
-                  CALL copy_dbcsr_to_fm(mat_P_global%matrix, fm_mat_work)
-
-                  CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_work, &
-                               0.0_dp, fm_mat_Q)
-
-                  ! For open-shell SOS-MP2 we have two different matrices we have to deal with
+                  ! For open-shell SOS-MP2 we have two different matrices to deal with
                   IF (my_open_shell .AND. do_ri_sos_laplace_mp2) THEN
-                     CALL cp_fm_set_all(matrix=fm_mat_work, alpha=0.0_dp)
-
-                     ! multiplication with RI metric/Coulomb operator
-                     CALL dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega_beta(jquad, 1)%matrix, mat_L%matrix, &
-                                         0.0_dp, mat_P_global%matrix, filter_eps=eps_filter_im_time)
-
-                     CALL copy_dbcsr_to_fm(mat_P_global%matrix, fm_mat_work)
-
-                     CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_work, &
-                                  0.0_dp, fm_mat_Q_beta)
+                     CALL contract_P_omega_with_mat_L(mat_P_omega_beta(jquad, 1)%matrix, mat_L%matrix, mat_P_global%matrix, &
+                                                      eps_filter_im_time, fm_mat_work, dimen_RI, fm_mat_L(1, 1)%matrix, &
+                                                      fm_mat_Q_beta)
                   END IF
                END IF
 
