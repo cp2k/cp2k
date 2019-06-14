@@ -1287,7 +1287,6 @@ CONTAINS
 
       ! Resp charges
       IF (PRESENT(rhs)) qs_env%rhs => rhs
-   ENDIF
 
 END SUBROUTINE set_qs_env
 
