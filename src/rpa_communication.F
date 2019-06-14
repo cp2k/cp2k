@@ -340,13 +340,16 @@ CONTAINS
                               number_of_send, &
                               map_send_size, map_rec_size, local_size_source, para_env_RPA)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_source, fm_mat_dest
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: RPA_proc_map
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
-      INTEGER, INTENT(IN)                                :: number_of_send
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: map_send_size, map_rec_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_size_source
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      INTEGER, DIMENSION(2, 0:para_env_RPA%num_pe-1), &
+         INTENT(IN)                                      :: local_size_source
+      INTEGER, DIMENSION(0:para_env_RPA%num_pe-1), &
+         INTENT(IN)                                      :: map_rec_size, map_send_size
+      INTEGER, INTENT(IN)                                :: number_of_send
+      TYPE(integ_mat_buffer_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: buffer_send, buffer_rec
+      INTEGER, DIMENSION(-para_env_RPA%num_pe:2*&
+         para_env_RPA%num_pe-1), INTENT(IN)              :: RPA_proc_map
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_redistribute', &
          routineP = moduleN//':'//routineN

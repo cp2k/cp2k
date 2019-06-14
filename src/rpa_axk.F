@@ -101,16 +101,17 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: RPA_proc_map
+      INTEGER, DIMENSION(-para_env_RPA%num_pe:2*&
+         para_env_RPA%num_pe-1), INTENT(IN)              :: RPA_proc_map
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eig
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: buffer_send_axk, buffer_rec_axk
+      TYPE(integ_mat_buffer_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: buffer_send_axk, buffer_rec_axk
       INTEGER, INTENT(IN)                                :: number_of_send_axk
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: map_send_size_axk, map_rec_size_axk
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_size_source_axk
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: map_send_size_axk, map_rec_size_axk
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: local_size_source_axk
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -123,13 +124,13 @@ CONTAINS
       INTEGER :: avirt, color_sub, handle, i_global, iib, iitmp(2), iocc, j_global, jjb, kkb, &
          L_counter, my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, &
          nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
                                                             fm_mat_R_half, fm_mat_R_half_gemm, &
                                                             fm_mat_U
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
+      REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
                                                             dbcsr_Gamma_munu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v

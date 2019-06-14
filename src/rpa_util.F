@@ -723,8 +723,7 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_L
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_template
       INTEGER, INTENT(IN)                                :: first_ikp_local
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN), &
-         OPTIONAL                                        :: ikp_local
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ikp_local
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct_sub_kp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reorder_mat_L', routineP = moduleN//':'//routineN
@@ -857,16 +856,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: cut_RI, cut_memory
       INTEGER, INTENT(OUT)                               :: num_3c_repl
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: my_group_L_sizes_im_time
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: my_group_L_sizes_im_time
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :), &
          INTENT(OUT)                                     :: non_zero_blocks_3c_cut_col
       INTEGER, DIMENSION(:), POINTER                     :: ends_array_cm, ends_array_cm_mao_occ, &
                                                             ends_array_cm_mao_virt
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ends_array_mc_t
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ends_array_mc_t
       INTEGER, DIMENSION(:), POINTER                     :: starts_array_cm, &
                                                             starts_array_cm_mao_occ, &
                                                             starts_array_cm_mao_virt
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc_t
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc_t
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :), INTENT(OUT) :: &
          needed_cutRI_mem_R1vec_R2vec_for_kp
@@ -976,8 +975,10 @@ CONTAINS
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
       INTEGER, INTENT(IN)                                :: number_of_send
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: map_send_size, map_rec_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_size_source
+      INTEGER, DIMENSION(0:para_env_RPA%num_pe-1), &
+         INTENT(IN)                                      :: map_send_size, map_rec_size
+      INTEGER, DIMENSION(2, 0:para_env_RPA%num_pe-1), &
+         INTENT(IN)                                      :: local_size_source
       INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
       REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
 
@@ -1143,11 +1144,13 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: RPA_proc_map
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
+      TYPE(integ_mat_buffer_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: buffer_rec, buffer_send
       INTEGER, INTENT(IN)                                :: number_of_send
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: map_send_size, map_rec_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_size_source
+      INTEGER, DIMENSION(0:para_env_RPA%num_pe-1), &
+         INTENT(IN)                                      :: map_send_size, map_rec_size
+      INTEGER, DIMENSION(2, 0:para_env_RPA%num_pe-1), &
+         INTENT(IN)                                      :: local_size_source
       REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_S_to_Q', &
@@ -1757,7 +1760,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: row_from_LLL
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_to_cell_3c
