@@ -18,7 +18,8 @@ MODULE rpa_util
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_type
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
@@ -73,7 +74,8 @@ MODULE rpa_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_util'
 
-   PUBLIC :: RPA_postprocessing_nokp, alloc_im_time, calc_mat_Q, RPA_postprocessing_start, get_mat_3c_overl_int_cut, dealloc_im_time
+   PUBLIC :: RPA_postprocessing_nokp, alloc_im_time, calc_mat_Q, RPA_postprocessing_start, get_mat_3c_overl_int_cut, &
+             dealloc_im_time, contract_P_omega_with_mat_L
 
 CONTAINS
 
@@ -1916,5 +1918,49 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE dealloc_im_time
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_P_omega ...
+!> \param mat_L ...
+!> \param mat_work ...
+!> \param eps_filter_im_time ...
+!> \param fm_mat_work ...
+!> \param dimen_RI ...
+!> \param fm_mat_L ...
+!> \param fm_mat_Q ...
+! **************************************************************************************************
+   SUBROUTINE contract_P_omega_with_mat_L(mat_P_omega, mat_L, mat_work, eps_filter_im_time, fm_mat_work, dimen_RI, &
+                                          fm_mat_L, fm_mat_Q)
+
+      TYPE(dbcsr_type), POINTER                          :: mat_P_omega, mat_L, mat_work
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_work
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_L, fm_mat_Q
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_P_omega_with_mat_L', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      ! multiplication with RI metric/Coulomb operator
+      CALL dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega, mat_L, &
+                          0.0_dp, mat_work, filter_eps=eps_filter_im_time)
+
+      CALL copy_dbcsr_to_fm(mat_work, fm_mat_work)
+
+      CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_work, &
+                   0.0_dp, fm_mat_Q)
+
+      ! Reset mat_work to save memory
+      CALL dbcsr_set(mat_work, 0.0_dp)
+      CALL dbcsr_filter(mat_work, 1.0_dp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE contract_P_omega_with_mat_L
 
 END MODULE rpa_util
