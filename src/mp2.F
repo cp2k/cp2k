@@ -315,19 +315,6 @@ CONTAINS
             mp2_env%mp2_memory, ' MiB'
       END IF
 
-      ! just check that GW is used correctly
-
-      ! 1. cubic-scaling GW may not be used together with normal N^4 GW
-      CPASSERT(.NOT. (mp2_env%ri_rpa%do_ri_g0w0 .AND. mp2_env%ri_rpa_im_time%do_gw_im_time))
-
-      ! 2. cubic-scaling GW can only be used if cubic-scaling RPA is switched on
-      IF (mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
-         CPASSERT(mp2_env%do_im_time)
-      END IF
-
-      ! 3. N^4 GW cannot be used together with cubic-scaling RPA
-      CPASSERT(.NOT. (mp2_env%ri_rpa%do_ri_g0w0 .AND. mp2_env%do_im_time))
-
       IF (unit_nr > 0) CALL m_flush(unit_nr)
 
       nspins = dft_control%nspins
@@ -481,7 +468,7 @@ CONTAINS
 
       ! calculate the matrix sigma_x - vxc for G0W0
       t3 = 0
-      IF (mp2_env%ri_rpa%do_ri_g0w0 .OR. mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
+      IF (mp2_env%ri_rpa%do_ri_g0w0) THEN
          CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, E_ex_from_GW, t3, unit_nr)
       END IF
       IF (free_hfx_buffer) THEN
@@ -793,7 +780,7 @@ CONTAINS
          hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
          CALL section_vals_get(hfx_sections, explicit=do_exx)
          IF (do_exx) THEN
-            do_gw = mp2_env%ri_rpa%do_ri_g0w0 .OR. mp2_env%ri_rpa_im_time%do_gw_im_time
+            do_gw = mp2_env%ri_rpa%do_ri_g0w0
             do_admm = mp2_env%ri_rpa%do_admm
             CALL calculate_exx(qs_env, unit_nr, do_gw, do_admm, E_ex_from_GW, t3)
          END IF

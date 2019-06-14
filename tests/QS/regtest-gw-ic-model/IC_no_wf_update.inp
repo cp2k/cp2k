@@ -56,11 +56,11 @@
         IM_TIME
         &IM_TIME
           DO_DBCSR_T .FALSE.
-          GW
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  20
           MINIMAX
+          GW
           &RI_G0W0
             CORR_MOS_OCC 4
             CORR_MOS_VIRT 5

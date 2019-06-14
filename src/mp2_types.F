@@ -147,7 +147,7 @@ MODULE mp2_types
                                             sizes_array_cm_mao_virt, starts_array_cm_mao_virt, &
                                             ends_array_cm_mao_virt
       INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt, kp_grid
-      LOGICAL                  :: do_gw_im_time, do_im_time_kpoints
+      LOGICAL                  :: do_im_time_kpoints
       REAL(KIND=dp)            :: stabilize_exp
       LOGICAL  :: do_dbcsr_t
       INTEGER  :: max_bsize_sqrt

@@ -998,9 +998,8 @@ CONTAINS
 !> \param num_fit_points ...
 !> \param num_integ_points ...
 !> \param do_bse ...
-!> \param do_gw_im_time ...
+!> \param do_im_time ...
 !> \param do_periodic ...
-!> \param my_do_gw ...
 !> \param first_cycle_periodic_correction ...
 !> \param fermi_level_offset ...
 !> \param omega ...
@@ -1040,7 +1039,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                    gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                   do_bse, do_gw_im_time, do_periodic, my_do_gw, &
+                                   do_bse, do_im_time, do_periodic, &
                                    first_cycle_periodic_correction, fermi_level_offset, &
                                    omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                    vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
@@ -1056,8 +1055,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, jquad, nmo, &
                                                             num_fit_points, num_integ_points
-      LOGICAL, INTENT(IN)                                :: do_bse, do_gw_im_time, do_periodic, &
-                                                            my_do_gw
+      LOGICAL, INTENT(IN)                                :: do_bse, do_im_time, do_periodic
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
@@ -1118,7 +1116,7 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      IF (my_do_gw) THEN
+      IF (.NOT. do_im_time) THEN
          ! calculate [1+Q(iw')]^-1
          CALL cp_fm_cholesky_invert(fm_mat_Q)
          ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
@@ -1167,7 +1165,7 @@ CONTAINS
       END IF ! GW
 
       ! cubic scaling GW calculation for molecules
-      IF (do_gw_im_time .AND. .NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
+      IF (do_im_time .AND. .NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
 
          ! calculate [1+Q(iw')]^-1
          CALL cp_fm_cholesky_invert(fm_mat_Q)
@@ -1352,11 +1350,10 @@ CONTAINS
 !> \param num_points_corr ...
 !> \param unit_nr ...
 !> \param do_apply_ic_corr_to_gw ...
-!> \param do_gw_im_time ...
+!> \param do_im_time ...
 !> \param do_periodic ...
 !> \param do_ri_Sigma_x ...
 !> \param first_cycle_periodic_correction ...
-!> \param my_do_gw ...
 !> \param do_GW_corr ...
 !> \param e_fermi ...
 !> \param eps_filter ...
@@ -1430,8 +1427,8 @@ CONTAINS
    SUBROUTINE GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                 gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                 nmo, num_fit_points, num_integ_points, &
-                                num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_gw_im_time, &
-                                do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, my_do_gw, &
+                                num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                 do_GW_corr, e_fermi, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                 Eigenval_last, Eigenval_scf, m_value, &
@@ -1457,10 +1454,9 @@ CONTAINS
          homo, nmo, num_fit_points, num_integ_points
       INTEGER                                            :: num_points_corr
       INTEGER, INTENT(IN)                                :: unit_nr
-      LOGICAL, INTENT(IN)                                :: do_apply_ic_corr_to_gw, do_gw_im_time, &
+      LOGICAL, INTENT(IN)                                :: do_apply_ic_corr_to_gw, do_im_time, &
                                                             do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      LOGICAL, INTENT(IN)                                :: my_do_gw
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter, fermi_level_offset, &
                                                             stabilize_exp
@@ -1544,7 +1540,7 @@ CONTAINS
       stop_crit = 1.0e-7
 
       ! postprocessing for cubic scaling GW calculation
-      IF (do_gw_im_time .AND. .NOT. do_kpoints_cubic_RPA) THEN
+      IF (do_im_time .AND. .NOT. do_kpoints_cubic_RPA) THEN
          num_points_corr = mp2_env%ri_g0w0%num_omega_points
 
          CALL compute_self_energy_im_time_gw(num_integ_points, nmo, tau_tj, tj, mat_greens_fct_occ, mat_greens_fct_virt, &
@@ -1580,7 +1576,7 @@ CONTAINS
 
       END IF
 
-      IF (my_do_gw) THEN
+      IF (.NOT. do_im_time) THEN
 
          CALL mp_sum(vec_Sigma_c_gw, para_env%group)
 
@@ -1598,7 +1594,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (my_open_shell .AND. my_do_gw) THEN
+      IF (my_open_shell .AND. .NOT. do_im_time) THEN
          CALL mp_sum(vec_Sigma_c_gw_beta, para_env%group)
       END IF
 
@@ -1635,14 +1631,14 @@ CONTAINS
                                                mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), &
                                                Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
                                                num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
-                                               fermi_level_offset, do_gw_im_time)
+                                               fermi_level_offset, do_im_time)
             CASE (gw_pade_approx)
                CALL continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                       z_value, m_value, vec_Sigma_c_gw(:, :, ikp), &
                                       mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), &
                                       Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, mp2_env%ri_g0w0%nparam_pade, &
                                       num_fit_points, crossing_search, homo, check_fit, &
-                                      fermi_level_offset, do_gw_im_time)
+                                      fermi_level_offset, do_im_time)
 
             CASE DEFAULT
                CPABORT("Only two-model and Pade approximation are implemented.")
@@ -1658,7 +1654,7 @@ CONTAINS
                      Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
                      gw_corr_lev_occ_beta, num_poles, &
                      num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, stop_crit, &
-                     fermi_level_offset, do_gw_im_time)
+                     fermi_level_offset, do_im_time)
                CASE (gw_pade_approx)
                   CALL continuation_pade(vec_gw_energ_beta, vec_omega_fit_gw, &
                                          z_value_beta, m_value_beta, vec_Sigma_c_gw_beta(:, :, ikp), &
@@ -1666,7 +1662,7 @@ CONTAINS
                                          Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
                                          gw_corr_lev_occ_beta, mp2_env%ri_g0w0%nparam_pade, &
                                          num_fit_points, crossing_search, homo_beta, check_fit, &
-                                         fermi_level_offset, do_gw_im_time)
+                                         fermi_level_offset, do_im_time)
                CASE DEFAULT
                   CPABORT("Only two-model and Pade approximation are implemented.")
                END SELECT
