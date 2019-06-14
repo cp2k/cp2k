@@ -23,6 +23,7 @@ MODULE qs_initial_guess
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
+                                              cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
@@ -506,6 +507,7 @@ CONTAINS
             CALL cp_fm_create(ortho, ao_ao_struct)
             CALL copy_dbcsr_to_fm(matrix_s_kp(1, 1)%matrix, ortho)
             CALL cp_fm_cholesky_decompose(ortho)
+            CALL cp_fm_struct_release(ao_ao_struct)
          END IF
 
          ispin = 1
