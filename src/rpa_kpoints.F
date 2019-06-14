@@ -93,17 +93,17 @@ CONTAINS
                                                             count_ev_sc_GW
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: tau_tj, tj, wj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(IN)                                      :: weights_cos_tf_w_to_t
+      REAL(KIND=dp), DIMENSION(0:num_integ_points), &
+         INTENT(IN)                                      :: tau_tj
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj, wj
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_W
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma, &
                                                             do_kpoints_cubic_RPA
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
@@ -111,7 +111,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
-      TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_kp', &
          routineP = moduleN//':'//routineN
@@ -227,7 +227,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
       INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Q_kp_RPA', &
@@ -292,7 +292,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_P_to_subgroup', &
@@ -367,8 +367,7 @@ CONTAINS
 
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: trace_Qomega
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cholesky_decomp_Q', &
@@ -426,8 +425,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: trace_Qomega
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(IN)                          :: freq_weight, kp_weight
 
@@ -552,7 +550,7 @@ CONTAINS
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: num_integ_points, jquad, nkp
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_Wc_kp_tau_GW', &
          routineP = moduleN//':'//routineN
