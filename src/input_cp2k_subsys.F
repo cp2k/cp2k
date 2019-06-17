@@ -46,8 +46,7 @@ MODULE input_cp2k_subsys
                                               integer_t,&
                                               lchar_t,&
                                               real_t
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: bohr
    USE string_utilities,                ONLY: newline,&
                                               s2a
@@ -71,32 +70,47 @@ CONTAINS
 !> \brief creates the cell section
 !> \param section ...
 !> \param periodic ...
-!> \param label ...
-!> \author teo
+!> \author Ole Schuett
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE create_cell_section(section, periodic, label)
+   SUBROUTINE create_cell_section(section, periodic)
       TYPE(section_type), POINTER                        :: section
       INTEGER, INTENT(IN), OPTIONAL                      :: periodic
-      CHARACTER(LEN=*), OPTIONAL                         :: label
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_section', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(LEN=default_string_length)               :: my_label
-      INTEGER                                            :: my_periodic
-      TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
-      my_periodic = use_perd_xyz
-      my_label = "CELL"
-      IF (PRESENT(periodic)) my_periodic = periodic
-      IF (PRESENT(label)) my_label = label
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, TRIM(my_label), &
-                          description="Input parameters needed to set up the "//TRIM(my_label)//".", &
-                          n_keywords=6, n_subsections=1, repeats=.FALSE.)
+      CALL section_create(section, __LOCATION__, "CELL", &
+                          description="Input parameters needed to set up the simulation cell.")
+      CALL create_cell_section_low(section, periodic)
 
-      NULLIFY (keyword, subsection)
+      NULLIFY (subsection)
+      CALL section_create(subsection, __LOCATION__, "CELL_REF", &
+                          description="Input parameters needed to set up the reference cell. "// &
+                          "This option can be used to keep the FFT grid fixed while "// &
+                          "running a cell optimization or NpT molecular dynamics.")
+      CALL create_cell_section_low(subsection, periodic)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_cell_section
+
+! **************************************************************************************************
+!> \brief populates cell section with keywords
+!> \param section ...
+!> \param periodic ...
+!> \author teo
+! **************************************************************************************************
+   SUBROUTINE create_cell_section_low(section, periodic)
+      TYPE(section_type), POINTER                        :: section
+      INTEGER, INTENT(IN), OPTIONAL                      :: periodic
+
+      INTEGER                                            :: my_periodic
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      my_periodic = use_perd_xyz
+      IF (PRESENT(periodic)) my_periodic = periodic
+
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Specify the Cartesian components for the cell vector A. "// &
                           "This defines the first column of the h matrix.", &
@@ -215,12 +229,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      IF (TRIM(my_label) == "CELL") THEN
-         CALL create_cell_section(subsection, periodic, "CELL_REF")
-         CALL section_add_subsection(section, subsection)
-         CALL section_release(subsection)
-      END IF
-   END SUBROUTINE create_cell_section
+   END SUBROUTINE create_cell_section_low
 
 ! **************************************************************************************************
 !> \brief Creates the random number restart section

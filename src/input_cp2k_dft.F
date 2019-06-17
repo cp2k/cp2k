@@ -5351,7 +5351,7 @@ CONTAINS
                           "Notice that the EPS_SCF of the inner loop also determines "// &
                           "the value that can be reached in the outer loop, "// &
                           "typically EPS_SCF of the outer loop must be smaller "// &
-                          "than EPS_SCF of the inner loop.", &
+                          "than or equal to EPS_SCF of the inner loop.", &
                           usage="EPS_SCF 1.0E-6 ", default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -6579,14 +6579,14 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="LOW_SPIN_ROKS", &
-                          description="Specify the details of the low spin ROKS method."// &
+                          description="Specify the details of the low spin ROKS method. "// &
                           "In particular, one can specify various terms added to the energy of the high spin roks configuration"// &
                           " with a energy scaling factor, and a prescription of the spin state.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_SCALING", &
-                          description="The scaling factors for each term added to the total energy."// &
+                          description="The scaling factors for each term added to the total energy. "// &
                           "This list should contain one number for each term added to the total energy.", &
                           usage="ENERGY_SCALING 1.0 -1.0 ", &
                           n_var=-1, type_of_var=real_t, repeats=.FALSE.)
@@ -6594,7 +6594,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, name="SPIN_CONFIGURATION", &
-         description="for each singly occupied orbital, specify if this should be an alpha (=1) or a beta (=2) orbital"// &
+         description="For each singly occupied orbital, specify if this should be an alpha (=1) or a beta (=2) orbital. "// &
          "This keyword should be repeated, each repetition corresponding to an additional term.", &
          usage="SPIN_CONFIGURATION 1 2", &
          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
