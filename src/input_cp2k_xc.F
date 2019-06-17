@@ -962,7 +962,7 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="SHORT_RANGE_CORRECTION_PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHORT_RANGE_CORRECTION_PARAMETERS", &
                           description="Parameters for the short-range bond correction to the DFT-D3 model. "// &
                           " s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
                           " Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
@@ -971,7 +971,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       ! KG molecular corrections
-      CALL keyword_create(keyword, name="MOLECULE_CORRECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE_CORRECTION", &
                           description="Calculate a intermolecular correction to the DFT-D3 model", &
                           usage="MOLECULE_CORRECTION", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -1097,21 +1097,21 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="gcp_potential", &
+      CALL section_create(section, __LOCATION__, name="gcp_potential", &
                           description="This section combines geometrical counterpoise potentials."// &
                           " This is a simple empirical pair potential to correct for BSSE. ", &
                           citations=(/Kruse2012/), &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="PARAMETER_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_FILE_NAME", &
                           description="Name of the parameter file, may include a path", &
                           usage="PARAMETER_FILE_NAME <FILENAME>", &
                           default_lc_val="---")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GLOBAL_PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="GLOBAL_PARAMETERS", &
                           description="Global parameters of the gCP method."// &
                           " Parameters are sigma, alpha, beta, eta from the original paper.", &
                           usage="GLOBAL_PARAMETERS 1.0 1.0 1.0 1.0", n_var=4, &
@@ -1119,14 +1119,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DELTA_ENERGY", &
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_ENERGY", &
                           description="Specify the delta energy [Hartree] term for an atom kind", &
                           usage="DELTA_ENERGY  type value", &
                           type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"XX ", "0.0"/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VERBOSE", &
+      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
                           description="Verbose output for gCP calculation", &
                           usage="VERBOSE logical_value", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
