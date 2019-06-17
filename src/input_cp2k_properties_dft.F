@@ -21,6 +21,7 @@ MODULE input_cp2k_properties_dft
                                               Weber2009
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
+                                              debug_print_level,&
                                               high_print_level,&
                                               low_print_level,&
                                               medium_print_level,&
@@ -1408,8 +1409,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
                                        description="Perform a natural transition orbital analysis.", &
-                                       print_level=medium_print_level, &
-                                       add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=medium_print_level)
       CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD", &
                           description="Threshold for sum of NTO eigenvalues considered", &
                           usage="Threshold 0.95", &
@@ -1434,6 +1434,18 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOS_MOLDEN", &
+                                       description="Write the NTO in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MOS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, print_key)
