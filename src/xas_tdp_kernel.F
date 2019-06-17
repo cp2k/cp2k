@@ -31,6 +31,7 @@ MODULE xas_tdp_kernel
                                               dbcsr_transposed, dbcsr_get_stored_coordinates, &
                                               dbcsr_type_symmetric, dbcsr_distribution_release
    USE kinds,                           ONLY: dp
+   USE input_constants,                 ONLY: xas_tdp_para_grid
    USE message_passing,                 ONLY: mp_bcast, mp_isend, mp_irecv, mp_waitall
    USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env 
    USE qs_kind_types,                   ONLY: get_qs_kind, qs_kind_type
@@ -119,6 +120,7 @@ CONTAINS
       !we always need the coulomb kernel, except for triplets only or spin-flip only
       do_coulomb = .TRUE.
       IF ((do_tp .AND. .NOT. do_sg) .OR. (do_sf .AND. .NOT. do_sc)) do_coulomb = .FALSE.
+      IF (xas_tdp_control%para == xas_tdp_para_grid) xas_tdp_env%fxc_avail = .TRUE.
 
 !  Contract the RI 3-center integrals once to get (aI|P)
       CALL contract_o3c_int(contr1_int, "COULOMB", donor_state, xas_tdp_env, xas_tdp_control, qs_env)      

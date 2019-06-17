@@ -25,7 +25,7 @@ MODULE xas_tdp_utils
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_fm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
                                               cp_cfm_create, cp_cfm_release, cp_cfm_get_submatrix, &
-                                              cp_cfm_get_element
+                                              cp_cfm_get_element, cp_cfm_get_info
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param, cp_eri_mme_set_params
    USE cp_files,                        ONLY: close_file, open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale, cp_fm_trace, cp_fm_upper_to_full
@@ -67,6 +67,7 @@ MODULE xas_tdp_utils
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: a_fine
    USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env
    USE qs_kind_types,                   ONLY: get_qs_kind, qs_kind_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
@@ -523,14 +524,12 @@ CONTAINS
                                para_env=para_env, ncol_global=nrow)
       CALL cp_fm_create(c_sum, fm_struct)
 
-!     Allocating space for solutions and oscilaltor strengths
+!     Allocating space for solutions
       IF (ex_type == tddfpt_spin_cons) THEN
          ALLOCATE (donor_state%sc_evals(nevals))
          lr_evals => donor_state%sc_evals
          ALLOCATE (donor_state%sc_coeffs(nevals))
          lr_coeffs => donor_state%sc_coeffs
-         ALLOCATE (donor_state%sc_osc_str(nevals))
-         donor_state%sc_osc_str = 0.0_dp
       ELSE IF (ex_type == tddfpt_spin_flip) THEN
          ALLOCATE (donor_state%sf_evals(nevals))
          lr_evals => donor_state%sf_evals
@@ -542,10 +541,8 @@ CONTAINS
          lr_evals => donor_state%sg_evals
          ALLOCATE (donor_state%sg_coeffs(nevals))
          lr_coeffs => donor_state%sg_coeffs
-         ALLOCATE (donor_state%sg_osc_str(nevals))
-         donor_state%sg_osc_str = 0.0_dp
-      ELSE IF (ex_type == tddfpt_triplet) THEN
-         ALLOCATE (donor_state%tp_evals(nevals))
+      ELSE  IF (ex_type == tddfpt_triplet) THEN
+         ALLOCATE(donor_state%tp_evals(nevals))
          lr_evals => donor_state%tp_evals
          ALLOCATE (donor_state%tp_coeffs(nevals))
          lr_coeffs => donor_state%tp_coeffs
@@ -1493,14 +1490,14 @@ CONTAINS
       ALLOCATE(xas_tdp_env%ri_inv_coul(nsgf, nsgf))
       xas_tdp_env%ri_inv_coul = 0.0_dp
 
-      !IF (.NOT. xas_tdp_control%is_periodic) THEN
+      IF (.NOT. xas_tdp_control%is_periodic) THEN
          CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=xas_tdp_env%ri_inv_coul, &
                                       rab=(/0.0_dp,0.0_dp,0.0_dp/), fba=ri_basis, fbb=ri_basis, &
                                       calculate_forces=.FALSE.)
          CPASSERT(ASSOCIATED(xas_tdp_control))
-      !ELSE
-         !CALL periodic_ri_coulomb2(xas_tdp_env%ri_inv_coul, ri_basis, qs_env)
-      !END IF
+      ELSE
+         CALL periodic_ri_coulomb2(xas_tdp_env%ri_inv_coul, ri_basis, qs_env)
+      END IF
 
 !  Inverting 
       CALL invmat_symm(xas_tdp_env%ri_inv_coul)  
@@ -1544,7 +1541,8 @@ CONTAINS
       CALL eri_mme_init(mme_param%par, n_minimax=20, cutoff=300.0_dp, do_calib_cutoff=.TRUE., &
                         cutoff_min=10.0_dp, cutoff_max=10000.0_dp, cutoff_eps=0.01_dp, &
                         cutoff_delta=0.9_dp, sum_precision=1.0E-12_dp, debug=.FALSE., &
-                        debug_delta=1.0E-6_dp, debug_nsum=1000000, unit_nr=0, print_calib=.FALSE.)
+                        debug_delta=1.0E-6_dp, debug_nsum=1000000, unit_nr=0, print_calib=.FALSE., &
+                        do_error_est=.FALSE.)
 
       CALL cp_eri_mme_set_params(mme_param, cell, qs_kind_set, basis_type_1="RI_XAS", para_env=para_env)
 
@@ -2105,7 +2103,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = "include_os_soc", routineP = moduleN//":"//routineN
 
       INTEGER                                         :: handle, nsc, nsf, ntot, isc, isf, ndo_mo, &
-                                                         ndo_so, nao, homo, jsc, jsf, i
+                                                         ndo_so, nao, homo, jsc, jsf
       REAL(dp)                                        :: gs_sum, soc
       LOGICAL                                         :: do_roks, do_uks
       REAL(dp), DIMENSION(:), POINTER                 :: sc_evals, sf_evals
@@ -2115,21 +2113,19 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                       :: gs_coeffs, real_fm, img_fm, mo_coeff, &
                                                          vec_work, prod_work, vec_s, vec_soc_x, &
                                                          vec_soc_y, vec_soc_z
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: sc_coeffs, sf_coeffs, amew_dip
-      TYPE(cp_fm_struct_type), POINTER                :: full_struct, vec_struct, prod_struct, &
-                                                         dip_struct
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: sc_coeffs, sf_coeffs
+      TYPE(cp_fm_struct_type), POINTER                :: full_struct, vec_struct, prod_struct
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                       :: orb_soc_x, orb_soc_y, orb_soc_z
       TYPE(cp_para_env_type), POINTER                 :: para_env
       TYPE(cp_blacs_env_type), POINTER                :: blacs_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
-      TYPE(cp_cfm_type), POINTER                      :: pert_cfm, evecs_cfm, work_cfm, dip_cfm
-      COMPLEX(dp), DIMENSION(:,:), ALLOCATABLE        :: transdip
+      TYPE(cp_cfm_type), POINTER                      :: pert_cfm, evecs_cfm
 
       NULLIFY(gs_coeffs, sc_coeffs, sf_coeffs, matrix_s, orb_soc_x, orb_soc_y, orb_soc_z, mos)
       NULLIFY(real_fm, img_fm, full_struct, para_env, blacs_env, mo_coeff, vec_s, vec_soc_x)
       NULLIFY(sc_evals, sf_evals, vec_work, prod_work, vec_struct, prod_struct, vec_soc_y)
-      NULLIFY(vec_soc_z, pert_cfm, evecs_cfm, work_cfm, dip_cfm, dip_struct, amew_dip)
+      NULLIFY(vec_soc_z, pert_cfm, evecs_cfm)
 
       CALL timeset(routineN, handle)
 
@@ -2450,59 +2446,20 @@ CONTAINS
       ALLOCATE (donor_state%soc_evals(ntot-1))
       donor_state%soc_evals(:) = tmp_evals(2:ntot)-tmp_evals(1)
 
-!  The SOC oscillator strengths
-      ALLOCATE(donor_state%soc_osc_str(ntot-1))
-      donor_state%soc_osc_str = 0.0_dp
+!  The SOC dipole oscillator strengths
+      CALL compute_soc_dipole_fosc(evecs_cfm, donor_state, xas_tdp_env, xas_tdp_control, qs_env, &
+                                   gs_coeffs=gs_coeffs)
 
-      ! work matrices
-      CALL cp_fm_struct_create(dip_struct, context=blacs_env, para_env=para_env, &
-                               nrow_global=ntot, ncol_global=1)
-      CALL cp_cfm_create(dip_cfm, dip_struct)
-      CALL cp_cfm_create(work_cfm, full_struct)
-      ALLOCATE(transdip(ntot,1))
-
-      ! get the dipole in the AMEW basis
-      CALL get_os_amew_op(amew_dip, xas_tdp_env%dipmat, gs_coeffs, donor_state, qs_env)
-
-      DO i = 1, SIZE(amew_dip)
-
-         ! the dipoles are real, but need a cfm for calculations
-         CALL cp_fm_to_cfm(msourcer=amew_dip(i)%matrix, mtarget=work_cfm)
-
-         ! store amew_coeffs^c*amew_dip in the pert_cfm
-         CALL cp_cfm_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), evecs_cfm, work_cfm, &
-                          (0.0_dp, 0.0_dp), pert_cfm)
-
-         ! only interested in transition from the ground-state => take first column of amew_coeffs
-         CALL cp_cfm_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), pert_cfm, evecs_cfm, &
-                          (0.0_dp, 0.0_dp), dip_cfm)
-
-         CALL cp_cfm_get_submatrix(dip_cfm, transdip)
-
-         ! transition dipoles are real numbers
-         donor_state%soc_osc_str(:) = donor_state%soc_osc_str(:) + REAL(transdip(2:ntot,1))**2 &
-                                      + AIMAG(transdip(2:ntot,1))**2
-
-      END DO !i
-
-      !which representation ?
-      IF (xas_tdp_control%dipole_form == xas_dip_len) THEN 
-         donor_state%soc_osc_str(:) = 2.0_dp/3.0_dp*donor_state%soc_evals(:)*donor_state%soc_osc_str(:)
-      ELSE
-         donor_state%soc_osc_str(:) = 2.0_dp/3.0_dp/donor_state%soc_evals(:)*donor_state%soc_osc_str(:)
+!  And quadrupole
+      IF (xas_tdp_control%do_quad) THEN
+         CALL compute_soc_quadrupole_fosc(evecs_cfm, donor_state, xas_tdp_env, xas_tdp_control, &
+                                          qs_env, gs_coeffs=gs_coeffs)
       END IF
 
 ! Clean-up
-      DO i = 1,SIZE(amew_dip)
-         CALL cp_fm_release(amew_dip(i)%matrix)
-      END DO
-      DEALLOCATE(amew_dip)
       CALL cp_cfm_release(pert_cfm)
       CALL cp_cfm_release(evecs_cfm)
-      CALL cp_cfm_release(work_cfm)
-      CALL cp_cfm_release(dip_cfm) 
       CALL cp_fm_struct_release(full_struct)
-      CALL cp_fm_struct_release(dip_struct)
 
       CALL timestop(handle)
 
@@ -2535,28 +2492,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = "include_rcs_soc", routineP = moduleN//":"//routineN
 
       INTEGER                                         :: itp, ntp, isg, nsg, ntot, ndo_mo, nao, &
-                                                         jtp, i, handle
+                                                         jtp, handle
       REAL(dp), DIMENSION(:), POINTER                 :: sg_evals, tp_evals
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: sg_coeffs, tp_coeffs, amew_dip
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: sg_coeffs, tp_coeffs
       TYPE(cp_fm_type), POINTER                       :: real_fm, img_fm, gs_coeffs, vec_s, &
                                                          prod_fm, vec_soc_x, vec_soc_y, vec_soc_z
-      TYPE(cp_fm_struct_type), POINTER                :: full_struct, prod_struct, vec_struct, &
-                                                         dip_struct
+      TYPE(cp_fm_struct_type), POINTER                :: full_struct, prod_struct, vec_struct
       TYPE(cp_para_env_type), POINTER                 :: para_env
       TYPE(cp_blacs_env_type), POINTER                :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                       :: orb_soc_x, orb_soc_y, orb_soc_z
       REAL(dp), DIMENSION(:), ALLOCATABLE             :: diag, tmp_evals
       REAL(dp)                                        :: soc_st, soc_tt, sqrt2, trace, soc_gst
-      TYPE(cp_cfm_type), POINTER                      :: hami_cfm, evecs_cfm, dip_cfm, work_cfm
-      COMPLEX(dp), DIMENSION(:,:), ALLOCATABLE        :: transdip
+      TYPE(cp_cfm_type), POINTER                      :: hami_cfm, evecs_cfm
       REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: domo_soc_x, domo_soc_y, domo_soc_z, s_st, &
                                                          s_tt
 
       NULLIFY(sg_coeffs, tp_coeffs, gs_coeffs, sg_evals, tp_evals, real_fm, img_fm, full_struct)
-      NULLIFY(para_env, blacs_env, vec_s, prod_fm, prod_struct, vec_struct, work_cfm)
+      NULLIFY(para_env, blacs_env, vec_s, prod_fm, prod_struct, vec_struct, orb_soc_y, orb_soc_z)
       NULLIFY(matrix_s, orb_soc_x, hami_cfm, evecs_cfm, vec_soc_x, vec_soc_y, vec_soc_z)
-      NULLIFY(orb_soc_y, orb_soc_z, amew_dip)
 
       CALL timeset(routineN, handle)
 
@@ -2759,6 +2713,9 @@ CONTAINS
       CALL cp_cfm_create(hami_cfm, full_struct)
       CALL cp_fm_to_cfm(real_fm, img_fm, hami_cfm)
 
+      CALL cp_fm_release(real_fm)
+      CALL cp_fm_release(img_fm)
+
 !  Diagonalize the Hamiltonian
       ALLOCATE (tmp_evals(ntot))
       CALL cp_cfm_create(evecs_cfm, full_struct)
@@ -2769,60 +2726,17 @@ CONTAINS
       donor_state%soc_evals(:) = tmp_evals(2:ntot)-tmp_evals(1)
 
 !  Compute the dipole oscillator strengths
-      ALLOCATE (donor_state%soc_osc_str(ntot-1))
-      donor_state%soc_osc_str = 0.0_dp
+      CALL compute_soc_dipole_fosc(evecs_cfm, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
 
-      ! Get some work array/matrices
-      CALL cp_fm_struct_create(dip_struct, context=blacs_env, para_env=para_env, &
-                               nrow_global=ntot, ncol_global=1)
-      CALL cp_cfm_create(dip_cfm, dip_struct)
-      CALL cp_cfm_create(work_cfm, full_struct)
-      ALLOCATE (transdip(ntot, 1))
-
-   ! Get the dipole in the basis of the AMEWs
-      CALL get_rcs_amew_op(amew_dip, xas_tdp_env%dipmat, donor_state, qs_env)
-
-      DO i = 1, SIZE(amew_dip)
-
-         ! the dipoles are real, but need a cfm for calculations
-         CALL cp_fm_to_cfm(msourcer=amew_dip(i)%matrix, mtarget=work_cfm)
-
-         ! store amew_coeffs^c*amew_dip in the hami_cfm
-         CALL cp_cfm_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), evecs_cfm, work_cfm, &
-                          (0.0_dp, 0.0_dp), hami_cfm)
-
-         ! only interested in transition from the ground-state => take first column of amew_coeffs
-         CALL cp_cfm_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), hami_cfm, evecs_cfm, &
-                          (0.0_dp, 0.0_dp), dip_cfm)
-
-         CALL cp_cfm_get_submatrix(dip_cfm, transdip)
-
-         ! transition dipoles are real numbers
-         donor_state%soc_osc_str(:) = donor_state%soc_osc_str(:)+REAL(transdip(2:ntot, 1))**2 &
-                                      +AIMAG(transdip(2:ntot, 1))**2
-
-      END DO
-
-      !which rep ?
-      IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
-         donor_state%soc_osc_str(:) = 2.0_dp/3.0_dp*donor_state%soc_evals(:)*donor_state%soc_osc_str(:)
-      ELSE
-         donor_state%soc_osc_str(:) = 2.0_dp/3.0_dp/donor_state%soc_evals(:)*donor_state%soc_osc_str(:)
+!  And the quadrupole (if needed)
+      IF (xas_tdp_control%do_quad) THEN
+         CALL compute_soc_quadrupole_fosc(evecs_cfm, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
       END IF
 
 !  Clean-up
-      DO i = 1, SIZE(amew_dip)
-         CALL cp_fm_release(amew_dip(i)%matrix)
-      END DO
-      DEALLOCATE (amew_dip)
       CALL cp_fm_struct_release(full_struct)
-      CALL cp_fm_struct_release(dip_struct)
-      CALL cp_fm_release(real_fm)
-      CALL cp_fm_release(img_fm)
       CALL cp_cfm_release(hami_cfm)
       CALL cp_cfm_release(evecs_cfm)
-      CALL cp_cfm_release(work_cfm)
-      CALL cp_cfm_release(dip_cfm)
 
       CALL timestop(handle)
 
@@ -3273,6 +3187,225 @@ CONTAINS
       CALL cp_fm_struct_release(full_struct)
 
    END SUBROUTINE get_rcs_amew_op
+
+! **************************************************************************************************
+!> \brief Computes the dipole oscillator strengths in the AMEWs basis for SOC
+!> \param soc_evecs_cfm the complex AMEWs coefficients
+!> \param donor_state ...
+!> \param xas_tdp_env ...
+!> \param xas_tdp_control ...
+!> \param qs_env ...
+!> \param gs_coeffs the groud state coefficients, given for open-shell because in ROKS, the gs_coeffs
+!>                  are stored slightly differently within SOC for efficiency and code uniquness
+! **************************************************************************************************
+   SUBROUTINE compute_soc_dipole_fosc(soc_evecs_cfm, donor_state, xas_tdp_env, &
+                                      xas_tdp_control, qs_env, gs_coeffs)
+
+      TYPE(cp_cfm_type), POINTER                      :: soc_evecs_cfm
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER              :: qs_env
+      TYPE(cp_fm_type), OPTIONAL, POINTER             :: gs_coeffs
+
+      CHARACTER(len=*), PARAMETER :: routineN = "compute_soc_dipole_fosc", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: handle, nosc, ntot, i
+      LOGICAL                                         :: do_rcs, do_os
+      REAL(dp), DIMENSION(:), POINTER                 :: osc_str, soc_evals
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                :: dip_struct, full_struct
+      TYPE(cp_cfm_type), POINTER                      :: work1_cfm, work2_cfm, dip_cfm
+      COMPLEX(dp), DIMENSION(:,:), ALLOCATABLE        :: transdip
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: amew_dip
+
+      NULLIFY(para_env, blacs_env, dip_struct, full_struct, work1_cfm, work2_cfm, osc_str)
+      NULLIFY(soc_evals, amew_dip, dip_cfm)
+
+      CALL timeset(routineN, handle)
+
+      !init
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+      do_os = xas_tdp_control%do_spin_cons
+      do_rcs = xas_tdp_control%do_singlet
+      soc_evals => donor_state%soc_evals
+      nosc = SIZE(soc_evals)
+      ntot = nosc + 1 !because GS AMEW is in there
+      ALLOCATE(donor_state%soc_osc_str(nosc))
+      osc_str => donor_state%soc_osc_str
+      osc_str(:) = 0.0_dp
+      IF (do_os .AND. .NOT. PRESENT(gs_coeffs)) CPABORT("Need to pass gs_coeffs for open-shell")
+
+      !get some work arrays/matrix
+      CALL cp_fm_struct_create(dip_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=ntot, ncol_global=1)
+      CALL cp_cfm_get_info(soc_evecs_cfm, matrix_struct=full_struct)
+      CALL cp_cfm_create(dip_cfm, dip_struct)
+      CALL cp_cfm_create(work1_cfm, full_struct)
+      CALL cp_cfm_create(work2_cfm, full_struct)
+      ALLOCATE(transdip(ntot,1))
+
+      !get the dipole in the AMEW basis
+      IF (do_os) THEN
+         CALL get_os_amew_op(amew_dip, xas_tdp_env%dipmat, gs_coeffs, donor_state, qs_env)
+      ELSE
+         CALL get_rcs_amew_op(amew_dip, xas_tdp_env%dipmat, donor_state, qs_env)
+      END IF
+
+      DO i =  1, 3 !cartesian coord x, y, z
+
+         !Convert the real dipole into the cfm format for calculations
+         CALL cp_fm_to_cfm(msourcer=amew_dip(i)%matrix, mtarget=work1_cfm)
+
+         !compute amew_coeffs^dagger * amew_dip * amew_gs to get the transition moments
+         CALL cp_cfm_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), soc_evecs_cfm, work1_cfm, &
+                          (0.0_dp, 0.0_dp), work2_cfm)
+         CALL cp_cfm_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), work2_cfm, soc_evecs_cfm, &
+                          (0.0_dp, 0.0_dp), dip_cfm)
+
+         CALL cp_cfm_get_submatrix(dip_cfm, transdip)
+
+         !transition dipoles are real numbers
+         osc_str(:) = osc_str(:) + REAL(transdip(2:ntot,1))**2 + AIMAG(transdip(2:ntot,1))**2
+
+      END DO !i
+
+      !multiply with appropriate prefac depending in the rep
+      IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
+         osc_str(:) = 2.0_dp/3.0_dp*soc_evals(:)*osc_str(:)
+      ELSE
+         osc_str(:) =  2.0_dp/3.0_dp/soc_evals(:)*osc_str(:)
+      END IF
+
+      !clean-up
+      CALL cp_fm_struct_release(dip_struct)
+      CALL cp_cfm_release(work1_cfm)
+      CALL cp_cfm_release(work2_cfm)
+      CALL cp_cfm_release(dip_cfm)
+      DO i = 1, 3
+         CALL cp_fm_release(amew_dip(i)%matrix)
+      END DO
+      DEALLOCATE(amew_dip, transdip)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_soc_dipole_fosc
+
+! **************************************************************************************************
+!> \brief Computes the quadrupole oscillator strengths in the AMEWs basis for SOC
+!> \param soc_evecs_cfm the complex AMEWs coefficients
+!> \param donor_state ...
+!> \param xas_tdp_env ...
+!> \param xas_tdp_control ...
+!> \param qs_env ...
+!> \param gs_coeffs the groud state coefficients, given for open-shell because in ROKS, the gs_coeffs
+!>                  are stored slightly differently within SOC for efficiency and code uniquness
+! **************************************************************************************************
+   SUBROUTINE compute_soc_quadrupole_fosc(soc_evecs_cfm, donor_state, xas_tdp_env, &
+                                          xas_tdp_control, qs_env, gs_coeffs)
+
+      TYPE(cp_cfm_type), POINTER                      :: soc_evecs_cfm
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER              :: qs_env
+      TYPE(cp_fm_type), OPTIONAL, POINTER             :: gs_coeffs
+
+      CHARACTER(len=*), PARAMETER :: routineN = "compute_soc_quadrupole_fosc", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: handle, nosc, ntot, i
+      LOGICAL                                         :: do_rcs, do_os
+      REAL(dp), DIMENSION(:), POINTER                 :: osc_str, soc_evals
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                :: quad_struct, full_struct
+      TYPE(cp_cfm_type), POINTER                      :: work1_cfm, work2_cfm, quad_cfm
+      COMPLEX(dp), DIMENSION(:), ALLOCATABLE          :: trace
+      COMPLEX(dp), DIMENSION(:,:), ALLOCATABLE        :: transquad
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: amew_quad
+
+      NULLIFY(para_env, blacs_env, quad_struct, full_struct, work1_cfm, work2_cfm, osc_str)
+      NULLIFY(soc_evals, amew_quad, quad_cfm)
+
+      CALL timeset(routineN, handle)
+
+      !init
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+      do_os = xas_tdp_control%do_spin_cons
+      do_rcs = xas_tdp_control%do_singlet
+      soc_evals => donor_state%soc_evals
+      nosc = SIZE(soc_evals)
+      ntot = nosc + 1 !because GS AMEW is in there
+      ALLOCATE(donor_state%soc_quad_osc_str(nosc))
+      osc_str => donor_state%soc_quad_osc_str
+      osc_str(:) = 0.0_dp
+      IF (do_os .AND. .NOT. PRESENT(gs_coeffs)) CPABORT("Need to pass gs_coeffs for open-shell")
+
+      !get some work arrays/matrix
+      CALL cp_fm_struct_create(quad_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=ntot, ncol_global=1)
+      CALL cp_cfm_get_info(soc_evecs_cfm, matrix_struct=full_struct)
+      CALL cp_cfm_create(quad_cfm, quad_struct)
+      CALL cp_cfm_create(work1_cfm, full_struct)
+      CALL cp_cfm_create(work2_cfm, full_struct)
+      ALLOCATE(transquad(ntot,1))
+      ALLOCATE(trace(nosc))
+      trace = (0.0_dp, 0.0_dp)
+
+      !get the quadrupole in the AMEWs basis
+      IF (do_os) THEN
+         CALL get_os_amew_op(amew_quad, xas_tdp_env%quadmat, gs_coeffs, donor_state, qs_env)
+      ELSE
+         CALL get_rcs_amew_op(amew_quad, xas_tdp_env%quadmat, donor_state, qs_env)
+      END IF
+
+      DO i = 1, 6 ! x2, xy, xz, y2, yz, z2
+
+         !Convert the real quadrupole into a cfm for further calculation
+         CALL cp_fm_to_cfm(msourcer=amew_quad(i)%matrix, mtarget=work1_cfm)
+
+         !compute amew_coeffs^dagger * amew_quad * amew_gs to get the transition moments
+         CALL cp_cfm_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), soc_evecs_cfm, work1_cfm, &
+                          (0.0_dp, 0.0_dp), work2_cfm)
+         CALL cp_cfm_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), work2_cfm, soc_evecs_cfm, &
+                          (0.0_dp, 0.0_dp), quad_cfm)
+
+         CALL cp_cfm_get_submatrix(quad_cfm, transquad)
+
+         !if x2, y2 or z2, need to keep track of trace
+         IF (i==1 .OR. i==4 .OR. i==6) THEN
+            osc_str(:) = osc_str(:) + REAL(transquad(2:ntot,1))**2 + AIMAG(transquad(2:ntot,1))**2
+            trace(:) = trace(:) + transquad(2:ntot,1)
+
+         !if xy, xz, or yz, need to count twice (for yx, zx and zy)
+         ELSE
+            osc_str(:) = osc_str(:) + 2.0_dp*(REAL(transquad(2:ntot,1))**2 + AIMAG(transquad(2:ntot,1))**2)
+         END IF
+
+      END DO !i
+
+      !remove a third of the trace
+      osc_str(:) = osc_str(:) - 1._dp/3._dp*(REAL(trace(:))**2 + AIMAG(trace(:))**2)
+
+      !multiply by the prefactor
+      osc_str(:) = osc_str(:)*1._dp/20._dp* a_fine**2 * soc_evals(:)**3
+
+      !clean-up
+      CALL cp_fm_struct_release(quad_struct)
+      CALL cp_cfm_release(work1_cfm)
+      CALL cp_cfm_release(work2_cfm)
+      CALL cp_cfm_release(quad_cfm)
+      DO i = 1, 6
+         CALL cp_fm_release(amew_quad(i)%matrix)
+      END DO
+      DEALLOCATE(amew_quad, transquad, trace)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_soc_quadrupole_fosc
 
 END MODULE xas_tdp_utils
 
