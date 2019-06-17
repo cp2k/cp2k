@@ -60,10 +60,13 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PW_DFT", &
-                          description="This section contains all information to run an "// &
-                          "SIRIUS PW calculation.", &
-                          n_subsections=4, &
-                          repeats=.FALSE.)
+                          description="DFT calculation using plane waves basis can be set in this section. "// &
+                          "The backend called SIRIUS, computes the basic properties of the system, "// &
+                          "such as ground state, forces and stresses tensors which can be used by "// &
+                          "cp2k afterwards. The engine has all these features build-in, support of "// &
+                          "pseudo-potentials and full-potentials, spin-orbit coupling, collinear and "// &
+                          "non collinear magnetism, Hubbard correction, all exchange functionals "// &
+                          "supported by libxc and Van der Waals corrections (libvdwxc).")
 
       NULLIFY (subsection)
       section_name = ''
