@@ -86,13 +86,13 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
 :warning: Note that on machines and compilers which support SSE you can configure FFTW3 with `--enable-sse2`. Compilers/systems that do not align memory (NAG f95, Intel IA32/gfortran) should either not use `--enable-sse2` or otherwise set the define `-D__FFTW3_UNALIGNED` in the arch file. When building an OpenMP parallel version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 ### 2g. LIBINT (optional, enables methods including HF exchange)
-Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed.
-  * Download from http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download.
-  * Additional information can be found in [README_LIBINT](./tools/hfx_tools/libint_tools/README_LIBINT).
-  * Tested against libinit-1.1.4 and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5.
-  * Use `-D__LIBINT_MAX_AM` and `-D__LIBDERIV_MAX_AM1` to match the values in `include/libint/libint.h`.
+  * Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed.
+  * Recommended way to build libint: Download a CP2K-configured libint library from [libint-cp2k](https://github.com/cp2k/libint-cp2k). Build and install libint by following the instructions provided there. Note that using a library configured for higher maximum angular momentum will increase build time and binary size of CP2K executable (assuming static linking).
+  * CP2K is not hardwired to these provided libraries and any other libint library (version >= 2.5.0) should be compatible as long as it was compiled with `--enable-eri=1` and default ordering.
+  * Avoid debugging information (`-g` flag) for compiling libint since this will increase library size by a large factor.
+  * In the arch file of CP2K: add `-D__LIBINT` to the `DFLAGS`. Add `-L$(LIBINT_DIR)/lib -lint2 -lstdc++` to `LIBS` and `-I$(LIBINT_DIR)/include` to `FCFLAGS`. `lstdc++` is needed if you use the GNU C++ compiler.
+  * Libint 1 is no longer supported and the previously needed flags `-D__LIBINT_MAX_AM` and `-D__LIBDERIV_MAX_AM1` are ignored.
   * `-D__MAX_CONTR=4` (default=2) can be used to compile efficient contraction kernels up to l=4, but the build time will increase accordingly.
-  * :warning: Do **NOT** use libinit-1.1.3, which was buggy.
 
 ### 2h. libsmm (optional, improved performance for matrix multiplication)
   * A library for small matrix multiplies can be built from the included source (see tools/build_libsmm/README).  Usually only the double precision real and perhaps complex is needed.  Link to the generated libraries. For a couple of architectures prebuilt libsmm are available at https://www.cp2k.org/static/downloads/libsmm/.

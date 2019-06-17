@@ -12,185 +12,296 @@
 ! **************************************************************************************************
 MODULE hfx_libint_wrapper
 
-   USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
-                                              C_F_POINTER,&
+#if(__LIBINT)
+#include <libint2/libint2_params.h>
+#include <libint2/config.h>
+#endif
+
+! maximum angular momentum to be supported in CP2K-LIBINT interface
+#:set libint_max_am_supported = 8
+
+   USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
                                               C_F_PROCPOINTER,&
-                                              C_INT,&
-                                              C_LOC,&
-                                              C_PTR,&
-                                              c_funptr
-   USE hfx_libint_wrapper_types,        ONLY: build_deriv1_eri_size,&
-                                              build_eri_size,&
-                                              lib_deriv,&
-                                              lib_int,&
-                                              libderiv_max_am1,&
-                                              libint_max_am,&
-                                              prim_data
+                                              C_NULL_PTR
    USE kinds,                           ONLY: dp
+#if(__LIBINT)
+   USE libint_f,                        ONLY: &
+        libint2_build, libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
+        libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
+        libint2_static_init, libint_t, libint2_max_am_eri
+#endif
    USE orbital_pointers,                ONLY: nco
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: initialize_libint, terminate_libint, &
-             initialize_libderiv, get_eris, get_derivs, terminate_libderiv
+   PUBLIC :: cp_libint_t, prim_data_f_size, build_eri_size, build_deriv1_eri_size, &
+             libint_max_am, libderiv_max_am1, cp_libint_get_eris, cp_libint_get_derivs, &
+             cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
+             cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
+             get_ssss_f_val,cp_libint_set_contrdepth,cp_libint_set_params_eri_screen,&
+             cp_libint_set_params_eri, cp_libint_set_params_eri_deriv
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
 
 #if(__LIBINT)
+   INTEGER, PARAMETER :: libint_max_am = libint2_max_am_eri
+#else
+   INTEGER, PARAMETER :: libint_max_am = 0
+#endif
 
-   TYPE(C_FUNPTR), DIMENSION(0:build_eri_size, 0:build_eri_size, 0:build_eri_size, 0:build_eri_size), BIND(C) :: build_eri
-   TYPE(C_FUNPTR), DIMENSION(0:build_deriv1_eri_size, 0:build_deriv1_eri_size, &
-                             0:build_deriv1_eri_size, 0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
+   INTEGER, PARAMETER :: libderiv_max_am1 = libint_max_am
+   INTEGER, PARAMETER :: prim_data_f_size = 4*(libint_max_am)+1
+   INTEGER, PARAMETER :: libint_vrr_classes_size = 2*(libint_max_am)+1
+   INTEGER, PARAMETER :: libint_dvrr_classes_size = 2*(libderiv_max_am1)+1
+   INTEGER, PARAMETER :: build_eri_size = libint_max_am
+   INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1
 
-   INTERFACE
-      FUNCTION build(lib, np) BIND(C)
-         IMPORT
-         TYPE(C_PTR)                    :: build
-         TYPE(lib_int)                  :: lib
-         INTEGER(KIND=C_INT), VALUE     :: np
-      END FUNCTION build
-
-      FUNCTION init_lib(lib, max_am, np) BIND(C, name="init_libint")
-         IMPORT
-         INTEGER(KIND=C_INT)            :: init_lib
-         TYPE(lib_int)                  :: lib
-         INTEGER(KIND=C_INT), VALUE     :: max_am
-         INTEGER(KIND=C_INT), VALUE     :: np
-      END FUNCTION init_lib
-
-      FUNCTION storage_required(max_am, np) BIND(C, name="libint_storage_required")
-         IMPORT
-         INTEGER(KIND=C_INT)            :: storage_required
-         INTEGER(KIND=C_INT), VALUE     :: max_am
-         INTEGER(KIND=C_INT), VALUE     :: np
-      END FUNCTION storage_required
-
-      SUBROUTINE init_base() BIND(C, name="init_libint_base")
-      END SUBROUTINE init_base
-
-      SUBROUTINE free_lib_int(lib) BIND(C, name="free_libint")
-         IMPORT
-         TYPE(lib_int)                  :: lib
-      END SUBROUTINE free_lib_int
-
-      SUBROUTINE init_deriv_base() BIND(C, name="init_libderiv_base")
-      END SUBROUTINE init_deriv_base
-
-      FUNCTION init_deriv1(deriv, max_am, np, ccs) BIND(C, name="init_libderiv1")
-         IMPORT
-         INTEGER(KIND=C_INT)            :: init_deriv1
-         TYPE(lib_deriv)                :: deriv
-         INTEGER(KIND=C_INT), VALUE     :: max_am
-         INTEGER(KIND=C_INT), VALUE     :: np
-         INTEGER(KIND=C_INT), VALUE     :: ccs
-      END FUNCTION init_deriv1
-
-      FUNCTION storage_required_deriv1(max_am, np, ccs) BIND(C, name="libderiv1_storage_required")
-         IMPORT
-         INTEGER(KIND=C_INT)            :: storage_required_deriv1
-         INTEGER(KIND=C_INT), VALUE     :: max_am
-         INTEGER(KIND=C_INT), VALUE     :: np
-         INTEGER(KIND=C_INT), VALUE     :: ccs
-      END FUNCTION storage_required_deriv1
-
-      SUBROUTINE build_deriv1(deriv, np) BIND(C)
-         IMPORT
-         TYPE(lib_deriv)                :: deriv
-         INTEGER(KIND=C_INT), VALUE      :: np
-      END SUBROUTINE build_deriv1
-
-      SUBROUTINE free_lib_deriv(deriv) BIND(C, name="free_libderiv")
-         IMPORT
-         TYPE(lib_deriv)                  :: deriv
-      END SUBROUTINE free_lib_deriv
-   END INTERFACE
+   TYPE :: cp_libint_t
+      PRIVATE
+#if(__LIBINT)
+      TYPE(libint_t), DIMENSION(1) :: prv
+#else
+      INTEGER :: unused = -1
+#endif
+   END TYPE
 
 CONTAINS
 
-! **************************************************************************************************
-!> \brief ...
-!> \param lib ...
-!> \param max_am ...
-! **************************************************************************************************
-   SUBROUTINE initialize_libint(lib, max_am)
-      TYPE(lib_int)                                      :: lib
-      INTEGER                                            :: max_am
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
-         routineP = moduleN//':'//routineN
+   SUBROUTINE cp_libint_set_params_eri_screen(libint, A, B, C, D, P, Q, W, ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
+      TYPE(cp_libint_t)                       :: libint
+      REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
+      REAL(KIND=dp), INTENT(IN)               :: ZetaInv, EtaInv, ZetapEtaInv, Rho
+      INTEGER, INTENT(IN)                     :: m_max
+      REAL(KIND=dp), DIMENSION(:)             :: F
 
-      INTEGER                                            :: i
-      INTEGER(KIND=C_INT)                                :: lib_storage, max_am_local, max_prim
+#if(__LIBINT)
+      libint%prv(1)%AB_x(1) = A(1)-B(1)
+      libint%prv(1)%AB_y(1) = A(2)-B(2)
+      libint%prv(1)%AB_z(1) = A(3)-B(3)
 
-      max_am_local = max_am
-      max_prim = 1
-      CALL init_base()
+      libint%prv(1)%CD_x(1) = C(1)-D(1)
+      libint%prv(1)%CD_y(1) = C(2)-D(2)
+      libint%prv(1)%CD_z(1) = C(3)-D(3)
 
-      !check if libint was compiled with right MAX_AM
-      DO i = 1, 100
-         IF (storage_required(i, 0) < 0) EXIT
-      ENDDO
-      IF (libint_max_am /= i) CPABORT("CP2K and libint were compiled with different LIBINT_MAX_AM.")
+      libint%prv(1)%PA_x(1) = P(1)-A(1)
+      libint%prv(1)%PA_y(1) = P(2)-A(2)
+      libint%prv(1)%PA_z(1) = P(3)-A(3)
 
-      lib_storage = init_lib(lib, max_am_local, max_prim)
-      IF (lib_storage < 0) &
-         CPABORT("the angular momentum needed exceeds the value assumed when configuring libint")
-   END SUBROUTINE initialize_libint
+      libint%prv(1)%QC_x(1) = Q(1)-C(1)
+      libint%prv(1)%QC_y(1) = Q(2)-C(2)
+      libint%prv(1)%QC_z(1) = Q(3)-C(3)
 
-! **************************************************************************************************
-!> \brief ...
-!> \param deriv ...
-!> \param max_am ...
-! **************************************************************************************************
-   SUBROUTINE initialize_libderiv(deriv, max_am)
-      TYPE(lib_deriv)                                    :: deriv
-      INTEGER                                            :: max_am
+      libint%prv(1)%WP_x(1) = W(1)-P(1)
+      libint%prv(1)%WP_y(1) = W(2)-P(2)
+      libint%prv(1)%WP_z(1) = W(3)-P(3)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
-         routineP = moduleN//':'//routineN
+      libint%prv(1)%WQ_x(1) = W(1)-Q(1)
+      libint%prv(1)%WQ_y(1) = W(2)-Q(2)
+      libint%prv(1)%WQ_z(1) = W(3)-Q(3)
 
-      INTEGER                                            :: i
-      INTEGER(KIND=C_INT)                                :: lib_deriv_storage, max_am_local, &
-                                                            max_classes, max_prim
+      libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
+      libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
+      libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
+      libint%prv(1)%roz(1) = Rho*ZetaInv
+      libint%prv(1)%roe(1) = Rho*EtaInv
 
-      max_am_local = max_am
-      max_prim = 1
-      max_classes = nco(max_am)**4
-      CALL init_deriv_base()
+#:for m_max in range(0, 4*libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
+      IF(${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
+         = F(${m_max}$+1)
 
-      !check if libderiv1 was compiled with right MAX_AM1
-      DO i = 1, 100
-         IF (storage_required_deriv1(i, 0, 0) < 0) EXIT
-      ENDDO
-      IF (libderiv_max_am1 /= i) &
-         CPABORT("CP2K and libderiv were compiled with different LIBDERIV_MAX_AM1.")
+#endif
+#:endfor
 
-      lib_deriv_storage = init_deriv1(deriv, max_am_local, max_prim, max_classes)
-      IF (lib_deriv_storage < 0) &
-         CPABORT("the angular momentum needed exceeds the value assumed when configuring libderiv")
-   END SUBROUTINE initialize_libderiv
+#else
+      MARK_USED(libint)
+      MARK_USED(A)
+      MARK_USED(B)
+      MARK_USED(C)
+      MARK_USED(D)
+      MARK_USED(P)
+      MARK_USED(Q)
+      MARK_USED(W)
+      MARK_USED(ZetaInv)
+      MARK_USED(EtaInv)
+      MARK_USED(ZetapEtaInv)
+      MARK_USED(Rho)
+      MARK_USED(m_max)
+      MARK_USED(F)
 
-! **************************************************************************************************
-!> \brief ...
-!> \param lib ...
-! **************************************************************************************************
-   SUBROUTINE terminate_libint(lib)
-      TYPE(lib_int)                                      :: lib
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
 
-      CALL free_lib_int(lib)
-   END SUBROUTINE terminate_libint
+   END SUBROUTINE
 
-! **************************************************************************************************
-!> \brief ...
-!> \param deriv ...
-! **************************************************************************************************
-   SUBROUTINE terminate_libderiv(deriv)
-      TYPE(lib_deriv)                                    :: deriv
+   SUBROUTINE cp_libint_set_params_eri_deriv(libint, A, B, C, D, P, Q, W, zeta_A, zeta_B, zeta_C, zeta_D, &
+                                             ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
+      TYPE(cp_libint_t)                       :: libint
+      REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
+      REAL(KIND=dp), INTENT(IN)               :: zeta_A, zeta_B, zeta_C, zeta_D, ZetaInv, EtaInv, ZetapEtaInv, Rho
 
-      CALL free_lib_deriv(deriv)
-   END SUBROUTINE terminate_libderiv
+      INTEGER, INTENT(IN)                     :: m_max
+      REAL(KIND=dp), DIMENSION(:)             :: F
 
+#if(__LIBINT)
+      REAL(KIND=dp)                           :: gammap, gammaq, gammapq, rhop, rhoq
+      libint%prv(1)%AB_x(1) = A(1)-B(1)
+      libint%prv(1)%AB_y(1) = A(2)-B(2)
+      libint%prv(1)%AB_z(1) = A(3)-B(3)
+
+      libint%prv(1)%CD_x(1) = C(1)-D(1)
+      libint%prv(1)%CD_y(1) = C(2)-D(2)
+      libint%prv(1)%CD_z(1) = C(3)-D(3)
+
+      libint%prv(1)%PA_x(1) = P(1)-A(1)
+      libint%prv(1)%PA_y(1) = P(2)-A(2)
+      libint%prv(1)%PA_z(1) = P(3)-A(3)
+
+      libint%prv(1)%PB_x(1) = P(1)-B(1)
+      libint%prv(1)%PB_y(1) = P(2)-B(2)
+      libint%prv(1)%PB_z(1) = P(3)-B(3)
+
+      libint%prv(1)%QC_x(1) = Q(1)-C(1)
+      libint%prv(1)%QC_y(1) = Q(2)-C(2)
+      libint%prv(1)%QC_z(1) = Q(3)-C(3)
+
+      libint%prv(1)%WP_x(1) = W(1)-P(1)
+      libint%prv(1)%WP_y(1) = W(2)-P(2)
+      libint%prv(1)%WP_z(1) = W(3)-P(3)
+
+      libint%prv(1)%WQ_x(1) = W(1)-Q(1)
+      libint%prv(1)%WQ_y(1) = W(2)-Q(2)
+      libint%prv(1)%WQ_z(1) = W(3)-Q(3)
+
+      libint%prv(1)%two_alpha0_bra(1) = 2.0_dp*Zeta_A
+      libint%prv(1)%two_alpha0_ket(1) = 2.0_dp*Zeta_B
+      libint%prv(1)%two_alpha1_ket(1) = 2.0_dp*Zeta_D
+
+      gammap = Zeta_A + Zeta_B
+      gammaq = Zeta_C + Zeta_D
+      gammapq = gammap*gammaq/(gammap + gammaq)
+      libint%prv(1)%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
+      libint%prv(1)%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
+      libint%prv(1)%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
+      libint%prv(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap+gammaq)
+      libint%prv(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap+gammaq)
+      libint%prv(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap+gammaq)
+
+      rhop = Zeta_A*Zeta_B/gammap
+      rhoq = Zeta_C*Zeta_D/gammaq
+      libint%prv(1)%rho12_over_alpha1(1) = rhop/Zeta_A
+
+      libint%prv(1)%rho34_over_alpha3(1) = rhoq/Zeta_C
+
+
+      libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
+      libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
+      libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
+      libint%prv(1)%roz(1) = Rho*ZetaInv
+      libint%prv(1)%roe(1) = Rho*EtaInv
+
+#:for m_max in range(0, 4*libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
+      IF(${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+         = F(${m_max}$+1)
+#endif
+#:endfor
+
+#else
+      MARK_USED(libint)
+      MARK_USED(A)
+      MARK_USED(B)
+      MARK_USED(C)
+      MARK_USED(D)
+      MARK_USED(P)
+      MARK_USED(Q)
+      MARK_USED(W)
+      MARK_USED(zeta_A)
+      MARK_USED(zeta_B)
+      MARK_USED(zeta_C)
+      MARK_USED(zeta_D)
+      MARK_USED(ZetaInv)
+      MARK_USED(EtaInv)
+      MARK_USED(ZetapEtaInv)
+      MARK_USED(Rho)
+      MARK_USED(m_max)
+      MARK_USED(F)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_set_params_eri(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, P, Q, W, m_max, F)
+      TYPE(cp_libint_t)                       :: libint
+      REAL(KIND=dp), INTENT(IN), DIMENSION(3) :: A, B, C, D, P, Q, W
+      REAL(KIND=dp), INTENT(IN)               :: ZetaInv, EtaInv, ZetapEtaInv, Rho
+      REAL(KIND=dp), DIMENSION(:)             :: F
+
+      INTEGER, INTENT(IN)                     :: m_max
+
+#if(__LIBINT)
+      libint%prv(1)%AB_x(1) = A(1)-B(1)
+      libint%prv(1)%AB_y(1) = A(2)-B(2)
+      libint%prv(1)%AB_z(1) = A(3)-B(3)
+
+      libint%prv(1)%CD_x(1) = C(1)-D(1)
+      libint%prv(1)%CD_y(1) = C(2)-D(2)
+      libint%prv(1)%CD_z(1) = C(3)-D(3)
+
+      libint%prv(1)%PA_x(1) = P(1)-A(1)
+      libint%prv(1)%PA_y(1) = P(2)-A(2)
+      libint%prv(1)%PA_z(1) = P(3)-A(3)
+
+      libint%prv(1)%QC_x(1) = Q(1)-C(1)
+      libint%prv(1)%QC_y(1) = Q(2)-C(2)
+      libint%prv(1)%QC_z(1) = Q(3)-C(3)
+
+      libint%prv(1)%WP_x(1) = W(1) - P(1)
+      libint%prv(1)%WP_y(1) = W(2) - P(2)
+      libint%prv(1)%WP_z(1) = W(3) - P(3)
+
+      libint%prv(1)%WQ_x(1) = W(1) - Q(1)
+      libint%prv(1)%WQ_y(1) = W(2) - Q(2)
+      libint%prv(1)%WQ_z(1) = W(3) - Q(3)
+
+      libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
+      libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
+      libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
+      libint%prv(1)%roz(1) = Rho*ZetaInv
+      libint%prv(1)%roe(1) = Rho*EtaInv
+
+#:for m_max in range(0, 4*libint_max_am_supported)
+#if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
+
+      IF(${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+         = F(${m_max}$+1)
+#endif
+#:endfor
+
+#else
+      MARK_USED(libint)
+      MARK_USED(A)
+      MARK_USED(B)
+      MARK_USED(C)
+      MARK_USED(D)
+      MARK_USED(P)
+      MARK_USED(Q)
+      MARK_USED(W)
+      MARK_USED(ZetaInv)
+      MARK_USED(EtaInv)
+      MARK_USED(ZetapEtaInv)
+      MARK_USED(Rho)
+      MARK_USED(m_max)
+      MARK_USED(F)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
+   END SUBROUTINE
 ! **************************************************************************************************
 !> \brief ...
 !> \param n_d ...
@@ -198,27 +309,34 @@ CONTAINS
 !> \param n_b ...
 !> \param n_a ...
 !> \param lib ...
-!> \param prim ...
 !> \param p_work ...
 !> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
+   SUBROUTINE cp_libint_get_eris(n_d, n_c, n_b, n_a, lib, p_work, a_mysize)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
-      TYPE(lib_int)                                      :: lib
-      TYPE(prim_data), TARGET                            :: prim
+      TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
       INTEGER                                            :: a_mysize(1)
 
-      PROCEDURE(build), POINTER               :: pbuild
-      TYPE(C_PTR)                             :: pc_result
-      REAL(dp), DIMENSION(:), POINTER         :: p_tmp
+#if(__LIBINT)
+      PROCEDURE(libint2_build), POINTER                  :: pbuild
 
-      lib%PrimQuartet = C_LOC(prim)
-      CALL C_F_PROCPOINTER(build_eri(n_d, n_c, n_b, n_a), pbuild)
-      pc_result = pbuild(lib, 1)
-      CALL C_F_POINTER(pc_result, p_tmp, a_mysize)
-      p_work => p_tmp
-   END SUBROUTINE get_eris
+      CALL C_F_PROCPOINTER(libint2_build_eri(n_d, n_c, n_b, n_a), pbuild)
+      CALL pbuild(lib%prv)
+
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+#else
+      MARK_USED(n_d)
+      MARK_USED(n_c)
+      MARK_USED(n_b)
+      MARK_USED(n_a)
+      MARK_USED(lib)
+      MARK_USED(p_work)
+      MARK_USED(a_mysize)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
+   END SUBROUTINE cp_libint_get_eris
 
 ! **************************************************************************************************
 !> \brief ...
@@ -226,170 +344,139 @@ CONTAINS
 !> \param n_c ...
 !> \param n_b ...
 !> \param n_a ...
-!> \param deriv ...
-!> \param prim ...
+!> \param lib ...
 !> \param work_forces ...
 !> \param a_mysize ...
 ! **************************************************************************************************
-   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
+   SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces, a_mysize)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
-      TYPE(lib_deriv)                                    :: deriv
-      TYPE(prim_data), TARGET                            :: prim
+      TYPE(cp_libint_t)                                  :: lib
       REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco&
          (n_d), 12)                                      :: work_forces
       INTEGER                                            :: a_mysize(1)
 
-      PROCEDURE(build_deriv1), POINTER         :: pbuild_deriv1
-      TYPE(C_PTR)                              :: pc_result
-      REAL(C_DOUBLE), DIMENSION(:), POINTER    :: tmp_data
-      INTEGER                                  :: i, k
+#if(__LIBINT)
+      REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      deriv%PrimQuartet = C_LOC(prim)
-      CALL C_F_PROCPOINTER(build_deriv1_eri(n_d, n_c, n_b, n_a), pbuild_deriv1)
-      CALL pbuild_deriv1(deriv, 1)
+      PROCEDURE(libint2_build), POINTER                  :: pbuild
+      INTEGER                                            :: i, k
+#endif
+
+
+#if(__LIBINT)
+      CALL C_F_PROCPOINTER(libint2_build_eri1(n_d, n_c, n_b, n_a), pbuild)
+      CALL pbuild(lib%prv)
 
       DO k = 1, 12
          IF (k == 4 .OR. k == 5 .OR. k == 6) CYCLE
-         pc_result = deriv%ABCD(k)
-         CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
+         CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=a_mysize)
          DO i = 1, a_mysize(1)
-            work_forces(i, k) = tmp_data(i)
+            work_forces(i, k) = p_work(i)
          ENDDO
-      END DO
-   END SUBROUTINE get_derivs
-
+      ENDDO
 #else
-
-!****************************************************************************!
-!****************************************************************************!
-!***                                                                      ***!
-!***  WHAT FOLLOWS IS CODE TO PROVIDE STUB ROUTINES IN ABSENCE OF __LIBINT **!
-!***                                                                      ***!
-!****************************************************************************!
-!****************************************************************************!
-
-CONTAINS
-
-! **************************************************************************************************
-!> \brief ...
-!> \param lib ...
-!> \param max_am ...
-! **************************************************************************************************
-   SUBROUTINE initialize_libint(lib, max_am)
-      TYPE(lib_int)                                      :: lib
-      INTEGER                                            :: max_am
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
-         routineP = moduleN//':'//routineN
-
-      MARK_USED(lib)
-      MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
-
-   END SUBROUTINE initialize_libint
-
-! **************************************************************************************************
-!> \brief ...
-!> \param deriv ...
-!> \param max_am ...
-! **************************************************************************************************
-   SUBROUTINE initialize_libderiv(deriv, max_am)
-      TYPE(lib_deriv)                                    :: deriv
-      INTEGER                                            :: max_am
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
-         routineP = moduleN//':'//routineN
-
-      MARK_USED(deriv)
-      MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
-
-   END SUBROUTINE initialize_libderiv
-
-! **************************************************************************************************
-!> \brief ...
-!> \param lib ...
-! **************************************************************************************************
-   SUBROUTINE terminate_libint(lib)
-      TYPE(lib_int)                                      :: lib
-
-      MARK_USED(lib)
-      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
-
-   END SUBROUTINE terminate_libint
-
-! **************************************************************************************************
-!> \brief ...
-!> \param deriv ...
-! **************************************************************************************************
-   SUBROUTINE terminate_libderiv(deriv)
-      TYPE(lib_deriv)                                    :: deriv
-
-      MARK_USED(deriv)
-      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
-
-   END SUBROUTINE terminate_libderiv
-
-! **************************************************************************************************
-!> \brief ...
-!> \param n_d ...
-!> \param n_c ...
-!> \param n_b ...
-!> \param n_a ...
-!> \param lib ...
-!> \param prim ...
-!> \param p_work ...
-!> \param a_mysize ...
-! **************************************************************************************************
-   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
-      INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
-      TYPE(lib_int)                                      :: lib
-      TYPE(prim_data), TARGET                            :: prim
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work
-      INTEGER                                            :: a_mysize(1)
-
-      MARK_USED(n_a)
-      MARK_USED(n_b)
-      MARK_USED(n_c)
       MARK_USED(n_d)
-      MARK_USED(lib)
-      MARK_USED(prim)
-      MARK_USED(p_work)
-      MARK_USED(a_mysize)
-      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
-
-   END SUBROUTINE get_eris
-
-! **************************************************************************************************
-!> \brief ...
-!> \param n_d ...
-!> \param n_c ...
-!> \param n_b ...
-!> \param n_a ...
-!> \param deriv ...
-!> \param prim ...
-!> \param work_forces ...
-!> \param a_mysize ...
-! **************************************************************************************************
-   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-      INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
-      TYPE(lib_deriv)                                    :: deriv
-      TYPE(prim_data), TARGET                            :: prim
-      REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco&
-         (n_d), 12)                                      :: work_forces
-      INTEGER                                            :: a_mysize(1)
-
-      MARK_USED(n_a)
-      MARK_USED(n_b)
       MARK_USED(n_c)
-      MARK_USED(n_d)
-      MARK_USED(deriv)
-      MARK_USED(prim)
+      MARK_USED(n_b)
+      MARK_USED(n_a)
+      MARK_USED(lib)
       MARK_USED(work_forces)
       MARK_USED(a_mysize)
-      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
-
-   END SUBROUTINE get_derivs
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
+
+   END SUBROUTINE cp_libint_get_derivs
+
+   FUNCTION get_ssss_f_val(lib)
+      TYPE(cp_libint_t) :: lib
+      REAL(KIND=dp) :: get_ssss_f_val
+
+#if(__LIBINT)
+      get_ssss_f_val = lib%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_0(1)
+#else
+      MARK_USED(lib)
+      MARK_USED(get_ssss_f_val)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
+   END FUNCTION
+
+   SUBROUTINE cp_libint_init_eri(lib, max_am)
+      TYPE(cp_libint_t)               :: lib
+      INTEGER                         :: max_am
+#if(__LIBINT)
+      CALL libint2_init_eri(lib%prv, max_am, C_NULL_PTR)
+#else
+      MARK_USED(lib)
+      MARK_USED(max_am)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_set_contrdepth(lib, contrdepth)
+      TYPE(cp_libint_t) :: lib
+      INTEGER           :: contrdepth
+#if(__LIBINT)
+#if LIBINT_CONTRACTED_INTS
+      lib%prv(1)%contrdepth = contrdepth
+#else
+      MARK_USED(lib)
+      MARK_USED(contrdepth)
+#endif
+#else
+      MARK_USED(lib)
+      MARK_USED(contrdepth)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_init_eri1(lib, max_am)
+      TYPE(cp_libint_t)               :: lib
+      INTEGER                         :: max_am
+#if(__LIBINT)
+      CALL libint2_init_eri1(lib%prv, max_am, C_NULL_PTR)
+#else
+      MARK_USED(lib)
+      MARK_USED(max_am)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_cleanup_eri(lib)
+      TYPE(cp_libint_t)               :: lib
+#if(__LIBINT)
+      CALL libint2_cleanup_eri(lib%prv)
+#else
+      MARK_USED(lib)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_cleanup_eri1(lib)
+      TYPE(cp_libint_t)               :: lib
+#if(__LIBINT)
+      CALL libint2_cleanup_eri1(lib%prv)
+#else
+      MARK_USED(lib)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_static_init()
+#if(__LIBINT)
+      CALL libint2_static_init()
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
+   SUBROUTINE cp_libint_static_cleanup()
+#if(__LIBINT)
+      CALL libint2_static_cleanup()
+#else
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
 
 END MODULE hfx_libint_wrapper
