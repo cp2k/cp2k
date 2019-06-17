@@ -841,7 +841,8 @@ CONTAINS
          enum_c_vals=s2a("BFGS", "LBFGS", "CG"), &
          enum_desc=s2a("Most efficient minimizer, but only for 'small' systems, "// &
                        "as it relies on diagonalization of a full Hessian matrix", &
-                       "Limit memory variant of the above, can also be applied to large systems, not as well fine-tuned", &
+                       "Limited-memory variant of BFGS suitable for large systems. "// &
+                       "Not as well fine-tuned but can be more robust.", &
                        "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"), &
          enum_i_vals=(/default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id/), &
          default_i_val=default_bfgs_method_id)
