@@ -14,5 +14,5 @@ H2O_tddfpt-s-3.inp                                    37    1.0E-06             
 H2O_tddfpt-t-3.inp                                    37    1.0E-06                   0.579030E+00
 NO_tddfpt-s-3.inp                                     37    1.0E-06                   0.350929E+00
 NO_tddfpt-t-3.inp                                     37    1.0E-06                   0.358683E+00
-H2O_tddfpt_NTO.inp                                    37    1.0E-06                   0.543390E+00
+H2O_tddfpt_NTO.inp                                    37    1.0E-06                   0.551598E+00
 #EOF
