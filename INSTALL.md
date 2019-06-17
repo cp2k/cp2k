@@ -89,6 +89,7 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
   * Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed.
   * Recommended way to build libint: Download a CP2K-configured libint library from [libint-cp2k](https://github.com/cp2k/libint-cp2k). Build and install libint by following the instructions provided there. Note that using a library configured for higher maximum angular momentum will increase build time and binary size of CP2K executable (assuming static linking).
   * CP2K is not hardwired to these provided libraries and any other libint library (version >= 2.5.0) should be compatible as long as it was compiled with `--enable-eri=1` and default ordering.
+  * Avoid debugging information (`-g` flag) for compiling libint since this will increase library size by a large factor.
   * In the arch file of CP2K: add `-D__LIBINT` to the `DFLAGS`. Add `-L$(LIBINT_DIR)/lib -lint2 -lstdc++` to `LIBS` and `-I$(LIBINT_DIR)/include` to `FCFLAGS`. `lstdc++` is needed if you use the GNU C++ compiler.
   * Libint 1 is no longer supported and the previously needed flags `-D__LIBINT_MAX_AM` and `-D__LIBDERIV_MAX_AM1` are ignored.
   * `-D__MAX_CONTR=4` (default=2) can be used to compile efficient contraction kernels up to l=4, but the build time will increase accordingly.
