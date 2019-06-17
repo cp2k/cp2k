@@ -552,9 +552,10 @@ CONTAINS
                   iatom, ikind, "  core_overlap", qs_force(ikind)%core_overlap(1:3, i), &
                   iatom, ikind, "      rho_core", qs_force(ikind)%rho_core(1:3, i), &
                   iatom, ikind, "      rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
-                  iatom, ikind, "      rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
+                  iatom, ikind, "  rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
                   iatom, ikind, "      ch_pulay", qs_force(ikind)%ch_pulay(1:3, i), &
                   iatom, ikind, "    dispersion", qs_force(ikind)%dispersion(1:3, i), &
+                  iatom, ikind, "           gCP", qs_force(ikind)%gcp(1:3, i), &
                   iatom, ikind, "         other", qs_force(ikind)%other(1:3, i), &
                   iatom, ikind, "       fock_4c", qs_force(ikind)%fock_4c(1:3, i), &
                   iatom, ikind, "     ehrenfest", qs_force(ikind)%ehrenfest(1:3, i), &
@@ -580,11 +581,12 @@ CONTAINS
                   iatom, ikind, "  core_overlap", qs_force(ikind)%core_overlap(1:3, i), &
                   iatom, ikind, "      rho_core", qs_force(ikind)%rho_core(1:3, i), &
                   iatom, ikind, "      rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
-                  iatom, ikind, "      rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
+                  iatom, ikind, "  rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
                   iatom, ikind, "     vhxc_atom", qs_force(ikind)%vhxc_atom(1:3, i), &
                   iatom, ikind, "   g0s_Vh_elec", qs_force(ikind)%g0s_Vh_elec(1:3, i), &
                   iatom, ikind, "      ch_pulay", qs_force(ikind)%ch_pulay(1:3, i), &
                   iatom, ikind, "    dispersion", qs_force(ikind)%dispersion(1:3, i), &
+                  iatom, ikind, "           gCP", qs_force(ikind)%gcp(1:3, i), &
                   iatom, ikind, "       fock_4c", qs_force(ikind)%fock_4c(1:3, i), &
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "           eev", qs_force(ikind)%eev(1:3, i), &
@@ -600,7 +602,6 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT=fmtstr2) &
                   iatom, ikind, " all_potential", qs_force(ikind)%all_potential(1:3, i), &
                   iatom, ikind, "      rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
-                  iatom, ikind, "      rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
@@ -618,7 +619,6 @@ CONTAINS
                   iatom, ikind, "   core_overlap", qs_force(ikind)%core_overlap(1:3, i), &
                   iatom, ikind, "       rho_core", qs_force(ikind)%rho_core(1:3, i), &
                   iatom, ikind, "       rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
-                  iatom, ikind, "       rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
                   iatom, ikind, "       ch_pulay", qs_force(ikind)%ch_pulay(1:3, i), &
                   iatom, ikind, "        fock_4c", qs_force(ikind)%fock_4c(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
@@ -649,7 +649,6 @@ CONTAINS
                   iatom, ikind, "       overlap", qs_force(ikind)%overlap(1:3, i), &
                   iatom, ikind, "       kinetic", qs_force(ikind)%kinetic(1:3, i), &
                   iatom, ikind, "      rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
-                  iatom, ikind, "      rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
                   iatom, ikind, "    dispersion", qs_force(ikind)%dispersion(1:3, i), &
                   iatom, ikind, " all potential", qs_force(ikind)%all_potential(1:3, i), &
                   iatom, ikind, "         other", qs_force(ikind)%other(1:3, i), &

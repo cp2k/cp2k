@@ -94,6 +94,8 @@ MODULE qs_environment_types
                                               qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_gcp_types,                    ONLY: qs_gcp_release,&
+                                              qs_gcp_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                               qs_ks_qmmm_release,&
@@ -277,6 +279,8 @@ MODULE qs_environment_types
       TYPE(lri_density_type), POINTER                       :: lri_density
       ! Empirical dispersion
       TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
+      ! Empirical geometrical BSSE correction
+      TYPE(qs_gcp_type), POINTER                            :: gcp_env
       ! Semi-empirical and DFTB types
       TYPE(ewald_environment_type), POINTER                 :: ewald_env
       TYPE(ewald_pw_type), POINTER                          :: ewald_pw
@@ -456,6 +460,7 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param dispersion_env ...
+!> \param gcp_env ...
 !> \param vee ...
 !> \param rho_external ...
 !> \param external_vxc ...
@@ -507,7 +512,7 @@ CONTAINS
                          neighbor_list_id, linres_control, xas_env, virial, cp_ddapc_env, cp_ddapc_ewald, &
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, results, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, admm_dm, &
-                         lri_env, lri_density, dispersion_env, vee, rho_external, external_vxc, mask, &
+                         lri_env, lri_density, dispersion_env, gcp_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, rhs)
@@ -621,6 +626,7 @@ CONTAINS
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: lri_density
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
+      TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
@@ -694,6 +700,7 @@ CONTAINS
       IF (PRESENT(lri_env)) lri_env => qs_env%lri_env
       IF (PRESENT(lri_density)) lri_density => qs_env%lri_density
       IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
+      IF (PRESENT(gcp_env)) gcp_env => qs_env%gcp_env
       IF (PRESENT(run_rtp)) run_rtp = qs_env%run_rtp
       IF (PRESENT(rtp)) rtp => qs_env%rtp
       IF (PRESENT(ls_scf_env)) ls_scf_env => qs_env%ls_scf_env
@@ -909,7 +916,7 @@ CONTAINS
       NULLIFY (qs_env%efield)
       NULLIFY (qs_env%lri_env)
       NULLIFY (qs_env%lri_density)
-      NULLIFY (qs_env%dispersion_env)
+      NULLIFY (qs_env%gcp_env)
       NULLIFY (qs_env%rtp)
       NULLIFY (qs_env%mp2_env)
       NULLIFY (qs_env%kg_env)
@@ -1012,6 +1019,7 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param dispersion_env ...
+!> \param gcp_env ...
 !> \param mp2_env ...
 !> \param kg_env ...
 !> \param kpoints ...
@@ -1039,7 +1047,7 @@ CONTAINS
                          linres_control, xas_env, cp_ddapc_env, cp_ddapc_ewald, &
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
-                         do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
+                         do_transport, transport_env, lri_env, lri_density, dispersion_env, gcp_env, mp2_env, kg_env, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, rhs)
 
@@ -1101,6 +1109,7 @@ CONTAINS
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: lri_density
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
+      TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
@@ -1282,6 +1291,7 @@ CONTAINS
       IF (PRESENT(lri_env)) qs_env%lri_env => lri_env
       IF (PRESENT(lri_density)) qs_env%lri_density => lri_density
       IF (PRESENT(dispersion_env)) qs_env%dispersion_env => dispersion_env
+      IF (PRESENT(gcp_env)) qs_env%gcp_env => gcp_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
 
@@ -1510,6 +1520,10 @@ CONTAINS
 
             ! dispersion
             CALL qs_dispersion_release(qs_env%dispersion_env)
+            ! gCP
+            IF (ASSOCIATED(qs_env%gcp_env)) THEN
+               CALL qs_gcp_release(qs_env%gcp_env)
+            END IF
 
             IF (ASSOCIATED(qs_env%WannierCentres)) THEN
                DO i = 1, SIZE(qs_env%WannierCentres)

@@ -776,6 +776,9 @@ CONTAINS
       ! dispersion through pairpotentials
       CALL calculate_dispersion_pairpot(qs_env, ec_env%dispersion_env, energy, .FALSE.)
       ec_env%edispersion = ec_env%edispersion+energy
+!deb  ! gCP pairpotentials
+!deb  CALL calculate_gcp_pairpot(qs_env, ec_env%gcp_env, energy, .FALSE.)
+!deb  ec_env%edispersion = ec_env%edispersion+energy
 
       SELECT CASE (ec_env%energy_functional)
       CASE (kg_ec_functional_harris)

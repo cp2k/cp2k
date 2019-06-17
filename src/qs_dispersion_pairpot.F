@@ -873,8 +873,8 @@ CONTAINS
          dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dd, de6, de8, de91, &
          de921, de922, dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, e8, e8tot, &
          e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, esrb, evdw, f0ab, fac, fac0, fdab6, fdab8, &
-         fdabc, fdmp, gnorm, kgc8, nab, nabc, r0, r0ab, r2ab, r2abc, r2bc, r2ca, r6, r8, rabc, &
-         rc2, rcc, rcut, rs6, rs8, s1, s2, s3, s6, s8, s8i, s9, srbe, xp
+         fdabc, fdmp, gnorm, gsrb, kgc8, nab, nabc, r0, r0ab, r2ab, r2abc, r2bc, r2ca, r6, r8, &
+         rabc, rc2, rcc, rcut, rs6, rs8, s1, s2, s3, s6, s8, s8i, s9, srbe, ssrb, t1srb, t2srb, xp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atom2mol, c6d2, cnkind, cnumbers, &
                                                             cnumfix, radd2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rcpbc
@@ -1035,6 +1035,11 @@ CONTAINS
          ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
             idmp = 2
          END IF
+         ! SRB parameters
+         ssrb = dispersion_env%srb_params(1)
+         gsrb = dispersion_env%srb_params(2)
+         t1srb = dispersion_env%srb_params(3)
+         t2srb = dispersion_env%srb_params(4)
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *) " Scaling parameter (s6) ", s6
@@ -1049,6 +1054,7 @@ CONTAINS
             WRITE (unit_nr, *) " Cutoff coordination numbers", eps_cn
             IF (dispersion_env%lrc) THEN
                WRITE (unit_nr, *) " Apply a long range correction"
+               WRITE (unit_nr, *) " SRB parameters (s,g,t1,t2) ", ssrb, gsrb, t1srb, t2srb
             END IF
             IF (dispersion_env%srb) THEN
                WRITE (unit_nr, *) " Apply a short range bond correction"
@@ -1239,7 +1245,7 @@ CONTAINS
                   CPABORT("Unknown DFT-D3 damping function:")
                END IF
                IF (dispersion_env%srb .AND. dr .LT. 30.0d0) THEN
-                  srbe = 0.08_dp*SQRT(REAL((za*zb), KIND=dp))*EXP(-10.0_dp*dr/dispersion_env%r0ab(za, zb))
+                  srbe = ssrb*(REAL((za*zb), KIND=dp))**t1srb*EXP(-gsrb*dr*dispersion_env%r0ab(za, zb)**t2srb)
                   esrb = esrb+srbe
                   evdw = evdw-srbe
                ELSE
@@ -1267,7 +1273,7 @@ CONTAINS
                   END IF
                   fdij(:) = (de6+de8)*rij(:)/dr*fac
                   IF (dispersion_env%srb .AND. dr .LT. 30.0d0) THEN
-                     fdij(:) = fdij(:)+10._dp*srbe*rij(:)/(dr*dispersion_env%r0ab(za, zb))
+                     fdij(:) = fdij(:)+srbe*gsrb*dispersion_env%r0ab(za, zb)**t2srb*rij(:)/dr
                   END IF
                   atom_a = atom_of_kind(iatom)
                   atom_b = atom_of_kind(jatom)

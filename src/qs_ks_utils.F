@@ -1061,6 +1061,9 @@ CONTAINS
          IF (energy%dispersion /= 0.0_dp) &
             WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
             "Dispersion energy:                             ", energy%dispersion
+         IF (energy%gcp /= 0.0_dp) &
+            WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
+            "gCP energy:                                    ", energy%gcp
          IF (dft_control%qs_control%gapw) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
                "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1, &

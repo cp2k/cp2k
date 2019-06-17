@@ -250,6 +250,7 @@ CONTAINS
          CALL atprop_array_add(atprop%atener, atprop%atexc)
          CALL atprop_array_add(atprop%atener, atprop%atecoul)
          CALL atprop_array_add(atprop%atener, atprop%atevdw)
+         CALL atprop_array_add(atprop%atener, atprop%ategcp)
          CALL atprop_array_add(atprop%atener, atprop%atecc)
          CALL atprop_array_add(atprop%atener, atprop%ate1c)
       END IF
