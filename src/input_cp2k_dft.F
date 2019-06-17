@@ -97,7 +97,7 @@ MODULE input_cp2k_dft
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
         xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip, do_hfx_potential_coulomb, &
-        do_hfx_potential_truncated, do_hfx_potential_short
+        do_hfx_potential_truncated, do_hfx_potential_short, xas_tdp_para_atom, xas_tdp_para_grid
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7881,15 +7881,15 @@ CONTAINS
       NULLIFY(keyword, print_key, subsection, subsubsection, subsubsubsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "XAS_TDP", &
+      CALL section_create(section, __LOCATION__, name="XAS_TDP", &
                           description="XAS simulations using TDDFPT. Excitation from specified "//&
                           "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=8, n_subsections=5, repeats=.FALSE.)
+                          n_keywords=10, n_subsections=5, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of XAS simulations with linear "// &
                           "response TDDFT.", &
                           usage="&TDP_XAS {logical}", &
@@ -7898,7 +7898,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHECK_ONLY", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_ONLY", &
                           description="This keyword defines whether the full calculation should "//&
                                       "be done or not. If set to .TRUE., only the determination "//&
                                       "of donor MOs is conducted. In the case of iterative OT "// &
@@ -7911,7 +7911,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXCITATIONS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCITATIONS", &
                           variants=(/"EXCITATION"/), &
                           description="Specify the type of excitation to consider. In case of a "//&
                                       "resctricted closed-shell ground state calculation, "//&
@@ -7927,7 +7927,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)      
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DIPOLE_FORM", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
                           variants=(/"DIP_FORM"/), &
                           description="Type of integral to get the oscillator strengths "// &
                                        "in the dipole approximation", &
@@ -7940,16 +7940,43 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="QUADRUPOLE", &
+                          variants=s2a("DO_QUADRUPOLE", "DO_QUAD", "QUAD"), &
+                          description="Compute the electric quadrupole contribution to the "// &
+                                      "oscillator strenghts (in the length representation with "// &
+                                      "the origin set on the relevant excited atom)", &
+                          usage="QUADRUPOLE {logical}", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLELIZATION", &
+                          variants=s2a("PARA", "PARALLEL"), &
+                          description="How the parallelization of xc kernel is treated.", &
+                          usage="PARALLELIZATION {string}", &
+                          default_i_val=xas_dip_vel, &
+                          enum_c_vals=s2a("BY_ATOM", "BY_GRID"), &
+                          enum_desc=s2a("The excited atoms are distributed over the processors " //&
+                                        "and treated independently. Better performance if there" //&
+                                        "are many excited atoms with smaller grids.", &
+                                        "The excited atoms are treated in a serial manner, but " //&
+                                        "all grid operations (mapping the density, integrating, ...)" //&
+                                        "are distributed over the processors. Better performance "//&
+                                        "is there are fewer excited atoms and finer grids."), & 
+                          enum_i_vals=(/xas_tdp_para_atom, xas_tdp_para_grid/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
 !  The donor state subsection
       
-      CALL section_create(subsection, name="DONOR_STATES", &
+      CALL section_create(subsection, __LOCATION__, name="DONOR_STATES", &
                           description="Specifications for the donor states from which core "// &
                                       "electrons are excited", &
                           n_keywords=5, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="DEFINE_EXCITED", &
+      CALL keyword_create(keyword, __LOCATION__, name="DEFINE_EXCITED", &
                           description="Whether the atoms to be excited should be defined by "// &
                           "a list of atom indices or by a list of atom kinds.", &
                           usage="DEFINE_EXCITED {string}", &
@@ -7959,7 +7986,8 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_LIST", &
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
                           variants=(/"AT_LIST"/), &
                           description="Indices of the atoms to be excited. "// &
                           "Keyword only taken into account if DEFINE_EXCITED = BY_INDEX", &
@@ -7967,8 +7995,8 @@ CONTAINS
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="KIND_LIST", &
+      
+      CALL keyword_create(keyword, __LOCATION__, name="KIND_LIST", &
                           description="Kind of atoms to be excited. "// &
                           "All atoms of the specified kinds are considered"// &
                           "Keyword only taken into account if DEFINE_EXCITED = BY_KIND", &
@@ -7977,7 +8005,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STATE_TYPES", &
+      CALL keyword_create(keyword, __LOCATION__, name="STATE_TYPES", &
                           variants=(/"TYPES"/), &
                           description="Types of orbitals that are excited, for each atom/kind, "//&
                           "in order to do  TDDFPT driven  xas spectra calculation."//&
@@ -7994,7 +8022,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_SEARCH", & 
+      CALL keyword_create(keyword, __LOCATION__, name="N_SEARCH", & 
                           description="Number of MOs (per spin) to search to find specified donor core "//&
                           "orbitals, starting from the lowest in energy and upward. By default, "//&
                           "all HOMOs are searched. If the LOCALIZE subsection is used, "//&
@@ -8008,7 +8036,7 @@ CONTAINS
       CALL section_release(subsection)
 ! End of the donor states subsection
       
-      CALL keyword_create(keyword, name="SPIN_ORBIT_COUPLING", &
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_ORBIT_COUPLING", &
                           variants=(/"SOC"/), &
                           description="Whether spin-orbit coupling should be added. " // &
                                       "Note: only applies for spin-restricted calculations with "//&
@@ -8019,7 +8047,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TAMM_DANCOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="TAMM_DANCOFF", &
                           variants=(/"TDA"/), &
                           description="Whether the Tamm-Dancoff approximation should be used.", &
                           usage="TAMM_DANCOFF {logical}", &
@@ -8027,7 +8055,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)    
       CALL keyword_release(keyword)      
 
-      CALL keyword_create(keyword, name="GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID", &
                           variants=(/"ATOMIC_GRID"/), &
                           description="Specification of the atomic grids for a given atomic kind."//&
                                       "This keyword can/should be repeated for each excited kind. "//&
@@ -8040,14 +8068,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
 !  The diagonalization subsection
-      CALL section_create(subsection, name="DIAGONALIZATION", &
+      CALL section_create(subsection, __LOCATION__, name="DIAGONALIZATION", &
                           description="Set the choice of method and parameters for solving the "//&
                                       "XAS TDP eigenvalue problem.", &
                           n_keywords=2, &
                           n_subsections=1, &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="N_EXCITED", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_EXCITED", &
                           variants=(/"N_ROOTS"/), &
                           description="The number of excited states to compute per donor " //&
                                       "molecular orbital. (e.g. if 2p excitations, "// &
@@ -8058,7 +8086,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FULL_DIAG", &
+      CALL keyword_create(keyword, __LOCATION__, name="FULL_DIAG", &
                           description="Whether the eigenvalue problem should be solved using standard"// &
                                       "direct diagonalization routines for full matrices. Non-TDA"// &
                                       "(full-TDDFT) XAS TDP can only be solved this way. Note: "// &
@@ -8068,7 +8096,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsubsection, name="OT_DIAG", &
+      CALL section_create(subsubsection, __LOCATION__, name="OT_DIAG", &
                           description="Defines a set of parameters in case the OT (orbital " // &
                                       "transformation) iterative eigensolver should be used. " // &
                                       "The parameters that are not defined here are set to defaults"// &
@@ -8080,21 +8108,21 @@ CONTAINS
                                       n_subsections=0, &
                                       repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="MAX_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="The maximum number of iterative steps allowed.", &
                           usage="MAX_ITER {integer}", &
                           default_i_val=1000)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
                           description="Required accuracy in iterative OT diagonalization.", &
                           usage="EPS_ITER {real}", &
                           default_r_val=1.0E-6_dp)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MINIMIZER", &
+      CALL keyword_create(keyword, __LOCATION__, name="MINIMIZER", &
                           description="The minimizer to be used in the OT diagonalization.", &
                           usage="MINIMIZER {string}", &
                           default_i_val=ot_mini_cg, &
@@ -8112,13 +8140,13 @@ CONTAINS
 !  End of the diagonalization subsection
 
 !  The KERNEL subsection
-      CALL section_create(subsection, name="KERNEL", &
+      CALL section_create(subsection, __LOCATION__, name="KERNEL", &
                           description="Defines how the kernel is built in terms of functionals.", &
                           n_keywords=1, &
                           n_subsections=1, &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="RI_REGION", &
+      CALL keyword_create(keyword, __LOCATION__, name="RI_REGION", &
                           variants=(/"RI_RADIUS"/), &
                           description="The region defined by a sphere of the given radius around"//&
                                       "the excited atom defining which RI_XAS basis elements are"//&
@@ -8139,15 +8167,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
 !  The XC_FUNCTIONAL subsubsection
-      CALL section_create(subsubsection, name="XC_FUNCTIONAL", &
+      CALL section_create(subsubsection, __LOCATION__, name="XC_FUNCTIONAL", &
                           description="The exchange correlation functional(s) to use for the xc " //&
-                                     "part of the kernel. Built from any combination of LDA "// &
+                                     "part of the kernel. Built from any combination of LDA and GGA"// &
                                      "functional from LIBXC.", &
                           n_keywords=0, &
                           n_subsections=1, &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enables the addition of xc functionals to the kernel.", &
                           usage="&XC_FUNCTIONAL {logical}", &
                           default_l_val=.FALSE., &
@@ -8156,7 +8184,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
    ! LIBXC functional
-      CALL create_libxc_section(subsubsubsection, "LIBXC", "Uses functionals from LIBXC", &
+      CALL create_libxc_section(subsubsubsection,  "LIBXC", "Uses functionals from LIBXC", &
                                 "FUNCTIONAL {name}")
       CALL section_add_subsection(subsubsection, subsubsubsection)
       CALL section_release(subsubsubsection)
@@ -8165,14 +8193,14 @@ CONTAINS
       CALL section_release(subsubsection)
 
 !  The EXACT_EXCHANGE subsubsection
-      CALL section_create(subsubsection, name="EXACT_EXCHANGE", &
+      CALL section_create(subsubsection, __LOCATION__, name="EXACT_EXCHANGE", &
                           description="Whther exact-exchange should be added to the kernel and " //&
                                       "if so, with which scaling.", &
                           n_keywords=6, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enables the addition of exact exchange to the kernel.", &
                           usage="&EXACT_EXCHANGE {logical}", &
                           default_l_val=.FALSE., &
@@ -8180,7 +8208,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OPERATOR", variants=(/"OP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="OPERATOR", variants=(/"OP"/), &
                           description="The type of operator used for exact exchange. The stendard"// &
                                       "Coulomb operator cannot be used in periodic systems.", &
                           usage="OPERATOR {string}", &
@@ -8195,7 +8223,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CUTOFF_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
                           variants=s2a("R_C", "RC", "RANGE"), &
                           description="The cutoff radius (in Angstrom) for the truncated Coulomb operator.", &
                           usage="CUTOFF_RADIUS {double}", &
@@ -8204,7 +8232,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="T_C_G_DATA", &
+      CALL keyword_create(keyword, __LOCATION__, name="T_C_G_DATA", &
                           description="Location of the file t_c_g.dat that contains the data for the "// &
                                       "evaluation of the truncated gamma function ", &
                           usage="T_C_G_DATA {string}", &
@@ -8212,7 +8240,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OMEGA", &
+      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
                           description="The range parameter for the short range operator (in 1/a0).",&
                           usage="OMEGA {double}", &
                           default_r_val=0.0_dp, &
@@ -8220,7 +8248,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_RANGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_RANGE", &
                           description="The threshold to determine the effective range of the short range "//&
                                       "operator: erfc(omega*eff_range)/eff_range = EPS_EANGE", &
                           usage="EPS_RANGE = {double}", &
@@ -8229,7 +8257,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
                           
-      CALL keyword_create(keyword, name="SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
                           description="Scaling of the exact exchange contribution.", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(subsubsection, keyword)
@@ -8246,16 +8274,16 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, "PRINT", "Controls the printing of information during "//&
+      CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information during "//&
                           "XAS TDP calculations", repeats=.FALSE.)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO",&
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="PROGRAM_RUN_INFO",&
                                        description="Controls the printing of basic programm steps information",&
                                        print_level=low_print_level, add_last=add_last_numeric,&
                                        filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SPECTRUM", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &
                                        description="Controles the dumping of the XAS TDP spectrum in ouput files", &
                                        print_level=low_print_level, filename="", common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
