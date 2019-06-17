@@ -436,7 +436,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="Yoshida", &
-                          description="order of the yoshida integretor used for the thermostat", &
+                          description="order of the yoshida integrator used for the thermostat", &
                           usage="Yoshida integer", &
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
