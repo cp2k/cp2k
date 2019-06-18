@@ -1467,9 +1467,8 @@ CONTAINS
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, my_flop_rate, omega, &
          omega_max_fit, omega_old, stabilize_exp, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
-         Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, tau_tj, tau_wj, tj, trace_Qomega, &
-         vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
-         vec_omega_fit_gw, vec_W_gw, vec_W_gw_beta, wj, z_value, z_value_beta
+         Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
+         vec_W_gw, vec_W_gw_beta, wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: buffer_mat_M, Eigenval_kp, Eigenval_scf_kp, &
          vec_Sigma_x_gw, vec_Sigma_x_gw_beta, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
          weights_sin_tf_t_to_w
@@ -1707,14 +1706,12 @@ CONTAINS
                                       do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                       first_cycle_periodic_correction, do_GW_corr, &
                                       a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
-                                      delta_corr, Eigenval_last, Eigenval_scf, m_value, &
-                                      vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
+                                      delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                       fm_mat_S_gw, fm_mat_S_gw_work, &
                                       para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
                                       do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
                                       vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
-                                      vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
-                                      vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_W_gw_beta, z_value_beta, &
+                                      vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_W_gw_beta, &
                                       fm_mat_S_gw_work_beta, fm_mat_S_gw_beta)
          ELSE
             CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
@@ -1724,8 +1721,7 @@ CONTAINS
                                       do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                       first_cycle_periodic_correction, do_GW_corr, &
                                       a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
-                                      delta_corr, Eigenval_last, Eigenval_scf, m_value, &
-                                      vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
+                                      delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                       fm_mat_S_gw, fm_mat_S_gw_work, &
                                       para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
                                       do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
@@ -1770,17 +1766,9 @@ CONTAINS
          IF (my_do_gw) THEN
             Erpa = 0.0_dp
             vec_Sigma_c_gw = (0.0_dp, 0.0_dp)
-            vec_gw_energ = 0.0_dp
-            vec_gw_energ_error_fit = 0.0_dp
-            z_value = 0.0_dp
-            m_value = 0.0_dp
             first_cycle = .TRUE.
             IF (my_open_shell) THEN
                vec_Sigma_c_gw_beta = (0.0_dp, 0.0_dp)
-               vec_gw_energ_beta = 0.0_dp
-               vec_gw_energ_error_fit_beta = 0.0_dp
-               z_value_beta = 0.0_dp
-               m_value_beta = 0.0_dp
             END IF
          END IF
 
@@ -2090,9 +2078,8 @@ CONTAINS
                                       do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                       do_GW_corr, e_fermi, eps_filter, &
                                       fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
-                                      Eigenval_last, Eigenval_scf, m_value, &
-                                      tau_tj, tj, vec_gw_energ, vec_gw_energ_error_fit, &
-                                      vec_omega_fit_gw, vec_Sigma_x_gw, z_value, ic_corr_list, &
+                                      Eigenval_last, Eigenval_scf, tau_tj, tj, &
+                                      vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                       weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                       fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                       fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
@@ -2102,9 +2089,8 @@ CONTAINS
                                       mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, kpoints, mp2_env, qs_env, &
                                       nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc, &
                                       vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                      e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
-                                      vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_Sigma_x_gw_beta, &
-                                      z_value_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                      e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
+                                      vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                                       mat_3c_overl_int_gw_beta, mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
             ELSE
                CALL GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
@@ -2114,9 +2100,8 @@ CONTAINS
                                       do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                       do_GW_corr, e_fermi, eps_filter, &
                                       fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
-                                      Eigenval_last, Eigenval_scf, m_value, &
-                                      tau_tj, tj, vec_gw_energ, vec_gw_energ_error_fit, &
-                                      vec_omega_fit_gw, vec_Sigma_x_gw, z_value, ic_corr_list, &
+                                      Eigenval_last, Eigenval_scf, tau_tj, tj, &
+                                      vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                       weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                       fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                       fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
@@ -2195,16 +2180,15 @@ CONTAINS
 
       IF (my_do_gw) THEN
          IF (my_open_shell) THEN
-            CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, z_value, m_value, &
-                                        vec_gw_energ, vec_gw_energ_error_fit, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
+            CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
+                                        mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                         kpoints, do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time, &
-                                        fm_mat_S_gw_work_beta, vec_W_gw_beta, &
-                                        vec_Sigma_c_gw_beta, z_value_beta, m_value_beta, vec_gw_energ_beta, &
-                                        vec_gw_energ_error_fit_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
+                                        fm_mat_S_gw_work_beta, vec_W_gw_beta, vec_Sigma_c_gw_beta, &
+                                        Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
          ELSE
-            CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, z_value, m_value, &
-                                        vec_gw_energ, vec_gw_energ_error_fit, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
+            CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
+                                        mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                         kpoints, do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
          END IF
