@@ -186,10 +186,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_main', routineP = moduleN//':'//routineN
 
       INTEGER :: blacs_grid_layout, color_sub, color_sub_3c, comm_sub, comm_sub_3c, dimen, &
-         dimen_RI, group_size_3c, group_size_P, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
-         gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, &
-         local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, n_multigrid, nelectron, &
-         nelectron_beta, nmo, nspins, ri_metric
+         dimen_RI, dimen_RI_red, group_size_3c, group_size_P, gw_corr_lev_occ, &
+         gw_corr_lev_occ_beta, gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, &
+         i, i_multigrid, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
+         n_multigrid, nelectron, nelectron_beta, nmo, nspins, ri_metric
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc_t, starts_array_mc_t
       LOGICAL :: blacs_repeatable, do_bse, do_dbcsr_t, do_im_time, do_kpoints_cubic_RPA, do_mao, &
          my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2, &
@@ -515,7 +515,7 @@ CONTAINS
          IF (nspins == 2) THEN
             ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
             CALL mp2_ri_gpw_compute_in( &
-               BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, qs_env, &
+               BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, dimen_RI_red, qs_env, &
                para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
                atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, nmo, homo, rho_r, rho_g, pot_g, &
                mat_munu, mat_munu_mao_occ_virt, mat_munu_mao_virt_occ, sab_orb_sub, sab_orb_all, &
@@ -534,7 +534,7 @@ CONTAINS
          ELSE
             ! closed shell case (RI)
             CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
-                                       dimen_RI, qs_env, para_env, para_env_sub, &
+                                       dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, &
                                        color_sub, dft_control, cell, particle_set, &
                                        atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, &
                                        nmo, homo, rho_r, rho_g, pot_g, &
@@ -729,7 +729,7 @@ CONTAINS
                                    para_env, para_env_sub_RPA, color_sub, &
                                    gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
                                    mo_coeff, fm_matrix_L_RI_metric, kpoints, &
-                                   Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                   Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                    mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
@@ -751,7 +751,7 @@ CONTAINS
                                    para_env, para_env_sub_RPA, color_sub, &
                                    gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
                                    mo_coeff, fm_matrix_L_RI_metric, kpoints, &
-                                   Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                   Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                    mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
@@ -800,21 +800,21 @@ CONTAINS
                CALL mp2_ri_gpw_compute_en( &
                   Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
                   gd_array, gd_B_virtual, &
-                  Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex, &
+                  Eigenval, nmo, homo, dimen_RI_red, unit_nr, calc_forces, calc_ex, &
                   open_shell_SS=.TRUE.)
 
                ! beta-beta component
                CALL mp2_ri_gpw_compute_en( &
                   Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, BIb_C_beta, mp2_env, para_env, para_env_sub, color_sub, &
                   gd_array, gd_B_virtual_beta, &
-                  Eigenval_beta, nmo, homo_beta, dimen_RI, unit_nr, calc_forces, calc_ex, &
+                  Eigenval_beta, nmo, homo_beta, dimen_RI_red, unit_nr, calc_forces, calc_ex, &
                   open_shell_SS=.TRUE.)
 
                ! alpha-beta case
                CALL mp2_ri_gpw_compute_en( &
                   Emp2_d_AB, Emp2_AB, Emp2_d2_AB, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
                   gd_array, gd_B_virtual, &
-                  Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, .FALSE., &
+                  Eigenval, nmo, homo, dimen_RI_red, unit_nr, calc_forces, .FALSE., &
                   .FALSE., BIb_C_beta, homo_beta, Eigenval_beta, &
                   gd_B_virtual_beta)
 
@@ -823,7 +823,7 @@ CONTAINS
                CALL mp2_ri_gpw_compute_en( &
                   Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
                   gd_array, gd_B_virtual, &
-                  Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
+                  Eigenval, nmo, homo, dimen_RI_red, unit_nr, calc_forces, calc_ex)
             END IF
             ! if we need forces time to calculate the MP2 non-separable contribution
             ! and start coputing the Lagrangian
