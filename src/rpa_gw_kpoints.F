@@ -65,9 +65,9 @@ MODULE rpa_gw_kpoints
                                               qs_environment_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE rpa_im_time,                     ONLY: compute_transl_dm,&
-                                              fill_mat_3c_overl_int_gw,&
+   USE rpa_gw_im_time_util,             ONLY: fill_mat_3c_overl_int_gw,&
                                               replicate_mat_to_subgroup_simple
+   USE rpa_im_time,                     ONLY: compute_transl_dm
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

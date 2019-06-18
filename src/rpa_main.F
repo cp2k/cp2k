@@ -2206,8 +2206,7 @@ CONTAINS
                                  mat_M_P_munu_virt, mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
                                  mat_P_omega, mat_P_omega_kp, mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, &
                                  mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O_cut, &
-                                 mat_dm_loc_occ, mat_dm_loc_virt, &
-                                 fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
+                                 mat_dm_loc_occ, mat_dm_loc_virt, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
          ELSE
             CALL dealloc_im_time(do_mao, do_dbcsr_t, do_ri_sos_laplace_mp2, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                  fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, row_from_LLL, index_to_cell_3c, &
