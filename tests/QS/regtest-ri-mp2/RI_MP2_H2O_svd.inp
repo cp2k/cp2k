@@ -1,5 +1,5 @@
-&GLOBAL
-  PROJECT  G0W0_H2O_PBE0
+&GLOBAL                                                                                           
+  PROJECT  RI_MP2_H2O_svd
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -10,7 +10,7 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
-    POTENTIAL_FILE_NAME  GTH_POTENTIALS
+    POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
       CUTOFF  100
       REL_CUTOFF  20
@@ -25,61 +25,32 @@
       EPS_PGF_ORB 1.0E-30
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
+      SCF_GUESS RESTART
       EPS_SCF 1.0E-7
       MAX_SCF 100
-      &PRINT
-        &RESTART OFF
-        &END
-      &END
+      ! ADDED_MOS 15000 15000
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-        &PBE
-          SCALE_X 0.7500000
-          SCALE_C 1.0000000
-        &END
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
       &HF
-        FRACTION 0.2500000
+        FRACTION 1.0000000
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE
+          SCREEN_ON_INITIAL_P FALSE 
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        RI OVERLAP
+        METHOD  RI_MP2_GPW
         &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-6
+          CUTOFF  100
+          REL_CUTOFF 20
         &END
-        ERI_METHOD OS
-        IM_TIME
-        &IM_TIME
-          DO_DBCSR_T .FALSE.
-          GROUP_SIZE_3c 1
-          GROUP_SIZE_P 1
-        &END
-        &RI_RPA
-          &HF
-            FRACTION 1.0000000
-            &SCREENING
-              EPS_SCHWARZ 1.0E-8
-              SCREEN_ON_INITIAL_P FALSE
-            &END SCREENING
-          &END HF
-          RPA_NUM_QUAD_POINTS 10
-          MINIMAX
-          GW
-          &RI_G0W0
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
-          &END RI_G0W0
-        &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
+        CALC_COND_NUM
+        DO_SVD T
+        EPS_SVD 1.0e-2
       &END
     &END XC
   &END DFT
@@ -91,12 +62,12 @@
     &KIND H
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q1
+      POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q6
+      POTENTIAL  GTH-HF-q6
     &END KIND
     &TOPOLOGY
       COORD_FILE_NAME  H2O_gas.xyz

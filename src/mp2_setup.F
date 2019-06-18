@@ -77,6 +77,8 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "COL_BLOCK", i_val=mp2_env%block_size_col)
       CALL section_vals_val_get(mp2_section, "RI_METRIC", i_val=mp2_env%ri_metric)
       CALL section_vals_val_get(mp2_section, "CALC_COND_NUM", l_val=mp2_env%calc_PQ_cond_num)
+      CALL section_vals_val_get(mp2_section, "DO_SVD", l_val=mp2_env%do_svd)
+      CALL section_vals_val_get(mp2_section, "EPS_SVD", r_val=mp2_env%eps_svd)
 
       CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)

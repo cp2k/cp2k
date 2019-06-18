@@ -43,9 +43,11 @@ MODULE mp2_integrals
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: cp_fm_syevx
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_syevx
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -170,6 +172,7 @@ CONTAINS
 !> \param gd_array ...
 !> \param gd_B_virtual ...
 !> \param dimen_RI ...
+!> \param dimen_RI_red ...
 !> \param qs_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
@@ -238,7 +241,7 @@ CONTAINS
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
-                                    dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, &
+                                    dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, color_sub, dft_control, &
                                     cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
                                     fm_matrix_L_RI_metric, nmo, homo, &
                                     rho_r, rho_g, pot_g, mat_munu, mat_munu_mao_occ_virt, mat_munu_mao_virt_occ, &
@@ -259,7 +262,7 @@ CONTAINS
          INTENT(OUT)                                     :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
                                                             BIb_C_bse_ab
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array, gd_B_virtual
-      INTEGER, INTENT(OUT)                               :: dimen_RI
+      INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
@@ -330,8 +333,8 @@ CONTAINS
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
       INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
-                                                            impose_split, memory_info
-      REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, wfn_size
+                                                            impose_split, memory_info, do_svd
+      REAL(KIND=dp)                                      :: cond_num, eps_svd, mem_for_iaK, wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_bse_ab, fm_BIb_bse_ij, fm_BIb_gw, &
@@ -369,6 +372,12 @@ CONTAINS
 
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
+      do_svd = qs_env%mp2_env%do_svd
+      eps_svd = qs_env%mp2_env%eps_svd
+
+      IF (do_svd .AND. calc_forces) THEN
+         CPABORT("SVD not implemented for forces.!")
+      END IF
 
       do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
@@ -494,11 +503,15 @@ CONTAINS
          CPASSERT(periodic(1) == 1 .AND. periodic(2) == 1 .AND. periodic(3) == 1)
       END IF
 
+      IF (do_svd .AND. (do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA)) THEN
+         CPABORT("SVD with kpoints not implemented yet!")
+      END IF
+
       CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                           fm_matrix_L, ngroup, color_sub, dimen_RI, kpoints, &
+                           fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, &
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, &
-                           gd_array, calc_PQ_cond_num, cond_num, &
+                           gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
                            num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
                            do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set)
@@ -507,11 +520,16 @@ CONTAINS
          "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
       IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
          "RI_INFO| Number of groups for auxiliary basis functions", ngroup
-      IF (calc_PQ_cond_num) THEN
+      IF (calc_PQ_cond_num .OR. do_svd) THEN
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T67,ES14.5)") &
             "RI_INFO| Condition number of the (P|Q):", cond_num
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "RI_INFO| Number of Eigenvalue of (P|Q) smaller than 10^(-3):", num_small_eigen
+         IF (do_svd) THEN
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,ES8.1,A,T75,i6)") &
+               "RI_INFO| Number of neglected Eigenvalues of (P|Q) smaller than ", eps_svd, ":", num_small_eigen
+         ELSE
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,ES14.1,A,T75,i6)") &
+               "RI_INFO| Number of Eigenvalue of (P|Q) smaller ", eps_svd, ":", num_small_eigen
+         END IF
       END IF
 
       IF (.NOT. do_im_time) THEN
@@ -541,6 +559,10 @@ CONTAINS
             "RI_INFO| Occupied  basis set size:", homo, &
             "RI_INFO| Virtual   basis set size:", virtual, &
             "RI_INFO| Auxiliary basis set size:", dimen_RI
+         IF (do_svd) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "RI_INFO| Reduced auxiliary basis set size:", dimen_RI_red
+         END IF
 
          mem_for_iaK = dimen_RI*REAL(homo, KIND=dp)*virtual*8.0_dp/(1024_dp**2)
          IF (do_alpha_beta) mem_for_iaK = mem_for_iaK+ &
@@ -1537,6 +1559,7 @@ CONTAINS
 !> \param ngroup ...
 !> \param color_sub ...
 !> \param dimen_RI ...
+!> \param dimen_RI_red reduced RI dimension,  needed if we perform SVD instead of Cholesky
 !> \param kpoints ...
 !> \param mo_coeff ...
 !> \param dft_control ...
@@ -1552,6 +1575,8 @@ CONTAINS
 !> \param gd_array ...
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
+!> \param do_svd ...
+!> \param eps_svd ...
 !> \param num_small_eigen ...
 !> \param ri_metric ...
 !> \param fm_matrix_L_RI_metric ...
@@ -1562,10 +1587,10 @@ CONTAINS
 !> \param qs_kind_set ...
 ! **************************************************************************************************
    SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                              fm_matrix_L, ngroup, color_sub, dimen_RI, kpoints, &
+                              fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, &
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, &
-                              gd_array, calc_PQ_cond_num, cond_num, &
+                              gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
                               num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
                               do_kpoints, mp2_eps_pgf_orb_S, atomic_kind_set, qs_kind_set)
 
@@ -1576,7 +1601,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
-      INTEGER, INTENT(OUT)                               :: dimen_RI
+      INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1588,6 +1613,8 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
+      LOGICAL, INTENT(IN)                                :: do_svd
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(OUT)                               :: num_small_eigen
       INTEGER, INTENT(IN)                                :: ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
@@ -1614,14 +1641,29 @@ CONTAINS
                                 gd_array, calc_PQ_cond_num, cond_num, &
                                 num_small_eigen, do_im_time=do_im_time)
 
+      dimen_RI_red = dimen_RI
+
       IF (ri_metric == do_potential_coulomb) THEN
+         IF (do_svd) THEN
+            CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, .TRUE.)
 
-         ! calculate Cholesky decomposition L (V=LL^T)
-         CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.TRUE.)
+            dimen_RI_red = dimen_RI-num_small_eigen
 
-         ! for the Coulomb metric, we invert L
-         CALL invert_L(fm_matrix_L)
+            ! We changed the size of fm_matrix_L in matrix_root_with_svd.
+            ! So, we have to get new group sizes
+            CALL release_group_dist(gd_array)
 
+            CALL create_group_dist(gd_array, ngroup, dimen_RI_red)
+
+            CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
+         ELSE
+
+            ! calculate Cholesky decomposition L (V=LL^T)
+            CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.TRUE.)
+
+            ! for the Coulomb metric, we invert L
+            CALL invert_L(fm_matrix_L)
+         END IF
       ELSE IF (ri_metric == do_potential_id) THEN
 
          ! Obara-Saika overlap matrix
@@ -1667,9 +1709,22 @@ CONTAINS
                                                             dimen_RI, kpoints)
 
          ELSE
+            IF (do_svd) THEN
+               CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, .FALSE.)
 
-            ! calculate Cholesky decomposition L of the Coulomb matrix (V=LL^T)
-            CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.FALSE.)
+               dimen_RI_red = dimen_RI-num_small_eigen
+
+               ! We changed the size of fm_matrix_L in matrix_root_with_svd.
+               ! So, we have to get new group sizes
+               CALL release_group_dist(gd_array)
+
+               CALL create_group_dist(gd_array, ngroup, dimen_RI_red)
+
+               CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
+            ELSE
+               ! calculate Cholesky decomposition L of the Coulomb matrix (V=LL^T)
+               CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.FALSE.)
+            END IF
 
             ! calculate Cholesky decomposition L of the overlap matrix (S=LL^T)
             CALL cholesky_decomp(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI, do_inversion=.TRUE.)
@@ -1684,20 +1739,28 @@ CONTAINS
             CALL cp_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix, &
                          fm_matrix_L_RI_metric(1, 1)%matrix, 0.0_dp, fm_matrix_S_inv_work)
 
-            ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
-            CALL cp_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                         0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+            IF (do_svd) THEN
+               ! We have to reset the size of fm_matrix_L_RI_metric
+               CALL reset_size_matrix(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI_red, fm_matrix_L%matrix_struct)
+
+               ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
+               CALL cp_gemm('T', 'N', dimen_RI, dimen_RI_red, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
+                            0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+            ELSE
+               ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
+               CALL cp_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
+                            0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+            END IF
 
             ! clean the S_inv matrix
             CALL cp_fm_release(fm_matrix_S_inv_work)
-
          END IF
 
          IF (.NOT. do_im_time) THEN
 
             CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1)%matrix, fm_matrix_L)
-            DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
-            DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
+            DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
+            DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
                CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
             END DO
             END DO
@@ -2563,6 +2626,112 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_2c_integrals
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param eps_svd ...
+!> \param num_small_evals ...
+!> \param cond_num ...
+!> \param do_inversion ...
+! **************************************************************************************************
+   SUBROUTINE matrix_root_with_svd(matrix, eps_svd, num_small_evals, cond_num, do_inversion)
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
+      INTEGER, INTENT(OUT)                               :: num_small_evals
+      REAL(KIND=dp), INTENT(OUT)                         :: cond_num
+      LOGICAL, INTENT(IN)                                :: do_inversion
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ii, needed_evals, nrow
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      TYPE(cp_fm_type), POINTER                          :: evecs
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(eps_svd >= 0)
+
+      ! Create arrays carrying eigenvalues and eigenvectors later
+      CALL cp_fm_get_info(matrix=matrix, nrow_global=nrow)
+
+      ALLOCATE (evals(nrow))
+      evals = 0
+
+      NULLIFY (evecs)
+      CALL cp_fm_create(evecs, matrix%matrix_struct)
+
+      ! Perform the EVD (=SVD of a positive semidefinite matrix)
+      CALL choose_eigv_solver(matrix, evecs, evals)
+
+      ! Determine the number of neglectable eigenvalues assuming that the eigenvalues are in ascending order
+      num_small_evals = 0
+      DO ii = 1, nrow
+         IF (evals(ii) > eps_svd) THEN
+            num_small_evals = ii-1
+            EXIT
+         END IF
+      END DO
+      needed_evals = nrow-num_small_evals
+
+      ! Get the condition number w.r.t. considered eigenvalues
+      cond_num = evals(nrow)/evals(num_small_evals+1)
+
+      ! Determine the eigenvalues of the request matrix root or its inverse
+      evals(1:num_small_evals) = 0.0_dp
+      IF (do_inversion) THEN
+         evals(num_small_evals+1:nrow) = 1.0_dp/SQRT(evals(num_small_evals+1:nrow))
+      ELSE
+         evals(num_small_evals+1:nrow) = SQRT(evals(num_small_evals+1:nrow))
+      END IF
+
+      CALL cp_fm_column_scale(evecs, evals)
+
+      CALL reset_size_matrix(matrix, needed_evals, matrix%matrix_struct)
+
+      ! Copy the needed eigenvectors
+      CALL cp_fm_to_fm(evecs, matrix, needed_evals, num_small_evals+1)
+
+      CALL cp_fm_release(evecs)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE matrix_root_with_svd
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param new_size ...
+!> \param fm_struct_template ...
+! **************************************************************************************************
+   SUBROUTINE reset_size_matrix(matrix, new_size, fm_struct_template)
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      INTEGER, INTENT(IN)                                :: new_size
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_size_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+
+      CALL timeset(routineN, handle)
+
+      ! Choose the block sizes as large as in the template for the later steps
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, ncol_global=new_size, template_fmstruct=fm_struct_template, force_block=.TRUE.)
+
+      CALL cp_fm_release(matrix)
+
+      NULLIFY (matrix)
+      CALL cp_fm_create(matrix, fm_struct)
+
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE reset_size_matrix
 
 ! **************************************************************************************************
 !> \brief ...

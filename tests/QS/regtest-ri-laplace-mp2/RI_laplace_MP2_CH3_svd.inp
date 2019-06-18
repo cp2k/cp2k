@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  G0W0_H2O_PBE0
+  PROJECT  RI_laplace_MP2_CH3_svd
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -10,7 +10,7 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
-    POTENTIAL_FILE_NAME  GTH_POTENTIALS
+    POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
       CUTOFF  100
       REL_CUTOFF  20
@@ -26,76 +26,54 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-5
       MAX_SCF 100
-      &PRINT
-        &RESTART OFF
-        &END
-      &END
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-        &PBE
-          SCALE_X 0.7500000
-          SCALE_C 1.0000000
-        &END
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
       &HF
-        FRACTION 0.2500000
+        FRACTION 1.0000000
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE
+          SCREEN_ON_INITIAL_P FALSE 
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
+        METHOD  RI_SOS_LAPLACE
+        &RI_LAPLACE
+          QUADRATURE_POINTS  5 
+        &END
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20
         &END
-        &RI_RPA
-          &HF
-            FRACTION 1.0000000
-            &SCREENING
-              EPS_SCHWARZ 1.0E-8
-              SCREEN_ON_INITIAL_P FALSE
-            &END SCREENING
-          &END HF
-          RPA_NUM_QUAD_POINTS 40
-          GW
-          &RI_G0W0
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
-            NUMB_POLES            2
-            MAX_ITER_FIT          10000
-            CROSSING_SEARCH       Z_SHOT 
-            FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            1
-            HF_LIKE_EV_START      FALSE
-          &END RI_G0W0 
-        &END RI_RPA
-        MEMORY  200.
+        MEMORY  500.0
         NUMBER_PROC  1
+        DO_SVD
+        EPS_SVD 1.0E-2
       &END
     &END XC
+    UKS
+    MULTIPLICITY  2
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  8.000   8.000   8.000
       PERIODIC NONE
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q1
+      POTENTIAL  GTH-HF-q1
     &END KIND
-    &KIND O
+    &KIND C
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q6
+      POTENTIAL  GTH-HF-q4
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  H2O_gas.xyz
+      COORD_FILE_NAME  CH3.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END
