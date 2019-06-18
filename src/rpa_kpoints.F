@@ -9,6 +9,9 @@
 !>      06.2019 Split from rpa_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_kpoints
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell,&
+                                              pbc
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_gemm,&
                                               cp_cfm_scale_and_add_fm
@@ -26,19 +29,25 @@ MODULE rpa_kpoints
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE mathconstants,                   ONLY: gaussi,&
+                                              twopi,&
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_sum
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE particle_types,                  ONLY: particle_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE rpa_gw_kpoints,                  ONLY: compute_Wc_kp_tau_GW,&
                                               compute_Wc_real_space_tau_GW
-   USE rpa_im_time,                     ONLY: get_P_cell_T_from_P_gamma,&
-                                              transform_P_from_real_space_to_kpoints
+   USE rpa_im_time,                     ONLY: init_cell_index_rpa
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -575,6 +584,288 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_P_omega ...
+!> \param qs_env ...
+!> \param kpoints ...
+!> \param jquad ...
+! **************************************************************************************************
+   SUBROUTINE get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, INTENT(IN)                                :: jquad
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_P_cell_T_from_P_gamma', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: col, handle, i_cell, i_dim, num_cells_P, &
+                                                            num_integ_points, row
+      INTEGER, DIMENSION(3)                              :: cell_grid_P, periodic
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_P
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: cutoff_exp, d_0, sum_exp, weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: abs_rab_cell
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, rab_cell_i
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_to_compute, data_block
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell, particle_set)
+      CALL get_qs_env(qs_env, cell=cell, &
+                      particle_set=particle_set)
+      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
+
+      DO i_dim = 1, 3
+         ! we have at most 3 neigboring cells per dimension and at least one because
+         ! the density response at Gamma is only divided to neighboring
+         IF (periodic(i_dim) == 1) THEN
+            cell_grid_P(i_dim) = MAX(MIN((kpoints%nkp_grid(i_dim)/2)*2-1, 1), 3)
+         ELSE
+            cell_grid_P(i_dim) = 1
+         END IF
+      END DO
+
+      ! overwrite the cell indices in kpoints
+      CALL init_cell_index_rpa(cell_grid_P, kpoints%cell_to_index, kpoints%index_to_cell, cell)
+
+      index_to_cell_P => kpoints%index_to_cell
+
+      num_cells_P = SIZE(index_to_cell_P, 2)
+
+      num_integ_points = SIZE(mat_P_omega, 1)
+
+      ! first, copy the Gamma-only result from mat_P_omega(1) into all other matrices and
+      ! remove the blocks later which do not belong to the cell index
+      DO i_cell = 2, num_cells_P
+         CALL dbcsr_copy(mat_P_omega(jquad, i_cell)%matrix, &
+                         mat_P_omega(jquad, 1)%matrix)
+      END DO
+
+      ! exponential decay parameter
+      d_0 = qs_env%mp2_env%ri_rpa_im_time%cutoff
+      cutoff_exp = 100.0_dp
+
+      ALLOCATE (abs_rab_cell(1:num_cells_P))
+
+      ! loop over blocks of mat_P_omega(i_cell=1)
+      CALL dbcsr_iterator_start(iter, mat_P_omega(jquad, 1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
+
+         sum_exp = 0.0_dp
+
+         DO i_cell = 1, num_cells_P
+
+            cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell_P(1:3, i_cell), dp))
+            rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell)- &
+                              (pbc(particle_set(col)%r(1:3), cell)+cell_vector(1:3))
+            abs_rab_cell(i_cell) = SQRT(rab_cell_i(1)**2+rab_cell_i(2)**2+rab_cell_i(3)**2)
+            IF (abs_rab_cell(i_cell)/d_0 < cutoff_exp) THEN
+               sum_exp = sum_exp+EXP(-abs_rab_cell(i_cell)/d_0)
+            END IF
+
+         END DO
+
+         IF (abs_rab_cell(1)/d_0 < cutoff_exp) THEN
+            weight = EXP(-abs_rab_cell(1)/d_0)/sum_exp
+         ELSE
+            weight = 0.0_dp
+         END IF
+         data_block(:, :) = data_block(:, :)*weight
+
+         DO i_cell = 2, num_cells_P
+
+            ! THE SYMMETRY EQUIVALENT LATTICE VECTORS ENTER HERE: ONLY LATT. VEC. WITH POS. X-COMP ARE CONSIDERED
+            IF (abs_rab_cell(i_cell)/d_0 < cutoff_exp .AND. index_to_cell_P(1, i_cell) .LE. 0) THEN
+               weight = EXP(-abs_rab_cell(i_cell)/d_0)/sum_exp
+            ELSE
+               weight = 0.0_dp
+            END IF
+
+            NULLIFY (block_to_compute)
+            CALL dbcsr_get_block_p(matrix=mat_P_omega(jquad, i_cell)%matrix, &
+                                   row=row, col=col, block=block_to_compute, found=found)
+            CPASSERT(found)
+            block_to_compute(:, :) = block_to_compute(:, :)*weight
+
+         END DO
+
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      DEALLOCATE (abs_rab_cell)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_P_cell_T_from_P_gamma
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_P_omega ...
+!> \param mat_P_omega_kp ...
+!> \param kpoints ...
+!> \param eps_filter_im_time ...
+!> \param jquad ...
+! **************************************************************************************************
+   SUBROUTINE transform_P_from_real_space_to_kpoints(mat_P_omega, mat_P_omega_kp, &
+                                                     kpoints, eps_filter_im_time, jquad)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      REAL(kind=dp), INTENT(IN)                          :: eps_filter_im_time
+      INTEGER, INTENT(IN)                                :: jquad
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_P_from_real_space_to_kpoints', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, icell, nkp, num_integ_points
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
+
+      CALL timeset(routineN, handle)
+
+      num_integ_points = SIZE(mat_P_omega, 1)
+      nkp = SIZE(mat_P_omega, 2)
+      index_to_cell_dm => kpoints%index_to_cell
+
+      CALL real_space_to_kpoint_transform_rpa(mat_P_omega_kp(1, :), mat_P_omega_kp(2, :), mat_P_omega(jquad, :), &
+                                              kpoints, index_to_cell_dm, eps_filter_im_time)
+
+      DO icell = 1, SIZE(mat_P_omega, 2)
+         CALL dbcsr_set(mat_P_omega(jquad, icell)%matrix, 0.0_dp)
+         CALL dbcsr_filter(mat_P_omega(jquad, icell)%matrix, 1.0_dp)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE transform_P_from_real_space_to_kpoints
+
+! **************************************************************************************************
+!> \brief ...
+!> \param real_mat_kp ...
+!> \param imag_mat_kp ...
+!> \param mat_real_space ...
+!> \param kpoints ...
+!> \param index_to_cell ...
+!> \param eps_filter_im_time ...
+! **************************************************************************************************
+   SUBROUTINE real_space_to_kpoint_transform_rpa(real_mat_kp, imag_mat_kp, mat_real_space, &
+                                                 kpoints, index_to_cell, eps_filter_im_time)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: real_mat_kp, imag_mat_kp, mat_real_space
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'real_space_to_kpoint_transform_rpa', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i_cell, ik, nkp, num_cells
+      INTEGER, DIMENSION(3)                              :: cell
+      REAL(KIND=dp)                                      :: arg, coskl, sinkl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(dbcsr_type)                                   :: mat_work
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_create(matrix=mat_work, &
+                        template=real_mat_kp(1)%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_reserve_all_blocks(mat_work)
+      CALL dbcsr_set(mat_work, 0.0_dp)
+
+      ! this kpoint environme t should be the kpoints for D(it) and X(it) created in init_cell_index_rpa
+      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp)
+
+      num_cells = SIZE(index_to_cell, 2)
+
+      CPASSERT(SIZE(mat_real_space) >= num_cells/2+1)
+
+      DO ik = 1, nkp
+
+         CALL dbcsr_set(real_mat_kp(ik)%matrix, 0.0_dp)
+         CALL dbcsr_set(imag_mat_kp(ik)%matrix, 0.0_dp)
+
+         ! JW to check: high memory consumption
+         CALL dbcsr_reserve_all_blocks(real_mat_kp(ik)%matrix)
+         CALL dbcsr_reserve_all_blocks(imag_mat_kp(ik)%matrix)
+
+         DO i_cell = 1, num_cells/2+1
+
+            cell(:) = index_to_cell(:, i_cell)
+
+            arg = REAL(cell(1), dp)*xkp(1, ik)+REAL(cell(2), dp)*xkp(2, ik)+REAL(cell(3), dp)*xkp(3, ik)
+            coskl = COS(twopi*arg)
+            sinkl = SIN(twopi*arg)
+
+            CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, coskl)
+            CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, sinkl)
+
+            IF (.NOT. (cell(1) == 0 .AND. cell(2) == 0 .AND. cell(3) == 0)) THEN
+
+               CALL dbcsr_transposed(mat_work, mat_real_space(i_cell)%matrix)
+
+               CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, coskl)
+               CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, -sinkl)
+
+               CALL dbcsr_set(mat_work, 0.0_dp)
+
+            END IF
+
+         END DO
+
+         CALL dbcsr_filter(real_mat_kp(ik)%matrix, eps_filter_im_time)
+         CALL dbcsr_filter(imag_mat_kp(ik)%matrix, eps_filter_im_time)
+
+      END DO
+
+      CALL dbcsr_release(mat_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE real_space_to_kpoint_transform_rpa
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_a ...
+!> \param mat_b ...
+!> \param alpha ...
+!> \param beta ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_add_local(mat_a, mat_b, alpha, beta)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_a, mat_b
+      REAL(kind=dp), INTENT(IN)                          :: alpha, beta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_add_local', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: col, row
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_to_compute, data_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_iterator_start(iter, mat_b)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
+
+         NULLIFY (block_to_compute)
+         CALL dbcsr_get_block_p(matrix=mat_a, &
+                                row=row, col=col, block=block_to_compute, found=found)
+
+         CPASSERT(found)
+
+         block_to_compute(:, :) = alpha*block_to_compute(:, :)+beta*data_block(:, :)
+
+      END DO
+      CALL dbcsr_iterator_stop(iter)
 
    END SUBROUTINE
 

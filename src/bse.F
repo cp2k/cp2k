@@ -26,7 +26,7 @@ MODULE bse
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
-   USE rpa_im_time,                     ONLY: communicate_buffer
+   USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

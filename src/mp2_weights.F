@@ -15,6 +15,9 @@ MODULE mp2_weights
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_env_type,&
+                                              kpoint_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_bcast,&
@@ -23,8 +26,10 @@ MODULE mp2_weights
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
    USE mp2_types,                       ONLY: mp2_type
-   USE qs_environment_types,            ONLY: qs_environment_type
-   USE rpa_im_time,                     ONLY: gap_and_max_eig_diff_kpoints
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1473,5 +1478,95 @@ CONTAINS
       END DO
 
    END SUBROUTINE eval_fit_func_omega_grid_cosine
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param gap ...
+!> \param max_eig_diff ...
+!> \param e_fermi ...
+! **************************************************************************************************
+   SUBROUTINE gap_and_max_eig_diff_kpoints(qs_env, para_env, gap, max_eig_diff, e_fermi)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), INTENT(OUT)                         :: gap, max_eig_diff, e_fermi
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gap_and_max_eig_diff_kpoints', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, homo, ikpgr, ispin, kplocal, &
+                                                            nmo, nspin
+      INTEGER, DIMENSION(2)                              :: kp_range
+      REAL(KIND=dp)                                      :: e_homo, e_homo_temp, e_lumo, e_lumo_temp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_homo_array, e_lumo_array, &
+                                                            max_eig_diff_array
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(mo_set_type), POINTER                         :: mo_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      kpoints=kpoint)
+
+      mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
+      CALL get_mo_set(mo_set, nmo=nmo)
+
+      CALL get_kpoint_info(kpoint, kp_range=kp_range)
+      kplocal = kp_range(2)-kp_range(1)+1
+
+      gap = 1000.0_dp
+      max_eig_diff = 0.0_dp
+      e_homo = -1000.0_dp
+      e_lumo = 1000.0_dp
+
+      DO ikpgr = 1, kplocal
+         kp => kpoint%kp_env(ikpgr)%kpoint_env
+         nspin = SIZE(kp%mos, 2)
+         DO ispin = 1, nspin
+            mo_set => kp%mos(1, ispin)%mo_set
+            CALL get_mo_set(mo_set, eigenvalues=eigenvalues, homo=homo)
+            e_homo_temp = eigenvalues(homo)
+            e_lumo_temp = eigenvalues(homo+1)
+
+            IF (e_homo_temp > e_homo) e_homo = e_homo_temp
+            IF (e_lumo_temp < e_lumo) e_lumo = e_lumo_temp
+            IF (eigenvalues(nmo)-eigenvalues(1) > max_eig_diff) max_eig_diff = eigenvalues(nmo)-eigenvalues(1)
+
+         END DO
+      END DO
+
+      ALLOCATE (e_homo_array(0:para_env%num_pe-1))
+      e_homo_array = 0.0_dp
+      e_homo_array(para_env%mepos) = e_homo
+
+      ALLOCATE (e_lumo_array(0:para_env%num_pe-1))
+      e_lumo_array = 0.0_dp
+      e_lumo_array(para_env%mepos) = e_lumo
+
+      ALLOCATE (max_eig_diff_array(0:para_env%num_pe-1))
+      max_eig_diff_array = 0.0_dp
+      max_eig_diff_array(para_env%mepos) = max_eig_diff
+
+      CALL mp_sum(e_homo_array, para_env%group)
+
+      CALL mp_sum(e_lumo_array, para_env%group)
+
+      CALL mp_sum(max_eig_diff_array, para_env%group)
+
+      gap = MINVAL(e_lumo_array)-MAXVAL(e_homo_array)
+
+      e_fermi = (MAXVAL(e_homo_array)+MINVAL(e_lumo_array))/2.0_dp
+
+      max_eig_diff = MAXVAL(max_eig_diff_array)
+
+      DEALLOCATE (max_eig_diff_array, e_homo_array, e_lumo_array)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 END MODULE mp2_weights

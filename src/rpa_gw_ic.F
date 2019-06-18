@@ -37,7 +37,7 @@ MODULE rpa_gw_ic
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
    USE physcon,                         ONLY: evolt
-   USE rpa_im_time,                     ONLY: communicate_buffer
+   USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

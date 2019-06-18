@@ -79,7 +79,7 @@ MODULE rpa_gw
                                               neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
-   USE rpa_im_time,                     ONLY: get_mat_3c_overl_int_gw
+   USE rpa_gw_im_time_util,             ONLY: get_mat_3c_overl_int_gw
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

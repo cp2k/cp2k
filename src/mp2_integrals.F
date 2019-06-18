@@ -140,7 +140,7 @@ MODULE mp2_integrals
                                               realspace_grid_p_type,&
                                               rs_grid_release,&
                                               rs_grid_retain
-   USE rpa_im_time,                     ONLY: communicate_buffer
+   USE rpa_communication,               ONLY: communicate_buffer
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
