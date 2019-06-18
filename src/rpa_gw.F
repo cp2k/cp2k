@@ -356,11 +356,7 @@ CONTAINS
 !> \param delta_corr ...
 !> \param Eigenval_last ...
 !> \param Eigenval_scf ...
-!> \param m_value ...
-!> \param vec_gw_energ ...
-!> \param vec_gw_energ_error_fit ...
 !> \param vec_W_gw ...
-!> \param z_value ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 !> \param para_env ...
@@ -377,11 +373,7 @@ CONTAINS
 !> \param vec_Sigma_x_gw_beta ...
 !> \param Eigenval_last_beta ...
 !> \param Eigenval_scf_beta ...
-!> \param m_value_beta ...
-!> \param vec_gw_energ_beta ...
-!> \param vec_gw_energ_error_fit_beta ...
 !> \param vec_W_gw_beta ...
-!> \param z_value_beta ...
 !> \param fm_mat_S_gw_work_beta ...
 !> \param fm_mat_S_gw_beta ...
 ! **************************************************************************************************
@@ -392,14 +384,12 @@ CONTAINS
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
                                    first_cycle_periodic_correction, do_GW_corr, &
                                    a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
-                                   delta_corr, Eigenval_last, Eigenval_scf, m_value, &
-                                   vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
+                                   delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, &
                                    para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
                                    do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
                                    vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
-                                   vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
-                                   vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_W_gw_beta, z_value_beta, &
+                                   vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_W_gw_beta, &
                                    fm_mat_S_gw_work_beta, fm_mat_S_gw_beta)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -422,9 +412,7 @@ CONTAINS
          INTENT(OUT)                                     :: vec_Sigma_x_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr, Eigenval_last, Eigenval_scf, &
-                                                            m_value, vec_gw_energ, &
-                                                            vec_gw_energ_error_fit, vec_W_gw, &
-                                                            z_value
+                                                            vec_W_gw
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -439,9 +427,9 @@ CONTAINS
          OPTIONAL                                        :: Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT), OPTIONAL                           :: vec_Sigma_x_gw_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT), OPTIONAL :: Eigenval_last_beta, &
-         Eigenval_scf_beta, m_value_beta, vec_gw_energ_beta, vec_gw_energ_error_fit_beta, &
-         vec_W_gw_beta, z_value_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: Eigenval_last_beta, Eigenval_scf_beta, &
+                                                            vec_W_gw_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_gw_work_beta, fm_mat_S_gw_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw', &
@@ -458,9 +446,8 @@ CONTAINS
       my_open_shell = .FALSE.
       IF (PRESENT(vec_Sigma_c_gw_beta) .AND. PRESENT(gw_corr_lev_occ_beta) .AND. PRESENT(homo_beta) .AND. &
           PRESENT(Eigenval_beta) .AND. PRESENT(vec_Sigma_x_gw_beta) .AND. PRESENT(Eigenval_last_beta) .AND. &
-          PRESENT(Eigenval_scf_beta) .AND. PRESENT(m_value_beta) .AND. PRESENT(vec_gw_energ_beta) .AND. &
-          PRESENT(vec_gw_energ_error_fit_beta) .AND. PRESENT(vec_W_gw_beta) .AND. PRESENT(z_value_beta) .AND. &
-          PRESENT(fm_mat_S_gw_work_beta) .AND. PRESENT(fm_mat_S_gw_beta)) THEN
+          PRESENT(Eigenval_scf_beta) .AND. PRESENT(vec_W_gw_beta) .AND. PRESENT(fm_mat_S_gw_work_beta) .AND. &
+          PRESENT(fm_mat_S_gw_beta)) THEN
          my_open_shell = .TRUE.
       END IF
 
@@ -532,28 +519,6 @@ CONTAINS
       IF (my_open_shell) THEN
          ALLOCATE (vec_Sigma_c_gw_beta(gw_corr_lev_tot, num_fit_points, nkp_self_energy))
          vec_Sigma_c_gw_beta = (0.0_dp, 0.0_dp)
-      END IF
-
-      ! arrays storing the correlation self-energy, stat. error and z-shot value
-      ALLOCATE (vec_gw_energ(gw_corr_lev_tot))
-      vec_gw_energ = 0.0_dp
-      ALLOCATE (vec_gw_energ_error_fit(gw_corr_lev_tot))
-      vec_gw_energ_error_fit = 0.0_dp
-      ALLOCATE (z_value(gw_corr_lev_tot))
-      z_value = 0.0_dp
-      ALLOCATE (m_value(gw_corr_lev_tot))
-      m_value = 0.0_dp
-
-      ! the same for beta
-      IF (my_open_shell) THEN
-         ALLOCATE (vec_gw_energ_beta(gw_corr_lev_tot))
-         vec_gw_energ_beta = 0.0_dp
-         ALLOCATE (vec_gw_energ_error_fit_beta(gw_corr_lev_tot))
-         vec_gw_energ_error_fit_beta = 0.0_dp
-         ALLOCATE (z_value_beta(gw_corr_lev_tot))
-         z_value_beta = 0.0_dp
-         ALLOCATE (m_value_beta(gw_corr_lev_tot))
-         m_value_beta = 0.0_dp
       END IF
 
       ALLOCATE (Eigenval_scf(nmo))
@@ -741,10 +706,6 @@ CONTAINS
 !> \param vec_W_gw ...
 !> \param vec_Sigma_c_gw ...
 !> \param vec_omega_fit_gw ...
-!> \param z_value ...
-!> \param m_value ...
-!> \param vec_gw_energ ...
-!> \param vec_gw_energ_error_fit ...
 !> \param vec_Sigma_x_minus_vxc_gw ...
 !> \param Eigenval_last ...
 !> \param Eigenval_scf ...
@@ -759,21 +720,16 @@ CONTAINS
 !> \param fm_mat_S_gw_work_beta ...
 !> \param vec_W_gw_beta ...
 !> \param vec_Sigma_c_gw_beta ...
-!> \param z_value_beta ...
-!> \param m_value_beta ...
-!> \param vec_gw_energ_beta ...
-!> \param vec_gw_energ_error_fit_beta ...
 !> \param Eigenval_last_beta ...
 !> \param Eigenval_scf_beta ...
 !> \param vec_Sigma_x_gw_beta ...
 ! **************************************************************************************************
-   SUBROUTINE deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, z_value, m_value, &
-                                     vec_gw_energ, vec_gw_energ_error_fit, vec_Sigma_x_minus_vxc_gw, Eigenval_last, &
+   SUBROUTINE deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
+                                     vec_Sigma_x_minus_vxc_gw, Eigenval_last, &
                                      Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, kpoints, &
                                      do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, my_do_gw, &
                                      fm_mat_S_gw_work_beta, vec_W_gw_beta, &
-                                     vec_Sigma_c_gw_beta, z_value_beta, m_value_beta, vec_gw_energ_beta, &
-                                     vec_gw_energ_error_fit_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
+                                     vec_Sigma_c_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
 
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -781,8 +737,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: vec_Sigma_c_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_omega_fit_gw, z_value, m_value, &
-                                                            vec_gw_energ, vec_gw_energ_error_fit
+         INTENT(INOUT)                                   :: vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_minus_vxc_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -801,9 +756,8 @@ CONTAINS
          INTENT(INOUT), OPTIONAL                         :: vec_W_gw_beta
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT), OPTIONAL     :: vec_Sigma_c_gw_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT), OPTIONAL :: z_value_beta, &
-         m_value_beta, vec_gw_energ_beta, vec_gw_energ_error_fit_beta, Eigenval_last_beta, &
-         Eigenval_scf_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: Eigenval_last_beta, Eigenval_scf_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT), OPTIONAL                         :: vec_Sigma_x_gw_beta
 
@@ -817,9 +771,7 @@ CONTAINS
 
       my_open_shell = .FALSE.
       IF (PRESENT(fm_mat_S_gw_work_beta) .AND. PRESENT(vec_W_gw_beta) .AND. PRESENT(vec_Sigma_c_gw_beta) .AND. &
-          PRESENT(z_value_beta) .AND. PRESENT(m_value_beta) .AND. PRESENT(vec_gw_energ_beta) .AND. &
-          PRESENT(vec_gw_energ_error_fit_beta) .AND. PRESENT(Eigenval_last_beta) .AND. PRESENT(Eigenval_scf_beta) &
-          .AND. PRESENT(vec_Sigma_x_gw_beta)) THEN
+          PRESENT(Eigenval_last_beta) .AND. PRESENT(Eigenval_scf_beta) .AND. PRESENT(vec_Sigma_x_gw_beta)) THEN
          my_open_shell = .TRUE.
       END IF
 
@@ -835,18 +787,10 @@ CONTAINS
 
       DEALLOCATE (vec_Sigma_c_gw)
       DEALLOCATE (vec_omega_fit_gw)
-      DEALLOCATE (z_value)
-      DEALLOCATE (m_value)
-      DEALLOCATE (vec_gw_energ)
-      DEALLOCATE (vec_gw_energ_error_fit)
       DEALLOCATE (Eigenval_last)
       DEALLOCATE (Eigenval_scf)
       IF (my_open_shell) THEN
          DEALLOCATE (vec_Sigma_c_gw_beta)
-         DEALLOCATE (z_value_beta)
-         DEALLOCATE (m_value_beta)
-         DEALLOCATE (vec_gw_energ_beta)
-         DEALLOCATE (vec_gw_energ_error_fit_beta)
          DEALLOCATE (Eigenval_last_beta)
          DEALLOCATE (Eigenval_scf_beta)
       END IF
@@ -894,10 +838,11 @@ CONTAINS
 !> \param mat_greens_fct_virt_beta ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, do_kpoints_cubic_RPA, &
-                                  fm_mat_W_tau, mat_3c_overl_int_gw, mat_greens_fct_occ, mat_greens_fct_virt, mat_3c_overl_nnP_ic, &
-                                             mat_3c_overl_nnP_ic_reflected, mat_W, mat_3c_overl_int, mat_contr_gf_occ, &
-                                             mat_contr_gf_virt, mat_contr_W, ikp_local, cfm_mat_W_kp_tau, &
-                                           mat_3c_overl_int_gw_beta, mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected_beta, &
+                                             fm_mat_W_tau, mat_3c_overl_int_gw, mat_greens_fct_occ, mat_greens_fct_virt, &
+                                             mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, mat_W, mat_3c_overl_int, &
+                                             mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, ikp_local, cfm_mat_W_kp_tau, &
+                                             mat_3c_overl_int_gw_beta, mat_3c_overl_nnP_ic_beta, &
+                                             mat_3c_overl_nnP_ic_reflected_beta, &
                                              mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -1363,14 +1308,10 @@ CONTAINS
 !> \param Eigenval ...
 !> \param Eigenval_last ...
 !> \param Eigenval_scf ...
-!> \param m_value ...
 !> \param tau_tj ...
 !> \param tj ...
-!> \param vec_gw_energ ...
-!> \param vec_gw_energ_error_fit ...
 !> \param vec_omega_fit_gw ...
 !> \param vec_Sigma_x_gw ...
-!> \param z_value ...
 !> \param ic_corr_list ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
@@ -1412,11 +1353,7 @@ CONTAINS
 !> \param Eigenval_beta ...
 !> \param Eigenval_last_beta ...
 !> \param Eigenval_scf_beta ...
-!> \param m_value_beta ...
-!> \param vec_gw_energ_beta ...
-!> \param vec_gw_energ_error_fit_beta ...
 !> \param vec_Sigma_x_gw_beta ...
-!> \param z_value_beta ...
 !> \param ic_corr_list_beta ...
 !> \param fm_mo_coeff_occ_beta ...
 !> \param fm_mo_coeff_virt_beta ...
@@ -1431,9 +1368,8 @@ CONTAINS
                                 do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                 do_GW_corr, e_fermi, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
-                                Eigenval_last, Eigenval_scf, m_value, &
-                                tau_tj, tj, vec_gw_energ, vec_gw_energ_error_fit, &
-                                vec_omega_fit_gw, vec_Sigma_x_gw, z_value, ic_corr_list, &
+                                Eigenval_last, Eigenval_scf, tau_tj, tj, &
+                                vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                 weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                 fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
@@ -1443,9 +1379,8 @@ CONTAINS
                                 mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, kpoints, mp2_env, qs_env, &
                                 nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc, &
                                 vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
-                                vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_Sigma_x_gw_beta, &
-                                z_value_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
+                                vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                                 mat_3c_overl_int_gw_beta, mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -1464,14 +1399,10 @@ CONTAINS
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: Eigenval_last, Eigenval_scf, m_value, &
-                                                            tau_tj, tj, vec_gw_energ, &
-                                                            vec_gw_energ_error_fit, &
+         INTENT(INOUT)                                   :: Eigenval_last, Eigenval_scf, tau_tj, tj, &
                                                             vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: z_value
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
@@ -1501,13 +1432,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT), OPTIONAL                         :: Eigenval_last_beta, Eigenval_scf_beta, &
-                                                            m_value_beta, vec_gw_energ_beta, &
-                                                            vec_gw_energ_error_fit_beta
+         INTENT(INOUT), OPTIONAL                         :: Eigenval_last_beta, Eigenval_scf_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT), OPTIONAL                         :: vec_Sigma_x_gw_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT), OPTIONAL                         :: z_value_beta
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: ic_corr_list_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
                                                             fm_mo_coeff_virt_beta
@@ -1524,20 +1451,20 @@ CONTAINS
       LOGICAL                                            :: check_fit, my_open_shell, &
                                                             remove_neg_virt_energies
       REAL(KIND=dp)                                      :: stop_crit
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_value, m_value_beta, vec_gw_energ, &
+         vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, z_value, &
+         z_value_beta
 
       CALL timeset(routineN, handle)
 
       my_open_shell = .FALSE.
       IF (PRESENT(vec_Sigma_c_gw_beta) .AND. PRESENT(gw_corr_lev_occ_beta) .AND. PRESENT(gw_corr_lev_virt_beta) .AND. &
           PRESENT(homo_beta) .AND. PRESENT(e_fermi_beta) .AND. PRESENT(Eigenval_beta) .AND. PRESENT(Eigenval_last_beta) &
-          .AND. PRESENT(Eigenval_scf_beta) .AND. PRESENT(m_value_beta) .AND. PRESENT(vec_gw_energ_beta) .AND. &
-          PRESENT(vec_gw_energ_error_fit_beta) .AND. PRESENT(vec_Sigma_x_gw_beta) .AND. PRESENT(z_value_beta) .AND. &
+          .AND. PRESENT(Eigenval_scf_beta) .AND. PRESENT(vec_Sigma_x_gw_beta) .AND. &
           PRESENT(ic_corr_list_beta) .AND. PRESENT(fm_mo_coeff_occ_beta) .AND. PRESENT(fm_mo_coeff_virt_beta) .AND. &
           PRESENT(mat_3c_overl_int_gw_beta) .AND. PRESENT(mat_greens_fct_occ_beta) .AND. PRESENT(mat_greens_fct_virt_beta)) THEN
          my_open_shell = .TRUE.
       END IF
-
-      stop_crit = 1.0e-7
 
       ! postprocessing for cubic scaling GW calculation
       IF (do_im_time .AND. .NOT. do_kpoints_cubic_RPA) THEN
@@ -1600,10 +1527,33 @@ CONTAINS
 
       CALL mp_sync(para_env%group)
 
+      stop_crit = 1.0e-7
       num_poles = mp2_env%ri_g0w0%num_poles
       max_iter_fit = mp2_env%ri_g0w0%max_iter_fit
       check_fit = mp2_env%ri_g0w0%check_fit
       crossing_search = mp2_env%ri_g0w0%crossing_search
+
+      ! arrays storing the correlation self-energy, stat. error and z-shot value
+      ALLOCATE (vec_gw_energ(gw_corr_lev_tot))
+      vec_gw_energ = 0.0_dp
+      ALLOCATE (vec_gw_energ_error_fit(gw_corr_lev_tot))
+      vec_gw_energ_error_fit = 0.0_dp
+      ALLOCATE (z_value(gw_corr_lev_tot))
+      z_value = 0.0_dp
+      ALLOCATE (m_value(gw_corr_lev_tot))
+      m_value = 0.0_dp
+
+      ! the same for beta
+      IF (my_open_shell) THEN
+         ALLOCATE (vec_gw_energ_beta(gw_corr_lev_tot))
+         vec_gw_energ_beta = 0.0_dp
+         ALLOCATE (vec_gw_energ_error_fit_beta(gw_corr_lev_tot))
+         vec_gw_energ_error_fit_beta = 0.0_dp
+         ALLOCATE (z_value_beta(gw_corr_lev_tot))
+         z_value_beta = 0.0_dp
+         ALLOCATE (m_value_beta(gw_corr_lev_tot))
+         m_value_beta = 0.0_dp
+      END IF
 
       ! for the normal code for molecules or Gamma only: nkp = 1
       DO ikp = 1, nkp_self_energy
@@ -1734,6 +1684,17 @@ CONTAINS
          END IF
 
       END DO ! ikp
+
+      DEALLOCATE (z_value)
+      DEALLOCATE (m_value)
+      DEALLOCATE (vec_gw_energ)
+      DEALLOCATE (vec_gw_energ_error_fit)
+      IF (my_open_shell) THEN
+         DEALLOCATE (z_value_beta)
+         DEALLOCATE (m_value_beta)
+         DEALLOCATE (vec_gw_energ_beta)
+         DEALLOCATE (vec_gw_energ_error_fit_beta)
+      END IF
 
       CALL timestop(handle)
 
