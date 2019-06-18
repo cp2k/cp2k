@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT  RPA_H2O_kpoints
+  PROJECT  G0W0_kpoints_from_Gamma
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS

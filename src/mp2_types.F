@@ -256,6 +256,8 @@ MODULE mp2_types
       INTEGER  :: eri_method
       TYPE(cp_eri_mme_param), POINTER  :: eri_mme_param
       INTEGER, DIMENSION(:), POINTER  :: eri_blksize => NULL()
+      LOGICAL  :: do_svd
+      REAL(KIND=dp) :: eps_svd
    END TYPE
 
    TYPE integ_mat_buffer_type

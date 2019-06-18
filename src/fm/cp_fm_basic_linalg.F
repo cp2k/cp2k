@@ -1127,8 +1127,7 @@ CONTAINS
 !> \param matrix ...
 !> \param matrixt ...
 !> \note
-!>      all matrix elements are transpose (see cp_fm_upper_to_half to symmetrise a matrix)
-!>      all matrix elements are transpose (see cp_fm_upper_to_half to symmetrize a matrix)
+!>      all matrix elements are transposed (see cp_fm_upper_to_half to symmetrise a matrix)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_transpose(matrix, matrixt)
       TYPE(cp_fm_type), POINTER                :: matrix, matrixt
@@ -1137,7 +1136,7 @@ CONTAINS
                                      routineP = moduleN//':'//routineN
 
       INTEGER                                  :: handle, ncol_global, &
-                                                  nrow_global
+                                                  nrow_global, ncol_globalt, nrow_globalt
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9)                    :: desca, descc
@@ -1149,7 +1148,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(matrixt))
       nrow_global = matrix%matrix_struct%nrow_global
       ncol_global = matrix%matrix_struct%ncol_global
-      CPASSERT(nrow_global == ncol_global)
+      nrow_globalt = matrixt%matrix_struct%nrow_global
+      ncol_globalt = matrixt%matrix_struct%ncol_global
+      CPASSERT(nrow_global == ncol_globalt)
+      CPASSERT(nrow_globalt == ncol_global)
 
       CALL timeset(routineN, handle)
 
@@ -1159,7 +1161,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       desca(:) = matrix%matrix_struct%descriptor(:)
       descc(:) = matrixt%matrix_struct%descriptor(:)
-      CALL pdtran(nrow_global, ncol_global, 1.0_dp, a(1, 1), 1, 1, desca, 0.0_dp, c(1, 1), 1, 1, descc)
+      CALL pdtran(ncol_global, nrow_global, 1.0_dp, a(1, 1), 1, 1, desca, 0.0_dp, c(1, 1), 1, 1, descc)
 #else
       DO j = 1, ncol_global
          DO i = 1, nrow_global

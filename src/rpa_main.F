@@ -129,6 +129,7 @@ CONTAINS
 !> \param nmo ...
 !> \param homo ...
 !> \param dimen_RI ...
+!> \param dimen_RI_red ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
 !> \param unit_nr ...
@@ -170,7 +171,7 @@ CONTAINS
                                 para_env, para_env_sub, color_sub, &
                                 gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
                                 mo_coeff, fm_matrix_L_RI_metric, kpoints, &
-                                Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                 mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                 mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
@@ -197,8 +198,9 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
-      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI, gw_corr_lev_occ, &
-                                                            gw_corr_lev_virt, unit_nr
+      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI, dimen_RI_red, &
+                                                            gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            unit_nr
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_mao, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mao_coeff_occ, mao_coeff_virt, &
@@ -336,11 +338,11 @@ CONTAINS
 
          ! Calculate available memory and create integral group according to that
          ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-         mem_for_iaK = REAL(homo, KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
-         mem_for_QK = REAL(dimen_RI, KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+         mem_for_iaK = REAL(homo, KIND=dp)*virtual*dimen_RI_red*8.0_dp/(1024_dp**2)
+         mem_for_QK = REAL(dimen_RI_red, KIND=dp)*dimen_RI_red*8.0_dp/(1024_dp**2)
 
          IF (my_open_shell) THEN
-            mem_for_iaK = mem_for_iaK+REAL(homo_beta, KIND=dp)*virtual_beta*dimen_RI*8.0_dp/(1024_dp**2)
+            mem_for_iaK = mem_for_iaK+REAL(homo_beta, KIND=dp)*virtual_beta*dimen_RI_red*8.0_dp/(1024_dp**2)
             mem_for_QK = mem_for_QK*2.0_dp
          END IF
 
@@ -560,7 +562,7 @@ CONTAINS
 
       IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
          CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI, dimen_ia, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_ia, dimen_ia, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -573,7 +575,7 @@ CONTAINS
                                mao_coeff_virt_A=mao_coeff_virt_A, matrix_s=matrix_s, fm_mat_Q_beta=fm_mat_Q_beta)
       ELSE
          CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI, dimen_ia, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_ia, dimen_ia, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -599,7 +601,7 @@ CONTAINS
          ELSE
 
             CALL create_integ_mat(BIb_C_2D_beta, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI, dimen_ia_beta, dimen_ia_beta, color_rpa_group, &
+                                  dimen_RI_red, dimen_ia_beta, dimen_ia_beta, color_rpa_group, &
                                   mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                   my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -615,7 +617,7 @@ CONTAINS
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
 
          CALL create_integ_mat(BIb_C_2D_gw, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI, dimen_nm_gw, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_nm_gw, dimen_ia, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -625,7 +627,7 @@ CONTAINS
 
          IF (my_open_shell) THEN
             CALL create_integ_mat(BIb_C_2D_gw_beta, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI, dimen_nm_gw, dimen_ia, color_rpa_group, &
+                                  dimen_RI_red, dimen_nm_gw, dimen_ia, color_rpa_group, &
                                   mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                   my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -640,7 +642,7 @@ CONTAINS
       IF (do_bse) THEN
 
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI, dimen_homo_square, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_homo_square, dimen_ia, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -648,7 +650,7 @@ CONTAINS
                                .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI, dimen_virt_square, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_virt_square, dimen_ia, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -661,7 +663,7 @@ CONTAINS
       IF (my_open_shell) THEN
 
          CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
-                          homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
+                          homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
@@ -685,7 +687,7 @@ CONTAINS
                           do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
       ELSE
          CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
-                          homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
+                          homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
@@ -1307,6 +1309,7 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
+!> \param dimen_RI_red ...
 !> \param dimen_ia ...
 !> \param dimen_nm_gw ...
 !> \param Eigenval ...
@@ -1370,7 +1373,7 @@ CONTAINS
 !> \param do_ri_sos_laplace_mp2 ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
-                          homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
+                          homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
@@ -1395,7 +1398,7 @@ CONTAINS
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA, para_env_sub
       INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI, &
-                                                            dimen_ia, dimen_nm_gw
+                                                            dimen_RI_red, dimen_ia, dimen_nm_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
@@ -1503,7 +1506,7 @@ CONTAINS
          mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
                                                             mat_contr_W, mat_dm_loc_occ, &
-                                                            mat_dm_loc_virt
+                                                            mat_dm_loc_virt, mat_work
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_rec_axk, &
                                                             buffer_rec_beta, buffer_send, &
@@ -1572,7 +1575,7 @@ CONTAINS
          eps_filter_im_time = mp2_env%ri_rpa_im_time%eps_filter_im_time
          stabilize_exp = mp2_env%ri_rpa_im_time%stabilize_exp
 
-         CALL alloc_im_time(qs_env, mp2_env, para_env, para_env_sub, dimen_RI, num_integ_points, &
+         CALL alloc_im_time(qs_env, mp2_env, para_env, para_env_sub, dimen_RI, dimen_RI_red, num_integ_points, &
                             fm_mat_Q, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                             fm_matrix_L_RI_metric, mat_munu, mat_dm_occ_local, mat_dm_virt_local, mat_P_global, mat_M, &
                             mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, do_dbcsr_t, &
@@ -1591,7 +1594,7 @@ CONTAINS
                             cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, mat_P_omega, mat_P_omega_kp, mat_dm_loc_occ_cut, &
-                            mat_dm_loc_virt_cut, mat_dm_loc_occ, mat_dm_loc_virt, offset_combi_block, &
+                            mat_dm_loc_virt_cut, mat_dm_loc_occ, mat_dm_loc_virt, mat_work, offset_combi_block, &
                             mat_P_omega_beta)
 
          IF (my_do_gw) THEN
@@ -1688,9 +1691,9 @@ CONTAINS
          ENDIF
       END IF
 
-      ! These arrays are needed for RPA
+      ! This array is needed for RPA
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         ALLOCATE (trace_Qomega(dimen_RI))
+         ALLOCATE (trace_Qomega(dimen_RI_red))
       END IF
 
       IF (do_ri_sos_laplace_mp2 .AND. .NOT. do_im_time) THEN
@@ -1742,7 +1745,7 @@ CONTAINS
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
             CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
+            CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse)
             CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 
          END IF
@@ -1927,21 +1930,21 @@ CONTAINS
 
                IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
 
-                  CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1)%matrix, mat_L%matrix, mat_P_global%matrix, &
-                                                   eps_filter_im_time, fm_mat_work, dimen_RI, fm_mat_L(1, 1)%matrix, fm_mat_Q)
+                  CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1)%matrix, mat_L%matrix, mat_work, eps_filter_im_time, &
+                                                   fm_mat_work, dimen_RI, dimen_RI_red, fm_mat_L(1, 1)%matrix, fm_mat_Q)
 
                   ! For open-shell SOS-MP2 we have two different matrices to deal with
                   IF (my_open_shell .AND. do_ri_sos_laplace_mp2) THEN
-                     CALL contract_P_omega_with_mat_L(mat_P_omega_beta(jquad, 1)%matrix, mat_L%matrix, mat_P_global%matrix, &
-                                                      eps_filter_im_time, fm_mat_work, dimen_RI, fm_mat_L(1, 1)%matrix, &
-                                                      fm_mat_Q_beta)
+                     CALL contract_P_omega_with_mat_L(mat_P_omega_beta(jquad, 1)%matrix, mat_L%matrix, mat_work, &
+                                                      eps_filter_im_time, fm_mat_work, dimen_RI, dimen_RI_red, &
+                                                      fm_mat_L(1, 1)%matrix, fm_mat_Q_beta)
                   END IF
                END IF
 
             ELSE
 
                CALL calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
-                               homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, &
+                               homo, omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia, alpha, fm_mat_Q, &
                                fm_mat_Q_gemm, para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, &
                                buffer_send, number_of_send, map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, &
                                my_flop_rate)
@@ -1949,7 +1952,7 @@ CONTAINS
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S_beta, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, virtual_beta, &
                                   Eigenval_beta, Eigenval_last_beta, homo_beta, omega, omega_old, jquad, mm_style, &
-                                  dimen_RI, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, do_bse, &
+                                  dimen_RI_red, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, do_bse, &
                                   fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
                                   number_of_send_beta, map_send_size_beta, map_rec_size_beta, local_size_source_beta, &
                                   my_num_dgemm_call, my_flop_rate)
@@ -1965,7 +1968,7 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+               CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI_red, dimen_ia, &
                                      para_env_sub, &
                                      para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
                                      buffer_send_axk, buffer_rec_axk, &
@@ -1983,7 +1986,7 @@ CONTAINS
                   CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
                END IF
             ELSE
-               CALL RPA_postprocessing_start(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA)
+               CALL RPA_postprocessing_start(dimen_RI_red, trace_Qomega, fm_mat_Q, para_env_RPA)
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL RPA_postprocessing_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
@@ -1992,7 +1995,7 @@ CONTAINS
                                              cfm_mat_Q, ikp_local, mat_P_omega, mat_P_omega_kp, qs_env, eps_filter_im_time, &
                                              kpoints, fm_mat_L, fm_mat_W_tau, fm_mat_RI_global_work, mat_SinvVSinv)
                ELSE
-                  CALL RPA_postprocessing_nokp(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wj(jquad))
+                  CALL RPA_postprocessing_nokp(dimen_RI_red, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wj(jquad))
                END IF
             END IF ! do_ri_sos_laplace_mp2
 
@@ -2004,7 +2007,7 @@ CONTAINS
 
             IF (my_do_gw) THEN
                IF (my_open_shell) THEN
-                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
                                             gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                             do_bse, do_im_time, do_periodic, &
                                             first_cycle_periodic_correction, fermi_level_offset, &
@@ -2017,7 +2020,7 @@ CONTAINS
                                             vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
                                             vec_W_gw_beta, fm_mat_S_gw_beta, fm_mat_S_gw_work_beta)
                ELSE
-                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
                                             gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                             do_bse, do_im_time, do_periodic, &
                                             first_cycle_periodic_correction, fermi_level_offset, &
@@ -2158,7 +2161,7 @@ CONTAINS
          CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, fm_mat_Q_static_bse, &
                                                      fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                     B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
+                                                     B_iaQ_bse_local, dimen_RI_red, homo, virtual, dimen_ia, &
                                                      gd_array, color_sub, para_env)
 
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
@@ -2212,7 +2215,8 @@ CONTAINS
                                  mat_M_P_munu_virt, mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
                                  mat_P_omega, mat_P_omega_kp, mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, &
                                  mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O, &
-                                 mat_dm_loc_occ, mat_dm_loc_virt, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
+                                 mat_dm_loc_occ, mat_dm_loc_virt, mat_work, &
+                                 fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
          ELSE
             CALL dealloc_im_time(do_mao, do_dbcsr_t, do_ri_sos_laplace_mp2, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                  fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, row_from_LLL, index_to_cell_3c, &
@@ -2224,7 +2228,7 @@ CONTAINS
                                  mat_M_P_munu_virt, mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
                                  mat_P_omega, mat_P_omega_kp, mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, &
                                  mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O, &
-                                 mat_dm_loc_occ, mat_dm_loc_virt)
+                                 mat_dm_loc_occ, mat_dm_loc_virt, mat_work)
          END IF
 
          IF (my_do_gw) THEN

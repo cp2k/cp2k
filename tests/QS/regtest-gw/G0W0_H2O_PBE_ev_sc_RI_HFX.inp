@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  RI_RPA_H2O
+  PROJECT  G0W0_H2O_PBE_ev_sc_RI_HFX
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
