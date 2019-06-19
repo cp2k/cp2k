@@ -76,7 +76,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
 #if defined(__ELPA)
       CHARACTER(LEN=default_string_length)               :: env
