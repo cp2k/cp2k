@@ -119,7 +119,7 @@ CONTAINS
          ! ELPA is requested and available
          diag_type = DIAG_TYPE_ELPA
 #else
-         ! ELPA library reqested but not linked, switch back to SL
+         ! ELPA library requested but not linked, switch back to SL
          diag_type = DIAG_TYPE_SCALAPACK
          fallback_applied = .TRUE.
 #endif
