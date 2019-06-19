@@ -84,7 +84,7 @@ MODULE xc_libxc_wrap
       !
       XC_FLAGS_NEEDS_LAPLACIAN, &
       XC_FLAGS_HAVE_EXC, &
-      XC_FLAGS_STABLE
+      XC_FLAGS_DEVELOPMENT
 
 #include "../base/base_uses.f90"
 
@@ -120,7 +120,7 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_functional_get_number, &
              xc_libxc_wrap_needs_laplace, &
              xc_libxc_wrap_functional_set_params, &
-             xc_libxc_wrap_is_stable
+             xc_libxc_wrap_is_under_development
 
 CONTAINS
 
@@ -266,31 +266,31 @@ CONTAINS
    END FUNCTION xc_libxc_wrap_functional_get_number
 
 ! **************************************************************************************************
-!> \brief Wrapper to test wether functional is considered stable in Libxc
+!> \brief Wrapper to test wether functional is considered under development in Libxc
 !> \param xc_info ...
 !>
 !> \return ...
 !> \author F. Stein (fstein93)
 ! **************************************************************************************************
-   LOGICAL FUNCTION xc_libxc_wrap_is_stable(xc_info)
+   LOGICAL FUNCTION xc_libxc_wrap_is_under_development(xc_info)
       TYPE(xc_f03_func_info_t)                           :: xc_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_stable', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_under_development', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_STABLE) == XC_FLAGS_STABLE) THEN
-         xc_libxc_wrap_is_stable = .TRUE.
+      IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_DEVELOPMENT) == XC_FLAGS_DEVELOPMENT) THEN
+         xc_libxc_wrap_is_under_development = .TRUE.
       ELSE
-         xc_libxc_wrap_is_stable = .FALSE.
+         xc_libxc_wrap_is_under_development = .FALSE.
       END IF
 
       CALL timestop(handle)
 
-   END FUNCTION xc_libxc_wrap_is_stable
+   END FUNCTION xc_libxc_wrap_is_under_development
 
 ! **************************************************************************************************
 !> \brief Wrapper for functionals that need the Laplacian, all others can use
