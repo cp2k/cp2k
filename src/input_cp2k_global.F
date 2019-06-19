@@ -78,8 +78,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
          routineP = moduleN//':'//routineN
 
+#if defined(__ELPA)
       CHARACTER(LEN=default_string_length)               :: env
-      INTEGER                                            :: default_i_val, env_i, i
+      INTEGER                                            :: env_i
+#endif
+      INTEGER                                            :: default_i_val, i
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
