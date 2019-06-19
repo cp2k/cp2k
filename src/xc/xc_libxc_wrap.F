@@ -278,17 +278,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_under_development', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
 
       IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_DEVELOPMENT) == XC_FLAGS_DEVELOPMENT) THEN
          xc_libxc_wrap_is_under_development = .TRUE.
       ELSE
          xc_libxc_wrap_is_under_development = .FALSE.
       END IF
-
-      CALL timestop(handle)
 
    END FUNCTION xc_libxc_wrap_is_under_development
 

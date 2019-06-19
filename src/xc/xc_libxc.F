@@ -181,7 +181,7 @@ CONTAINS
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
       END IF
-      IF (.NOT. (xc_libxc_wrap_is_under_development(xc_info))) THEN
+      IF (xc_libxc_wrap_is_under_development(xc_info)) THEN
          CPWARN(TRIM(func_name)//" is under development. Use with caution.")
       END IF
 
@@ -286,7 +286,7 @@ CONTAINS
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
       END IF
-      IF (.NOT. (xc_libxc_wrap_is_under_development(xc_info))) THEN
+      IF (xc_libxc_wrap_is_under_development(xc_info)) THEN
          CPWARN(TRIM(func_name)//" is under development. Use with caution.")
       END IF
 
