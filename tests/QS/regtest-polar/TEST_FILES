@@ -5,5 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 h2o_LRraman.inp                                       60      2e-05                        0.00613
 h2o_LRraman_noort.inp                                 60      2e-05                        0.02330
-H2O_md_polar.inp                                      60      1e-04                        0.63555
+H2O_md_polar.inp                                      60      4e-04                        0.63555
 #EOF
