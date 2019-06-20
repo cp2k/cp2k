@@ -1276,7 +1276,7 @@ CONTAINS
 
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,T2,A,T66,F15.6)") &
-            "Integrated electronic density:", SUM(tot_rho_r(1:2))
+            "Integrated electronic density:", SUM(tot_rho_r(:))
          WRITE (UNIT=iounit, FMT="(T2,A,T66,F15.6)") &
             "Integrated core density:", total_rho_core_rspace
       END IF
