@@ -497,7 +497,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ovlp
       TYPE(atom_state), POINTER                          :: state
 
-      WRITE (iw, '(/," ",79("*"),/,T34,A,/," ",79("*"))') "RESPONSE BASIS"
+      WRITE (iw, '(/," ",79("*"),/,T30,A,A/," ",79("*"))') "RESPONSE BASIS for ", ptable(atom%z)%symbol
 
       state => atom%state
       ovlp => atom%integrals%ovlp
