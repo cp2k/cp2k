@@ -199,7 +199,7 @@ AC_SUBST(SPGLIB_DFLAGS)
 
 SECTION_TITLE([libint2])
 dnl check for libint
-ACX_LIBINT([options="$options libint2"; LIBINT2_DFLAGS="-D__LIBINT"], [])
+ACX_LIBINT([options="$options libint2"; LIBINT2_DFLAGS="-D__LIBINT2"], [])
 AC_SUBST(LIBINT2_DFLAGS)
 
 SECTION_TITLE([libxc])
