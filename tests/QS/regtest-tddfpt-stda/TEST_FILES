@@ -13,6 +13,6 @@ H2O_tddfpt_stda-pbe0-s.inp                                 37    1.0E-05        
 H2O_tddfpt_stda-pbe0-t.inp                                 37    1.0E-05               0.633489E+00
 H2O_tddfpt_stda-s-1.inp                                    37    1.0E-05               0.173064E+00
 NO_tddfpt_stda-s-1.inp                                     37    1.0E-05               0.375614E+00
-water_xTB.inp                                              37    1.0E-05               0.185372E+00
-water_xTBi_NTO.inp                                         37    1.0E-05               0.185372E+00
+water_xTB.inp                                              37    2.0E-05               0.185372E+00
+water_xTBi_NTO.inp                                         37    2.0E-05               0.185372E+00
 #EOF
