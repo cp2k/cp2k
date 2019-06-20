@@ -50,8 +50,7 @@ MODULE input_cp2k_global
    USE input_val_types,                 ONLY: char_t,&
                                               integer_t,&
                                               logical_t
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_cpuid
    USE string_utilities,                ONLY: s2a
    USE timings,                         ONLY: default_timings_level
@@ -76,12 +75,8 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-#if defined(__ELPA)
-      CHARACTER(LEN=default_string_length)               :: env
-      INTEGER                                            :: env_i
-#endif
       INTEGER                                            :: default_i_val, i
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
@@ -114,12 +109,6 @@ CONTAINS
 
 #if defined(__ELPA)
       default_i_val = do_diag_elpa
-      ! TODO (issue 391): parse e.g. CP2K_PREFERRED_DIAG_LIBRARY="SL" or CP2K_PREFERRED_DIAG_LIBRARY="ELPA"
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_DEFAULT_DIAG", env, STATUS=env_i)
-      IF (0 .EQ. env_i) THEN
-         READ (env, "(I32)") env_i ! reset to SL if non-zero
-         IF (0 .NE. env_i) default_i_val = do_diag_sl
-      END IF
 #else
       default_i_val = do_diag_sl
 #endif
