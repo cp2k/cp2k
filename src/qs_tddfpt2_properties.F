@@ -5,6 +5,8 @@
 
 MODULE qs_tddfpt2_properties
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE bibliography,                    ONLY: Martin2003,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
@@ -930,6 +932,8 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
                                            "NTO_ANALYSIS"), cp_p_file)) THEN
 
+         CALL cite_reference(Martin2003)
+
          CALL section_vals_val_get(print_section, "NTO_ANALYSIS%THRESHOLD", r_val=threshold)
          IF (iounit > 0) THEN
             WRITE (iounit, "(1X,A)") "", &
@@ -1152,7 +1156,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'project_vector', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nao, nmo
-      REAL(KIND=dp)                                      :: alpha, beta, norm(1)
+      REAL(KIND=dp)                                      :: norm(1)
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_vec_struct
       TYPE(cp_fm_type), POINTER                          :: csvec, svec, vec
 
@@ -1273,8 +1277,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, subsys=subsys)
       CALL qs_subsys_get(subsys, particles=particles)
-
-!!!!!!      CALL rebuild_pw_env(qs_env)
 
       my_pos_cube = "REWIND"
       IF (append_cube) THEN
