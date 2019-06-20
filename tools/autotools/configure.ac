@@ -81,9 +81,9 @@ AX_CHECK_COMPILE_FLAG("-Werror=zerotrip", [WFLAGS+="-Werror=zerotrip "])
 AX_CHECK_COMPILE_FLAG("-Werror=uninitialized", [WFLAGS+="-Werror=uninitialized "])
 AX_CHECK_COMPILE_FLAG("-Wno-maybe-uninitialized", [WFLAGS+="-Wno-maybe-uninitialized "])
 AX_CHECK_COMPILE_FLAG("-Wuse-without-only", [WFLAGS+="-Wuse-without-only "])
-AX_CHECK_COMPILE_FLAG("-ffree-form", [FFLAGS+="-ffree-form"])
-AX_CHECK_COMPILE_FLAG("-std=f2008", [FFLAGS+="-f2008"])
-AX_CHECK_COMPILE_FLAG("-fimplicit-none", [FFLAGS+="-fimplicit-none"])
+AX_CHECK_COMPILE_FLAG("-ffree-form", [FFLAGS+=" -ffree-form"])
+AX_CHECK_COMPILE_FLAG("-std=f2008", [FFLAGS+=" -std=f2008"])
+AX_CHECK_COMPILE_FLAG("-fimplicit-none", [FFLAGS+=" -fimplicit-none"])
 
 
 
