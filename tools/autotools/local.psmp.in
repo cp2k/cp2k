@@ -1,6 +1,6 @@
 CC = @MPICC@
 CXX = @MPICXX@
-CPP = @CPP@
+CPP = 
 AR = @AR@ -r
 FC = @MPIFC@
 LD = @MPIFC@

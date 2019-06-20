@@ -1,6 +1,6 @@
 CC = @CC@
 CXX = @CXX@
-CPP = @CPP@
+CPP = 
 AR = @AR@ -r
 FC = @FC@
 LD = @FC@
