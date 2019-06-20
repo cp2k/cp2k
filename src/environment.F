@@ -66,14 +66,9 @@ MODULE environment
                                               dp,&
                                               int_8,&
                                               print_kind_info
-   USE machine,                         ONLY: flush_should_flush,&
-                                              m_cpuid,&
-                                              m_cpuid_static,&
-                                              m_cpuinfo,&
-                                              m_energy,&
-                                              m_flush_internal,&
-                                              m_memory_details,&
-                                              m_procrun
+   USE machine,                         ONLY: &
+        MACHINE_CPU_GENERIC, flush_should_flush, m_cpuid, m_cpuid_static, m_cpuinfo, m_energy, &
+        m_flush_internal, m_memory_details, m_procrun
    USE message_passing,                 ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               mp_collect_timings,&
@@ -800,10 +795,14 @@ CONTAINS
          CALL m_cpuinfo(model_name)
          WRITE (UNIT=output_unit, FMT="(T2,A)") &
             start_section_label//"| CPU model name : "//TRIM(model_name)
-         IF (m_cpuid_static() .LT. m_cpuid()) THEN
-            CALL cp_hint(__LOCATION__, &
-                         "The compiler target flags used to build this binary are insufficiently "// &
-                         "exploiting the extensions which are available for this CPU model.")
+         IF (MACHINE_CPU_GENERIC .NE. m_cpuid_static()) THEN
+            IF (m_cpuid_static() .LT. m_cpuid()) THEN
+               CALL cp_hint(__LOCATION__, &
+                            "The compiler target flags used to build this binary are insufficiently "// &
+                            "exploiting the extensions which are available for this CPU model.")
+            END IF
+         ELSE ! base/machine_cpuid.c relies on the (same) target flags as the Fortran code
+            CPHINT("Consider compiler target flags as part of FCFLAGS and CFLAGS (ARCH file).")
          END IF
 
          WRITE (UNIT=output_unit, FMT="()")
