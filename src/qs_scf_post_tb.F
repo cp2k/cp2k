@@ -75,10 +75,19 @@ MODULE qs_scf_post_tb
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
+   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_derive,&
+                                              pw_scale,&
                                               pw_transfer,&
                                               pw_zero
+   USE pw_poisson_types,                ONLY: do_ewald_none,&
+                                              greens_fn_type,&
+                                              pw_green_create,&
+                                              pw_green_release,&
+                                              pw_poisson_analytic,&
+                                              pw_poisson_parameter_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
@@ -453,7 +462,7 @@ CONTAINS
                CALL rebuild_pw_env(qs_env)
                rebuild = .FALSE.
             END IF
-            CALL print_tot_density(qs_env, print_key)
+            CALL print_density_cubes(qs_env, print_key, total_density=.TRUE.)
          ELSE
             CPWARN("Total density cube file not implemented for TB methods.")
          END IF
@@ -463,7 +472,11 @@ CONTAINS
       print_key => section_vals_get_subs_vals(print_section, "V_HARTREE_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          IF (do_cube) THEN
-            CPWARN("Hartree potential cube file not implemented for TB methods.")
+            IF (rebuild) THEN
+               CALL rebuild_pw_env(qs_env)
+               rebuild = .FALSE.
+            END IF
+            CALL print_density_cubes(qs_env, print_key, v_hartree=.TRUE.)
          ELSE
             CPWARN("Hartree potential cube file not implemented for TB methods.")
          END IF
@@ -473,7 +486,11 @@ CONTAINS
       print_key => section_vals_get_subs_vals(print_section, "EFIELD_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          IF (do_cube) THEN
-            CPWARN("Efield cube file not implemented for TB methods.")
+            IF (rebuild) THEN
+               CALL rebuild_pw_env(qs_env)
+               rebuild = .FALSE.
+            END IF
+            CALL print_density_cubes(qs_env, print_key, efield=.TRUE.)
          ELSE
             CPWARN("Efield cube file not implemented for TB methods.")
          END IF
@@ -1167,39 +1184,66 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param cube_section ...
+!> \param total_density ...
+!> \param v_hartree ...
+!> \param efield ...
 ! **************************************************************************************************
-   SUBROUTINE print_tot_density(qs_env, cube_section)
+   SUBROUTINE print_density_cubes(qs_env, cube_section, total_density, v_hartree, efield)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: cube_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: total_density, v_hartree, efield
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_tot_density', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_density_cubes', &
          routineP = moduleN//':'//routineN
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
-      INTEGER                                            :: iounit, ispin, unit_nr
-      LOGICAL                                            :: append_cube, mpi_io
-      REAL(KIND=dp)                                      :: total_rho_core_rspace
+      INTEGER                                            :: id, iounit, ispin, nd(3), unit_nr
+      LOGICAL                                            :: append_cube, mpi_io, my_efield, &
+                                                            my_total_density, my_v_hartree
+      REAL(KIND=dp)                                      :: total_rho_core_rspace, udvol
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(greens_fn_type), POINTER                      :: green_fft
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_core, rho_tot_rspace
+      TYPE(pw_grid_type), POINTER                        :: pwdummy
+      TYPE(pw_p_type)                                    :: rho_core, rho_tot_gspace, &
+                                                            rho_tot_rspace, vhartree
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env, cell=cell, dft_control=dft_control)
 
       append_cube = section_get_lval(cube_section, "APPEND")
       my_pos_cube = "REWIND"
       IF (append_cube) my_pos_cube = "APPEND"
+
+      IF (PRESENT(total_density)) THEN
+         my_total_density = total_density
+      ELSE
+         my_total_density = .FALSE.
+      END IF
+      IF (PRESENT(v_hartree)) THEN
+         my_v_hartree = v_hartree
+      ELSE
+         my_v_hartree = .FALSE.
+      END IF
+      IF (PRESENT(efield)) THEN
+         my_efield = efield
+      ELSE
+         my_efield = .FALSE.
+      END IF
 
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
@@ -1237,37 +1281,108 @@ CONTAINS
             "Integrated core density:", total_rho_core_rspace
       END IF
 
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rho_tot_rspace%pw, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_rspace%pw, &
+                             use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
       DO ispin = 1, dft_control%nspins
          CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace%pw)
       END DO
-      filename = "TOTAL_DENSITY"
-      mpi_io = .TRUE.
-      unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
-                                     extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
-                                     log_filename=.FALSE., mpi_io=mpi_io, fout=mpi_filename)
-      IF (iounit > 0) THEN
-         IF (.NOT. mpi_io) THEN
-            INQUIRE (UNIT=unit_nr, NAME=filename)
-         ELSE
-            filename = mpi_filename
+
+      IF (my_total_density) THEN
+         filename = "TOTAL_DENSITY"
+         mpi_io = .TRUE.
+         unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
+                                        extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                        log_filename=.FALSE., mpi_io=mpi_io, fout=mpi_filename)
+         IF (iounit > 0) THEN
+            IF (.NOT. mpi_io) THEN
+               INQUIRE (UNIT=unit_nr, NAME=filename)
+            ELSE
+               filename = mpi_filename
+            END IF
+            WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
+               "The total density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
          END IF
-         WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
-            "The total density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
+         CALL cp_pw_to_cube(rho_tot_rspace%pw, unit_nr, "TOTAL DENSITY", &
+                            particles=particles, &
+                            stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
+      END IF
+      IF (my_v_hartree .OR. my_efield) THEN
+         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_gspace%pw, &
+                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_transfer(rho_tot_rspace%pw, rho_tot_gspace%pw)
+         poisson_params%solver = pw_poisson_analytic
+         poisson_params%periodic = cell%perd
+         poisson_params%ewald_type = do_ewald_none
+         NULLIFY (green_fft, pwdummy)
+         CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
+         rho_tot_gspace%pw%cc(:) = rho_tot_gspace%pw%cc(:)*green_fft%influence_fn%cc(:)
+         CALL pw_green_release(green_fft, auxbas_pw_pool)
+         IF (my_v_hartree) THEN
+            CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_transfer(rho_tot_gspace%pw, vhartree%pw)
+            filename = "V_HARTREE"
+            mpi_io = .TRUE.
+            unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
+                                           extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                           log_filename=.FALSE., mpi_io=mpi_io, fout=mpi_filename)
+            IF (iounit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=unit_nr, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
+                  "The Hartree potential is written in cube file format to the file:", ADJUSTR(TRIM(filename))
+            END IF
+            CALL cp_pw_to_cube(vhartree%pw, unit_nr, "Hartree Potential", &
+                               particles=particles, &
+                               stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
+         END IF
+         IF (my_efield) THEN
+            CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree%pw, &
+                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            udvol = 1.0_dp/rho_tot_rspace%pw%pw_grid%dvol
+            DO id = 1, 3
+               CALL pw_transfer(rho_tot_gspace%pw, vhartree%pw)
+               nd = 0
+               nd(id) = 1
+               CALL pw_derive(vhartree%pw, nd)
+               CALL pw_transfer(vhartree%pw, rho_tot_rspace%pw)
+               CALL pw_scale(rho_tot_rspace%pw, udvol)
+
+               filename = "EFIELD_"//cdir(id)
+               mpi_io = .TRUE.
+               unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
+                                              extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                              log_filename=.FALSE., mpi_io=mpi_io, fout=mpi_filename)
+               IF (iounit > 0) THEN
+                  IF (.NOT. mpi_io) THEN
+                     INQUIRE (UNIT=unit_nr, NAME=filename)
+                  ELSE
+                     filename = mpi_filename
+                  END IF
+                  WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
+                     "The Efield is written in cube file format to the file:", ADJUSTR(TRIM(filename))
+               END IF
+               CALL cp_pw_to_cube(rho_tot_rspace%pw, unit_nr, "EFIELD "//cdir(id), &
+                                  particles=particles, &
+                                  stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
+            END DO
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
+         END IF
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
       END IF
 
-      CALL cp_pw_to_cube(rho_tot_rspace%pw, unit_nr, "TOTAL DENSITY", &
-                         particles=particles, &
-                         stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
-      CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_core%pw)
 
-   END SUBROUTINE print_tot_density
+   END SUBROUTINE print_density_cubes
 
 ! **************************************************************************************************
 !> \brief ...
