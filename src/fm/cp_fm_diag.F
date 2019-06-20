@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief used for collecting some of the diagonalization shemes available for
+!> \brief used for collecting some of the diagonalization schemes available for
 !>      cp_fm_type. cp_fm_power also moved here as it is very related
 !> \note
 !>      first version : most routines imported
@@ -119,7 +119,7 @@ CONTAINS
          ! ELPA is requested and available
          diag_type = DIAG_TYPE_ELPA
 #else
-         ! ELPA library reqested but not linked, switch back to SL
+         ! ELPA library requested but not linked, switch back to SL
          diag_type = DIAG_TYPE_SCALAPACK
          fallback_applied = .TRUE.
 #endif

@@ -65,6 +65,7 @@ MODULE cp_fm_elpa
    PUBLIC :: get_elpa_number_kernels
    PUBLIC :: get_elpa_kernel_names
    PUBLIC :: get_elpa_kernel_descriptions
+   PUBLIC :: get_elpa_kernel_index
    PUBLIC :: set_elpa_kernel
    PUBLIC :: set_elpa_qr
    PUBLIC :: set_elpa_print
@@ -91,7 +92,7 @@ CONTAINS
 !> \brief Returns the names of the available ELPA kernels
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION get_elpa_kernel_names() RESULT(names)
+   PURE FUNCTION get_elpa_kernel_names() RESULT(names)
       CHARACTER(len=default_string_length), DIMENSION(19) :: names
 
       names( 1) = "AUTO"
@@ -120,7 +121,7 @@ CONTAINS
 !> \brief Returns the description texts of the available ELPA kernels
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION get_elpa_kernel_descriptions() RESULT(descriptions)
+   PURE FUNCTION get_elpa_kernel_descriptions() RESULT(descriptions)
       CHARACTER(len=default_string_length), DIMENSION(19) :: descriptions
 
       descriptions( 1) = "Automatically selected kernel"
@@ -144,6 +145,34 @@ CONTAINS
       descriptions(19) = "Kernel targeting GPUs"
 
    END FUNCTION get_elpa_kernel_descriptions
+
+! **************************************************************************************************
+!> \brief Returns the index of an ELPA kernel suitable for the given CPUID
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION get_elpa_kernel_index(cpuid) RESULT(index)
+      USE machine,  ONLY: MACHINE_X86, &
+                          MACHINE_X86_SSE4, &
+                          MACHINE_X86_AVX, &
+                          MACHINE_X86_AVX2
+      INTEGER, INTENT(IN) :: cpuid
+      INTEGER :: index
+
+      index = 1 ! AUTO
+      IF (cpuid .LE. MACHINE_X86) THEN
+         SELECT CASE (cpuid)
+         CASE (MACHINE_X86_SSE4)
+            index = 8 ! ELPA_2STAGE_REAL_SSE_BLOCK4
+         CASE (MACHINE_X86_AVX)
+            index = 11 ! ELPA_2STAGE_REAL_AVX_BLOCK4
+         CASE (MACHINE_X86_AVX2)
+            index = 14 ! ELPA_2STAGE_REAL_AVX2_BLOCK4
+         CASE DEFAULT
+            index = 17 ! ELPA_2STAGE_REAL_AVX512_BLOCK4
+         END SELECT
+      END IF
+
+   END FUNCTION get_elpa_kernel_index
 
 ! **************************************************************************************************
 !> \brief Sets the active ELPA kernel.

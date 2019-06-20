@@ -7,7 +7,7 @@
 !> \brief builds the global input section for cp2k
 !> \par History
 !>      06.2004 created [fawzi]
-!>      03.2014 moved to seperate file [Ole Schuett]
+!>      03.2014 moved to separate file [Ole Schuett]
 !>      10.2016 update seed input [Matthias Krack]
 !> \author fawzi
 ! **************************************************************************************************
@@ -21,6 +21,7 @@ MODULE input_cp2k_global
                                               BLACS_GRID_SQUARE
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
    USE cp_fm_elpa,                      ONLY: get_elpa_kernel_descriptions,&
+                                              get_elpa_kernel_index,&
                                               get_elpa_kernel_names,&
                                               get_elpa_number_kernels
    USE cp_output_handling,              ONLY: add_last_numeric,&
@@ -50,6 +51,7 @@ MODULE input_cp2k_global
                                               integer_t,&
                                               logical_t
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_cpuid
    USE string_utilities,                ONLY: s2a
    USE timings,                         ONLY: default_timings_level
 #include "./base/base_uses.f90"
@@ -75,7 +77,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i
+      INTEGER                                            :: default_i_val, i
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
@@ -99,17 +101,22 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLACS_REPEATABLE", &
                           description="Use a topology for BLACS collectives that is guaranteed to be repeatable "// &
-                          "on homegeneous architectures", &
+                          "on homogeneous architectures", &
                           usage="BLACS_REPEATABLE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+#if defined(__ELPA)
+      default_i_val = do_diag_elpa
+#else
+      default_i_val = do_diag_sl
+#endif
       CALL keyword_create( &
          keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
-         description="Specifies the DIAGONALIZATION library to be used. If not availabe, the standard scalapack is used", &
+         description="Specifies the DIAGONALIZATION library to be used. If not available, the standard scalapack is used", &
          usage="PREFERRED_DIAG_LIBRARY ELPA", &
-         default_i_val=do_diag_sl, &
+         default_i_val=default_i_val, &
          enum_i_vals=(/do_diag_sl, do_diag_elpa/), &
          enum_c_vals=s2a("SL", "ELPA"), &
          enum_desc=s2a("Standard (Sca)LAPACK: syevd", "ELPA"), &
@@ -117,10 +124,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      default_i_val = get_elpa_kernel_index(m_cpuid())
+      CPASSERT(default_i_val .LE. get_elpa_number_kernels())
       CALL keyword_create( &
          keyword, __LOCATION__, name="ELPA_KERNEL", &
          description="Specifies the kernel to be used when ELPA is in use", &
-         default_i_val=1, &
+         default_i_val=default_i_val, &
          enum_i_vals=(/(i, i=1, get_elpa_number_kernels())/), &
          enum_c_vals=get_elpa_kernel_names(), &
          enum_desc=get_elpa_kernel_descriptions())
@@ -178,7 +187,7 @@ CONTAINS
                        "will be used in case a FFT library is specified and not available.", &
                        "a fast portable FFT library. Recommended."// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-                       "Same as FFTW3 (for compatability with CP2K 2.3)"))
+                       "Same as FFTW3 (for compatibility with CP2K 2.3)"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -411,7 +420,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CALLGRAPH_FILE_NAME", &
-                          description="Name of the callgraph file, which is writte a the end of the run. "// &
+                          description="Name of the callgraph file, which is written at the end of the run. "// &
                           "If not specified the project name will be used as filename.", &
                           usage="CALLGRAPH_FILE_NAME {filename}", default_lc_val="")
       CALL section_add_keyword(section, keyword)
@@ -603,7 +612,7 @@ CONTAINS
                           description="Allows to switch between scalapack pdgemm and dbcsr_multiply. "// &
                           "On normal systems pdgemm is recommended on system with GPU "// &
                           "is optimized and can give better performance. NOTE: if DBCSR is employed "// &
-                          "FORCE_BLOCK_SIZE should be set. The perfomance on GPU's dependes "// &
+                          "FORCE_BLOCK_SIZE should be set. The performance on GPU's depends "// &
                           "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.", &
                           usage="TYPE_OF_MATRIX_MULTIPLICATION ELPA", &
                           default_i_val=do_pdgemm, &
