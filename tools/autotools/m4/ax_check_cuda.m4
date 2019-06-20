@@ -215,7 +215,7 @@ AC_DEFUN([AX_CUDA],
 
         AS_CASE($cuda_compiler,
                 [nvcc], [NVCC=$cuda_prefix/bin/nvcc
-                         NVCC_FLAGS+=" -arch $cuda_arch"],
+                         NVCC_FLAGS+=" -arch $cuda_arch -I$cuda_prefix/include"],
                 [clang], [ NVCC=clang dnl clang can compile cuda code but it needs a few extra options by default
                            CLANG=clang
                            NVCC_FLAGS+=" --cuda-gpu-arch=$cuda_arch --cuda-path=$cuda_prefix"],
