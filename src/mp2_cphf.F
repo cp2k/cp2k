@@ -147,13 +147,14 @@ CONTAINS
 
       INTEGER :: alpha, beta, bin, dimen, handle, handle2, i, i_global, i_thread, iiB, ikind, &
          irep, ispin, j_global, jjB, my_bin_size, n_rep_hf, n_threads, ncol_local, nrow_local, &
-         transf_type_in, transf_type_out, virtual, virtual_beta
+         potential_type, transf_type_in, transf_type_out, virtual, virtual_beta
       INTEGER, DIMENSION(3)                              :: comp
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
                                                             do_hfx, hfx_treat_lsd_in_core, &
                                                             restore_p_screen, use_virial
-      REAL(KIND=dp)                                      :: e_hartree, factor, out_alpha, tot_rho_r
+      REAL(KIND=dp)                                      :: e_hartree, factor, omega, out_alpha, &
+                                                            tot_rho_r
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -192,6 +193,8 @@ CONTAINS
       ! start collecting stuff
       dimen = nmo
       virtual = dimen-homo
+      potential_type = mp2_env%potential_parameter%potential_type
+      omega = mp2_env%potential_parameter%omega
       IF (alpha_beta) virtual_beta = dimen-homo_beta
       NULLIFY (input, pw_env, matrix_s, blacs_env, rho, energy, force, virial, matrix_w_mp2, &
                matrix_p_mp2, matrix_ks, rho_core, sab_orb)
@@ -777,7 +780,7 @@ CONTAINS
                               ks_env=ks_env, &
                               soft_valid=.FALSE.)
 
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g)
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
 
       ! calculate core forces
       CALL integrate_v_core_rspace(rho_r, qs_env)

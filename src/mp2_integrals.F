@@ -82,7 +82,7 @@ MODULE mp2_integrals
                                               do_eri_mme,&
                                               do_eri_os,&
                                               do_potential_coulomb,&
-                                              do_potential_id
+                                              do_potential_long
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
@@ -105,7 +105,8 @@ MODULE mp2_integrals
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_scale,&
+   USE pw_methods,                      ONLY: pw_gauss_damp,&
+                                              pw_scale,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -325,7 +326,7 @@ CONTAINS
          my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
          my_group_L_size, my_group_L_start, natom
       INTEGER :: ngroup, ngroup_im_time, ngroup_im_time_P, nimg, nkind, num_diff_blk, &
-         num_small_eigen, sqrt_max_bsize, virtual, virtual_beta
+         num_small_eigen, potential_type, sqrt_max_bsize, virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atoms_for_mao_basis, my_group_L_ends_im_time, &
          my_group_L_sizes_im_time, my_group_L_starts_im_time, sizes_AO, sizes_AO_split, sizes_RI, &
          sizes_RI_split, sub_proc_map
@@ -334,7 +335,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
                                                             impose_split, memory_info, do_svd
-      REAL(KIND=dp)                                      :: cond_num, eps_svd, mem_for_iaK, wfn_size
+      REAL(KIND=dp)                                      :: cond_num, eps_svd, mem_for_iaK, &
+                                                            omega_metric, omega_pot, wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_bse_ab, fm_BIb_bse_ij, fm_BIb_gw, &
@@ -374,6 +376,9 @@ CONTAINS
       eri_param => qs_env%mp2_env%eri_mme_param
       do_svd = qs_env%mp2_env%do_svd
       eps_svd = qs_env%mp2_env%eps_svd
+      potential_type = qs_env%mp2_env%potential_parameter%potential_type
+      omega_pot = qs_env%mp2_env%potential_parameter%omega
+      omega_metric = qs_env%mp2_env%omega_metric
 
       IF (do_svd .AND. calc_forces) THEN
          CPABORT("SVD not implemented for forces.!")
@@ -477,7 +482,7 @@ CONTAINS
          sub_proc_map(para_env_sub%num_pe+i) = i
       END DO
 
-      IF (eri_method == do_eri_gpw) THEN
+      IF (eri_method == do_eri_gpw .OR. potential_type == do_potential_long) THEN
 
          ! maybe remove wfn_size??
          wfn_size = REAL(SIZE(rho_r%pw%cr3d), KIND=dp)
@@ -512,7 +517,7 @@ CONTAINS
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, &
                            gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
-                           num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
+                           num_small_eigen, potential_type, ri_metric, omega_pot, omega_metric, fm_matrix_L_RI_metric, do_im_time, &
                            do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set)
 
@@ -722,7 +727,7 @@ CONTAINS
             ENDDO
             DEALLOCATE (mat_munu_local_L)
 
-         ELSE IF (eri_method == do_eri_gpw) THEN
+         ELSE IF (eri_method == do_eri_gpw .OR. ri_metric == do_potential_long) THEN
 
             DO LLL = my_group_L_start, my_group_L_end
                i_counter = i_counter+1
@@ -735,7 +740,7 @@ CONTAINS
 
                rho_r%pw%cr3d = psi_L%pw%cr3d
 
-               CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric)
+               CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega_metric)
 
                ! and finally (K|mu nu)
                CALL timeset(routineN//"_int", handle3)
@@ -968,7 +973,7 @@ CONTAINS
 
       END IF
 
-      IF (eri_method == do_eri_gpw) THEN
+      IF (eri_method == do_eri_gpw .OR. potential_type == do_potential_long) THEN
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
 
@@ -1578,7 +1583,10 @@ CONTAINS
 !> \param do_svd ...
 !> \param eps_svd ...
 !> \param num_small_eigen ...
+!> \param potential_type ...
 !> \param ri_metric ...
+!> \param omega_pot ...
+!> \param omega_metric ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param do_im_time ...
 !> \param do_kpoints ...
@@ -1591,8 +1599,8 @@ CONTAINS
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, &
                               gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
-                              num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
-                              do_kpoints, mp2_eps_pgf_orb_S, atomic_kind_set, qs_kind_set)
+                              num_small_eigen, potential_type, ri_metric, omega_pot, omega_metric, fm_matrix_L_RI_metric, &
+                              do_im_time, do_kpoints, mp2_eps_pgf_orb_S, atomic_kind_set, qs_kind_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
@@ -1616,7 +1624,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_svd
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(OUT)                               :: num_small_eigen
-      INTEGER, INTENT(IN)                                :: ri_metric
+      INTEGER, INTENT(IN)                                :: potential_type, ri_metric
+      REAL(KIND=dp), INTENT(IN)                          :: omega_pot, omega_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
@@ -1639,32 +1648,14 @@ CONTAINS
                                 mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
                                 gd_array, calc_PQ_cond_num, cond_num, &
-                                num_small_eigen, do_im_time=do_im_time)
+                                num_small_eigen, potential_type, omega_pot, do_im_time=do_im_time)
 
       dimen_RI_red = dimen_RI
 
-      IF (ri_metric == do_potential_coulomb) THEN
-         IF (do_svd) THEN
-            CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, .TRUE.)
-
-            dimen_RI_red = dimen_RI-num_small_eigen
-
-            ! We changed the size of fm_matrix_L in matrix_root_with_svd.
-            ! So, we have to get new group sizes
-            CALL release_group_dist(gd_array)
-
-            CALL create_group_dist(gd_array, ngroup, dimen_RI_red)
-
-            CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
-         ELSE
-
-            ! calculate Cholesky decomposition L (V=LL^T)
-            CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.TRUE.)
-
-            ! for the Coulomb metric, we invert L
-            CALL invert_L(fm_matrix_L)
-         END IF
-      ELSE IF (ri_metric == do_potential_id) THEN
+      IF (ri_metric == potential_type) THEN
+         CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
+                           dimen_RI, dimen_RI_red)
+      ELSE
 
          ! Obara-Saika overlap matrix
          IF (do_im_time) THEN
@@ -1695,9 +1686,8 @@ CONTAINS
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
                                       gd_array, calc_PQ_cond_num, cond_num, &
-                                      num_small_eigen, &
-                                      external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L, &
-                                      ri_metric=ri_metric)
+                                      num_small_eigen, ri_metric, omega_metric, &
+                                      external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L)
 
          END IF
 
@@ -1709,28 +1699,11 @@ CONTAINS
                                                             dimen_RI, kpoints)
 
          ELSE
-            IF (do_svd) THEN
-               CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, .FALSE.)
+            CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
+                              dimen_RI, dimen_RI_red)
 
-               dimen_RI_red = dimen_RI-num_small_eigen
-
-               ! We changed the size of fm_matrix_L in matrix_root_with_svd.
-               ! So, we have to get new group sizes
-               CALL release_group_dist(gd_array)
-
-               CALL create_group_dist(gd_array, ngroup, dimen_RI_red)
-
-               CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
-            ELSE
-               ! calculate Cholesky decomposition L of the Coulomb matrix (V=LL^T)
-               CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.FALSE.)
-            END IF
-
-            ! calculate Cholesky decomposition L of the overlap matrix (S=LL^T)
-            CALL cholesky_decomp(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI, do_inversion=.TRUE.)
-
-            ! invert to get L^-1 (L: Choleshky decomp of S)
-            CALL invert_L(fm_matrix_L_RI_metric(1, 1)%matrix)
+            CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1)%matrix, .FALSE., 0.0_dp, num_small_eigen, cond_num, .TRUE., &
+                              gd_array, ngroup, dimen_RI, dimen_RI_red)
 
             NULLIFY (fm_matrix_S_inv_work)
             CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
@@ -1782,9 +1755,60 @@ CONTAINS
 
       END IF
 
+      ! If the group distribution changed because of an SVD, we get the new values here
+      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
+
       CALL timestop(handle)
 
    END SUBROUTINE calculate_Lmin1
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_matrix_L ...
+!> \param do_svd ...
+!> \param eps_svd ...
+!> \param num_small_eigen ...
+!> \param cond_num ...
+!> \param do_inversion ...
+!> \param gd_array ...
+!> \param ngroup ...
+!> \param dimen_RI ...
+!> \param dimen_RI_red ...
+! **************************************************************************************************
+   SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
+                           dimen_RI, dimen_RI_red)
+
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      LOGICAL, INTENT(IN)                                :: do_svd
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
+      INTEGER, INTENT(OUT)                               :: num_small_eigen
+      REAL(KIND=dp), INTENT(INOUT)                       :: cond_num
+      LOGICAL, INTENT(IN)                                :: do_inversion
+      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
+      INTEGER, INTENT(IN)                                :: ngroup, dimen_RI
+      INTEGER, INTENT(INOUT)                             :: dimen_RI_red
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'decomp_mat_L', routineP = moduleN//':'//routineN
+
+      IF (do_svd) THEN
+         CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, do_inversion)
+
+         dimen_RI_red = dimen_RI-num_small_eigen
+
+         ! We changed the size of fm_matrix_L in matrix_root_with_svd.
+         ! So, we have to get new group sizes
+         CALL release_group_dist(gd_array)
+
+         CALL create_group_dist(gd_array, ngroup, dimen_RI_red)
+      ELSE
+
+         ! calculate Cholesky decomposition L (V=LL^T)
+         CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=do_inversion)
+
+         IF (do_inversion) CALL invert_L(fm_matrix_L)
+      END IF
+
+   END SUBROUTINE decomp_mat_L
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2156,17 +2180,18 @@ CONTAINS
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param num_small_eigen ...
+!> \param ri_metric ...
+!> \param omega ...
 !> \param external_matrix_struc ...
 !> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
-!> \param ri_metric ...
 ! **************************************************************************************************
    SUBROUTINE compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                    fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                    mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, &
-                                   gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, &
-                                   external_matrix_struc, do_im_time, fm_matrix_L_extern, ri_metric)
+                                   gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, ri_metric, omega, &
+                                   external_matrix_struc, do_im_time, fm_matrix_L_extern)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
@@ -2187,19 +2212,20 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       INTEGER, INTENT(OUT)                               :: num_small_eigen
+      INTEGER, INTENT(IN)                                :: ri_metric
+      REAL(KIND=dp), INTENT(IN)                          :: omega
       LOGICAL, INTENT(IN), OPTIONAL                      :: external_matrix_struc, do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
-      INTEGER, INTENT(IN), OPTIONAL                      :: ri_metric
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, group_size, handle, &
          handle2, handle3, i, i_counter, i_global, iatom, igrid_level, iiB, ikind, ipgf, iproc, &
-         iset, j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, natom, ncoa, &
-         ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, proc_receive_static, &
-         proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, &
-         strat_group_size, sub_sub_color, tp(3), ub(3)
+         iset, j_global, jjB, lb(3), LLL, location(3), na1, na2, natom, ncoa, ncol_local, nkind, &
+         nrow_local, nseta, nsgf, offset, proc_receive, proc_receive_static, proc_send, &
+         proc_send_static, proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, strat_group_size, &
+         sub_sub_color, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, npgfa, &
                                                             nsgfa, row_indices
@@ -2229,10 +2255,6 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
 
       CALL timeset(routineN, handle)
-
-      ! default: Coulomb metric
-      my_ri_metric = do_potential_coulomb
-      IF (PRESENT(ri_metric)) my_ri_metric = ri_metric
 
       my_external_matrix_struc = .FALSE.
       IF (PRESENT(external_matrix_struc)) THEN
@@ -2285,14 +2307,14 @@ CONTAINS
       CALL timestop(handle3)
 
       IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
-          .AND. my_ri_metric .EQ. do_potential_coulomb) THEN
+          .AND. ri_metric .EQ. do_potential_coulomb) THEN
 
          CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method)
 
-      ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. do_potential_coulomb) THEN
+      ELSEIF (eri_method .EQ. do_eri_gpw .OR. ri_metric .NE. do_potential_coulomb) THEN
 
          ALLOCATE (wf_vector(dimen_RI))
 
@@ -2312,7 +2334,7 @@ CONTAINS
             CALL timeset(routineN//"_pot_lm", handle3)
             rho_r%pw%cr3d = psi_L%pw%cr3d
 
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, my_ri_metric)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega)
 
             NULLIFY (rs_v)
             NULLIFY (rs_descs)
@@ -5127,12 +5149,14 @@ CONTAINS
 !> \param poisson_env ...
 !> \param pot_g ...
 !> \param potential_type ...
+!> \param omega ...
 ! **************************************************************************************************
-   SUBROUTINE calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type)
+   SUBROUTINE calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
       TYPE(pw_p_type), INTENT(IN)                        :: rho_r, rho_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
       INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw', &
          routineP = moduleN//':'//routineN
@@ -5148,9 +5172,10 @@ CONTAINS
 
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
-      IF (my_potential_type == do_potential_coulomb) THEN
+      IF (my_potential_type == do_potential_coulomb .OR. my_potential_type == do_potential_long) THEN
          CALL pw_transfer(rho_r%pw, rho_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
+         IF (potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
          CALL pw_transfer(pot_g%pw, rho_r%pw)
       END IF
 

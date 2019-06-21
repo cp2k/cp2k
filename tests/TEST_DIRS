@@ -5,6 +5,7 @@
 # the order will be regularly checked and modified...
 QS/regtest-negf
 QS/regtest-negf-fft                                         fftw3
+QS/regtest-wfc-lr                                           libint
 QS/regtest-ri-rpa-axk                                       libint
 QS/regtest-ri-rpa-rse                                       libint
 QS/regtest-cdft-hirshfeld-2                                 parallel mpiranks>1

@@ -79,6 +79,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "CALC_COND_NUM", l_val=mp2_env%calc_PQ_cond_num)
       CALL section_vals_val_get(mp2_section, "DO_SVD", l_val=mp2_env%do_svd)
       CALL section_vals_val_get(mp2_section, "EPS_SVD", r_val=mp2_env%eps_svd)
+      CALL section_vals_val_get(mp2_section, "OMEGA_METRIC", r_val=mp2_env%omega_metric)
 
       CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)
@@ -86,6 +87,8 @@ CONTAINS
                                 r_val=mp2_env%potential_parameter%truncation_radius)
       CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%TShPSC_DATA", &
                                 c_val=mp2_env%potential_parameter%filename)
+      CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%OMEGA", &
+                                r_val=mp2_env%potential_parameter%omega)
 
       CALL section_vals_val_get(mp2_section, "ERI_METHOD", &
                                 i_val=mp2_env%eri_method)
