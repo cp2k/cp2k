@@ -1862,7 +1862,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MATRICES_FILE_NAME", &
                           description="Filename containig the raw matrices from "// &
-                          "https://epfl-cosmo.github.io/gle4md/index.html?page=matrix", &
+                          "https://gle4md.org/index.html?page=matrix", &
                           repeats=.FALSE., default_lc_val="PIGLET.MAT")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
