@@ -210,9 +210,9 @@ END FUNCTION m_cpuid
 ! **************************************************************************************************
 FUNCTION m_cpuid_name(cpuid)
       INTEGER                                            :: cpuid
-      CHARACTER, POINTER                                 :: m_cpuid_name(:)
+      CHARACTER(len=default_string_length), POINTER      :: m_cpuid_name
 
-      CHARACTER, DIMENSION(default_string_length), SAVE, TARGET :: name_generic = "generic", &
+      CHARACTER(len=default_string_length), SAVE, TARGET :: name_generic = "generic", &
          name_unknown = "unknown", name_x86_avx = "x86_avx", name_x86_avx2 = "x86_avx2", &
          name_x86_avx512 = "x86_avx512", name_x86_sse4 = "x86_sse4"
 

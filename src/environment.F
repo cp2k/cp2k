@@ -66,14 +66,9 @@ MODULE environment
                                               dp,&
                                               int_8,&
                                               print_kind_info
-   USE machine,                         ONLY: flush_should_flush,&
-                                              m_cpuid,&
-                                              m_cpuid_static,&
-                                              m_cpuinfo,&
-                                              m_energy,&
-                                              m_flush_internal,&
-                                              m_memory_details,&
-                                              m_procrun
+   USE machine,                         ONLY: &
+        flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
+        m_flush_internal, m_memory_details, m_procrun
    USE message_passing,                 ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               mp_collect_timings,&
