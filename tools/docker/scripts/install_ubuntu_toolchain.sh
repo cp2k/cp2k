@@ -18,7 +18,6 @@ apt-get install -qq --no-install-recommends  \
     fftw3-dev                               \
     libopenblas-dev                         \
     liblapack-dev                           \
-    libint-dev                              \
     libgsl-dev                              \
     libhdf5-dev
 rm -rf /var/lib/apt/lists/*
@@ -43,11 +42,12 @@ cd /opt/cp2k-toolchain/
     --with-fftw=system       \
     --with-openblas=system   \
     --with-reflapack=system  \
-    --with-libint=system     \
     --with-gsl=system        \
     --with-hdf5=system       \
     --with-libxc=install     \
     --with-libxsmm=install   \
+    --with-libint=install    \
+    --libint-lmax=4          \
     ${EXTRA_TOOLCHAIN_OPTIONS}
 rm -rf ./build
 
