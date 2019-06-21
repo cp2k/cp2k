@@ -175,15 +175,15 @@ CONTAINS
 
       INTEGER :: alpha, atom_a, beta, dimen, dir, eri_method, handle, handle2, handle3, i, iatom, &
          igrid_level, ikind, iorb, ipgf, iset, itmp(2), L_counter, lb(3), LLL, location(3), &
-         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, offset, sgfa, tp(3), &
-         ub(3), virtual, virtual_beta
+         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, offset, potential_type, &
+         sgfa, tp(3), ub(3), virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: comp
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: alpha_beta, map_it_here, skip_shell, &
                                                             use_virial
-      REAL(KIND=dp)                                      :: e_hartree, eps_filter, factor, &
+      REAL(KIND=dp)                                      :: e_hartree, eps_filter, factor, omega, &
                                                             pair_energy, rab2, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
@@ -223,6 +223,8 @@ CONTAINS
 
       dimen = nmo
       virtual = dimen-homo
+      potential_type = mp2_env%potential_parameter%potential_type
+      omega = mp2_env%potential_parameter%omega
       IF (alpha_beta) virtual_beta = dimen-homo_beta
       eps_filter = mp2_env%mp2_gpw%eps_filter
       NULLIFY (mo_coeff_o, mo_coeff_v, G_P_ia, ks_env)
@@ -464,7 +466,7 @@ CONTAINS
                rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
             ENDIF
 
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
             CALL timestop(handle3)
 
             IF (use_virial) THEN

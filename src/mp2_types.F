@@ -77,6 +77,7 @@ MODULE mp2_types
       INTEGER                                  :: potential_type !! 1/r, TShPSC, slab truncation
       REAL(dp)                                 :: truncation_radius !! truncation radius if cutoff potential in use
       CHARACTER(default_path_length)           :: filename
+      REAL(KIND=dp)                            :: omega ! Range separation parameter for longrange potential
    END TYPE
 
    TYPE mp2_gpw_type
@@ -258,6 +259,7 @@ MODULE mp2_types
       INTEGER, DIMENSION(:), POINTER  :: eri_blksize => NULL()
       LOGICAL  :: do_svd
       REAL(KIND=dp) :: eps_svd
+      REAL(KIND=dp) :: omega_metric
    END TYPE
 
    TYPE integ_mat_buffer_type

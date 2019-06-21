@@ -1,0 +1,73 @@
+&GLOBAL                                                                                           
+  PROJECT H2O-mp2-direct-lr
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      METHOD GAPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-5
+      MAX_SCF 1000
+      ADDED_MOS 1000 1000
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+            EPS_SCHWARZ 1.0E-7
+        &END SCREENING
+      &END HF
+      &WF_CORRELATION
+        METHOD DIRECT_CANONICAL  
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE LONGRANGE
+          OMEGA 0.5
+        &END INTERACTION_POTENTIAL
+        MEMORY 100.
+      &END
+    &END XC
+    ! UKS
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 7.0 7.0 7.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O       0.000000    0.000000    -0.111000
+      H       0.000000   -0.744000     0.495000
+      H       0.000000    0.744000     0.495000
+    &END COORD
+    &KIND H
+      BASIS_SET aug-cc-pVDZ
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET aug-cc-pVDZ
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

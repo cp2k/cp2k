@@ -71,7 +71,10 @@ MODULE mp2_gpw
                                               group_dist_d1_type,&
                                               release_group_dist
    USE input_constants,                 ONLY: do_eri_gpw,&
-                                              do_potential_id
+                                              do_potential_coulomb,&
+                                              do_potential_id,&
+                                              do_potential_long,&
+                                              ri_default
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -376,9 +379,15 @@ CONTAINS
             blacs_env_sub_mat_munu => blacs_env_sub_im_time_3c
          END IF
 
-         ! in imaginary time, we do overlap metric
-         mp2_env%ri_metric = do_potential_id
+         ! in imaginary time, we do overlap metric if no short range metric is specified
+         IF ((mp2_env%ri_metric == ri_default) .OR. (mp2_env%ri_metric == do_potential_coulomb)) &
+            mp2_env%ri_metric = do_potential_id
 
+      END IF
+
+      IF (mp2_env%ri_metric == ri_default) THEN
+         mp2_env%ri_metric = mp2_env%potential_parameter%potential_type
+         mp2_env%omega = mp2_env%potential_parameter%omega
       END IF
 
       ! get stuff
@@ -452,7 +461,7 @@ CONTAINS
 
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. qs_env%mp2_env%potential_parameter%potential_type == do_potential_long) THEN
 
          ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
          progression_factor = dft_control%qs_control%progression_factor
@@ -588,7 +597,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. qs_env%mp2_env%potential_parameter%potential_type == do_potential_long) THEN
 
          ! and now free the whole lot
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)

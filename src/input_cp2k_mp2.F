@@ -26,11 +26,12 @@ MODULE input_cp2k_mp2
                                               silent_print_level
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_tshpsc, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
-        gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_mp2_laplace, ri_mp2_method_gpw, &
-        ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_none, &
-        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+        do_potential_long, do_potential_tshpsc, gaussian, gw_no_print_exx, gw_pade_approx, &
+        gw_print_exx, gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, &
+        mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, numerical, ri_default, &
+        ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_g0w0_crossing_bisection, &
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
+        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -179,11 +180,22 @@ CONTAINS
          variants=(/"RI"/), &
          description="Define which RI metric should be used for calculating B^P_ia.", &
          usage="RI_METRIC COULOMB", &
-         enum_c_vals=s2a("COULOMB", "OVERLAP"), &
-         enum_i_vals=(/do_potential_coulomb, do_potential_id/), &
-         enum_desc=s2a("Use Coulomb metric.", &
-                       "Use overlap metric, recommended in combination with imaginary time for O(N^3) RPA."), &
-         default_i_val=do_potential_coulomb)
+         enum_c_vals=s2a("DEFAULT", "COULOMB", "OVERLAP", "LONGRANGE"), &
+         enum_i_vals=(/ri_default, do_potential_coulomb, do_potential_id, do_potential_long/), &
+         enum_desc=s2a("Use overlap metric for cubic scaling methods and interaction potential for higher scaling methods.", &
+                       "Use Coulomb metric.", &
+                       "Use overlap metric, recommended in combination with imaginary time for O(N^3) RPA.", &
+                       "Use longrange metric. Not recommended with DO_SVD .TRUE."), &
+         default_i_val=ri_default)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="OMEGA_METRIC", &
+         description="Range-separation parameter for longrange potential.", &
+         usage="OMEGA_METRIC 0.5", &
+         default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1602,7 +1614,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="INTERACTION_POTENTIAL", &
                           description="Parameters the interaction potential in computing the biel integrals", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create( &
@@ -1611,16 +1623,18 @@ CONTAINS
          description="Which interaction potential should be used "// &
          "(Coulomb, TShPSC operator).", &
          usage="POTENTIAL_TYPE TSHPSC", &
-         enum_c_vals=s2a("COULOMB", "TShPSC"), &
+         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE"), &
          enum_i_vals=(/do_potential_coulomb, &
-                       do_potential_TShPSC/), &
+                       do_potential_TShPSC, &
+                       do_potential_long/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"// &
                        "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
                        "(2*n^2 - 7*n + 9 - 4*s)*(x - Rc)^3/(Rc^4*(n^2 - 2*n + 1)*(n - 1)) + "// &
                        "(6-3*s - 4*n + n^2)*(x - Rc)^4/(Rc^5*(n^4 - 4*n^3 + 6*n^2 - 4*n + 1)) "// &
                        "for Rc &lt; x &le; n*Rc (4th order polynomial)</li>"// &
-                       "<li>0 for x &gt; n*Rc</li></ul>"), &
+                       "<li>0 for x &gt; n*Rc</li></ul>", &
+                       "Longrange Coulomg potential: erf(w*r)/r)"), &
          default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1641,6 +1655,15 @@ CONTAINS
          "evaluation of the TShPSC G0 ", &
          usage="TShPSC_DATA t_sh_p_s_c.dat", &
          default_c_val="t_sh_p_s_c.dat")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="OMEGA", &
+         description="Range separation parameter for the longrange potential. Only valid when longrange potential is requested.", &
+         usage="OMEGA 0.5", type_of_var=real_t, &
+         default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

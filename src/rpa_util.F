@@ -524,7 +524,7 @@ CONTAINS
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          NULLIFY (fm_mat_RI_global_work)
          CALL cp_fm_create(fm_mat_RI_global_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
-         CALL cp_fm_to_fm(fm_fm_matrix_L_RI_metric(1, 1)%matrix, fm_mat_RI_global_work)
+         CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1)%matrix, fm_mat_RI_global_work)
          CALL cp_fm_set_all(fm_mat_RI_global_work, 0.0_dp)
       END IF
 
