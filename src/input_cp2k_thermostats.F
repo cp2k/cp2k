@@ -494,7 +494,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GLE", &
                           description="paramameters of the gle thermostat. This section can be generated "// &
-                          " from https://epfl-cosmo.github.io/gle4md/index.html?page=matrix ", &
+                          " from https://gle4md.org/index.html?page=matrix", &
                           citations=(/Ceriotti2009, Ceriotti2009b/))
 
       NULLIFY (keyword, subsection)
