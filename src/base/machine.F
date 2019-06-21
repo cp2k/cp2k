@@ -56,10 +56,10 @@ MODULE machine
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_datum, m_flush, m_flush_internal,&
-            m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
-            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details,&
-            m_energy, m_memory_max, m_cpuinfo, m_cpuid_static, m_cpuid
+  PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, m_flush_internal,&
+            m_getcwd, m_getlog, m_getpid, m_getarg, m_iargc, m_procrun, m_abort,&
+            m_chdir, m_mov, m_memory, m_memory_details, m_memory_max, m_energy,&
+            m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name
 
   INTERFACE
     ! **********************************************************************************************
@@ -200,6 +200,37 @@ PURE FUNCTION m_cpuid() RESULT (cpuid)
     cpuid = m_cpuid_static()
 #endif
 END FUNCTION m_cpuid
+
+! **************************************************************************************************
+!> \brief Determine name of target architecture for a given CPUID.
+!> \param cpuid integer value (MACHINE_*)
+!> \return name or short name.
+!> \par History
+!>      06.2019 created [Hans Pabst]
+! **************************************************************************************************
+FUNCTION m_cpuid_name(cpuid)
+      INTEGER                                            :: cpuid
+      CHARACTER(len=default_string_length), POINTER      :: m_cpuid_name
+
+      CHARACTER(len=default_string_length), SAVE, TARGET :: name_generic = "generic", &
+         name_unknown = "unknown", name_x86_avx = "x86_avx", name_x86_avx2 = "x86_avx2", &
+         name_x86_avx512 = "x86_avx512", name_x86_sse4 = "x86_sse4"
+
+    SELECT CASE (cpuid)
+    CASE (MACHINE_CPU_GENERIC)
+       m_cpuid_name => name_generic
+    CASE (MACHINE_X86_SSE4)
+       m_cpuid_name => name_x86_sse4
+    CASE (MACHINE_X86_AVX)
+       m_cpuid_name => name_x86_avx
+    CASE (MACHINE_X86_AVX2)
+       m_cpuid_name => name_x86_avx2
+    CASE (MACHINE_X86_AVX512)
+       m_cpuid_name => name_x86_avx512
+    CASE DEFAULT
+       m_cpuid_name => name_unknown
+    END SELECT
+END FUNCTION m_cpuid_name
 
 ! **************************************************************************************************
 !> \brief returns the energy used since some time in the past.
