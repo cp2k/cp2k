@@ -47,7 +47,8 @@ MODULE mp2_ri_libint
         hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, hfx_pgf_list, &
         hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, hfx_type, log_zero, &
         pair_set_list_type
-   USE input_constants,                 ONLY: do_potential_TShPSC
+   USE input_constants,                 ONLY: do_potential_TShPSC,&
+                                              do_potential_long
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_sum
@@ -1219,6 +1220,8 @@ CONTAINS
             init_TShPSC_lmax = l_max
          END IF
          mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%truncation_radius/2.0_dp
+      ELSE IF (mp2_env%potential_parameter%potential_type == do_potential_long) THEN
+         mp2_potential_parameter%omega = mp2_env%potential_parameter%omega
       END IF
 
       mp2_potential_parameter%potential_type = mp2_env%potential_parameter%potential_type
