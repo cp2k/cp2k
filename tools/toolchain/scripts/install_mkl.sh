@@ -73,7 +73,7 @@ if [ "$with_mkl" != "__DONTUSE__" ] ; then
         mkl_optional_libs="libmkl_scalapack_lp64.a"
         case $MPI_MODE in
             mpich)
-                mkl_optional_libs="$mkl_optional_libs libmkl_blacs_lp64.a"
+                mkl_optional_libs="$mkl_optional_libs libmkl_blacs_intelmpi_lp64.a"
                 mkl_blacs_lib="libmkl_blacs_lp64.a"
                 ;;
             openmpi)
@@ -94,6 +94,7 @@ if [ "$with_mkl" != "__DONTUSE__" ] ; then
             MKL_LIBS="${mkl_lib_dir}/libmkl_scalapack_lp64.a ${MKL_LIBS} ${mkl_lib_dir}/${mkl_blacs_lib}"
         fi
     else
+        echo "Not using MKL provided ScaLAPACK and BLACS"
         enable_mkl_scalapack="__FALSE__"
     fi
     MKL_LIBS="${MKL_LIBS} -Wl,--end-group -lpthread -lm -ldl"
