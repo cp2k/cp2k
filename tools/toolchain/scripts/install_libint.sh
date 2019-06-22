@@ -2,15 +2,32 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libint_lmax="5"
-libint_ver="2.5.0"
-libint_sha256="5f2f1f1ee2cd04ec302415ea9b20e2ef01173e083d05b02cd633fd6f640e8e4c"
-
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
+
+libint_ver="2.5.0"
+
+case "$LIBINT_LMAX" in
+    4)
+        libint_sha256="8b797a518fd5a0fa19c420c84794a7ec5225821ffc56d1666845a406d0b62982"
+        ;;
+    5)
+        libint_sha256="5f2f1f1ee2cd04ec302415ea9b20e2ef01173e083d05b02cd633fd6f640e8e4c"
+        ;;
+    6)
+        libint_sha256="9301591a97e6a91a26dcefdcdea7e36c946e310b5e9574a3d749b20700ad832b"
+        ;;
+    7)
+        libint_sha256="d6ccce6de5964642093edb6eac139cc587aee826394d0c54d68e706ede05b2c2"
+        ;;
+    *)
+       report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
+       exit 1
+       ;;
+esac
 
 [ -f "${BUILDDIR}/setup_libint" ] && rm "${BUILDDIR}/setup_libint"
 
@@ -23,7 +40,7 @@ cd "${BUILDDIR}"
 case "$with_libint" in
     __INSTALL__)
         echo "==================== Installing LIBINT ===================="
-        pkg_install_dir="${INSTALLDIR}/libint-v${libint_ver}-cp2k-lmax-${libint_lmax}"
+        pkg_install_dir="${INSTALLDIR}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}"
         install_lock_file="$pkg_install_dir/install_successful"
         if verify_checksums "${install_lock_file}" ; then
             echo "libint-${libint_ver} is already installed, skipping it."
@@ -32,14 +49,14 @@ case "$with_libint" in
                 echo "libint_cp2k-${libint_ver}.tgz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
-                             https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/libint-v${libint_ver}-cp2k-lmax-${libint_lmax}.tgz
+                             https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz
             fi
 
-            [ -d libint-v${libint_ver}-cp2k-lmax-${libint_lmax} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${libint_lmax}
-            tar -xzf libint-v${libint_ver}-cp2k-lmax-${libint_lmax}.tgz
+            [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
+            tar -xzf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz
 
             echo "Installing from scratch into ${pkg_install_dir}"
-            cd libint-v${libint_ver}-cp2k-lmax-${libint_lmax}
+            cd libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
 
             # reduce debug information to level 1 since
             # level 2 (default for -g flag) leads to very large binary size

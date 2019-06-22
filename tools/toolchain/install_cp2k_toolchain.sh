@@ -97,6 +97,9 @@ OPTIONS:
                           options are: K20X, K40, K80, P100, no. Default: no.
                           The script will determine the correct corresponding value for
                           nvcc's '-arch' flag.
+--libint-lmax             Maximum supported angular momentum by libint.
+                          Higher values will increase build time and library size.
+                          Default = 5
 --dry-run                 Write only config files, but dont' actually build packages.
 
 The --enable-FEATURE options follow the rules:
@@ -344,6 +347,9 @@ else
    export GPUVER=no
 fi
 
+# default for libint
+export LIBINT_LMAX=5
+
 # defaults for CRAY Linux Environment
 if [ "$CRAY_LD_LIBRARY_PATH" ] ; then
     enable_cray=__TRUE__
@@ -448,6 +454,10 @@ while [ $# -ge 1 ] ; do
                     "--gpu-ver currently only supports K20X, K40, K80, P100 and no as options"
                     exit 1
             esac
+            ;;
+        --libint-lmax=*)
+            user_input="${1#*=}"
+            export LIBINT_LMAX="$user_input"
             ;;
         --dry-run)
             dry_run="__TRUE__"
