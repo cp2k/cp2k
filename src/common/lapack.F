@@ -328,12 +328,11 @@ MODULE lapack
 ! **************************************************************************************************
       SUBROUTINE dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
          USE kinds, ONLY: dp
-      INTEGER, INTENT(IN)                                :: N, NRHS, LDA
-      REAL(KIND=dp), INTENT(INOUT)                       :: A(LDA, *)
-      INTEGER, INTENT(OUT)                               :: IPIV(*)
-      INTEGER, INTENT(IN)                                :: LDB
-      REAL(KIND=dp), INTENT(INOUT)                       :: B(LDB, *)
-      INTEGER, INTENT(OUT)                               :: INFO
+      INTEGER                                            :: N, NRHS, LDA
+      REAL(KIND=dp)                                      :: A(LDA, *)
+      INTEGER                                            :: IPIV(*), LDB
+      REAL(KIND=dp)                                      :: B(LDB, *)
+      INTEGER                                            :: INFO
 
       END SUBROUTINE dgesv
    END INTERFACE
