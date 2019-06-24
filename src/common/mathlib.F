@@ -1534,11 +1534,9 @@ CONTAINS
 !>         - Creation (20.11.98, Matthias Krack)
 ! **************************************************************************************************
    SUBROUTINE jacobi(a, d, v)
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: a
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: v
 
       INTEGER                                            :: n
 

@@ -71,8 +71,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: om, rc, ron, sc, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: omat, vmat
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: eri
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri
 
       CALL timeset(routineN, handle)
 
