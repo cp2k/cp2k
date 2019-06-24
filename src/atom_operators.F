@@ -312,8 +312,7 @@ CONTAINS
                   DO i = 1, ii
                      integrals%uptrans(i, i, l) = 1._dp
                   ENDDO
-                  ! avoid slicing 'omat' or 'integrals%uptrans' (lapack_sgesv accepts a leading dimension)
-                  CALL lapack_sgesv(ii, ii, omat, ii, ipiv, integrals%uptrans(:, :, l), ii, info)
+                  CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
                   CPASSERT(info == 0)
                END IF
             END IF
