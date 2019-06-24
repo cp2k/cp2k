@@ -187,7 +187,7 @@ MODULE atom_types
 !> \brief Holds atomic integrals
 ! **************************************************************************************************
    TYPE eri
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: int
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: int
    END TYPE eri
 
    TYPE atom_integrals
@@ -197,16 +197,16 @@ MODULE atom_types
       LOGICAL                                       :: eri_exchange
       LOGICAL                                       :: all_nu
       INTEGER, DIMENSION(0:lmat)                    :: n, nne
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ovlp, kin, core, clsd
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: utrans, uptrans
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hnl
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: conf
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: ovlp, kin, core, clsd
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: utrans, uptrans
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: hnl
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: conf
       TYPE(eri), DIMENSION(100)                     :: ceri
       TYPE(eri), DIMENSION(100)                     :: eeri
       INTEGER                                       :: dkhstat = 0
       INTEGER                                       :: zorastat = 0
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: tzora
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hdkh
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: tzora
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: hdkh
    END TYPE atom_integrals
 
 !> \brief Holds atomic orbitals and energies

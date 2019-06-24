@@ -71,7 +71,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: om, rc, ron, sc, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: omat, vmat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: eri
 
       CALL timeset(routineN, handle)
 
@@ -312,7 +313,8 @@ CONTAINS
                   DO i = 1, ii
                      integrals%uptrans(i, i, l) = 1._dp
                   ENDDO
-                  CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
+                  ! avoid slicing 'omat' or 'integrals%uptrans' (lapack_sgesv accepts a leading dimension)
+                  CALL lapack_sgesv(ii, ii, omat, ii, ipiv, integrals%uptrans(:, :, l), ii, info)
                   CPASSERT(info == 0)
                END IF
             END IF

@@ -1139,7 +1139,8 @@ CONTAINS
 
       !figure out how much can be sent to other processes
       ALLOCATE (load_partial(maxdest, ncpu))
-      CALL mp_sum_partial(list(2, :, :), load_partial(:, :), group)
+      ! send 'load_all', which is a copy of 'list' (but without leading dimension/stride)
+      CALL mp_sum_partial(RESHAPE(load_all, (/maxdest, ncpu/)), load_partial(:, :), group)
 
       DO icpu = 1, ncpu
          DO idest = 1, maxdest
