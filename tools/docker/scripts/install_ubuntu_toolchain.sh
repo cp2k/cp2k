@@ -27,11 +27,6 @@ ln -sf gcc-${GCC_VERSION}      /usr/bin/gcc
 ln -sf g++-${GCC_VERSION}      /usr/bin/g++
 ln -sf gfortran-${GCC_VERSION} /usr/bin/gfortran
 
-# json-fortran does not compile with gcc 4.8.5.
-if [[ "$GCC_VERSION" == "4.8" ]] ; then
-  EXTRA_TOOLCHAIN_OPTIONS="--with-sirius=no --with-json-fortran=no"
-fi
-
 # build toolchain relying mostly on ubuntu packages
 cp -r /workspace/cp2k/tools/toolchain /opt/cp2k-toolchain/
 cd /opt/cp2k-toolchain/
@@ -47,8 +42,8 @@ cd /opt/cp2k-toolchain/
     --with-libxc=install     \
     --with-libxsmm=install   \
     --with-libint=install    \
-    --libint-lmax=4          \
-    ${EXTRA_TOOLCHAIN_OPTIONS}
+    --libint-lmax=4
+
 rm -rf ./build
 
 #EOF
