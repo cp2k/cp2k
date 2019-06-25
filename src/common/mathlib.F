@@ -1575,22 +1575,23 @@ CONTAINS
                                                             t, tau, theta, tresh
       REAL(KIND=dp), DIMENSION(n)                        :: b, z
 
-      a_max = 0.0_dp
-      DO ip = 1, n-1
+      a_max = a(n-1, n)
+      DO ip = 1, n-2
          a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
+         b(ip) = a(ip, ip) ! get_diag(a)
       END DO
+      b(n-1) = a(n-1, n-1)
+      b(n) = a(n, n)
 
       CALL unit_matrix(v)
-      b = get_diag(a)
 
       ! Go for 50 iterations
       DO i = 1, 50
-         z = 0.0_dp
          d = b
          d_min = MAX(d_eps, MINVAL(ABS(b)))
          IF (a_max < a_eps*d_min) RETURN
          tresh = MERGE(a_max, 0.0_dp, (i < 4))
-         a_max = 0.0_dp
+         z = 0.0_dp
          DO ip = 1, n-1
             DO iq = ip+1, n
                dip = d(ip)
@@ -1619,17 +1620,18 @@ CONTAINS
                   CALL jrotate(a(ip, ip+1:iq-1), a(ip+1:iq-1, iq), s, tau)
                   CALL jrotate(a(ip, iq+1:n), a(iq, iq+1:n), s, tau)
                   CALL jrotate(v(:, ip), v(:, iq), s, tau)
-                  a_max = MAX(a_max, ABS(a(ip, iq)))
                ELSE IF ((4 < i) .AND. &
                         ((ABS(dip)+g) == ABS(dip)) .AND. &
                         ((ABS(diq)+g) == ABS(diq))) THEN
                   a(ip, iq) = 0.0_dp
-               ELSE
-                  a_max = MAX(a_max, ABS(a(ip, iq)))
                END IF
             END DO
          END DO
          b = b+z
+         a_max = a(n-1, n)
+         DO ip = 1, n-2
+            a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
+         END DO
       END DO
       WRITE (*, '(/,T2,A,/)') 'Too many iterations in jacobi'
 
@@ -1649,11 +1651,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: a, b
       REAL(KIND=dp), INTENT(IN)                          :: ss, tt
 
+      REAL(KIND=dp)                                      :: d
       REAL(KIND=dp), DIMENSION(SIZE(a))                  :: c
 
-      c(:) = a(:)
-      a(:) = a(:)-ss*(b(:)+a(:)*tt)
-      b(:) = b(:)+ss*(c(:)-b(:)*tt)
+      c(:) = a(:); d = 1-ss*tt
+      a(:) = a(:)*d-b(:)*ss
+      b(:) = b(:)*d+c(:)*ss
 
    END SUBROUTINE jrotate
 
