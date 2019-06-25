@@ -102,15 +102,17 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv maximum implemented derivative of the xc functional
+!> \param print_warn whether to print warning about development status of a functional
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lda_info(libxc_params, reference, shortform, needs, max_deriv)
+   SUBROUTINE libxc_lda_info(libxc_params, reference, shortform, needs, max_deriv, print_warn)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
       TYPE(xc_rho_cflags_type), &
          INTENT(inout), OPTIONAL               :: needs
       INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+      LOGICAL, INTENT(IN), OPTIONAL            :: print_warn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_info', &
                                      routineP = moduleN//':'//routineN
@@ -181,8 +183,10 @@ CONTAINS
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
       END IF
-      IF (xc_libxc_wrap_is_under_development(xc_info)) THEN
-         CPWARN(TRIM(func_name)//" is under development. Use with caution.")
+      IF (PRESENT(print_warn)) THEN
+         IF (print_warn .AND. xc_libxc_wrap_is_under_development(xc_info)) THEN
+            CPWARN(TRIM(func_name)//" is under development. Use with caution.")
+         END IF
       END IF
 
       CALL xc_f03_func_end(xc_func)
@@ -205,15 +209,17 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv maximum implemented derivative of the xc functional
+!> \param print_warn whether to print warning about development status of a functional
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lsd_info(libxc_params, reference, shortform, needs, max_deriv)
+   SUBROUTINE libxc_lsd_info(libxc_params, reference, shortform, needs, max_deriv, print_warn)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
       TYPE(xc_rho_cflags_type), &
          INTENT(inout), OPTIONAL               :: needs
       INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+      LOGICAL, INTENT(IN), OPTIONAL            :: print_warn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_info', &
                                      routineP = moduleN//':'//routineN
@@ -286,8 +292,10 @@ CONTAINS
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
       END IF
-      IF (xc_libxc_wrap_is_under_development(xc_info)) THEN
-         CPWARN(TRIM(func_name)//" is under development. Use with caution.")
+      IF (PRESENT(print_warn)) THEN
+         IF (print_warn .AND. xc_libxc_wrap_is_under_development(xc_info)) THEN
+            CPWARN(TRIM(func_name)//" is under development. Use with caution.")
+         END IF
       END IF
 
       CALL xc_f03_func_end(xc_func)

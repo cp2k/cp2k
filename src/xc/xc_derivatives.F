@@ -141,15 +141,17 @@ CONTAINS
 !> \param needs the flags corresponding to the inputs needed by this
 !>        functional are set to true (the flags not needed aren't touched)
 !> \param max_deriv the maximal derivative available
+!> \param print_warn whether to print warnings (mainly relevant for libxc)
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_functional_get_info(functional, lsd, reference, shortform, &
-                                     needs, max_deriv)
+                                     needs, max_deriv, print_warn)
       TYPE(section_vals_type), POINTER                   :: functional
       LOGICAL, INTENT(in)                                :: lsd
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_warn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
          routineP = moduleN//':'//routineN
@@ -229,9 +231,9 @@ CONTAINS
          ENDIF
       CASE ("LIBXC", "KE_LIBXC")
          IF (lsd) THEN
-            CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv)
+            CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv, print_warn)
          ELSE
-            CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv)
+            CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv, print_warn)
          ENDIF
       CASE ("CS1")
          IF (lsd) THEN

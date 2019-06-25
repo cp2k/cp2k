@@ -82,7 +82,7 @@ CONTAINS
                      NULLIFY (libxc_fun)
                      CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
                      IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
-                     CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform)
+                     CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform, print_warn=.TRUE.)
                      CALL section_vals_release(libxc_fun)
                      CALL libxc_version_info(tmpStr)
                      WRITE (output_unit, fmt="(A,A,A)") ' FUNCTIONAL| LIBXC Vers. ', TRIM(tmpStr(1:5)), &
