@@ -42,7 +42,7 @@ case "$with_elpa" in
                 echo "elpa-${elpa_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${elpa_sha256} \
-                             https://elpa.mpcdf.mpg.de/html/Releases/${elpa_ver}/elpa-${elpa_ver}.tar.gz
+                             https://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
             fi
             [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
             echo "Installing from scratch into ${pkg_install_dir}"
