@@ -342,6 +342,7 @@ CONTAINS
          END DO
       ENDDO
       CALL dbcsr_iterator_stop(iter)
+      DEALLOCATE (kind_of)
 
       CALL timestop(handle)
 

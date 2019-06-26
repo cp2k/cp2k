@@ -264,7 +264,6 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
-      !
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1, h1_psi0, psi0_order
@@ -284,6 +283,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_t
+      TYPE(dbcsr_type), POINTER                          :: matrix_x
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -380,10 +380,18 @@ CONTAINS
          IF (p_env%new_preconditioner) THEN
             p_env%os_valid = .FALSE.
             DO ispin = 1, nspins
-               CALL make_preconditioner(p_env%preconditioner(ispin), &
-                                        linres_control%preconditioner_type, ot_precond_solver_default, &
-                                        matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_t(1)%matrix, &
-                                        mos(ispin)%mo_set, linres_control%energy_gap)
+               IF (ASSOCIATED(matrix_t)) THEN
+                  CALL make_preconditioner(p_env%preconditioner(ispin), &
+                                           linres_control%preconditioner_type, ot_precond_solver_default, &
+                                           matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_t(1)%matrix, &
+                                           mos(ispin)%mo_set, linres_control%energy_gap)
+               ELSE
+                  NULLIFY (matrix_x)
+                  CALL make_preconditioner(p_env%preconditioner(ispin), &
+                                           linres_control%preconditioner_type, ot_precond_solver_default, &
+                                           matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_x, &
+                                           mos(ispin)%mo_set, linres_control%energy_gap)
+               END IF
             ENDDO
             p_env%new_preconditioner = .FALSE.
          ENDIF
