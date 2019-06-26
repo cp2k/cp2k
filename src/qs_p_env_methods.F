@@ -192,7 +192,6 @@ CONTAINS
       IF (PRESENT(p1_option)) THEN
          p_env%p1 => p1_option
       ELSE
-
          CALL dbcsr_allocate_matrix_set(p_env%p1, n_spins)
          DO spin = 1, n_spins
             ALLOCATE (p_env%p1(spin)%matrix)
@@ -284,8 +283,6 @@ CONTAINS
                                             name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0")
 
                ALLOCATE (p_env%ev_h0(n_spins))
-!             CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%ev_h0,&
-!                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%ev_h0")
             END IF
          END IF
 
@@ -372,8 +369,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, lfomo, n_spins, nmo, &
-                                                            output_unit, spin
+      INTEGER                                            :: handle, iounit, lfomo, n_spins, nmo, spin
       LOGICAL                                            :: was_present
       REAL(KIND=dp)                                      :: maxocc
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: my_psi0
@@ -437,7 +433,7 @@ CONTAINS
       ELSE
 
          DO spin = 1, n_spins
-            ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
+            ! m_epsilon=cholesky_decomposition(my_psi0^T S my_psi0)^-1
             ! could be optimized by combining next two calls
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                                          my_psi0(spin)%matrix, &
@@ -507,16 +503,16 @@ CONTAINS
 
       ! updates K (if necessary)
       CALL qs_ks_update_qs_env(qs_env)
-      output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".linresLog")
-      IF (output_unit > 0) THEN
+      iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
+                                    extension=".linresLog")
+      IF (iounit > 0) THEN
          CALL section_vals_get(lr_section, explicit=was_present)
          IF (was_present) THEN
-            WRITE (UNIT=output_unit, FMT="(/,(T3,A,T55,F25.14))") &
+            WRITE (UNIT=iounit, FMT="(/,(T3,A,T55,F25.14))") &
                "Total energy ground state:                     ", energy%total
          END IF
       END IF
-      CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
+      CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
       !-----------------------------------------------------------------------|
       ! calculates                                                            |
@@ -537,10 +533,6 @@ CONTAINS
                       p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                       -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
                       0.0_dp, p_env%m_epsilon(spin)%matrix)
-!   DO i =1,size(p_env%m_epsilon(spin)%matrix%local_data,1)
-!    write(*,'(I4,4f12.6)') i,(p_env%m_epsilon(spin)%matrix%local_data(i,j), j=1,4)
-!   end do
-! stop 'o'
       END DO
 
       !----------------------------------|
@@ -594,8 +586,6 @@ CONTAINS
       INTEGER                                            :: n_spins, spin
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-! code
-
       CPASSERT(ASSOCIATED(p_env))
       CPASSERT(p_env%ref_count > 0)
       NULLIFY (dft_control)
@@ -639,8 +629,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: k_p
       TYPE(dft_control_type), POINTER                    :: dft_control
-
-! code
 
       CALL timeset(routineN, handle)
       NULLIFY (tmp, matrix_ks, matrix_s, dft_control)
@@ -790,8 +778,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: tmp_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-! code
-
       CALL timeset(routineN, handle)
 
       NULLIFY (tmp_matrix, maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
@@ -842,7 +828,7 @@ CONTAINS
                       k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
                       matrix_b=p_env%S_psi0(spin)%matrix, beta=0.0_dp, &
                       matrix_c=tmp_matrix)
-         ! v = v- psi0d tmp_matrix^T = v - psi0d psi0^T S v
+         ! v = v - psi0d tmp_matrix^T = v - psi0d psi0^T S v
          CALL cp_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
                       k=p_env%n_mo(spin), alpha=-1.0_dp, &
                       matrix_a=p_env%psi0d(spin)%matrix, matrix_b=tmp_matrix, &
@@ -886,8 +872,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: maxmo_maxmo_fmstruct, tmp_fmstruct
       TYPE(cp_fm_type), POINTER                          :: tmp_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
-
-! code
 
       CALL timeset(routineN, handle)
 
@@ -939,7 +923,7 @@ CONTAINS
                       k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
                       matrix_b=p_env%psi0d(spin)%matrix, beta=0.0_dp, &
                       matrix_c=tmp_matrix)
-         ! v = v- (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
+         ! v = v - (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
          CALL cp_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
                       k=p_env%n_mo(spin), alpha=-1.0_dp, &
                       matrix_a=p_env%S_psi0(spin)%matrix, matrix_b=tmp_matrix, &

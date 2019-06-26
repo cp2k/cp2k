@@ -1105,7 +1105,6 @@ CONTAINS
                                 print_active=print_active)
 
          IF (.NOT. energy_only) THEN
-
             CALL set_ks_env(ks_env, &
                             rho_changed=.FALSE., &
                             s_mstruct_changed=.FALSE., &

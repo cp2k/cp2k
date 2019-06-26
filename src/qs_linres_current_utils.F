@@ -316,7 +316,7 @@ CONTAINS
          !
          !
          linres_control%converged = .FALSE.
-         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, should_stop)
+         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, output_unit, should_stop)
          !
          !
          ! print response functions
@@ -355,7 +355,7 @@ CONTAINS
          !
          !
          linres_control%converged = .FALSE.
-         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, should_stop)
+         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, output_unit, should_stop)
          !
          ! print response functions
          IF (BTEST(cp_print_key_should_output(logger%iter_info, current_section,&
@@ -501,7 +501,7 @@ CONTAINS
 
                   !
                   ! Optimize the response wavefunctions
-                  CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+                  CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
                   !
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, "(T10,A,/)")&

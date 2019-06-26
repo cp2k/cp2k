@@ -89,8 +89,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, idir, ispin, m, nao, nmo, &
-                                                            nspins, output_unit
+      INTEGER                                            :: handle, idir, iounit, ispin, m, nao, &
+                                                            nmo, nspins
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -114,11 +114,11 @@ CONTAINS
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
 
-      output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".linresLog")
+      iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
+                                    extension=".linresLog")
 
-      IF (output_unit > 0) THEN
-         WRITE (output_unit, "(/,(T2,A))") "POLAR| Starting polarizability calculation", &
+      IF (iounit > 0) THEN
+         WRITE (iounit, "(/,(T2,A))") "POLAR| Starting polarizability calculation", &
             "POLAR| Initialization of the polar environment"
       ENDIF
 
@@ -141,6 +141,7 @@ CONTAINS
       nspins = dft_control%nspins
 
       CALL section_vals_val_get(polar_section, "DO_RAMAN", l_val=polar_env%do_raman)
+      CALL section_vals_val_get(polar_section, "PERIODIC_DIPOLE_OPERATOR", l_val=polar_env%do_periodic)
 
       ! Allocate components of the polar environment if needed
       IF (.NOT. ASSOCIATED(polar_env%polar)) THEN
@@ -154,16 +155,6 @@ CONTAINS
          DO ispin = 1, nspins
             DO idir = 1, 3
                CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
-            ENDDO
-         ENDDO
-      ENDIF
-      IF (.NOT. ASSOCIATED(polar_env%mo_derivs)) THEN
-         ALLOCATE (polar_env%mo_derivs(3, nspins))
-      ELSE
-         ! Remove previous matrices
-         DO ispin = 1, nspins
-            DO idir = 1, 3
-               CALL cp_fm_release(polar_env%mo_derivs(idir, ispin)%matrix)
             ENDDO
          ENDDO
       ENDIF
@@ -186,13 +177,12 @@ CONTAINS
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 3
             CALL cp_fm_create(polar_env%dBerry_psi0(idir, ispin)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(polar_env%mo_derivs(idir, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(polar_env%psi1_dBerry(idir, ispin)%matrix, tmp_fm_struct)
          ENDDO
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
 
-      CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
+      CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
       CALL timestop(handle)
@@ -211,12 +201,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_polar', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ispin, nspins, output_unit, z
-      LOGICAL                                            :: do_raman, run_stopped
+      INTEGER                                            :: handle, i, iounit, ispin, nspins, z
+      LOGICAL                                            :: do_periodic, do_raman, run_stopped
       REAL(dp)                                           :: ptmp
       REAL(dp), DIMENSION(:, :), POINTER                 :: polar, polar_tmp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, mo_derivs, psi1_dBerry
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, psi1_dBerry
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -225,9 +215,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (cell, dft_control, polar, psi1_dBerry, logger)
-      NULLIFY (mos, dBerry_psi0, mo_derivs)
+      NULLIFY (mos, dBerry_psi0)
       logger => cp_get_default_logger()
-      output_unit = cp_logger_get_default_io_unit(logger)
+      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -246,13 +236,10 @@ CONTAINS
          CALL cite_reference(Luber2014)
 
          CALL get_polar_env(polar_env=polar_env, &
+                            do_periodic=do_periodic, &
                             dBerry_psi0=dBerry_psi0, &
-                            mo_derivs=mo_derivs, &
                             polar=polar, &
                             psi1_dBerry=psi1_dBerry)
-
-!    polar_section => section_vals_get_subs_vals(qs_env%input, &
-!         & "PROPERTIES%LINRES%POLAR")
 
          ! Initialize
          ALLOCATE (polar_tmp(3, 3))
@@ -261,17 +248,20 @@ CONTAINS
          DO i = 1, 3 ! directions of electric field
             DO z = 1, 3 !dipole directions
                DO ispin = 1, dft_control%nspins
-!SL compute trace
+                  !SL compute trace
                   ptmp = 0.0_dp
-                  CALL cp_fm_trace(psi1_dBerry(i, ispin)%matrix, mo_derivs(z, ispin)%matrix, ptmp)
-                  polar_tmp(i, z) = polar_tmp(i, z)+ptmp
+                  CALL cp_fm_trace(psi1_dBerry(i, ispin)%matrix, dBerry_psi0(z, ispin)%matrix, ptmp)
+                  polar_tmp(i, z) = polar_tmp(i, z)-2.0_dp*ptmp
                END DO
-               polar_tmp(i, z) = 2.0_dp*polar_tmp(i, z)/(twopi*twopi)
             END DO
          END DO !spin
 
-         polar(:, :) = MATMUL(MATMUL(cell%hmat, polar_tmp), TRANSPOSE(cell%hmat))
-!SL evtl maxocc instead?
+         IF (do_periodic) THEN
+            polar(:, :) = MATMUL(MATMUL(cell%hmat, polar_tmp), TRANSPOSE(cell%hmat))/(twopi*twopi)
+         ELSE
+            polar(:, :) = polar_tmp(:, :)
+         END IF
+         !SL evtl maxocc instead?
          IF (dft_control%nspins == 1) THEN
             polar(:, :) = 2.0_dp*polar(:, :)
          END IF
@@ -282,7 +272,6 @@ CONTAINS
 
       ENDIF ! do_raman
 
-      ! Finalize
       CALL timestop(handle)
 
    END SUBROUTINE polar_polar
@@ -300,7 +289,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'polar_print', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: description
-      INTEGER                                            :: output_unit, unit_p
+      INTEGER                                            :: iounit, unit_p
       LOGICAL                                            :: do_raman, run_stopped
       REAL(dp), DIMENSION(:, :), POINTER                 :: polar
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -319,7 +308,7 @@ CONTAINS
                       para_env=para_env)
 
       logger => cp_get_default_logger()
-      output_unit = cp_logger_get_default_io_unit(logger)
+      iounit = cp_logger_get_default_io_unit(logger)
 
       polar_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES%POLAR")
 
@@ -340,7 +329,7 @@ CONTAINS
             unit_p = cp_print_key_unit_nr(logger, polar_section, "PRINT%POLAR_MATRIX", &
                                           extension=".data", middle_name="raman", log_filename=.FALSE.)
             IF (unit_p > 0) THEN
-               IF (unit_p /= output_unit) THEN
+               IF (unit_p /= iounit) THEN
                   WRITE (unit_p, *)
                   WRITE (unit_p, '(T10,A)') 'POLARIZABILITY TENSOR (atomic units):'
                   WRITE (unit_p, '(T10,A,3F15.5)') "xx,yy,zz", polar(1, 1), polar(2, 2), polar(3, 3)
@@ -358,18 +347,18 @@ CONTAINS
                ENDIF
             ENDIF
          ENDIF
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, *)
-            WRITE (output_unit, '(T2,A)') 'POLAR| POLARIZABILITY TENSOR (atomic units):'
-            WRITE (output_unit, '(T2,A,3F15.5)') "POLAR| xx,yy,zz", polar(1, 1), polar(2, 2), polar(3, 3)
-            WRITE (output_unit, '(T2,A,3F15.5)') "POLAR| xy,xz,yz", polar(1, 2), polar(1, 3), polar(2, 3)
-            WRITE (output_unit, '(T2,A,3F15.5)') "POLAR| yx,zx,zy", polar(2, 1), polar(3, 1), polar(3, 2)
-            WRITE (output_unit, '(T2,A)') 'POLAR| POLARIZABILITY TENSOR (Angstrom^3):'
-            WRITE (output_unit, '(T2,A,3F15.5)') "POLAR| xx,yy,zz", polar(1, 1)*angstrom**3, &
+         IF (iounit > 0) THEN
+            WRITE (iounit, *)
+            WRITE (iounit, '(T2,A)') 'POLAR| POLARIZABILITY TENSOR (atomic units):'
+            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xx,yy,zz", polar(1, 1), polar(2, 2), polar(3, 3)
+            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xy,xz,yz", polar(1, 2), polar(1, 3), polar(2, 3)
+            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| yx,zx,zy", polar(2, 1), polar(3, 1), polar(3, 2)
+            WRITE (iounit, '(T2,A)') 'POLAR| POLARIZABILITY TENSOR (Angstrom^3):'
+            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xx,yy,zz", polar(1, 1)*angstrom**3, &
                polar(2, 2)*angstrom**3, polar(3, 3)*angstrom**3
-            WRITE (output_unit, '(T2,A,3F15.5)') "POLAR| xy,xz,yz", polar(1, 2)*angstrom**3, &
+            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xy,xz,yz", polar(1, 2)*angstrom**3, &
                polar(1, 3)*angstrom**3, polar(2, 3)*angstrom**3
-            WRITE (output_unit, '(T2,A,3F15.5)') "POLAR| yx,zx,zy", polar(2, 1)*angstrom**3, &
+            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| yx,zx,zy", polar(2, 1)*angstrom**3, &
                polar(3, 1)*angstrom**3, polar(3, 2)*angstrom**3
          END IF
       END IF
@@ -390,9 +379,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_response', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, idir, ispin, nao, nmo, nspins, &
-                                                            output_unit
-      LOGICAL                                            :: do_raman, should_stop
+      INTEGER                                            :: handle, idir, iounit, ispin, nao, nmo, &
+                                                            nspins
+      LOGICAL                                            :: do_periodic, do_raman, should_stop
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi0_order, psi1, psi1_ptr
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
@@ -406,8 +395,6 @@ CONTAINS
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(section_vals_type), POINTER                   :: lr_section, polar_section
 
-!MK      REAL(dp)                                           :: chk, fro
-
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, linres_control, lr_section, polar_section)
@@ -419,10 +406,10 @@ CONTAINS
       polar_section => section_vals_get_subs_vals(qs_env%input, &
                                                   "PROPERTIES%LINRES%POLAR")
 
-      output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".linresLog")
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(T2,A,/)") &
+      iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
+                                    extension=".linresLog")
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(T2,A,/)") &
             "POLAR| Self consistent optimization of the response wavefunctions"
       ENDIF
 
@@ -436,8 +423,7 @@ CONTAINS
 
       nspins = dft_control%nspins
 
-      CALL get_polar_env(polar_env=polar_env, &
-                         do_raman=do_raman)
+      CALL get_polar_env(polar_env=polar_env, do_raman=do_raman, do_periodic=do_periodic)
 
       ! Allocate the vectors
       ALLOCATE (psi0_order(nspins))
@@ -454,7 +440,6 @@ CONTAINS
          CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       ENDDO
-!MK      chk = 0.0_dp
 
       IF (do_raman) THEN
          CALL get_polar_env(polar_env=polar_env, &
@@ -474,9 +459,14 @@ CONTAINS
             ENDDO
          ENDIF
          loop_idir: DO idir = 1, 3
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, "(/,T2,A)") &
-                  "POLAR| Response to the perturbation operator Berry phase_"//ACHAR(idir+119)
+            IF (iounit > 0) THEN
+               IF (do_periodic) THEN
+                  WRITE (iounit, "(/,T2,A)") &
+                     "POLAR| Response to the perturbation operator Berry phase_"//ACHAR(idir+119)
+               ELSE
+                  WRITE (iounit, "(/,T2,A)") &
+                     "POLAR| Response to the perturbation operator R_"//ACHAR(idir+119)
+               END IF
             ENDIF
             ! Do scf cycle to optimize psi1
             DO ispin = 1, nspins
@@ -487,18 +477,12 @@ CONTAINS
             linres_control%lr_triplet = .FALSE. ! we do singlet response
             linres_control%do_kernel = .TRUE. ! we do coupled response
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
 
             ! Copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_dBerry(idir, ispin)%matrix)
-!MK               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
-!MK               chk = chk+fro
             ENDDO
-            !
-!MK            IF (output_unit > 0) THEN
-!MK               WRITE (output_unit, "(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
-!MK            ENDIF
             !
             ! Write the new result to the restart file
             IF (linres_control%linres_restart) THEN
@@ -510,11 +494,6 @@ CONTAINS
 
       CALL set_polar_env(polar_env, run_stopped=should_stop)
 
-      ! print the checksum
-      !   IF(output_unit>0) THEN
-      !      WRITE(output_unit,'(T2,A,E23.16)') 'polar| response: CheckSum =',chk
-      !   ENDIF
-
       ! Clean up
       DO ispin = 1, nspins
          CALL cp_fm_release(psi1(ispin)%matrix)
@@ -522,7 +501,7 @@ CONTAINS
       ENDDO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
 
-      CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
+      CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
       CALL timestop(handle)
@@ -554,7 +533,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
-      INTEGER                                            :: output_unit
+      INTEGER                                            :: iounit
       LOGICAL                                            :: do_raman, new_file, run_stopped
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: polar
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -579,24 +558,24 @@ CONTAINS
                my_act = "WRITE"
                IF (PRESENT(pos)) my_pos = pos
                IF (PRESENT(act)) my_act = act
-               output_unit = cp_print_key_unit_nr(logger, motion_section, "PRINT%POLAR_MATRIX", &
-                                                  extension=".polar", file_position=my_pos, &
-                                                  file_action=my_act, file_form="FORMATTED", &
-                                                  is_new_file=new_file)
+               iounit = cp_print_key_unit_nr(logger, motion_section, "PRINT%POLAR_MATRIX", &
+                                             extension=".polar", file_position=my_pos, &
+                                             file_action=my_act, file_form="FORMATTED", &
+                                             is_new_file=new_file)
             ELSE
-               output_unit = 0
+               iounit = 0
             END IF
-            IF (output_unit > 0) THEN
+            IF (iounit > 0) THEN
                IF (new_file) THEN
-                  WRITE (UNIT=output_unit, FMT='(A,9(11X,A2," [a.u.]"),6X,A)') &
+                  WRITE (UNIT=iounit, FMT='(A,9(11X,A2," [a.u.]"),6X,A)') &
                      "#   Step   Time [fs]", "xx", "xy", "xz", "yx", "yy", "yz", "zx", "zy", "zz"
                END IF
-               WRITE (UNIT=output_unit, FMT='(I8,F12.3,9(1X,F19.8))') itimes, time, &
+               WRITE (UNIT=iounit, FMT='(I8,F12.3,9(1X,F19.8))') itimes, time, &
                   polar(1, 1), polar(1, 2), polar(1, 3), &
                   polar(2, 1), polar(2, 2), polar(2, 3), &
                   polar(3, 1), polar(3, 2), polar(3, 3)
-               CALL m_flush(output_unit)
-               CALL cp_print_key_finished_output(output_unit, logger, motion_section, "PRINT%POLAR_MATRIX")
+               CALL m_flush(iounit)
+               CALL cp_print_key_finished_output(iounit, logger, motion_section, "PRINT%POLAR_MATRIX")
             END IF
          END IF ! polar_env
       END IF ! qs_env

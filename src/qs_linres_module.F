@@ -96,6 +96,8 @@ MODULE qs_linres_module
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
 
+! **************************************************************************************************
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -157,7 +159,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, output_unit
+      INTEGER                                            :: handle, iounit
       LOGICAL                                            :: epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
                                                             polar_present
@@ -183,8 +185,8 @@ CONTAINS
 
       IF (lr_calculation) THEN
          CALL linres_init(lr_section, p_env, qs_env)
-         output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                            extension=".linresLog")
+         iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
+                                       extension=".linresLog")
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
                          linres_control=linres_control)
 
@@ -199,7 +201,7 @@ CONTAINS
 
          IF (nmr_present .OR. epr_present) THEN
             CALL nmr_epr_linres(linres_control, qs_env, p_env, dft_control, &
-                                nmr_present, epr_present, output_unit)
+                                nmr_present, epr_present, iounit)
          ENDIF
 
          ! We do the indirect spin-spin coupling calculation
@@ -221,24 +223,14 @@ CONTAINS
 
          CALL p_env_release(p_env)
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T25,A,/,T3,A,/)") &
-               REPEAT("=", 77), &
+         IF (iounit > 0) THEN
+            WRITE (UNIT=iounit, FMT="(/,T2,A,/,T25,A,/,T2,A,/)") &
+               REPEAT("=", 79), &
                "ENDED LINRES CALCULATION", &
-               REPEAT("=", 77)
+               REPEAT("=", 79)
          END IF
-         CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
+         CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                            "PRINT%PROGRAM_RUN_INFO")
-!!    ELSE
-!       output_unit = cp_logger_get_default_io_unit(logger)
-!       IF(output_unit>0) THEN
-!          WRITE (output_unit, "(2X,A)") "",&
-!               "-----------------------------------------------------------------------------",&
-!               "-              No LR calculation has been specified in the input            -",&
-!               "                        cp2k is going to stop, bye bye                       ",&
-!               "-----------------------------------------------------------------------------",&
-!               ""
-!       END IF
       END IF
 
       CALL timestop(handle)
@@ -265,7 +257,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ispin, output_unit
+      INTEGER                                            :: iounit, ispin
       LOGICAL                                            :: do_it
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, rho_ao
@@ -277,8 +269,8 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".linresLog")
+      iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
+                                    extension=".linresLog")
       NULLIFY (dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
       CPASSERT(.NOT. ASSOCIATED(p_env))
@@ -295,10 +287,10 @@ CONTAINS
       CALL section_vals_val_get(loc_section, "_SECTION_PARAMETERS_", &
                                 l_val=linres_control%localized_psi0)
       IF (linres_control%localized_psi0) THEN
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,A)") &
-               "Localization of the ground state orbitals", &
-               " before starting the linear response calculation"
+         IF (iounit > 0) THEN
+            WRITE (UNIT=iounit, FMT="(/,T3,A,A)") &
+               "Localization of ground state orbitals", &
+               " before starting linear response calculation"
          END IF
 
          CALL linres_localize(qs_env, linres_control, dft_control%nspins)
@@ -306,62 +298,67 @@ CONTAINS
          DO ispin = 1, dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set, rho_ao(ispin)%matrix)
          ENDDO
-! ** update qs_env%rho
+         ! ** update qs_env%rho
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
       END IF
 
       CALL section_vals_val_get(lr_section, "RESTART", l_val=linres_control%linres_restart)
       CALL section_vals_val_get(lr_section, "MAX_ITER", i_val=linres_control%max_iter)
       CALL section_vals_val_get(lr_section, "EPS", r_val=linres_control%eps)
+      CALL section_vals_val_get(lr_section, "EPS_FILTER", r_val=linres_control%eps_filter)
       CALL section_vals_val_get(lr_section, "RESTART_EVERY", i_val=linres_control%restart_every)
       CALL section_vals_val_get(lr_section, "PRECONDITIONER", i_val=linres_control%preconditioner_type)
       CALL section_vals_val_get(lr_section, "ENERGY_GAP", r_val=linres_control%energy_gap)
 
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T25,A,/,T3,A,/)") &
-            REPEAT("=", 77), &
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A,/,T25,A,/,T2,A,/)") &
+            REPEAT("=", 79), &
             "START LINRES CALCULATION", &
-            REPEAT("=", 77)
+            REPEAT("=", 79)
 
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,/)") &
+         WRITE (UNIT=iounit, FMT="(T2,A)") &
             "LINRES| Properties to be calulated:"
-         CALL section_vals_val_get(lr_section, "NMR%_SECTION_PARAMETERS_", &
-                                   l_val=do_it)
-         IF (do_it) WRITE (UNIT=output_unit, FMT="(T45,A)") &
-            "NMR Chemical Shift"
+         CALL section_vals_val_get(lr_section, "NMR%_SECTION_PARAMETERS_", l_val=do_it)
+         IF (do_it) WRITE (UNIT=iounit, FMT="(T62,A)") "NMR Chemical Shift"
+         CALL section_vals_val_get(lr_section, "EPR%_SECTION_PARAMETERS_", l_val=do_it)
+         IF (do_it) WRITE (UNIT=iounit, FMT="(T68,A)") "EPR g Tensor"
+         CALL section_vals_val_get(lr_section, "SPINSPIN%_SECTION_PARAMETERS_", l_val=do_it)
+         IF (do_it) WRITE (UNIT=iounit, FMT="(T43,A)") "Indirect spin-spin coupling constants"
+         CALL section_vals_val_get(lr_section, "POLAR%_SECTION_PARAMETERS_", l_val=do_it)
+         IF (do_it) WRITE (UNIT=iounit, FMT="(T57,A)") "Electric Polarizability"
 
-         IF (linres_control%localized_psi0) WRITE (UNIT=output_unit, FMT="(T2,A,T65,A)") &
+         IF (linres_control%localized_psi0) WRITE (UNIT=iounit, FMT="(T2,A,T65,A)") &
             "LINRES|", " LOCALIZED PSI0"
 
-         WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+         WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
             "LINRES| Optimization algorithm", " Conjugate Gradients"
 
          SELECT CASE (linres_control%preconditioner_type)
          CASE (ot_precond_none)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+            WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
                "LINRES| Preconditioner", "                NONE"
          CASE (ot_precond_full_single)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+            WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
                "LINRES| Preconditioner", "         FULL_SINGLE"
          CASE (ot_precond_full_kinetic)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+            WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
                "LINRES| Preconditioner", "        FULL_KINETIC"
          CASE (ot_precond_s_inverse)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+            WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
                "LINRES| Preconditioner", "      FULL_S_INVERSE"
          CASE (ot_precond_full_single_inverse)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+            WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
                "LINRES| Preconditioner", " FULL_SINGLE_INVERSE"
          CASE (ot_precond_full_all)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T60,A)") &
+            WRITE (UNIT=iounit, FMT="(T2,A,T60,A)") &
                "LINRES| Preconditioner", "            FULL_ALL"
          CASE DEFAULT
             CPABORT("Preconditioner NYI")
          END SELECT
 
-         WRITE (UNIT=output_unit, FMT="(T2,A,T72,ES8.1)") &
+         WRITE (UNIT=iounit, FMT="(T2,A,T72,ES8.1)") &
             "LINRES| EPS", linres_control%eps
-         WRITE (UNIT=output_unit, FMT="(T2,A,T72,I8)") &
+         WRITE (UNIT=iounit, FMT="(T2,A,T72,I8)") &
             "LINRES| MAX_ITER", linres_control%max_iter
       END IF
 
@@ -373,10 +370,9 @@ CONTAINS
       ! update the m_epsilon matrix
       CALL p_env_psi0_changed(p_env, qs_env)
 
-      ! calculate eigenvectros and eigenvalues of K
       p_env%os_valid = .FALSE.
       p_env%new_preconditioner = .TRUE.
-      CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
+      CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
    END SUBROUTINE linres_init
@@ -389,16 +385,16 @@ CONTAINS
 !> \param dft_control ...
 !> \param nmr_present ...
 !> \param epr_present ...
-!> \param output_unit ...
+!> \param iounit ...
 ! **************************************************************************************************
-   SUBROUTINE nmr_epr_linres(linres_control, qs_env, p_env, dft_control, nmr_present, epr_present, output_unit)
+   SUBROUTINE nmr_epr_linres(linres_control, qs_env, p_env, dft_control, nmr_present, epr_present, iounit)
 
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL                                            :: nmr_present, epr_present
-      INTEGER                                            :: output_unit
+      INTEGER                                            :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_epr_linres', routineP = moduleN//':'//routineN
 
@@ -484,8 +480,8 @@ CONTAINS
          ENDIF
          !
       ELSE
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, "(T10,A,/T20,A,/)") &
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(T10,A,/T20,A,/)") &
                "CURRENT: Not all responses to perturbation operators could be calculated.", &
                " Hence: NO nmr and NO epr possible."
          END IF
