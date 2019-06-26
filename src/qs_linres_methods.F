@@ -64,9 +64,14 @@ MODULE qs_linres_methods
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              lri_environment_type,&
+                                              lri_kind_type
+   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_sum
    USE mulliken,                        ONLY: ao_charges
    USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: apply_preconditioner,&
@@ -94,7 +99,9 @@ MODULE qs_linres_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
-   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
+                                              integrate_v_rspace_diagonal,&
+                                              integrate_v_rspace_one_center
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -834,15 +841,21 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_dft', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, ncol, ns, nspins
+      INTEGER                                            :: handle, ikind, ispin, ncol, nkind, ns, &
+                                                            nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lsd
+      LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw, lsd
       REAL(KIND=dp)                                      :: energy_hartree, energy_hartree_1c, fac
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, rho1_ao, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
@@ -886,6 +899,14 @@ CONTAINS
                       rho=rho, &
                       linres_control=linres_control, &
                       dft_control=dft_control)
+
+      lrigpw = dft_control%qs_control%lrigpw
+      IF (lrigpw) THEN
+         CALL get_qs_env(qs_env, &
+                         lri_env=lri_env, &
+                         lri_density=lri_density, &
+                         atomic_kind_set=atomic_kind_set)
+      ENDIF
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -1116,11 +1137,32 @@ CONTAINS
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
             CALL dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
 
-            CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
-                                    pmat=rho_ao(ispin), &
-                                    hmat=p_env%kpp1_env%v_ao(ispin), &
-                                    qs_env=qs_env, &
-                                    calculate_forces=.FALSE., gapw=gapw)
+            IF (lrigpw) THEN
+               lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+               CALL get_qs_env(qs_env, para_env=para_env, nkind=nkind)
+               DO ikind = 1, nkind
+                  lri_v_int(ikind)%v_int = 0.0_dp
+               END DO
+               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+                                                  lri_v_int, .FALSE., "LRI_AUX")
+               DO ikind = 1, nkind
+                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+               END DO
+               ALLOCATE (k1mat(1))
+               k1mat(1)%matrix => p_env%kpp1_env%v_ao(ispin)%matrix
+               IF (lri_env%exact_1c_terms) THEN
+                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin), k1mat(1)%matrix, &
+                                                   rho_ao(ispin)%matrix, qs_env, .FALSE., "ORB")
+               END IF
+               CALL calculate_lri_ks_matrix(lri_env, lri_v_int, k1mat, atomic_kind_set)
+               DEALLOCATE (k1mat)
+            ELSE
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+                                       pmat=rho_ao(ispin), &
+                                       hmat=p_env%kpp1_env%v_ao(ispin), &
+                                       qs_env=qs_env, &
+                                       calculate_forces=.FALSE., gapw=gapw)
+            END IF
 
          END IF
 
