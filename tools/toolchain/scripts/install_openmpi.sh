@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openmpi_ver="3.1.3"
-openmpi_sha256="0254627d8a9b12a8f50213ed01e7a94dd7e91b340abf5c53bcf0b89afe6fb77d"
+openmpi_ver="4.0.1"
+openmpi_sha256="e55e213fe09a214ab9f2c722acfd8bf7b39bbc1800e4b7a464d38df15e707f59"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -48,7 +48,7 @@ case "$with_openmpi" in
                [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ] ; then
                 CFLAGS="${CFLAGS} -fgnu89-inline"
             fi
-            ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" CFLAGS="${CFLAGS}" > configure.log 2>&1
+            ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-mpi1-compatibility CFLAGS="${CFLAGS}" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..
