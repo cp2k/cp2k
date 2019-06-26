@@ -3,10 +3,6 @@
  *  Copyright (C) 2000 - 2019  CP2K developers group                         *
  *****************************************************************************/
 
-/******************************************************************************
- *  Author: Arjun Ramaswami
- *****************************************************************************/
-
 #if defined ( __PW_FPGA )
 
 // global dependencies
@@ -14,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdbool.h>
 
 // common dependencies
 #include "CL/opencl.h"
@@ -23,39 +18,18 @@
 #include "fft_fpga.h"
 #include "opencl_utils.h"
 
-// host variables
-static cl_platform_id platform = NULL;
-static cl_device_id device = NULL;
-static cl_context context = NULL;
-static cl_program program = NULL;
-
-static cl_command_queue queue1 = NULL, queue2 = NULL, queue3 = NULL;
-static cl_command_queue queue4 = NULL, queue5 = NULL, queue6 = NULL;
-
-static cl_kernel fft_kernel = NULL, fft_kernel_2 = NULL;
-static cl_kernel fetch_kernel = NULL, transpose_kernel = NULL, transpose_kernel_2 = NULL;
-
-// Device memory buffers
-cl_mem d_inData, d_outData;
-
-// Global Variables
-static cl_int status = 0;
-static int fft_size[3] = {0,0,0};
-bool fft_size_changed = true;
-
 // Function prototypes
-bool init();
+int init();
 void cleanup();
-void init_program(char *data_path);
+void init_program(int N[3], char *data_path);
 void queue_setup();
 void queue_cleanup();
-void fftfpga_run_3d(bool inverse, cmplx *c_in);
+void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in);
 
 // --- CODE -------------------------------------------------------------------
 
 int pw_fpga_initialize_(){
-   status = init();
-   return status;
+   return init();
 }
 
 void pw_fpga_final_(){
@@ -65,12 +39,16 @@ void pw_fpga_final_(){
 /******************************************************************************
  * \brief  check whether FFT3d can be computed on the FPGA or not. This depends 
  *         on the availability of bitstreams whose sizes are for now listed here 
- *         The var fft_size_changed indicates whether a new binary needs to be 
- *         loaded before execution. 
+ *         If the fft sizes are found and the FPGA is not setup before, it is done
+ * \param  data_path_len - length of the path to the data directory
+ * \param  data_path - path to the data directory
  * \param  N - integer pointer to the size of the FFT3d
  * \retval true if fft3d size supported
  *****************************************************************************/
-bool pw_fpga_check_bitstream_(int N[3]){
+int pw_fpga_check_bitstream_(int data_path_len, char *data_path, int N[3]){
+    static int fft_size[3] = { 0, 0, 0};
+    data_path[data_path_len] = '\0';
+
     // check the supported sizes
     if( (N[0] == 16 && N[1] == 16 && N[2] == 16) ||
         (N[0] == 32 && N[1] == 32 && N[2] == 32) ||
@@ -79,13 +57,13 @@ bool pw_fpga_check_bitstream_(int N[3]){
         // if previously used binary needs to be executed again, otherwise set
         // the new size and load new binary
         if( fft_size[0] == N[0] && fft_size[1] == N[1] && fft_size[2] == N[2] ){
-            fft_size_changed = false;
         }
         else{
             fft_size[0] = N[0];
             fft_size[1] = N[1];
             fft_size[2] = N[2];
-            fft_size_changed = true;
+
+            init_program(fft_size, data_path);
         }
         return 1;
     }
@@ -96,29 +74,20 @@ bool pw_fpga_check_bitstream_(int N[3]){
 
 /******************************************************************************
  * \brief   compute an in-place single precision complex 3D-FFT on the FPGA
- * \param   data_path_len - length of the path to the data directory
- * \param   data_path - path to the data directory 
  * \param   direction : direction - 1/forward, otherwise/backward FFT3d
  * \param   N   : integer pointer to size of FFT3d  
  * \param   din : complex input/output single precision data pointer 
  *****************************************************************************/
-void pw_fpga_fft3d_sp_(int data_path_len, char *data_path, int direction, int N[3], cmplx *din) {
-
-  data_path[data_path_len] = '\0';
+void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
 
   queue_setup();
 
-  // If fft size changes, need to rebuild program using another binary
-  if(fft_size_changed == true){
-    init_program(data_path);
-  }
-
   // setup device specific constructs 
   if(direction == 1){
-    fftfpga_run_3d(0, din);
+    fftfpga_run_3d(0, N, din);
   }
   else{
-    fftfpga_run_3d(1, din);
+    fftfpga_run_3d(1, N, din);
   }
 
   queue_cleanup();
@@ -126,29 +95,19 @@ void pw_fpga_fft3d_sp_(int data_path_len, char *data_path, int direction, int N[
 
 /******************************************************************************
  * \brief   compute an in-place double precision complex 3D-FFT on the FPGA
- * \param   data_path_len - length of the path to the data directory
- * \param   data_path - path to the data directory 
  * \param   direction : direction - 1/forward, otherwise/backward FFT3d
  * \param   N   : integer pointer to size of FFT3d  
  * \param   din : complex input/output single precision data pointer 
  *****************************************************************************/
-void pw_fpga_fft3d_dp_(int data_path_len, char *data_path, int direction, int N[3], cmplx *din) {
-
-  data_path[data_path_len] = '\0';
-
+void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
   queue_setup();
-
-  // If fft size changes, need to rebuild program using another binary
-  if(fft_size_changed == true){
-    init_program(data_path);
-  }
 
   // setup device specific constructs 
   if(direction == 1){
-    fftfpga_run_3d(0, din);
+    fftfpga_run_3d(0, N, din);
   }
   else{
-    fftfpga_run_3d(1, din);
+    fftfpga_run_3d(1, N, din);
   }
 
   queue_cleanup();
@@ -156,20 +115,20 @@ void pw_fpga_fft3d_dp_(int data_path_len, char *data_path, int direction, int N[
 
 /******************************************************************************
  * \brief   Execute a single precision complex FFT3d
- * \param   inverse : boolean
+ * \param   inverse : int
  * \param   N       : integer pointer to size of FFT3d  
  * \param   din     : complex input/output single precision data pointer 
  *****************************************************************************/
-void fftfpga_run_3d(bool inverse, cmplx *c_in) {
-
+void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
+  cl_int status = 0;
   int inverse_int = inverse;
-  cmplx *h_inData = (cmplx *)alignedMalloc(sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2]);
-  cmplx *h_outData = (cmplx *)alignedMalloc(sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2]);
+  cmplx *h_inData = (cmplx *)alignedMalloc(sizeof(cmplx) * N[0] * N[1] * N[2]);
+  cmplx *h_outData = (cmplx *)alignedMalloc(sizeof(cmplx) * N[0] * N[1] * N[2]);
 
-  memcpy(h_inData, c_in, sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2]);
+  memcpy(h_inData, c_in, sizeof(cmplx) * N[0] * N[1] * N[2]);
 
   // Copy data from host to device
-  status = clEnqueueWriteBuffer(queue6, d_inData, CL_TRUE, 0, sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2], h_inData, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(queue6, d_inData, CL_TRUE, 0, sizeof(cmplx) * N[0] * N[1] * N[2], h_inData, 0, NULL, NULL);
   checkError(status, "Failed to copy data to device");
 
   status = clFinish(queue6);
@@ -213,10 +172,10 @@ void fftfpga_run_3d(bool inverse, cmplx *c_in) {
   checkError(status, "failed to finish");
 
   // Copy results from device to host
-  status = clEnqueueReadBuffer(queue3, d_outData, CL_TRUE, 0, sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2], h_outData, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue3, d_outData, CL_TRUE, 0, sizeof(cmplx) * N[0] * N[1] * N[2], h_outData, 0, NULL, NULL);
   checkError(status, "Failed to read data from device");
 
-  memcpy(c_in, h_outData, sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2] );
+  memcpy(c_in, h_outData, sizeof(cmplx) * N[0] * N[1] * N[2] );
 
   if (h_outData)
 	  free(h_outData);
@@ -228,13 +187,13 @@ void fftfpga_run_3d(bool inverse, cmplx *c_in) {
  * \brief   Initialize the OpenCL FPGA environment
  * \retval  true if error in initialization
  *****************************************************************************/
-bool init() {
-
+int init() {
+  cl_int status = 0;
   // Get the OpenCL platform.
   platform = findPlatform("Intel(R) FPGA");
   if(platform == NULL) {
     printf("ERROR: Unable to find Intel(R) FPGA OpenCL platform\n");
-    return true;
+    return 1;
   }
 
   // Query the available OpenCL devices.
@@ -249,16 +208,16 @@ bool init() {
   checkError(status, "Failed to create context");
 
   free(devices);
-  return false;
+  return 0;
 }
 
 /******************************************************************************
  * \brief   Initialize the program and its kernels
  *****************************************************************************/
-void init_program(char *data_path){
-
+void init_program(int N[3], char *data_path){
+  cl_int status = 0;
   // Create the program.
-  program = getProgramWithBinary(context, &device, 1, fft_size, data_path);
+  program = getProgramWithBinary(context, &device, 1, N, data_path);
   if(program == NULL) {
     printf("Failed to create program");
     exit(0);
@@ -280,9 +239,9 @@ void init_program(char *data_path){
   transpose_kernel_2 = clCreateKernel(program, "transpose3d", &status);
   checkError(status, "Failed to create transpose3d kernel");
 
-  d_inData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2], NULL, &status);
+  d_inData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * N[0] * N[1] * N[2], NULL, &status);
   checkError(status, "Failed to allocate input device buffer\n");
-  d_outData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * fft_size[0] * fft_size[1] * fft_size[2], NULL, &status);
+  d_outData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * N[0] * N[1] * N[2], NULL, &status);
   checkError(status, "Failed to allocate output device buffer\n");
 }
 
@@ -290,6 +249,7 @@ void init_program(char *data_path){
  * \brief   Create a command queue for each kernel
  *****************************************************************************/
 void queue_setup(){
+  cl_int status = 0;
   // Create one command queue for each kernel.
   queue1 = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   checkError(status, "Failed to create command queue1");

@@ -33,13 +33,28 @@ int pw_fpga_initialize_();
 void pw_fpga_final_();
 
 // Single precision FFT3d procedure
-void pw_fpga_fft3d_sp_(int data_path_len, char *data_path, int direction, int N[3], cmplx *din);
+void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din);
 
 // Double precision FFT3d procedure
-void pw_fpga_fft3d_dp_(int data_path_len, char *data_path, int direction, int N[3], cmplx *din);
+void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din);
 
 // Check fpga bitstream present in directory
-bool pw_fpga_check_bitstream_(int N[3]);
+int pw_fpga_check_bitstream_(int data_path_len, char *data_path, int N[3]);
+
+// host variables
+static cl_platform_id platform = NULL;
+static cl_device_id device = NULL;
+static cl_context context = NULL;
+static cl_program program = NULL;
+
+static cl_command_queue queue1 = NULL, queue2 = NULL, queue3 = NULL;
+static cl_command_queue queue4 = NULL, queue5 = NULL, queue6 = NULL;
+
+static cl_kernel fft_kernel = NULL, fft_kernel_2 = NULL;
+static cl_kernel fetch_kernel = NULL, transpose_kernel = NULL, transpose_kernel_2 = NULL;
+
+// Device memory buffers
+static cl_mem d_inData, d_outData;
 
 #endif
 #endif

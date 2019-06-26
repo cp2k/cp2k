@@ -15,9 +15,7 @@
 #include <math.h>
 #define _USE_MATH_DEFINES
 #include <string.h>
-#include <sys/time.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <unistd.h> // access in fileExists()
 #include "ctype.h"
 
@@ -26,8 +24,10 @@
 
 // function prototype
 static void tolowercase(char *p, char *q);
-static bool getBinaryPath(char *path, int N[3]);
-static char* loadBinary(char *binary_path, size_t *bin_size);
+static int getBinaryPath(char *path, int N[3]);
+static size_t loadBinary(char *binary_path, char **buf);
+void cleanup();
+void queue_cleanup();
 
 // --- CODE -------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ cl_platform_id findPlatform(char *platform_name){
     exit(0);
   }
 
-  // Convert argument string to lowercase compare platform names
+  // Convert argument string to lowercase to compare platform names
   size_t pl_len = strlen(platform_name);
   char name_search[pl_len + 1];
   tolowercase(platform_name, name_search);
@@ -147,8 +147,8 @@ cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
   }
 
   // Load binary to character array
-  binary = loadBinary(bin_path, &bin_size);
-  if(binary == NULL){
+  bin_size = loadBinary(bin_path, &binary);
+  if(bin_size == 0){
     printf("Could not load binary\n");
     free(binary);
     return NULL;
@@ -167,15 +167,15 @@ cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
   return program;
 }
 
-static bool fileTestExists(char* filename){
+static int fileTestExists(char* filename){
   if( access( filename, R_OK ) != -1 ) {
-    return true;
+    return 1;
   } else {
-    return false;
+    return 0;
   }
 }
 
-static bool getBinaryPath(char *path, int N[3]){
+static int getBinaryPath(char *path, int N[3]){
 
 #ifdef __PW_FPGA_SP
   char *subpath = "/../fpgabitstream/fft3d/synthesis_sp/";
@@ -211,37 +211,37 @@ static bool getBinaryPath(char *path, int N[3]){
 
   if (!fileTestExists(path)){
     printf("File not found \n");
-    return false;
+    return 0;
   }
 
-  return true;
+  return 1;
 }
 
-static char* loadBinary(char *binary_path, size_t *bin_size){
+static size_t loadBinary(char *binary_path, char **buf){
 
   FILE *fp;
 
   // Open file and check if it exists
   fp = fopen(binary_path, "rb");
   if(fp == 0){
-    return NULL;
+    return 0;
   }
 
   // Find the size of the file
   fseek(fp, 0L, SEEK_END);
-  *bin_size = ftell(fp);
+  size_t bin_size = ftell(fp);
 
-  char *binary = (char *)malloc(*bin_size);
-  rewind(fp);
+  *buf = (char *)malloc(bin_size);
+  rewind(fp);    // point to beginning of file
 
-  if(fread( (void *)binary, *bin_size, 1, fp) == 0) {
-    free(binary);
+  if(fread((void *)*buf, bin_size, 1, fp) == 0) {
+    free(*buf);
     fclose(fp);
-    return NULL;
+    return 0;
   }
 
   fclose(fp);
-  return binary;
+  return bin_size;
 }
 
 // Minimum alignment requirement to use DMA
@@ -357,6 +357,11 @@ void _checkError(const char *file, int line, const char *func, cl_int err, const
   }
 }
 
+/******************************************************************************
+ * \brief   converts a given null-terminated string to lowercase and stores in q
+ * \param   p : null-terminated string
+ * \param   q : string with (strlen(p)+1) length 
+ *****************************************************************************/
 static void tolowercase(char *p, char *q){
   int i;
   char a;

@@ -13,8 +13,7 @@
 ! **************************************************************************************************
 
 MODULE pw_fpga
-   USE ISO_C_BINDING,                   ONLY: C_BOOL,&
-                                              C_CHAR,&
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_DOUBLE_COMPLEX,&
                                               C_FLOAT_COMPLEX,&
                                               C_INT
@@ -28,7 +27,7 @@ MODULE pw_fpga
    PRIVATE
 
    PUBLIC :: pw_fpga_init, pw_fpga_finalize
-   PUBLIC :: pw_fpga_check_bitstream
+   PUBLIC :: pw_fpga_init_bitstream
    PUBLIC :: pw_fpga_r3dc1d_3d_sp, pw_fpga_c1dr3d_3d_sp
    PUBLIC :: pw_fpga_r3dc1d_3d_dp, pw_fpga_c1dr3d_3d_dp
 
@@ -54,17 +53,20 @@ MODULE pw_fpga
 
    INTERFACE
 ! **************************************************************************************************
-!> \brief Check whether an fpga bitstream for the given FFT3d size is present
-!> \param npts ...
-!> \return res ...
+!> \brief Check whether an fpga bitstream for the given FFT3d size is present & load binary if needed
+!> \param data_path_len - length of the path to the data directory
+!> \param data_path - path to the data directory
+!> \param npts - fft3d size
+!> \return res - true if fft3d size supported
 ! **************************************************************************************************
-      FUNCTION pw_fpga_check_bitstream(n) RESULT(res) &
+      FUNCTION pw_fpga_check_bitstream(data_path_len, data_path, n) RESULT(res) &
          BIND(C, name="pw_fpga_check_bitstream_")
          IMPORT
+         INTEGER(KIND=C_INT), VALUE, INTENT(IN)   :: data_path_len
+         CHARACTER(len=1, kind=C_CHAR), TARGET    :: data_path(data_path_len)
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                            :: n
-         LOGICAL(KIND=C_BOOL)                     :: res
-
+         INTEGER(KIND=C_INT)                     :: res
       END FUNCTION pw_fpga_check_bitstream
 
    END INTERFACE
@@ -72,17 +74,13 @@ MODULE pw_fpga
    INTERFACE
 ! **************************************************************************************************
 !> \brief single precision FFT3d using FPGA
-!> \param data_path_len - length of the path to the data directory
-!> \param data_path - path to the data directory
 !> \param dir - direction of FFT3d
 !> \param npts - dimensions of FFT3d
 !> \param single precision c_in...
 ! **************************************************************************************************
-      SUBROUTINE pw_fpga_fft3d_sp(data_path_len, data_path, dir, n, c_in_sp) &
+      SUBROUTINE pw_fpga_fft3d_sp(dir, n, c_in_sp) &
          BIND(C, name="pw_fpga_fft3d_sp_")
          IMPORT
-         INTEGER(KIND=C_INT), VALUE, INTENT(IN)  :: data_path_len
-         CHARACTER(len=1, kind=C_CHAR), TARGET    :: data_path(data_path_len)
          INTEGER(KIND=C_INT), VALUE, INTENT(IN)   :: dir
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                            :: n
@@ -93,17 +91,13 @@ MODULE pw_fpga
    INTERFACE
 ! **************************************************************************************************
 !> \brief double precision FFT3d using FPGA
-!> \param data_path_len - length of the path to the data directory
-!> \param data_path - path to the data directory
 !> \param dir - direction of FFT3d
 !> \param npts - dimensions of FFT3d
 !> \param double precision c_in...
 ! **************************************************************************************************
-      SUBROUTINE pw_fpga_fft3d_dp(data_path_len, data_path, dir, n, c_in_dp) &
+      SUBROUTINE pw_fpga_fft3d_dp(dir, n, c_in_dp) &
          BIND(C, name="pw_fpga_fft3d_dp_")
          IMPORT
-         INTEGER(KIND=C_INT), VALUE, INTENT(IN)  :: data_path_len
-         CHARACTER(len=1, kind=C_CHAR), TARGET    :: data_path(data_path_len)
          INTEGER(KIND=C_INT), VALUE, INTENT(IN)   :: dir
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                            :: n
@@ -122,12 +116,18 @@ CONTAINS
 
 #if defined (__PW_CUDA)
 #error "CUDA and FPGA cannot be configured concurrently!"
+      CPABORT("CUDA and FPGA cannot be configured concurrently!")
 #endif
-
       stat = pw_fpga_initialize()
       IF (stat /= 0) &
          CPABORT("pw_fpga_init: failed")
 #endif
+
+#if (__PW_FPGA_SP && !(__PW_FPGA))
+#error "Define both __PW_FPGA_SP and __PW_FPGA"
+      CPABORT("Define both __PW_FPGA_SP and __PW_FPGA")
+#endif
+
    END SUBROUTINE pw_fpga_init
 
 ! **************************************************************************************************
@@ -153,16 +153,11 @@ CONTAINS
       MARK_USED(n)
 #else
       INTEGER                                     :: handle3
-      CHARACTER(len=100)                          :: data_path
-      INTEGER                                     :: data_path_len
 
       CHARACTER(len=*), PARAMETER :: routineX = 'fw_fft_fpga_r3dc1d_dp'
 
-      data_path = TRIM(get_data_dir())
-      data_path_len = LEN_TRIM(data_path)
-
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_dp(data_path_len, data_path, +1, n, c_out)
+      CALL pw_fpga_fft3d_dp(+1, n, c_out)
       CALL timestop(handle3)
 
 #endif
@@ -182,16 +177,11 @@ CONTAINS
       MARK_USED(n)
 #else
       INTEGER                                          :: handle3
-      CHARACTER(len=100)                               :: data_path
-      INTEGER                                          :: data_path_len
 
       CHARACTER(len=*), PARAMETER :: routineX = 'bw_fft_fpga_c1dr3d_dp'
 
-      data_path = TRIM(get_data_dir())
-      data_path_len = LEN_TRIM(data_path)
-
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_dp(data_path_len, data_path, -1, n, c_out)
+      CALL pw_fpga_fft3d_dp(-1, n, c_out)
       CALL timestop(handle3)
 
 #endif
@@ -212,20 +202,15 @@ CONTAINS
 #else
       COMPLEX, DIMENSION(:, :, :), POINTER             :: c_in_sp
       INTEGER                                          :: handle3
-      CHARACTER(len=100)                               :: data_path
-      INTEGER                                          :: data_path_len
 
       CHARACTER(len=*), PARAMETER :: routineX = 'fw_fft_fpga_r3dc1d_sp'
-
-      data_path = TRIM(get_data_dir())
-      data_path_len = LEN_TRIM(data_path)
 
       ALLOCATE (c_in_sp(n(1), n(2), n(3)))
       ! pointer to single precision complex array
       c_in_sp = CMPLX(c_out, KIND=sp)
 
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_sp(data_path_len, data_path, +1, n, c_in_sp)
+      CALL pw_fpga_fft3d_sp(+1, n, c_in_sp)
       CALL timestop(handle3)
 
       ! typecast sp back to dp
@@ -252,20 +237,15 @@ CONTAINS
 #else
       COMPLEX, DIMENSION(:, :, :), POINTER             :: c_in_sp
       INTEGER                                          :: handle3
-      CHARACTER(len=100)                               :: data_path
-      INTEGER                                          :: data_path_len
 
       CHARACTER(len=*), PARAMETER :: routineX = 'bw_fft_fpga_c1dr3d_sp'
-
-      data_path = TRIM(get_data_dir())
-      data_path_len = LEN_TRIM(data_path)
 
       ALLOCATE (c_in_sp(n(1), n(2), n(3)))
       ! pointer to single precision complex array
       c_in_sp = CMPLX(c_out, KIND=sp)
 
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_sp(data_path_len, data_path, -1, n, c_in_sp)
+      CALL pw_fpga_fft3d_sp(-1, n, c_in_sp)
       CALL timestop(handle3)
 
       ! typecast sp back to dp
@@ -274,6 +254,31 @@ CONTAINS
       DEALLOCATE (c_in_sp)
 #endif
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief  Invoke the pw_fpga_check_bitstream C function passing the path to the data dir
+!> \param  n   - fft3d size
+!> \return ...
+!> \retval res - true if fft size found and initialized else false
+! **************************************************************************************************
+   FUNCTION pw_fpga_init_bitstream(n) RESULT(res)
+      INTEGER, DIMENSION(:), INTENT(IN)                 :: n
+      INTEGER                                           :: res
+
+#if ! defined (__PW_FPGA)
+      res = 0
+      MARK_USED(n)
+      MARK_USED(res)
+#else
+      CHARACTER(len=100)                               :: data_path
+      INTEGER                                          :: data_path_len
+
+      data_path = TRIM(get_data_dir())
+      data_path_len = LEN_TRIM(data_path)
+
+      res = pw_fpga_check_bitstream(data_path_len, data_path, n)
+#endif
+   END FUNCTION
 
 END MODULE pw_fpga
 
