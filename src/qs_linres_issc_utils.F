@@ -213,7 +213,7 @@ CONTAINS
             linres_control%lr_triplet = .FALSE.
             linres_control%do_kernel = .FALSE.
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
             !
             !
             ! copy the response
@@ -271,7 +271,7 @@ CONTAINS
             linres_control%lr_triplet = .FALSE. ! we do singlet response
             linres_control%do_kernel = .FALSE. ! we do uncoupled response
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
             !
             !
             ! copy the response
@@ -327,7 +327,7 @@ CONTAINS
          linres_control%lr_triplet = .TRUE. ! we do triplet response
          linres_control%do_kernel = .TRUE. ! we do coupled response
          linres_control%converged = .FALSE.
-         CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+         CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
          !
          !
          ! copy the response
@@ -385,7 +385,7 @@ CONTAINS
             linres_control%lr_triplet = .FALSE. ! we do singlet response
             linres_control%do_kernel = .TRUE. ! we do uncoupled response
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
             !
             !
             ! copy the response

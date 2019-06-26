@@ -1,0 +1,37 @@
+&GLOBAL
+  PROJECT h2o_polar
+  PRINT_LEVEL LOW
+  RUN_TYPE LINEAR_RESPONSE
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    &QS
+       METHOD xTB
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 100
+    &END SCF
+  &END DFT
+  &PROPERTIES
+    &LINRES
+       MAX_ITER 2000
+       PRECONDITIONER FULL_ALL
+       EPS 1E-6
+       &POLAR
+          DO_RAMAN T
+       &END
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC [bohr] 10. 10. 10.
+    &END CELL
+    &COORD
+      UNIT bohr
+      O           0.000000       0.000000       0.224953
+      H           0.000000       1.451310      -0.899812
+      H           0.000000      -1.451310      -0.899812
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

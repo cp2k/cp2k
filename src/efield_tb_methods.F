@@ -142,8 +142,6 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -152,8 +150,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, particle_set=particle_set)
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
-                      energy=energy, para_env=para_env, sab_orb=sab_orb)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, energy=energy, para_env=para_env)
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, virial=virial)
       IF (do_kpoints) THEN
          CPABORT("Local electric field with kpoints not possible. Use Berry phase periodic version")

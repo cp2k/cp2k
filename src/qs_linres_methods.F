@@ -11,6 +11,8 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_linres_methods
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -44,6 +46,7 @@ MODULE qs_linres_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
+                                              dbcsr_filter,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -64,6 +67,8 @@ MODULE qs_linres_methods
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_bcast
+   USE mulliken,                        ONLY: ao_charges
+   USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               make_preconditioner
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -90,6 +95,9 @@ MODULE qs_linres_methods
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_linres_types,                 ONLY: linres_control_type
@@ -121,6 +129,9 @@ MODULE qs_linres_methods
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
+   USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
+   USE xtb_types,                       ONLY: get_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -132,6 +143,8 @@ MODULE qs_linres_methods
    PUBLIC :: linres_write_restart, linres_read_restart
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
+
+! **************************************************************************************************
 
 CONTAINS
 
@@ -156,7 +169,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ispin, istate, nmoloc(2), output_unit
+      INTEGER                                            :: iounit, ispin, istate, nmoloc(2)
       LOGICAL                                            :: my_centers_only
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -172,8 +185,8 @@ CONTAINS
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       loc_section => section_vals_get_subs_vals(lr_section, "LOCALIZE")
       loc_print_section => section_vals_get_subs_vals(lr_section, "LOCALIZE%PRINT")
-      output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".linresLog")
+      iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
+                                    extension=".linresLog")
       my_centers_only = .FALSE.
       IF (PRESENT(centers_only)) my_centers_only = centers_only
 
@@ -217,20 +230,20 @@ CONTAINS
       CALL cp_fm_vect_dealloc(mos_localized)
 
       ! Write Centers and Spreads on std out
-      IF (output_unit > 0) THEN
+      IF (iounit > 0) THEN
          DO ispin = 1, nspins
-            WRITE (output_unit, "(/,T2,A,I2)") &
+            WRITE (iounit, "(/,T2,A,I2)") &
                "WANNIER CENTERS for spin ", ispin
-            WRITE (output_unit, "(/,T18,A,3X,A)") &
+            WRITE (iounit, "(/,T18,A,3X,A)") &
                "--------------- Centers --------------- ", &
                "--- Spreads ---"
             DO istate = 1, SIZE(localized_wfn_control%centers_set(ispin)%array, 2)
-               WRITE (output_unit, "(T5,A6,I6,2X,3f12.6,5X,f12.6)") &
+               WRITE (iounit, "(T5,A6,I6,2X,3f12.6,5X,f12.6)") &
                   'state ', istate, localized_wfn_control%centers_set(ispin)%array(1:3, istate), &
                   localized_wfn_control%centers_set(ispin)%array(4, istate)
             END DO
          END DO
-         CALL m_flush(output_unit)
+         CALL m_flush(iounit)
       END IF
 
    END SUBROUTINE linres_localize
@@ -244,22 +257,23 @@ CONTAINS
 !> \param psi1 ...
 !> \param h1_psi0 ...
 !> \param psi0_order ...
+!> \param iounit ...
 !> \param should_stop ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
-      !
+   SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1, h1_psi0, psi0_order
+      INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, iter, maxnmo, maxnmo_o, &
-                                                            nao, ncol, nmo, nspins, output_unit
+                                                            nao, ncol, nmo, nspins
       LOGICAL                                            :: restart
       REAL(dp)                                           :: norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
@@ -267,21 +281,19 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, Sc, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_t
+      TYPE(dbcsr_type), POINTER                          :: matrix_x
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(section_vals_type), POINTER                   :: lr_section
 
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, linres_control, matrix_s, matrix_t, matrix_ks, para_env)
-      NULLIFY (Ap, r, p, z, lr_section, logger, buf, mos, tmp_fm_struct, mo_coeff)
+      NULLIFY (Ap, r, p, z, buf, mos, tmp_fm_struct, mo_coeff)
       NULLIFY (Sc, chc)
 
-      logger => cp_get_default_logger()
       t1 = m_walltime()
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -303,11 +315,6 @@ CONTAINS
          CALL cp_fm_get_info(psi0_order(ispin)%matrix, ncol_global=ncol)
          maxnmo_o = MAX(maxnmo_o, ncol)
       ENDDO
-      !
-      lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
-      output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".linresLog")
-
       !
       CALL check_p_env_init(p_env, linres_control, nspins)
       !
@@ -359,8 +366,8 @@ CONTAINS
       !
       !
       ! header
-      IF (output_unit > 0) THEN
-         WRITE (output_unit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)") &
+      IF (iounit > 0) THEN
+         WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)") &
             "Iteration", "Method", "Restart", "Stepsize", "Convergence", "Time", &
             REPEAT("-", 80)
       ENDIF
@@ -373,10 +380,18 @@ CONTAINS
          IF (p_env%new_preconditioner) THEN
             p_env%os_valid = .FALSE.
             DO ispin = 1, nspins
-               CALL make_preconditioner(p_env%preconditioner(ispin), &
-                                        linres_control%preconditioner_type, ot_precond_solver_default, &
-                                        matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_t(1)%matrix, &
-                                        mos(ispin)%mo_set, linres_control%energy_gap)
+               IF (ASSOCIATED(matrix_t)) THEN
+                  CALL make_preconditioner(p_env%preconditioner(ispin), &
+                                           linres_control%preconditioner_type, ot_precond_solver_default, &
+                                           matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_t(1)%matrix, &
+                                           mos(ispin)%mo_set, linres_control%energy_gap)
+               ELSE
+                  NULLIFY (matrix_x)
+                  CALL make_preconditioner(p_env%preconditioner(ispin), &
+                                           linres_control%preconditioner_type, ot_precond_solver_default, &
+                                           matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_x, &
+                                           mos(ispin)%mo_set, linres_control%energy_gap)
+               END IF
             ENDDO
             p_env%new_preconditioner = .FALSE.
          ENDIF
@@ -428,7 +443,6 @@ CONTAINS
          norm_res = MAX(norm_res, ABS(tr_rz0(ispin))/SQRT(REAL(nao*maxnmo_o, dp)))
       ENDDO
       !
-      !
       alpha(:) = 0.0_dp
       restart = .FALSE.
       should_stop = .FALSE.
@@ -442,53 +456,48 @@ CONTAINS
          !
          t2 = m_walltime()
          IF (iter .EQ. 1 .OR. MOD(iter, 1) .EQ. 0 .OR. linres_control%converged .OR. restart .OR. should_stop) THEN
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
                   iter, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2-t1
-               CALL m_flush(output_unit)
+               CALL m_flush(iounit)
             ENDIF
          ENDIF
          !
          IF (linres_control%converged) THEN
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", iter, " iterations."
-               CALL m_flush(output_unit)
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", iter, " iterations."
+               CALL m_flush(iounit)
             ENDIF
             EXIT iteration
          ELSE IF (should_stop) THEN
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, "(/,T2,A,I4,A,/)") "The linear solver did NOT converge! External stop"
-               CALL m_flush(output_unit)
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver did NOT converge! External stop"
+               CALL m_flush(iounit)
             END IF
             EXIT iteration
          ENDIF
          !
          ! Max number of iteration reached
          IF (iter == linres_control%max_iter) THEN
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, "(/,T2,A/)") &
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(/,T2,A/)") &
                   "The linear solver didnt converge! Maximum number of iterations reached."
-               CALL m_flush(output_unit)
+               CALL m_flush(iounit)
             ENDIF
             linres_control%converged = .FALSE.
          ENDIF
-!       t1 = m_walltime()
-         !
          !
          ! Apply the operators that do not depend on the perturbation
          CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc)
          !
-         !
-!       ! proj Ap onto the virtual subspace
+         ! proj Ap onto the virtual subspace
          CALL postortho(Ap, mo_coeff_array, Sc)
-         !
          !
          DO ispin = 1, nspins
             !
             ! tr(Ap_j*p_j)
             CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
             IF (tr_pAp(ispin) .LT. 0.0_dp) THEN
-
                ! try to fix it by getting rid of the preconditioner
                IF (iter > 1) THEN
                   CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, -1.0_dp, z(ispin)%matrix)
@@ -523,10 +532,8 @@ CONTAINS
          restart = .FALSE.
          IF (MOD(iter, linres_control%restart_every) .EQ. 0) THEN
             !
-            !
             ! r_j+1 = b - A * x_j+1
             CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc)
-            !
             !
             DO ispin = 1, nspins
                CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -537,7 +544,7 @@ CONTAINS
             !
             restart = .TRUE.
          ELSE
-!       ! proj Ap onto the virtual subspace
+            ! proj Ap onto the virtual subspace
             CALL postortho(Ap, mo_coeff_array, Sc)
             !
             ! r_j+1 = r_j - alpha * Ap_j
@@ -608,13 +615,10 @@ CONTAINS
       ENDDO
       DEALLOCATE (alpha, beta, tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
-      CALL cp_print_key_finished_output(output_unit, logger, lr_section, "PRINT%PROGRAM_RUN_INFO")
-      !
       CALL timestop(handle)
       !
    END SUBROUTINE linres_solver
-   !
-   !
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
@@ -639,44 +643,40 @@ CONTAINS
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_rho_type), POINTER                         :: rho
 
-!
-
-      NULLIFY (dft_control, matrix_ks, matrix_s, linres_control, rho1_ao)
-      !
-      !
       CALL timeset(routineN, handle)
-      !
+
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(Av))
       CPASSERT(ASSOCIATED(chc))
-      !
+
+      NULLIFY (dft_control, matrix_ks, matrix_s, linres_control, rho1_ao)
       CALL get_qs_env(qs_env=qs_env, &
                       matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, &
                       dft_control=dft_control, &
                       linres_control=linres_control)
 
-      !
       nspins = dft_control%nspins
-      !
-      !
+
       ! apply the uncoupled operator
       DO ispin = 1, nspins
          CALL apply_op_1(v(ispin)%matrix, Av(ispin)%matrix, matrix_ks(ispin)%matrix, &
                          matrix_s(1)%matrix, chc(ispin)%matrix)
       ENDDO
 
-      IF (linres_control%do_kernel) THEN !.AND.chksum.GT.1.0E-10_dp) THEN
-         !
+      IF (linres_control%do_kernel) THEN
+
          ! build DM
          CALL build_dm_response(c0, v, p_env%p1)
+         DO ispin = 1, nspins
+            CALL dbcsr_filter(p_env%p1(ispin)%matrix, linres_control%eps_filter)
+         ENDDO
 
          chksum = 0.0_dp
          DO ispin = 1, nspins
             chksum = chksum+dbcsr_checksum(p_env%p1(ispin)%matrix)
          ENDDO
 
-         !
          ! skip the kernel if the DM is very small
          IF (chksum .GT. 1.0E-14_dp) THEN
 
@@ -687,35 +687,23 @@ CONTAINS
                CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
             ENDDO
 
-            CALL qs_rho_update_rho(rho_struct=p_env%rho1, local_rho_set=p_env%local_rho_set, &
+            CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
+                                   local_rho_set=p_env%local_rho_set, &
                                    qs_env=qs_env)
 
-            !if(first_time) then
             CALL get_qs_env(qs_env, rho=rho) ! that could be called before
             CALL qs_rho_update_rho(rho, qs_env=qs_env) ! that could be called before
-            !   first_time = .false.
-            !endif
 
             CALL apply_op_2(qs_env, p_env, c0, v, Av, chc)
-
-            !CALL kpp1_calc_k_p_p1(p_env%kpp1_env, p_env, qs_env, p_env%kpp1, qs_env%rho, p_env%rho1, p_env%rho1_xc)
-            !DO ispin = 1,nspins
-            !   CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol)
-            !   CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
-            !                          v_in=c0(ispin)%matrix,&
-            !                          v_out=Av(ispin)%matrix,&
-            !                          ncol=ncol,alpha=1.0_dp,beta=1.0_dp)
-            !ENDDO
 
          ENDIF
 
       ENDIF
-      !
+
       CALL timestop(handle)
-      !
+
    END SUBROUTINE apply_op
-   !
-   !
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param c0 ...
@@ -731,9 +719,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, ncol, nspins
-
-!
-!
 
       CPASSERT(ASSOCIATED(c0))
       CPASSERT(ASSOCIATED(c1))
@@ -755,8 +740,7 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE build_dm_response
-   !
-   !
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param v ...
@@ -775,9 +759,6 @@ CONTAINS
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_type), POINTER                          :: buf
-
-!
-!
 
       CALL timeset(routineN, handle)
       !
@@ -821,6 +802,37 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2', routineP = moduleN//':'//routineN
+
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      IF (dft_control%qs_control%semi_empirical) THEN
+         CPABORT("Linear response not available with SE methods")
+      ELSEIF (dft_control%qs_control%dftb) THEN
+         CPABORT("Linear response not available with DFTB")
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL apply_op_2_xtb(qs_env, p_env, c0, v, Av, chc)
+      ELSE
+         CALL apply_op_2_dft(qs_env, p_env, c0, v, Av, chc)
+      END IF
+
+   END SUBROUTINE apply_op_2
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param p_env ...
+!> \param c0 ...
+!> \param v ...
+!> \param Av ...
+!> \param chc ...
+! **************************************************************************************************
+   SUBROUTINE apply_op_2_dft(qs_env, p_env, c0, v, Av, chc)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_dft', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, ncol, ns, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -879,8 +891,6 @@ CONTAINS
 
       lr_triplet = linres_control%lr_triplet
       CALL kpp1_check_i_alloc(p_env%kpp1_env, qs_env, lr_triplet)
-      !gapw=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw)
-      !gapw_xc=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw_xc)
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
       IF (gapw_xc) THEN
@@ -895,7 +905,7 @@ CONTAINS
 
       p_env%kpp1_env%iter = p_env%kpp1_env%iter+1
 
-! gets the tmp grids
+      ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools, poisson_env=poisson_env)
@@ -910,7 +920,7 @@ CONTAINS
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
-! *** calculate the hartree potential on the total density ***
+      ! *** calculate the hartree potential on the total density ***
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -923,15 +933,6 @@ CONTAINS
       IF (gapw) &
          CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
 
-      !IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
-      !     /=0) THEN
-      !   output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-      !        extension=".scfLog")
-      !   CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit)
-      !   CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-      !        "PRINT%TOTAL_DENSITIES")
-      !END IF
-
       IF (.NOT. (nspins == 1 .AND. lr_triplet)) THEN
          CALL pw_poisson_solve(poisson_env, rho1_tot_gspace%pw, &
                                energy_hartree, &
@@ -941,7 +942,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
-! *** calculate the xc potential ***
+      ! *** calculate the xc potential ***
       IF (gapw_xc) THEN
          CALL qs_rho_get(rho1_xc, rho_r=rho1_r)
       ELSE
@@ -1137,8 +1138,7 @@ CONTAINS
                                        p_env=p_env)
          END IF
 
-!      ***  Add single atom contributions to the KS matrix ***
-
+         ! ***  Add single atom contributions to the KS matrix ***
          ! remap pointer
          ns = SIZE(p_env%kpp1)
          ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
@@ -1166,9 +1166,137 @@ CONTAINS
       !
       CALL timestop(handle)
       !
-   END SUBROUTINE apply_op_2
-   !
-   !
+   END SUBROUTINE apply_op_2_dft
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param p_env ...
+!> \param c0 ...
+!> \param v ...
+!> \param Av ...
+!> \param chc ...
+! **************************************************************************************************
+   SUBROUTINE apply_op_2_xtb(qs_env, p_env, c0, v, Av, chc)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_xtb', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: atom_a, handle, iatom, ikind, is, ispin, &
+                                                            na, natom, natorb, ncol, nkind, ns, &
+                                                            nsgf, nspins
+      INTEGER, DIMENSION(25)                             :: lao
+      INTEGER, DIMENSION(5)                              :: occ
+      LOGICAL                                            :: lr_triplet
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mcharge, mcharge1
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aocg, aocg1, charges, charges1
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_p1, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(c0))
+      CPASSERT(ASSOCIATED(v))
+      CPASSERT(ASSOCIATED(Av))
+      CPASSERT(ASSOCIATED(chc))
+
+      CPASSERT(ASSOCIATED(p_env%kpp1_env))
+      CPASSERT(ASSOCIATED(p_env%kpp1))
+
+      rho1 => p_env%rho1
+      CPASSERT(ASSOCIATED(rho1))
+
+      CPASSERT(p_env%kpp1_env%ref_count > 0)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      pw_env=pw_env, &
+                      para_env=para_env, &
+                      rho=rho, &
+                      linres_control=linres_control, &
+                      dft_control=dft_control)
+
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      lr_triplet = linres_control%lr_triplet
+      CPASSERT(.NOT. lr_triplet)
+
+      nspins = SIZE(p_env%kpp1)
+      p_env%kpp1_env%iter = p_env%kpp1_env%iter+1
+
+      DO ispin = 1, nspins
+         CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
+      ENDDO
+
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
+         ! Mulliken charges
+         CALL get_qs_env(qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
+         natom = SIZE(particle_set)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+         CALL qs_rho_get(rho1, rho_ao_kp=matrix_p1)
+         ALLOCATE (mcharge(natom), charges(natom, 5))
+         ALLOCATE (mcharge1(natom), charges1(natom, 5))
+         charges = 0.0_dp
+         charges1 = 0.0_dp
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+         nkind = SIZE(atomic_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
+         ALLOCATE (aocg(nsgf, natom))
+         aocg = 0.0_dp
+         ALLOCATE (aocg1(nsgf, natom))
+         aocg1 = 0.0_dp
+         p_matrix => matrix_p(:, 1)
+         s_matrix => matrix_s(1, 1)%matrix
+         CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
+         CALL ao_charges(matrix_p1, matrix_s, aocg1, para_env)
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
+            DO iatom = 1, na
+               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+               charges(atom_a, :) = REAL(occ(:), KIND=dp)
+               DO is = 1, natorb
+                  ns = lao(is)+1
+                  charges(atom_a, ns) = charges(atom_a, ns)-aocg(is, atom_a)
+                  charges1(atom_a, ns) = charges1(atom_a, ns)-aocg1(is, atom_a)
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (aocg, aocg1)
+         DO iatom = 1, natom
+            mcharge(iatom) = SUM(charges(iatom, :))
+            mcharge1(iatom) = SUM(charges1(iatom, :))
+         END DO
+         ! Coulomb Kernel
+         CALL xtb_coulomb_hessian(qs_env, p_env%kpp1, charges1, mcharge1, mcharge)
+         !
+         DEALLOCATE (charges, mcharge, charges1, mcharge1)
+      END IF
+
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(c0(ispin)%matrix, ncol_global=ncol)
+         CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, &
+                                      c0(ispin)%matrix, &
+                                      Av(ispin)%matrix, &
+                                      ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
+      ENDDO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_op_2_xtb
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param p_env ...
@@ -1221,10 +1349,11 @@ CONTAINS
             CALL qs_rho_rebuild(p_env%rho1_xc, qs_env=qs_env)
          END IF
       END IF
+
       CALL timestop(handle)
+
    END SUBROUTINE p_env_check_i_alloc
-   !
-   !
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param kpp1_env ...
@@ -1247,8 +1376,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-
-! ------------------------------------------------------------------
 
       NULLIFY (pw_env, auxbas_pw_pool, matrix_s, rho, rho_r, input)
 
@@ -1298,12 +1425,6 @@ CONTAINS
             END DO
          END IF
 
-         !ALLOCATE(my_rho_r(SIZE(rho_r)))
-         !DO ispin=1,SIZE(rho_r)
-         !   my_rho_r(ispin)%pw => rho_r(ispin)%pw
-         !   CALL pw_retain(my_rho_r(ispin)%pw)
-         !END DO
-
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
@@ -1317,8 +1438,7 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE kpp1_check_i_alloc
-   !
-   !
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param v ...
@@ -1336,9 +1456,6 @@ CONTAINS
                                                             nt, nv
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf
-
-!
-!
 
       CALL timeset(routineN, handle)
       !
@@ -1376,8 +1493,7 @@ CONTAINS
       CALL timestop(handle)
       !
    END SUBROUTINE preortho
-   !
-   !
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param v ...
@@ -1395,8 +1511,6 @@ CONTAINS
                                                             nt, nv
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf
-
-!
 
       CALL timeset(routineN, handle)
       !
@@ -1457,9 +1571,9 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle, my_pos, my_status
-      INTEGER                                            :: handle, i, i_block, ia, ie, ispin, j, &
-                                                            max_block, nao, nmo, nspins, &
-                                                            output_unit, rst_unit
+      INTEGER                                            :: handle, i, i_block, ia, ie, iounit, &
+                                                            ispin, j, max_block, nao, nmo, nspins, &
+                                                            rst_unit
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1477,8 +1591,8 @@ CONTAINS
                                            used_print_key=print_key), &
                 cp_p_file)) THEN
 
-         output_unit = cp_print_key_unit_nr(logger, linres_section, &
-                                            "PRINT%PROGRAM_RUN_INFO", extension=".Log")
+         iounit = cp_print_key_unit_nr(logger, linres_section, &
+                                       "PRINT%PROGRAM_RUN_INFO", extension=".Log")
 
          CALL get_qs_env(qs_env=qs_env, &
                          mos=mos, &
@@ -1505,8 +1619,8 @@ CONTAINS
          filename = cp_print_key_generate_filename(logger, print_key, &
                                                    extension=".lr", middle_name=TRIM(my_middle), my_local=.FALSE.)
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A)") &
+         IF (iounit > 0) THEN
+            WRITE (UNIT=iounit, FMT="(T2,A)") &
                "LINRES| Writing response functions to the restart file <"//TRIM(ADJUSTL(filename))//">"
          END IF
 
@@ -1572,9 +1686,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle
-      INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, iv, iv1, ivec_tmp, j, &
-         max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, nspins_tmp, output_unit, &
-         rst_unit, source
+      INTEGER :: group, handle, i, i_block, ia, ie, iostat, iounit, ispin, iv, iv1, ivec_tmp, j, &
+         max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, nspins_tmp, rst_unit, source
       LOGICAL                                            :: file_exists
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1590,8 +1703,8 @@ CONTAINS
       NULLIFY (mos, para_env, logger, print_key, vecbuffer)
       logger => cp_get_default_logger()
 
-      output_unit = cp_print_key_unit_nr(logger, linres_section, &
-                                         "PRINT%PROGRAM_RUN_INFO", extension=".Log")
+      iounit = cp_print_key_unit_nr(logger, linres_section, &
+                                    "PRINT%PROGRAM_RUN_INFO", extension=".Log")
 
       CALL get_qs_env(qs_env=qs_env, &
                       para_env=para_env, &
@@ -1634,10 +1747,10 @@ CONTAINS
                            file_status="OLD", &
                            unit_number=rst_unit)
 
-            IF (output_unit > 0) WRITE (output_unit, "(T2,A)") &
+            IF (iounit > 0) WRITE (iounit, "(T2,A)") &
                "LINRES| Reading response wavefunctions from the restart file <"//TRIM(ADJUSTL(filename))//">"
          ELSE
-            IF (output_unit > 0) WRITE (output_unit, "(T2,A)") &
+            IF (iounit > 0) WRITE (iounit, "(T2,A)") &
                "LINRES| Restart file  <"//TRIM(ADJUSTL(filename))//"> not found"
          ENDIF
       ENDIF
@@ -1702,7 +1815,7 @@ CONTAINS
          ENDDO
 
          IF (iostat /= 0) THEN
-            IF (output_unit > 0) WRITE (output_unit, "(T2,A)") &
+            IF (iounit > 0) WRITE (iounit, "(T2,A)") &
                "LINRES| Restart file <"//TRIM(ADJUSTL(filename))//"> not found"
          ENDIF
 

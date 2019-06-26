@@ -53,7 +53,7 @@ MODULE qs_linres_types
       INTEGER                                   :: property
       INTEGER                                   :: preconditioner_type
       INTEGER                                   :: restart_every
-      REAL(dp)                                  :: energy_gap
+      REAL(KIND=dp)                             :: energy_gap
       INTEGER                                   :: max_iter
       LOGICAL                                   :: localized_psi0
       LOGICAL                                   :: do_kernel
@@ -61,6 +61,7 @@ MODULE qs_linres_types
       LOGICAL                                   :: linres_restart
       LOGICAL                                   :: lr_triplet
       REAL(KIND=dp)                             :: eps
+      REAL(KIND=dp)                             :: eps_filter
       TYPE(qs_loc_env_new_type), POINTER        :: qs_loc_env
       CHARACTER(LEN=8)                          :: flag
    END TYPE linres_control_type
@@ -122,9 +123,9 @@ MODULE qs_linres_types
 ! \param type for polarisability calculation using Berry operator
    TYPE polar_env_type
       INTEGER                                      :: ref_count
-      LOGICAL                                      :: do_raman, run_stopped
+      LOGICAL                                      :: do_raman, run_stopped, do_periodic
       REAL(dp), DIMENSION(:, :), POINTER           :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0, mo_derivs
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
    END TYPE polar_env_type
 ! *********************************************************************************************************
 
@@ -255,6 +256,7 @@ CONTAINS
       linres_control%converged = .FALSE.
       linres_control%linres_restart = .FALSE.
       linres_control%eps = HUGE(0.0_dp)
+      linres_control%eps_filter = TINY(0.0_dp)
       linres_control%flag = ""
       linres_control%do_kernel = .FALSE.
       linres_control%lr_triplet = .FALSE.
@@ -1398,11 +1400,11 @@ CONTAINS
       ALLOCATE (polar_env)
       polar_env%ref_count = 1
       polar_env%do_raman = .FALSE.
+      polar_env%do_periodic = .TRUE.
       polar_env%run_stopped = .FALSE.
       NULLIFY (polar_env%polar)
       NULLIFY (polar_env%psi1_dBerry)
       NULLIFY (polar_env%dBerry_psi0)
-      NULLIFY (polar_env%mo_derivs)
 
    END SUBROUTINE polar_env_create
 
@@ -1410,24 +1412,23 @@ CONTAINS
 !> \brief ...
 !> \param polar_env ...
 !> \param do_raman ...
+!> \param do_periodic ...
 !> \param dBerry_psi0 ...
 !> \param polar ...
 !> \param psi1_dBerry ...
-!> \param mo_derivs ...
 !> \param run_stopped ...
 !> \par History
 !>      06.2018 polar_env integrated into qs_env (MK)
 ! **************************************************************************************************
-   SUBROUTINE get_polar_env(polar_env, do_raman, dBerry_psi0, polar, &
-                            psi1_dBerry, mo_derivs, run_stopped)
+   SUBROUTINE get_polar_env(polar_env, do_raman, do_periodic, dBerry_psi0, polar, psi1_dBerry, run_stopped)
 
       TYPE(polar_env_type), POINTER                      :: polar_env
-      LOGICAL, OPTIONAL                                  :: do_raman
+      LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: psi1_dBerry, mo_derivs
+         POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_polar_env', routineP = moduleN//':'//routineN
@@ -1436,8 +1437,8 @@ CONTAINS
 
       IF (PRESENT(polar)) polar => polar_env%polar
       IF (PRESENT(do_raman)) do_raman = polar_env%do_raman
+      IF (PRESENT(do_periodic)) do_periodic = polar_env%do_periodic
       IF (PRESENT(dBerry_psi0)) dBerry_psi0 => polar_env%dBerry_psi0
-      IF (PRESENT(mo_derivs)) mo_derivs => polar_env%mo_derivs
       IF (PRESENT(psi1_dBerry)) psi1_dBerry => polar_env%psi1_dBerry
       IF (PRESENT(run_stopped)) run_stopped = polar_env%run_stopped
 
@@ -1447,22 +1448,22 @@ CONTAINS
 !> \brief ...
 !> \param polar_env ...
 !> \param do_raman ...
+!> \param do_periodic ...
 !> \param dBerry_psi0 ...
 !> \param polar ...
 !> \param psi1_dBerry ...
-!> \param mo_derivs ...
 !> \param run_stopped ...
 ! **************************************************************************************************
-   SUBROUTINE set_polar_env(polar_env, do_raman, dBerry_psi0, polar, &
-                            psi1_dBerry, mo_derivs, run_stopped)
+   SUBROUTINE set_polar_env(polar_env, do_raman, do_periodic, dBerry_psi0, polar, &
+                            psi1_dBerry, run_stopped)
 
       TYPE(polar_env_type), POINTER                      :: polar_env
-      LOGICAL, OPTIONAL                                  :: do_raman
+      LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: psi1_dBerry, mo_derivs
+         POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_polar_env', routineP = moduleN//':'//routineN
@@ -1471,9 +1472,9 @@ CONTAINS
 
       IF (PRESENT(polar)) polar_env%polar => polar
       IF (PRESENT(do_raman)) polar_env%do_raman = do_raman
+      IF (PRESENT(do_periodic)) polar_env%do_periodic = do_periodic
       IF (PRESENT(psi1_dBerry)) polar_env%psi1_dBerry => psi1_dBerry
       IF (PRESENT(dBerry_psi0)) polar_env%dBerry_psi0 => dBerry_psi0
-      IF (PRESENT(mo_derivs)) polar_env%mo_derivs => mo_derivs
       IF (PRESENT(run_stopped)) polar_env%run_stopped = run_stopped
 
    END SUBROUTINE set_polar_env
@@ -1507,14 +1508,6 @@ CONTAINS
                   ENDDO
                ENDDO
                DEALLOCATE (polar_env%dBerry_psi0)
-            ENDIF
-            IF (ASSOCIATED(polar_env%mo_derivs)) THEN
-               DO idir = 1, SIZE(polar_env%mo_derivs, 1)
-                  DO ispin = 1, SIZE(polar_env%mo_derivs, 2)
-                     CALL cp_fm_release(polar_env%mo_derivs(idir, ispin)%matrix)
-                  ENDDO
-               ENDDO
-               DEALLOCATE (polar_env%mo_derivs)
             ENDIF
             IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
                DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)

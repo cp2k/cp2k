@@ -154,6 +154,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          description="Filter threshold for response density matrix.", &
+                          usage="EPS 1.e-8", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of conjugate gradient iteration to be performed for one optimization.", &
                           usage="MAX_ITER 200", default_i_val=50)
@@ -886,6 +892,13 @@ CONTAINS
                           description="Compute the electric-dipole--electric-dipole polarizability", &
                           usage="DO_RAMAN F", &
                           citations=(/Luber2014/), &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_DIPOLE_OPERATOR", &
+                          description="Type of dipole operator: Berry phase(T) or Local(F)", &
+                          usage="PERIODIC_DIPOLE_OPERATOR T", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
