@@ -1575,7 +1575,7 @@ CONTAINS
                                                             t, tau, theta, tresh
       REAL(KIND=dp), DIMENSION(n)                        :: b, z
 
-      a_max = a(n-1, n)
+      a_max = ABS(a(n-1, n))
       DO ip = 1, n-2
          a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
          b(ip) = a(ip, ip) ! get_diag(a)
@@ -1628,7 +1628,7 @@ CONTAINS
             END DO
          END DO
          b = b+z
-         a_max = a(n-1, n)
+         a_max = ABS(a(n-1, n))
          DO ip = 1, n-2
             a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
          END DO
@@ -1651,12 +1651,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: a, b
       REAL(KIND=dp), INTENT(IN)                          :: ss, tt
 
-      REAL(KIND=dp)                                      :: d
-      REAL(KIND=dp), DIMENSION(SIZE(a))                  :: c
+      REAL(KIND=dp)                                      :: u, v
 
-      c(:) = a(:); d = 1-ss*tt
-      a(:) = a(:)*d-b(:)*ss
-      b(:) = b(:)*d+c(:)*ss
+      u = 1.0_dp-ss*tt
+      v = ss/u
+
+      a = a*u-b*ss
+      b = b*(u+ss*v)+a*v
 
    END SUBROUTINE jrotate
 
@@ -1737,3 +1738,4 @@ CONTAINS
    END SUBROUTINE swap_vector
 
 END MODULE mathlib
+
