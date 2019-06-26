@@ -53,6 +53,7 @@ MODULE helium_common
    PUBLIC :: helium_rotate
    PUBLIC :: helium_eval_expansion
    PUBLIC :: helium_update_transition_matrix
+   PUBLIC :: helium_update_coord_system
    PUBLIC :: helium_spline
    PUBLIC :: helium_cycle_number
    PUBLIC :: helium_path_length
