@@ -1575,12 +1575,11 @@ CONTAINS
                                                             t, tau, theta, tresh
       REAL(KIND=dp), DIMENSION(n)                        :: b, z
 
-      a_max = ABS(a(n-1, n))
-      DO ip = 1, n-2
+      a_max = 0.0_dp
+      DO ip = 1, n-1
          a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
          b(ip) = a(ip, ip) ! get_diag(a)
       END DO
-      b(n-1) = a(n-1, n-1)
       b(n) = a(n, n)
 
       CALL unit_matrix(v)
@@ -1628,8 +1627,8 @@ CONTAINS
             END DO
          END DO
          b = b+z
-         a_max = ABS(a(n-1, n))
-         DO ip = 1, n-2
+         a_max = 0.0_dp
+         DO ip = 1, n-1
             a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
          END DO
       END DO
