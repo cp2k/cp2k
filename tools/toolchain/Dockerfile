@@ -1,4 +1,5 @@
 FROM ubuntu:18.04
+ARG MPI_MODE=mpich
 USER root
 
 # install Ubuntu packages
@@ -31,7 +32,7 @@ COPY ./scripts/VERSION \
      ./scripts/signal_trap.sh ./scripts/
 
 COPY ./install_cp2k_toolchain.sh .
-RUN ./install_cp2k_toolchain.sh --install-all --dry-run
+RUN ./install_cp2k_toolchain.sh --install-all --mpi-mode=${MPI_MODE} --dry-run
 
 COPY ./scripts/install_valgrind.sh ./scripts/
 RUN ./scripts/install_valgrind.sh && rm -rf ./build
