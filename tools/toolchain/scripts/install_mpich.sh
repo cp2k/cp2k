@@ -97,7 +97,7 @@ EOF
         mpi2_dflags=''
     fi
     cat <<EOF >> "${BUILDDIR}/setup_mpich"
-export MPI_MODE="__MPICH__"
+export MPI_MODE="${MPI_MODE}"
 export MPICH_CFLAGS="${MPICH_CFLAGS}"
 export MPICH_LDFLAGS="${MPICH_LDFLAGS}"
 export MPICH_LIBS="${MPICH_LIBS}"
