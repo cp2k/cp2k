@@ -1101,14 +1101,11 @@ CONTAINS
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 
-
-
       ! S#1 - S#1 - Clean
       CALL section_release(section_print)
 
       ! S#1 - Clean
       CALL section_release(section_block)
-
 
       ! S#1 - Subsection #1: Printing setting
       CALL section_create(section_print, __LOCATION__, name='PRINT', &
@@ -1127,12 +1124,10 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 
       CALL section_release(section_print)
-
 
    END SUBROUTINE create_projection
 

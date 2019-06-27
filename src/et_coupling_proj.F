@@ -1128,10 +1128,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print out donor-acceptor state couplings
+!> \param ec_sec ...
 !> \param output_unit unit number of the open output stream
+!> \param logger ...
 !> \param ec electronic coupling data structure
-!> \param n_states number of states
-!> \param n_beta_states number of beta-spin states
+!> \param mo ...
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
    SUBROUTINE print_couplings(ec_sec,output_unit, logger, ec, mo)
@@ -1210,6 +1211,12 @@ CONTAINS
                WRITE (title, *) 'Coupling elements [meV] between blocks:', i, j
 
                WRITE (unit_nr, *) TRIM(title)
+               IF(nspins>1) THEN
+                 WRITE (unit_nr, '(T3,A8,T13,A8,T28,A,A)' ) 'State A', 'State B', 'Coupling spin 1', '  Coupling spin 2'
+               ELSE
+                 WRITE (unit_nr, '(T3,A8,T13,A8,T28,A)' ) 'State A', 'State B', 'Coupling'
+               END IF
+
 
                DO k = 1, MIN(ec%block(i)%n_ao, n_states(1))
                   DO l = 1, MIN(ec%block(j)%n_ao, n_states(1))
