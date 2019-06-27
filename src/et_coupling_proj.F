@@ -1195,7 +1195,7 @@ CONTAINS
             ALLOCATE (w1(nr, nc))
             CPASSERT(ASSOCIATED(w1))
             CALL get_fm_matrix_array(ec%block(i)%hab(1, j)%matrix, w1)
-            IF (nspins) > 1) THEN
+            IF (nspins > 1) THEN
                ALLOCATE (w2(nr, nc))
                CPASSERT(ASSOCIATED(w2))
                CALL get_fm_matrix_array(ec%block(i)%hab(2, j)%matrix, w2)
