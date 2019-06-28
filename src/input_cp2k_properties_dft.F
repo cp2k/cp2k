@@ -11,8 +11,10 @@
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
 
-   USE bibliography,                    ONLY: Iannuzzi2005,&
+   USE bibliography,                    ONLY: Futera2017,&
+                                              Iannuzzi2005,&
                                               Luber2014,&
+                                              Kondov2007,&
                                               Putrino2000,&
                                               Putrino2002,&
                                               Sebastiani2001,&
@@ -942,7 +944,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ET_COUPLING", &
                           description="specifies the two constraints/restraints for extracting ET coupling elements", &
-                          n_keywords=1, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=4, repeats=.FALSE., citations=(/Kondov2007, Futera2017/))
 
       NULLIFY (subsection)
       CALL create_ddapc_restraint_section(subsection, "DDAPC_RESTRAINT_A")
