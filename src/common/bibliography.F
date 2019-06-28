@@ -3796,10 +3796,10 @@ CONTAINS
       CALL add_reference(key=Kondov2007, ISI_record=s2a( &
                          "AU Kondov, Ivan", &
                          "   Cizek, Martin", &
-                         "   Benesch, Claudia",&
-                         "   Wang, Haobin",&
-                         "   Thoss, Michael",&
-                         "TI Quantum dynamics of photoinduced electron-transfer reactions in",&
+                         "   Benesch, Claudia", &
+                         "   Wang, Haobin", &
+                         "   Thoss, Michael", &
+                         "TI Quantum dynamics of photoinduced electron-transfer reactions in", &
                          "   dye-semiconductor systems: First-principles description and application to coumarin 343-TiO2", &
                          "SO Journal of Physical Chemistry C", &
                          "PY 2007", &
@@ -3824,7 +3824,6 @@ CONTAINS
                          "EP 19689", &
                          "ER"), &
                          DOI="10.1021/acs.jpcc.7b06566")
-
 
       CALL add_reference(key=Bailey2006, ISI_record=s2a( &
                          "PT J", &

@@ -13,8 +13,8 @@ MODULE input_cp2k_properties_dft
 
    USE bibliography,                    ONLY: Futera2017,&
                                               Iannuzzi2005,&
-                                              Luber2014,&
                                               Kondov2007,&
+                                              Luber2014,&
                                               Putrino2000,&
                                               Putrino2002,&
                                               Sebastiani2001,&
