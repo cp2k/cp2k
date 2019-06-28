@@ -42,15 +42,17 @@
       MAX_SCF 15
       SCF_GUESS atomic
       EPS_SCF 1.0e-5
-      ADDED_MOS 2
-      &DIAGONALIZATION
-        ALGORITHM standard
-      &END DIAGONALIZATION
-      &MIXING
-        METHOD direct_p_mixing
-        ALPHA 0.1
-        NSKIP 10
-      &END MIXING
+##      ADDED_MOS 2
+      &OT
+      &END
+#      &DIAGONALIZATION
+#        ALGORITHM standard
+#      &END DIAGONALIZATION
+#      &MIXING
+#        METHOD direct_p_mixing
+#        ALPHA 0.1
+#        NSKIP 10
+#      &END MIXING
       &PRINT
         &RESTART off
         &END

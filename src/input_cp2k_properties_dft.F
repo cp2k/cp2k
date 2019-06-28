@@ -11,7 +11,9 @@
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
 
-   USE bibliography,                    ONLY: Iannuzzi2005,&
+   USE bibliography,                    ONLY: Futera2017,&
+                                              Iannuzzi2005,&
+                                              Kondov2007,&
                                               Luber2014,&
                                               Putrino2000,&
                                               Putrino2002,&
@@ -942,7 +944,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ET_COUPLING", &
                           description="specifies the two constraints/restraints for extracting ET coupling elements", &
-                          n_keywords=1, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=4, repeats=.FALSE., citations=(/Kondov2007, Futera2017/))
 
       NULLIFY (subsection)
       CALL create_ddapc_restraint_section(subsection, "DDAPC_RESTRAINT_A")
@@ -1106,6 +1108,28 @@ CONTAINS
 
       ! S#1 - Clean
       CALL section_release(section_block)
+
+      ! S#1 - Subsection #1: Printing setting
+      CALL section_create(section_print, __LOCATION__, name='PRINT', &
+                          description="Possible printing options in ET", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
+      CALL section_add_subsection(section, section_print)
+
+      ! Print couplings
+      CALL cp_print_key_section_create(print_key, __LOCATION__, 'COUPLINGS', &
+                                       description="Controls printing couplings onto file", &
+                                       print_level=low_print_level, filename="")
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section_print, print_key)
+      CALL section_release(print_key)
+
+      CALL section_release(section_print)
 
    END SUBROUTINE create_projection
 

@@ -48,6 +48,7 @@ MODULE et_coupling_proj
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_get_ivals,&
+                                              section_get_lval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -77,6 +78,7 @@ MODULE et_coupling_proj
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_mo_methods,                   ONLY: make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
@@ -942,9 +944,6 @@ CONTAINS
       NULLIFY (print_sec)
       NULLIFY (qs_kind_set)
 
-      IF (output_unit > 0) &
-         WRITE (output_unit, '(/,T3,A/)') 'Block state fractions:'
-
       ! Atomic block data
       block_sec => section_vals_get_subs_vals(qs_env%input, &
                                               'PROPERTIES%ET_COUPLING%PROJECTION%BLOCK')
@@ -955,6 +954,9 @@ CONTAINS
       CALL section_vals_val_get(print_sec, keyword_name='MO_COEFF_ATOM', n_rep_val=n)
 
       IF (n > 0) THEN
+
+         IF (output_unit > 0) &
+            WRITE (output_unit, '(/,T3,A/)') 'Block state fractions:'
 
          ! Number of AO functions
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
@@ -1125,129 +1127,184 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print out donor-acceptor state couplings
+!> \param ec_sec ...
 !> \param output_unit unit number of the open output stream
+!> \param logger ...
 !> \param ec electronic coupling data structure
-!> \param n_states number of states
-!> \param n_beta_states number of beta-spin states
+!> \param mo ...
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
-   SUBROUTINE print_couplings(output_unit, ec, n_states, n_beta_states)
+   SUBROUTINE print_couplings(ec_sec, output_unit, logger, ec, mo)
 
       IMPLICIT NONE
 
       ! Routine arguments
+      TYPE(section_vals_type), POINTER                   :: ec_sec
       INTEGER                                            :: output_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(et_cpl), POINTER                              :: ec
-      INTEGER                                            :: n_states
-      INTEGER, OPTIONAL                                  :: n_beta_states
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
 
       ! Routine name for debug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'print_couplings', &
                                      routineP = moduleN//':'//routineN
 
       ! Local variables
-      INTEGER                                            :: i, j, k, l
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos, title
+      INTEGER                                            :: i, j, k, l, nspins, unit_nr
+      INTEGER                                            :: n_states(2)
 #if defined(__SCALAPACK)
       INTEGER                                            :: nr, nc
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: w1, w2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: w1, w2
 #endif
+      LOGICAL                                            :: append
+      TYPE(section_vals_type), POINTER                   :: print_key
 
-      IF (output_unit > 0) &
-         WRITE (output_unit, '(/,T3,A/)') 'Coupling elements [meV]:'
+      n_states = 0
+      DO i = 1, SIZE(mo)
+         n_states(i) = mo(i)%mo_set%nmo
+      END DO
+      nspins = 1
+      IF (n_states(2) > 0) nspins = 2
+
+      print_key => section_vals_get_subs_vals(section_vals=ec_sec, &
+                                              subsection_name="PRINT%COUPLINGS")
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), &
+                cp_p_file)) THEN
+
+         my_pos = "REWIND"
+         append = section_get_lval(print_key, "APPEND")
+         IF (append) THEN
+            my_pos = "APPEND"
+         END IF
+
+         IF (output_unit > 0) &
+            WRITE (output_unit, '(/,T3,A/)') 'Printing coupling elements to output files'
 
 #if defined(__SCALAPACK)
-
-      DO i = 1, ec%n_blocks
-         DO j = i+1, ec%n_blocks
-
-            nr = ec%block(i)%hab(1, j)%matrix%matrix_struct%nrow_global
-            nc = ec%block(i)%hab(1, j)%matrix%matrix_struct%ncol_global
-
-            ALLOCATE (w1(nr, nc))
-            CPASSERT(ASSOCIATED(w1))
-            CALL get_fm_matrix_array(ec%block(i)%hab(1, j)%matrix, w1)
-            IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
-               ALLOCATE (w2(nr, nc))
-               CPASSERT(ASSOCIATED(w2))
-               CALL get_fm_matrix_array(ec%block(i)%hab(2, j)%matrix, w2)
-            END IF
-
-            IF (output_unit > 0) THEN
-
-               DO k = 1, MIN(ec%block(i)%n_ao, n_states)
-                  DO l = 1, MIN(ec%block(j)%n_ao, n_states)
-
-                     IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
-
-                        WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)', ADVANCE='no') &
-                           i, "[", k, "] - ", j, "[", l, "] ", &
-                           w1(k, l)*evolt*1000.0_dp
-                        IF ((k <= n_beta_states) .AND. (l <= n_beta_states)) THEN
-                           WRITE (output_unit, '(E20.6)') &
-                              w2(k, l)*evolt*1000.0_dp
-                        ELSE
-                           WRITE (output_unit, *)
-                        END IF
-
-                     ELSE
-
-                        WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)') &
-                           i, "[", k, "] - ", j, "[", l, "] ", &
-                           w1(k, l)*evolt*1000.0_dp
-
-                     END IF
-
-                  END DO
-               END DO
-
-            END IF
-
-            IF (ASSOCIATED(w1)) &
-               DEALLOCATE (w1)
-            IF (ASSOCIATED(w2)) &
-               DEALLOCATE (w2)
-
-         END DO
-      END DO
-
-#else
-
-      IF (output_unit > 0) THEN
 
          DO i = 1, ec%n_blocks
             DO j = i+1, ec%n_blocks
-               DO k = 1, MIN(ec%block(i)%n_ao, n_states)
-                  DO l = 1, MIN(ec%block(j)%n_ao, n_states)
 
-                     IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
+               nr = ec%block(i)%hab(1, j)%matrix%matrix_struct%nrow_global
+               nc = ec%block(i)%hab(1, j)%matrix%matrix_struct%ncol_global
 
-                        WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)', ADVANCE='no') &
-                           i, "[", k, "] - ", j, "[", l, "] ", &
-                           ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
-                        IF ((k <= n_beta_states) .AND. (l <= n_beta_states)) THEN
-                           WRITE (output_unit, '(E20.6)') &
-                              ec%block(i)%hab(2, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+               ALLOCATE (w1(nr, nc))
+               CPASSERT(ASSOCIATED(w1))
+               CALL get_fm_matrix_array(ec%block(i)%hab(1, j)%matrix, w1)
+               IF (nspins > 1) THEN
+                  ALLOCATE (w2(nr, nc))
+                  CPASSERT(ASSOCIATED(w2))
+                  CALL get_fm_matrix_array(ec%block(i)%hab(2, j)%matrix, w2)
+               END IF
+
+               IF (output_unit > 0) THEN
+
+                  WRITE (filename, '(a5,I1.1,a1,I1.1)') "ET_BL_", i, "-", j
+                  unit_nr = cp_print_key_unit_nr(logger, ec_sec, "PRINT%COUPLINGS", extension=".elcoup", &
+                                                 middle_name=TRIM(filename), file_position=my_pos, log_filename=.FALSE.)
+
+                  WRITE (title, *) 'Coupling elements [meV] between blocks:', i, j
+
+                  WRITE (unit_nr, *) TRIM(title)
+                  IF (nspins > 1) THEN
+                     WRITE (unit_nr, '(T3,A8,T13,A8,T28,A,A)') 'State A', 'State B', 'Coupling spin 1', '  Coupling spin 2'
+                  ELSE
+                     WRITE (unit_nr, '(T3,A8,T13,A8,T28,A)') 'State A', 'State B', 'Coupling'
+                  END IF
+
+                  DO k = 1, MIN(ec%block(i)%n_ao, n_states(1))
+                     DO l = 1, MIN(ec%block(j)%n_ao, n_states(1))
+
+                        IF (nspins > 1) THEN
+
+                           WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)', ADVANCE='no') &
+                              k, l, w1(k, l)*evolt*1000.0_dp
+                           IF ((k <= n_states(2)) .AND. (l <= n_states(2))) THEN
+                              WRITE (unit_nr, '(E20.6)') &
+                                 w2(k, l)*evolt*1000.0_dp
+                           ELSE
+                              WRITE (unit_nr, *)
+                           END IF
+
                         ELSE
-                           WRITE (output_unit, *)
+
+                           WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)') &
+                              k, l, w1(k, l)*evolt*1000.0_dp
                         END IF
 
-                     ELSE
-
-                        WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)') &
-                           i, "[", k, "] - ", j, "[", l, "] ", &
-                           ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
-
-                     END IF
-
+                     END DO
+                     WRITE (unit_nr, *)
                   END DO
-               END DO
+                  CALL cp_print_key_finished_output(unit_nr, logger, ec_sec, "PRINT%COUPLINGS")
+
+               END IF
+
+               IF (ASSOCIATED(w1)) &
+                  DEALLOCATE (w1)
+               IF (ASSOCIATED(w2)) &
+                  DEALLOCATE (w2)
+
             END DO
          END DO
 
-      END IF
+#else
+
+         IF (output_unit > 0) THEN
+
+            DO i = 1, ec%n_blocks
+               DO j = i+1, ec%n_blocks
+
+                  WRITE (filename, '(a5,I1.1,a1,I1.1)') "ET_BL_", i, "-", j
+                  unit_nr = cp_print_key_unit_nr(logger, ec_sec, "PRINT%COUPLINGS", extension=".elcoup", &
+                                                 middle_name=TRIM(filename), file_position=my_pos, log_filename=.FALSE.)
+
+                  WRITE (title, *) 'Coupling elements [meV] between blocks:', i, j
+
+                  WRITE (unit_nr, *) TRIM(title)
+                  IF (nspins > 1) THEN
+                     WRITE (unit_nr, '(T3,A8,T13,A8,T28,A,A)') 'State A', 'State B', 'Coupling spin 1', '  Coupling spin 2'
+                  ELSE
+                     WRITE (unit_nr, '(T3,A8,T13,A8,T28,A)') 'State A', 'State B', 'Coupling'
+                  END IF
+
+                  DO k = 1, MIN(ec%block(i)%n_ao, n_states(1))
+                     DO l = 1, MIN(ec%block(j)%n_ao, n_states(1))
+
+                        IF (nspins > 1) THEN
+
+                           WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)', ADVANCE='no') &
+                              k, l, &
+                              ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                           IF ((k <= n_states(2)) .AND. (l <= n_states(2))) THEN
+                              WRITE (unit_nr, '(E20.6)') &
+                                 ec%block(i)%hab(2, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                           ELSE
+                              WRITE (unit_nr, *)
+                           END IF
+
+                        ELSE
+
+                           WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)') &
+                              k, l, &
+                              ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+
+                        END IF
+
+                     END DO
+                     WRITE (unit_nr, *)
+                  END DO
+
+                  CALL cp_print_key_finished_output(unit_nr, logger, ec_sec, "PRINT%COUPLINGS")
+               END DO
+            END DO
+
+         END IF
 
 #endif
 
+      END IF
    END SUBROUTINE print_couplings
 
 ! **************************************************************************************************
@@ -1744,11 +1801,13 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_w
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks, mo_der
       TYPE(dft_control_type), POINTER                    :: dft_cntrl
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
 
 ! Routine name for debug purposes
@@ -1766,6 +1825,7 @@ CONTAINS
       NULLIFY (fm_s)
       NULLIFY (mat_h)
       NULLIFY (mat_w)
+      NULLIFY (ks, mo_der)
 
       NULLIFY (ec)
 
@@ -1860,123 +1920,95 @@ CONTAINS
 
       ! Spin polarization / K-point sampling
       CALL get_qs_env(qs_env, dft_control=dft_cntrl, do_kpoints=do_kp)
+      CALL get_qs_env(qs_env, mos=mo, matrix_ks=ks, mo_derivs=mo_der, scf_control=scf_control)
+      CALL make_mo_eig(mo, dft_cntrl%nspins, ks, scf_control, mo_der)
+
+      IF (do_kp) THEN
+         CPABORT('ET_COUPLING not implemented with kpoints')
+      ELSE
+         !  no K-points
+         IF (master) &
+            WRITE (output_unit, '(T3,A)') 'No K-point sampling (Gamma point only)'
+      END IF
+
       IF (dft_cntrl%nspins == 2) THEN
 
          IF (master) &
             WRITE (output_unit, '(/,T3,A)') 'Spin-polarized calculation'
 
-         IF (do_kp) THEN
+         !<--- Open shell / No K-points ------------------------------------------------>!
 
-            !<--- Open shell / K points --------------------------------------------------->!
-
-            CALL get_qs_env(qs_env, kpoints=kpoints)
-            IF (master) &
-               WRITE (output_unit, '(T3,A,I10)') 'Number of K-points                 = ', kpoints%nkp
-
-         ELSE
-
-            !<--- Open shell / No K-points ------------------------------------------------>!
-
-            ! Open shell, no K-points
-            IF (master) &
-               WRITE (output_unit, '(T3,A)') 'No K-point sampling (Gamma point only)'
-
-            ! State eneries of the whole system
-            CALL get_qs_env(qs_env, mos=mo)
-            IF (mo(1)%mo_set%nao /= mo(2)%mo_set%nao) &
-               CPABORT('different number of alpha/beta AO basis functions')
-            IF (master) THEN
-               WRITE (output_unit, '(/,T3,A,I10)') &
-                  'Number of AO basis funtions        = ', mo(1)%mo_set%nao
-               WRITE (output_unit, '(T3,A,I10)') &
-                  'Number of alpha states             = ', mo(1)%mo_set%nmo
-               WRITE (output_unit, '(T3,A,I10)') &
-                  'Number of beta states              = ', mo(2)%mo_set%nmo
-            END IF
-            CALL print_states(output_unit, mo, dft_cntrl%nspins, 'the whole system', fermi=.TRUE.)
-            CALL set_fermi(ec, mo(1)%mo_set%mu, mo(2)%mo_set%mu)
-
-            ! KS Hamiltonian
-            CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, 2)
-
-            ! Block diagonization
-            CALL hamiltonian_block_diag(qs_env, ec, mat_h)
-
-            ! Print out energies and couplings
-            DO i = 1, ec%n_blocks
-               IF (output_unit > 0) THEN
-                  CALL print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
-                                    'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
-                                    mx_mo_a=mo(1)%mo_set%nmo, mx_mo_b=mo(2)%mo_set%nmo, fermi=.TRUE.)
-               END IF
-               CALL print_mo_coeff(output_unit, qs_env, ec, i, dft_cntrl%nspins)
-            END DO
-
-            CALL print_couplings(output_unit, ec, mo(1)%mo_set%nmo, mo(2)%mo_set%nmo)
-
-            ! Save electronic states
-            CALL save_el_states(qs_env, ec, dft_cntrl%nspins)
-
+         ! State eneries of the whole system
+         IF (mo(1)%mo_set%nao /= mo(2)%mo_set%nao) &
+            CPABORT('different number of alpha/beta AO basis functions')
+         IF (master) THEN
+            WRITE (output_unit, '(/,T3,A,I10)') &
+               'Number of AO basis funtions        = ', mo(1)%mo_set%nao
+            WRITE (output_unit, '(T3,A,I10)') &
+               'Number of alpha states             = ', mo(1)%mo_set%nmo
+            WRITE (output_unit, '(T3,A,I10)') &
+               'Number of beta states              = ', mo(2)%mo_set%nmo
          END IF
+         CALL print_states(output_unit, mo, dft_cntrl%nspins, 'the whole system', fermi=.TRUE.)
+         CALL set_fermi(ec, mo(1)%mo_set%mu, mo(2)%mo_set%mu)
+
+         ! KS Hamiltonian
+         CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, dft_cntrl%nspins)
+
+         ! Block diagonization
+         CALL hamiltonian_block_diag(qs_env, ec, mat_h)
+
+         ! Print out energies and couplings
+         DO i = 1, ec%n_blocks
+            IF (output_unit > 0) THEN
+               CALL print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
+                                 'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
+                                 mx_mo_a=mo(1)%mo_set%nmo, mx_mo_b=mo(2)%mo_set%nmo, fermi=.TRUE.)
+            END IF
+            CALL print_mo_coeff(output_unit, qs_env, ec, i, dft_cntrl%nspins)
+         END DO
+
+         CALL print_couplings(et_proj_sec, output_unit, logger, ec, mo)
 
       ELSE
 
          IF (master) &
             WRITE (output_unit, '(/,T3,A)') 'Spin-restricted calculation'
 
-         IF (do_kp) THEN
+         !<--- Close shell / No K-points ----------------------------------------------->!
 
-            !<--- Close shell / K-points -------------------------------------------------->!
-
-            CALL get_qs_env(qs_env, kpoints=kpoints)
-            IF (master) &
-               WRITE (output_unit, '(T3,A,I10)') 'Number of K-points                 = ', kpoints%nkp
-
-         ELSE
-
-            !<--- Close shell / No K-points ----------------------------------------------->!
-
-            ! Closed shell, no K-points
-            IF (master) &
-               WRITE (output_unit, '(T3,A)') 'No K-point sampling (Gamma point only)'
-
-            ! State eneries of the whole system
-            CALL get_qs_env(qs_env, mos=mo)
-            IF (master) THEN
-               WRITE (output_unit, '(/,T3,A,I10)') &
-                  'Number of AO basis funtions        = ', mo(1)%mo_set%nao
-               WRITE (output_unit, '(T3,A,I10)') &
-                  'Number of states                   = ', mo(1)%mo_set%nmo
-            END IF
-            CALL print_states(output_unit, mo, dft_cntrl%nspins, 'the whole system', fermi=.TRUE.)
-            CALL set_fermi(ec, mo(1)%mo_set%mu)
-
-            ! KS Hamiltonian
-            CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, 1)
-
-            ! Block diagonization
-            CALL hamiltonian_block_diag(qs_env, ec, mat_h)
-
-            ! Print out energies and couplings
-            DO i = 1, ec%n_blocks
-               IF (output_unit > 0) THEN
-                  CALL print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
-                                    'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
-                                    mx_mo_a=mo(1)%mo_set%nmo, fermi=.TRUE.)
-               END IF
-               CALL print_mo_coeff(output_unit, qs_env, ec, i, dft_cntrl%nspins)
-            END DO
-
-            CALL print_couplings(output_unit, ec, mo(1)%mo_set%nmo)
-
-            ! Save electronic states
-            CALL save_el_states(qs_env, ec, dft_cntrl%nspins)
-
-            !<----------------------------------------------------------------------------->!
-
+         ! State eneries of the whole system
+         IF (master) THEN
+            WRITE (output_unit, '(/,T3,A,I10)') &
+               'Number of AO basis funtions        = ', mo(1)%mo_set%nao
+            WRITE (output_unit, '(T3,A,I10)') &
+               'Number of states                   = ', mo(1)%mo_set%nmo
          END IF
+         CALL print_states(output_unit, mo, dft_cntrl%nspins, 'the whole system', fermi=.TRUE.)
+         CALL set_fermi(ec, mo(1)%mo_set%mu)
+
+         ! KS Hamiltonian
+         CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, dft_cntrl%nspins)
+
+         ! Block diagonization
+         CALL hamiltonian_block_diag(qs_env, ec, mat_h)
+
+         ! Print out energies and couplings
+         DO i = 1, ec%n_blocks
+            IF (output_unit > 0) THEN
+               CALL print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
+                                 'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
+                                 mx_mo_a=mo(1)%mo_set%nmo, fermi=.TRUE.)
+            END IF
+            CALL print_mo_coeff(output_unit, qs_env, ec, i, dft_cntrl%nspins)
+         END DO
+
+         CALL print_couplings(et_proj_sec, output_unit, logger, ec, mo)
 
       END IF
+
+      ! Save electronic states
+      CALL save_el_states(qs_env, ec, dft_cntrl%nspins)
 
       ! Footer
       IF (master) WRITE (output_unit, '(/,T2,A)') &

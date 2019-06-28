@@ -83,7 +83,7 @@ MODULE bibliography
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
-                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017
+                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007
 
 CONTAINS
 
@@ -3784,7 +3784,7 @@ CONTAINS
                          "   Auer, Alexander A.", &
                          "   Neese, Frank", &
                          "TI Automatic Generation of Auxiliary Basis Sets", &
-                         "SO J. Chem. Theory Comput.", &
+                         "SO Journal of Chemical Theory and Computation", &
                          "PY 2017", &
                          "VL 13", &
                          "IS 2", &
@@ -3793,13 +3793,30 @@ CONTAINS
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b01041")
 
+      CALL add_reference(key=Kondov2007, ISI_record=s2a( &
+                         "AU Kondov, Ivan", &
+                         "   Cizek, Martin", &
+                         "   Benesch, Claudia", &
+                         "   Wang, Haobin", &
+                         "   Thoss, Michael", &
+                         "TI Quantum dynamics of photoinduced electron-transfer reactions in", &
+                         "   dye-semiconductor systems: First-principles description and application to coumarin 343-TiO2", &
+                         "SO Journal of Physical Chemistry C", &
+                         "PY 2007", &
+                         "VL 111", &
+                         "IS 32", &
+                         "BP 11970", &
+                         "EP 11981", &
+                         "ER"), &
+                         DOI="10.1021/jp072217m")
+
       CALL add_reference(key=Futera2017, ISI_record=s2a( &
                          "AU Futera, Zdenek", &
                          "   Blumberger, Jochen", &
                          "TI Electronic Couplings for Charge Transfer across Molecule/Metal and", &
                          "   Molecule/Semiconductor Interfaces: Performance of the Projector ", &
                          "   Operator-Based Diabatization Approach", &
-                         "SO J. Phys. Chem. C", &
+                         "SO Journal Physical Chemistry C", &
                          "PY 2017", &
                          "VL 121", &
                          "IS 36", &
