@@ -371,6 +371,8 @@ def send_notification(report, last_ok, log, name, s):
     if(idx_end == idx_last_ok): return # probably a flapping tester
     emails = set([log[i]['author-email'] for i in range(idx_end, idx_last_ok)])
     emails = [e for e in emails if "noreply" not in e]
+    if not emails:
+        return # no author emails found
     if (not send_emails):
         print("Email sending disabled, would otherwise send to: "+msg['To'])
         return
