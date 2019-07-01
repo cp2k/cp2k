@@ -45,7 +45,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_write', routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=10*default_string_length)            :: reference
+      CHARACTER(LEN=20*default_string_length)            :: reference
       CHARACTER(LEN=2*default_string_length)             :: shortform
       CHARACTER(LEN=20)                                  :: tmpStr
       INTEGER                                            :: i_rep, ifun, il, myfun, n_rep
