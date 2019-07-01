@@ -323,17 +323,19 @@ CONTAINS
 !> \param t_c_filename the name of the file with the truncated Coulomb data
 !> \param r_cutoff the cutoff radius for the truncated coulomb operator
 !> \param omega the range parameter for the erfc short range operator
+!> \param eps_screen the screening threshold for sicarding integrals before contraction
 !> \note The static initialization of the libint library needs to be done before hand
 !>       In case the truncated coulomb operator is used, the potential parameter file must be read
 !>       in advance too
 ! **************************************************************************************************
-   SUBROUTINE calculate_o3c_libint_integrals(o3c, op, t_c_filename, para_env, r_cutoff, omega)
+   SUBROUTINE calculate_o3c_libint_integrals(o3c, op, t_c_filename, para_env, r_cutoff, omega, &
+                                             eps_screen)
 
       TYPE(o3c_container_type), POINTER                  :: o3c
       INTEGER, INTENT(IN)                                :: op
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
       TYPE(cp_para_env_type), POINTER, OPTIONAL          :: para_env
-      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff, omega
+      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff, omega, eps_screen
 
       CHARACTER(len=*), PARAMETER :: routineN = "calculate_o3c_libint_integrals", &
                                      routineP = moduleN//":"//routineN
@@ -344,6 +346,7 @@ CONTAINS
                                                             ncob, ncoc, sgfa, sgfb, sgfc, egfa, &
                                                             egfb, egfc, maxli, maxlj, maxlk, imax, &
                                                             ibasis, unit_id, m_max
+      LOGICAL                                            :: do_screen
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, & 
                                                             basis_set_list_c
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_c
@@ -358,12 +361,11 @@ CONTAINS
                                                             nsgfb, nsgfc
       INTEGER, DIMENSION(:,:), POINTER                   :: first_sgfa, first_sgfb, first_sgfc
       TYPE(cp_libint_t)                                  :: lib
-      REAL(dp)                                           :: my_omega, my_r_cutoff
+      REAL(dp)                                           :: my_omega, my_r_cutoff, my_eps_screen
 
       NULLIFY(basis_set_list_a, basis_set_list_b, basis_set_list_c, basis_set_a, basis_set_b)
       NULLIFY(basis_set_c, iabc, tvec, first_sgfa, first_sgfb, first_sgfc, la_max, la_min, lb_max)
       NULLIFY(lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
-
 
       CALL timeset(routineN, handle)
 
@@ -387,6 +389,13 @@ CONTAINS
          maxlk = MAX(maxlk, imax)
       END DO
       m_max = maxli+maxlj+maxlk
+
+      !Screening
+      do_screen = .FALSE.
+      IF (PRESENT(eps_screen)) THEN
+         do_screen = .TRUE.
+         my_eps_screen = eps_screen
+      END IF
 
       !Short range parameters
       my_omega = 0.0_dp
@@ -420,7 +429,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,o3c_iterator,nspin,basis_set_list_a, basis_set_list_b,basis_set_list_c, &
-!$OMP         maxli,maxlj,maxlk,my_r_cutoff,my_omega,ncoset,op) &
+!$OMP         maxli,maxlj,maxlk,my_r_cutoff,my_omega,ncoset,op,do_screen,my_eps_screen) &
 !$OMP PRIVATE (basis_set_a,basis_set_b,basis_set_c,mepos,ikind,jkind,kkind,iabc,tvec,rij,rik, &
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,zeta,iset,ni,ri,ncoa,sgfa,egfa,sphi_a,&
 !$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,zetb,jset,nj,rj,ncob,sgfb,egfb,sphi_b,&
@@ -438,9 +447,6 @@ CONTAINS
 
          CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                     kkind=kkind, rij=rij, rik=rik, integral=iabc, tvec=tvec)
-
-            CPASSERT(.NOT. ASSOCIATED(iabc))
-            CPASSERT(.NOT. ASSOCIATED(tvec))
 
             !basis
             basis_set_a => basis_set_list_a(ikind)%gto_basis_set
@@ -511,6 +517,13 @@ CONTAINS
                                       ri, lb_min(jset), lb_max(jset), npgfb(jset), zetb(:,jset), &
                                       rj, lc_min(kset), lc_max(kset), npgfc(kset), zetc(:,kset), &
                                       rk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
+
+                     IF (do_screen) THEN
+                        IF (MAXVAL(ABS(sabc)) < my_eps_screen) THEN
+                           DEALLOCATE(sabc)
+                           CYCLE
+                        END IF
+                     END IF
 
                      CALL abc_contract(iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc), sabc, &
                                        sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &

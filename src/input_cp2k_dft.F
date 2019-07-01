@@ -8196,7 +8196,7 @@ CONTAINS
       CALL section_create(subsubsection, __LOCATION__, name="EXACT_EXCHANGE", &
                           description="Whther exact-exchange should be added to the kernel and " //&
                                       "if so, with which scaling.", &
-                          n_keywords=6, &
+                          n_keywords=7, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -8250,9 +8250,20 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_RANGE", &
                           description="The threshold to determine the effective range of the short range "//&
-                                      "operator: erfc(omega*eff_range)/eff_range = EPS_EANGE", &
+                                      "operator: erfc(omega*eff_range)/eff_range = EPS_RANGE", &
                           usage="EPS_RANGE = {double}", &
                           default_r_val=1.0E-6_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SCREENING", &
+                          variants=s2a("EPS_SCREEN"), &
+                          description="A threshold to determine which primitive 3-center integrals"//&
+                                      "are kept for contraction, as the latter operation can be "//&
+                                      "expensive (especially for large basis sets )." //&
+                                      "If |(ab|c)| < EPS_SCREENNING, it is discarded.", &
+                          default_r_val=1.0E-10_dp, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
