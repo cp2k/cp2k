@@ -81,8 +81,7 @@ MODULE distribution_methods
 ! *** Public subroutines ***
 
    PUBLIC :: distribute_molecules_1d, &
-             distribute_molecules_2d, &
-             make_basic_spatial_distribution
+             distribute_molecules_2d
 
 CONTAINS
 
@@ -906,27 +905,23 @@ CONTAINS
 !> \param row_distribution ...
 !> \param npcols ...
 !> \param col_distribution ...
-!> \param maximize_spread tries to put atoms that are close together on different procs
 !> \par History
 !> - Created 2010-11-11 Joost VandeVondele
-!> - Added the maximize_spread argument 05.2019 A. Bussy
 ! **************************************************************************************************
-   SUBROUTINE make_basic_spatial_distribution(pbc_scaled_coords, costs, nprows, row_distribution, &
-                                              npcols, col_distribution, maximize_spread)
+   SUBROUTINE make_basic_spatial_distribution(pbc_scaled_coords, costs, &
+                                              nprows, row_distribution, npcols, col_distribution)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pbc_scaled_coords
       INTEGER, DIMENSION(:), INTENT(IN)                  :: costs
       INTEGER, INTENT(IN)                                :: nprows
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: row_distribution
       INTEGER, INTENT(IN)                                :: npcols
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: col_distribution
-      LOGICAL, INTENT(IN), OPTIONAL                      :: maximize_spread
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_basic_spatial_distribution', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iatom, natoms, nbins, pgrid_gcd
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bin_costs, distribution
-      LOGICAL                                            :: my_max_dist
 
       CALL timeset(routineN, handle)
 
@@ -936,13 +931,7 @@ CONTAINS
       ALLOCATE (bin_costs(nbins), distribution(natoms))
       bin_costs = 0
 
-      my_max_dist = .FALSE.
-      IF (PRESENT(maximize_spread)) THEN
-         my_max_dist = maximize_spread
-      END IF
-
-      CALL spatial_recurse(pbc_scaled_coords, costs, (/(iatom, iatom=1, natoms)/), bin_costs, &
-                           distribution, 0, my_max_dist)
+      CALL spatial_recurse(pbc_scaled_coords, costs, (/(iatom, iatom=1, natoms)/), bin_costs, distribution, 0)
 
       ! WRITE(*, *) "Final bin costs: ", bin_costs
 
@@ -966,19 +955,14 @@ CONTAINS
 !> \param bin_costs ...
 !> \param distribution ...
 !> \param level ...
-!> \param maximize_spread ...
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE spatial_recurse(pbc_scaled_coords, costs, indices, bin_costs, distribution,&
-                                        level, maximize_spread)
+   RECURSIVE SUBROUTINE spatial_recurse(pbc_scaled_coords, costs, indices, bin_costs, distribution, level)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pbc_scaled_coords
       INTEGER, DIMENSION(:), INTENT(IN)                  :: costs, indices
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: bin_costs, distribution
       INTEGER, INTENT(IN)                                :: level
-      LOGICAL, INTENT(IN)                                :: maximize_spread
 
-      INTEGER                                            :: iatom, ibin, natoms, nbins, nhalf, i, &
-                                                            nquarter, itmp
-      REAL(KIND=dp)                                      :: rtmp
+      INTEGER                                            :: iatom, ibin, natoms, nbins, nhalf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_costs_sorted, atom_permutation, &
                                                             bin_costs_sorted, permutation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coord
@@ -1012,26 +996,10 @@ CONTAINS
          ALLOCATE (coord(natoms), permutation(natoms))
          coord(:) = pbc_scaled_coords(MOD(level, 3)+1, :)
          CALL sort(coord, natoms, permutation)
-         
-         IF (maximize_spread) THEN
-            ! reorder the coord (and permutation) such that atoms that are far away are put together
-            nquarter = (natoms+1)/2
-            DO i = 1, nquarter
-               rtmp = coord(i)
-               coord(i) = coord(natoms+1-i)
-               coord(natoms+1-i) = rtmp
-               itmp = permutation(i)
-               permutation(i) = permutation(natoms+1-i)
-               permutation(natoms+1-i) = itmp
-            END DO
-         END IF
-
          CALL spatial_recurse(pbc_scaled_coords(:, permutation(1:nhalf)), costs(permutation(1:nhalf)), &
-                              indices(permutation(1:nhalf)), bin_costs, distribution, level+1, &
-                              maximize_spread)
+                              indices(permutation(1:nhalf)), bin_costs, distribution, level+1)
          CALL spatial_recurse(pbc_scaled_coords(:, permutation(nhalf+1:)), costs(permutation(nhalf+1:)), &
-                              indices(permutation(nhalf+1:)), bin_costs, distribution, level+1, &
-                              maximize_spread)
+                              indices(permutation(nhalf+1:)), bin_costs, distribution, level+1)
          DEALLOCATE (coord, permutation)
       ENDIF
 

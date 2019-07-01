@@ -76,7 +76,7 @@ MODULE qs_ks_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_types'
 
    PUBLIC :: qs_ks_env_type, qs_ks_env_create, qs_ks_did_change
-   PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env
+   PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env, release_sab
 
 ! **************************************************************************************************
 !> \brief calculation environment to calculate the ks matrix,

@@ -7,8 +7,7 @@
 !> \brief Contraction of integrals over primitive Cartesian Gaussians based on the contraction
 !>        matrix sphi which is part of the gto_basis_set_type
 !> \par History
-!>      -Removed timings (routines might be called 100,000s => cost of timeset might actually become 
-!>       high, also not much info to be gained by these timings + cheap anyways)  A. Bussy (05.2019)
+!>      none
 !> \author Dorothea Golze (05.2016)
 ! **************************************************************************************************
 MODULE ai_contraction_sphi
@@ -45,8 +44,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ab_contract', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: m1, m2, msphia, msphib, nn
+      INTEGER                                            :: handle, m1, m2, msphia, msphib, nn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpp
+
+      CALL timeset(routineN, handle)
 
       msphia = SIZE(sphi_a, 1)
       msphib = SIZE(sphi_b, 1)
@@ -63,6 +64,8 @@ CONTAINS
                  abint, nn)
 
       DEALLOCATE (cpp)
+
+      CALL timestop(handle)
 
    END SUBROUTINE ab_contract
 
@@ -90,9 +93,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'abc_contract', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, m1, m2, m3, msphia, msphib, &
+      INTEGER                                            :: handle, i, m1, m2, m3, msphia, msphib, &
                                                             msphic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cpc, cpp
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(SIZE(abcint, 1) == nsgfa)
       CPASSERT(SIZE(abcint, 2) == nsgfb)
@@ -116,6 +121,8 @@ CONTAINS
                  abcint, nsgfa*nsgfb)
 
       DEALLOCATE (cpp, cpc)
+
+      CALL timestop(handle)
 
    END SUBROUTINE abc_contract
 
@@ -149,11 +156,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'abcd_contract', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: isgfc, isgfd, m1, m2, m3, m4, &
+      INTEGER                                            :: handle, isgfc, isgfd, m1, m2, m3, m4, &
                                                             msphia, msphib, msphic, msphid
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp_cccc, work_cpcc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: temp_cpcc, work_cppc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: cpcc, cppc, cppp
+
+      CALL timeset(routineN, handle)
 
       msphia = SIZE(sphi_a, 1)
       msphib = SIZE(sphi_b, 1)
@@ -196,6 +205,8 @@ CONTAINS
 
       DEALLOCATE (cpcc, cppc, cppp)
       DEALLOCATE (work_cpcc, work_cppc, temp_cpcc, temp_cccc)
+
+      CALL timestop(handle)
 
    END SUBROUTINE abcd_contract
 
