@@ -24,7 +24,7 @@
 
 // function prototype
 static void tolowercase(char *p, char *q);
-static int getBinaryPath(char *path, int N[3]);
+static int getFolderPath(char **path, int N[3]);
 static size_t loadBinary(char *binary_path, char **buf);
 void cleanup();
 void queue_cleanup();
@@ -45,7 +45,7 @@ cl_platform_id findPlatform(char *platform_name){
   status = clGetPlatformIDs(0, NULL, &num_platforms);
   if (status != CL_SUCCESS){
     printf("Query for number of platforms failed\n");
-    exit(0);
+    exit(1);
   }
 
   // Get ids of platforms available
@@ -53,7 +53,7 @@ cl_platform_id findPlatform(char *platform_name){
   status = clGetPlatformIDs(num_platforms, pids, NULL);
   if (status != CL_SUCCESS){
     printf("Query for platform ids failed\n");
-    exit(0);
+    exit(1);
   }
 
   // Convert argument string to lowercase to compare platform names
@@ -69,7 +69,7 @@ cl_platform_id findPlatform(char *platform_name){
     if (status != CL_SUCCESS){
       printf("Query for platform info failed\n");
       free(pids);
-      exit(0);
+      exit(1);
     }
 
     char pl_name[sz];
@@ -80,7 +80,7 @@ cl_platform_id findPlatform(char *platform_name){
     if (status != CL_SUCCESS){
       printf("Query for platform info failed\n");
       free(pids);
-      exit(0);
+      exit(1);
     }
 
     tolowercase(pl_name, plat_name);
@@ -108,7 +108,7 @@ cl_device_id* getTestDevices(cl_platform_id pid, cl_device_type device_type, cl_
   status = clGetDeviceIDs(pid, device_type, 0, NULL, num_devices);
   if(status != CL_SUCCESS){
     printf("Query for number of devices failed\n");
-    exit(0);
+    exit(1);
   }
 
   //  Based on the number of devices get their device ids
@@ -117,32 +117,59 @@ cl_device_id* getTestDevices(cl_platform_id pid, cl_device_type device_type, cl_
   if(status != CL_SUCCESS){
     printf("Query for device ids failed\n");
     free(dev_ids);
-    exit(0);
+    exit(1);
   }
   return dev_ids;
 }
 
+static int fileExists(char* filename){
+  if( access( filename, R_OK ) != -1 ) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 /******************************************************************************
- * \brief   returns the list of all devices for the specfic platform
+ * \brief   returns the list of all devices for the specific platform
  * \param   context created using device
  * \param   array of devices
  * \param   number of devices found
  * \param   size of FFT3d
- * \retval  created program
+ * \retval  created program or NULL if unsuccessful
  *****************************************************************************/
 cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices, unsigned num_device, int N[3], char *data_path){
-  char bin_path[500];
+  const int len_bin_path = 1000;
+  char bin_path[len_bin_path];
   char *binary;
   char *binaries[num_device];
 
   size_t bin_size;
   cl_int bin_status, status;
 
-  strcpy(bin_path, data_path);
+#ifdef __PW_FPGA_SP
+  const char *subpath = "/../fpgabitstream/fft3d/synthesis_sp/";
+#else
+  const char *subpath = "/../fpgabitstream/fft3d/synthesis_dp/";
+#endif
+  char *foldername;
+  const char *filename = "fft3d.aocx";
+   
+  if( !getFolderPath(&foldername, N) ){
+    printf("Path not found for the size (%d,%d,%d)", N[0], N[1], N[2]);
+    return NULL;
+  }
 
-  // Get the full path of the binary
-  if( !getBinaryPath(bin_path, N) ){
-    printf("No paths to the binary found\n");
+  int num_bytes = snprintf(bin_path, len_bin_path, "%s%s%s%s", data_path,subpath,foldername,filename );
+  if (num_bytes > len_bin_path){
+    printf("Insufficient buffer size to store path to binary\n");
+    free(foldername);
+    return NULL;
+  }
+
+  if (!fileExists(bin_path)){
+    printf("File not found in path %s\n", bin_path);
+    free(foldername);
     return NULL;
   }
 
@@ -150,7 +177,7 @@ cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
   bin_size = loadBinary(bin_path, &binary);
   if(bin_size == 0){
     printf("Could not load binary\n");
-    free(binary);
+    free(foldername);
     return NULL;
   }
 
@@ -161,59 +188,33 @@ cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
   if (status != CL_SUCCESS){
     printf("Query to create program with binary failed\n");
     free(binary);
+    free(foldername);
     return NULL;
   }
   free(binary);
+  free(foldername);
   return program;
 }
 
-static int fileTestExists(char* filename){
-  if( access( filename, R_OK ) != -1 ) {
-    return 1;
-  } else {
+int getFolderPath(char **folderPath, int N[3]){
+  if( N[0] == 16 && N[1] == 16 && N[2] == 16){
+    char folder[] = "syn16/";
+    *folderPath = malloc(strlen(folder)+1);
+    strncpy(*folderPath, folder, strlen(folder));
+  }
+  else if (N[0] == 32 && N[1] == 32 && N[2] == 32){
+    char folder[] = "syn32/";
+    *folderPath = malloc(strlen(folder)+1);
+    strncpy(*folderPath, folder, strlen(folder));
+  } 
+  else if (N[0] == 64 && N[1] == 64 && N[2] == 64){
+    char folder[] = "syn64/";
+    *folderPath = malloc(strlen(folder)+1);
+    strncpy(*folderPath, folder, strlen(folder));
+  }
+  else {
     return 0;
   }
-}
-
-static int getBinaryPath(char *path, int N[3]){
-
-#ifdef __PW_FPGA_SP
-  char *subpath = "/../fpgabitstream/fft3d/synthesis_sp/";
-#else
-  char *subpath = "/../fpgabitstream/fft3d/synthesis_dp/";
-#endif
-  
-  switch(N[0]){
-    case 16 : 
-      strcat(path, subpath);
-      strcat(path, "syn16/");
-      break;
-
-    case 32 : 
-      strcat(path, subpath);
-      strcat(path, "syn32/");
-      break;
-
-    case 64 : 
-      strcat(path, subpath);
-      strcat(path, "syn64/");
-      break;
-
-    default:
-      printf("Path not found for the size (%d,%d,%d)", N[0], N[1], N[2]);
-      exit(0);
-      break;
-  }
-  // strcat(full_path, specific_path); // transfer specific path to filename 
-  strcat(path, "fft3d");      // Append filename
-  strcat(path, ".aocx");      // Append extension
-  strcat(path, "\0");         // Append extension
-
-  if (!fileTestExists(path)){
-    printf("File not found \n");
-    return 0;
-  }
-
   return 1;
 }
 
@@ -244,12 +245,19 @@ static size_t loadBinary(char *binary_path, char **buf){
   return bin_size;
 }
 
-// Minimum alignment requirement to use DMA
+/******************************************************************************
+ * \brief   Allocate host side buffers to be 64-byte aligned to make use of DMA 
+ *          transfer between host and global memory
+ * \param   size in bytes : allocate size bytes multiples of 64
+ * \retval  pointer to allocated memory on successful allocation otherwise NULL
+ *****************************************************************************/
 const unsigned OPENCL_ALIGNMENT = 64;
 void* alignedMalloc(size_t size){
-
   void *memptr = NULL;
   int ret = posix_memalign(&memptr, OPENCL_ALIGNMENT, size);
+  if (ret != 0){
+    return NULL;
+  }
   return memptr;
 }
 

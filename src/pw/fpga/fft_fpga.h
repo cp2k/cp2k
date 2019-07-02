@@ -39,7 +39,7 @@ void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din);
 void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din);
 
 // Check fpga bitstream present in directory
-int pw_fpga_check_bitstream_(int data_path_len, char *data_path, int N[3]);
+int pw_fpga_check_bitstream_(char *data_path, int N[3]);
 
 // host variables
 static cl_platform_id platform = NULL;

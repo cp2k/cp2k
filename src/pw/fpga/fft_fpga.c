@@ -40,14 +40,12 @@ void pw_fpga_final_(){
  * \brief  check whether FFT3d can be computed on the FPGA or not. This depends 
  *         on the availability of bitstreams whose sizes are for now listed here 
  *         If the fft sizes are found and the FPGA is not setup before, it is done
- * \param  data_path_len - length of the path to the data directory
  * \param  data_path - path to the data directory
  * \param  N - integer pointer to the size of the FFT3d
  * \retval true if fft3d size supported
  *****************************************************************************/
-int pw_fpga_check_bitstream_(int data_path_len, char *data_path, int N[3]){
+int pw_fpga_check_bitstream_(char *data_path, int N[3]){
     static int fft_size[3] = { 0, 0, 0};
-    data_path[data_path_len] = '\0';
 
     // check the supported sizes
     if( (N[0] == 16 && N[1] == 16 && N[2] == 16) ||
@@ -123,7 +121,15 @@ void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
   cl_int status = 0;
   int inverse_int = inverse;
   cmplx *h_inData = (cmplx *)alignedMalloc(sizeof(cmplx) * N[0] * N[1] * N[2]);
+  if (h_inData == NULL){
+    printf("Unable to allocate host memory\n");
+    exit(1);
+  }
   cmplx *h_outData = (cmplx *)alignedMalloc(sizeof(cmplx) * N[0] * N[1] * N[2]);
+  if (h_outData == NULL){
+    printf("Unable to allocate host memory\n");
+    exit(1);
+  }
 
   memcpy(h_inData, c_in, sizeof(cmplx) * N[0] * N[1] * N[2]);
 
@@ -220,7 +226,7 @@ void init_program(int N[3], char *data_path){
   program = getProgramWithBinary(context, &device, 1, N, data_path);
   if(program == NULL) {
     printf("Failed to create program");
-    exit(0);
+    exit(1);
   }
   // Build the program that was just created.
   status = clBuildProgram(program, 0, NULL, "", NULL, NULL);

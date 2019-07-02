@@ -16,7 +16,8 @@ MODULE pw_fpga
    USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_DOUBLE_COMPLEX,&
                                               C_FLOAT_COMPLEX,&
-                                              C_INT
+                                              C_INT,&
+                                              C_NULL_CHAR
    USE cp_files,                        ONLY: get_data_dir
    USE kinds,                           ONLY: dp,&
                                               sp
@@ -54,19 +55,16 @@ MODULE pw_fpga
    INTERFACE
 ! **************************************************************************************************
 !> \brief Check whether an fpga bitstream for the given FFT3d size is present & load binary if needed
-!> \param data_path_len - length of the path to the data directory
 !> \param data_path - path to the data directory
 !> \param npts - fft3d size
 !> \return res - true if fft3d size supported
 ! **************************************************************************************************
-      FUNCTION pw_fpga_check_bitstream(data_path_len, data_path, n) RESULT(res) &
+      FUNCTION pw_fpga_check_bitstream(data_path, n) RESULT(res) &
          BIND(C, name="pw_fpga_check_bitstream_")
          IMPORT
-         INTEGER(KIND=C_INT), VALUE, INTENT(IN)   :: data_path_len
-         CHARACTER(len=1, kind=C_CHAR), TARGET    :: data_path(data_path_len)
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                            :: n
-         INTEGER(KIND=C_INT)                     :: res
+         CHARACTER(KIND=C_CHAR)        :: data_path(*)
+         INTEGER(KIND=C_INT)           :: n(3)
+         INTEGER(KIND=C_INT)           :: res
       END FUNCTION pw_fpga_check_bitstream
 
    END INTERFACE
@@ -81,9 +79,8 @@ MODULE pw_fpga
       SUBROUTINE pw_fpga_fft3d_sp(dir, n, c_in_sp) &
          BIND(C, name="pw_fpga_fft3d_sp_")
          IMPORT
-         INTEGER(KIND=C_INT), VALUE, INTENT(IN)   :: dir
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                            :: n
+         INTEGER(KIND=C_INT), VALUE              :: dir
+         INTEGER(KIND=C_INT)                     :: n(3)
          COMPLEX(KIND=C_FLOAT_COMPLEX)           :: c_in_sp(n(1), n(2), n(3))
       END SUBROUTINE pw_fpga_fft3d_sp
    END INTERFACE
@@ -98,10 +95,9 @@ MODULE pw_fpga
       SUBROUTINE pw_fpga_fft3d_dp(dir, n, c_in_dp) &
          BIND(C, name="pw_fpga_fft3d_dp_")
          IMPORT
-         INTEGER(KIND=C_INT), VALUE, INTENT(IN)   :: dir
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                            :: n
-         COMPLEX(KIND=C_DOUBLE_COMPLEX)           :: c_in_dp(n(1), n(2), n(3))
+         INTEGER(KIND=C_INT), VALUE              :: dir
+         INTEGER(KIND=C_INT)                     :: n(3)
+         COMPLEX(KIND=C_DOUBLE_COMPLEX)          :: c_in_dp(n(1), n(2), n(3))
       END SUBROUTINE pw_fpga_fft3d_dp
    END INTERFACE
 
@@ -273,10 +269,10 @@ CONTAINS
       CHARACTER(len=100)                               :: data_path
       INTEGER                                          :: data_path_len
 
-      data_path = TRIM(get_data_dir())
+      data_path = TRIM(get_data_dir())//C_NULL_CHAR
       data_path_len = LEN_TRIM(data_path)
 
-      res = pw_fpga_check_bitstream(data_path_len, data_path, n)
+      res = pw_fpga_check_bitstream(data_path, n)
 #endif
    END FUNCTION
 
