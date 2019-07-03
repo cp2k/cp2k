@@ -21,10 +21,11 @@
 // Function prototypes
 int init();
 void cleanup();
-void init_program(int N[3], char *data_path);
-void queue_setup();
+static void cleanup_program();
+static void init_program(int N[3], char *data_path);
+static void queue_setup();
 void queue_cleanup();
-void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in);
+static void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in);
 
 // --- CODE -------------------------------------------------------------------
 
@@ -52,17 +53,29 @@ int pw_fpga_check_bitstream_(char *data_path, int N[3]){
         (N[0] == 32 && N[1] == 32 && N[2] == 32) ||
         (N[0] == 64 && N[1] == 64 && N[2] == 64)  ){
 
-        // if previously used binary needs to be executed again, otherwise set
-        // the new size and load new binary
-        if( fft_size[0] == N[0] && fft_size[1] == N[1] && fft_size[2] == N[2] ){
+        // if first time
+        if( fft_size[0] == 0 && fft_size[1] == 0 && fft_size[2] == 0 ){
+          fft_size[0] = N[0];
+          fft_size[1] = N[1];
+          fft_size[2] = N[2];
+
+          init_program(fft_size, data_path);
+        }
+        else if( fft_size[0] == N[0] && fft_size[1] == N[1] && fft_size[2] == N[2] ){
+          // if same fft size as previous
+          // dont do anything
         }
         else{
-            fft_size[0] = N[0];
-            fft_size[1] = N[1];
-            fft_size[2] = N[2];
+            // else if different fft size as previous
+            // cleanup and initialize
+          fft_size[0] = N[0];
+          fft_size[1] = N[1];
+          fft_size[2] = N[2];
 
-            init_program(fft_size, data_path);
+          cleanup_program();
+          init_program(fft_size, data_path);
         }
+
         return 1;
     }
     else{
@@ -77,9 +90,6 @@ int pw_fpga_check_bitstream_(char *data_path, int N[3]){
  * \param   din : complex input/output single precision data pointer 
  *****************************************************************************/
 void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
-
-  queue_setup();
-
   // setup device specific constructs 
   if(direction == 1){
     fftfpga_run_3d(0, N, din);
@@ -87,8 +97,6 @@ void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
   else{
     fftfpga_run_3d(1, N, din);
   }
-
-  queue_cleanup();
 }
 
 /******************************************************************************
@@ -98,8 +106,6 @@ void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
  * \param   din : complex input/output single precision data pointer 
  *****************************************************************************/
 void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
-  queue_setup();
-
   // setup device specific constructs 
   if(direction == 1){
     fftfpga_run_3d(0, N, din);
@@ -107,8 +113,6 @@ void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
   else{
     fftfpga_run_3d(1, N, din);
   }
-
-  queue_cleanup();
 }
 
 /******************************************************************************
@@ -120,6 +124,30 @@ void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
 void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
   cl_int status = 0;
   int inverse_int = inverse;
+  cl_kernel fft_kernel = NULL, fft_kernel_2 = NULL;
+  cl_kernel fetch_kernel = NULL, transpose_kernel = NULL, transpose_kernel_2 = NULL;
+  
+// Device memory buffers
+  cl_mem d_inData, d_outData;
+
+  // Create the kernel - name passed in here must match kernel name in the
+  // original CL file, that was compiled into an AOCX file using the AOC tool
+  fft_kernel = clCreateKernel(program, "fft3da", &status);
+  checkError(status, "Failed to create fft3da kernel");
+  fft_kernel_2 = clCreateKernel(program, "fft3db", &status);
+  checkError(status, "Failed to create fft3db kernel");
+  fetch_kernel = clCreateKernel(program, "fetch", &status);
+  checkError(status, "Failed to create fetch kernel");
+  transpose_kernel = clCreateKernel(program, "transpose", &status);
+  checkError(status, "Failed to create transpose kernel");
+  transpose_kernel_2 = clCreateKernel(program, "transpose3d", &status);
+  checkError(status, "Failed to create transpose3d kernel");
+
+  d_inData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * N[0] * N[1] * N[2], NULL, &status);
+  checkError(status, "Failed to allocate input device buffer\n");
+  d_outData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * N[0] * N[1] * N[2], NULL, &status);
+  checkError(status, "Failed to allocate output device buffer\n");
+
   cmplx *h_inData = (cmplx *)alignedMalloc(sizeof(cmplx) * N[0] * N[1] * N[2]);
   if (h_inData == NULL){
     printf("Unable to allocate host memory\n");
@@ -132,6 +160,8 @@ void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
   }
 
   memcpy(h_inData, c_in, sizeof(cmplx) * N[0] * N[1] * N[2]);
+
+  queue_setup();
 
   // Copy data from host to device
   status = clEnqueueWriteBuffer(queue6, d_inData, CL_TRUE, 0, sizeof(cmplx) * N[0] * N[1] * N[2], h_inData, 0, NULL, NULL);
@@ -183,28 +213,36 @@ void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
 
   memcpy(c_in, h_outData, sizeof(cmplx) * N[0] * N[1] * N[2] );
 
+  queue_cleanup();
+
   if (h_outData)
 	  free(h_outData);
   if (h_inData)
 	  free(h_inData);
+
+  if (d_inData)
+  	clReleaseMemObject(d_inData);
+  if (d_outData) 
+	  clReleaseMemObject(d_outData);
+
+  if(fetch_kernel) 
+    clReleaseKernel(fetch_kernel);  
+  if(fft_kernel) 
+    clReleaseKernel(fft_kernel);  
+  if(fft_kernel_2) 
+    clReleaseKernel(fft_kernel_2);  
+  if(transpose_kernel) 
+    clReleaseKernel(transpose_kernel);  
+  if(transpose_kernel_2) 
+    clReleaseKernel(transpose_kernel_2); 
 }
 
-/******************************************************************************
- * \brief   Initialize the OpenCL FPGA environment
- * \retval  true if error in initialization
- *****************************************************************************/
-int init() {
-  cl_int status = 0;
-  // Get the OpenCL platform.
-  platform = findPlatform("Intel(R) FPGA");
-  if(platform == NULL) {
-    printf("ERROR: Unable to find Intel(R) FPGA OpenCL platform\n");
-    return 1;
-  }
 
-  // Query the available OpenCL devices.
-  cl_uint num_devices;
-  cl_device_id *devices = getTestDevices(platform, CL_DEVICE_TYPE_ALL, &num_devices);
+/******************************************************************************
+ * \brief   Initialize the program - select device, create context and program
+ *****************************************************************************/
+void init_program(int N[3], char *data_path){
+  cl_int status = 0;
 
   // use the first device.
   device = devices[0];
@@ -213,15 +251,6 @@ int init() {
   context = clCreateContext(NULL, 1, &device, &openCLContextCallBackFxn, NULL, &status);
   checkError(status, "Failed to create context");
 
-  free(devices);
-  return 0;
-}
-
-/******************************************************************************
- * \brief   Initialize the program and its kernels
- *****************************************************************************/
-void init_program(int N[3], char *data_path){
-  cl_int status = 0;
   // Create the program.
   program = getProgramWithBinary(context, &device, 1, N, data_path);
   if(program == NULL) {
@@ -232,23 +261,44 @@ void init_program(int N[3], char *data_path){
   status = clBuildProgram(program, 0, NULL, "", NULL, NULL);
   checkError(status, "Failed to build program");
 
-  // Create the kernel - name passed in here must match kernel name in the
-  // original CL file, that was compiled into an AOCX file using the AOC tool
-  fft_kernel = clCreateKernel(program, "fft3da", &status);
-  checkError(status, "Failed to create fft3da kernel");
-  fft_kernel_2 = clCreateKernel(program, "fft3db", &status);
-  checkError(status, "Failed to create fft3db kernel");
-  fetch_kernel = clCreateKernel(program, "fetch", &status);
-  checkError(status, "Failed to create fetch kernel");
-  transpose_kernel = clCreateKernel(program, "transpose", &status);
-  checkError(status, "Failed to create transpose kernel");
-  transpose_kernel_2 = clCreateKernel(program, "transpose3d", &status);
-  checkError(status, "Failed to create transpose3d kernel");
+}
 
-  d_inData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * N[0] * N[1] * N[2], NULL, &status);
-  checkError(status, "Failed to allocate input device buffer\n");
-  d_outData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cmplx) * N[0] * N[1] * N[2], NULL, &status);
-  checkError(status, "Failed to allocate output device buffer\n");
+/******************************************************************************
+ * \brief   Free resources allocated during program initialization
+ *****************************************************************************/
+void cleanup_program(){
+  if(program) 
+    clReleaseProgram(program);
+  if(context)
+    clReleaseContext(context);
+}
+
+/******************************************************************************
+ * \brief   Initialize the OpenCL FPGA environment - platform and devices
+ * \retval  true if error in initialization
+ *****************************************************************************/
+int init() {
+  cl_int status = 0;
+
+  // Get the OpenCL platform.
+  platform = findPlatform("Intel(R) FPGA");
+  if(platform == NULL) {
+    printf("ERROR: Unable to find Intel(R) FPGA OpenCL platform\n");
+    return 1;
+  }
+  // Query the available OpenCL devices.
+  cl_uint num_devices;
+  devices = getDevices(platform, CL_DEVICE_TYPE_ALL, &num_devices);
+
+  return 0;
+}
+
+/******************************************************************************
+ * \brief   Free resources allocated during initialization - devices
+ *****************************************************************************/
+void cleanup(){
+  cleanup_program();
+  free(devices);
 }
 
 /******************************************************************************
@@ -269,33 +319,6 @@ void queue_setup(){
   checkError(status, "Failed to create command queue5");
   queue6 = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   checkError(status, "Failed to create command queue6");
-}
-
-/******************************************************************************
- * \brief   Free resources allocated during initialization
- *****************************************************************************/
-void cleanup(){
-
-  if(context)
-    clReleaseContext(context);
-  if(program) 
-    clReleaseProgram(program);
-
-  if(fft_kernel) 
-    clReleaseKernel(fft_kernel);  
-  if(fft_kernel_2) 
-    clReleaseKernel(fft_kernel_2);  
-  if(fetch_kernel) 
-    clReleaseKernel(fetch_kernel);  
-  if(transpose_kernel) 
-    clReleaseKernel(transpose_kernel);  
-  if(transpose_kernel_2) 
-    clReleaseKernel(transpose_kernel_2);  
-
-  if (d_inData)
-	clReleaseMemObject(d_inData);
-  if (d_outData) 
-	clReleaseMemObject(d_outData);
 }
 
 /******************************************************************************

@@ -21,7 +21,7 @@ cl_platform_id findPlatform(char *platform_name);
 
 // Search for a device based on the platform
 // Return array of device ids
-cl_device_id* getTestDevices(cl_platform_id pid, cl_device_type device_type, cl_uint *num_devices);
+cl_device_id* getDevices(cl_platform_id pid, cl_device_type device_type, cl_uint *num_devices);
 
 // OpenCL program created for all the devices of the context with the same binary
 cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices, unsigned num_devices, int N[3], char *data_path);

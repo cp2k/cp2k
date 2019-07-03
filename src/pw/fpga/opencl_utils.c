@@ -53,6 +53,7 @@ cl_platform_id findPlatform(char *platform_name){
   status = clGetPlatformIDs(num_platforms, pids, NULL);
   if (status != CL_SUCCESS){
     printf("Query for platform ids failed\n");
+    free(pids);
     exit(1);
   }
 
@@ -101,7 +102,7 @@ cl_platform_id findPlatform(char *platform_name){
  * \param   total number of devices found for the given platform
  * \retval  array of device ids
  *****************************************************************************/
-cl_device_id* getTestDevices(cl_platform_id pid, cl_device_type device_type, cl_uint *num_devices) {
+cl_device_id* getDevices(cl_platform_id pid, cl_device_type device_type, cl_uint *num_devices) {
   cl_int status;
 
   // Query for number of devices
