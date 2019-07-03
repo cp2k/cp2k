@@ -137,12 +137,12 @@ MODULE xtb_parameters
 !&>
 
 !&<
-   ! Charge Limits
+   ! Charge Limits (Mulliken)
    REAL(KIND=dp), DIMENSION(0:nelem), &
       PARAMETER, PRIVATE :: clmt = (/0.00_dp, & ! 0
                                      1.00_dp, 0.50_dp, & ! 2
-                                     1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 10
-                                     1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 18
+                                     1.00_dp, 2.00_dp, 3.00_dp, 4.00_dp, 3.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 10
+                                     1.00_dp, 2.00_dp, 3.00_dp, 4.00_dp, 3.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 18
                                      1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
                                      3.00_dp, 3.00_dp, 3.00_dp, 2.00_dp, 2.03_dp, 2.00_dp, 2.00_dp, 2.00_dp, 1.00_dp, 0.50_dp, & ! 36
                                      1.00_dp, 2.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
