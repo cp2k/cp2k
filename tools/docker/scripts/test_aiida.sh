@@ -20,7 +20,7 @@ chmod +x /usr/bin/cp2k
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/
 git clone --quiet https://github.com/cp2k/aiida-cp2k.git
-pip install --quiet ./aiida-cp2k/[pre-commit]
+pip install --quiet ./aiida-cp2k/[pre-commit,test]
 
 # workaround for dependency chain in 1.0.0b1
 pip install --quiet 'topika==0.1.3'
