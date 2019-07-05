@@ -1,9 +1,14 @@
 FROM ubuntu:18.04
 ARG MPI_MODE=mpich
+ARG LIBINT_LMAX=5
 USER root
 
+# author: Ole Schuett
+
+# Installs complete toolchain including packages which are skipped by default.
+
 # install Ubuntu packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     autoconf \
     autogen \
     automake \
@@ -32,7 +37,11 @@ COPY ./scripts/VERSION \
      ./scripts/signal_trap.sh ./scripts/
 
 COPY ./install_cp2k_toolchain.sh .
-RUN ./install_cp2k_toolchain.sh --install-all --mpi-mode=${MPI_MODE} --dry-run
+RUN ./install_cp2k_toolchain.sh  \
+    --install-all \
+    --mpi-mode=${MPI_MODE} \
+    --libint-lmax=${LIBINT_LMAX} \
+    --dry-run
 
 COPY ./scripts/install_valgrind.sh ./scripts/
 RUN ./scripts/install_valgrind.sh && rm -rf ./build
@@ -43,8 +52,8 @@ RUN ./scripts/install_cmake.sh && rm -rf ./build
 COPY ./scripts/install_gcc.sh ./scripts/
 RUN ./scripts/install_gcc.sh && rm -rf ./build
 
-COPY ./scripts/get_openblas_arch.sh ./scripts/
-COPY ./scripts/setup_buildtools.sh ./scripts/
+COPY ./scripts/get_openblas_arch.sh \
+     ./scripts/setup_buildtools.sh ./scripts/
 RUN ./scripts/setup_buildtools.sh && rm -rf ./build
 
 COPY ./scripts/install_mpich.sh ./scripts/
