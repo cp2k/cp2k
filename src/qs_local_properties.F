@@ -10,8 +10,14 @@
 !>      - 07.2019 created
 ! **************************************************************************************************
 MODULE qs_local_properties
+<<<<<<< HEAD
    USE bibliography,                    ONLY: Cohen2000,&
                                               Filippetti2000,&
+=======
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE bibliography,                    ONLY: Cohen2000,&
+>>>>>>> Local energy for GPW method
                                               Rogers2002,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -19,6 +25,10 @@ MODULE qs_local_properties
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+<<<<<<< HEAD
+=======
+   USE cp_para_types,                   ONLY: cp_para_env_type
+>>>>>>> Local energy for GPW method
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
@@ -26,12 +36,18 @@ MODULE qs_local_properties
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+<<<<<<< HEAD
    USE mathlib,                         ONLY: det_3x3
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_derive,&
+=======
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_methods,                      ONLY: pw_axpy,&
+>>>>>>> Local energy for GPW method
                                               pw_integrate_function,&
                                               pw_multiply,&
                                               pw_transfer,&
