@@ -1,0 +1,63 @@
+FROM ubuntu:18.04
+ARG GCC_VERSION=8
+ARG LIBINT_LMAX=5
+USER root
+
+# author: Ole Schuett
+
+# Installs lean toolchain without MPI and relying mostly on Ubuntu packages.
+
+# Install Ubuntu packages.
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    autoconf \
+    autogen \
+    automake \
+    autotools-dev \
+    ca-certificates \
+    cmake \
+    g++ \
+    git \
+    less \
+    libtool \
+    make \
+    nano \
+    pkg-config \
+    python \
+    unzip \
+    wget \
+    zlib1g-dev \
+    gcc-${GCC_VERSION} \
+    g++-${GCC_VERSION} \
+    gfortran-${GCC_VERSION} \
+    fftw3-dev \
+    libopenblas-dev \
+    liblapack-dev \
+    libgsl-dev \
+    libhdf5-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Create links.
+RUN ln -sf gcc-${GCC_VERSION}      /usr/bin/gcc  && \
+    ln -sf g++-${GCC_VERSION}      /usr/bin/g++  && \
+    ln -sf gfortran-${GCC_VERSION} /usr/bin/gfortran
+
+# Build toolchain.
+WORKDIR /opt/cp2k-toolchain
+COPY ./scripts ./scripts
+COPY ./install_cp2k_toolchain.sh .
+RUN ./install_cp2k_toolchain.sh  \
+    --mpi-mode=no                \
+    --with-gcc=system            \
+    --with-cmake=system          \
+    --with-fftw=system           \
+    --with-openblas=system       \
+    --with-reflapack=system      \
+    --with-gsl=system            \
+    --with-hdf5=system           \
+    --with-libxc=install         \
+    --with-libxsmm=install       \
+    --with-libint=install        \
+    --libint-lmax=${LIBINT_LMAX} \
+    && rm -rf ./build
+
+#EOF
