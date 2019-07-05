@@ -107,16 +107,18 @@ CONTAINS
 !> \param pw_pool the pool for the grids
 !> \param compute_virial should the virial be computed... if so virial_xc must be present
 !> \param virial_xc for calculating the GGA part of the stress
+!> \param exc_r ...
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_vxc_pw_create1(vxc_rho, vxc_tau, rho_r, rho_g, tau, exc, xc_section, &
-                                pw_pool, compute_virial, virial_xc)
+                                pw_pool, compute_virial, virial_xc, exc_r)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau, rho_r, rho_g, tau
       REAL(KIND=dp), INTENT(out)                         :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      LOGICAL                                            :: compute_virial
+      LOGICAL, INTENT(IN)                                :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
+      TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
          routineP = moduleN//':'//routineN
@@ -132,14 +134,16 @@ CONTAINS
                                 i_val=f_routine)
       SELECT CASE (f_routine)
       CASE (xc_new_f_routine)
-         CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, tau=tau, &
+         CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, tau=tau, exc_r=exc_r, &
                                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section, &
                                pw_pool=pw_pool, compute_virial=compute_virial, virial_xc=virial_xc)
       CASE (xc_debug_new_routine)
+         CPASSERT(.NOT. PRESENT(exc_r))
          CALL xc_vxc_pw_create_debug(vxc_rho=vxc_rho, vxc_tau=vxc_tau, tau=tau, &
                                      rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section, &
                                      pw_pool=pw_pool)
       CASE (xc_test_lsd_f_routine)
+         CPASSERT(.NOT. PRESENT(exc_r))
          CALL xc_vxc_pw_create_test_lsd(vxc_rho=vxc_rho, vxc_tau=vxc_tau, &
                                         tau=tau, rho_r=rho_r, rho_g=rho_g, exc=exc, &
                                         xc_section=xc_section, pw_pool=pw_pool)
@@ -1044,6 +1048,7 @@ CONTAINS
 !> \param pw_pool the pool for the grids
 !> \param compute_virial ...
 !> \param virial_xc ...
+!> \param exc_r the value of the xc functional in the real space
 !> \par History
 !>      JGH (13-Jun-2002): adaptation to new functionals
 !>      Fawzi (11.2002): drho_g(1:3)->drho_g
@@ -1058,7 +1063,7 @@ CONTAINS
 !>      energy should be kept consistent with xc_exc_calc
 ! **************************************************************************************************
    SUBROUTINE xc_vxc_pw_create(vxc_rho, vxc_tau, exc, rho_r, rho_g, tau, xc_section, &
-                               pw_pool, compute_virial, virial_xc)
+                               pw_pool, compute_virial, virial_xc, exc_r)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
       REAL(KIND=dp), INTENT(out)                         :: exc
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_g, tau
@@ -1066,6 +1071,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL                                            :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
+      TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
          routineP = moduleN//':'//routineN
@@ -1725,6 +1731,18 @@ CONTAINS
          exc = accurate_sum(deriv_data)*pw_grid%dvol
          IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
             CALL mp_sum(exc, pw_grid%para%group)
+         END IF
+         !
+         ! return the xc functional value at the grid points
+         !
+         IF (PRESENT(exc_r)) THEN
+            CPASSERT(.NOT. ASSOCIATED(exc_r%pw))
+            deriv_att => xc_dset_get_derivative(deriv_set, "")
+            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+            CALL pw_create(exc_r%pw, pw_grid, &
+                           use_data=REALDATA3D, in_space=REALSPACE, &
+                           cr3d_ptr=deriv_data)
+            NULLIFY (deriv_att%deriv_data)
          END IF
       ELSE
          exc = 0.0_dp

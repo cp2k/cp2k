@@ -94,7 +94,6 @@ MODULE qs_ks_methods
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -240,7 +239,6 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: rho0_s_rs, rho_core, rho_nlcc, vee, &
                                                             vppl_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -255,7 +253,7 @@ CONTAINS
                mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
                vppl_rspace, v_hartree_rspace%pw, adiabatic_rescaling_section, &
                hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
-               auxbas_pw_pool, poisson_env, pw_pools, v_rspace_new, &
+               auxbas_pw_pool, poisson_env, v_rspace_new, &
                v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                matrix_vxc, vee, rho_nlcc, ks_env, &
                ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
@@ -360,8 +358,7 @@ CONTAINS
       END IF
 
       ! gets the tmp grids
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools, poisson_env=poisson_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
 
       IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
          CPABORT("The implicit Poisson solver cannot be used in conjunction with GAPW.")

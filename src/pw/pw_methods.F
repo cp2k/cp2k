@@ -16,6 +16,7 @@
 !>      JGH (26-Feb-2003) : OpenMP enabled
 !>      JGH (17-Nov-2007) : Removed mass arrays
 !>      JGH (01-Dec-2007) : Removed and renamed routines
+!>      JGH (04-Jul-2019) : added pw_multiply routine
 !>      03.2008 [tlaino] : Splitting pw_types into pw_types and pw_methods
 !> \author apsi
 ! **************************************************************************************************
@@ -61,7 +62,7 @@ MODULE pw_methods
 
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
-   PUBLIC :: pw_derive, pw_dr2, pw_write
+   PUBLIC :: pw_derive, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
    PUBLIC :: pw_set
@@ -764,7 +765,7 @@ CONTAINS
          IF (pw1%in_use == COMPLEXDATA1D .AND. &
              pw2%in_use == COMPLEXDATA1D .AND. &
              pw1%in_space == RECIPROCALSPACE .AND. &
-             pw1%in_space == RECIPROCALSPACE) THEN
+             pw2%in_space == RECIPROCALSPACE) THEN
 
             ng1 = SIZE(pw1%cc)
             ng2 = SIZE(pw2%cc)
@@ -885,6 +886,89 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_axpy
+
+! **************************************************************************************************
+!> \brief pw_out = pw_out + alpha * pw1 * pw2
+!>      alpha defaults to 1
+!> \param pw_out ...
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param alpha ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE pw_multiply(pw_out, pw1, pw2, alpha)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
+      REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_multiply', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: flop, my_alpha
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(pw_out%ref_count > 0)
+      CPASSERT(pw1%ref_count > 0)
+      CPASSERT(pw2%ref_count > 0)
+
+      my_alpha = 1.0_dp
+      IF (PRESENT(alpha)) my_alpha = alpha
+
+      IF (pw_out%pw_grid%id_nr == pw2%pw_grid%id_nr .AND. &
+          pw_out%pw_grid%id_nr == pw2%pw_grid%id_nr) THEN
+
+         IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D .AND. &
+             pw_out%in_use == REALDATA1D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+               pw_out%cr = pw_out%cr+pw1%cr+pw2%cr
+               flop = REAL(2*SIZE(pw2%cr), KIND=dp)
+            ELSE
+               pw_out%cr = pw_out%cr+my_alpha*pw1%cr*pw2%cr
+               flop = REAL(3*SIZE(pw2%cr), KIND=dp)
+            END IF
+         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
+                  pw2%in_use == COMPLEXDATA1D .AND. &
+                  pw_out%in_use == COMPLEXDATA1D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+               pw_out%cc = pw_out%cc+pw1%cc*pw2%cc
+               flop = REAL(3*SIZE(pw2%cc), KIND=dp)
+            ELSE
+               pw_out%cc = pw_out%cc+my_alpha*pw1%cc*pw2%cc
+               flop = REAL(6*SIZE(pw2%cc), KIND=dp)
+            END IF
+         ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
+                  pw_out%in_use == REALDATA3D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+               pw_out%cr3d = pw_out%cr3d+pw1%cr3d*pw2%cr3d
+               flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
+            ELSE
+               pw_out%cr3d = pw_out%cr3d+my_alpha*pw1%cr3d*pw2%cr3d
+               flop = REAL(3*SIZE(pw2%cr3d), KIND=dp)
+            END IF
+         ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
+                  pw2%in_use == COMPLEXDATA3D .AND. &
+                  pw_out%in_use == COMPLEXDATA3D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+               pw_out%cc3d = pw_out%cc3d+pw1%cc3d*pw2%cc3d
+               flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
+            ELSE
+               pw_out%cc3d = pw_out%cc3d+my_alpha*pw1%cc3d*pw2%cc3d
+               flop = REAL(6*SIZE(pw2%cc3d), KIND=dp)
+            END IF
+         ELSE
+            CPABORT("No suitable data field")
+         END IF
+
+      ELSE
+         CPABORT("Grids not compatible")
+      END IF
+
+      flop = flop*1.e-6_dp
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_multiply
 
 ! **************************************************************************************************
 !> \brief Gathers the pw vector from a 3d data field

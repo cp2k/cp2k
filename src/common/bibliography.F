@@ -84,7 +84,11 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007, &
+<<<<<<< HEAD
                             Ren2011, Ren2013
+=======
+                            Cohen2000, Rogers2002
+>>>>>>> Local energy for GPW method
 
 CONTAINS
 
@@ -4047,6 +4051,37 @@ CONTAINS
                          "BP 035120", &
                          "ER"), &
                          DOI="10.1103/PhysRevB.88.035120")
+            
+      CALL add_reference(key=Cohen2000, ISI_record=s2a( &
+                         "AU Cohen, Morrel H.", &
+                         "   Frydel, Derek", &
+                         "   Burke, Kieron", &
+                         "   Engel, Eberhard", &
+                         "AF Cohen, Morrel H.", &
+                         "   Frydel, Derek", &
+                         "   Burke, Kieron", &
+                         "   Engel, Eberhard", &
+                         "TI Total energy density as an interpretative tool", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2000", &
+                         "VL 113", &
+                         "BP 2990", &
+                         "DI 10.1063/1.1286805", &
+                         "ER"), &
+                         DOI="10.1063/1.1286805")
+
+      CALL add_reference(key=Rogers2002, ISI_record=s2a( &
+                         "AU Rogers, Christopher L.", &
+                         "   Rappe, Andrew M.", &
+                         "TI Geometric formulation of quantum stress fields", &
+                         "SO PHYSICAL REVIEW B", &
+                         "DT Article", &
+                         "PY 2002", &
+                         "VL 65", &
+                         "AR 224117", &
+                         "DI 10.1103/PhysRevB.65.224117", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.65.224117")
 
    END SUBROUTINE add_all_references
 

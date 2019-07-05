@@ -1535,6 +1535,48 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
+                                       description="Controls the printing of cube files with the local "// &
+                                       " energy. It is valid only for QS with GPW/GAPW formalism ."// &
+                                       " Meta and hybrid functionals are not possible.", &
+                                       print_level=debug_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_STRESS_CUBE", &
+                                       description="Controls the printing of cube files with the local "// &
+                                       " stress. It is valid only for QS with GPW/GAPW formalism ."// &
+                                       " Meta and hybrid functionals are not possible.", &
+                                       print_level=debug_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL create_pdos_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
