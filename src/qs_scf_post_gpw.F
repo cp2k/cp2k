@@ -181,7 +181,9 @@ MODULE qs_scf_post_gpw
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                               mpole_rho_atom,&
                                               rho0_mpole_type
-   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
+                                              deallocate_rho_atom_set,&
+                                              rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: ot_method_nr,&
