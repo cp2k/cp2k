@@ -215,7 +215,7 @@ if [[ $dir_triplet == *valgrind* ]] ; then
    job_max_time=${job_max_time:-7200}
 else
    valgrindstring=""
-   job_max_time=${job_max_time:-300}
+   job_max_time=${job_max_time:-400}
 fi
 
 if [[ $cp2k_version == p* ]] ; then
