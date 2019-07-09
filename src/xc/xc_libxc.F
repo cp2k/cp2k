@@ -196,6 +196,7 @@ CONTAINS
       MARK_USED(shortform)
       MARK_USED(needs)
       MARK_USED(max_deriv)
+      MARK_USED(print_warn)
       CPABORT("In order to use libxc you need to download and install it")
 #endif
 
@@ -305,6 +306,7 @@ CONTAINS
       MARK_USED(shortform)
       MARK_USED(needs)
       MARK_USED(max_deriv)
+      MARK_USED(print_warn)
       CPABORT("In order to use libxc you need to download and install it")
 #endif
 
