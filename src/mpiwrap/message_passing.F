@@ -783,7 +783,7 @@ CONTAINS
 !> \par History
 !>      1.2012 created [ Christiane Pousa ]
 !> \note
-!>      should only be called once, st very beginning of CP2K run
+!>      should only be called once, at very beginning of CP2K run
 ! **************************************************************************************************
    SUBROUTINE mp_reordering(mp_comm, mp_new_comm, ranks_order)
       INTEGER, INTENT(IN)                      :: mp_comm
@@ -2510,7 +2510,7 @@ CONTAINS
       CALL mp_bcast(msglen, source, gid)
       ! this is a workaround to avoid problems on the T3E
       ! at the moment we have a data alignment error when trying to
-      ! broadcasts characters on the T3E (not always!)
+      ! broadcast characters on the T3E (not always!)
       ! JH 19/3/99 on galileo
       ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
       ALLOCATE (imsg(1:msglen))
@@ -2568,7 +2568,7 @@ CONTAINS
       msglen = SUM(imsglen)
       ! this is a workaround to avoid problems on the T3E
       ! at the moment we have a data alignment error when trying to
-      ! broadcasts characters on the T3E (not always!)
+      ! broadcast characters on the T3E (not always!)
       ! JH 19/3/99 on galileo
       ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
       ALLOCATE (imsg(1:msglen))
@@ -3102,7 +3102,7 @@ CONTAINS
 !> \par MPI-I/O mapping  mpi_file_open
 !> \par STREAM-I/O mapping  OPEN
 !>
-!> \param[in](optinal) info   info object
+!> \param[in](optional) info   info object
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! **************************************************************************************************
@@ -3160,7 +3160,7 @@ CONTAINS
 !> \brief Deletes a file. Auxiliary routine to emulate 'replace' action for mp_file_open.
 !>        Only the master processor should call this routine.
 !> \param[in] filepath   path to the file
-!> \param[in](optinal) info   info object
+!> \param[in](optional) info   info object
 !> \par History
 !>      11.2017 created [Nico Holmberg]
 ! **************************************************************************************************
