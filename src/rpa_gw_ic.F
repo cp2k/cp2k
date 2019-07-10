@@ -29,7 +29,7 @@ MODULE rpa_gw_ic
         dbcsr_add, dbcsr_create, dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
-        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_trace, dbcsr_transposed, dbcsr_type, &
+        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_dot, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_type_real_default
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
@@ -149,7 +149,7 @@ CONTAINS
             CALL dbcsr_multiply("N", "N", alpha, mat_SinvVSinv%matrix, &
                                 mat_3c_overl_nnP_ic(n_level_gw)%matrix, 0.0_dp, mat_work)
 
-            CALL dbcsr_trace(mat_work, &
+            CALL dbcsr_dot(mat_work, &
                              mat_3c_overl_nnP_ic_reflected(n_level_gw)%matrix, &
                              Delta_Sigma_Neaton(n_level_gw))
 
