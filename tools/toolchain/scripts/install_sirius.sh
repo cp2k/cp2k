@@ -156,6 +156,8 @@ case "$with_sirius" in
                       -DCMAKE_CXX_COMPILER=mpic++ \
                       -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
                 make -j $NPROCS -C src >> compile.log 2>&1
+                install -d ${pkg_install_dir}/lib/cuda
+                install -d ${pkg_install_dir}/include/cuda
                 install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
                 install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
                 SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
@@ -210,7 +212,7 @@ case "$with_sirius" in
         ;;
 esac
 if [ "$with_sirius" != "__DONTUSE__" ] ; then
-    SIRIUS_LIBS="-lsirius_f"
+    SIRIUS_LIBS="-lsirius_f IF_CUDA(-lsirius_cu -lcusolver|)"
     SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
     SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
