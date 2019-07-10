@@ -20,7 +20,7 @@ MODULE pexsi_types
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: csr_type,&
+   USE dbcsr_api,                       ONLY: dbcsr_csr_type,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_type
@@ -85,7 +85,7 @@ MODULE pexsi_types
    TYPE lib_pexsi_env
       TYPE(dbcsr_type)                      :: dbcsr_template_matrix_sym, &
                                                dbcsr_template_matrix_nonsym
-      TYPE(csr_type)                           :: csr_mat_p, csr_mat_ks, csr_mat_s, &
+      TYPE(dbcsr_csr_type)                           :: csr_mat_p, csr_mat_ks, csr_mat_s, &
                                                   csr_mat_E, csr_mat_F
       TYPE(cp_pexsi_options)                   :: options
       REAL(KIND=dp), DIMENSION(:), POINTER     :: kTS => NULL()

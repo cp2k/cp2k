@@ -21,7 +21,7 @@ MODULE task_list_methods
                                               cube_info_type,&
                                               return_cube,&
                                               return_cube_nonortho
-   USE dbcsr_api,                       ONLY: convert_sizes_to_offsets,&
+   USE dbcsr_api,                       ONLY: dbcsr_convert_sizes_to_offsets,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_get_info,&
@@ -2261,8 +2261,8 @@ CONTAINS
                           nblkcols_total=nblkcols_total)
       ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total), &
                 first_col(nblkcols_total), last_col(nblkcols_total))
-      CALL convert_sizes_to_offsets(row_blk_size, first_row, last_row)
-      CALL convert_sizes_to_offsets(col_blk_size, first_col, last_col)
+      CALL dbcsr_convert_sizes_to_offsets(row_blk_size, first_row, last_row)
+      CALL dbcsr_convert_sizes_to_offsets(col_blk_size, first_col, last_col)
       ! set up send buffer sizes
       natom8 = natoms
       nim8 = nimages

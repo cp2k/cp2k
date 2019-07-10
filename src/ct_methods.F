@@ -25,7 +25,7 @@ MODULE ct_methods
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, &
+        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_dot, &
         dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: &
         cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, &
@@ -267,7 +267,7 @@ CONTAINS
 
             IF (cts_env%calculate_energy_corr) THEN
 
-               CALL dbcsr_trace(matrix_qp, cts_env%matrix_x, cts_env%energy_correction)
+               CALL dbcsr_dot(matrix_qp, cts_env%matrix_x, cts_env%energy_correction)
 
             ENDIF
 
@@ -383,7 +383,7 @@ CONTAINS
 
             IF (cts_env%calculate_energy_corr) THEN
 
-               CALL dbcsr_trace(matrix_qp_save, cts_env%matrix_x, cts_env%energy_correction)
+               CALL dbcsr_dot(matrix_qp_save, cts_env%matrix_x, cts_env%energy_correction)
 
             ENDIF
             CALL dbcsr_release(matrix_qp_save)
@@ -959,48 +959,48 @@ CONTAINS
                CASE (cg_hestenes_stiefel)
                   CALL dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
                   CALL dbcsr_hadamard_product(prec, grad, n)
-                  CALL dbcsr_trace(n, m, numer)
-                  CALL dbcsr_trace(grad, step, denom)
+                  CALL dbcsr_dot(n, m, numer)
+                  CALL dbcsr_dot(grad, step, denom)
                   beta = numer/denom
                CASE (cg_fletcher_reeves)
                   CALL dbcsr_hadamard_product(prec, grad, n)
-                  CALL dbcsr_trace(grad, n, denom)
+                  CALL dbcsr_dot(grad, n, denom)
                   CALL dbcsr_hadamard_product(prec, m, n)
-                  CALL dbcsr_trace(m, n, numer)
+                  CALL dbcsr_dot(m, n, numer)
                   beta = numer/denom
                CASE (cg_polak_ribiere)
                   CALL dbcsr_hadamard_product(prec, grad, n)
-                  CALL dbcsr_trace(grad, n, denom)
+                  CALL dbcsr_dot(grad, n, denom)
                   CALL dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
                   CALL dbcsr_hadamard_product(prec, grad, n)
-                  CALL dbcsr_trace(n, m, numer)
+                  CALL dbcsr_dot(n, m, numer)
                   beta = numer/denom
                CASE (cg_fletcher)
                   CALL dbcsr_hadamard_product(prec, m, n)
-                  CALL dbcsr_trace(m, n, numer)
-                  CALL dbcsr_trace(grad, step, denom)
+                  CALL dbcsr_dot(m, n, numer)
+                  CALL dbcsr_dot(grad, step, denom)
                   beta = -1.0_dp*numer/denom
                CASE (cg_liu_storey)
-                  CALL dbcsr_trace(grad, step, denom)
+                  CALL dbcsr_dot(grad, step, denom)
                   CALL dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
                   CALL dbcsr_hadamard_product(prec, grad, n)
-                  CALL dbcsr_trace(n, m, numer)
+                  CALL dbcsr_dot(n, m, numer)
                   beta = -1.0_dp*numer/denom
                CASE (cg_dai_yuan)
                   CALL dbcsr_hadamard_product(prec, m, n)
-                  CALL dbcsr_trace(m, n, numer)
+                  CALL dbcsr_dot(m, n, numer)
                   CALL dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
-                  CALL dbcsr_trace(grad, step, denom)
+                  CALL dbcsr_dot(grad, step, denom)
                   beta = numer/denom
                CASE (cg_hager_zhang)
                   CALL dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
-                  CALL dbcsr_trace(grad, step, denom)
+                  CALL dbcsr_dot(grad, step, denom)
                   CALL dbcsr_hadamard_product(prec, grad, n)
-                  CALL dbcsr_trace(n, grad, numer)
+                  CALL dbcsr_dot(n, grad, numer)
                   kappa = 2.0_dp*numer/denom
-                  CALL dbcsr_trace(n, m, numer)
+                  CALL dbcsr_dot(n, m, numer)
                   tau = numer/denom
-                  CALL dbcsr_trace(step, m, numer)
+                  CALL dbcsr_dot(step, m, numer)
                   beta = tau-kappa*numer/denom
                CASE (cg_zero)
                   beta = 0.0_dp
@@ -1093,13 +1093,13 @@ CONTAINS
             ! calculate coefficients of the cubic eq for alpha - step size
             c0 = 2.0_dp*(dbcsr_frobenius_norm(n))**2
 
-            CALL dbcsr_trace(m, n, c1)
+            CALL dbcsr_dot(m, n, c1)
             c1 = -3.0_dp*c1
 
-            CALL dbcsr_trace(res, n, c2)
+            CALL dbcsr_dot(res, n, c2)
             c2 = -2.0_dp*c2+(dbcsr_frobenius_norm(m))**2
 
-            CALL dbcsr_trace(res, m, c3)
+            CALL dbcsr_dot(res, m, c3)
 
             ! find step size
             CALL analytic_line_search(c0, c1, c2, c3, step_size, nsteps)
@@ -1135,7 +1135,7 @@ CONTAINS
 
          ! evaluate current energy correction
          !change_ecorr=ecorr
-         !CALL dbcsr_trace(qp,x,ecorr,"T","N")
+         !CALL dbcsr_dot(qp,x,ecorr,"T","N")
          !change_ecorr=ecorr-change_ecorr
 
          ! check convergence and other exit criteria

@@ -18,7 +18,7 @@ MODULE almo_scf_diis_types
                                               dbcsr_create,&
                                               dbcsr_release,&
                                               dbcsr_set,&
-                                              dbcsr_trace,&
+                                              dbcsr_dot,&
                                               dbcsr_type
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               copy_submatrices,&
@@ -503,7 +503,7 @@ CONTAINS
       SELECT CASE (diis_env%error_type)
       CASE (diis_error_orthogonal)
          IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
-            CALL dbcsr_trace(A, B, trace)
+            CALL dbcsr_dot(A, B, trace)
          ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
             CPASSERT(SIZE(d_A%mdata, 1) .EQ. SIZE(d_B%mdata, 1))
             CPASSERT(SIZE(d_A%mdata, 2) .EQ. SIZE(d_B%mdata, 2))
