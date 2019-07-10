@@ -1,0 +1,61 @@
+FROM nvidia/cuda:10.1-devel-ubuntu18.04
+ARG GPU_VERSION
+ARG LIBINT_LMAX=5
+
+# author: Ole Schuett
+
+# Installs toolchain with CUDA and MKL.
+# WARNING: The resulting image will violate the GPL and must not be distributed.
+
+# Install Ubuntu packages.
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    autoconf \
+    autogen \
+    automake \
+    autotools-dev \
+    ca-certificates \
+    gcc \
+    g++ \
+    gfortran \
+    git \
+    less \
+    libtool \
+    make \
+    nano \
+    pkg-config \
+    python \
+    python-numpy \
+    unzip \
+    wget \
+    zlib1g-dev \
+    mpich \
+    libmpich-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Setup CUDA environment.
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH ${CUDA_PATH}/lib64:${LD_LIBRARY_PATH}
+
+# Install Intel MKL.
+# https://software.intel.com/en-us/articles/installing-intel-free-libs-and-python-apt-repo
+RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB -O- | apt-key add - && \
+    wget -q https://apt.repos.intel.com/setup/intelproducts.list -O /etc/apt/sources.list.d/intelproducts.list && \
+    apt-get update -qq && apt-get install -qq --no-install-recommends intel-mkl-64bit-2019.4-070 && \
+    rm -rf /var/lib/apt/lists/*
+ENV MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl
+
+# Build toolchain.
+WORKDIR /opt/cp2k-toolchain
+COPY ./scripts ./scripts
+COPY ./install_cp2k_toolchain.sh .
+RUN ./install_cp2k_toolchain.sh  \
+    --mpi-mode=mpich             \
+    --math-mode=mkl              \
+    --with-reflapack=no          \
+    --with-scalapack=no          \
+    --with-elpa=no               \
+    --libint-lmax=${LIBINT_LMAX} \
+    --gpu-ver=${GPU_VERSION}     \
+    && rm -rf ./build
+
+#EOF
