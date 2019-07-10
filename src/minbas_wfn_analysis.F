@@ -43,7 +43,7 @@ MODULE minbas_wfn_analysis
         dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, &
         dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_dot, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
@@ -318,7 +318,7 @@ CONTAINS
          END IF
          ALLOCATE (mcharge(natom, nspin))
          DO ispin = 1, nspin
-            CALL dbcsr_trace(pqmat(ispin)%matrix, sqmat(ispin)%matrix, trace)
+            CALL dbcsr_dot(pqmat(ispin)%matrix, sqmat(ispin)%matrix, trace)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,I2,T66,F15.4)') 'Number of Electrons: Trace(PS) Spin ', ispin, trace
             END IF

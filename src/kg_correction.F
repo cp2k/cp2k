@@ -15,7 +15,7 @@ MODULE kg_correction
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
-                                              dbcsr_trace
+                                              dbcsr_dot
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
@@ -586,7 +586,7 @@ CONTAINS
 
       ekin_mol = 0.0_dp
       DO ispin = 1, nspins
-         CALL dbcsr_trace(tnadd_matrix(1)%matrix, density_matrix(ispin)%matrix, ekin_mol)
+         CALL dbcsr_dot(tnadd_matrix(1)%matrix, density_matrix(ispin)%matrix, ekin_mol)
          CALL dbcsr_add(ks_matrix(ispin)%matrix, tnadd_matrix(1)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       END DO

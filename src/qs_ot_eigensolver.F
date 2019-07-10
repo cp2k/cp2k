@@ -20,7 +20,7 @@ MODULE qs_ot_eigensolver
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_set, dbcsr_dot, dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: preconditioner_in_use,&
                                               preconditioner_type
@@ -256,7 +256,7 @@ CONTAINS
             ! the energy is cHc, the gradient is 2*H*c
             CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h, matrix_c, &
                                 0.0_dp, matrix_hc(1)%matrix)
-            CALL dbcsr_trace(matrix_c, matrix_hc(1)%matrix, energy)
+            CALL dbcsr_dot(matrix_c, matrix_hc(1)%matrix, energy)
             IF (.NOT. energy_only) THEN
                CALL dbcsr_scale(matrix_hc(1)%matrix, 2.0_dp)
             ENDIF

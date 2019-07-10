@@ -27,8 +27,8 @@ MODULE qs_dftb_matrices
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        convert_offsets_to_sizes, dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, dbcsr_trace, dbcsr_type, &
+        dbcsr_convert_offsets_to_sizes, dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, dbcsr_dot, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE efield_tb_methods,               ONLY: efield_tb_matrix
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -607,8 +607,8 @@ CONTAINS
                            1.0_dp, 1.0_dp)
             CALL qs_rho_get(rho, rho_ao=matrix_p1)
             ! Compute QM/MM Energy
-            CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                             matrix_p1(ispin)%matrix, trace=qmmm_el)
+            CALL dbcsr_dot(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                             matrix_p1(ispin)%matrix, qmmm_el)
             energy%qmmm_el = energy%qmmm_el+qmmm_el
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener
@@ -928,7 +928,7 @@ CONTAINS
       CPASSERT(nmat > 0)
 
       ALLOCATE (row_blk_sizes(natom))
-      CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+      CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
 
       CALL dbcsr_allocate_matrix_set(matrices, nmat)
 
@@ -1018,7 +1018,7 @@ CONTAINS
       CPASSERT(nmat > 0)
 
       ALLOCATE (row_blk_sizes(natom))
-      CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+      CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
 
       CALL dbcsr_allocate_matrix_set(matrices, nmat, nimg)
 

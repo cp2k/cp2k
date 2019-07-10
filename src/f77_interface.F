@@ -43,11 +43,10 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
-   USE dbcsr_acc_device,                ONLY: acc_get_ndevices,&
+   USE dbcsr_acc_device,                ONLY: dbcsr_acc_get_ndevices,&
                                               acc_set_active_device
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib,&
-                                              dbcsr_set_hooks
+                                              dbcsr_init_lib
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
@@ -268,16 +267,17 @@ CONTAINS
          !   *** init the bibliography ***
          CALL add_all_references()
 
-         IF (acc_get_ndevices() > 0) &
-            CALL acc_set_active_device(MOD(default_para_env%mepos, acc_get_ndevices()))
+         IF (dbcsr_acc_get_ndevices() > 0) &
+            CALL acc_set_active_device(MOD(default_para_env%mepos, dbcsr_acc_get_ndevices()))
 
          CALL pw_cuda_init()
 
          ! Initialize the DBCSR configuration
-         CALL dbcsr_init_lib()
+         CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+                              cp_abort_hook, cp_warn_hook, io_unit=0)
          ! Attach the time handler hooks to DBCSR
-         CALL dbcsr_set_hooks(timeset_hook, timestop_hook, &
-                              cp_abort_hook, cp_warn_hook)
+         !CALL dbcsr_set_hooks(timeset_hook, timestop_hook, &
+                              !cp_abort_hook, cp_warn_hook)
       ELSE
          ierr = cp_failure_level
       END IF
@@ -309,7 +309,7 @@ CONTAINS
          ierr = cp_failure_level
       ELSE
          ! Finalize the DBCSR configuration
-         CALL dbcsr_finalize_lib(group=default_para_env%group, output_unit=0)
+         CALL dbcsr_finalize_lib()
          CALL pw_cuda_finalize()
          DO ienv = n_f_envs, 1, -1
             CALL destroy_force_env(f_envs(ienv)%f_env%id_nr, ierr=ierr)

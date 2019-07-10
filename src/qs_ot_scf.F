@@ -20,7 +20,7 @@ MODULE qs_ot_scf
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_type, &
+        dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_dot, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -234,7 +234,7 @@ CONTAINS
             CALL dbcsr_set_diag(qs_ot_env(ispin)%matrix_buf2, expectation_values(ispin)%array)
 
             ! get nondiag energy trace (D^T D)
-            CALL dbcsr_trace(qs_ot_env(ispin)%matrix_buf2, qs_ot_env(ispin)%matrix_buf2, trace)
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_buf2, qs_ot_env(ispin)%matrix_buf2, trace)
             ener_nondiag = ener_nondiag+0.5_dp*qs_ot_env(1)%settings%nondiag_energy_strength*trace
 
             ! get gradient (again ignoring dependencies of H)

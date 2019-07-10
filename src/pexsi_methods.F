@@ -26,8 +26,8 @@ MODULE pexsi_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
-        csr_destroy, csr_eqrow_floor_dist, csr_print_sparsity, dbcsr_copy, &
+        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_copy, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, &
         dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
@@ -203,21 +203,21 @@ CONTAINS
       CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)
 
       IF (.NOT. pexsi_env%csr_screening) CALL dbcsr_set(pexsi_env%csr_sparsity, 1.0)
-      CALL csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
+      CALL dbcsr_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
                                  pexsi_env%csr_mat_s, &
-                                 csr_eqrow_floor_dist, &
+                                 dbcsr_csr_eqrow_floor_dist, &
                                  csr_sparsity=pexsi_env%csr_sparsity, &
                                  numnodes=pexsi_env%num_ranks_per_pole)
 
       IF (unit_nr > 0) WRITE (unit_nr, "(/T2,A)") "SPARSITY OF THE OVERLAP MATRIX IN CSR FORMAT"
-      CALL csr_print_sparsity(pexsi_env%csr_mat_s, unit_nr)
+      CALL dbcsr_csr_print_sparsity(pexsi_env%csr_mat_s, unit_nr)
 
-      CALL convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s)
+      CALL dbcsr_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s)
 
-      CALL csr_create(pexsi_env%csr_mat_ks, pexsi_env%csr_mat_s)
-      CALL csr_create(pexsi_env%csr_mat_p, pexsi_env%csr_mat_s)
-      CALL csr_create(pexsi_env%csr_mat_E, pexsi_env%csr_mat_s)
-      CALL csr_create(pexsi_env%csr_mat_F, pexsi_env%csr_mat_s)
+      CALL dbcsr_csr_create(pexsi_env%csr_mat_ks, pexsi_env%csr_mat_s)
+      CALL dbcsr_csr_create(pexsi_env%csr_mat_p, pexsi_env%csr_mat_s)
+      CALL dbcsr_csr_create(pexsi_env%csr_mat_E, pexsi_env%csr_mat_s)
+      CALL dbcsr_csr_create(pexsi_env%csr_mat_F, pexsi_env%csr_mat_s)
 
       DO ispin = 1, pexsi_env%nspin
          ! max_ev_vector only initialised to avoid warning in case max_scf==0
@@ -270,11 +270,11 @@ CONTAINS
       CALL dbcsr_release(pexsi_env%dbcsr_template_matrix_sym)
       CALL dbcsr_release(pexsi_env%dbcsr_template_matrix_nonsym)
       CALL dbcsr_release(pexsi_env%csr_sparsity)
-      CALL csr_destroy(pexsi_env%csr_mat_p)
-      CALL csr_destroy(pexsi_env%csr_mat_ks)
-      CALL csr_destroy(pexsi_env%csr_mat_s)
-      CALL csr_destroy(pexsi_env%csr_mat_E)
-      CALL csr_destroy(pexsi_env%csr_mat_F)
+      CALL dbcsr_csr_destroy(pexsi_env%csr_mat_p)
+      CALL dbcsr_csr_destroy(pexsi_env%csr_mat_ks)
+      CALL dbcsr_csr_destroy(pexsi_env%csr_mat_s)
+      CALL dbcsr_csr_destroy(pexsi_env%csr_mat_E)
+      CALL dbcsr_csr_destroy(pexsi_env%csr_mat_F)
       DO ispin = 1, pexsi_env%nspin
          CALL dbcsr_release(pexsi_env%max_ev_vector(ispin))
          CALL dbcsr_release(pexsi_env%matrix_w(ispin)%matrix)
@@ -364,12 +364,12 @@ CONTAINS
       ! needed in order to retain the initial sparsity pattern that is required for the
       ! conversion to CSR format.
       CALL dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, matrix_s)
-      CALL convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
+      CALL dbcsr_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
                                 pexsi_env%csr_mat_s)
 
       CALL dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, &
                                     matrix_ks)
-      CALL convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
+      CALL dbcsr_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
                                 pexsi_env%csr_mat_ks)
 
       ! Get PEXSI input delta_E (upper bound for largest eigenvalue) using Arnoldi
@@ -488,10 +488,10 @@ CONTAINS
       CALL mp_bcast(kTS, 0, pexsi_env%mp_group)
 
       ! Convert PEXSI CSR matrices to DBCSR matrices
-      CALL convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
+      CALL dbcsr_convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
                                 pexsi_env%csr_mat_p)
       CALL dbcsr_copy(matrix_p, pexsi_env%dbcsr_template_matrix_nonsym)
-      CALL convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
+      CALL dbcsr_convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
                                 pexsi_env%csr_mat_E)
       CALL dbcsr_copy(matrix_w%matrix, pexsi_env%dbcsr_template_matrix_nonsym)
 

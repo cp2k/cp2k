@@ -32,7 +32,7 @@ MODULE lri_environment_methods
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_replicate_all,&
-                                              dbcsr_trace,&
+                                              dbcsr_dot,&
                                               dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_inv,&
@@ -945,7 +945,7 @@ CONTAINS
                CALL dbcsr_create(pmat_diag, name="Block diagonal density", template=matrix_p(1, 1)%matrix)
                CALL dbcsr_get_block_diag(matrix_p(ispin, 1)%matrix, pmat_diag)
                str = 0.0_dp
-               CALL dbcsr_trace(matrix_s(1, 1)%matrix, pmat_diag, str)
+               CALL dbcsr_dot(matrix_s(1, 1)%matrix, pmat_diag, str)
                lri_env%stat%rho_1c = lri_env%stat%rho_1c+str
                CALL dbcsr_replicate_all(pmat_diag)
             END IF

@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 MODULE cp2k_runs
-   USE dbcsr_acc_device,                ONLY: acc_get_ndevices,&
+   USE dbcsr_acc_device,                ONLY: dbcsr_acc_get_ndevices,&
                                               acc_set_active_device
    USE atom,                            ONLY: atom_code
    USE bibliography,                    ONLY: Hutter2014,&
@@ -194,14 +194,14 @@ CONTAINS
       CALL cp_para_env_create(para_env, group=mpi_comm, &
                               owns_group=.FALSE.)
 
-      IF (acc_get_ndevices() > 0) &
-         CALL acc_set_active_device(MOD(para_env%mepos, acc_get_ndevices()))
+      IF (dbcsr_acc_get_ndevices() > 0) &
+         CALL acc_set_active_device(MOD(para_env%mepos, dbcsr_acc_get_ndevices()))
 
       CALL cuda_nvtx_init()
 
       CALL pw_cuda_init()
 
-      CALL dbcsr_init_lib()
+      CALL dbcsr_init_lib(mpi_comm, io_unit=0)
 
       CALL cp_sirius_init()
 
@@ -262,12 +262,12 @@ CONTAINS
          ! Hack: DBCSR should be uninitialized when entering farming.
          ! But, we don't want to change the public f77_interface.
          ! TODO: refactor cp2k's startup code
-         CALL dbcsr_finalize_lib(group=mpi_comm, output_unit=0)
+         CALL dbcsr_finalize_lib()
          CALL cp_sirius_finalize()
          CALL pw_cuda_finalize()
          CALL farming_run(input_declaration, root_section, para_env)
          CALL cp_sirius_init()
-         CALL dbcsr_init_lib()
+         CALL dbcsr_init_lib(mpi_comm, io_unit=0)
          CALL pw_cuda_init()
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
@@ -392,7 +392,7 @@ CONTAINS
       CALL cp_sirius_finalize()
 
       CALL pw_cuda_finalize()
-      CALL dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit)
+      CALL dbcsr_finalize_lib()
 
       m_memory_max_mpi = m_memory_max
       CALL mp_max(m_memory_max_mpi, mpi_comm)

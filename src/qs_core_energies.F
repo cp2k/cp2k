@@ -17,7 +17,7 @@ MODULE qs_core_energies
                                               atprop_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_trace,&
+                                              dbcsr_dot,&
                                               dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
@@ -91,7 +91,7 @@ CONTAINS
       ecore = 0.0_dp
       DO ispin = 1, nspin
          etr = 0.0_dp
-         CALL dbcsr_trace(hmat(1)%matrix, pmat(ispin)%matrix, etr)
+         CALL dbcsr_dot(hmat(1)%matrix, pmat(ispin)%matrix, etr)
          ecore = ecore+etr
       END DO
 
@@ -131,7 +131,7 @@ CONTAINS
       DO ispin = 1, nspin
          DO ic = 1, nc
             etr = 0.0_dp
-            CALL dbcsr_trace(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            CALL dbcsr_dot(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
             ecore = ecore+etr
          END DO
       END DO
@@ -170,7 +170,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ecore = 0.0_dp
-      CALL dbcsr_trace(h, p, ecore)
+      CALL dbcsr_dot(h, p, ecore)
 
       CALL timestop(handle)
 

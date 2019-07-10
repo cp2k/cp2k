@@ -28,7 +28,7 @@ MODULE se_fock_matrix
                                               dbcsr_get_info,&
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
-                                              dbcsr_trace,&
+                                              dbcsr_dot,&
                                               dbcsr_type
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
@@ -191,7 +191,7 @@ CONTAINS
          ! Compute the Hartree energy
          ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.
          DO ispin = 1, nspins
-            CALL dbcsr_trace(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, trace=ecoul)
+            CALL dbcsr_dot(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, ecoul)
             energy%hartree = energy%hartree+ecoul
          END DO
 !      WRITE ( *, * ) 'AFTER Hartree',  ecoul, energy%hartree
@@ -204,8 +204,8 @@ CONTAINS
                CALL dbcsr_add(ks_matrix(ispin)%matrix, qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
                               1.0_dp, 1.0_dp)
                ! Compute QM/MM Energy
-               CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                                matrix_p(ispin)%matrix, trace=qmmm_el)
+               CALL dbcsr_dot(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                                matrix_p(ispin)%matrix, qmmm_el)
                energy%qmmm_el = energy%qmmm_el+qmmm_el
             END DO
          END IF

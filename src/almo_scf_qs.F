@@ -126,9 +126,9 @@ CONTAINS
       INTEGER                                            :: dimen, handle, hold, iatom, iblock_col, &
                                                             iblock_row, imol, mynode, natoms, &
                                                             nblkrows_tot, nlength, nmols, row
-      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, cluster_distr, &
-         cluster_distr_new, col_cluster_new, col_distr_new, col_sizes_new, distr_new_array, &
-         row_cluster_new, row_distr_new, row_sizes_new
+      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new,  &
+          col_distr_new, col_sizes_new, distr_new_array, &
+          row_distr_new, row_sizes_new
       LOGICAL                                            :: active, one_dim_is_mo, tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
@@ -167,12 +167,11 @@ CONTAINS
 
          ! distribution pattern is the same for all matrix types (ao, occ, virt)
          IF (dimen == 1) THEN !rows
-            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr)
          ELSE !columns
-            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr)
          ENDIF
 
-         NULLIFY (cluster_distr_new)
 
          IF (size_keys(dimen) == almo_mat_dim_aobasis) THEN ! this dimension is AO
 
@@ -184,10 +183,6 @@ CONTAINS
                ALLOCATE (block_sizes_new(natoms), distr_new_array(natoms))
                block_sizes_new(:) = blk_sizes(:)
                distr_new_array(:) = blk_distr(:)
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  ALLOCATE (cluster_distr_new(natoms))
-                  cluster_distr_new(:) = cluster_distr(:)
-               END IF
                ! molecular clustering of AOs
             ELSE IF (almo_scf_env%mat_distr_aos == almo_mat_distr_molecular) THEN
                ALLOCATE (block_sizes_new(nmols), distr_new_array(nmols))
@@ -201,13 +196,6 @@ CONTAINS
                   distr_new_array(imol) = &
                      blk_distr(almo_scf_env%first_atom_of_domain(imol))
                ENDDO
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  ALLOCATE (cluster_distr_new(nmols))
-                  DO imol = 1, nmols
-                     cluster_distr_new(imol) = &
-                        cluster_distr(almo_scf_env%first_atom_of_domain(imol))
-                  ENDDO
-               END IF
             ELSE
                CPABORT("Illegal distribution")
             ENDIF
@@ -259,27 +247,15 @@ CONTAINS
 
             ! distribution for MOs is copied from AOs
             ALLOCATE (distr_new_array(nlength))
-            IF (ASSOCIATED(cluster_distr)) THEN
-               ALLOCATE (cluster_distr_new(nlength))
-            END IF
             ! atomic clustering
             IF (almo_scf_env%mat_distr_mos == almo_mat_distr_atomic) THEN
                distr_new_array(:) = blk_distr(:)
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  cluster_distr_new(:) = cluster_distr(:)
-               ENDIF
                ! molecular clustering
             ELSE IF (almo_scf_env%mat_distr_mos == almo_mat_distr_molecular) THEN
                DO imol = 1, nmols
                   distr_new_array(imol) = &
                      blk_distr(almo_scf_env%first_atom_of_domain(imol))
                ENDDO
-               IF (ASSOCIATED(cluster_distr)) THEN
-                  DO imol = 1, nmols
-                     cluster_distr_new(imol) = &
-                        cluster_distr(almo_scf_env%first_atom_of_domain(imol))
-                  ENDDO
-               END IF
             ENDIF
          ENDIF ! end choosing dimension size (AOs vs .NOT.AOs)
 
@@ -287,18 +263,15 @@ CONTAINS
          IF (dimen == 1) THEN !rows
             row_sizes_new => block_sizes_new
             row_distr_new => distr_new_array
-            row_cluster_new => cluster_distr_new
          ELSE !columns
             col_sizes_new => block_sizes_new
             col_distr_new => distr_new_array
-            col_cluster_new => cluster_distr_new
          ENDIF
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
       CALL dbcsr_distribution_new(dist_new, template=dist_qs, &
                                   row_dist=row_distr_new, col_dist=col_distr_new, &
-                                  row_cluster=row_cluster_new, col_cluster=col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 
       ! Create the matrix
