@@ -87,6 +87,11 @@ MODULE qs_neighbor_list_types
          POINTER                            :: next ! Pointer for forming a linked list of tasks
    END TYPE neighbor_list_task_type
 
+   INTERFACE nl_sub_iterate
+      MODULE PROCEDURE nl_sub_iterate
+      MODULE PROCEDURE nl_sub_iterate_ref
+   END INTERFACE
+
 ! **************************************************************************************************
 ! Neighbor List Iterator
 ! **************************************************************************************************
@@ -482,6 +487,53 @@ CONTAINS
       END IF
 
    END FUNCTION nl_sub_iterate
+
+! **************************************************************************************************
+!> \brief wrap nl_sub_iterate s.t. external loop over kinds and calls to nl_set_sub_iterator
+!> are no longer needed. This fixes first atom of iter_sub to second atom of iter_ref.
+!> \param iter_sub ...
+!> \param iter_ref ...
+!> \param mepos ...
+!> \return ...
+! **************************************************************************************************
+   RECURSIVE FUNCTION nl_sub_iterate_ref(iter_sub, iter_ref, mepos) RESULT(iter_stat)
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: iter_sub, iter_ref
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
+      INTEGER                                            :: iter_stat
+
+      INTEGER                                            :: atom_ref, kind_ref, kind_sub, me, nkind
+      TYPE(neighbor_list_iterator_type), POINTER         :: iterator
+
+      IF (PRESENT(mepos)) THEN
+         me = mepos
+      ELSE
+         me = 0
+      END IF
+
+      iterator => iter_sub(me)%neighbor_list_iterator
+      kind_sub = iterator%jkind
+
+      CALL get_iterator_info(iter_ref, jatom=atom_ref, jkind=kind_ref)
+
+      IF (iterator%inode == 0) THEN
+         CALL nl_set_sub_iterator(iter_sub, kind_ref, MAX(kind_sub, 1), atom_ref)
+      ENDIF
+      iter_stat = nl_sub_iterate(iter_sub)
+      IF (iter_stat == 0) RETURN
+
+      nkind = iterator%nkind
+
+      IF (kind_sub == nkind) THEN
+         CALL nl_set_sub_iterator(iter_sub, kind_ref, 1, atom_ref)
+         RETURN
+      ELSE
+         kind_sub = kind_sub+1
+         CALL nl_set_sub_iterator(iter_sub, kind_ref, kind_sub, atom_ref)
+         iter_stat = nl_sub_iterate_ref(iter_sub, iter_ref)
+      ENDIF
+
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...

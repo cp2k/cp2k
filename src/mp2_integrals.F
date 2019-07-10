@@ -58,15 +58,15 @@ MODULE mp2_integrals
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, &
+        dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
         dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, &
         dbcsr_scalar, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
         dbcsr_type_real_8, dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_blk_sizes, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
+        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
         dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
@@ -88,14 +88,9 @@ MODULE mp2_integrals
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_alltoall,&
-                                              mp_comm_split_direct,&
-                                              mp_dims_create,&
-                                              mp_environ,&
-                                              mp_max,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: &
+        mp_alltoall, mp_cart_create, mp_comm_split_direct, mp_dims_create, mp_environ, mp_max, &
+        mp_sendrecv, mp_sum, mp_sync
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate,&
@@ -118,6 +113,12 @@ MODULE mp2_integrals
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type
+   USE qs_3c_tensors,                   ONLY: build_3c_integrals,&
+                                              build_3c_neighbor_lists,&
+                                              distribution_3d_create,&
+                                              distribution_3d_type,&
+                                              neighbor_list_3c_destroy,&
+                                              neighbor_list_3c_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -318,17 +319,14 @@ CONTAINS
          my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, my_B_virtual_end, &
          my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
          my_group_L_size, my_group_L_start, natom
-      INTEGER :: ngroup, ngroup_im_time, ngroup_im_time_P, nproc_sub, num_diff_blk, &
+      INTEGER :: ngroup, ngroup_im_time, ngroup_im_time_P, nimg, nkind, num_diff_blk, &
          num_small_eigen, sqrt_max_bsize, virtual, virtual_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ao_blk_sizes_split, local_atoms_for_mao_basis, &
-         local_atoms_RI, my_group_L_ends_im_time, my_group_L_sizes_im_time, &
-         my_group_L_starts_im_time, row_blk_sizes_RI_t, row_blk_sizes_RI_t_split, row_dist_RI_t, &
-         sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atoms_for_mao_basis, my_group_L_ends_im_time, &
+         my_group_L_sizes_im_time, my_group_L_starts_im_time, sizes_AO, sizes_AO_split, sizes_RI, &
+         sizes_RI_split, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info, local_col_row_info_beta, &
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
-      INTEGER, DIMENSION(2)                              :: pdims_2_2d, pdims_sub_2d
-      INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
-      INTEGER, DIMENSION(:), POINTER                     :: ao_blk_sizes
+      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
                                                             memory_info
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, wfn_size
@@ -338,14 +336,14 @@ CONTAINS
                                                             fm_BIb_gw_beta, fm_BIb_jb, &
                                                             fm_BIb_jb_beta, fm_matrix_L
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
-      TYPE(dbcsr_distribution_type)                      :: dist_sub
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
-      TYPE(dbcsr_t_pgrid_type)                           :: mp_comm_t3c_m, mp_comm_t3c_overl, &
-                                                            mp_comm_t3c_overl_2
+      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
+      TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(pw_p_type)                                    :: psi_L
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
@@ -769,130 +767,89 @@ CONTAINS
          color_sub_3c = para_env%mepos/qs_env%mp2_env%ri_rpa_im_time%group_size_3c
 
          CALL setup_group_L_im_time(my_group_L_starts_im_time, my_group_L_ends_im_time, my_group_L_sizes_im_time, &
-                                    local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, dimen_RI, ngroup_im_time, cut_memory, &
+                                    dimen_RI, ngroup_im_time, cut_memory, &
                                     cut_RI, &
                                     color_sub_3c, qs_env)
 
          memory_info = qs_env%mp2_env%ri_rpa_im_time%memory_info
 
          IF (do_dbcsr_t) THEN
+            ! we need 3 tensors:
+            ! 1) t_3c_overl_int: 3c overlap integrals, optimized for easy access to integral blocks
+            !                   (atomic blocks)
+            ! 2) t_3c_O: 3c overlap integrals, optimized for contraction (split blocks)
+            ! 3) t_3c_M: tensor M, optimized for contraction
 
-            CALL get_qs_env(qs_env, natom=natom)
-            !IF(ngroup_im_time .GT. natom) THEN
-            !   CPABORT("Increase GROUP_SIZE_3C for this number of MPI ranks")
-            !ENDIF
+            CALL get_qs_env(qs_env, natom=natom, nkind=nkind)
 
-            CALL dbcsr_get_info(mat_munu%matrix, &
-                                distribution=dist_sub)
-            CALL dbcsr_distribution_get(dist_sub, nprows=pdims_sub_2d(1), npcols=pdims_sub_2d(2))
+            pgrid_t3c_overl = create_tensor_pgrid(para_env, ngroup_im_time, map1_2d=[1, 2], map2_2d=[3])
 
-            pdims_t3c = [ngroup_im_time, pdims_sub_2d(1), pdims_sub_2d(2)]
+            ! set up basis
+            ALLOCATE (sizes_RI(natom), sizes_AO(natom))
+            ALLOCATE (basis_set_ri_aux(nkind), basis_set_ao(nkind))
+            CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
+            CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=basis_set_ri_aux)
+            CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
+            CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, mp_comm_t3c_overl, map1_2d=[1, 2], map2_2d=[3])
+            ! 1) create t_3c_overl_int
+            nimg = dft_control%nimages
+            ALLOCATE (t_3c_overl_int(nimg, nimg))
 
-            nproc_sub = para_env%num_pe/ngroup_im_time
-            pdims_sub_2d = 0
-            CALL mp_dims_create(nproc_sub, pdims_sub_2d)
-            pdims_2_2d = 0
-            CALL mp_dims_create(pdims_sub_2d(2)*ngroup_im_time, pdims_2_2d)
-            pdims_t3c = [pdims_2_2d(1), pdims_2_2d(2), pdims_sub_2d(1)]
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, mp_comm_t3c_overl_2, map1_2d=[1, 2], map2_2d=[3])
+            CALL create_tensor_O_3c(t_3c_overl_int(1, 1), pgrid_t3c_overl, ngroup_im_time, &
+                                    sizes_AO, sizes_AO, sizes_RI, &
+                                    nl_3c=nl_3c, qs_env=qs_env, &
+                                    basis_ao_1=basis_set_ao, basis_ao_2=basis_set_ao, basis_RI=basis_set_ri_aux, &
+                                    do_kpoints=do_kpoints_cubic_RPA)
 
-            nproc_sub = para_env%num_pe/ngroup_im_time_P
-            pdims_sub_2d = 0
-            CALL mp_dims_create(nproc_sub, pdims_sub_2d)
-            pdims_2_2d = 0
-            CALL mp_dims_create(pdims_sub_2d(2)*ngroup_im_time_P, pdims_2_2d)
-            pdims_t3c = [pdims_sub_2d(1), pdims_2_2d(1), pdims_2_2d(2)]
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, mp_comm_t3c_m, map1_2d=[1], map2_2d=[2, 3])
+            DO i = 1, SIZE(t_3c_overl_int, 1)
+               DO j = 1, SIZE(t_3c_overl_int, 2)
+                  IF (i > 1 .OR. j > 1) CALL dbcsr_t_create(t_3c_overl_int(1, 1), t_3c_overl_int(i, j))
+               ENDDO
+            ENDDO
 
-         ENDIF
+            ! init k points
+            IF (do_kpoints_cubic_RPA) THEN
+               ! set up new kpoint type with periodic images according to eps_grid from MP2 section
+               ! instead of eps_pgf_orb from QS section
+               CALL kpoint_init_cell_index(kpoints, nl_3c%jk_list, para_env, dft_control)
+               IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                  "3C_OVERLAP_INTEGRALS_INFO| Number of periodic images considered:", dft_control%nimages
+            ENDIF
+            DEALLOCATE (basis_set_ri_aux, basis_set_ao)
 
-         IF (do_dbcsr_t) THEN
-            CALL reserve_blocks_3c_t(t_3c_overl_int, mp_comm_t3c_overl, &
-                                     ngroup_im_time, mat_munu, qs_env, &
-                                     unit_nr, local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, &
-                                     sab_orb_sub, sab_orb_all, para_env)
-         ELSE
-            CALL reserve_blocks_3c(mat_3c_overl_int, &
-                                   mat_munu, qs_env, &
-                                   dimen_RI, cut_RI, unit_nr, &
-                                   my_group_L_starts_im_time, my_group_L_ends_im_time, &
-                                   my_group_L_sizes_im_time, &
-                                   sab_orb_sub, sab_orb_all, para_env, num_diff_blk)
-
-         ENDIF
-
-         IF (do_dbcsr_t) THEN
-
-            CALL dbcsr_get_info(mat_munu%matrix, row_blk_size=ao_blk_sizes)
-
+            ! split blocks to improve load balancing for tensor contraction
             sqrt_max_bsize = qs_env%mp2_env%ri_rpa_im_time%max_bsize_sqrt
 
-            CALL split_block_sizes(ao_blk_sizes, ao_blk_sizes_split, sqrt_max_bsize)
-            CALL split_block_sizes(row_blk_sizes_RI_t, row_blk_sizes_RI_t_split, sqrt_max_bsize)
+            CALL split_block_sizes(sizes_AO, sizes_AO_split, sqrt_max_bsize)
+            CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
 
-            CALL create_tensor_M_3c(t_3c_M, mp_comm_t3c_m, &
+            pgrid_t3c_M = create_tensor_pgrid(para_env, ngroup_im_time_P, map1_2d=[1], map2_2d=[2, 3])
+
+            CALL create_tensor_M_3c(t_3c_M, pgrid_t3c_M, &
                                     cut_memory, ngroup_im_time_P, &
-                                    ao_blk_sizes_split, row_blk_sizes_RI_t, starts_array_mc_t, ends_array_mc_t)
+                                    sizes_AO_split, sizes_RI, starts_array_mc_t, ends_array_mc_t)
+
+            CALL dbcsr_t_pgrid_destroy(pgrid_t3c_M)
 
             ALLOCATE (t_3c_O(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
-            CALL create_tensor_O_3c(t_3c_O(1, 1), mp_comm_t3c_overl_2, ngroup_im_time, ao_blk_sizes_split, &
-                                    ao_blk_sizes, row_blk_sizes_RI_t_split)
+            CALL create_tensor_O_3c(t_3c_O(1, 1), pgrid_t3c_overl, ngroup_im_time, sizes_AO_split, &
+                                    sizes_AO, sizes_RI_split)
+
+            CALL dbcsr_t_pgrid_destroy(pgrid_t3c_overl)
             DO i = 1, SIZE(t_3c_O, 1)
                DO j = 1, SIZE(t_3c_O, 2)
                   IF (i > 1 .OR. j > 1) CALL dbcsr_t_create(t_3c_O(1, 1), t_3c_O(i, j))
                ENDDO
             ENDDO
 
-         ENDIF
+            CALL build_3c_integrals(t_3c_overl_int, &
+                                    qs_env%mp2_env%mp2_gpw%eps_filter, &
+                                    qs_env, &
+                                    nl_3c, &
+                                    do_kpoints=do_kpoints_cubic_RPA)
 
-         ! if we do modified atomic orbitals for the primary basis (one MAO basis for D^occ one for D^virt, then
-         ! we also need different 3-center overlap matrix elements!
-         IF (do_mao) THEN
-
-            natom = SIZE(particle_set)
-            ALLOCATE (local_atoms_for_mao_basis(natom))
-            local_atoms_for_mao_basis = 0
-
-            CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_occ, mat_munu_mao_occ_virt, qs_env, &
-                                   dimen_RI, cut_RI, unit_nr, &
-                                   my_group_L_starts_im_time, my_group_L_ends_im_time, &
-                                   my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
-                                   local_atoms_for_mao_basis=local_atoms_for_mao_basis)
-
-            CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_virt, mat_munu_mao_virt_occ, qs_env, &
-                                   dimen_RI, cut_RI, unit_nr, &
-                                   my_group_L_starts_im_time, my_group_L_ends_im_time, &
-                                   my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
-                                   local_atoms_for_mao_basis=local_atoms_for_mao_basis)
-
-            CALL replicate_mao_coeff(mao_coeff_repl_occ, mao_coeff_occ, local_atoms_for_mao_basis, natom, para_env)
-
-            CALL replicate_mao_coeff(mao_coeff_repl_virt, mao_coeff_virt, local_atoms_for_mao_basis, natom, para_env)
-
-         END IF
-
-         IF (do_dbcsr_t) THEN
-            CALL compute_3c_overlap_int_t(t_3c_overl_int, &
-                                          qs_env%mp2_env%mp2_gpw%eps_filter, &
-                                          mat_munu, &
-                                          qs_env, &
-                                          local_atoms_RI, &
-                                          sab_orb_sub, sab_orb_all)
-         ELSE
-            CALL compute_3c_overlap_int(mat_3c_overl_int, &
-                                        mat_3c_overl_int_mao_for_occ, &
-                                        mat_3c_overl_int_mao_for_virt, &
-                                        mat_munu, mat_munu_mao_occ_virt, &
-                                        qs_env, my_group_L_starts_im_time, &
-                                        my_group_L_ends_im_time, my_group_L_sizes_im_time, &
-                                        dimen_RI, cut_RI, sab_orb_sub, sab_orb_all, do_mao, &
-                                        mao_coeff_repl_occ, mao_coeff_repl_virt, &
-                                        num_diff_blk)
-         ENDIF
-
-         IF (do_dbcsr_t) THEN
+            ! copy integral tensor t_3c_overl_int to t_3c_O tensor optimized for contraction
             CALL timeset(routineN//"_copy_3c", handle4)
             DO i = 1, SIZE(t_3c_overl_int, 1)
                DO j = 1, SIZE(t_3c_overl_int, 2)
@@ -903,6 +860,51 @@ CONTAINS
                ENDDO
             ENDDO
             CALL timestop(handle4)
+
+            CALL neighbor_list_3c_destroy(nl_3c)
+         ELSE
+            CALL reserve_blocks_3c(mat_3c_overl_int, &
+                                   mat_munu, qs_env, &
+                                   dimen_RI, cut_RI, unit_nr, &
+                                   my_group_L_starts_im_time, my_group_L_ends_im_time, &
+                                   my_group_L_sizes_im_time, &
+                                   sab_orb_sub, sab_orb_all, para_env, num_diff_blk)
+
+            ! if we do modified atomic orbitals for the primary basis (one MAO basis for D^occ one for D^virt, then
+            ! we also need different 3-center overlap matrix elements!
+            IF (do_mao) THEN
+
+               natom = SIZE(particle_set)
+               ALLOCATE (local_atoms_for_mao_basis(natom))
+               local_atoms_for_mao_basis = 0
+
+               CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_occ, mat_munu_mao_occ_virt, qs_env, &
+                                      dimen_RI, cut_RI, unit_nr, &
+                                      my_group_L_starts_im_time, my_group_L_ends_im_time, &
+                                      my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
+                                      local_atoms_for_mao_basis=local_atoms_for_mao_basis)
+
+               CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_virt, mat_munu_mao_virt_occ, qs_env, &
+                                      dimen_RI, cut_RI, unit_nr, &
+                                      my_group_L_starts_im_time, my_group_L_ends_im_time, &
+                                      my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
+                                      local_atoms_for_mao_basis=local_atoms_for_mao_basis)
+
+               CALL replicate_mao_coeff(mao_coeff_repl_occ, mao_coeff_occ, local_atoms_for_mao_basis, natom, para_env)
+
+               CALL replicate_mao_coeff(mao_coeff_repl_virt, mao_coeff_virt, local_atoms_for_mao_basis, natom, para_env)
+
+            END IF
+
+            CALL compute_3c_overlap_int(mat_3c_overl_int, &
+                                        mat_3c_overl_int_mao_for_occ, &
+                                        mat_3c_overl_int_mao_for_virt, &
+                                        mat_munu, mat_munu_mao_occ_virt, &
+                                        qs_env, my_group_L_starts_im_time, &
+                                        my_group_L_ends_im_time, my_group_L_sizes_im_time, &
+                                        dimen_RI, cut_RI, sab_orb_sub, sab_orb_all, do_mao, &
+                                        mao_coeff_repl_occ, mao_coeff_repl_virt, &
+                                        num_diff_blk)
          ENDIF
 
          CALL cp_para_env_release(para_env_L)
@@ -963,6 +965,43 @@ CONTAINS
    END SUBROUTINE mp2_ri_gpw_compute_in
 
 ! **************************************************************************************************
+!> \brief heuristic to get a global 3d process grid that is consistent with a number of process subgroups
+!>        such that balanced (ideally square) 2d grids on subgroups are obtained
+!> \param para_env ...
+!> \param ngroup number of process groups
+!> \param map1_2d mapping of 3d grid to 2 dimensions (see dbcsr_t_pgrid_create)
+!> \param map2_2d mapping of 3d grid to 2 dimensions (see dbcsr_t_pgrid_create)
+!> \return process grid object compatible with DBCSR tensors
+! **************************************************************************************************
+   FUNCTION create_tensor_pgrid(para_env, ngroup, map1_2d, map2_2d) RESULT(pgrid)
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, INTENT(IN)                                :: ngroup
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
+      TYPE(dbcsr_t_pgrid_type)                           :: pgrid
+
+      INTEGER                                            :: nproc_sub
+      INTEGER, DIMENSION(2)                              :: pdims_2_2d, pdims_sub_2d
+      INTEGER, DIMENSION(3)                              :: pdims_t3c
+
+      nproc_sub = para_env%num_pe/ngroup
+      pdims_sub_2d = 0
+      CALL mp_dims_create(nproc_sub, pdims_sub_2d)
+      pdims_2_2d = 0
+      CALL mp_dims_create(pdims_sub_2d(2)*ngroup, pdims_2_2d)
+      IF (SIZE(map1_2d) == 1) THEN
+         pdims_t3c(map1_2d(1)) = pdims_sub_2d(1)
+         pdims_t3c(map2_2d) = pdims_2_2d
+      ELSEIF (SIZE(map2_2d) == 1) THEN
+         pdims_t3c(map2_2d(1)) = pdims_sub_2d(1)
+         pdims_t3c(map1_2d) = pdims_2_2d
+      ELSE
+         CPABORT("map1_2d and map2_2d not compatible with a 3d grid")
+      ENDIF
+      !pdims_t3c = [pdims_2_2d(1), pdims_2_2d(2), pdims_sub_2d(1)]
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid, map1_2d=map1_2d, map2_2d=map2_2d)
+   END FUNCTION
+
+! **************************************************************************************************
 !> \brief ...
 !> \param blk_sizes ...
 !> \param blk_sizes_split ...
@@ -1000,20 +1039,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param t_3c_M ...
-!> \param mp_comm_t3c_m ...
+!> \param pgrid_t3c_M ...
 !> \param mem_cut ...
 !> \param ngroup ...
-!> \param ao_blk_sizes ...
-!> \param row_blk_sizes_RI_t ...
+!> \param sizes_AO ...
+!> \param sizes_RI ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
 ! **************************************************************************************************
-   SUBROUTINE create_tensor_M_3c(t_3c_M, mp_comm_t3c_m, mem_cut, ngroup, ao_blk_sizes, row_blk_sizes_RI_t, &
+   SUBROUTINE create_tensor_M_3c(t_3c_M, pgrid_t3c_M, mem_cut, ngroup, sizes_AO, sizes_RI, &
                                  starts_array_mc, ends_array_mc)
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
-      TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c_m
+      TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: pgrid_t3c_M
       INTEGER, INTENT(IN)                                :: mem_cut, ngroup
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_blk_sizes, row_blk_sizes_RI_t
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_AO, sizes_RI
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array_mc, ends_array_mc
 
       INTEGER                                            :: bsum, imem, size_AO, size_AO_cut, size_RI
@@ -1025,11 +1064,11 @@ CONTAINS
 
       CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c_m, pdims, pcoord)
 
-      size_RI = SIZE(row_blk_sizes_RI_t)
-      size_AO = SIZE(ao_blk_sizes)
+      size_RI = SIZE(sizes_RI)
+      size_AO = SIZE(sizes_AO)
 
       ALLOCATE (dist_RI(size_RI))
-      CALL cyclic_dist(size_RI, pdims(1), row_blk_sizes_RI_t, dist_RI)
+      CALL cyclic_dist(size_RI, pdims(1), sizes_RI, dist_RI)
 
       ALLOCATE (starts_array_mc(mem_cut))
       ALLOCATE (ends_array_mc(mem_cut))
@@ -1040,12 +1079,12 @@ CONTAINS
          CPABORT("Use smaller MEMORY_CUT")
       ENDIF
 
-      CALL contiguous_dist(size_AO, mem_cut, ao_blk_sizes, limits_start=starts_array_mc_block, limits_end=ends_array_mc_block)
+      CALL contiguous_dist(size_AO, mem_cut, sizes_AO, limits_start=starts_array_mc_block, limits_end=ends_array_mc_block)
 
       bsum = 0
       DO imem = 1, mem_cut
          starts_array_mc(imem) = bsum+1
-         bsum = bsum+SUM(ao_blk_sizes(starts_array_mc_block(imem):ends_array_mc_block(imem)))
+         bsum = bsum+SUM(sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)))
          ends_array_mc(imem) = bsum
       ENDDO
 
@@ -1058,65 +1097,102 @@ CONTAINS
          IF (size_AO_cut < MIN(pdims(2), pdims(3))) THEN
             CPABORT("Increment GROUP_SIZE_P, use smaller MEMORY_CUT or use less MPI ranks")
          ENDIF
-         CALL cyclic_dist(size_AO_cut, pdims(2), ao_blk_sizes(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
+         CALL cyclic_dist(size_AO_cut, pdims(2), sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
                           dist=dist_ao_1(starts_array_mc_block(imem):ends_array_mc_block(imem)))
-         CALL cyclic_dist(size_AO_cut, pdims(3), ao_blk_sizes(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
+         CALL cyclic_dist(size_AO_cut, pdims(3), sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
                           dist=dist_ao_2(starts_array_mc_block(imem):ends_array_mc_block(imem)))
       ENDDO
 
-      CALL dbcsr_t_distribution_new(dist, mp_comm_t3c_m, [1], [2, 3], dist_RI, dist_ao_1, dist_ao_2, &
-                                    ngroup=ngroup, dimsplit=2, own_comm=.TRUE.)
-      CALL dbcsr_t_create(t_3c_M, "M (RI | AO AO)", dist, [1], [2, 3], dbcsr_type_real_8, row_blk_sizes_RI_t, &
-                          ao_blk_sizes, ao_blk_sizes)
+      CALL dbcsr_t_distribution_new(dist, pgrid_t3c_M, [1], [2, 3], dist_RI, dist_ao_1, dist_ao_2, &
+                                    ngroup=ngroup, dimsplit=2)
+      CALL dbcsr_t_create(t_3c_M, "M (RI | AO AO)", dist, [1], [2, 3], dbcsr_type_real_8, sizes_RI, &
+                          sizes_AO, sizes_AO)
       CALL dbcsr_t_distribution_destroy(dist)
 
    END SUBROUTINE create_tensor_M_3c
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param t_3c_O ...
+!> \param t_3c_O Create tensor with overlap integrals, optionally create 3c neighbor list matching tensor
+!>        distribution
 !> \param mp_comm_t3c ...
-!> \param ngroup ...
-!> \param ao_blk_sizes_1 ...
-!> \param ao_blk_sizes_2 ...
-!> \param row_blk_sizes_RI_t ...
+!> \param ngroup number of process subgroups
+!> \param ao_sizes_1 block sizes of first AO index
+!> \param ao_sizes_2 block sizes of second AO index
+!> \param sizes_RI block sizes of RI index
+!> \param nl_3c 3c-neighborlist - if present, the sizes arguments must refer to atomic blocks
+!> \param qs_env needed for nl_3c
+!> \param basis_ao_1 needed for nl_3c
+!> \param basis_ao_2 needed for nl_3c
+!> \param basis_RI needed for nl_3c
+!> \param do_kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE create_tensor_O_3c(t_3c_O, mp_comm_t3c, ngroup, ao_blk_sizes_1, ao_blk_sizes_2, row_blk_sizes_RI_t)
+   SUBROUTINE create_tensor_O_3c(t_3c_O, mp_comm_t3c, ngroup, ao_sizes_1, ao_sizes_2, sizes_RI, &
+                                 nl_3c, qs_env, basis_ao_1, basis_ao_2, basis_RI, &
+                                 do_kpoints)
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_O
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c
       INTEGER, INTENT(IN)                                :: ngroup
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_blk_sizes_1, ao_blk_sizes_2, &
-                                                            row_blk_sizes_RI_t
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_sizes_1, ao_sizes_2, sizes_RI
+      TYPE(neighbor_list_3c_type), INTENT(OUT), OPTIONAL :: nl_3c
+      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
+      TYPE(gto_basis_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: basis_ao_1, basis_ao_2, basis_RI
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
-      INTEGER                                            :: size_AO_1, size_AO_2, size_RI
+      INTEGER                                            :: mp_comm_t3c_2, size_AO_1, size_AO_2, &
+                                                            size_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_ao_1, dist_ao_2, dist_RI
-      INTEGER, DIMENSION(3)                              :: pcoord, pdims
+      INTEGER, DIMENSION(3)                              :: pcoor, pcoord, pdims
+      LOGICAL                                            :: kp
       TYPE(dbcsr_t_distribution_type)                    :: dist
+      TYPE(distribution_3d_type)                         :: dist_3d
+
+      IF (PRESENT(do_kpoints)) THEN
+         kp = do_kpoints
+      ELSE
+         kp = .FALSE.
+      ENDIF
 
       CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c, pdims, pcoord)
 
-      size_AO_1 = SIZE(ao_blk_sizes_1)
-      size_AO_2 = SIZE(ao_blk_sizes_2)
-      size_RI = SIZE(row_blk_sizes_RI_t)
+      size_AO_1 = SIZE(ao_sizes_1)
+      size_AO_2 = SIZE(ao_sizes_2)
+      size_RI = SIZE(sizes_RI)
 
       ALLOCATE (dist_RI(size_RI))
       ALLOCATE (dist_ao_1(size_AO_1))
       ALLOCATE (dist_ao_2(size_AO_2))
 
-      CALL cyclic_dist(size_RI, pdims(1), row_blk_sizes_RI_t, dist_RI)
-      CALL cyclic_dist(size_AO_1, pdims(2), ao_blk_sizes_1, dist_ao_1)
-      CALL cyclic_dist(size_AO_2, pdims(3), ao_blk_sizes_2, dist_ao_2)
+      CALL cyclic_dist(size_RI, pdims(1), sizes_RI, dist_RI)
+      CALL cyclic_dist(size_AO_1, pdims(2), ao_sizes_1, dist_ao_1)
+      CALL cyclic_dist(size_AO_2, pdims(3), ao_sizes_2, dist_ao_2)
+
+      IF (PRESENT(nl_3c)) THEN
+         CPASSERT(PRESENT(qs_env))
+         CPASSERT(PRESENT(basis_RI))
+         CPASSERT(PRESENT(basis_ao_1))
+         CPASSERT(PRESENT(basis_ao_2))
+         CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c, pdims, pcoor)
+         CALL mp_cart_create(mp_comm_t3c%mp_comm_2d, 3, pdims, pcoord, mp_comm_t3c_2)
+         CALL distribution_3d_create(qs_env, dist_3d, dist_RI, dist_ao_1, dist_ao_2, mp_comm_t3c_2, own_comm=.TRUE.)
+
+         ! we rely on symmetry of the two AO-indices only if no k-points
+         CALL build_3c_neighbor_lists(nl_3c, basis_RI, basis_ao_1, basis_ao_2, &
+                                      dist_3d, "RPA_3c_nl", qs_env, &
+                                      sym_jk=.NOT. kp, own_dist=.TRUE.)
+      ENDIF
 
       CALL dbcsr_t_distribution_new(dist, mp_comm_t3c, [1, 2], [3], dist_RI, dist_ao_1, dist_ao_2, &
-                                    ngroup=ngroup, dimsplit=1, own_comm=.TRUE.)
-      CALL dbcsr_t_create(t_3c_O, "O (RI AO | AO)", dist, [1, 2], [3], dbcsr_type_real_8, row_blk_sizes_RI_t, &
-                          ao_blk_sizes_1, ao_blk_sizes_2)
+                                    ngroup=ngroup, dimsplit=1)
+      CALL dbcsr_t_create(t_3c_O, "O (RI AO | AO)", dist, [1, 2], [3], dbcsr_type_real_8, sizes_RI, &
+                          ao_sizes_1, ao_sizes_2)
       CALL dbcsr_t_distribution_destroy(dist)
 
    END SUBROUTINE create_tensor_O_3c
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief contiguous distribution of weighted elements
 !> \param nel ...
 !> \param nbin ...
 !> \param weights ...
@@ -1163,7 +1239,7 @@ CONTAINS
    END SUBROUTINE contiguous_dist
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief cyclic distribution of weighted elements
 !> \param nel ...
 !> \param nbin ...
 !> \param weights ...
@@ -3221,379 +3297,6 @@ CONTAINS
    END SUBROUTINE grep_my_integrals
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param t_3c_overl_int ...
-!> \param filter_eps ...
-!> \param mat_munu ...
-!> \param qs_env ...
-!> \param local_atoms_RI ...
-!> \param sab_orb_sub ...
-!> \param sab_orb_all ...
-! **************************************************************************************************
-   SUBROUTINE compute_3c_overlap_int_t(t_3c_overl_int, filter_eps, mat_munu, qs_env, local_atoms_RI, &
-                                       sab_orb_sub, sab_orb_all)
-
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: t_3c_overl_int
-      REAL(KIND=dp), INTENT(IN)                          :: filter_eps
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: local_atoms_RI
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb_sub, sab_orb_all
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_overlap_int_t', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER :: acell, atom_RI, bcell, block_end_col, block_end_RI, block_end_row, &
-         block_start_col, block_start_RI, block_start_row, col, handle, handle2, i_img, iatom, &
-         iatom_outer, iatom_RI, ikind, img_col, img_row, iset, j_img, jatom, jatom_outer, jkind, &
-         jset, kind_RI, maxval_1, maxval_2, maxval_3, minval_1, minval_2, minval_3, natom, nco_RI, &
-         ncoa, ncob, nimg, nset_RI, nseta, nsetb, row, set_RI, sgf_RI, sgfa, sgfb
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      INTEGER, DIMENSION(3)                              :: bcellvec, blk_size, cell_vec, &
-                                                            outer_cell_vec, size_cell_to_index
-      INTEGER, DIMENSION(:), POINTER :: col_blk_sizes, l_max_RI, l_min_RI, la_max, la_min, lb_max, &
-         lb_min, npgf_RI, npgfa, npgfb, nsgf_RI, nsgfa, nsgfb, row_blk_sizes
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_RI, first_sgfa, first_sgfb
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: debug, do_kpoints_cubic_RPA, found
-      REAL(KIND=dp)                                      :: dab, daRI, dbRI, kind_radius_a, &
-                                                            kind_radius_b, kind_radius_RI, prefac
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, s_abRI, &
-                                                            s_abRI_contr
-      REAL(KIND=dp), DIMENSION(3)                        :: rab, rab_outer, raRI, rbRI
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_RI
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_RI, rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                            sphi_RI, zet_RI, zeta, zetb
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_t_type)                                 :: t_3c_tmp
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_RI
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator, nl_iterator_outer
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-
-      debug = .FALSE.
-
-      NULLIFY (qs_kind_set, atomic_kind_set, basis_set_RI, basis_set_a, basis_set_b, &
-               nl_iterator)
-
-      ! get stuff
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
-                      natom=natom, kpoints=kpoints, dft_control=dft_control)
-
-      do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-
-      IF (do_kpoints_cubic_RPA) THEN
-         ! No MAOs kpoints
-         nimg = dft_control%nimages
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
-         size_cell_to_index(1) = SIZE(cell_to_index, 1)
-         size_cell_to_index(2) = SIZE(cell_to_index, 2)
-         size_cell_to_index(3) = SIZE(cell_to_index, 3)
-         ! 1: row, 2: col, 3: i_img, 4: j_img, 5: cut_RI, 6: proc_to_send
-         minval_1 = MINVAL(kpoints%index_to_cell(1, :))
-         maxval_1 = MAXVAL(kpoints%index_to_cell(1, :))
-         minval_2 = MINVAL(kpoints%index_to_cell(2, :))
-         maxval_2 = MAXVAL(kpoints%index_to_cell(2, :))
-         minval_3 = MINVAL(kpoints%index_to_cell(3, :))
-         maxval_3 = MAXVAL(kpoints%index_to_cell(3, :))
-      ELSE
-         nimg = 1
-      END IF
-
-      CALL dbcsr_get_info(mat_munu%matrix, &
-                          row_blk_size=row_blk_sizes, &
-                          col_blk_size=col_blk_sizes)
-
-      ALLOCATE (kind_of(natom))
-
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      DO iatom_RI = 1, SIZE(local_atoms_RI)
-         atom_RI = local_atoms_RI(iatom_RI)
-
-         kind_RI = kind_of(atom_RI)
-         CALL get_qs_kind(qs_kind=qs_kind_set(kind_RI), basis_set=basis_set_RI, basis_type="RI_AUX")
-
-         first_sgf_RI => basis_set_RI%first_sgf
-         l_max_RI => basis_set_RI%lmax
-         l_min_RI => basis_set_RI%lmin
-         npgf_RI => basis_set_RI%npgf
-         nset_RI = basis_set_RI%nset
-         nsgf_RI => basis_set_RI%nsgf_set
-         rpgf_RI => basis_set_RI%pgf_radius
-         set_radius_RI => basis_set_RI%set_radius
-         sphi_RI => basis_set_RI%sphi
-         zet_RI => basis_set_RI%zet
-         kind_radius_RI = basis_set_RI%kind_radius
-
-         CALL neighbor_list_iterator_create(nl_iterator_outer, sab_orb_all)
-         DO WHILE (neighbor_list_iterate(nl_iterator_outer) == 0)
-
-            CALL get_iterator_info(nl_iterator_outer, &
-                                   iatom=iatom_outer, jatom=jatom_outer, r=rab_outer, &
-                                   cell=outer_cell_vec)
-
-            IF (iatom_outer .NE. atom_RI .AND. jatom_outer .NE. atom_RI) CYCLE
-
-            CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub)
-            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, &
-                                      iatom=iatom, jatom=jatom, r=rab, &
-                                      cell=cell_vec)
-
-               DO i_img = 1, nimg
-                  DO j_img = 1, nimg
-
-                     IF (atom_RI .EQ. iatom_outer .AND. &
-                         iatom .NE. jatom_outer .AND. &
-                         jatom .NE. jatom_outer) &
-                        CYCLE
-
-                     IF (atom_RI .EQ. jatom_outer .AND. &
-                         iatom .NE. iatom_outer .AND. &
-                         jatom .NE. iatom_outer) &
-                        CYCLE
-
-                     IF (iatom .EQ. iatom_outer .AND. &
-                         atom_RI .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-
-                           IF (outer_cell_vec(1) < minval_1) CYCLE
-                           IF (outer_cell_vec(1) > maxval_1) CYCLE
-                           IF (outer_cell_vec(2) < minval_2) CYCLE
-                           IF (outer_cell_vec(2) > maxval_2) CYCLE
-                           IF (outer_cell_vec(3) < minval_3) CYCLE
-                           IF (outer_cell_vec(3) > maxval_3) CYCLE
-
-                           acell = cell_to_index(-outer_cell_vec(1), -outer_cell_vec(2), -outer_cell_vec(3))
-
-                           IF (.NOT. (acell == i_img)) CYCLE
-
-                           bcellvec = -outer_cell_vec+cell_vec
-
-                           IF (bcellvec(1) < minval_1) CYCLE
-                           IF (bcellvec(1) > maxval_1) CYCLE
-                           IF (bcellvec(2) < minval_2) CYCLE
-                           IF (bcellvec(2) > maxval_2) CYCLE
-                           IF (bcellvec(3) < minval_3) CYCLE
-                           IF (bcellvec(3) > maxval_3) CYCLE
-
-                           bcell = cell_to_index(bcellvec(1), bcellvec(2), bcellvec(3))
-
-                           IF (.NOT. (bcell == j_img)) CYCLE
-
-                        END IF
-
-                        raRI = rab_outer
-                        rbRI = raRI-rab
-
-                     ELSE IF (atom_RI .EQ. iatom_outer .AND. &
-                              iatom .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-                           ! for kpoints we have the non-symmetric neighbor list
-                           CYCLE
-                        END IF
-
-                        raRI = -rab_outer
-                        rbRI = raRI-rab
-
-                     ELSE IF (jatom .EQ. iatom_outer .AND. &
-                              atom_RI .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-                           ! for kpoints we have the non-symmetric neighbor list
-                           CYCLE
-                        END IF
-
-                        rbRI = rab_outer
-                        raRI = rbRI+rab
-
-                     ELSE IF (atom_RI .EQ. iatom_outer .AND. &
-                              jatom .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-                           ! for kpoints we have the non-symmetric neighbor list
-                           CYCLE
-                        END IF
-
-                        rbRI = -rab_outer
-                        raRI = rbRI+rab
-
-                     END IF
-
-                     row = iatom
-                     col = jatom
-                     img_row = i_img
-                     img_col = j_img
-
-                     ikind = kind_of(iatom)
-                     CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
-                     kind_radius_a = basis_set_a%kind_radius
-                     first_sgfa => basis_set_a%first_sgf
-                     la_max => basis_set_a%lmax
-                     la_min => basis_set_a%lmin
-                     npgfa => basis_set_a%npgf
-                     nseta = basis_set_a%nset
-                     nsgfa => basis_set_a%nsgf_set
-                     rpgfa => basis_set_a%pgf_radius
-                     set_radius_a => basis_set_a%set_radius
-                     sphi_a => basis_set_a%sphi
-                     zeta => basis_set_a%zet
-
-                     jkind = kind_of(jatom)
-                     CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b)
-                     kind_radius_b = basis_set_b%kind_radius
-                     first_sgfb => basis_set_b%first_sgf
-                     lb_max => basis_set_b%lmax
-                     lb_min => basis_set_b%lmin
-                     npgfb => basis_set_b%npgf
-                     nsetb = basis_set_b%nset
-                     nsgfb => basis_set_b%nsgf_set
-                     rpgfb => basis_set_b%pgf_radius
-                     set_radius_b => basis_set_b%set_radius
-                     sphi_b => basis_set_b%sphi
-                     zetb => basis_set_b%zet
-
-                     dab = SQRT(SUM(rab**2))
-                     daRI = SQRT(SUM(raRI**2))
-                     dbRI = SQRT(SUM(rbRI**2))
-
-                     IF (kind_radius_a+kind_radius_RI < daRI) CYCLE
-                     IF (kind_radius_a+kind_radius_b < dab) CYCLE
-                     IF (kind_radius_b+kind_radius_RI < dbRI) CYCLE
-
-                     CALL dbcsr_t_blk_sizes(t_3c_overl_int(img_row, img_col), [atom_RI, row, col], blk_size)
-                     ALLOCATE (block_t(blk_size(1), blk_size(2), blk_size(3)))
-                     block_t = 0.0_dp
-
-                     DO set_RI = 1, nset_RI
-
-                        DO iset = 1, nseta
-
-                           IF (set_radius_a(iset)+set_radius_RI(set_RI) < daRI) CYCLE
-
-                           DO jset = 1, nsetb
-
-                              IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
-                              IF (set_radius_b(jset)+set_radius_RI(set_RI) < dbRI) CYCLE
-
-                              nco_RI = npgf_RI(set_RI)*ncoset(l_max_RI(set_RI))
-                              ncoa = npgfa(iset)*ncoset(la_max(iset))
-                              ncob = npgfb(jset)*ncoset(lb_max(jset))
-
-                              sgf_RI = first_sgf_RI(1, set_RI)
-                              sgfa = first_sgfa(1, iset)
-                              sgfb = first_sgfb(1, jset)
-
-                              IF (ncoa*ncob*nco_RI > 0) THEN
-
-                                 ALLOCATE (s_abRI(nco_RI, ncoa, ncob))
-                                 s_abRI(:, :, :) = 0.0_dp
-
-                                 CALL overlap3(l_max_RI(set_RI), npgf_RI(set_RI), zet_RI(:, set_RI), rpgf_RI(:, set_RI), &
-                                               l_min_RI(set_RI), &
-                                               la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                               lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                               -raRI, daRI, -rbRI, dbRI, rab, dab, s_abRI)
-
-                                 ALLOCATE (s_abRI_contr(nsgf_RI(set_RI), nsgfa(iset), nsgfb(jset)))
-
-                                 CALL abc_contract(s_abRI_contr, s_abRI, &
-                                                   sphi_RI(:, sgf_RI:), sphi_a(:, sgfa:), sphi_b(:, sgfb:), &
-                                                   nco_RI, ncoa, ncob, nsgf_RI(set_RI), nsgfa(iset), nsgfb(jset))
-
-                                 block_start_row = sgfa
-                                 block_end_row = sgfa+nsgfa(iset)-1
-                                 block_start_col = sgfb
-                                 block_end_col = sgfb+nsgfb(jset)-1
-                                 block_start_RI = sgf_RI
-                                 block_end_RI = sgf_RI+nsgf_RI(set_RI)-1
-
-                                 prefac = 0.5_dp
-
-                                 block_t(block_start_RI:block_end_RI, &
-                                         block_start_row:block_end_row, &
-                                         block_start_col:block_end_col) = &
-                                    block_t(block_start_RI:block_end_RI, &
-                                            block_start_row:block_end_row, &
-                                            block_start_col:block_end_col)+ &
-                                    prefac*s_abRI_contr(:, :, :)
-                                 DEALLOCATE (s_abRI, s_abRI_contr)
-
-                              END IF ! number of triples > 0
-
-                           END DO ! jset
-
-                        END DO ! iset
-
-                     END DO ! set RI
-                     CALL timeset(routineN//"_put_dbcsr", handle2)
-
-                     IF (debug) THEN
-                        CALL dbcsr_t_get_block(t_3c_overl_int(img_row, img_col), &
-                                               [atom_RI, row, col], dummy_block_t, found=found)
-                        CPASSERT(found)
-                     ENDIF
-
-                     CALL dbcsr_t_put_block(t_3c_overl_int(img_row, img_col), &
-                                            [atom_RI, row, col], SHAPE(block_t), block_t, summation=.TRUE.)
-
-                     !mao not supported with dbcsr_t
-
-                     CALL timestop(handle2)
-
-                     DEALLOCATE (block_t)
-
-                  END DO ! j_img
-
-               END DO ! i_img
-
-            END DO ! inner neighbor list
-
-            CALL neighbor_list_iterator_release(nl_iterator)
-
-         END DO ! outer neighbor list
-
-         CALL neighbor_list_iterator_release(nl_iterator_outer)
-
-      END DO ! atom_RI
-
-      DO img_row = 1, nimg
-         DO img_col = 1, nimg
-            ! need half of filter eps because afterwards we add transposed tensor
-            CALL dbcsr_t_filter(t_3c_overl_int(img_row, img_col), filter_eps/2)
-         ENDDO
-      ENDDO
-
-      ! add transposed of overlap integrals
-      CALL dbcsr_t_create(t_3c_overl_int(1, 1), t_3c_tmp)
-      DO img_row = 1, nimg
-         DO img_col = 1, img_row
-            CALL dbcsr_t_copy(t_3c_overl_int(img_row, img_col), t_3c_tmp)
-            CALL dbcsr_t_copy(t_3c_tmp, t_3c_overl_int(img_col, img_row), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
-            CALL dbcsr_t_filter(t_3c_overl_int(img_col, img_row), filter_eps)
-         ENDDO
-      ENDDO
-      DO img_row = 1, nimg
-         DO img_col = img_row+1, nimg
-            CALL dbcsr_t_copy(t_3c_overl_int(img_row, img_col), t_3c_tmp)
-            CALL dbcsr_t_copy(t_3c_tmp, t_3c_overl_int(img_col, img_row), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
-            CALL dbcsr_t_filter(t_3c_overl_int(img_col, img_row), filter_eps)
-         ENDDO
-      ENDDO
-      CALL dbcsr_t_destroy(t_3c_tmp)
-
-      CALL timestop(handle)
-   END SUBROUTINE compute_3c_overlap_int_t
-! **************************************************************************************************
 !> \brief compute three center overlap integrals and write them to mat_3_overl_int
 !> \param mat_3c_overl_int ...
 !> \param mat_3c_overl_int_mao_for_occ ...
@@ -4309,384 +4012,6 @@ CONTAINS
 
    END SUBROUTINE compute_3c_overlap_int
 
-! **************************************************************************************************
-!> \brief ...
-!> \param t_3c_overl_int ...
-!> \param mp_comm_t3c_overl ...
-!> \param ngroup ...
-!> \param mat_munu ...
-!> \param qs_env ...
-!> \param unit_nr ...
-!> \param local_atoms_RI ...
-!> \param row_blk_sizes_RI_t ...
-!> \param row_dist_RI_t ...
-!> \param sab_orb_sub ...
-!> \param sab_orb_all ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE reserve_blocks_3c_t(t_3c_overl_int, mp_comm_t3c_overl, ngroup, mat_munu, qs_env, &
-                                  unit_nr, local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, sab_orb_sub, sab_orb_all, para_env)
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: t_3c_overl_int
-      TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c_overl
-      INTEGER, INTENT(IN)                                :: ngroup
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: local_atoms_RI
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: row_blk_sizes_RI_t, row_dist_RI_t
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb_sub, sab_orb_all
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reserve_blocks_3c_t', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER :: acell, atom_RI, bcell, blk_cnt, col, handle, i, i_img, i_img_outer, iatom, &
-         iatom_outer, iatom_RI, iblk, ikind, iproc, j_img, j_img_outer, jatom, jatom_outer, jkind, &
-         kind_RI, maxval_1, maxval_2, maxval_3, minval_1, minval_2, minval_3, natom, nimg, &
-         nset_RI, nseta, nsetb, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, tmp
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: old_col, old_row
-      INTEGER, DIMENSION(3)                              :: cell_vec, outer_cell_vec
-      INTEGER, DIMENSION(:), POINTER :: ao_blk_sizes, dist_ao1, dist_ao2, l_max_RI, l_min_RI, &
-         la_max, la_min, lb_max, lb_min, npgf_RI, npgfa, npgfb, nsgf_RI, nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_RI, first_sgfa, first_sgfb
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_kpoints_cubic_RPA, new_block
-      REAL(KIND=dp)                                      :: dab, daRI, dbRI, kind_radius_a, &
-                                                            kind_radius_b, kind_radius_RI
-      REAL(KIND=dp), DIMENSION(3)                        :: rab, rab_outer, raRI, rbRI
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_RI
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_RI, rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                            sphi_RI, zet_RI, zeta, zetb
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_distribution_type)                      :: dist_sub
-      TYPE(dbcsr_t_distribution_type)                    :: dist_o3c
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_RI
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator, nl_iterator_outer
-      TYPE(one_dim_int_array), ALLOCATABLE, &
-         DIMENSION(:, :)                                 :: alloc_ao1, alloc_ao2, alloc_RI
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-      NULLIFY (qs_kind_set, atomic_kind_set, basis_set_RI, basis_set_a, basis_set_b, nl_iterator)
-
-      do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
-                      dft_control=dft_control, kpoints=kpoints)
-
-      IF (do_kpoints_cubic_RPA) THEN
-         ! set up new kpoint type with periodic images according to eps_grid from MP2 section
-         ! instead of eps_pgf_orb from QS section
-         CALL kpoint_init_cell_index(kpoints, sab_orb_sub, para_env, dft_control)
-
-         nimg = dft_control%nimages
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
-
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "3C_OVERLAP_INTEGRALS_INFO| Number of periodic images considered:", nimg
-      ELSE
-         nimg = 1
-      END IF
-
-      ALLOCATE (t_3c_overl_int(nimg, nimg))
-
-      CALL dbcsr_get_info(mat_munu%matrix, &
-                          row_blk_size=ao_blk_sizes, &
-                          distribution=dist_sub)
-
-      CALL dbcsr_distribution_get(dist_sub, row_dist=dist_ao1, col_dist=dist_ao2)
-
-      CALL dbcsr_t_distribution_new(dist_o3c, mp_comm_t3c_overl, [1, 2], [3], &
-                                    row_dist_RI_t, dist_ao1, dist_ao2, ngroup=ngroup, dimsplit=1, own_comm=.TRUE.)
-
-      DO i_img = 1, nimg
-         DO j_img = 1, nimg
-            CALL dbcsr_t_create(t_3c_overl_int(i_img, j_img), "O (RI AO | AO)", dist_o3c, [1, 2], [3], &
-                                dbcsr_type_real_8, row_blk_sizes_RI_t, ao_blk_sizes, ao_blk_sizes)
-         ENDDO
-      ENDDO
-
-      CALL dbcsr_t_distribution_destroy(dist_o3c)
-
-      IF (do_kpoints_cubic_RPA) THEN
-
-         minval_1 = MINVAL(kpoints%index_to_cell(1, :))
-         maxval_1 = MAXVAL(kpoints%index_to_cell(1, :))
-         minval_2 = MINVAL(kpoints%index_to_cell(2, :))
-         maxval_2 = MAXVAL(kpoints%index_to_cell(2, :))
-         minval_3 = MINVAL(kpoints%index_to_cell(3, :))
-         maxval_3 = MAXVAL(kpoints%index_to_cell(3, :))
-
-      END IF
-
-      ALLOCATE (alloc_RI(nimg, nimg))
-      ALLOCATE (alloc_ao1(nimg, nimg))
-      ALLOCATE (alloc_ao2(nimg, nimg))
-      !ALLOCATE (old_ri(nimg, nimg))
-      !old_ri = -1
-      ALLOCATE (old_col(nimg, nimg))
-      old_col = -1
-
-      ALLOCATE (kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      ALLOCATE (old_row(nimg, nimg))
-      DO iatom_RI = 1, SIZE(local_atoms_RI)
-         old_row = -1
-         atom_RI = local_atoms_RI(iatom_RI)
-         kind_RI = kind_of(atom_RI)
-         CALL get_qs_kind(qs_kind=qs_kind_set(kind_RI), basis_set=basis_set_RI, basis_type="RI_AUX")
-
-         first_sgf_RI => basis_set_RI%first_sgf
-
-         l_max_RI => basis_set_RI%lmax
-         l_min_RI => basis_set_RI%lmin
-         npgf_RI => basis_set_RI%npgf
-         nset_RI = basis_set_RI%nset
-         nsgf_RI => basis_set_RI%nsgf_set
-         rpgf_RI => basis_set_RI%pgf_radius
-         set_radius_RI => basis_set_RI%set_radius
-         sphi_RI => basis_set_RI%sphi
-         zet_RI => basis_set_RI%zet
-         kind_radius_RI = basis_set_RI%kind_radius
-
-         CALL neighbor_list_iterator_create(nl_iterator_outer, sab_orb_all)
-         DO WHILE (neighbor_list_iterate(nl_iterator_outer) == 0)
-
-            CALL get_iterator_info(nl_iterator_outer, &
-                                   iatom=iatom_outer, jatom=jatom_outer, r=rab_outer, cell=outer_cell_vec)
-
-            IF (iatom_outer .NE. atom_RI .AND. jatom_outer .NE. atom_RI) CYCLE
-
-            CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub)
-            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-
-               CALL get_iterator_info(nl_iterator, &
-                                      iatom=iatom, jatom=jatom, r=rab, cell=cell_vec)
-
-               DO i_img_outer = 1, nimg
-                  DO j_img_outer = 1, nimg
-
-                     i_img = i_img_outer
-                     j_img = j_img_outer
-
-                     IF (atom_RI .EQ. iatom_outer .AND. &
-                         iatom .NE. jatom_outer .AND. &
-                         jatom .NE. jatom_outer) &
-                        CYCLE
-
-                     IF (atom_RI .EQ. jatom_outer .AND. &
-                         iatom .NE. iatom_outer .AND. &
-                         jatom .NE. iatom_outer) &
-                        CYCLE
-
-                     IF (iatom .EQ. iatom_outer .AND. &
-                         atom_RI .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-
-                           IF (outer_cell_vec(1) < minval_1) CYCLE
-                           IF (outer_cell_vec(1) > maxval_1) CYCLE
-                           IF (outer_cell_vec(2) < minval_2) CYCLE
-                           IF (outer_cell_vec(2) > maxval_2) CYCLE
-                           IF (outer_cell_vec(3) < minval_3) CYCLE
-                           IF (outer_cell_vec(3) > maxval_3) CYCLE
-
-                           IF (-outer_cell_vec(1)+cell_vec(1) < minval_1) CYCLE
-                           IF (-outer_cell_vec(1)+cell_vec(1) > maxval_1) CYCLE
-                           IF (-outer_cell_vec(2)+cell_vec(2) < minval_2) CYCLE
-                           IF (-outer_cell_vec(2)+cell_vec(2) > maxval_2) CYCLE
-                           IF (-outer_cell_vec(3)+cell_vec(3) < minval_3) CYCLE
-                           IF (-outer_cell_vec(3)+cell_vec(3) > maxval_3) CYCLE
-
-                           acell = cell_to_index(-outer_cell_vec(1), -outer_cell_vec(2), -outer_cell_vec(3))
-                           IF (.NOT. (acell == i_img)) CYCLE
-                           bcell = cell_to_index(-outer_cell_vec(1)+cell_vec(1), &
-                                                 -outer_cell_vec(2)+cell_vec(2), &
-                                                 -outer_cell_vec(3)+cell_vec(3))
-                           IF (.NOT. (bcell == j_img)) CYCLE
-
-                        END IF
-
-                        raRI = rab_outer
-                        rbRI = raRI-rab
-
-                     ELSE IF (atom_RI .EQ. iatom_outer .AND. &
-                              iatom .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-                           ! for kpoints we have the non-symmetric neighbor list
-                           CYCLE
-                        END IF
-
-                        raRI = -rab_outer
-                        rbRI = raRI-rab
-
-                     ELSE IF (jatom .EQ. iatom_outer .AND. &
-                              atom_RI .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-                           ! for kpoints we have the non-symmetric neighbor list
-                           CYCLE
-                        END IF
-
-                        rbRI = rab_outer
-                        raRI = rbRI+rab
-
-                     ELSE IF (atom_RI .EQ. iatom_outer .AND. &
-                              jatom .EQ. jatom_outer) THEN
-
-                        IF (do_kpoints_cubic_RPA) THEN
-                           ! for kpoints we have the non-symmetric neighbor list
-                           CYCLE
-                        END IF
-
-                        rbRI = -rab_outer
-                        raRI = rbRI+rab
-
-                     END IF
-
-                     dab = SQRT(SUM(rab**2))
-                     daRI = SQRT(SUM(raRI**2))
-                     dbRI = SQRT(SUM(rbRI**2))
-
-                     ikind = kind_of(iatom)
-                     CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
-                     first_sgfa => basis_set_a%first_sgf
-                     la_max => basis_set_a%lmax
-                     la_min => basis_set_a%lmin
-                     npgfa => basis_set_a%npgf
-                     nseta = basis_set_a%nset
-                     nsgfa => basis_set_a%nsgf_set
-                     rpgfa => basis_set_a%pgf_radius
-                     set_radius_a => basis_set_a%set_radius
-                     sphi_a => basis_set_a%sphi
-                     zeta => basis_set_a%zet
-                     kind_radius_a = basis_set_a%kind_radius
-
-                     jkind = kind_of(jatom)
-                     CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b)
-                     first_sgfb => basis_set_b%first_sgf
-                     lb_max => basis_set_b%lmax
-                     lb_min => basis_set_b%lmin
-                     npgfb => basis_set_b%npgf
-                     nsetb = basis_set_b%nset
-                     nsgfb => basis_set_b%nsgf_set
-                     rpgfb => basis_set_b%pgf_radius
-                     set_radius_b => basis_set_b%set_radius
-                     kind_radius_b = basis_set_b%kind_radius
-                     sphi_b => basis_set_b%sphi
-                     zetb => basis_set_b%zet
-
-                     IF (kind_radius_a+kind_radius_RI < daRI) CYCLE
-                     IF (kind_radius_a+kind_radius_b < dab) CYCLE
-                     IF (kind_radius_b+kind_radius_RI < dbRI) CYCLE
-
-                     ! tensor is not symmetric therefore need to allocate rows and columns in
-                     ! correspondence with neighborlist. Note that this only allocates half
-                     ! of the blocks (since neighborlist is symmetric). After filling the blocks,
-                     ! tensor will be added to its transposed
-
-                     row = iatom; col = jatom
-
-                     IF (old_row(i_img_outer, j_img_outer) == row .AND. &
-                         old_col(i_img_outer, j_img_outer) == col) CYCLE
-
-                     ASSOCIATE (aRI=>alloc_RI(i_img_outer, j_img_outer))
-                        ASSOCIATE (a_ao1=>alloc_ao1(i_img_outer, j_img_outer))
-                           ASSOCIATE (a_ao2=>alloc_ao2(i_img_outer, j_img_outer))
-
-                              new_block = .TRUE.
-                              IF (ALLOCATED(a_ao1%array)) THEN
-                                 DO iblk = 1, SIZE(a_ao1%array)
-                                    IF (aRI%array(iblk) == atom_RI .AND. &
-                                        a_ao1%array(iblk) == row .AND. &
-                                        a_ao2%array(iblk) == col) THEN
-                                       new_block = .FALSE.
-                                       EXIT
-                                    ENDIF
-                                 ENDDO
-                              ENDIF
-                              IF (.NOT. new_block) CYCLE
-
-                              IF (ALLOCATED(aRI%array)) THEN
-                                 blk_cnt = SIZE(aRI%array)
-                                 ALLOCATE (tmp(blk_cnt))
-                                 tmp(:) = aRI%array(:)
-                                 DEALLOCATE (aRI%array)
-                                 ALLOCATE (aRI%array(blk_cnt+1))
-                                 aRI%array(1:blk_cnt) = tmp(:)
-                                 aRI%array(blk_cnt+1) = atom_RI
-                              ELSE
-                                 ALLOCATE (aRI%array(1))
-                                 aRI%array(1) = atom_RI
-                              ENDIF
-
-                              IF (ALLOCATED(a_ao1%array)) THEN
-                                 tmp(:) = a_ao1%array(:)
-                                 DEALLOCATE (a_ao1%array)
-                                 ALLOCATE (a_ao1%array(blk_cnt+1))
-                                 a_ao1%array(1:blk_cnt) = tmp(:)
-                                 a_ao1%array(blk_cnt+1) = row
-                              ELSE
-                                 ALLOCATE (a_ao1%array(1))
-                                 a_ao1%array(1) = row
-                              ENDIF
-
-                              IF (ALLOCATED(a_ao2%array)) THEN
-                                 tmp(:) = a_ao2%array(:)
-                                 DEALLOCATE (a_ao2%array)
-                                 ALLOCATE (a_ao2%array(blk_cnt+1))
-                                 a_ao2%array(1:blk_cnt) = tmp(:)
-                                 a_ao2%array(blk_cnt+1) = col
-                              ELSE
-                                 ALLOCATE (a_ao2%array(1))
-                                 a_ao2%array(1) = col
-                              ENDIF
-
-                              old_row(i_img_outer, j_img_outer) = row
-                              old_col(i_img_outer, j_img_outer) = col
-
-                              IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
-                           END ASSOCIATE
-                        END ASSOCIATE
-                     END ASSOCIATE
-                  ENDDO
-               ENDDO
-            ENDDO
-            CALL neighbor_list_iterator_release(nl_iterator)
-         ENDDO
-         CALL neighbor_list_iterator_release(nl_iterator_outer)
-      ENDDO
-
-      DO i_img = 1, nimg
-         DO j_img = 1, nimg
-            IF (ALLOCATED(alloc_RI(i_img, j_img)%array)) THEN
-               DO i = 1, SIZE(alloc_RI(i_img, j_img)%array)
-                  CALL dbcsr_t_get_stored_coordinates(t_3c_overl_int(i_img, j_img), &
-                                                      [alloc_RI(i_img, j_img)%array(i), alloc_ao1(i_img, j_img)%array(i), &
-                                                       alloc_ao2(i_img, j_img)%array(i)], &
-                                                      iproc)
-                  CPASSERT(iproc .EQ. para_env%mepos)
-               ENDDO
-
-               CALL dbcsr_t_reserve_blocks(t_3c_overl_int(i_img, j_img), &
-                                           alloc_RI(i_img, j_img)%array, &
-                                           alloc_ao1(i_img, j_img)%array, &
-                                           alloc_ao2(i_img, j_img)%array)
-            ENDIF
-         ENDDO
-      ENDDO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE reserve_blocks_3c_t
 ! **************************************************************************************************
 !> \brief compute three center overlap integrals and write them to mat_3_overl_int
 !> \param mat_3c_overl_int ...
@@ -5530,9 +4855,6 @@ CONTAINS
 !> \param my_group_L_starts_im_time ...
 !> \param my_group_L_ends_im_time ...
 !> \param my_group_L_sizes_im_time ...
-!> \param local_atoms_RI ...
-!> \param row_blk_sizes_RI_t ...
-!> \param row_dist_RI_t ...
 !> \param dimen_RI ...
 !> \param ngroup ...
 !> \param cut_memory ...
@@ -5541,12 +4863,11 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE setup_group_L_im_time(my_group_L_starts_im_time, my_group_L_ends_im_time, my_group_L_sizes_im_time, &
-                                    local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, &
                                     dimen_RI, ngroup, cut_memory, cut_RI, color_sub, qs_env)
 
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: my_group_L_starts_im_time, &
-         my_group_L_ends_im_time, my_group_L_sizes_im_time, local_atoms_RI, row_blk_sizes_RI_t, &
-         row_dist_RI_t
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: my_group_L_starts_im_time, &
+                                                            my_group_L_ends_im_time, &
+                                                            my_group_L_sizes_im_time
       INTEGER, INTENT(IN)                                :: dimen_RI, ngroup, cut_memory
       INTEGER, INTENT(OUT)                               :: cut_RI
       INTEGER, INTENT(IN)                                :: color_sub
@@ -5555,11 +4876,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_group_L_im_time', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: cut_RI_old, handle, iatom, iblk_RI, &
-                                                            icount, icut, itmp(2), natom, &
-                                                            nblks_RI, nkind, size_RI, start_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atom_RI_tmp, my_group_L_ends_im_time_tmp, &
-         my_group_L_starts_im_time_tmp, row_blk_end_RI, row_blk_offset_RI
+      INTEGER                                            :: cut_RI_old, handle, iblk_RI, icut, &
+                                                            itmp(2), natom, nblks_RI, nkind, &
+                                                            size_RI, start_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_group_L_ends_im_time_tmp, &
+                                                            my_group_L_starts_im_time_tmp, &
+                                                            row_blk_end_RI, row_blk_offset_RI
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes_RI
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(group_dist_d1_type)                           :: gd_array_mem_cut
@@ -5601,22 +4923,6 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes_RI, basis=basis_set_ri_aux)
       DEALLOCATE (basis_set_ri_aux)
-
-      ALLOCATE (row_dist_RI_t(natom))
-      ALLOCATE (local_atom_RI_tmp(natom))
-      icount = 0
-      DO iatom = 1, natom
-         row_dist_RI_t(iatom) = MOD(iatom-1, ngroup)
-         IF (row_dist_RI_t(iatom) == color_sub) THEN
-            icount = icount+1
-            local_atom_RI_tmp(icount) = iatom
-         ENDIF
-      ENDDO
-      ALLOCATE (local_atoms_RI(icount))
-      local_atoms_RI(:) = local_atom_RI_tmp(1:icount)
-
-      ALLOCATE (row_blk_sizes_RI_t(natom))
-      row_blk_sizes_RI_t(:) = row_blk_sizes_RI(:)
 
       ! check whether my_group_L_im_time covers different atoms. In this case, cut my_group_L_im_time
       ! especially improves memory a bit
