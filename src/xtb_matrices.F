@@ -38,7 +38,7 @@ MODULE xtb_matrices
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_trace, dbcsr_type
+        dbcsr_p_type, dbcsr_dot, dbcsr_type
    USE efield_tb_methods,               ONLY: efield_tb_matrix
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1103,8 +1103,8 @@ CONTAINS
                            1.0_dp, 1.0_dp)
             CALL qs_rho_get(rho, rho_ao=matrix_p1)
             ! Compute QM/MM Energy
-            CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                             matrix_p1(ispin)%matrix, trace=qmmm_el)
+            CALL dbcsr_dot(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                             matrix_p1(ispin)%matrix, qmmm_el)
             energy%qmmm_el = energy%qmmm_el+qmmm_el
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener

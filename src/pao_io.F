@@ -23,8 +23,8 @@ MODULE pao_io
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_dbcsr_blkrow_dist, csr_destroy, csr_type, &
-        csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_convert_dbcsr_to_csr, dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, &
+        dbcsr_csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_has_symmetry, dbcsr_release, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -574,7 +574,7 @@ CONTAINS
       LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(csr_type)                                     :: ks_mat_csr
+      TYPE(dbcsr_csr_type)                                     :: ks_mat_csr
       TYPE(dbcsr_type)                                   :: matrix_ks_nosym
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
@@ -612,18 +612,18 @@ CONTAINS
                CALL dbcsr_copy(matrix_ks_nosym, ls_scf_env%matrix_ks(ispin))
             END IF
 
-            CALL csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, csr_dbcsr_blkrow_dist)
-            CALL convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
+            CALL dbcsr_csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+            CALL dbcsr_convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
 
             WRITE (file_name, '(A,I0)') "PAO_KS_SPIN_", ispin
             unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
                                            extension=".csr", middle_name=TRIM(file_name), &
                                            file_status="REPLACE", file_form=fileformat)
-            CALL csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+            CALL dbcsr_csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
             CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
 
-            CALL csr_destroy(ks_mat_csr)
+            CALL dbcsr_csr_destroy(ks_mat_csr)
             CALL dbcsr_release(matrix_ks_nosym)
          END DO
       END IF
@@ -650,7 +650,7 @@ CONTAINS
       LOGICAL                                            :: bin, do_kpoints, do_s_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(csr_type)                                     :: s_mat_csr
+      TYPE(dbcsr_csr_type)                                     :: s_mat_csr
       TYPE(dbcsr_type)                                   :: matrix_s_nosym
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
@@ -686,18 +686,18 @@ CONTAINS
             CALL dbcsr_copy(matrix_s_nosym, ls_scf_env%matrix_s)
          END IF
 
-         CALL csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, csr_dbcsr_blkrow_dist)
-         CALL convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
+         CALL dbcsr_csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+         CALL dbcsr_convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
 
          WRITE (file_name, '(A,I0)') "PAO_S"
          unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
                                         extension=".csr", middle_name=TRIM(file_name), &
                                         file_status="REPLACE", file_form=fileformat)
-         CALL csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+         CALL dbcsr_csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
          CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
 
-         CALL csr_destroy(s_mat_csr)
+         CALL dbcsr_csr_destroy(s_mat_csr)
          CALL dbcsr_release(matrix_s_nosym)
       END IF
 

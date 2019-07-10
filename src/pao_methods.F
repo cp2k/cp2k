@@ -26,7 +26,7 @@ MODULE pao_methods
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
-        dbcsr_trace, dbcsr_type
+        dbcsr_dot, dbcsr_type
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
@@ -504,7 +504,7 @@ CONTAINS
       ! calculate the energy from the trace(PH) in the pao basis
       energy = 0.0_dp
       DO ispin = 1, ls_scf_env%nspins
-         CALL dbcsr_trace(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin), trace_PH)
+         CALL dbcsr_dot(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin), trace_PH)
          energy = energy+trace_PH
       ENDDO
 
@@ -538,7 +538,7 @@ CONTAINS
 
       trace_PS = 0.0_dp
       DO ispin = 1, ls_scf_env%nspins
-         CALL dbcsr_trace(ls_scf_env%matrix_p(ispin), matrix_S_desym, tmp)
+         CALL dbcsr_dot(ls_scf_env%matrix_p(ispin), matrix_S_desym, tmp)
          trace_PS = trace_PS+tmp
       ENDDO
 

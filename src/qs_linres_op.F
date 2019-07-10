@@ -44,7 +44,7 @@ MODULE qs_linres_op
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        convert_offsets_to_sizes, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
+        dbcsr_convert_offsets_to_sizes, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_p_type, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -219,7 +219,7 @@ CONTAINS
       !
       ! prepare for allocation
       ALLOCATE (row_blk_sizes(natom))
-      CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+      CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
       !
       !
       CALL dbcsr_allocate_matrix_set(op_ao, 3)

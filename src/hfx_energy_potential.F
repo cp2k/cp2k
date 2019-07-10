@@ -30,7 +30,7 @@ MODULE hfx_energy_potential
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_matrix_type,&
                                               dbcsr_p_type,&
-                                              dbcsr_trace,&
+                                              dbcsr_dot,&
                                               dbcsr_type_antisymmetric
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_communication,               ONLY: distribute_ks_matrix,&
@@ -1944,7 +1944,7 @@ CONTAINS
          !! ** Calculate the exchange energy
          ene_x_aa = 0.0_dp
          DO img = 1, nkimages
-            CALL dbcsr_trace(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
+            CALL dbcsr_dot(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
                              etmp)
             ene_x_aa = ene_x_aa+etmp
          END DO
@@ -1958,7 +1958,7 @@ CONTAINS
          ene_x_bb = 0.0_dp
          IF (nspins == 2 .AND. .NOT. treat_lsd_in_core) THEN
             DO img = 1, nkimages
-               CALL dbcsr_trace(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
+               CALL dbcsr_dot(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
                                 etmp)
                ene_x_bb = ene_x_bb+etmp
             END DO

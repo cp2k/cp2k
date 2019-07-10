@@ -29,7 +29,7 @@ MODULE mao_wfn_analysis
         dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, &
-        dbcsr_reserve_diag_blocks, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_reserve_diag_blocks, dbcsr_dot, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_type,&
@@ -311,7 +311,7 @@ CONTAINS
 
       ! calculate unassigned charge : n - Tr PS
       DO ispin = 1, nspin
-         CALL dbcsr_trace(mao_dmat(ispin)%matrix, mao_smat(ispin)%matrix, ua_charge(ispin))
+         CALL dbcsr_dot(mao_dmat(ispin)%matrix, mao_smat(ispin)%matrix, ua_charge(ispin))
          ua_charge(ispin) = electra(ispin)-ua_charge(ispin)
       END DO
       IF (unit_nr > 0) THEN
@@ -689,7 +689,7 @@ CONTAINS
                CALL dbcsr_multiply("N", "T", 1.0_dp, crumat, crumat, 0.0_dp, amat, &
                                    filter_eps=eps_filter)
                ! Tr(P*A)
-               CALL dbcsr_trace(matrix_p(ispin, 1)%matrix, amat, uaq(ia, ispin))
+               CALL dbcsr_dot(matrix_p(ispin, 1)%matrix, amat, uaq(ia, ispin))
                uaq(ia, ispin) = uaq(ia, ispin)-electra(ispin)
             END DO
             !

@@ -42,8 +42,8 @@ MODULE qs_active_space_methods
         silent_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: csr_create,&
-                                              csr_type,&
+   USE dbcsr_api,                       ONLY: dbcsr_csr_create,&
+                                              dbcsr_csr_type,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -179,7 +179,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, fmat, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(csr_type), POINTER                            :: eri_mat
+      TYPE(dbcsr_csr_type), POINTER                            :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -666,7 +666,7 @@ CONTAINS
          END IF
          nn1 = (n1*(n1+1))/2
          nn2 = (n2*(n2+1))/2
-         CALL csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
+         CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
          CALL get_mo_set(active_space_env%mos_active(i)%mo_set, nmo=active_space_env%eri%norb)
       END DO
 
@@ -1346,7 +1346,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE update_csr_matrix(csr_mat, nnz, rdat, rind, irow)
 
-      TYPE(csr_type), INTENT(INOUT)                      :: csr_mat
+      TYPE(dbcsr_csr_type), INTENT(INOUT)                      :: csr_mat
       INTEGER, INTENT(IN)                                :: nnz
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rdat
       INTEGER, DIMENSION(:), INTENT(IN)                  :: rind
@@ -1582,7 +1582,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eeri, eref, erint, esub, mval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ks_mat, ks_ref, p_mat
       TYPE(cp_fm_type), POINTER                          :: matrix
-      TYPE(csr_type), POINTER                            :: eri
+      TYPE(dbcsr_csr_type), POINTER                            :: eri
 
       eref = active_space_env%energy_ref
       nspins = active_space_env%nspins

@@ -49,7 +49,7 @@ MODULE qs_moments
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, &
-        dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_dot, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -1168,7 +1168,7 @@ CONTAINS
       ! charge
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
+         CALL dbcsr_dot(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
          rmom(1, 1) = rmom(1, 1)+trace
       END DO
 
@@ -1530,14 +1530,14 @@ CONTAINS
 
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
+         CALL dbcsr_dot(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
          rmom(1, 1) = rmom(1, 1)+trace
       END DO
 
       DO i = 1, SIZE(moments)
          strace = 0._dp
          DO ispin = 1, dft_control%nspins
-            CALL dbcsr_trace(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
+            CALL dbcsr_dot(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
             strace = strace+trace
          END DO
          rmom(i+1, 1) = strace
@@ -1582,7 +1582,7 @@ CONTAINS
          nm = SIZE(magmom)
          ALLOCATE (mmom(nm))
 
-         ! Allocate matrices to store the matrix product to be traced (dbcsr_trace only works for products of
+         ! Allocate matrices to store the matrix product to be traced (dbcsr_dot only works for products of
          ! symmetric matrices)
          NULLIFY (rho_magmom_ao)
          ALLOCATE (rho_magmom_ao)

@@ -107,11 +107,9 @@ CONTAINS
       INTEGER                                            :: handle, iatom, imol, jatom, &
                                                             ls_data_type, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
-                                                            clustered_blk_sizes, primus_of_mol
-      INTEGER, DIMENSION(:), POINTER :: clustered_col_clusters, clustered_col_dist, &
-         clustered_row_clusters, clustered_row_dist, ls_blk_sizes, ls_col_cluster, ls_col_dist, &
-         ls_row_cluster, ls_row_dist
-      LOGICAL                                            :: ls_has_col_clusters, ls_has_row_clusters
+                                                            primus_of_mol
+      INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
+                                                            ls_blk_sizes, ls_col_dist, ls_row_dist
       TYPE(dbcsr_distribution_type)                      :: ls_dist, ls_dist_clustered
 
       CALL timeset(routineN, handle)
@@ -119,13 +117,7 @@ CONTAINS
       ! Defaults -----------------------------------------------------------------------------------
       CALL dbcsr_get_info(matrix_qs, col_blk_size=ls_blk_sizes, distribution=ls_dist)
       CALL dbcsr_distribution_hold(ls_dist)
-      CALL dbcsr_distribution_get(ls_dist, &
-                                  row_dist=ls_row_dist, &
-                                  col_dist=ls_col_dist, &
-                                  row_cluster=ls_row_cluster, &
-                                  col_cluster=ls_col_cluster, &
-                                  has_col_clusters=ls_has_col_clusters, &
-                                  has_row_clusters=ls_has_row_clusters)
+      CALL dbcsr_distribution_get(ls_dist, row_dist=ls_row_dist, col_dist=ls_col_dist)
       ls_data_type = dbcsr_type_real_8
       IF (ls_mstruct%single_precision) ls_data_type = dbcsr_type_real_4
 
@@ -165,42 +157,18 @@ CONTAINS
          DO imol = 1, nmol
             clustered_row_dist(imol) = ls_row_dist(primus_of_mol(imol))
          ENDDO
-         NULLIFY (clustered_row_clusters)
-         IF (ls_has_row_clusters) THEN
-            ALLOCATE (clustered_row_clusters(nmol))
-            DO imol = 1, nmol
-               clustered_row_clusters(imol) = ls_row_cluster(primus_of_mol(imol))
-            ENDDO
-         ENDIF
 
          ! col
          ALLOCATE (clustered_col_dist(nmol))
          DO imol = 1, nmol
             clustered_col_dist(imol) = ls_col_dist(primus_of_mol(imol))
          ENDDO
-         NULLIFY (clustered_col_clusters)
-         IF (ls_has_col_clusters) THEN
-            ALLOCATE (clustered_col_clusters(nmol))
-            DO imol = 1, nmol
-               clustered_col_clusters(imol) = ls_col_cluster(primus_of_mol(imol))
-            ENDDO
-         ENDIF
-
-         ALLOCATE (clustered_blk_sizes(nmol))
-         clustered_blk_sizes = 0
-         DO iatom = 1, natom
-            clustered_blk_sizes(atom_to_cluster(iatom)) = clustered_blk_sizes(atom_to_cluster(iatom))+ &
-                                                          ls_blk_sizes(iatom)
-         ENDDO
-         ls_blk_sizes => clustered_blk_sizes ! redirect pointer
 
          ! create new distribution
          CALL dbcsr_distribution_new(ls_dist_clustered, &
                                      template=ls_dist, &
                                      row_dist=clustered_row_dist, &
                                      col_dist=clustered_col_dist, &
-                                     row_cluster=clustered_row_clusters, &
-                                     col_cluster=clustered_col_clusters, &
                                      reuse_arrays=.TRUE.)
          CALL dbcsr_distribution_release(ls_dist)
          ls_dist = ls_dist_clustered

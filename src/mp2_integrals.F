@@ -70,7 +70,7 @@ MODULE mp2_integrals
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, dbcsr_t_pgrid_create, &
         dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
-        dbcsr_t_split_blocks, dbcsr_t_type, mp_environ_pgrid
+        dbcsr_t_split_blocks, dbcsr_t_type, dbcsr_t_mp_environ_pgrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
@@ -1023,7 +1023,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       TYPE(dbcsr_t_distribution_type)                    :: dist
 
-      CALL mp_environ_pgrid(mp_comm_t3c_m, pdims, pcoord)
+      CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c_m, pdims, pcoord)
 
       size_RI = SIZE(row_blk_sizes_RI_t)
       size_AO = SIZE(ao_blk_sizes)
@@ -1093,7 +1093,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       TYPE(dbcsr_t_distribution_type)                    :: dist
 
-      CALL mp_environ_pgrid(mp_comm_t3c, pdims, pcoord)
+      CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c, pdims, pcoord)
 
       size_AO_1 = SIZE(ao_blk_sizes_1)
       size_AO_2 = SIZE(ao_blk_sizes_2)

@@ -40,7 +40,7 @@ MODULE qs_initial_guess
         dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
+        dbcsr_set, dbcsr_set_diag, dbcsr_dot, dbcsr_type, dbcsr_verify_matrix
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type
@@ -725,7 +725,7 @@ CONTAINS
             occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
             IF (ounit > 0) WRITE (ounit, *) 'P_init occ', occ, ' checksum', checksum
 
-            CALL dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
+            CALL dbcsr_dot(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
             rscale = REAL(nelectron, dp)/trps1
             CALL dbcsr_scale(p_rmpv(ispin)%matrix, rscale)
 
@@ -1066,7 +1066,7 @@ CONTAINS
          ENDDO
          CALL dbcsr_iterator_stop(iter)
 
-         CALL dbcsr_trace(matrix_p, matrix_s, trps1)
+         CALL dbcsr_dot(matrix_p, matrix_s, trps1)
          rds = 0.0_dp
          ! could be a ghost-atoms-only simulation
          IF (nelectron_spin(ispin) > 0) THEN

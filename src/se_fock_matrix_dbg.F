@@ -6,7 +6,7 @@
 MODULE se_fock_matrix_dbg
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set,&
-                                              dbcsr_trace
+                                              dbcsr_dot
    USE kinds,                           ONLY: dp
    USE qs_energy_types,                 ONLY: init_qs_energy,&
                                               qs_energy_type
@@ -65,7 +65,7 @@ CONTAINS
 
       ! Compute the Hartree energy
       DO ispin = 1, nspins
-         CALL dbcsr_trace(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, trace=ecoul)
+         CALL dbcsr_dot(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, ecoul)
          energy%hartree = energy%hartree+ecoul
 
          WRITE (*, *) ispin, "ECOUL ", ecoul

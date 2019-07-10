@@ -45,7 +45,7 @@ MODULE negf_methods
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
-                                              dbcsr_trace
+                                              dbcsr_dot
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
                                               force_env_type
@@ -423,12 +423,12 @@ CONTAINS
          DO image = 1, nimages
             IF (index_to_cell(direction_axis_abs, image) == 0) THEN
                DO ispin = 1, nspins
-                  CALL dbcsr_trace(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
+                  CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
                   nelectrons_qs_cell0 = nelectrons_qs_cell0+trace
                END DO
             ELSE IF (ABS(index_to_cell(direction_axis_abs, image)) == 1) THEN
                DO ispin = 1, nspins
-                  CALL dbcsr_trace(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
+                  CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
                   nelectrons_qs_cell1 = nelectrons_qs_cell1+trace
                END DO
             END IF
