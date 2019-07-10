@@ -63,13 +63,12 @@ case "$with_elpa" in
                 cray_ldflags="-dynamic"
             fi
             # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
-            # In addition, --disable-option-checking is needed for older versions, which don't know
-            # about this option.
             has_AVX=`grep '\bavx\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
             has_AVX2=`grep '\bavx2\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
             has_AVX512=`grep '\bavx512f\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            has_GPU=$([ "$ENABLE_CUDA" == "__TRUE__" ] && echo "yes" || echo "no")
             FMA_flag=`grep '\bfma\b' /proc/cpuinfo 1>/dev/null && echo '-mfma' || echo '-mno-fma'`
             SSE4_flag=`grep '\bsse4_1\b' /proc/cpuinfo 1>/dev/null && echo '-msse4' || echo '-mno-sse4'`
             # non-threaded version
@@ -79,10 +78,11 @@ case "$with_elpa" in
                           --enable-openmp=no \
                           --enable-shared=no \
                           --enable-static=yes \
-                          --disable-option-checking \
                           --enable-avx=${has_AVX} \
                           --enable-avx2=${has_AVX2} \
                           --enable-avx512=${has_AVX512} \
+                          --enable-gpu=${has_GPU} \
+                          --with-cuda-path=${CUDA_PATH} \
                           FC=${MPIFC} \
                           CC=${MPICC} \
                           CXX=${MPICXX} \
@@ -103,10 +103,11 @@ case "$with_elpa" in
                               --enable-openmp=yes \
                               --enable-shared=no \
                               --enable-static=yes \
-                              --disable-option-checking \
                               --enable-avx=${has_AVX} \
                               --enable-avx2=${has_AVX2} \
                               --enable-avx512=${has_AVX512} \
+                              --enable-gpu=${has_GPU} \
+                              --with-cuda-path=${CUDA_PATH} \
                               FC=${MPIFC} \
                               CC=${MPICC} \
                               CXX=${MPICXX} \
