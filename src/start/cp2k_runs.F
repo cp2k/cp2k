@@ -5,8 +5,6 @@
 
 ! **************************************************************************************************
 MODULE cp2k_runs
-   USE dbcsr_acc_device,                ONLY: dbcsr_acc_get_ndevices,&
-                                              acc_set_active_device
    USE atom,                            ONLY: atom_code
    USE bibliography,                    ONLY: Hutter2014,&
                                               cite_reference
@@ -47,7 +45,9 @@ MODULE cp2k_runs
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
-                                              dbcsr_print_statistics
+                                              dbcsr_print_statistics,&
+                                              dbcsr_acc_get_ndevices,&
+                                              dbcsr_acc_set_active_device
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -196,7 +196,7 @@ CONTAINS
                               owns_group=.FALSE.)
 
       IF (dbcsr_acc_get_ndevices() > 0) &
-         CALL acc_set_active_device(MOD(para_env%mepos, dbcsr_acc_get_ndevices()))
+         CALL dbcsr_acc_set_active_device(MOD(para_env%mepos, dbcsr_acc_get_ndevices()))
 
       CALL cuda_nvtx_init()
 
