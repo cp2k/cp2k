@@ -274,7 +274,7 @@ CONTAINS
 
          ! Initialize the DBCSR configuration
          CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
-                              cp_abort_hook, cp_warn_hook, io_unit=0)
+                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
          ! Attach the time handler hooks to DBCSR
          !CALL dbcsr_set_hooks(timeset_hook, timestop_hook, &
                               !cp_abort_hook, cp_warn_hook)
