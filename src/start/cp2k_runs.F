@@ -46,7 +46,8 @@ MODULE cp2k_runs
    USE cuda_profiling,                  ONLY: cuda_nvtx_init
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
-                                              dbcsr_print_config
+                                              dbcsr_print_config,&
+                                              dbcsr_print_statistics
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -201,7 +202,7 @@ CONTAINS
 
       CALL pw_cuda_init()
 
-      CALL dbcsr_init_lib(mpi_comm, io_unit=0)
+      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 
       CALL cp_sirius_init()
 
@@ -267,7 +268,7 @@ CONTAINS
          CALL pw_cuda_finalize()
          CALL farming_run(input_declaration, root_section, para_env)
          CALL cp_sirius_init()
-         CALL dbcsr_init_lib(mpi_comm, io_unit=0)
+         CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
          CALL pw_cuda_init()
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
@@ -392,6 +393,7 @@ CONTAINS
       CALL cp_sirius_finalize()
 
       CALL pw_cuda_finalize()
+      CALL dbcsr_print_statistics()
       CALL dbcsr_finalize_lib()
 
       m_memory_max_mpi = m_memory_max
