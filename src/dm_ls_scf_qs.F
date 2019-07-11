@@ -107,7 +107,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, imol, jatom, &
                                                             ls_data_type, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
-                                                            primus_of_mol
+                                                            clustered_blk_sizes, primus_of_mol
       INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
                                                             ls_blk_sizes, ls_col_dist, ls_row_dist
       TYPE(dbcsr_distribution_type)                      :: ls_dist, ls_dist_clustered
@@ -163,6 +163,14 @@ CONTAINS
          DO imol = 1, nmol
             clustered_col_dist(imol) = ls_col_dist(primus_of_mol(imol))
          ENDDO
+
+         ALLOCATE (clustered_blk_sizes(nmol))
+         clustered_blk_sizes = 0
+         DO iatom = 1, natom
+            clustered_blk_sizes(atom_to_cluster(iatom)) = clustered_blk_sizes(atom_to_cluster(iatom))+ &
+                                                          ls_blk_sizes(iatom)
+         ENDDO
+         ls_blk_sizes => clustered_blk_sizes ! redirect pointer
 
          ! create new distribution
          CALL dbcsr_distribution_new(ls_dist_clustered, &
