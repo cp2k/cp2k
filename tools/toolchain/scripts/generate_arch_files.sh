@@ -158,8 +158,7 @@ gen_arch_file() {
       cat <<EOF >> $__filename
 #
 CXX         = \${CC}
-CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11
-CXXOMPFLAGS = IF_OMP(-fopenmp|)
+CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11 IF_OMP(-fopenmp|)
 GPUVER      = \${GPUVER}
 NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9
 NVFLAGS     = \${NVFLAGS}
