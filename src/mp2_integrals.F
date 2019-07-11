@@ -68,9 +68,9 @@ MODULE mp2_integrals
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_blk_sizes, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
-        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, dbcsr_t_pgrid_create, &
-        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
-        dbcsr_t_split_blocks, dbcsr_t_type, dbcsr_t_mp_environ_pgrid
+        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
+        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&

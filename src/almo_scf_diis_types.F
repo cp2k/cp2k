@@ -16,9 +16,9 @@ MODULE almo_scf_diis_types
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
+                                              dbcsr_dot,&
                                               dbcsr_release,&
                                               dbcsr_set,&
-                                              dbcsr_dot,&
                                               dbcsr_type
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               copy_submatrices,&

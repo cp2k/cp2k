@@ -36,11 +36,11 @@ MODULE qs_initial_guess
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_filter, dbcsr_get_diag, &
+        dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_dot, dbcsr_type, dbcsr_verify_matrix
+        dbcsr_set, dbcsr_set_diag, dbcsr_type, dbcsr_verify_matrix
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type

@@ -43,8 +43,8 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
-   USE dbcsr_acc_device,                ONLY: dbcsr_acc_get_ndevices,&
-                                              acc_set_active_device
+   USE dbcsr_acc_device,                ONLY: acc_set_active_device,&
+                                              dbcsr_acc_get_ndevices
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
    USE eip_environment,                 ONLY: eip_init
@@ -274,10 +274,10 @@ CONTAINS
 
          ! Initialize the DBCSR configuration
          CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
-                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
+                             cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
          ! Attach the time handler hooks to DBCSR
          !CALL dbcsr_set_hooks(timeset_hook, timestop_hook, &
-                              !cp_abort_hook, cp_warn_hook)
+         !cp_abort_hook, cp_warn_hook)
       ELSE
          ierr = cp_failure_level
       END IF

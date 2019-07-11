@@ -25,10 +25,10 @@ MODULE se_fock_matrix
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
+                                              dbcsr_dot,&
                                               dbcsr_get_info,&
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
-                                              dbcsr_dot,&
                                               dbcsr_type
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
@@ -205,7 +205,7 @@ CONTAINS
                               1.0_dp, 1.0_dp)
                ! Compute QM/MM Energy
                CALL dbcsr_dot(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                                matrix_p(ispin)%matrix, qmmm_el)
+                              matrix_p(ispin)%matrix, qmmm_el)
                energy%qmmm_el = energy%qmmm_el+qmmm_el
             END DO
          END IF

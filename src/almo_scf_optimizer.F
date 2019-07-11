@@ -51,14 +51,14 @@ MODULE almo_scf_optimizer
                                               ct_step_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
         dbcsr_function_of_elements, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
         dbcsr_hadamard_product, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, &
         dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_dot, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_set, dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               construct_submatrices,&
@@ -671,8 +671,8 @@ CONTAINS
                   CALL dbcsr_add(matrix_p_almo_scf_converged, &
                                  almo_scf_env%matrix_p(ispin), -1.0_dp, 1.0_dp)
                   CALL dbcsr_dot(almo_scf_env%matrix_ks_0deloc(ispin), &
-                                   matrix_p_almo_scf_converged, &
-                                   denergy_spin(ispin))
+                                 matrix_p_almo_scf_converged, &
+                                 denergy_spin(ispin))
 
                   CALL dbcsr_release(matrix_p_almo_scf_converged)
 
@@ -3857,8 +3857,8 @@ CONTAINS
             CALL dbcsr_add(matrix_p_almo_scf_converged(ispin), &
                            almo_scf_env%matrix_p(ispin), -1.0_dp, 1.0_dp)
             CALL dbcsr_dot(almo_scf_env%matrix_ks_0deloc(ispin), &
-                             matrix_p_almo_scf_converged(ispin), &
-                             energy_correction(ispin))
+                           matrix_p_almo_scf_converged(ispin), &
+                           energy_correction(ispin))
 
             energy_correction_final = energy_correction_final+energy_correction(ispin)
 

@@ -48,8 +48,8 @@ MODULE qs_moments
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, &
-        dbcsr_dot, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp

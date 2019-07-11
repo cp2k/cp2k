@@ -14,8 +14,8 @@ MODULE kg_correction
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_p_type,&
-                                              dbcsr_dot
+                                              dbcsr_dot,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&

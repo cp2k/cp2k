@@ -23,9 +23,10 @@ MODULE pao_io
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_convert_dbcsr_to_csr, dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, &
-        dbcsr_csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_has_symmetry, dbcsr_release, dbcsr_type
+        dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, dbcsr_csr_write, &
+        dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_has_symmetry, dbcsr_release, &
+        dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -574,7 +575,7 @@ CONTAINS
       LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_csr_type)                                     :: ks_mat_csr
+      TYPE(dbcsr_csr_type)                               :: ks_mat_csr
       TYPE(dbcsr_type)                                   :: matrix_ks_nosym
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
@@ -650,7 +651,7 @@ CONTAINS
       LOGICAL                                            :: bin, do_kpoints, do_s_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_csr_type)                                     :: s_mat_csr
+      TYPE(dbcsr_csr_type)                               :: s_mat_csr
       TYPE(dbcsr_type)                                   :: matrix_s_nosym
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 

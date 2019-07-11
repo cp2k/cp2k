@@ -43,9 +43,9 @@ MODULE negf_methods
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
+                                              dbcsr_dot,&
                                               dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_dot
+                                              dbcsr_p_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
                                               force_env_type

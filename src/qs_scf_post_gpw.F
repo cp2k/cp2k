@@ -51,9 +51,9 @@ MODULE qs_scf_post_gpw
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_convert_dbcsr_to_csr, dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, &
-        dbcsr_csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_p_type, &
-        dbcsr_release, dbcsr_type
+        dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, dbcsr_csr_write, &
+        dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -2874,7 +2874,7 @@ CONTAINS
       LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_csr_type)                                     :: ks_mat_csr
+      TYPE(dbcsr_csr_type)                               :: ks_mat_csr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type)                                   :: matrix_ks_nosym
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -2951,7 +2951,7 @@ CONTAINS
       LOGICAL                                            :: bin, do_kpoints, do_s_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_csr_type)                                     :: s_mat_csr
+      TYPE(dbcsr_csr_type)                               :: s_mat_csr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type)                                   :: matrix_s_nosym
       TYPE(section_vals_type), POINTER                   :: dft_section

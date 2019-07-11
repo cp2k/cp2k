@@ -43,11 +43,11 @@ MODULE rpa_gw_kpoints
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_block_p, &
-        dbcsr_get_num_blocks, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_set, &
-        dbcsr_dot, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_dot, dbcsr_filter, &
+        dbcsr_get_block_p, dbcsr_get_num_blocks, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: gw_read_exx
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -1271,20 +1271,20 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL dbcsr_dot(mat_contr_gf_occ_re, &
-                       mat_contr_W_re, &
-                       trace_neg_tau_re_1)
+                     mat_contr_W_re, &
+                     trace_neg_tau_re_1)
 
       CALL dbcsr_dot(mat_contr_gf_occ_im, &
-                       mat_contr_W_im, &
-                       trace_neg_tau_re_2)
+                     mat_contr_W_im, &
+                     trace_neg_tau_re_2)
 
       CALL dbcsr_dot(mat_contr_gf_occ_re, &
-                       mat_contr_W_im, &
-                       trace_neg_tau_im_1)
+                     mat_contr_W_im, &
+                     trace_neg_tau_im_1)
 
       CALL dbcsr_dot(mat_contr_gf_occ_im, &
-                       mat_contr_W_re, &
-                       trace_neg_tau_im_2)
+                     mat_contr_W_re, &
+                     trace_neg_tau_im_2)
 
       IF (ABS(trace_neg_tau_re_1)+ABS(trace_neg_tau_re_2)+ABS(trace_neg_tau_im_1)+ &
           ABS(trace_neg_tau_im_2) < eps_filter) THEN
@@ -1315,20 +1315,20 @@ CONTAINS
       END IF
 
       CALL dbcsr_dot(mat_contr_gf_virt_re, &
-                       mat_contr_W_re, &
-                       trace_pos_tau_re_1)
+                     mat_contr_W_re, &
+                     trace_pos_tau_re_1)
 
       CALL dbcsr_dot(mat_contr_gf_virt_im, &
-                       mat_contr_W_im, &
-                       trace_pos_tau_re_2)
+                     mat_contr_W_im, &
+                     trace_pos_tau_re_2)
 
       CALL dbcsr_dot(mat_contr_gf_virt_re, &
-                       mat_contr_W_im, &
-                       trace_pos_tau_im_1)
+                     mat_contr_W_im, &
+                     trace_pos_tau_im_1)
 
       CALL dbcsr_dot(mat_contr_gf_virt_im, &
-                       mat_contr_W_re, &
-                       trace_pos_tau_im_2)
+                     mat_contr_W_re, &
+                     trace_pos_tau_im_2)
 
       IF (jquad > 0) THEN
 

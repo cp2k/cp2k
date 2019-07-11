@@ -23,10 +23,10 @@ MODULE qs_efield_local
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
+                                              dbcsr_dot,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_dot
+                                              dbcsr_set
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset

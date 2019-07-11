@@ -45,9 +45,9 @@ MODULE admm_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
-        dbcsr_set, dbcsr_dot, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_cauchy,&
@@ -1475,7 +1475,7 @@ CONTAINS
 
       !! ** Calculate the exchange energy
       CALL dbcsr_dot(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux_buffer(ispin)%matrix, &
-                       ener_k_ispin)
+                     ener_k_ispin)
 
       ! Divide exchange for indivivual spin by two, since the ener_k_ispin originally is total
       ! exchange of alpha and beta

@@ -17,8 +17,8 @@ MODULE dm_ls_scf_curvy
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, &
-        dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_dot, dbcsr_transposed, &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, &
+        dbcsr_multiply, dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry
    USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                               ls_scf_env_type

@@ -16,12 +16,12 @@ MODULE qs_ot_minimizer
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
+                                              dbcsr_dot,&
                                               dbcsr_get_info,&
                                               dbcsr_init_random,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_dot
+                                              dbcsr_set
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathlib,                         ONLY: diamat_all
@@ -887,7 +887,7 @@ CONTAINS
                CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                tmp)
+                              tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
@@ -900,7 +900,7 @@ CONTAINS
                DO ispin = 1, nspin
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, qs_ot_env(ispin)%rot_mat_gx)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                   tmp)
+                                 tmp)
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
@@ -977,13 +977,13 @@ CONTAINS
             IF (do_ks) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                   qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                   tmp)
+                                 qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                                 tmp)
                   qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                      qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                      tmp)
+                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
+                                    tmp)
                      qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+0.5_dp*tmp
                   ENDIF
                ENDDO
@@ -999,13 +999,13 @@ CONTAINS
             IF (do_ks) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
-                                   qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                   tmp)
+                                 qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                                 tmp)
                   qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
-                                      qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                      tmp)
+                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
+                                    tmp)
                      qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*0.5_dp*tmp
                   ENDIF
                ENDDO
@@ -1087,17 +1087,17 @@ CONTAINS
             IF (do_ks) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                                   qs_ot_env(ispin)%matrix_gx, tmp)
+                                 qs_ot_env(ispin)%matrix_gx, tmp)
                   tr_xold_gx = tr_xold_gx+tmp
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_x, &
-                                   qs_ot_env(ispin)%matrix_gx, tmp)
+                                 qs_ot_env(ispin)%matrix_gx, tmp)
                   tr_xnew_gx = tr_xnew_gx+tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                                      qs_ot_env(ispin)%rot_mat_gx, tmp)
+                                    qs_ot_env(ispin)%rot_mat_gx, tmp)
                      tr_xold_gx = tr_xold_gx+0.5_dp*tmp
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_x, &
-                                      qs_ot_env(ispin)%rot_mat_gx, tmp)
+                                    qs_ot_env(ispin)%rot_mat_gx, tmp)
                      tr_xnew_gx = tr_xnew_gx+0.5_dp*tmp
                   ENDIF
                ENDDO
@@ -1238,7 +1238,7 @@ CONTAINS
             CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                       qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                             tmp)
+                           tmp)
             qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
          ENDDO
          IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
@@ -1444,8 +1444,8 @@ CONTAINS
          tmp = 0.0_dp
          DO ispin = 1, nspin
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
-                             qs_ot_env(ispin)%matrix_x, &
-                             tmp2)
+                           qs_ot_env(ispin)%matrix_x, &
+                           tmp2)
             tmp = tmp+tmp2
          ENDDO
 

@@ -19,8 +19,8 @@ MODULE qs_ot_eigensolver
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, &
-        dbcsr_set, dbcsr_dot, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_dot, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: preconditioner_in_use,&
                                               preconditioner_type
