@@ -27,12 +27,12 @@ MODULE lri_environment_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_dot,&
                                               dbcsr_get_block_diag,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_replicate_all,&
-                                              dbcsr_dot,&
                                               dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_inv,&

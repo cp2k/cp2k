@@ -28,9 +28,9 @@ MODULE hfx_energy_potential
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_dot,&
                                               dbcsr_get_matrix_type,&
                                               dbcsr_p_type,&
-                                              dbcsr_dot,&
                                               dbcsr_type_antisymmetric
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_communication,               ONLY: distribute_ks_matrix,&
@@ -1945,7 +1945,7 @@ CONTAINS
          ene_x_aa = 0.0_dp
          DO img = 1, nkimages
             CALL dbcsr_dot(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
-                             etmp)
+                           etmp)
             ene_x_aa = ene_x_aa+etmp
          END DO
          !for ADMMS, we need the exchange matrix k(d) for both spins
@@ -1959,7 +1959,7 @@ CONTAINS
          IF (nspins == 2 .AND. .NOT. treat_lsd_in_core) THEN
             DO img = 1, nkimages
                CALL dbcsr_dot(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
-                                etmp)
+                              etmp)
                ene_x_bb = ene_x_bb+etmp
             END DO
             !for ADMMS, we need the exchange matrix k(d) for both spins

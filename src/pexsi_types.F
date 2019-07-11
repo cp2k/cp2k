@@ -86,7 +86,7 @@ MODULE pexsi_types
       TYPE(dbcsr_type)                      :: dbcsr_template_matrix_sym, &
                                                dbcsr_template_matrix_nonsym
       TYPE(dbcsr_csr_type)                           :: csr_mat_p, csr_mat_ks, csr_mat_s, &
-                                                  csr_mat_E, csr_mat_F
+                                                        csr_mat_E, csr_mat_F
       TYPE(cp_pexsi_options)                   :: options
       REAL(KIND=dp), DIMENSION(:), POINTER     :: kTS => NULL()
 

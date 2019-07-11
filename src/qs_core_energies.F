@@ -16,8 +16,8 @@ MODULE qs_core_energies
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_dot,&
+   USE dbcsr_api,                       ONLY: dbcsr_dot,&
+                                              dbcsr_p_type,&
                                               dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp

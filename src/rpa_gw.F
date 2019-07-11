@@ -38,11 +38,10 @@ MODULE rpa_gw
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
+        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_dot, dbcsr_filter, &
         dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_dot, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: gw_pade_approx,&
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
@@ -4888,16 +4887,16 @@ CONTAINS
             CALL timeset(routineN//"_cubic_GW_operation_4", handle3)
 
             CALL dbcsr_dot(mat_contr_gf_virt, &
-                             mat_contr_W, &
-                             vec_Sigma_c_gw_pos_tau(n_level_gw, jquad))
+                           mat_contr_W, &
+                           vec_Sigma_c_gw_pos_tau(n_level_gw, jquad))
 
             CALL timestop(handle3)
 
             CALL timeset(routineN//"_cubic_GW_operation_5", handle3)
 
             CALL dbcsr_dot(mat_contr_gf_occ, &
-                             mat_contr_W, &
-                             vec_Sigma_c_gw_neg_tau(n_level_gw, jquad))
+                           mat_contr_W, &
+                           vec_Sigma_c_gw_neg_tau(n_level_gw, jquad))
 
             CALL timestop(handle3)
 
@@ -4995,8 +4994,8 @@ CONTAINS
             n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
 
             CALL dbcsr_dot(mat_contr_gf_occ, &
-                             mat_contr_W, &
-                             vec_Sigma_x_gw(n_level_gw_ref, 1))
+                           mat_contr_W, &
+                           vec_Sigma_x_gw(n_level_gw_ref, 1))
 
             CALL timestop(handle3)
 

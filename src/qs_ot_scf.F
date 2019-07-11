@@ -19,8 +19,8 @@ MODULE qs_ot_scf
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_dot, dbcsr_type, &
+        dbcsr_copy, dbcsr_dot, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
