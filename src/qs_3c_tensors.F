@@ -159,11 +159,6 @@ CONTAINS
          dist_3d%owns_comm = .FALSE.
       ENDIF
 
-      ! how to create 2d dist: get_opt_3c_dist2d
-      ! how to use 2d dist and interaction radii: build_xas_tdp_3c_nl
-      ! how to setup everything on subcomms: create_mat_munu
-      ! how to setup blacs subgrid: mp2_gpw_main
-
       CALL mp_cart_sub(mp_comm_3d, [.TRUE., .TRUE., .FALSE.], comm_2d_1)
       CALL mp_cart_sub(mp_comm_3d, [.FALSE., .TRUE., .TRUE.], comm_2d_2)
       CALL mp_environ(nproc_1, mp_dims_1, mp_coor_1, comm_2d_1)
@@ -198,7 +193,7 @@ CONTAINS
 
       nkind = SIZE(qs_kind_set)
 
-      ! boilerplate code needed to setup dist_2d_1
+      ! boilerplate code to setup dist_2d_1
       ALLOCATE (local_particle_col_1(nkind), local_particle_row_1(nkind))
       ALLOCATE (nparticle_local_row(nkind), nparticle_local_col(nkind))
       nparticle_local_row = 0; nparticle_local_col = 0
@@ -238,7 +233,7 @@ CONTAINS
 
       CALL cp_blacs_env_release(blacs_env_sub_1)
 
-      ! boilerplate code needed to setup dist_2d_2
+      ! boilerplate code to setup dist_2d_2
       ALLOCATE (local_particle_col_2(nkind), local_particle_row_2(nkind))
       nparticle_local_row = 0; nparticle_local_col = 0
 
@@ -359,9 +354,6 @@ CONTAINS
 
       NULLIFY (atomic_kind_set, cell, local_particles, molecule_set, &
                particle_set, molecule_kind_set)
-
-      ! how to use 2d dist and interaction radii: build_xas_tdp_3c_nl
-      ! how to setup everything on subcomms: create_mat_munu
 
       CALL get_qs_env(qs_env, &
                       nkind=nkind, &

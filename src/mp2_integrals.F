@@ -997,7 +997,6 @@ CONTAINS
       ELSE
          CPABORT("map1_2d and map2_2d not compatible with a 3d grid")
       ENDIF
-      !pdims_t3c = [pdims_2_2d(1), pdims_2_2d(2), pdims_sub_2d(1)]
       CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid, map1_2d=map1_2d, map2_2d=map2_2d)
    END FUNCTION
 
