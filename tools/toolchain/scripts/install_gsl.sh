@@ -27,7 +27,7 @@ case "$with_gsl" in
                 echo "gsl-${gsl_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${gls_sha256} \
-                             https://ftp.gnu.org/gnu/gsl/gsl-${gsl_ver}.tar.gz
+                             "https://www.cp2k.org/static/downloads/gsl-${gsl_ver}.tar.gz"
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d gsl-${gsl_ver} ] && rm -rf gsl-${gsl_ver}

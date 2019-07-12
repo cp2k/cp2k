@@ -40,7 +40,7 @@ case "$with_libvdwxc" in
             else
                 # do not remove this. They do not publish official version often
                 download_pkg ${DOWNLOADER_FLAGS} ${libvdwxc_sha256} \
-                             "https://launchpad.net/libvdwxc/stable/${libvdwxc_ver}/+download/libvdwxc-${libvdwxc_ver}.tar.gz"
+                             "https://www.cp2k.org/static/downloads/libvdwxc-${libvdwxc_ver}.tar.gz"
             fi
 
             for patch in "${patches[@]}" ; do

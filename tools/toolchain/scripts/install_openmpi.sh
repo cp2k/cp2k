@@ -31,7 +31,7 @@ case "$with_openmpi" in
                 echo "openmpi-${openmpi_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${openmpi_sha256} \
-                             https://download.open-mpi.org/release/open-mpi/v${openmpi_ver%.*}/openmpi-${openmpi_ver}.tar.gz
+                             "https://www.cp2k.org/static/downloads/openmpi-${openmpi_ver}.tar.gz"
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
