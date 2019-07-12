@@ -68,7 +68,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_atomlist_section(subsection, "SCATTERING_REGION", "Defines atoms which form the scattering region.")
+      CALL create_atomlist_section(subsection, "SCATTERING_REGION", "Defines atoms which form the scattering region.", .FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -236,7 +236,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: print_key, subsection, subsection2
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
@@ -244,21 +244,27 @@ CONTAINS
                           description="Section defining the contact region of NEGF setup.", &
                           n_keywords=5, n_subsections=3, repeats=.TRUE.)
 
-      NULLIFY (keyword, print_key, subsection)
+      NULLIFY (keyword, print_key, subsection, subsection2)
 
       CALL create_atomlist_section(subsection, "BULK_REGION", &
-                                   "the bulk contact adjacent to the screening region.")
+                                   "the bulk contact adjacent to the screening region.", .FALSE.)
       CALL section_add_subsection(section, subsection)
+      CALL create_atomlist_section(subsection2, "CELL", &
+                                   "a single bulk contact unit cell. Bulk Hamiltonian will be contstructed "// &
+                                   "using two such unit cells instead of performing k-point bulk calculation. "// &
+                                   "FORCE_EVAL_SECTION must be 0.", .TRUE.)
+      CALL section_add_subsection(subsection, subsection2)
+      CALL section_release(subsection2)
       CALL section_release(subsection)
 
       CALL create_atomlist_section(subsection, "SCREENING_REGION", &
-                                   "the given contact adjacent to the scattering region.")
+                                   "the given contact adjacent to the scattering region.", .FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="FORCE_EVAL_SECTION", &
                           description=" Index of the FORCE_EVAL section which will be used for bulk calculation.", &
-                          n_var=1, type_of_var=integer_t)
+                          n_var=1, type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -311,12 +317,14 @@ CONTAINS
 !> \param section              NEGF section
 !> \param name                 name of the new section
 !> \param description          section description
+!> \param repeats              whether the section can be repeated
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE create_atomlist_section(section, name, description)
+   SUBROUTINE create_atomlist_section(section, name, description, repeats)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: name, description
+      LOGICAL, INTENT(in)                                :: repeats
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_atomlist_section', &
          routineP = moduleN//':'//routineN
@@ -327,7 +335,7 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, name=TRIM(ADJUSTL(name)), &
                           description="Atoms belonging to "//TRIM(ADJUSTL(description)), &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=0, repeats=repeats)
 
       NULLIFY (keyword)
 

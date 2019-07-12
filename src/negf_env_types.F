@@ -211,8 +211,7 @@ CONTAINS
       ncontacts = SIZE(negf_control%contacts)
 
       DO icontact = 1, ncontacts
-         IF (negf_control%contacts(icontact)%force_env_index > n_force_env .OR. &
-             negf_control%contacts(icontact)%force_env_index <= 0) THEN
+         IF (negf_control%contacts(icontact)%force_env_index > n_force_env) THEN
             WRITE (contact_str, '(I11)') icontact
             WRITE (force_env_str, '(I11)') negf_control%contacts(icontact)%force_env_index
             WRITE (n_force_env_str, '(I11)') n_force_env
@@ -241,41 +240,57 @@ CONTAINS
       ALLOCATE (map_contact(ncontacts))
 
       DO icontact = 1, ncontacts
-         CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
-         CALL get_qs_env(qs_env_contact, subsys=subsys_contact)
+         IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
+            CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
+            CALL get_qs_env(qs_env_contact, subsys=subsys_contact)
 
-         CALL negf_env_contact_init_maps(contact_env=negf_env%contacts(icontact), &
-                                         contact_control=negf_control%contacts(icontact), &
-                                         atom_map=map_contact(icontact)%atom_map, &
-                                         eps_geometry=negf_control%eps_geometry, &
-                                         subsys_device=subsys, &
-                                         subsys_contact=subsys_contact)
+            CALL negf_env_contact_init_maps(contact_env=negf_env%contacts(icontact), &
+                                            contact_control=negf_control%contacts(icontact), &
+                                            atom_map=map_contact(icontact)%atom_map, &
+                                            eps_geometry=negf_control%eps_geometry, &
+                                            subsys_device=subsys, &
+                                            subsys_contact=subsys_contact)
 
-         IF (negf_env%contacts(icontact)%direction_axis == 0) THEN
-            WRITE (contact_str, '(I11)') icontact
-            WRITE (force_env_str, '(I11)') negf_control%contacts(icontact)%force_env_index
-            CALL cp_abort(__LOCATION__, &
-                          "One lattice vector of the contact unit cell (FORCE_EVAL section "// &
-                          TRIM(ADJUSTL(force_env_str))//") must be parallel to the direction of the contact "// &
-                          TRIM(ADJUSTL(contact_str))//".")
+            IF (negf_env%contacts(icontact)%direction_axis == 0) THEN
+               WRITE (contact_str, '(I11)') icontact
+               WRITE (force_env_str, '(I11)') negf_control%contacts(icontact)%force_env_index
+               CALL cp_abort(__LOCATION__, &
+                             "One lattice vector of the contact unit cell (FORCE_EVAL section "// &
+                             TRIM(ADJUSTL(force_env_str))//") must be parallel to the direction of the contact "// &
+                             TRIM(ADJUSTL(contact_str))//".")
+            END IF
          END IF
       END DO
 
-      ! stage 2: obtain relevant Kohn-Sham matrix blocks for each contact
+      ! stage 2: obtain relevant Kohn-Sham matrix blocks for each contact (separate bulk DFT calculation)
       DO icontact = 1, ncontacts
-         IF (log_unit > 0) &
-            WRITE (log_unit, '(/,T2,A,T70,I11)') "NEGF| Construct the Kohn-Sham matrix for the contact ", icontact
+         IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
+            IF (log_unit > 0) &
+               WRITE (log_unit, '(/,T2,A,T70,I11)') "NEGF| Construct the Kohn-Sham matrix for the contact ", icontact
 
-         CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
+            CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
 
-         CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
+            CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
 
-         CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
-                                             qs_env_contact=qs_env_contact, matrix_s_device=matrix_s_kp(1, 1)%matrix)
+            CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
+                                                qs_env_contact=qs_env_contact, matrix_s_device=matrix_s_kp(1, 1)%matrix)
+         END IF
       END DO
 
       ! obtain an initial KS-matrix for the scattering region
       CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
+
+      ! *** obtain relevant Kohn-Sham matrix blocks for each contact with no separate FORCE_ENV ***
+      DO icontact = 1, ncontacts
+         IF (negf_control%contacts(icontact)%force_env_index <= 0) THEN
+            CALL negf_env_contact_init_matrices_gamma(contact_env=negf_env%contacts(icontact), &
+                                                      contact_control=negf_control%contacts(icontact), &
+                                                      sub_env=sub_env, qs_env=qs_env, &
+                                                      eps_geometry=negf_control%eps_geometry)
+         END IF
+      END DO
+
+      ! extract device-related matrix blocks
       CALL negf_env_device_init_matrices(negf_env, negf_control, sub_env, qs_env)
 
       ! electron density mixing;
@@ -403,8 +418,8 @@ CONTAINS
                       matrix_ks_kp=matrix_ks_kp, &
                       matrix_s_kp=matrix_s_kp, &
                       para_env=para_env, &
+                      rho=rho_struct, &
                       subsys=subsys)
-      CALL get_qs_env(qs_env_contact, rho=rho_struct)
       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
 
       CALL negf_homo_energy_estimate(contact_env%homo_energy, qs_env_contact)
@@ -518,6 +533,176 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE negf_env_contact_init_matrices
+
+! **************************************************************************************************
+!> \brief Extract relevant matrix blocks for the given contact using the device's force environment.
+!> \param contact_env         NEGF environment for the contact (modified on exit)
+!> \param contact_control     NEGF control for the contact
+!> \param sub_env             NEGF parallel (sub)group environment
+!> \param qs_env              QuickStep environment for the device force environment
+!> \param eps_geometry        accuracy in Cartesian coordinates
+!> \author Sergey Chulkov
+! **************************************************************************************************
+   SUBROUTINE negf_env_contact_init_matrices_gamma(contact_env, contact_control, sub_env, qs_env, eps_geometry)
+      TYPE(negf_env_contact_type), INTENT(inout)         :: contact_env
+      TYPE(negf_control_contact_type), INTENT(in)        :: contact_control
+      TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(kind=dp), INTENT(in)                          :: eps_geometry
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices_gamma', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iatom, icell, ispin, nao_c, &
+                                                            nspins
+      LOGICAL                                            :: do_kpoints
+      REAL(kind=dp), DIMENSION(2)                        :: r2_origin_cell
+      REAL(kind=dp), DIMENSION(3)                        :: direction_vector, origin
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, rho_ao_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
+                      matrix_ks_kp=matrix_ks_kp, &
+                      matrix_s_kp=matrix_s_kp, &
+                      para_env=para_env, &
+                      rho=rho_struct, &
+                      subsys=subsys)
+      CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+
+      IF (do_kpoints) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "K-points in device region have not been implemented yet.")
+      END IF
+
+      nspins = dft_control%nspins
+
+      nao_c = number_of_atomic_orbitals(subsys, contact_control%atomlist_cell(1)%vector)
+      IF (number_of_atomic_orbitals(subsys, contact_control%atomlist_cell(2)%vector) /= nao_c) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Primary and secondary bulk contact cells should be identical "// &
+                       "in terms of the number of atoms of each kind, and their basis sets. "// &
+                       "No single atom, however, can be shared between these two cells.")
+      END IF
+
+      contact_env%homo_energy = 0.0_dp
+
+      CALL contact_direction_vector(contact_env%origin, &
+                                    contact_env%direction_vector, &
+                                    contact_env%origin_bias, &
+                                    contact_env%direction_vector_bias, &
+                                    contact_control%atomlist_screening, &
+                                    contact_control%atomlist_bulk, &
+                                    subsys)
+
+      contact_env%direction_axis = contact_direction_axis(contact_env%direction_vector, subsys, eps_geometry)
+
+      ! choose the primary and secondary contact unit cells
+      CALL qs_subsys_get(subsys, particle_set=particle_set)
+
+      origin = particle_set(contact_control%atomlist_screening(1))%r
+      DO iatom = 2, SIZE(contact_control%atomlist_screening)
+         origin = origin+particle_set(contact_control%atomlist_screening(iatom))%r
+      END DO
+      origin = origin/REAL(SIZE(contact_control%atomlist_screening), kind=dp)
+
+      DO icell = 1, 2
+         direction_vector = particle_set(contact_control%atomlist_cell(icell)%vector(1))%r
+         DO iatom = 2, SIZE(contact_control%atomlist_cell(icell)%vector)
+            direction_vector = direction_vector+particle_set(contact_control%atomlist_cell(icell)%vector(iatom))%r
+         END DO
+         direction_vector = direction_vector/REAL(SIZE(contact_control%atomlist_cell(icell)%vector), kind=dp)
+         direction_vector = direction_vector-origin
+         r2_origin_cell(icell) = DOT_PRODUCT(direction_vector, direction_vector)
+      END DO
+
+      IF (SQRT(ABS(r2_origin_cell(1)-r2_origin_cell(2))) < eps_geometry) THEN
+         ! primary and secondary bulk unit cells should not overlap;
+         ! currently we check that they are different by at least one atom that is, indeed, not sufficient.
+         CALL cp_abort(__LOCATION__, &
+                       "Primary and secondary bulk contact cells should not overlap ")
+      ELSE IF (r2_origin_cell(1) < r2_origin_cell(2)) THEN
+         ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(1)%vector)))
+         contact_env%atomlist_cell0(:) = contact_control%atomlist_cell(1)%vector(:)
+         ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(2)%vector)))
+         contact_env%atomlist_cell1(:) = contact_control%atomlist_cell(2)%vector(:)
+      ELSE
+         ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(2)%vector)))
+         contact_env%atomlist_cell0(:) = contact_control%atomlist_cell(2)%vector(:)
+         ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(1)%vector)))
+         contact_env%atomlist_cell1(:) = contact_control%atomlist_cell(1)%vector(:)
+      END IF
+
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao_c, ncol_global=nao_c, context=sub_env%blacs_env)
+      ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
+      ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (contact_env%h_00(ispin)%matrix)
+         NULLIFY (contact_env%h_01(ispin)%matrix)
+         CALL cp_fm_create(contact_env%h_00(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(contact_env%h_01(ispin)%matrix, fm_struct)
+         NULLIFY (contact_env%rho_00(ispin)%matrix)
+         NULLIFY (contact_env%rho_01(ispin)%matrix)
+         CALL cp_fm_create(contact_env%rho_00(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(contact_env%rho_01(ispin)%matrix, fm_struct)
+      END DO
+      NULLIFY (contact_env%s_00, contact_env%s_01)
+      CALL cp_fm_create(contact_env%s_00, fm_struct)
+      CALL cp_fm_create(contact_env%s_01, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+
+      DO ispin = 1, nspins
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
+                                               fm=contact_env%h_00(ispin)%matrix, &
+                                               atomlist_row=contact_env%atomlist_cell0, &
+                                               atomlist_col=contact_env%atomlist_cell0, &
+                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
+                                               fm=contact_env%h_01(ispin)%matrix, &
+                                               atomlist_row=contact_env%atomlist_cell0, &
+                                               atomlist_col=contact_env%atomlist_cell1, &
+                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
+
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
+                                               fm=contact_env%rho_00(ispin)%matrix, &
+                                               atomlist_row=contact_env%atomlist_cell0, &
+                                               atomlist_col=contact_env%atomlist_cell0, &
+                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
+                                               fm=contact_env%rho_01(ispin)%matrix, &
+                                               atomlist_row=contact_env%atomlist_cell0, &
+                                               atomlist_col=contact_env%atomlist_cell1, &
+                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
+      END DO
+
+      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
+                                            fm=contact_env%s_00, &
+                                            atomlist_row=contact_env%atomlist_cell0, &
+                                            atomlist_col=contact_env%atomlist_cell0, &
+                                            subsys=subsys, mpi_comm_global=para_env%group, &
+                                            do_upper_diag=.TRUE., do_lower=.TRUE.)
+      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
+                                            fm=contact_env%s_01, &
+                                            atomlist_row=contact_env%atomlist_cell0, &
+                                            atomlist_col=contact_env%atomlist_cell1, &
+                                            subsys=subsys, mpi_comm_global=para_env%group, &
+                                            do_upper_diag=.TRUE., do_lower=.TRUE.)
+
+      CALL timestop(handle)
+   END SUBROUTINE negf_env_contact_init_matrices_gamma
 
 ! **************************************************************************************************
 !> \brief Extract relevant matrix blocks for the scattering region as well as
