@@ -35,10 +35,13 @@ MODULE mp2_eri
                                               eri_mme_3c_integrate
    USE eri_mme_test,                    ONLY: eri_mme_2c_perf_acc_test,&
                                               eri_mme_3c_perf_acc_test
-   USE eri_mme_types,                   ONLY: eri_mme_param
+   USE eri_mme_types,                   ONLY: eri_mme_param,&
+                                              eri_mme_set_potential, eri_mme_coulomb, eri_mme_longrange
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
-                                              do_eri_os
+                                              do_eri_os,&
+                                              do_potential_coulomb,&
+                                              do_potential_long
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -109,7 +112,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp2_eri_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b, &
                                       eri_method, pab, force_a, force_b, hdab, hadb, &
-                                      reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b)
+                                      reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b, &
+                                      potential_type, omega)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -125,6 +129,8 @@ CONTAINS
          OPTIONAL                                        :: hdab, hadb
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: reflection_z_a, reflection_z_b
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate', &
          routineP = moduleN//':'//routineN
@@ -295,7 +301,8 @@ $:                         'force_a=force_a(ikind)%forces(:, atom_a), &'*doforce
 $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
                            hdab=hdab, hadb=hadb, &
                            G_count=G_count, R_count=R_count, &
-                           do_reflection_a = do_reflection_a, do_reflection_b = do_reflection_b)
+                           do_reflection_a = do_reflection_a, do_reflection_b = do_reflection_b, &
+                           potential_type=potential_type, omega=omega)
                      ENDIF
 #:endfor
 #:endfor
@@ -359,7 +366,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
                                        ra, rb, hab, n_hab_a, n_hab_b, offset_hab_a, offset_hab_b, &
                                        offset_set_a, offset_set_b, sphi_a, sphi_b, sgfa, sgfb, nsgfa, nsgfb, &
                                        eri_method, pab, force_a, force_b, hdab, hadb, G_count, R_count, &
-                                       do_reflection_a, do_reflection_b)
+                                       do_reflection_a, do_reflection_b, potential_type, omega)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
       REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
@@ -382,6 +389,8 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
          OPTIONAL                                        :: hdab, hadb
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c', &
          routineP = moduleN//':'//routineN
@@ -389,11 +398,11 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       INTEGER :: ax, ay, az, bx, by, bz, hab_a_end, hab_a_start, hab_b_end, hab_b_start, handle, &
          i_xyz, ico, icox, icoy, icoz, ipgf, jco, jcox, jcoy, jcoz, jpgf, la, la_max_d, lb, &
          lb_max_d, na, nb, ncoa, ncob, set_a_end, set_a_start, set_b_end, set_b_start, &
-         sphi_a_start, sphi_b_start
+         sphi_a_start, sphi_b_start, my_potential_type
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, my_do_reflection_a, &
                                                             my_do_reflection_b, do_force_a, do_force_b
-      REAL(KIND=dp)                                      :: rab2
+      REAL(KIND=dp)                                      :: rab2, my_omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_contr, hab_uncontr, &
                                                             hab_uncontr_d, pab_hh, pab_hs, &
@@ -410,6 +419,11 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       my_do_reflection_b = .FALSE.
       IF (PRESENT(do_reflection_b)) my_do_reflection_b = do_reflection_b
 
+      my_potential_type = do_potential_coulomb
+      IF (PRESENT(potential_type)) my_potential_type = potential_type
+
+      my_omega = -1.0_dp
+      IF (PRESENT(omega)) my_omega = omega
 
       do_force_a = PRESENT(force_a) .OR. PRESENT(hdab)
       do_force_b = PRESENT(force_b) .OR. PRESENT(hadb)
@@ -448,6 +462,8 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       set_b_start = offset_set_b+1; set_b_end = offset_set_b+n_hab_b
 
       IF (eri_method == do_eri_mme) THEN
+         CALL eri_mme_set_potential(param, convert_potential_type(my_potential_type), my_omega)
+
          IF (calculate_forces .AND. PRESENT(pab)) THEN
             ! uncontracted hermite-gaussian representation of density matrix
             sphi_a_start = sgfa-1+set_a_start
@@ -611,7 +627,8 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
                                       basis_type_a, basis_type_b, basis_type_c, &
                                       sab_nl, eri_method, &
                                       pabc, force_a, force_b, force_c, &
-                                      mat_dabc, mat_adbc, mat_abdc)
+                                      mat_dabc, mat_adbc, mat_abdc, &
+                                      potential_type, omega)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -629,6 +646,8 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       TYPE(dbcsr_p_type), &
          DIMENSION(3, last_c-first_c+1), INTENT(INOUT), &
          OPTIONAL                                        :: mat_dabc, mat_adbc, mat_abdc
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_3c_integrate', &
          routineP = moduleN//':'//routineN
@@ -911,7 +930,8 @@ $:                         'force_c=force_c(kkind)%forces(:, atom_c), &'*doforce
 $:                         'hdabc=hdabc, &'*dabc
 $:                         'hadbc=hadbc, &'*adbc
 $:                         'habdc=habdc, &'*abdc
-                           GG_count=GG_count, GR_count=GR_count, RR_count=RR_count)
+                           GG_count=GG_count, GR_count=GR_count, RR_count=RR_count, &
+                           potential_type=potential_type, omega=omega)
                      ENDIF
 #:endfor
 #:endfor
@@ -1067,7 +1087,8 @@ $:                         'habdc=habdc, &'*abdc
                                force_a, force_b, force_c, &
                                do_symmetric, on_diagonal, &
                                hdabc, hadbc, habdc, &
-                               GG_count, GR_count, RR_count)
+                               GG_count, GR_count, RR_count, &
+                               potential_type, omega)
 
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &
@@ -1091,6 +1112,8 @@ $:                         'habdc=habdc, &'*abdc
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(OUT), OPTIONAL                           :: hdabc, hadbc, habdc
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
+      INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_set_3c', &
          routineP = moduleN//':'//routineN
@@ -1100,11 +1123,11 @@ $:                         'habdc=habdc, &'*abdc
          jco, jcox, jcoy, jcoz, jpgf, kco, kcox, kcoy, kcoz, kpgf, la, la_max_d, lb, &
          lb_max_d, lc, lc_max_d, na, nb, nc, nc_end, nc_start, ncoa, ncoa_d, ncob, &
          ncob_d, ncoc, ncoc_d, set_a_end, set_a_start, set_b_end, set_b_start, &
-         set_c_end, set_c_start, sphi_a_start, sphi_b_start, sphi_c_start
+         set_c_end, set_c_start, sphi_a_start, sphi_b_start, sphi_c_start, my_potential_type
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, do_force_a, do_force_b, &
                                                             do_force_c
-      REAL(KIND=dp)                                      :: rab2, rac2, rbc2, w
+      REAL(KIND=dp)                                      :: rab2, rac2, rbc2, w, my_omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work, gccc, rpgfa, rpgfb, rpgfc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab_hh, pab_hs, vabc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: habc_contr, habc_uncontr, &
@@ -1115,6 +1138,12 @@ $:                         'habdc=habdc, &'*abdc
                                                             hdabc_uncontr, v_work
 
       CALL timeset(routineN, handle)
+
+      my_potential_type = do_potential_coulomb
+      IF (PRESENT(potential_type)) my_potential_type = potential_type
+
+      my_omega = -1.0_dp
+      IF (PRESENT(omega)) my_omega = omega
 
       do_force_a = PRESENT(force_a) .OR. PRESENT(hdabc)
       do_force_b = PRESENT(force_b) .OR. PRESENT(hadbc)
@@ -1164,6 +1193,8 @@ $:                         'habdc=habdc, &'*abdc
       set_c_start = offset_set_c+1; set_c_end = offset_set_c+n_habc_c
 
       IF (eri_method == do_eri_mme) THEN
+         CALL eri_mme_set_potential(param, convert_potential_type(my_potential_type), my_omega)
+
          IF (calculate_forces .AND. PRESENT(pabc)) THEN
             ! uncontracted hermite-gaussian representation of density matrix
             sphi_a_start = sgfa-1+set_a_start
@@ -1450,7 +1481,7 @@ $:                         'habdc=habdc, &'*abdc
 !> \param force ...
 !> \param natom_of_kind ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_allocate_forces(force, natom_of_kind)
+   PURE SUBROUTINE mp2_eri_allocate_forces(force, natom_of_kind)
       TYPE(mp2_eri_force), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT)                       :: force
       INTEGER, DIMENSION(:), INTENT(IN)                  :: natom_of_kind
@@ -1473,7 +1504,7 @@ $:                         'habdc=habdc, &'*abdc
 !> \brief ...
 !> \param force ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_deallocate_forces(force)
+   PURE SUBROUTINE mp2_eri_deallocate_forces(force)
       TYPE(mp2_eri_force), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: force
 
@@ -1488,5 +1519,19 @@ $:                         'habdc=habdc, &'*abdc
          DEALLOCATE (force)
       ENDIF
    END SUBROUTINE mp2_eri_deallocate_forces
+
+   FUNCTION convert_potential_type(potential_type) RESULT(res)
+      INTEGER, INTENT(IN)                                :: potential_type
+      INTEGER                                            :: res
+
+      IF (potential_type == do_potential_coulomb) THEN
+         res = eri_mme_coulomb
+      ELSE IF (potential_type == do_potential_long) THEN
+         res = eri_mme_longrange
+      ELSE
+         CPABORT("MME potential not implemented!")
+      END IF
+
+   END FUNCTION convert_potential_type
 
 END MODULE mp2_eri

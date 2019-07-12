@@ -629,11 +629,12 @@ CONTAINS
 
       IF (.NOT. do_im_time) THEN
 
-         IF (eri_method == do_eri_mme .OR. eri_method == do_eri_os) THEN
+         IF (eri_method == do_eri_mme .AND. (ri_metric == do_potential_coulomb .OR. ri_metric == do_potential_long) .OR. &
+             eri_method == do_eri_os .AND. ri_metric == do_potential_coulomb) THEN
 
             ! MME and Obara-Saika Coulomb integrals only used for RI with
             ! Coulomb metric, not for overlap metric
-            CPASSERT(ri_metric == do_potential_coulomb)
+!            CPASSERT(ri_metric == do_potential_coulomb)
 
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
@@ -648,7 +649,8 @@ CONTAINS
                                       mat_ab=mat_munu_local_L, &
                                       basis_type_a="ORB", basis_type_b="ORB", &
                                       basis_type_c="RI_AUX", &
-                                      sab_nl=sab_orb_sub, eri_method=eri_method)
+                                      sab_nl=sab_orb_sub, eri_method=eri_method, &
+                                      potential_type=ri_metric, omega=omega_metric)
 
             DO LLL = 1, my_group_L_size
                CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_ia_jnu, matrix_ia_jb, &
@@ -2307,12 +2309,13 @@ CONTAINS
       CALL timestop(handle3)
 
       IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
-          .AND. ri_metric .EQ. do_potential_coulomb) THEN
+          .AND. ri_metric .EQ. do_potential_coulomb .OR. &
+          (eri_method .EQ. do_eri_mme .AND. ri_metric .EQ. do_potential_long)) THEN
 
          CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
-                                   eri_method=eri_method)
+                                   eri_method=eri_method, potential_type=ri_metric, omega=omega)
 
       ELSEIF (eri_method .EQ. do_eri_gpw .OR. ri_metric .NE. do_potential_coulomb) THEN
 
@@ -2451,6 +2454,8 @@ CONTAINS
          DEALLOCATE (wf_vector)
 
          CALL mp_sum(L_local_col, para_env_sub%group)
+
+!WRITE(*,*) L_local_col
 
       ELSE
          CPABORT("unknown ERI method")
@@ -5168,14 +5173,18 @@ CONTAINS
       my_potential_type = do_potential_coulomb
       IF (PRESENT(potential_type)) THEN
          my_potential_type = potential_type
+         IF (my_potential_type /= do_potential_coulomb .AND. .NOT. PRESENT(omega)) THEN
+            CPABORT("Need omega when longrange potential is requested.")
+         END IF
       END IF
+!WRITE(*,*) my_potential_type == do_potential_long, omega
 
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type == do_potential_coulomb .OR. my_potential_type == do_potential_long) THEN
          CALL pw_transfer(rho_r%pw, rho_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
-         IF (potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
+         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
          CALL pw_transfer(pot_g%pw, rho_r%pw)
       END IF
 
