@@ -199,7 +199,11 @@ CONTAINS
       ncontacts = SIZE(negf_control%contacts)
       DO icontact = 1, ncontacts
          NULLIFY (qs_env)
-         CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env)
+         IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
+            CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env)
+         ELSE
+            CALL force_env_get(force_env, qs_env=qs_env)
+         END IF
          CALL guess_fermi_level(icontact, negf_env, negf_control, sub_env, qs_env, log_unit)
 
          print_section => section_vals_get_subs_vals(negf_contact_section, "PRINT", i_rep_section=icontact)
