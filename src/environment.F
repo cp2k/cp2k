@@ -497,8 +497,8 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: env_num, model_name, project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
-      INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, num_threads, &
-         output_unit, print_level, trace_max, unit_nr
+      INTEGER :: cpuid, cpuid_static, i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
+         nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &
          MemLikelyFree_avr, MemLikelyFree_max, MemLikelyFree_min, MemTotal, MemTotal_avr, &
@@ -793,15 +793,27 @@ CONTAINS
             start_section_label//"| This output is from process", para_env%mepos
 
          CALL m_cpuinfo(model_name)
-         WRITE (UNIT=output_unit, FMT="(T2,A)") &
-            start_section_label//"| CPU model name : "//TRIM(model_name)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T30,A51)") &
+            start_section_label//"| CPU model name", ADJUSTR(TRIM(model_name))
 
-         IF (m_cpuid_static() .LT. m_cpuid()) THEN
+         cpuid = m_cpuid()
+         cpuid_static = m_cpuid_static()
+
+         IF ((cpuid > 0) .OR. (cpuid_static > 0)) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,I6)") &
+               start_section_label//"| CPUID", cpuid
+            IF (cpuid /= cpuid_static) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T75,I6)") &
+                  start_section_label//"| Compiled for CPUID", cpuid_static
+            END IF
+         END IF
+
+         IF (cpuid_static < cpuid) THEN
             ! base/machine_cpuid.c relies on the (same) target flags as the Fortran code
             CALL cp_hint(__LOCATION__, "The compiler target flags ("// &
-                         TRIM(m_cpuid_name(m_cpuid_static()))//") used to build"//NEW_LINE("C")// &
+                         TRIM(m_cpuid_name(cpuid_static))//") used to build"//NEW_LINE("C")// &
                          "   this binary cannot exploit all extensions of this CPU model ("// &
-                         TRIM(m_cpuid_name(m_cpuid()))//")."//NEW_LINE("C")// &
+                         TRIM(m_cpuid_name(cpuid))//")."//NEW_LINE("C")// &
                          "   Consider compiler target flags as part of FCFLAGS and CFLAGS (ARCH file).")
          END IF
 
