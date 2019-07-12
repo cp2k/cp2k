@@ -1061,7 +1061,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       TYPE(dbcsr_t_distribution_type)                    :: dist
 
-      CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c_m, pdims, pcoord)
+      CALL dbcsr_t_mp_environ_pgrid(pgrid_t3c_M, pdims, pcoord)
 
       size_RI = SIZE(sizes_RI)
       size_AO = SIZE(sizes_AO)
