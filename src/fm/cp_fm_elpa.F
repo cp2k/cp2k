@@ -152,6 +152,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE FUNCTION get_elpa_kernel_index(cpuid) RESULT(index)
       USE machine,  ONLY: MACHINE_X86, &
+                          MACHINE_CPU_GENERIC, &
                           MACHINE_X86_SSE4, &
                           MACHINE_X86_AVX, &
                           MACHINE_X86_AVX2
@@ -159,7 +160,7 @@ CONTAINS
       INTEGER :: index
 
       index = 1 ! AUTO
-      IF (cpuid .LE. MACHINE_X86) THEN
+      IF ((MACHINE_CPU_GENERIC .LT. cpuid) .AND. (cpuid .LE. MACHINE_X86)) THEN
          SELECT CASE (cpuid)
          CASE (MACHINE_X86_SSE4)
             index = 8 ! ELPA_2STAGE_REAL_SSE_BLOCK4
