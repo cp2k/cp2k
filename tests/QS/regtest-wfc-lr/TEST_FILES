@@ -6,3 +6,5 @@ H2O-rpa-axk-lr.inp                              11         1e-8        -16.99187
 H2O-rpa-cubic-lr.inp                            11         1e-8        -16.936741379584305
 H2O-sos-mp2-cubic-lr.inp                        11         1e-8        -16.888368031642965
 H2O-sos-mp2-lr.inp                              11         1e-8        -16.888266128884048
+H2O-ri-mp2-lr-mme.inp                           11         1e-8        -16.856179414875712
+#EOF
