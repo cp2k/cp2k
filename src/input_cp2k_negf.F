@@ -254,6 +254,7 @@ CONTAINS
                                    "using two such unit cells instead of performing k-point bulk calculation. "// &
                                    "FORCE_EVAL_SECTION must be 0.", .TRUE.)
       CALL section_add_subsection(subsection, subsection2)
+      CALL section_release(subsection2)
       CALL section_release(subsection)
 
       CALL create_atomlist_section(subsection, "SCREENING_REGION", &
