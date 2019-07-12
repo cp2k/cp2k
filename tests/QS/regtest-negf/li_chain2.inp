@@ -18,7 +18,7 @@
 @SET cutoff         300
 @SET added_mos      100
 @SET max_scf        50
-@SET eps_scf        1e-7
+@SET eps_scf        1e-5
 
 @SET lx             8.0
 @SET ly             8.0
