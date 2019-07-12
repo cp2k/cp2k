@@ -199,7 +199,11 @@ CONTAINS
       ncontacts = SIZE(negf_control%contacts)
       DO icontact = 1, ncontacts
          NULLIFY (qs_env)
-         CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env)
+         IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
+            CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env)
+         ELSE
+            CALL force_env_get(force_env, qs_env=qs_env)
+         END IF
          CALL guess_fermi_level(icontact, negf_env, negf_control, sub_env, qs_env, log_unit)
 
          print_section => section_vals_get_subs_vals(negf_contact_section, "PRINT", i_rep_section=icontact)
@@ -2642,7 +2646,7 @@ CONTAINS
 
       integr_lbound = CMPLX(MIN(mu_contact1+ln_conv_density*temperature_contact1, &
                                 mu_contact2+ln_conv_density*temperature_contact2), eta, kind=dp)
-      integr_lbound = CMPLX(MAX(mu_contact1-ln_conv_density*temperature_contact1, &
+      integr_ubound = CMPLX(MAX(mu_contact1-ln_conv_density*temperature_contact1, &
                                 mu_contact2-ln_conv_density*temperature_contact2), eta, kind=dp)
 
       npoints_total = 0
@@ -2713,8 +2717,7 @@ CONTAINS
 
       CALL cp_cfm_get_submatrix(sr_env%integral, transmission)
 
-      ! minus sign is due to negative charge of electrons
-      current = -0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
+      current = 0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
 
       CALL cp_fm_release(weights)
       CALL cp_fm_struct_release(fm_struct_single)
