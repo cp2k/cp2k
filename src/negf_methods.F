@@ -2646,7 +2646,7 @@ CONTAINS
 
       integr_lbound = CMPLX(MIN(mu_contact1+ln_conv_density*temperature_contact1, &
                                 mu_contact2+ln_conv_density*temperature_contact2), eta, kind=dp)
-      integr_lbound = CMPLX(MAX(mu_contact1-ln_conv_density*temperature_contact1, &
+      integr_ubound = CMPLX(MAX(mu_contact1-ln_conv_density*temperature_contact1, &
                                 mu_contact2-ln_conv_density*temperature_contact2), eta, kind=dp)
 
       npoints_total = 0
