@@ -106,6 +106,9 @@
     # Integration lower bound (in Hartree)
     ENERGY_LBOUND -2.0
 
+    # slower, but works with no FFT library
+    INTEGRATION_METHOD simpson
+
     # Maximum error in each matrix element of the density matrix
     EPS_DENSITY    1e-5
 
