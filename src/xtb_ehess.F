@@ -87,7 +87,7 @@ CONTAINS
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:), POINTER                     :: kind_of
-      LOGICAL                                            :: defined, do_ewald, found, use_virial
+      LOGICAL                                            :: defined, do_ewald, found
       REAL(KIND=dp)                                      :: alpha, deth, dr, etaa, etab, gmij, kg, &
                                                             rcut, rcuta, rcutb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma
@@ -212,7 +212,6 @@ CONTAINS
                END DO
             END DO
          END DO
-         CPASSERT(.NOT. use_virial)
       END IF
 
       ! global sum of gamma*p arrays
