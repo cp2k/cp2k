@@ -1,6 +1,6 @@
 # Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206 
-#              Intel MPI, MKL, Libint 2.5.0, Libxc 4.3.4, libxsmm 1.12, ELPA 2017.05.003, PLUMED 2.4.1
+#              Intel MPI, MKL, Libint 2.5.0, Libxc 4.3.4, libxsmm 1.13, ELPA 2017.05.003, PLUMED 2.4.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2019)
 
 include      $(MPI_PATH)/plumed/2.4.1/lib/plumed/src/lib/Plumed.inc.static
@@ -13,8 +13,8 @@ LIBINT_INC  = $(INTEL_PATH)/libint/2.5.0-lmax-4/include
 LIBINT_LIB  = $(INTEL_PATH)/libint/2.5.0-lmax-4/lib
 LIBXC_INC   = $(INTEL_PATH)/libxc/4.3.4/include
 LIBXC_LIB   = $(INTEL_PATH)/libxc/4.3.4/lib
-LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.12/include
-LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.12/lib
+LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.13/include
+LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.13/lib
 
 CC          = mpiicc
 CPP         =
