@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-elpa_ver="2017.05.003"
-elpa_sha256="bccd49ce35a323bd734b17642aed8f2588fea4cc78ee8133d88554753bc3bf1b"
+elpa_ver="2019.05.001"
+elpa_sha256="772c03dab8713ba3891b17757a0b8429b3c4bec4b261dd337ed4b34311f6b221"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -17,6 +17,9 @@ ELPA_LDFLAGS=''
 ELPA_LIBS=''
 ELPA_CFLAGS_OMP=''
 ELPA_LIBS_OMP=''
+# ELPA 2019.05.001 has a parallel build issue, restricting to -j1
+ELPA_MAKEOPTS='-j1'
+
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -92,7 +95,7 @@ case "$with_elpa" in
                           LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
                           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}")" \
                           > configure.log 2>&1
-            make -j $NPROCS >  make.log 2>&1
+            make -j $NPROCS ${ELPA_MAKEOPTS} >  make.log 2>&1
             make install > install.log 2>&1
             cd ..
             # threaded version
@@ -117,7 +120,7 @@ case "$with_elpa" in
                               LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
                               LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" OMP)" \
                               > configure.log 2>&1
-                make -j $NPROCS >  make.log 2>&1
+                make -j $NPROCS ${ELPA_MAKEOPTS} >  make.log 2>&1
                 make install > install.log 2>&1
                 cd ..
             fi
@@ -209,7 +212,7 @@ export ELPA_LIBS="${ELPA_LIBS}"
 export ELPA_CFLAGS_OMP="${ELPA_CFLAGS_OMP}"
 export ELPA_LDFLAGS_OMP="${ELPA_LDFLAGS_OMP}"
 export ELPA_LIBS_OMP="${ELPA_LIBS_OMP}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA=${elpa_ver:0:4}${elpa_ver:5:2}|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(IF_OMP(${ELPA_CFLAGS_OMP}|${ELPA_CFLAGS})|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(IF_OMP(${ELPA_LIBS_OMP}|${ELPA_LIBS})|) \${CP_LIBS}"
