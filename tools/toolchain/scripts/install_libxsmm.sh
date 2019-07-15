@@ -4,8 +4,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 #TODO: Remove valgrind suppressions below after upgrading to next release.
 # For details see: https://github.com/hfp/libxsmm/issues/298 .
-libxsmm_ver="1.10.0"
-libxsmm_sha256="fdfd4097a89e7d1de5869a26fd375e0e38b0de634a1128d58f79f90879c12b20"
+libxsmm_ver="1.13"
+libxsmm_sha256="47c034e169820a9633770eece0e0fdd8d4a744e09b81da2af8c2608a4625811e"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
