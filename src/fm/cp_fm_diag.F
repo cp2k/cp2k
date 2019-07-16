@@ -31,7 +31,9 @@ MODULE cp_fm_diag
    USE cp_fm_elpa, ONLY: cp_fm_diag_elpa, &
       set_elpa_kernel, &
       set_elpa_qr, &
-      set_elpa_print
+      set_elpa_print, &
+      initialize_elpa_library, &
+      finalize_elpa_library
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
       cp_fm_struct_release, &
       cp_fm_struct_type
@@ -85,7 +87,8 @@ MODULE cp_fm_diag
              cp_fm_syevx, &
              cp_fm_geeig, &
              cp_fm_geeig_canon, &
-             diag_init
+             diag_init, &
+             diag_finalize
 
 CONTAINS
 
@@ -94,7 +97,7 @@ CONTAINS
 !> \param diag_lib diag_library flag from GLOBAL section in input
 !> \param fallback_applied .TRUE. if support for the requested library was not compiled-in and fallback
 !>                         to SCALAPACK was applied, .FALSE. otherwise.
-!> \param k_elpa integer that determines which ELPA kernel to use for diagonalization
+!> \param elpa_kernel integer that determines which ELPA kernel to use for diagonalization
 !> \param elpa_qr logical that determines if ELPA should try to use QR to accelerate the
 !>                diagonalization procedure of suitably sized matrices
 !> \param elpa_print logical that determines if information about the ELPA diagonalization should
@@ -102,10 +105,10 @@ CONTAINS
 !> \param elpa_qr_unsafe logical that enables potentially unsafe ELPA options
 !> \author  MI 11.2013
 ! **************************************************************************************************
-   SUBROUTINE diag_init(diag_lib, fallback_applied, k_elpa, elpa_qr, elpa_print, elpa_qr_unsafe)
+   SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_qr, elpa_print, elpa_qr_unsafe)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
-      INTEGER, INTENT(IN)                                :: k_elpa
+      INTEGER, INTENT(IN)                                :: elpa_kernel
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
 
       CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', routineP = moduleN//':'//routineN
@@ -129,11 +132,23 @@ CONTAINS
 
       ! Initialization of requested diagonalization library:
       IF (diag_type == DIAG_TYPE_ELPA) THEN
-         CALL set_elpa_kernel(k_elpa)
+         CALL initialize_elpa_library()
+         CALL set_elpa_kernel(elpa_kernel)
          CALL set_elpa_qr(elpa_qr, elpa_qr_unsafe)
          CALL set_elpa_print(elpa_print)
       END IF
    END SUBROUTINE diag_init
+
+! **************************************************************************************************
+!> \brief Finalize the diagonalization library
+! **************************************************************************************************
+   SUBROUTINE diag_finalize()
+      CHARACTER(len=*), PARAMETER :: routineN = 'diag_finalize', routineP = moduleN//':'//routineN
+#if defined (__ELPA)
+      IF (diag_type == DIAG_TYPE_ELPA) &
+         CALL finalize_elpa_library()
+#endif
+   END SUBROUTINE diag_finalize
 
 ! **************************************************************************************************
 !> \brief   Choose the Eigensolver depending on which library is available
