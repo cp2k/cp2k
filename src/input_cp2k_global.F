@@ -20,9 +20,9 @@ MODULE input_cp2k_global
                                               BLACS_GRID_ROW,&
                                               BLACS_GRID_SQUARE
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
-   USE cp_fm_elpa,                      ONLY: get_elpa_kernel_descriptions,&
+   USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
+                                              elpa_kernel_names,&
                                               get_elpa_kernel_index,&
-                                              get_elpa_kernel_names,&
                                               get_elpa_number_kernels
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -130,9 +130,9 @@ CONTAINS
          keyword, __LOCATION__, name="ELPA_KERNEL", &
          description="Specifies the kernel to be used when ELPA is in use", &
          default_i_val=default_i_val, &
-         enum_i_vals=(/(i, i=1, get_elpa_number_kernels())/), &
-         enum_c_vals=get_elpa_kernel_names(), &
-         enum_desc=get_elpa_kernel_descriptions())
+         enum_i_vals=[(i, i=1, get_elpa_number_kernels())], &
+         enum_c_vals=elpa_kernel_names, &
+         enum_desc=elpa_kernel_descriptions)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

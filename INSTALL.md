@@ -122,15 +122,15 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
 
 ### 2l. ELPA (optional, improved performance for diagonalization)
 Library ELPA for the solution of the eigenvalue problem
-  * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
+  * ELPA replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
   * A version of ELPA can to be downloaded from http://elpa.rzg.mpg.de/software.
-  * During the installation the libelpa.a (or libelpa_mt.a if omp active) is created.
-  * Add `-D__ELPA=YYYYMM` to DFLAGS, where `YYYYMM` denotes the release date of the library.
-  * Currently supported versions are: `201611`, `201705` and `201711`.
-  * Add `-I$(ELPA_INCLUDE_DIR)/modules` to FCFLAGS
-  * Add `-I$(ELPA_INCLUDE_DIR)/elpa` to FCFLAGS
+  * During the installation the `libelpa.a` (or `libelpa_openmp.a` if OpenMP is enabled) is created.
+  * Minimal supported version of ELPA is 2018.05.001.
+  * Add `-D__ELPA` to `DFLAGS`
+  * Add `-I$(ELPA_INCLUDE_DIR)/modules` to `FCFLAGS`
+  * Add `-I$(ELPA_INCLUDE_DIR)/elpa` to `FCFLAGS`
   * Add `-L$(ELPA_DIR)` to `LDFLAGS`
-  * Add `-lelpa` to LIBS
+  * Add `-lelpa` to `LIBS`
   * For specific architectures it can be better to install specifically
     optimized kernels (see BG) and/or employ a higher optimization level to compile it.
 

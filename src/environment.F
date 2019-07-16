@@ -23,7 +23,8 @@ MODULE environment
    USE cp_files,                        ONLY: close_file,&
                                               get_data_dir,&
                                               open_file
-   USE cp_fm_diag,                      ONLY: diag_init
+   USE cp_fm_diag,                      ONLY: diag_finalize,&
+                                              diag_init
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_setup
@@ -987,7 +988,8 @@ CONTAINS
 
       LOGICAL                                            :: fallback_applied
 
-      CALL diag_init(diag_lib=TRIM(globenv%diag_library), fallback_applied=fallback_applied, k_elpa=globenv%k_elpa, &
+      CALL diag_init(diag_lib=TRIM(globenv%diag_library), fallback_applied=fallback_applied, &
+                     elpa_kernel=globenv%k_elpa, &
                      elpa_qr=globenv%elpa_qr, elpa_print=globenv%elpa_print, &
                      elpa_qr_unsafe=globenv%elpa_qr_unsafe)
 
@@ -1145,6 +1147,7 @@ CONTAINS
          CALL deallocate_spherical_harmonics()
          CALL deallocate_orbital_pointers()
          CALL deallocate_md_ftable()
+         CALL diag_finalize()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 )
          CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
       ENDIF
