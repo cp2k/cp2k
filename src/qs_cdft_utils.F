@@ -426,7 +426,7 @@ CONTAINS
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
-            IF (para_env%mepos == para_env%source .AND. unit_nr .LT. 1) &
+            IF (para_env%ionode .AND. unit_nr .LT. 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL get_qs_env(qs_env, subsys=subsys)
@@ -1301,7 +1301,7 @@ CONTAINS
                                         extension=".cube", file_position="REWIND", &
                                         log_filename=.FALSE., mpi_io=mpi_io)
          ! Note PROGRAM_RUN_INFO section neeeds to be active!
-         IF (para_env%mepos == para_env%source .AND. unit_nr .LT. 1) &
+         IF (para_env%ionode .AND. unit_nr .LT. 1) &
             CALL cp_abort(__LOCATION__, &
                           "Please turn on PROGRAM_RUN_INFO to print CDFT weight function.")
 

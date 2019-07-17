@@ -721,7 +721,7 @@ CONTAINS
       IF (use_virial) THEN
          ! Sum up contribution of pv_glob on each thread and keep only one copy of pv_local
          virial%pv_virial = virial%pv_virial+pv_glob
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             virial%pv_virial = virial%pv_virial+pv_local
          END IF
       END IF

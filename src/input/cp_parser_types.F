@@ -229,7 +229,7 @@ CONTAINS
       END IF
 
       !   *** Get the logical output unit number for error messages ***
-      IF (parser%para_env%mepos == parser%para_env%source) THEN
+      IF (parser%para_env%ionode) THEN
          IF (PRESENT(unit_nr)) THEN
             parser%input_unit = unit_nr
             IF (PRESENT(file_name)) parser%input_file_name = file_name

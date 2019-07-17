@@ -1099,7 +1099,7 @@ CONTAINS
          para_env => f77_default_para_env
          CALL cp_para_env_retain(para_env) !XXXXXXXXXXXX uninitiliased error
       END IF
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE

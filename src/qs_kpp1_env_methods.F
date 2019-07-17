@@ -176,7 +176,7 @@ CONTAINS
                rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, &
                poisson_env, input, scf_section, rho1_g, rho_ao)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
+      ionode = logger%para_env%ionode
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(ASSOCIATED(k_p_p1))

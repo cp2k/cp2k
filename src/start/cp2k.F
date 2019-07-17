@@ -189,7 +189,7 @@ PROGRAM cp2k
       ! some first info concerning how to run CP2K
 
       IF (usage .OR. command_line_error) THEN
-         IF (default_para_env%source == default_para_env%mepos) THEN
+         IF (default_para_env%ionode) THEN
             CALL m_getarg(0, arg_att) ! actually this is non-standard
             l = LEN_TRIM(arg_att)
             WRITE (UNIT=output_unit, FMT="(/,(T2,A))") &
@@ -228,7 +228,7 @@ PROGRAM cp2k
 
          ! write the version string
          IF (print_version) THEN
-            IF (default_para_env%source == default_para_env%mepos) THEN
+            IF (default_para_env%ionode) THEN
                dev_flag = ""
                IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
                WRITE (output_unit, "(T2,A)") &
@@ -240,20 +240,20 @@ PROGRAM cp2k
 
          ! write the license
          IF (print_license) THEN
-            IF (default_para_env%source == default_para_env%mepos) THEN
+            IF (default_para_env%ionode) THEN
                CALL print_cp2k_license(output_unit)
             ENDIF
          ENDIF
 
          ! if a manual is needed
          IF (manual) THEN
-            IF (default_para_env%mepos == default_para_env%source) THEN
+            IF (default_para_env%ionode) THEN
                CALL write_cp2k_html_manual()
             END IF
          ENDIF
 
          IF (xml) THEN
-            IF (default_para_env%mepos == default_para_env%source) THEN
+            IF (default_para_env%ionode) THEN
                CALL write_xml_file()
             END IF
          END IF
@@ -263,7 +263,7 @@ PROGRAM cp2k
          IF (check) THEN
             CALL check_input(input_declaration, input_file_name, output_file_name, &
                              echo_input=echo_input, ierr=ierr)
-            IF (default_para_env%source == default_para_env%mepos) THEN
+            IF (default_para_env%ionode) THEN
                IF (ierr == 0) THEN
                   IF (.NOT. echo_input) THEN
                      WRITE (output_unit, "(A)") "SUCCESS, the input could be parsed correctly."

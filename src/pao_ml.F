@@ -167,7 +167,7 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env)
 
       ! parse training data on first rank
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, ml_range)
 
          ! check parametrization
@@ -229,7 +229,7 @@ CONTAINS
          ENDIF
 
          ! copy training-point output on first rank
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             nparams = SIZE(xblocks(iatom)%p, 1)
             ALLOCATE (new_point%output(nparams))
             new_point%output(:) = xblocks(iatom)%p(:, 1)

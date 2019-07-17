@@ -206,7 +206,7 @@ CONTAINS
          ! Dump an input file to warm-up new force_eval structures and
          ! delete them immediately afterwards..
          input_file_path(lp+1:LEN(input_file_path)) = ".inp"
-         IF (para_env_f%source == para_env_f%mepos) THEN
+         IF (para_env_f%ionode) THEN
             CALL open_file(file_name=TRIM(input_file_path), file_status="UNKNOWN", &
                            file_form="FORMATTED", file_action="WRITE", &
                            unit_number=unit_nr)
@@ -218,7 +218,7 @@ CONTAINS
          CPASSERT(ierr == 0)
 
          ! Delete input files..
-         IF (para_env_f%source == para_env_f%mepos) THEN
+         IF (para_env_f%ionode) THEN
             CALL open_file(file_name=TRIM(input_file_path), file_status="OLD", &
                            file_form="FORMATTED", file_action="READ", unit_number=unit_nr)
             CALL close_file(unit_number=unit_nr, file_status="DELETE")

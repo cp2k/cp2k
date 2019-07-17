@@ -741,7 +741,7 @@ CONTAINS
       ! Update force only on master process. Otherwise force due to constraint becomes multiplied
       ! by the number of processes when the final force%rho_elec is constructed in qs_force
       ! by mp_summing [the final integrated(:,:) is distributed on all processors]
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          DO igroup = 1, SIZE(group)
             DO iatom = 1, natom
                ikind = kind_of(iatom)

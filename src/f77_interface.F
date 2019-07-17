@@ -244,7 +244,7 @@ CONTAINS
          NULLIFY (default_para_env)
          CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
                                  owns_group=.FALSE.)
-         IF (default_para_env%source == default_para_env%mepos) THEN
+         IF (default_para_env%ionode) THEN
             unit_nr = default_output_unit
          ELSE
             unit_nr = -1
@@ -623,7 +623,7 @@ CONTAINS
       IF (PRESENT(output_unit)) THEN
          unit_nr = output_unit
       ELSE
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             IF (output_path == "__STD_OUT__") THEN
                unit_nr = default_output_unit
             ELSE
@@ -1449,7 +1449,7 @@ CONTAINS
          para_env => default_para_env
          CALL cp_para_env_retain(para_env)
       END IF
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE
@@ -1471,7 +1471,7 @@ CONTAINS
       input_file => read_input(input_declaration, input_file_path, initial_variables=empty_initial_variables, &
                                para_env=para_env)
       CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=unit_nr)
-      IF (my_echo_input .AND. para_env%mepos == para_env%source) THEN
+      IF (my_echo_input .AND. para_env%ionode) THEN
          CALL section_vals_write(input_file, &
                                  unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.), hide_root=.TRUE., &
                                  hide_defaults=.FALSE.)

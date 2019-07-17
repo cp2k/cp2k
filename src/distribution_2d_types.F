@@ -316,7 +316,7 @@ CONTAINS
       IF (PRESENT(long_description)) my_long_description = long_description
       my_local = .FALSE.
       IF (PRESENT(local)) my_local = local
-      IF (.NOT. my_local) my_local = (logger%para_env%source == logger%para_env%mepos)
+      IF (.NOT. my_local) my_local = logger%para_env%ionode
 
       IF (ASSOCIATED(distribution_2d)) THEN
          IF (my_local) THEN
