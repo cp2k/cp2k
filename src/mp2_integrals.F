@@ -816,7 +816,6 @@ CONTAINS
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                   "3C_OVERLAP_INTEGRALS_INFO| Number of periodic images considered:", dft_control%nimages
             ENDIF
-            DEALLOCATE (basis_set_ri_aux, basis_set_ao)
 
             ! split blocks to improve load balancing for tensor contraction
             sqrt_max_bsize = qs_env%mp2_env%ri_rpa_im_time%max_bsize_sqrt
@@ -847,8 +846,11 @@ CONTAINS
                                     qs_env%mp2_env%mp2_gpw%eps_filter, &
                                     qs_env, &
                                     nl_3c, &
+                                    basis_i=basis_set_ri_aux, &
+                                    basis_j=basis_set_ao, basis_k=basis_set_ao, &
                                     do_kpoints=do_kpoints_cubic_RPA)
 
+            DEALLOCATE (basis_set_ri_aux, basis_set_ao)
             ! copy integral tensor t_3c_overl_int to t_3c_O tensor optimized for contraction
             CALL timeset(routineN//"_copy_3c", handle4)
             DO i = 1, SIZE(t_3c_overl_int, 1)
