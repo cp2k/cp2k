@@ -138,7 +138,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="SUM_PRECISION", &
                           description="Terms in lattice sums are ignored if absolute value smaller than this value.", &
-                          default_r_val=1.0E-12_dp)
+                          default_r_val=1.0E-16_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

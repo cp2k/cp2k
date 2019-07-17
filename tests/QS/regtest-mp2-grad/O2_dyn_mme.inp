@@ -50,7 +50,6 @@
         ERI_METHOD MME
         &ERI_MME
             N_MINIMAX 8
-            SUM_PRECISION 1.0E-7
         &END
         &RI_MP2
           BLOCK_SIZE  1
