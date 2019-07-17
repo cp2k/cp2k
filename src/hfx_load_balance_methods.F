@@ -671,7 +671,7 @@ CONTAINS
 !$OMP MASTER
          CALL mp_sum(shm_local_quartet_counter, para_env%group)
          CALL mp_sum(shm_global_quartet_counter, para_env%group)
-         IF (para_env%mepos == 0) THEN
+         IF (para_env%ionode) THEN
             IF (shm_local_quartet_counter /= shm_global_quartet_counter) THEN
                WRITE (error_msg, '(A,I0,A,I0,A)') "HFX Sanity check for parallel distribution failed. "// &
                   "Number of local quartets (", shm_local_quartet_counter, &

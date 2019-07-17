@@ -317,11 +317,11 @@ CONTAINS
       IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
           x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          IF (l_max > init_t_c_g0_lmax) THEN
-            IF (para_env%mepos == 0) THEN
+            IF (para_env%ionode) THEN
                CALL open_file(unit_number=unit_id, file_name=x_data(1, 1)%potential_parameter%filename)
             END IF
             CALL init(l_max, unit_id, para_env%mepos, para_env%group)
-            IF (para_env%mepos == 0) THEN
+            IF (para_env%ionode) THEN
                CALL close_file(unit_id)
             END IF
             init_t_c_g0_lmax = l_max

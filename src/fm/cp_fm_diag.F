@@ -865,7 +865,7 @@ CONTAINS
 
       ! Print some warnings/notes
 
-      IF (matrix%matrix_struct%para_env%mepos == 0 .AND. my_verbose) THEN
+      IF (matrix%matrix_struct%para_env%ionode .AND. my_verbose) THEN
          condition_number = ABS(eigenvalues(ncol_global)/eigenvalues(1))
          WRITE (UNIT=cp_logger_get_default_unit_nr(), FMT="(/,(T2,A,ES15.6))") &
             "CP_FM_POWER: smallest eigenvalue:", eigenvalues(1), &

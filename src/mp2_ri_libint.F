@@ -1209,11 +1209,11 @@ CONTAINS
 
       IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          IF (l_max > init_TShPSC_lmax) THEN
-            IF (para_env%mepos == 0) THEN
+            IF (para_env%ionode) THEN
                CALL open_file(unit_number=unit_id, file_name=mp2_env%potential_parameter%filename)
             END IF
             CALL init(l_max, unit_id, para_env%mepos, para_env%group)
-            IF (para_env%mepos == 0) THEN
+            IF (para_env%ionode) THEN
                CALL close_file(unit_id)
             END IF
             init_TShPSC_lmax = l_max
