@@ -537,7 +537,7 @@ CONTAINS
       needs_evecs = PRESENT(eigenvectors)
 
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
+      ionode = logger%para_env%ionode
       n = matrix%matrix_struct%nrow_global
 
       ! by default allocate all needed space

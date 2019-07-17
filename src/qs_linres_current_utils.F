@@ -146,7 +146,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: list_cubes, row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: statetrueindex
-      LOGICAL                                            :: append_cube, ionode, should_stop
+      LOGICAL                                            :: append_cube, should_stop
       REAL(dp)                                           :: dk(3), dkl(3), dl(3)
       REAL(dp), DIMENSION(:), POINTER                    :: dkl_vec_ii, dkl_vec_iii
       REAL(dp), DIMENSION(:, :), POINTER                 :: vecbuf_dklxp0
@@ -181,7 +181,6 @@ CONTAINS
                p_psi0, rxp_psi0, psi0_order, op_p_ao, sab_orb, particle_set)
 
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       current_section => section_vals_get_subs_vals(qs_env%input, &
                                                     "PROPERTIES%LINRES%CURRENT")

@@ -115,7 +115,7 @@ CONTAINS
                       particle_set=particle_set)
 
       ! read and check restart file on first rank only
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          CALL pao_read_raw(pao%restart_file, param, hmat, kinds, atom2kind, positions, xblocks)
 
          ! check cell
@@ -156,7 +156,7 @@ CONTAINS
       CALL dbcsr_get_info(pao%matrix_X, row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
       DO iatom = 1, natoms
          ALLOCATE (buffer(row_blk_sizes(iatom), col_blk_sizes(iatom)))
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             CPASSERT(row_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 1))
             CPASSERT(col_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 2))
             buffer = xblocks(iatom)%p

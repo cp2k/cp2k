@@ -197,7 +197,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
+      ionode = logger%para_env%ionode
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        "PRINT%PDOS"), cp_p_file)
       output_unit = cp_logger_get_default_io_unit(logger)

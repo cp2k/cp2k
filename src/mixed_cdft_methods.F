@@ -2649,7 +2649,7 @@ CONTAINS
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
-            IF (force_env%para_env%mepos == force_env%para_env%source .AND. unit_nr .LT. 1) &
+            IF (force_env%para_env%ionode .AND. unit_nr .LT. 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL cp_pw_to_cube(cdft_control%becke_control%cavity%pw, &
@@ -3028,7 +3028,7 @@ CONTAINS
          DEALLOCATE (should_warn)
       END IF
       ! check that there is one-to-one mapping between over- and underloaded processors
-      IF (force_env%para_env%mepos == force_env%para_env%source) THEN
+      IF (force_env%para_env%ionode) THEN
          consistent = .TRUE.
          DO i = force_env%para_env%num_pe-1, force_env%para_env%num_pe-no_overloaded+1, -1
             IF (targets(1, i) .GT. no_underloaded) consistent = .FALSE.

@@ -940,8 +940,7 @@ CONTAINS
                                              skip_external_control=.TRUE.)
 
             ! Only the rank 0 process collect info for each computation
-            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
                CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, &
                                   potential_energy=energy)
                CALL cp_subsys_get(subsystems(iforce_eval)%subsys, &
@@ -973,8 +972,7 @@ CONTAINS
          ALLOCATE (global_forces(iforce_eval)%forces(3, glob_natoms(iforce_eval)))
          global_forces(iforce_eval)%forces = 0.0_dp
          IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
                ! Forces
                DO iparticle = 1, glob_natoms(iforce_eval)
                   global_forces(iforce_eval)%forces(:, iparticle) = &
@@ -993,8 +991,7 @@ CONTAINS
          !Transfer results
          source = 0
          IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) &
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) &
                source = force_env%para_env%mepos
          ENDIF
          CALL mp_sum(source, force_env%para_env%group)
@@ -1267,8 +1264,7 @@ CONTAINS
                                           calc_force=calculate_forces, &
                                           skip_external_control=.TRUE.)
          ! Only the rank 0 process collect info for each computation
-         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
             CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, &
                                potential_energy=energy)
             CALL cp_subsys_get(subsystems(iforce_eval)%subsys, &
@@ -1323,8 +1319,7 @@ CONTAINS
                CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
             END IF
             CALL get_qs_env(qs_env, dft_control=dft_control)
-            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) &
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) &
                force_env%mixed_env%strength(iforce_eval, :) = dft_control%qs_control%cdft_control%strength(:)
          END DO
          CALL mp_sum(force_env%mixed_env%strength, force_env%para_env%group)
@@ -1471,8 +1466,7 @@ CONTAINS
          ENDIF
 
          ! Only the rank 0 process collect info for each computation
-         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
             CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, &
                                potential_energy=energy)
             CALL cp_subsys_get(subsystems(iforce_eval)%subsys, &
@@ -1926,8 +1920,7 @@ CONTAINS
          ENDIF
 
          ! Substitute the correct energy in energies: only on rank 0
-         IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%mepos == &
-             force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%source) THEN
+         IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%ionode) THEN
             energies(cluster_subsys_num) = cluster_energy
          ENDIF
       ENDIF
@@ -2095,8 +2088,7 @@ CONTAINS
       ENDDO ! i_iter
 
       ! Substitute the correct energy in energies: only on rank 0
-      IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%mepos == &
-          force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%source) THEN
+      IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%ionode) THEN
          energies(cluster_subsys_num) = cluster_energy
       ENDIF
 

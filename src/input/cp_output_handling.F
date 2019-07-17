@@ -890,7 +890,7 @@ CONTAINS
          IF (my_mpi_io) THEN
             CALL mp_file_get_amode(mpi_io, replace, mpi_amode, TRIM(my_file_form), &
                                    TRIM(my_file_action), TRIM(my_file_status), TRIM(my_file_position))
-            replace = replace .AND. (logger%para_env%source == logger%para_env%mepos)
+            replace = replace .AND. logger%para_env%ionode
          END IF
 #else
          my_mpi_io = .FALSE.
@@ -908,7 +908,7 @@ CONTAINS
       IF (PRESENT(ignore_should_output)) my_should_output = my_should_output .OR. ignore_should_output
       IF (.NOT. my_should_output) RETURN
       IF (my_local .OR. &
-          logger%para_env%mepos == logger%para_env%source .OR. &
+          logger%para_env%ionode .OR. &
           my_mpi_io) THEN
 
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
@@ -1071,7 +1071,7 @@ CONTAINS
                                                           print_key_path, used_print_key=print_key), cp_p_file)
       IF (PRESENT(ignore_should_output)) my_should_output = my_should_output .OR. ignore_should_output
       IF (my_should_output .AND. (my_local .OR. &
-                                  logger%para_env%source == logger%para_env%mepos .OR. &
+                                  logger%para_env%ionode .OR. &
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
          IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN

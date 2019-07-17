@@ -156,7 +156,7 @@ CONTAINS
       IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
 
       ! Init the default logger
-      IF (para_env%source == para_env%mepos) THEN
+      IF (para_env%ionode) THEN
          my_output_unit = output_unit
       ELSE
          my_output_unit = -1
@@ -566,7 +566,7 @@ CONTAINS
 
       IF (trace .AND. (.NOT. trace_master .OR. para_env%mepos == 0)) THEN
          unit_nr = -1
-         IF (logger%para_env%mepos == logger%para_env%source .OR. .NOT. trace_master) &
+         IF (logger%para_env%ionode .OR. .NOT. trace_master) &
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          WRITE (tracing_string, "(I6.6,A1,I6.6)") para_env%mepos, ":", para_env%num_pe
          IF (ASSOCIATED(trace_routines)) THEN
@@ -1201,7 +1201,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="()")
             WRITE (UNIT=iw, FMT="(T2,A)") "-------------------------------------------------------------------------------"
          ENDIF
-         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%mepos == para_env%source) &
+         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%ionode) &
             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
       END IF
 

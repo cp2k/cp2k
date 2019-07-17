@@ -265,7 +265,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
       parser%buffer%input_lines = ""
-      IF (parser%para_env%mepos == parser%para_env%source) THEN
+      IF (parser%para_env%ionode) THEN
          iline = 0
          istat = 0
          parser%buffer%buffer_id = parser%buffer%buffer_id+1

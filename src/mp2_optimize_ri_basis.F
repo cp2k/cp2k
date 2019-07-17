@@ -237,7 +237,7 @@ CONTAINS
       NULLIFY (para_env_sub)
       CALL cp_para_env_create(para_env_sub, comm_sub)
 
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit

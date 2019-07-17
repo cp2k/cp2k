@@ -1260,7 +1260,7 @@ CONTAINS
          ALLOCATE (buffer(1, n))
 
          ! generate initial matrix, either by reading a file, or using random numbers
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             SELECT CASE (init_method)
             CASE (do_mat_random)
                NULLIFY (rng_stream)
@@ -1278,7 +1278,7 @@ CONTAINS
          END IF
 
          DO i = 1, n
-            IF (para_env%mepos == para_env%source) THEN
+            IF (para_env%ionode) THEN
                SELECT CASE (init_method)
                CASE (do_mat_random)
                   DO j = i, n
@@ -1326,7 +1326,7 @@ CONTAINS
 
          DEALLOCATE (buffer)
 
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             SELECT CASE (init_method)
             CASE (do_mat_random)
                CALL delete_rng_stream(rng_stream=rng_stream)

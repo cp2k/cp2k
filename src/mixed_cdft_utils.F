@@ -223,7 +223,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          settings%bo = auxbas_pw_pool%pw_grid%bounds_local
          ! Only the rank 0 process collects info about pw_grid and CDFT
-         IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) THEN
+         IF (force_env_qs%para_env%ionode) THEN
             ! Grid settings
             settings%grid_span(iforce_eval) = auxbas_pw_pool%pw_grid%grid_span
             settings%npts(:, iforce_eval) = auxbas_pw_pool%pw_grid%npts
@@ -405,7 +405,7 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, dft_control=dft_control)
             cdft_control => dft_control%qs_control%cdft_control
-            IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) THEN
+            IF (force_env_qs%para_env%ionode) THEN
                DO igroup = 1, SIZE(cdft_control%group)
                   array_sizes(iforce_eval, igroup, 1) = SIZE(cdft_control%group(igroup)%atoms)
                   array_sizes(iforce_eval, igroup, 2) = SIZE(cdft_control%group(igroup)%coeff)
@@ -443,7 +443,7 @@ CONTAINS
                END IF
                CALL get_qs_env(qs_env, dft_control=dft_control)
                cdft_control => dft_control%qs_control%cdft_control
-               IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) THEN
+               IF (force_env_qs%para_env%ionode) THEN
                   DO i = 1, settings%si(4, 1)
                      atoms(iforce_eval, i)%array(:) = cdft_control%group(i)%atoms
                      coeff(iforce_eval, i)%array(:) = cdft_control%group(i)%coeff
@@ -956,7 +956,7 @@ CONTAINS
          CALL force_env_get(force_env, root_section=root_section)
          ALLOCATE (mixed_cdft%sub_logger(nforce_eval-1))
          DO i = 1, nforce_eval-1
-            IF (force_env%para_env%mepos == force_env%para_env%source) THEN
+            IF (force_env%para_env%ionode) THEN
                CALL section_vals_val_get(root_section, "GLOBAL%PROJECT_NAME", &
                                          c_val=input_file_path)
                lp = LEN_TRIM(input_file_path)
@@ -1105,7 +1105,7 @@ CONTAINS
          CALL get_qs_env(qs_env, dft_control=dft_control)
          CPASSERT(ASSOCIATED(dft_control))
          nspins = dft_control%nspins
-         IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) &
+         IF (force_env_qs%para_env%ionode) &
             has_occupation_numbers(iforce_eval) = ALLOCATED(dft_control%qs_control%cdft_control%occupations)
       END DO
       CALL mp_sum(has_occupation_numbers(1), force_env%para_env%group)
@@ -1137,8 +1137,7 @@ CONTAINS
                   CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
                END IF
                CALL get_qs_env(qs_env, dft_control=dft_control)
-               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                   force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
                   DO ivar = 1, nvar
                      mixed_cdft%constraint_type(ivar, iforce_eval) = &
                         dft_control%qs_control%cdft_control%group(ivar)%constraint_type
@@ -1256,7 +1255,7 @@ CONTAINS
             DO ispin = 1, nspins
                IF (ncol_mo(ispin) /= SIZE(dft_control%qs_control%cdft_control%occupations(ispin)%array)) &
                   CPABORT("Array dimensions dont match.")
-               IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) THEN
+               IF (force_env_qs%para_env%ionode) THEN
                   ALLOCATE (occno_tmp(iforce_eval, ispin)%array(ncol_mo(ispin)))
                   occno_tmp(iforce_eval, ispin)%array = dft_control%qs_control%cdft_control%occupations(ispin)%array
                END IF

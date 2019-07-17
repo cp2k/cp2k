@@ -331,7 +331,7 @@ CONTAINS
       END IF
       IF (ms_vib%select_id == 0) &
          CPABORT("no frequency, range or involved atoms specified ")
-      ionode = para_env%mepos == para_env%source
+      ionode = para_env%ionode
       SELECT CASE (guess)
       CASE (ms_guess_atomic)
          ms_vib%initial_guess = 1
@@ -468,7 +468,7 @@ CONTAINS
       ALLOCATE (ms_vib%hes_bfgs(ncoord, ncoord))
       ALLOCATE (ms_vib%eig_bfgs(ncoord))
 
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          CALL section_vals_val_get(ms_vib_section, "RESTART_FILE_NAME", c_val=hes_filename)
          IF (hes_filename == "") hes_filename = "HESSIAN"
          CALL open_file(file_name=hes_filename, file_status="OLD", &
@@ -693,7 +693,7 @@ CONTAINS
          cp_print_key_unit_nr(logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", &
                               extension=".mol", file_status='UNKNOWN', &
                               file_action="READ")
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
 
          IF (ms_filename == "") THEN
             iw = output_molden

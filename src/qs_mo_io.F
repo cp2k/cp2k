@@ -190,7 +190,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1032,7 +1032,7 @@ CONTAINS
       NULLIFY (nshell)
 
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
+      ionode = logger%para_env%ionode
       CALL section_vals_val_get(dft_section, "PRINT%MO%EIGENVALUES", l_val=p_eval)
       CALL section_vals_val_get(dft_section, "PRINT%MO%EIGENVECTORS", l_val=p_evec)
       CALL section_vals_val_get(dft_section, "PRINT%MO%OCCUPATION_NUMBERS", l_val=p_occ)

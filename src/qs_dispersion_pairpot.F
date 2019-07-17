@@ -1861,7 +1861,7 @@ CONTAINS
                                                             nlines, nn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pars
 
-      IF (para_env%source == para_env%mepos) THEN
+      IF (para_env%ionode) THEN
          ! Read the DFT-D3 C6AB parameters from file "filename"
          CALL open_file(file_name=filename, unit_number=funit, file_form="FORMATTED")
          READ (funit, *) nl, nlines
@@ -1869,7 +1869,7 @@ CONTAINS
       CALL mp_bcast(nl, para_env%source, para_env%group)
       CALL mp_bcast(nlines, para_env%source, para_env%group)
       ALLOCATE (pars(nl))
-      IF (para_env%source == para_env%mepos) THEN
+      IF (para_env%ionode) THEN
          READ (funit, *) pars(1:nl)
          CALL close_file(unit_number=funit)
       END IF

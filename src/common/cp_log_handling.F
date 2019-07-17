@@ -390,7 +390,7 @@ CONTAINS
       END IF
 
       IF (logger%default_local_unit_nr == -1) THEN
-         IF (logger%para_env%mepos == logger%para_env%source) THEN
+         IF (logger%para_env%ionode) THEN
             logger%default_local_unit_nr = logger%default_global_unit_nr
             logger%close_local_unit_on_dealloc = .FALSE.
          ENDIF
@@ -605,7 +605,7 @@ CONTAINS
       IF (PRESENT(skip_not_ionode)) skip = skip_not_ionode
       IF (.NOT. loc) THEN
          IF (lggr%default_global_unit_nr <= 0) THEN
-            IF (lggr%para_env%mepos == lggr%para_env%source) THEN
+            IF (lggr%para_env%ionode) THEN
                CALL cp_logger_generate_filename(lggr, filename, lggr%global_filename, &
                                                 ".out", local=.FALSE.)
                CALL open_file(TRIM(filename), file_status="unknown", &

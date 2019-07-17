@@ -530,7 +530,7 @@ CONTAINS
       para_env => logger%para_env
 
       ! Locally dump information on file..
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          ! Generate file name for the specific Hill
          i = multiple_walkers%walker_id
          filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
@@ -572,7 +572,7 @@ CONTAINS
             filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
                        TRIM(ADJUSTL(cp_to_string(i_hills)))
 
-            IF (para_env%mepos == para_env%source) THEN
+            IF (para_env%ionode) THEN
                INQUIRE (FILE=TRIM(filename), EXIST=exist)
             ENDIF
             CALL mp_bcast(exist, para_env%source, para_env%group)
@@ -580,7 +580,7 @@ CONTAINS
                ! Read information from the walker's file
                ! We shouldn't care too much about the concurrency of these I/O instructions..
                ! In case, they can be fixed in the future..
-               IF (para_env%mepos == para_env%source) THEN
+               IF (para_env%ionode) THEN
                   CALL open_file(file_name=filename, file_status="OLD", &
                                  file_form="FORMATTED", file_action="READ", &
                                  file_position="REWIND", unit_number=unit_nr)
@@ -610,7 +610,7 @@ CONTAINS
                i_hills = i_hills+1
                filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
                           TRIM(ADJUSTL(cp_to_string(i_hills)))
-               IF (para_env%mepos == para_env%source) THEN
+               IF (para_env%ionode) THEN
                   INQUIRE (FILE=TRIM(filename), EXIST=exist)
                ENDIF
                CALL mp_bcast(exist, para_env%source, para_env%group)

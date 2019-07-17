@@ -165,7 +165,7 @@ CONTAINS
 
 ! broadcast master_output_path to all ranks
 
-      IF (swarm_mpi%world%mepos == swarm_mpi%world%source) THEN
+      IF (swarm_mpi%world%ionode) THEN
          logger => cp_get_default_logger()
          output_unit = logger%default_local_unit_nr
          swarm_mpi%master_output_path = output_unit2path(output_unit)
@@ -252,7 +252,7 @@ CONTAINS
 
       NULLIFY (new_logger, old_logger)
       output_unit = -1
-      IF (para_env%source == para_env%mepos) THEN
+      IF (para_env%ionode) THEN
          ! open output_unit according to output_path
          output_unit = default_output_unit
          IF (output_path /= "__STD_OUT__") &
@@ -402,7 +402,7 @@ CONTAINS
 ! This is a two step communication schema.
 ! First: The rank-0 of the worker groups receives the command from the master.
 
-      IF (swarm_mpi%worker%source == swarm_mpi%worker%mepos) THEN
+      IF (swarm_mpi%worker%ionode) THEN
          src = swarm_mpi%world%num_pe-1 !
          tag = 42
          CALL swarm_message_mpi_recv(cmd, group=swarm_mpi%world%group, src=src, tag=tag)

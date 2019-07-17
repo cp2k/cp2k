@@ -98,7 +98,7 @@ CONTAINS
       CASE (xc_vdw_fun_nonloc)
          ! setup information on non local functionals
          filename = dispersion_env%kernel_file_name
-         IF (para_env%source == para_env%mepos) THEN
+         IF (para_env%ionode) THEN
             ! Read the kernel information from file "filename"
             CALL open_file(file_name=filename, unit_number=funit, file_form="FORMATTED")
             READ (funit, *) nqs, nr_points
@@ -111,7 +111,7 @@ CONTAINS
                    dispersion_env%d2phi_dk2(0:nr_points, nqs, nqs))
          dispersion_env%nqs = nqs
          dispersion_env%nr_points = nr_points
-         IF (para_env%source == para_env%mepos) THEN
+         IF (para_env%ionode) THEN
             !! Read in the values of the q points used to generate this kernel
             READ (funit, "(1p, 4e23.14)") dispersion_env%q_mesh
             !! For each pair of q values, read in the function phi_q1_q2(k).

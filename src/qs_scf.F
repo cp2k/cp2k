@@ -1323,7 +1323,7 @@ CONTAINS
             CALL build_diagonal_jacobian(qs_env, used_history)
          END IF
       END IF
-      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%mepos == para_env%source) THEN
+      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%ionode) THEN
          ! Write restart file for inverse Jacobian
          CALL print_inverse_jacobian(logger, scf_env%outer_scf%inv_jacobian, iter_count)
       END IF
