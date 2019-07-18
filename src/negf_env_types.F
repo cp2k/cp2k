@@ -968,6 +968,7 @@ CONTAINS
       CALL real_to_scaled(scaled, direction_vector, cell)
 
       naxes = 0
+      direction_axis = 0 ! initialize to make GCC<=6 happy
 
       DO i = 1, 3
          IF (ABS(scaled(i)) > eps_geometry) THEN
