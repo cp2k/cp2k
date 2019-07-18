@@ -106,7 +106,7 @@
     # Integration lower bound (in Hartree)
     ENERGY_LBOUND -2.0
 
-    # slower, but works with no FFT library
+    # faster, but requires FFTW3 library
     INTEGRATION_METHOD clenshaw-curtis
 
     # Maximum error in each matrix element of the density matrix

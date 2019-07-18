@@ -152,8 +152,8 @@ CONTAINS
                           default_i_val=negfint_method_cc, &
                           enum_c_vals=s2a("CLENSHAW-CURTIS", "SIMPSON"), &
                           enum_desc=s2a( &
-                          "Adaptive Clenshaw-Curtis quadrature method", &
-                          "Adaptive Simpson method"), &
+                          "Adaptive Clenshaw-Curtis quadrature method. Requires FFTW3 library.", &
+                          "Adaptive Simpson method. Works without FFTW3."), &
                           enum_i_vals=(/negfint_method_cc, negfint_method_simpson/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
