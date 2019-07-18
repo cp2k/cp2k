@@ -17,11 +17,9 @@ MODULE pint_pile
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
-                                              read_rng_stream,&
-                                              rng_record_length
+                                              rng_record_length,&
+                                              rng_stream_type,&
+                                              rng_stream_type_from_record
    USE pint_types,                      ONLY: normalmode_env_type,&
                                               pile_therm_type,&
                                               pint_env_type
@@ -105,21 +103,20 @@ CONTAINS
 
       !prepare Random number generator
       NULLIFY (rng_section)
-      NULLIFY (pile_therm%gaussian_rng_stream)
       rng_section => section_vals_get_subs_vals(section, &
                                                 subsection_name="RNG_INIT")
       CALL section_vals_get(rng_section, explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(rng_section, "_DEFAULT_KEYWORD_", &
                                    i_rep_val=1, c_val=rng_record)
-         CALL read_rng_stream(rng_stream=pile_therm%gaussian_rng_stream, &
-                              rng_record=rng_record)
+
+         pile_therm%gaussian_rng_stream = rng_stream_type_from_record(rng_record)
       ELSE
          initial_seed(:, :) = REAL(pint_env%thermostat_rng_seed, dp)
-         CALL create_rng_stream(rng_stream=pile_therm%gaussian_rng_stream, &
-                                name="pile_rng_gaussian", distribution_type=GAUSSIAN, &
-                                extended_precision=.TRUE., &
-                                seed=initial_seed)
+         pile_therm%gaussian_rng_stream = rng_stream_type( &
+                                          name="pile_rng_gaussian", distribution_type=GAUSSIAN, &
+                                          extended_precision=.TRUE., &
+                                          seed=initial_seed)
       END IF
 
    END SUBROUTINE pint_pile_init
@@ -151,7 +148,7 @@ CONTAINS
          DO ibead = first_mode, p
             vnew(ibead, idim) = pile_therm%c1(ibead)*vold(ibead, idim) + &
                                 pile_therm%massfact(ibead, idim)*pile_therm%c2(ibead)* &
-                                next_random_number(pile_therm%gaussian_rng_stream)
+                                pile_therm%gaussian_rng_stream%next()
             delta_ekin = delta_ekin + masses(ibead, idim)*( &
                          vnew(ibead, idim)*vnew(ibead, idim) - &
                          vold(ibead, idim)*vold(ibead, idim))
@@ -185,7 +182,6 @@ CONTAINS
             DEALLOCATE (pile_therm%c2)
             DEALLOCATE (pile_therm%g_fric)
             DEALLOCATE (pile_therm%massfact)
-            CALL delete_rng_stream(pile_therm%gaussian_rng_stream)
             DEALLOCATE (pile_therm)
          END IF
       END IF

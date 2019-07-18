@@ -121,7 +121,7 @@ MODULE pint_types
       TYPE(section_vals_type), POINTER :: input
       TYPE(staging_env_type), POINTER :: staging_env
       TYPE(normalmode_env_type), POINTER :: normalmode_env
-      TYPE(rng_stream_type), POINTER :: randomG
+      TYPE(rng_stream_type) :: randomG
       TYPE(gle_type), POINTER        :: gle
       REAL(KIND=dp), DIMENSION(e_num_ids) :: energy
       REAL(KIND=dp), DIMENSION(:), POINTER :: mass, e_pot_bead
@@ -206,7 +206,7 @@ MODULE pint_types
       REAL(KIND=dp), DIMENSION(:), POINTER       :: c2
       REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric
       REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact
-      TYPE(rng_stream_type), POINTER             :: gaussian_rng_stream
+      TYPE(rng_stream_type)                      :: gaussian_rng_stream
    END TYPE pile_therm_type
 
    ! ***************************************************************************
@@ -240,7 +240,7 @@ MODULE pint_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp1
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp2
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: sqrtmass
-      TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
+      TYPE(rng_stream_type)                :: gaussian_rng_stream
    END TYPE piglet_therm_type
 
    ! ***************************************************************************
@@ -283,7 +283,7 @@ MODULE pint_types
       INTEGER                                    :: fp
       INTEGER                                    :: nf
       REAL(KIND=dp)                              :: thermostat_energy
-      TYPE(rng_stream_type), POINTER             :: gaussian_rng_stream
+      TYPE(rng_stream_type)                      :: gaussian_rng_stream
       CHARACTER(LEN=rng_record_length), DIMENSION(:), POINTER :: rng_status
    END TYPE qtb_therm_type
 

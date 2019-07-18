@@ -27,7 +27,6 @@ MODULE neb_md_utils
    USE kinds,                           ONLY: dp
    USE neb_types,                       ONLY: neb_type,&
                                               neb_var_type
-   USE parallel_rng_types,              ONLY: next_random_number
    USE particle_types,                  ONLY: get_particle_pos_or_vel,&
                                               particle_type,&
                                               update_particle_pos_or_vel
@@ -73,7 +72,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'neb_initialize_velocity', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iatom, ivar, k, natom, nparticle, nvar
+      INTEGER                                            :: iatom, ivar, natom, nparticle, nvar
       REAL(KIND=dp)                                      :: akin, mass, mass_tot, sc, temp, &
                                                             temp_ext, tmp_r1
       REAL(KIND=dp), DIMENSION(3)                        :: v, vcom
@@ -87,10 +86,7 @@ CONTAINS
          natom = SIZE(particle_set)
          mass_tot = 0.0_dp
          vcom(1:3) = 0.0_dp
-         vels(:, i_rep) = 0.0_dp
-         DO k = 1, nparticle
-            vels(k, i_rep) = next_random_number(globenv%gaussian_rng_stream)
-         END DO
+         CALL globenv%gaussian_rng_stream%fill(vels(:, i_rep))
          ! Check always if BAND is working in Cartesian or in internal coordinates
          ! If working in cartesian coordinates let's get rid of the COM
          ! Compute also the total mass (both in Cartesian and internal)

@@ -66,10 +66,6 @@ MODULE md_vel_utils
                                               get_molecule_kind_set,&
                                               molecule_kind_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
-                                              random_numbers,&
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -920,9 +916,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dr, eigenvectors
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(rng_stream_type), POINTER                     :: random_stream
+      TYPE(rng_stream_type), ALLOCATABLE                 :: random_stream
 
-      NULLIFY (random_stream)
       CALL cite_reference(West2006)
       natoms = SIZE(particles)
       temperature = simpar%temp_ext
@@ -949,14 +944,15 @@ CONTAINS
       CALL section_vals_val_get(md_section, "INITIAL_VIBRATION%PHASE", r_val=my_phase)
       my_phase = MIN(1.0_dp, my_phase)
       ! generate random numbers
-      CALL create_rng_stream(random_stream, name="MD_INIT_VIB", distribution_type=UNIFORM)
-      CALL random_numbers(random, random_stream)
+      random_stream = rng_stream_type(name="MD_INIT_VIB", distribution_type=UNIFORM)
+      CALL random_stream%fill(random)
       IF (my_phase .LT. 0.0_dp) THEN
-         CALL random_numbers(phase, random_stream)
+         CALL random_stream%fill(phase)
       ELSE
          phase = my_phase
       END IF
-      CALL delete_rng_stream(random_stream)
+      DEALLOCATE (random_stream)
+
       ! the first three modes are acoustic with zero frequencies,
       ! exclude these from considerations
       my_dof = dof - 3
@@ -1234,24 +1230,24 @@ CONTAINS
          IF (mass .NE. 0.0) THEN
             SELECT CASE (is_fixed(i))
             CASE (use_perd_x)
-               part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
-               part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(2) = globenv%gaussian_rng_stream%next()/SQRT(mass)
+               part(i)%v(3) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             CASE (use_perd_y)
-               part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
-               part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(1) = globenv%gaussian_rng_stream%next()/SQRT(mass)
+               part(i)%v(3) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             CASE (use_perd_z)
-               part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
-               part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(1) = globenv%gaussian_rng_stream%next()/SQRT(mass)
+               part(i)%v(2) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             CASE (use_perd_xy)
-               part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(3) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             CASE (use_perd_xz)
-               part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(2) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             CASE (use_perd_yz)
-               part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(1) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             CASE (use_perd_none)
-               part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
-               part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
-               part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream)/SQRT(mass)
+               part(i)%v(1) = globenv%gaussian_rng_stream%next()/SQRT(mass)
+               part(i)%v(2) = globenv%gaussian_rng_stream%next()/SQRT(mass)
+               part(i)%v(3) = globenv%gaussian_rng_stream%next()/SQRT(mass)
             END SELECT
          END IF
       END DO

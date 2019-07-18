@@ -45,8 +45,7 @@ MODULE mc_control
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
 #include "../../base/base_uses.f90"
@@ -172,7 +171,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER, INTENT(IN)                                :: iw
       INTEGER, INTENT(INOUT)                             :: mc_nunits_tot
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_mc_restart', &
          routineP = moduleN//':'//routineN
@@ -318,7 +317,7 @@ CONTAINS
       ! advance the random number sequence based on the restart step
       IF (ionode) THEN
          DO i = 1, nstart + 1
-            rand = next_random_number(rng_stream)
+            rand = rng_stream%next()
          ENDDO
       ENDIF
 
@@ -420,4 +419,3 @@ CONTAINS
    END SUBROUTINE mc_create_bias_force_env
 
 END MODULE mc_control
-

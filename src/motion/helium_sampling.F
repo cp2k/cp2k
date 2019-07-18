@@ -43,7 +43,6 @@ MODULE helium_sampling
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_sum
-   USE parallel_rng_types,              ONLY: next_random_number
    USE physcon,                         ONLY: angstrom
    USE pint_public,                     ONLY: pint_com_pos
    USE pint_types,                      ONLY: pint_env_type
@@ -228,7 +227,7 @@ CONTAINS
                ! 'rotation state' in helium%relrot wich is within (0, helium%beads-1)
                ! (this is needed to sample different fragments of the permutation
                ! paths in try_permutations)
-               rnd = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+               rnd = helium_env(k)%helium%rng_stream_uniform%next()
                nslices = INT(rnd*helium_env(k)%helium%beads)
                CALL helium_rotate(helium_env(k)%helium, nslices)
 
@@ -373,7 +372,7 @@ CONTAINS
             END DO
          ELSE IF (helium_env(1)%helium%get_helium_forces == helium_forces_last) THEN
             IF (logger%para_env%ionode) THEN
-               sel_mp_source = INT(next_random_number(helium_env(1)%helium%rng_stream_uniform) &
+               sel_mp_source = INT(helium_env(1)%helium%rng_stream_uniform%next() &
                                    *REAL(helium_env(1)%helium%num_env, dp))
             END IF
             CALL mp_bcast(sel_mp_source, logger%para_env%source, helium_env(1)%comm)
@@ -599,7 +598,7 @@ CONTAINS
          SELECT CASE (helium%m_dist_type)
 
          CASE (helium_mdist_singlev)
-            x = next_random_number(helium%rng_stream_uniform)
+            x = helium%rng_stream_uniform%next()
             IF (x .LT. r) THEN
                cyclen = 1
             ELSE
@@ -607,24 +606,24 @@ CONTAINS
             END IF
 
          CASE (helium_mdist_uniform)
-            x = next_random_number(helium%rng_stream_uniform)
+            x = helium%rng_stream_uniform%next()
             IF (x .LT. r) THEN
                cyclen = helium%m_value
             ELSE
                DO
-                  x = next_random_number(helium%rng_stream_uniform)
+                  x = helium%rng_stream_uniform%next()
                   cyclen = INT(helium%maxcycle*x) + 1
                   IF (cyclen .NE. helium%m_value) EXIT
                END DO
             END IF
 
          CASE (helium_mdist_linear)
-            x = next_random_number(helium%rng_stream_uniform)
+            x = helium%rng_stream_uniform%next()
             IF (x .LT. r) THEN
                cyclen = helium%m_value
             ELSE
                DO
-                  x = next_random_number(helium%rng_stream_uniform)
+                  x = helium%rng_stream_uniform%next()
                   y = SQRT(2.0_dp*x)
                   cyclen = INT(helium%maxcycle*y/SQRT(2.0_dp)) + 1
                   IF (cyclen .NE. helium%m_value) EXIT
@@ -632,12 +631,12 @@ CONTAINS
             END IF
 
          CASE (helium_mdist_quadratic)
-            x = next_random_number(helium%rng_stream_uniform)
+            x = helium%rng_stream_uniform%next()
             IF (x .LT. r) THEN
                cyclen = helium%m_value
             ELSE
                DO
-                  x = next_random_number(helium%rng_stream_uniform)
+                  x = helium%rng_stream_uniform%next()
                   y = (3.0_dp*x)**(1.0_dp/3.0_dp)
                   z = 3.0_dp**(1.0_dp/3.0_dp)
                   cyclen = INT(helium%maxcycle*y/z) + 1
@@ -646,13 +645,13 @@ CONTAINS
             END IF
 
          CASE (helium_mdist_exponential)
-            x = next_random_number(helium%rng_stream_uniform)
+            x = helium%rng_stream_uniform%next()
             IF (x .LT. r) THEN
                cyclen = helium%m_value
             ELSE
                DO
                   DO
-                     x = next_random_number(helium%rng_stream_uniform)
+                     x = helium%rng_stream_uniform%next()
                      IF (x .GE. 0.01_dp) EXIT
                   END DO
                   z = -LOG(0.01_dp)
@@ -663,12 +662,12 @@ CONTAINS
             END IF
 
          CASE (helium_mdist_gaussian)
-            x = next_random_number(helium%rng_stream_uniform)
+            x = helium%rng_stream_uniform%next()
             IF (x .LT. r) THEN
                cyclen = 1
             ELSE
                DO
-                  x = next_random_number(helium%rng_stream_gaussian)
+                  x = helium%rng_stream_gaussian%next()
                   cyclen = INT(x*0.75_dp + helium%m_value - 0.5_dp) + 1
                   IF (cyclen .NE. 1) EXIT
                END DO
@@ -688,7 +687,7 @@ CONTAINS
 
          ! check, if permutation of this length can be constructed
          IF (cyclen == 1) THEN
-            rnd = next_random_number(helium%rng_stream_uniform)
+            rnd = helium%rng_stream_uniform%next()
             helium%ptable(1) = 1 + INT(rnd*helium%atoms)
             helium%ptable(2) = -1
             helium%pweight = 0.0_dp
@@ -846,7 +845,7 @@ CONTAINS
             DO k = 1, cyclen
                CALL helium_boxmean_3d(helium, work(:, p(k), pk1), work(:, p(k), pk2), tmp1)
                DO c = 1, 3
-                  x = next_random_number(rng_stream=helium%rng_stream_gaussian, variance=1.0_dp)
+                  x = helium%rng_stream_gaussian%next(variance=1.0_dp)
                   x = sigma*x
                   tmp1(c) = tmp1(c) + x
                   tmp2(c) = x
@@ -872,7 +871,7 @@ CONTAINS
          DO k = 1, cyclen
             CALL helium_boxmean_3d(helium, work(:, p(k), pk1), work(:, perm(p(1 + MOD(k, cyclen))), 1), tmp1)
             DO c = 1, 3
-               x = next_random_number(rng_stream=helium%rng_stream_gaussian, variance=1.0_dp)
+               x = helium%rng_stream_gaussian%next(variance=1.0_dp)
                x = sigma*x
                tmp1(c) = tmp1(c) + x
                tmp2(c) = x
@@ -954,7 +953,7 @@ CONTAINS
             ds = ds - x*(tmp1(1)*tmp1(1) + tmp1(2)*tmp1(2) + tmp1(3)*tmp1(3))
          END DO
          ! ok now accept or reject:
-         rtmp = next_random_number(helium%rng_stream_uniform)
+         rtmp = helium%rng_stream_uniform%next()
 !      IF ((dtk+ds-pds < 0.0_dp).AND.(EXP(dtk+ds-pds)<rtmp)) THEN
          IF (dtk + ds - pds < 0.0_dp) THEN
             IF (EXP(dtk + ds - pds) < rtmp) THEN
@@ -993,7 +992,7 @@ CONTAINS
          DO k = 1, cyclen
             CALL helium_boxmean_3d(helium, work(:, p(k), pk1), work(:, p(k), pk2), tmp1)
             DO c = 1, 3
-               x = next_random_number(rng_stream=helium%rng_stream_gaussian, variance=1.0_dp)
+               x = helium%rng_stream_gaussian%next(variance=1.0_dp)
                x = sigma*x
                tmp1(c) = tmp1(c) + x
                tmp2(c) = x
@@ -1017,7 +1016,7 @@ CONTAINS
       DO k = 1, cyclen
          CALL helium_boxmean_3d(helium, work(:, p(k), pk1), work(:, perm(p(1 + MOD(k, cyclen))), 1), tmp1)
          DO c = 1, 3
-            x = next_random_number(rng_stream=helium%rng_stream_gaussian, variance=1.0_dp)
+            x = helium%rng_stream_gaussian%next(variance=1.0_dp)
             x = sigma*x
             tmp1(c) = tmp1(c) + x
             tmp2(c) = x
@@ -1127,7 +1126,7 @@ CONTAINS
       END DO
       DEALLOCATE (work3)
       ! ok now accept or reject:
-      rtmp = next_random_number(helium%rng_stream_uniform)
+      rtmp = helium%rng_stream_uniform%next()
 !   IF ((dtk+ds-pds<0.0_dp).AND.(EXP(dtk+ds-pds)<rtmp)) THEN
       IF (dtk + ds - pds < 0.0_dp) THEN
          IF (EXP(dtk + ds - pds) < rtmp) THEN
@@ -1256,10 +1255,10 @@ CONTAINS
       nmatrix => helium%nmatrix
 
       p(len + 1) = -1
-      rnd = next_random_number(helium%rng_stream_uniform)
+      rnd = helium%rng_stream_uniform%next()
       p(1) = INT(n*rnd) + 1
       DO k = 1, len - 1
-         t = next_random_number(helium%rng_stream_uniform)
+         t = helium%rng_stream_uniform%next()
          ! find the corresponding path to connect to
          ! using the precalculated optimal decision tree:
          i = n - 1
@@ -1287,7 +1286,7 @@ CONTAINS
       s1 = s1 + ipmatrix(p(len), perm(p(1)))
       s2 = s2 + ipmatrix(p(len), perm(p(len)))
       ! final accept/reject:
-      rnd = next_random_number(helium%rng_stream_uniform)
+      rnd = helium%rng_stream_uniform%next()
       t = s1*rnd
       IF (t > s2) RETURN
       ! ok, we have accepted the permutation

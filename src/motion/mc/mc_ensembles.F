@@ -73,8 +73,7 @@ MODULE mc_ensembles
                                               mc_simulation_parameters_p_type,&
                                               set_mc_par
    USE message_passing,                 ONLY: mp_bcast
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE particle_methods,                ONLY: write_particle_coordinates
@@ -117,7 +116,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_type), POINTER                        :: input_declaration
       INTEGER, INTENT(IN)                                :: nboxes
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_run_ensemble', &
          routineP = moduleN//':'//routineN
@@ -444,7 +443,7 @@ CONTAINS
             WRITE (iw, *) "------- On Monte Carlo Step ", nnstep
          ENDIF
 
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand, source, group)
 
@@ -469,7 +468,7 @@ CONTAINS
                                       r_old, rng_stream)
             CASE ("GEMC_NPT")
                ! we need to select a box based on the probability given in the input file
-               IF (ionode) rand = next_random_number(rng_stream)
+               IF (ionode) rand = rng_stream%next()
                CALL mp_bcast(rand, source, group)
 
                DO ibox = 1, nboxes
@@ -574,7 +573,7 @@ CONTAINS
             ENDIF
 
 ! pick a box at random
-            IF (ionode) rand = next_random_number(rng_stream)
+            IF (ionode) rand = rng_stream%next()
             CALL mp_bcast(rand, source, group)
 
             DO ibox = 1, nboxes
@@ -600,7 +599,7 @@ CONTAINS
             ENDIF
 
             ! first, pick a box to do it for
-            IF (ionode) rand = next_random_number(rng_stream)
+            IF (ionode) rand = rng_stream%next()
             CALL mp_bcast(rand, source, group)
 
             IF (nboxes .EQ. 2) THEN
@@ -614,7 +613,7 @@ CONTAINS
             ENDIF
 
             ! now pick a molecule type to do it for
-            IF (ionode) rand = next_random_number(rng_stream)
+            IF (ionode) rand = rng_stream%next()
             CALL mp_bcast(rand, source, group)
             molecule_type_swap = 0
             DO imol_type = 1, nmol_types
@@ -654,7 +653,7 @@ CONTAINS
 
                   ! choose if we're swapping into the bonded region of mol_target, or
                   ! into the nonbonded region
-                  rand = next_random_number(rng_stream)
+                  rand = rng_stream%next()
 
                ENDIF
                CALL mp_bcast(start_atom_swap, source, group)
@@ -690,12 +689,12 @@ CONTAINS
 
             DO imove = 1, nmoves
 
-               IF (ionode) rand = next_random_number(rng_stream)
+               IF (ionode) rand = rng_stream%next()
                CALL mp_bcast(rand, source, group)
                IF (rand .LT. pmtraion) THEN
                   ! change molecular conformation
                   ! first, pick a box to do it for
-                  IF (ionode) rand = next_random_number(rng_stream)
+                  IF (ionode) rand = rng_stream%next()
                   CALL mp_bcast(rand, source, group)
                   IF (nboxes .EQ. 2) THEN
                      IF (rand .LT. 0.75E0_dp) THEN
@@ -708,7 +707,7 @@ CONTAINS
                   ENDIF
 
                   ! figure out which molecule type we're looking for
-                  IF (ionode) rand = next_random_number(rng_stream)
+                  IF (ionode) rand = rng_stream%next()
                   CALL mp_bcast(rand, source, group)
                   molecule_type = 0
                   DO imol_type = 1, nmol_types
@@ -736,7 +735,7 @@ CONTAINS
                                                    box=box_number, molecule_type_old=molecule_type)
 
                         ! choose if we're changing a bond length or an angle
-                        rand = next_random_number(rng_stream)
+                        rand = rng_stream%next()
                      ENDIF
                      CALL mp_bcast(rand, source, group)
                      CALL mp_bcast(start_atom, source, group)
@@ -766,7 +765,7 @@ CONTAINS
                ELSEIF (rand .LT. pmtrans) THEN
                   ! translate a whole molecule in the system
                   ! pick a molecule type
-                  IF (ionode) rand = next_random_number(rng_stream)
+                  IF (ionode) rand = rng_stream%next()
                   CALL mp_bcast(rand, source, group)
                   molecule_type = 0
                   DO imol_type = 1, nmol_types
@@ -798,7 +797,7 @@ CONTAINS
                ELSEIF (rand .LT. pmcltrans) THEN
                   ! translate a whole cluster in the system
                   ! first, pick a box to do it for
-                  IF (ionode) rand = next_random_number(rng_stream)
+                  IF (ionode) rand = rng_stream%next()
                   CALL mp_bcast(rand, source, group)
 
                   DO ibox = 1, nboxes
@@ -819,7 +818,7 @@ CONTAINS
                ELSE
                   !     rotate a whole molecule in the system
                   ! pick a molecule type
-                  IF (ionode) rand = next_random_number(rng_stream)
+                  IF (ionode) rand = rng_stream%next()
                   CALL mp_bcast(rand, source, group)
                   molecule_type = 0
                   DO imol_type = 1, nmol_types
@@ -1174,7 +1173,7 @@ CONTAINS
    SUBROUTINE mc_compute_virial(mc_env, rng_stream)
 
       TYPE(mc_environment_p_type), DIMENSION(:), POINTER :: mc_env
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_compute_virial', &
          routineP = moduleN//':'//routineN

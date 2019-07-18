@@ -49,8 +49,7 @@ MODULE input_restart_force_eval
    USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE multipole_types,                 ONLY: multipole_type
-   USE parallel_rng_types,              ONLY: dump_rng_stream,&
-                                              rng_record_length
+   USE parallel_rng_types,              ONLY: rng_record_length
    USE particle_list_types,             ONLY: particle_list_type
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
    USE qs_environment_types,            ONLY: get_qs_env
@@ -265,9 +264,8 @@ CONTAINS
                nparticle_local = local_particles%n_el(iparticle_kind)
                DO iparticle_local = 1, nparticle_local
                   IF (iparticle == local_particles%list(iparticle_kind)%array(iparticle_local)) THEN
-                     CALL dump_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)% &
-                                          rng(iparticle_local)%stream, &
-                                          rng_record=rng_record)
+                     CALL local_particles%local_particle_set(iparticle_kind)% &
+                        rng(iparticle_local)%stream%dump(rng_record=rng_record)
                      CALL string_to_ascii(rng_record, ascii(:, iparticle))
                   END IF
                END DO

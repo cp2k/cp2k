@@ -17,8 +17,6 @@ MODULE csvr_system_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
                                               next_rng_seed,&
                                               rng_stream_type
    USE simpar_types,                    ONLY: simpar_type
@@ -39,7 +37,7 @@ MODULE csvr_system_types
       REAL(KIND=dp)                           :: nkt
       REAL(KIND=dp)                           :: thermostat_energy
       REAL(KIND=dp)                           :: region_kin_energy
-      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
+      TYPE(rng_stream_type)                   :: gaussian_rng_stream
    END TYPE csvr_thermo_type
 
 ! **************************************************************************************************
@@ -106,7 +104,6 @@ CONTAINS
       ALLOCATE (csvr%nvt(csvr%loc_num_csvr))
       DO i = 1, csvr%loc_num_csvr
          csvr%nvt(i)%thermostat_energy = 0.0_dp
-         NULLIFY (csvr%nvt(i)%gaussian_rng_stream)
       END DO
       ! Initialize the gaussian stream random number
       ALLOCATE (seed(3, 2, csvr%glob_num_csvr))
@@ -123,9 +120,8 @@ CONTAINS
          my_seed = seed(:, :, my_index)
          WRITE (UNIT=name, FMT="(A,I8)") "Wiener process for Thermostat #", my_index
          CALL compress(name)
-         CALL create_rng_stream(rng_stream=csvr%nvt(ithermo)%gaussian_rng_stream, &
-                                name=name, distribution_type=GAUSSIAN, extended_precision=.TRUE., &
-                                seed=my_seed)
+         csvr%nvt(ithermo)%gaussian_rng_stream = rng_stream_type( &
+                                                 name=name, distribution_type=GAUSSIAN, extended_precision=.TRUE., seed=my_seed)
       END DO
       DEALLOCATE (seed)
 
@@ -160,16 +156,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_dealloc', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i
-
-      IF (ASSOCIATED(nvt)) THEN
-         DO i = 1, SIZE(nvt)
-            IF (ASSOCIATED(nvt(i)%gaussian_rng_stream)) THEN
-               CALL delete_rng_stream(nvt(i)%gaussian_rng_stream)
-            ENDIF
-         END DO
+      IF (ASSOCIATED(nvt)) &
          DEALLOCATE (nvt)
-      ENDIF
    END SUBROUTINE csvr_thermo_dealloc
 
 END MODULE csvr_system_types

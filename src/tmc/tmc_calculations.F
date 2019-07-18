@@ -22,10 +22,7 @@ MODULE tmc_calculations
                                               set_cell
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE parallel_rng_types,              ONLY: get_rng_stream,&
-                                              next_random_number,&
-                                              rng_stream_type,&
-                                              set_rng_stream
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE physcon,                         ONLY: boltzmann,&
                                               joule
    USE tmc_move_types,                  ONLY: mv_type_MD
@@ -123,7 +120,7 @@ CONTAINS
       END SELECT
 
       ! ---     wait a bit
-      rnd = next_random_number(rng_stream=tmc_env%rng_stream)
+      rnd = tmc_env%rng_stream%next()
       !rnd = 0.5
 !TODO    IF(worker_random_wait.AND.exact_approx_pot)THEN
 !      CALL SYSTEM_CLOCK(time0, time_rate, time_max)
@@ -361,7 +358,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vel
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       REAL(KIND=dp)                                      :: temerature
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), DIMENSION(3, 2, 3)                  :: rnd_seed
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_vel', routineP = moduleN//':'//routineN
@@ -374,19 +371,17 @@ CONTAINS
       CPASSERT(ASSOCIATED(vel))
       CPASSERT(ASSOCIATED(atoms))
 
-      CALL set_rng_stream(rng_stream=rng_stream, bg=rnd_seed(:, :, 1), &
-                          cg=rnd_seed(:, :, 2), ig=rnd_seed(:, :, 3))
+      CALL rng_stream%set(bg=rnd_seed(:, :, 1), cg=rnd_seed(:, :, 2), ig=rnd_seed(:, :, 3))
       DO i = 1, SIZE(vel)
-         rnd1 = next_random_number(rng_stream)
-         rnd2 = next_random_number(rng_stream)
+         rnd1 = rng_stream%next()
+         rnd2 = rng_stream%next()
 
          mass_tmp = atoms(INT(i/REAL(3, KIND=dp)) + 1)%mass
 
          vel(i) = SQRT(-2.0_dp*LOG(rnd1))*COS(2.0_dp*PI*rnd2)* &
                   SQRT(kB*temerature/mass_tmp)
       END DO
-      CALL get_rng_stream(rng_stream=rng_stream, bg=rnd_seed(:, :, 1), &
-                          cg=rnd_seed(:, :, 2), ig=rnd_seed(:, :, 3))
+      CALL rng_stream%get(bg=rnd_seed(:, :, 1), cg=rnd_seed(:, :, 2), ig=rnd_seed(:, :, 3))
 
    END SUBROUTINE init_vel
 

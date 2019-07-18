@@ -32,7 +32,6 @@ MODULE dimer_types
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
-   USE parallel_rng_types,              ONLY: random_numbers
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -162,7 +161,7 @@ CONTAINS
          END DO
          CPASSERT(isize == SIZE(dimer_env%nvec))
       ELSE
-         CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream)
+         CALL globenv%gaussian_rng_stream%fill(dimer_env%nvec)
       END IF
       ! Check for translation in the dimer vector and remove them
       IF (natom > 1) THEN

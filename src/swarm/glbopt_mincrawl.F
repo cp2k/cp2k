@@ -26,10 +26,7 @@ MODULE glbopt_mincrawl
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE parallel_rng_types,              ONLY: create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_methods,                ONLY: write_particle_coordinates
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kelvin
@@ -88,7 +85,7 @@ MODULE glbopt_mincrawl
       INTEGER                                             :: iw = 0
       INTEGER                                             :: minima_traj_unit = 0
       TYPE(section_vals_type), POINTER                    :: mincrawl_section => Null()
-      TYPE(rng_stream_type), POINTER                       :: rng_stream => Null()
+      TYPE(rng_stream_type)                               :: rng_stream
       TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set => Null()
    END TYPE mincrawl_type
 
@@ -154,7 +151,7 @@ CONTAINS
          this%tempdist_init(i) = 1.0/(1.0 + EXP((this%tempstep_init - i)/this%tempdist_init_width))
       ENDDO
 
-      CALL create_rng_stream(this%rng_stream, name="mincrawl")
+      this%rng_stream = rng_stream_type(name="mincrawl")
    END SUBROUTINE mincrawl_init
 
 ! **************************************************************************************************
@@ -274,10 +271,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: a, r
 
       DO
-         r = next_random_number(this%rng_stream)
+         r = this%rng_stream%next()
          step = INT(r*SIZE(minima%tempdist)) + 1
          a = 1.0 - 2.0*ABS(minima%tempdist(step) - 0.5)
-         r = next_random_number(this%rng_stream)
+         r = this%rng_stream%next()
          IF (r < a) EXIT
       END DO
 
@@ -516,7 +513,6 @@ CONTAINS
                                         this%mincrawl_section, "MINIMA_TRAJECTORY")
 
       CALL history_finalize(this%history)
-      CALL delete_rng_stream(this%rng_stream)
    END SUBROUTINE mincrawl_finalize
 
 END MODULE glbopt_mincrawl

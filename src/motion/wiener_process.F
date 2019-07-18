@@ -29,10 +29,10 @@ MODULE wiener_process
                                               need_per_atom_wiener_process
    USE metadynamics_types,              ONLY: meta_env_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
-                                              create_rng_stream,&
                                               next_rng_seed,&
-                                              read_rng_stream,&
-                                              rng_record_length
+                                              rng_record_length,&
+                                              rng_stream_type,&
+                                              rng_stream_type_from_record
    USE particle_list_types,             ONLY: particle_list_type
    USE simpar_types,                    ONLY: simpar_type
    USE string_utilities,                ONLY: compress
@@ -107,7 +107,7 @@ CONTAINS
             nparticle_local = local_particles%n_el(iparticle_kind)
             ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local))
             DO iparticle_local = 1, nparticle_local
-               NULLIFY (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
+               ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
             END DO
          END DO
 
@@ -132,9 +132,9 @@ CONTAINS
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                WRITE (UNIT=name, FMT="(A,I8)") "Wiener process for particle", iparticle
                CALL compress(name)
-               CALL create_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)% &
-                                      rng(iparticle_local)%stream, name=name, distribution_type=GAUSSIAN, &
-                                      extended_precision=.TRUE., seed=seed(:, :, iparticle))
+               local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)% &
+                  stream = rng_stream_type(name=name, distribution_type=GAUSSIAN, &
+                                           extended_precision=.TRUE., seed=seed(:, :, iparticle))
             END DO
          END DO
 
@@ -190,10 +190,8 @@ CONTAINS
                                                keyword_name="_DEFAULT_KEYWORD_", &
                                                i_rep_val=iparticle, &
                                                c_val=rng_record)
-                     CALL read_rng_stream(rng_stream=distribution_1d% &
-                                          local_particle_set(iparticle_kind)% &
-                                          rng(iparticle_local)%stream, &
-                                          rng_record=rng_record)
+                     distribution_1d%local_particle_set(iparticle_kind)%rng(iparticle_local)% &
+                        stream = rng_stream_type_from_record(rng_record)
                   END IF
                END DO
             END DO
@@ -227,10 +225,6 @@ CONTAINS
 
       initial_seed = next_rng_seed()
 
-      DO i_c = 1, meta_env%n_colvar
-         NULLIFY (meta_env%rng(i_c)%stream)
-      END DO
-
       ! Each process generates all seeds. The seed generation should be
       ! quite fast and in this way a broadcast is avoided.
 
@@ -248,8 +242,8 @@ CONTAINS
       DO i_c = 1, meta_env%n_colvar
          WRITE (UNIT=name, FMT="(A,I8)") "Wiener process for COLVAR", i_c
          CALL compress(name)
-         CALL create_rng_stream(rng_stream=meta_env%rng(i_c)%stream, name=name, distribution_type=GAUSSIAN, &
-                                extended_precision=.TRUE., seed=seed(:, :, i_c))
+         meta_env%rng(i_c) = rng_stream_type(name=name, distribution_type=GAUSSIAN, &
+                                             extended_precision=.TRUE., seed=seed(:, :, i_c))
       END DO
       DEALLOCATE (seed)
 

@@ -32,9 +32,6 @@ MODULE hfx_load_balance_methods
                                               mp_sync,&
                                               mp_waitall
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
                                               rng_stream_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
@@ -1849,7 +1846,7 @@ CONTAINS
       INTEGER                                            :: i, itmp, j, nstep
       INTEGER(int_8), DIMENSION(:), POINTER              :: my_cost_cpu, tmp_cost, tmp_cpu_cost
       INTEGER, DIMENSION(:), POINTER                     :: tmp_cpu_index, tmp_index
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), ALLOCATABLE                 :: rng_stream
 
       nstep = MAX(1, INT(number_of_processes)/2)
 
@@ -1870,12 +1867,9 @@ CONTAINS
       ! it also avoids degenerate cases where thousands of zero sized tasks
       ! are assigned to the same (least loaded) cpu
       !
-      IF (do_randomize) THEN
-         NULLIFY (rng_stream)
-         CALL create_rng_stream(rng_stream=rng_stream, &
-                                name="uniform_rng", &
-                                distribution_type=UNIFORM)
-      END IF
+      IF (do_randomize) &
+         rng_stream = rng_stream_type(name="uniform_rng", &
+                                      distribution_type=UNIFORM)
 
       DO i = total_number_of_bins, 1, -nstep
          tmp_cpu_cost = my_cost_cpu
@@ -1889,10 +1883,6 @@ CONTAINS
             my_cost_cpu(itmp) = my_cost_cpu(itmp) + bin_costs(tmp_index(i - j + 1))
          ENDDO
       ENDDO
-
-      IF (do_randomize) THEN
-         CALL delete_rng_stream(rng_stream)
-      END IF
 
       DEALLOCATE (tmp_cost, tmp_index, tmp_cpu_cost)
       DEALLOCATE (tmp_cpu_index, my_cost_cpu)
@@ -2538,15 +2528,15 @@ CONTAINS
    SUBROUTINE reshuffle(size, array, rng_stream)
       INTEGER                                            :: size
       INTEGER, DIMENSION(size)                           :: array
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type)                              :: rng_stream
 
       INTEGER                                            :: i, idx1, idx2, tmp
       REAL(dp)                                           :: x
 
       DO i = 1, size*10
-         x = next_random_number(rng_stream)
+         x = rng_stream%next()
          idx1 = INT(x*(size + 1 - 1)) + 1
-         x = next_random_number(rng_stream)
+         x = rng_stream%next()
          idx2 = INT(x*(size + 1 - 1)) + 1
 
          tmp = array(idx1)

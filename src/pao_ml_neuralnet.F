@@ -11,10 +11,7 @@ MODULE pao_ml_neuralnet
    USE kinds,                           ONLY: dp
    USE pao_types,                       ONLY: pao_env_type,&
                                               training_matrix_type
-   USE parallel_rng_types,              ONLY: create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -126,10 +123,8 @@ CONTAINS
       REAL(dp)                                           :: bak, eps, error, error1, error2, num_grad
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: prediction
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: gradient
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type)                              :: rng_stream
       TYPE(training_matrix_type), POINTER                :: training_matrix
-
-      NULLIFY (rng_stream)
 
       ! TODO this could be parallelized over ranks
       DO ikind = 1, SIZE(pao%ml_training_matrices)
@@ -150,15 +145,14 @@ CONTAINS
          ALLOCATE (training_matrix%NN(nlayers, width, width))
 
          ! initialize network with random numbers from -1.0 ... +1.0
-         CALL create_rng_stream(rng_stream, name="pao_nn")
+         rng_stream = rng_stream_type(name="pao_nn")
          DO ilayer = 1, nlayers
          DO i = 1, width
          DO j = 1, width
-            training_matrix%NN(ilayer, i, j) = -1.0_dp + 2.0_dp*next_random_number(rng_stream)
+            training_matrix%NN(ilayer, i, j) = -1.0_dp + 2.0_dp*rng_stream%next()
          ENDDO
          ENDDO
          ENDDO
-         CALL delete_rng_stream(rng_stream)
 
          ! train the network using backpropagation
          ALLOCATE (gradient(nlayers, width, width))

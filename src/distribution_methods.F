@@ -60,9 +60,6 @@ MODULE distribution_methods
                                               molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
                                               rng_stream_type
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -1310,25 +1307,23 @@ CONTAINS
          dvec(3), old_var, rn, scaled_cent(3, ncent), var_cl(ncent)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dmat
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type)                              :: rng_stream
 
       CALL timeset(routineN, handle)
 
       initial_seed = REAL(seed, dp); nat = SIZE(coord, 2)
-      NULLIFY (rng_stream)
       ALLOCATE (dmat(ncent, nat))
 
-      CALL create_rng_stream(rng_stream=rng_stream, &
-                             name="kmeans uniform distribution [0,1]", &
-                             distribution_type=UNIFORM, seed=initial_seed)
+      rng_stream = rng_stream_type(name="kmeans uniform distribution [0,1]", &
+                                   distribution_type=UNIFORM, seed=initial_seed)
 
 ! try to find a clever initial guess with centers being somewhat distributed
-      rn = next_random_number(rng_stream)
+      rn = rng_stream%next()
       ind = CEILING(rn*nat)
       cent_coord(:, 1) = coord(:, ind)
       DO i = 2, ncent
          DO
-            rn = next_random_number(rng_stream)
+            rn = rng_stream%next()
             ind = CEILING(rn*nat)
             cent_coord(:, i) = coord(:, ind)
             devi = HUGE(1.0_dp)
@@ -1337,7 +1332,7 @@ CONTAINS
                dist = SQRT(DOT_PRODUCT(dvec, dvec))
                IF (dist .LT. devi) devi = dist
             END DO
-            rn = next_random_number(rng_stream)
+            rn = rng_stream%next()
             IF (rn .LT. devi**2/169.0) EXIT
          END DO
       END DO
@@ -1381,7 +1376,7 @@ CONTAINS
 
             DO i = 1, ncent
                IF (nat_cl(i) == 0) THEN
-                  rn = next_random_number(rng_stream)
+                  rn = rng_stream%next()
                   scaled_cent(:, i) = scaled_coord(:, CEILING(rn*nat))
                ELSE
                   average(:, i, 1) = average(:, i, 1)/REAL(nat_cl(i), dp)
@@ -1394,8 +1389,6 @@ CONTAINS
             EXIT
          END IF
       END DO
-
-      CALL delete_rng_stream(rng_stream)
 
       CALL timestop(handle)
 

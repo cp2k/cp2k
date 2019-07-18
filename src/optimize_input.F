@@ -45,9 +45,6 @@ MODULE optimize_input
                                               mp_environ,&
                                               mp_sum
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
                                               rng_stream_type
    USE physcon,                         ONLY: bohr
    USE powell,                          ONLY: opt_state_type,&
@@ -116,7 +113,7 @@ CONTAINS
       INTEGER                                            :: handle, i_var
       REAL(KIND=dp)                                      :: random_number, seed(3, 2)
       TYPE(oi_env_type)                                  :: oi_env
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), ALLOCATABLE                 :: rng_stream
 
       CALL timeset(routineN, handle)
 
@@ -126,18 +123,16 @@ CONTAINS
 
       ! if we have been asked to randomize the variables, we do this.
       IF (oi_env%randomize_variables .NE. 0.0_dp) THEN
-         NULLIFY (rng_stream)
          seed = REAL(oi_env%seed, KIND=dp)
-         CALL create_rng_stream(rng_stream, "run_optimize_input", distribution_type=UNIFORM, seed=seed)
+         rng_stream = rng_stream_type("run_optimize_input", distribution_type=UNIFORM, seed=seed)
          DO i_var = 1, SIZE(oi_env%variables, 1)
             IF (.NOT. oi_env%variables(i_var)%fixed) THEN
                ! change with a random percentage the variable
-               random_number = next_random_number(rng_stream)
+               random_number = rng_stream%next()
                oi_env%variables(i_var)%value = oi_env%variables(i_var)%value* &
                                                (1.0_dp + (2*random_number - 1.0_dp)*oi_env%randomize_variables/100.0_dp)
             ENDIF
          ENDDO
-         CALL delete_rng_stream(rng_stream)
       ENDIF
 
       ! proceed to actual methods

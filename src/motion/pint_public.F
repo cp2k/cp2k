@@ -13,8 +13,7 @@
 MODULE pint_public
 
    USE kinds,                           ONLY: dp
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE pint_types,                      ONLY: pint_env_type
 #include "../base/base_uses.f90"
 
@@ -122,7 +121,7 @@ CONTAINS
 !
       INTEGER, INTENT(IN)                                :: n
       REAL(kind=dp), INTENT(IN)                          :: t
-      TYPE(rng_stream_type), POINTER                     :: rng_gaussian
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_gaussian
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
       INTEGER, INTENT(OUT)                               :: nout
 
@@ -177,8 +176,7 @@ CONTAINS
             ! generate new point and save it under j
             DO ic = 1, 3
                xc = (x(3*i1 + ic) + x(3*i2 + ic))/2.0
-               xc = xc + next_random_number(rng_stream=rng_gaussian, &
-                                            variance=vrnc)
+               xc = xc + rng_gaussian%next(variance=vrnc)
                x(3*j + ic) = xc
             END DO
             nout = nout + 1
@@ -220,7 +218,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(kind=dp), INTENT(IN)                          :: v
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
-      TYPE(rng_stream_type), POINTER                     :: rng_gaussian
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_gaussian
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_levy_walk', routineP = moduleN//':'//routineN
 
@@ -233,8 +231,7 @@ CONTAINS
       x(3) = x0(3)
       DO ib = 1, n - 1
          DO ic = 1, 3
-            r = next_random_number(rng_stream=rng_gaussian, &
-                                   variance=1.0_dp)
+            r = rng_gaussian%next(variance=1.0_dp)
             tau_i = (REAL(ib, dp) - 1.0_dp)/REAL(n, dp)
             tau_i1 = (REAL(ib + 1, dp) - 1.0_dp)/REAL(n, dp)
             x(ib*3 + ic) = (x((ib - 1)*3 + ic)*(1.0_dp - tau_i1) + &

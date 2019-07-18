@@ -25,7 +25,6 @@ MODULE helium_worm
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE parallel_rng_types,              ONLY: next_random_number
    USE pint_types,                      ONLY: pint_env_type
 #include "../base/base_uses.f90"
 
@@ -96,11 +95,11 @@ CONTAINS
       IF (helium%worm_allow_open) THEN
          DO ! Exit criterion at the end of the loop
             DO iMC = 1, nMC
-               imove = next_random_number(helium%rng_stream_uniform, 1, helium%worm_all_limit)
+               imove = helium%rng_stream_uniform%next(1, helium%worm_all_limit)
                IF (helium%worm_is_closed) THEN
                   IF ((imove >= helium%worm_centroid_min) .AND. (imove <= helium%worm_centroid_max)) THEN
                      ! centroid move
-                     iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
+                     iatom = helium%rng_stream_uniform%next(1, helium%atoms)
                      CALL worm_centroid_move(pint_env, helium, &
                                              iatom, helium%worm_centroid_drmax, ac)
                      ncentratt = ncentratt + 1
@@ -109,18 +108,18 @@ CONTAINS
                      ! staging is adjusted to conserve these weights
                   ELSE IF ((imove >= helium%worm_centroid_max + 1) .AND. (imove <= helium%worm_open_close_min - 1)) THEN
                      ! staging move
-                     iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
-                     ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     iatom = helium%rng_stream_uniform%next(1, helium%atoms)
+                     ibead = helium%rng_stream_uniform%next(1, helium%beads)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_staging_move(pint_env, helium, &
                                             iatom, ibead, staging_l, ac)
                      nstagatt = nstagatt + 1
                      nstagacc = nstagacc + ac
                   ELSE IF ((imove >= helium%worm_open_close_min) .AND. (imove <= helium%worm_open_close_max)) THEN
                      ! attempt opening of worm
-                     iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
-                     ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     iatom = helium%rng_stream_uniform%next(1, helium%atoms)
+                     ibead = helium%rng_stream_uniform%next(1, helium%beads)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_open_move(pint_env, helium, &
                                          iatom, ibead, staging_l, ac)
                      nopenatt = nopenatt + 1
@@ -132,16 +131,16 @@ CONTAINS
                ELSE ! worm is open
                   IF ((imove >= helium%worm_centroid_min) .AND. (imove <= helium%worm_centroid_max)) THEN
                      ! centroid move
-                     iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
+                     iatom = helium%rng_stream_uniform%next(1, helium%atoms)
                      CALL worm_centroid_move(pint_env, helium, &
                                              iatom, helium%worm_centroid_drmax, ac)
                      ncentratt = ncentratt + 1
                      ncentracc = ncentracc + ac
                   ELSE IF ((imove >= helium%worm_staging_min) .AND. (imove <= helium%worm_staging_max)) THEN
                      ! staging move
-                     iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
-                     ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     iatom = helium%rng_stream_uniform%next(1, helium%atoms)
+                     ibead = helium%rng_stream_uniform%next(1, helium%beads)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_staging_move(pint_env, helium, &
                                             iatom, ibead, staging_l, ac)
                      nstagatt = nstagatt + 1
@@ -149,7 +148,7 @@ CONTAINS
                   ELSE IF ((imove >= helium%worm_fcrawl_min) .AND. (imove <= helium%worm_fcrawl_max)) THEN
                      ! crawl forward
                      DO icrawl = 1, helium%worm_repeat_crawl
-                        staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                        staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                         CALL worm_crawl_move_forward(pint_env, helium, &
                                                      staging_l, ac)
                         ncrawlfwdatt = ncrawlfwdatt + 1
@@ -158,7 +157,7 @@ CONTAINS
                   ELSE IF ((imove >= helium%worm_bcrawl_min) .AND. (imove <= helium%worm_bcrawl_max)) THEN
                      ! crawl backward
                      DO icrawl = 1, helium%worm_repeat_crawl
-                        staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                        staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                         CALL worm_crawl_move_backward(pint_env, helium, &
                                                       staging_l, ac)
                         ncrawlbwdatt = ncrawlbwdatt + 1
@@ -166,20 +165,20 @@ CONTAINS
                      END DO
                   ELSE IF ((imove >= helium%worm_head_min) .AND. (imove <= helium%worm_head_max)) THEN
                      ! move head
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_head_move(pint_env, helium, &
                                          staging_l, ac)
                      nmoveheadatt = nmoveheadatt + 1
                      nmoveheadacc = nmoveheadacc + ac
                   ELSE IF ((imove >= helium%worm_tail_min) .AND. (imove <= helium%worm_tail_max)) THEN
                      ! move tail
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_tail_move(pint_env, helium, &
                                          staging_l, ac)
                      nmovetailatt = nmovetailatt + 1
                      nmovetailacc = nmovetailacc + ac
                   ELSE IF ((imove >= helium%worm_swap_min) .AND. (imove <= helium%worm_swap_max)) THEN
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_swap_move(pint_env, helium, &
                                          helium%atoms, staging_l, ac)
                      npswapacc = npswapacc + ac
@@ -187,7 +186,7 @@ CONTAINS
                      nswapatt = nswapatt + 1
                   ELSE IF ((imove >= helium%worm_open_close_min) .AND. (imove <= helium%worm_open_close_max)) THEN
                      ! attempt closing of worm
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     staging_l = helium%rng_stream_uniform%next(2, helium%worm_staging_l)
                      CALL worm_close_move(pint_env, helium, &
                                           staging_l, ac)
                      ncloseatt = ncloseatt + 1
@@ -220,19 +219,19 @@ CONTAINS
          END DO !attempts loop
       ELSE ! only closed configurations allowed
          DO iMC = 1, nMC
-            imove = next_random_number(helium%rng_stream_uniform, 1, helium%worm_all_limit)
+            imove = helium%rng_stream_uniform%next(1, helium%worm_all_limit)
 
             IF ((imove >= helium%worm_centroid_min) .AND. (imove <= helium%worm_centroid_max)) THEN
                ! centroid move
-               iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
+               iatom = helium%rng_stream_uniform%next(1, helium%atoms)
                CALL worm_centroid_move(pint_env, helium, &
                                        iatom, helium%worm_centroid_drmax, ac)
                ncentratt = ncentratt + 1
                ncentracc = ncentracc + ac
             ELSE IF ((imove >= helium%worm_staging_min) .AND. (imove <= helium%worm_staging_max)) THEN
                ! staging move
-               iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
-               ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
+               iatom = helium%rng_stream_uniform%next(1, helium%atoms)
+               ibead = helium%rng_stream_uniform%next(1, helium%beads)
                CALL worm_staging_move(pint_env, helium, &
                                       iatom, ibead, helium%worm_staging_l, ac)
                nstagatt = nstagatt + 1
@@ -355,7 +354,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
 
       DO ic = 1, 3
-         rtmp = next_random_number(helium%rng_stream_uniform)
+         rtmp = helium%rng_stream_uniform%next()
          dr(ic) = (2.0_dp*rtmp - 1.0_dp)*drmax
       END DO
 
@@ -417,7 +416,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -846,8 +845,6 @@ CONTAINS
 
       partaction = partaction*helium%tau
 
-      RETURN
-
    END FUNCTION worm_centroid_move_inter_action
 
 ! **************************************************************************************************
@@ -886,8 +883,7 @@ CONTAINS
       invstagemass = rk*weight*imass
       ! proposing new positions
       DO idim = 1, 3
-         new_path(idim, 1) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                                variance=helium%tau*invstagemass)
+         new_path(idim, 1) = helium%rng_stream_gaussian%next(variance=helium%tau*invstagemass)
       END DO
       new_path(:, 1) = new_path(:, 1) + weight*(re(:) + rk*rs(:))
 
@@ -899,8 +895,7 @@ CONTAINS
          invstagemass = rk*weight*imass
          ! proposing new positions
          DO idim = 1, 3
-            new_path(idim, istage) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                                        variance=helium%tau*invstagemass)
+            new_path(idim, istage) = helium%rng_stream_gaussian%next(variance=helium%tau*invstagemass)
          END DO
          new_path(:, istage) = new_path(:, istage) + weight*(rk*new_path(:, istage - 1) + re(:))
       END DO
@@ -1025,7 +1020,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -1134,8 +1129,6 @@ CONTAINS
          END DO
       END IF
 
-      RETURN
-
    END SUBROUTINE worm_staging_move
 
 ! **************************************************************************************************
@@ -1196,15 +1189,13 @@ CONTAINS
          ! gro head from startbead
          DO kbead = startbead + 1, endbead - 1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead - 1) + xr
             END DO
          END DO
          ! last grow head bead
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, endbead - 1) + xr
          END DO
       ELSE IF (endbead /= 1) THEN
@@ -1212,28 +1203,24 @@ CONTAINS
          ! grow from startbead
          DO kbead = startbead + 1, helium%beads
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead - 1) + xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%work(idim, endatom, 1) = helium%work(idim, startatom, helium%beads) + xr
          END DO
          ! everything on endatom
          DO kbead = 2, endbead - 1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, endatom, kbead) = helium%work(idim, endatom, kbead - 1) + xr
             END DO
          END DO
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, endatom, endbead - 1) + xr
          END DO
       ELSE ! imagtimewrap and headbead = 1
@@ -1241,15 +1228,13 @@ CONTAINS
          ! grow from startbead
          DO kbead = startbead + 1, helium%beads
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead - 1) + xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, helium%beads) + xr
          END DO
       END IF
@@ -1280,7 +1265,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -1520,7 +1505,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -1701,15 +1686,13 @@ CONTAINS
          ! gro head from startbead
          DO kbead = startbead + 1, endbead - 1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead - 1) + xr
             END DO
          END DO
          ! last grow head bead
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, endbead - 1) + xr
          END DO
       ELSE IF (endbead /= 1) THEN
@@ -1717,28 +1700,24 @@ CONTAINS
          ! grow from startbead
          DO kbead = startbead + 1, helium%beads
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead - 1) + xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%work(idim, endatom, 1) = helium%work(idim, startatom, helium%beads) + xr
          END DO
          ! everything on endatom
          DO kbead = 2, endbead - 1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, endatom, kbead) = helium%work(idim, endatom, kbead - 1) + xr
             END DO
          END DO
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, endatom, endbead - 1) + xr
          END DO
       ELSE ! imagtimewrap and headbead = 1
@@ -1746,15 +1725,13 @@ CONTAINS
          ! grow from startbead
          DO kbead = startbead + 1, helium%beads
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead - 1) + xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, helium%beads) + xr
          END DO
       END IF
@@ -1778,7 +1755,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -1961,8 +1938,7 @@ CONTAINS
          ! gro tail from endbead to startbead (confusing eh?)
          DO kbead = endbead - 1, startbead, -1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead + 1) + xr
             END DO
          END DO
@@ -1971,24 +1947,21 @@ CONTAINS
          ! grow from endbead
          DO kbead = endbead - 1, 1, -1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, endatom, kbead) = helium%work(idim, endatom, kbead + 1) + xr
             END DO
          END DO
 
          ! over imaginary time boundary
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%work(idim, startatom, helium%beads) = helium%work(idim, endatom, 1) + xr
          END DO
 
          ! rest on startatom
          DO kbead = helium%beads - 1, startbead, -1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead + 1) + xr
             END DO
          END DO
@@ -2013,7 +1986,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -2222,15 +2195,13 @@ CONTAINS
          ! gro head from startbead
          DO kbead = helium%worm_bead_idx + 1, helium%worm_bead_idx_work - 1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead - 1) + xr
             END DO
          END DO
          ! last grow head bead
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx, helium%worm_bead_idx_work - 1) + xr
          END DO
       ELSE IF (helium%worm_bead_idx_work /= 1) THEN
@@ -2238,28 +2209,24 @@ CONTAINS
          ! grow from startbead
          DO kbead = helium%worm_bead_idx + 1, helium%beads
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead - 1) + xr
             END DO
          END DO
          ! bead one of endatom relative to last on helium%worm_atom_idx
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%work(idim, helium%worm_atom_idx_work, 1) = helium%work(idim, helium%worm_atom_idx, helium%beads) + xr
          END DO
          ! everything on endatom
          DO kbead = 2, helium%worm_bead_idx_work - 1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx_work, kbead) = helium%work(idim, helium%worm_atom_idx_work, kbead - 1) + xr
             END DO
          END DO
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx_work, helium%worm_bead_idx_work - 1) + xr
          END DO
       ELSE ! imagtimewrap and headbead = 1
@@ -2267,15 +2234,13 @@ CONTAINS
          ! grow from startbead
          DO kbead = helium%worm_bead_idx + 1, helium%beads
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead - 1) + xr
             END DO
          END DO
          ! bead one of endatom relative to last on helium%worm_atom_idx
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx, helium%beads) + xr
          END DO
       END IF
@@ -2301,7 +2266,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -2519,8 +2484,7 @@ CONTAINS
          ! gro tail from endbead to startbead (confusing eh?)
          DO kbead = helium%worm_bead_idx - 1, helium%worm_bead_idx_work, -1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead + 1) + xr
             END DO
 
@@ -2530,24 +2494,21 @@ CONTAINS
          ! grow from endbead
          DO kbead = helium%worm_bead_idx - 1, 1, -1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead + 1) + xr
             END DO
          END DO
 
          ! over imaginary time boundary
          DO idim = 1, 3
-            xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                    variance=helium%hb2m*helium%tau)
+            xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
             helium%work(idim, helium%worm_atom_idx_work, helium%beads) = helium%work(idim, helium%worm_atom_idx, 1) + xr
          END DO
 
          ! rest on startatom
          DO kbead = helium%beads - 1, helium%worm_bead_idx_work, -1
             DO idim = 1, 3
-               xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                       variance=helium%hb2m*helium%tau)
+               xr = helium%rng_stream_gaussian%next(variance=helium%hb2m*helium%tau)
                helium%work(idim, helium%worm_atom_idx_work, kbead) = helium%work(idim, helium%worm_atom_idx_work, kbead + 1) + xr
             END DO
          END DO
@@ -2573,7 +2534,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF
@@ -2795,7 +2756,7 @@ CONTAINS
       forwarddensmatsum = SUM(forwarddensmat)
 
       ! Select an atom with its corresponding probability
-      rtmp = next_random_number(helium%rng_stream_uniform)*forwarddensmatsum
+      rtmp = helium%rng_stream_uniform%next()*forwarddensmatsum
       fendatom = 1
       DO WHILE (rtmp >= forwarddensmat(fendatom))
          rtmp = rtmp - forwarddensmat(fendatom)
@@ -2941,7 +2902,7 @@ CONTAINS
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
             should_reject = .TRUE.
          ELSE
-            rtmp = next_random_number(helium%rng_stream_uniform)
+            rtmp = helium%rng_stream_uniform%next()
             IF (EXP(sdiff) < rtmp) THEN
                should_reject = .TRUE.
             END IF

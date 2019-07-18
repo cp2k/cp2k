@@ -73,8 +73,6 @@ MODULE integrator
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type,&
                                               update_particle_set
@@ -154,7 +152,6 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermal_region_type), POINTER                 :: thermal_region
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
@@ -162,7 +159,7 @@ CONTAINS
 
       NULLIFY (cell, para_env, gci, force_env)
       NULLIFY (atomic_kinds, local_particles, subsys, local_molecules, molecule_kinds, molecules)
-      NULLIFY (molecule_kind_set, molecule_set, particles, particle_set, rng_stream, simpar, virial)
+      NULLIFY (molecule_kind_set, molecule_set, particles, particle_set, simpar, virial)
       NULLIFY (thermal_region, thermal_regions, itimes)
 
       CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env, &
@@ -253,11 +250,12 @@ CONTAINS
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
             IF (do_langevin(iparticle)) THEN
                sigma = var_w(iparticle)*mass
-               rng_stream => local_particles%local_particle_set(iparticle_kind)% &
-                             rng(iparticle_local)%stream
-               w(1, iparticle) = next_random_number(rng_stream, variance=sigma)
-               w(2, iparticle) = next_random_number(rng_stream, variance=sigma)
-               w(3, iparticle) = next_random_number(rng_stream, variance=sigma)
+               ASSOCIATE (rng_stream=>local_particles%local_particle_set(iparticle_kind)% &
+                          rng(iparticle_local))
+                  w(1, iparticle) = rng_stream%stream%next(variance=sigma)
+                  w(2, iparticle) = rng_stream%stream%next(variance=sigma)
+                  w(3, iparticle) = rng_stream%stream%next(variance=sigma)
+               END ASSOCIATE
             END IF
          END DO
       END DO
@@ -744,7 +742,6 @@ CONTAINS
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
                                                             shell_particle_set
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_fast, &
                                                             thermostat_shell, thermostat_slow
@@ -831,8 +828,7 @@ CONTAINS
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (force_env%meta_env%langevin) THEN
             DO ivar = 1, force_env%meta_env%n_colvar
-               rng_stream => force_env%meta_env%rng(ivar)%stream
-               rand(ivar) = next_random_number(rng_stream)
+               rand(ivar) = force_env%meta_env%rng(ivar)%next()
             ENDDO
             CALL metadyn_velocities_colvar(force_env, rand)
          ENDIF
@@ -956,7 +952,6 @@ CONTAINS
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
                                                             shell_particle_set
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_part, &
                                                             thermostat_shell
@@ -1040,8 +1035,7 @@ CONTAINS
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (force_env%meta_env%langevin) THEN
             DO ivar = 1, force_env%meta_env%n_colvar
-               rng_stream => force_env%meta_env%rng(ivar)%stream
-               rand(ivar) = next_random_number(rng_stream)
+               rand(ivar) = force_env%meta_env%rng(ivar)%next()
             ENDDO
             CALL metadyn_velocities_colvar(force_env, rand)
          ENDIF
@@ -1208,7 +1202,6 @@ CONTAINS
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
                                                             shell_particle_set
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermostat_type), POINTER                     :: thermostat_baro, thermostat_part, &
                                                             thermostat_shell
@@ -1324,8 +1317,7 @@ CONTAINS
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (force_env%meta_env%langevin) THEN
             DO ivar = 1, force_env%meta_env%n_colvar
-               rng_stream => force_env%meta_env%rng(ivar)%stream
-               rand(ivar) = next_random_number(rng_stream)
+               rand(ivar) = force_env%meta_env%rng(ivar)%next()
             ENDDO
             CALL metadyn_velocities_colvar(force_env, rand)
          ENDIF

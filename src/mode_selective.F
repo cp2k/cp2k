@@ -42,7 +42,6 @@ MODULE mode_selective
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_bcast
    USE molden_utils,                    ONLY: write_vibrations_molden
-   USE parallel_rng_types,              ONLY: next_random_number
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: massunit,&
                                               vibfac
@@ -370,7 +369,7 @@ CONTAINS
             DO j = 1, natoms
                DO k = 1, 3
                   jj = (map_atoms(j) - 1)*3 + k
-                  ms_vib%b_vec(jj, i) = ABS(next_random_number(globenv%gaussian_rng_stream))
+                  ms_vib%b_vec(jj, i) = ABS(globenv%gaussian_rng_stream%next())
                END DO
             END DO
             norm = SQRT(DOT_PRODUCT(ms_vib%b_vec(:, i), ms_vib%b_vec(:, i)))

@@ -32,7 +32,6 @@ MODULE glbopt_worker
    USE md_run,                          ONLY: qs_mol_dyn
    USE mdctrl_types,                    ONLY: glbopt_mdctrl_data_type,&
                                               mdctrl_type
-   USE parallel_rng_types,              ONLY: reset_to_next_rng_substream
    USE physcon,                         ONLY: angstrom,&
                                               kelvin
    USE swarm_message,                   ONLY: swarm_message_add,&
@@ -116,7 +115,7 @@ CONTAINS
 
       ! We want different random-number-streams for each worker
       DO i = 1, worker_id
-         CALL reset_to_next_rng_substream(worker%globenv%gaussian_rng_stream)
+         CALL worker%globenv%gaussian_rng_stream%reset_to_next_substream()
       END DO
 
       CALL cp_subsys_get(worker%subsys, natom=worker%n_atoms)
@@ -385,4 +384,3 @@ CONTAINS
    END SUBROUTINE glbopt_worker_finalize
 
 END MODULE glbopt_worker
-

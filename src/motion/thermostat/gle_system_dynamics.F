@@ -28,10 +28,8 @@ MODULE gle_system_dynamics
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              read_rng_stream,&
-                                              rng_record_length,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_record_length,&
+                                              rng_stream_type_from_record
    USE particle_types,                  ONLY: particle_type
    USE simpar_types,                    ONLY: simpar_type
    USE thermostat_mapping,              ONLY: thermostat_mapping_region
@@ -93,12 +91,10 @@ CONTAINS
       REAL(dp)                                           :: alpha, beta, rr
       REAL(dp), DIMENSION(:, :), POINTER                 :: a_mat, e_tmp, h_tmp, s_tmp
       TYPE(map_info_type), POINTER                       :: map_info
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CALL timeset(routineN, handle)
       my_shell_adiabatic = .FALSE.
       IF (PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
-      NULLIFY (rng_stream)
       present_vel = PRESENT(vel)
       ndim = gle%ndim
       ALLOCATE (s_tmp(ndim, gle%loc_num_gle))
@@ -122,12 +118,11 @@ CONTAINS
          IF (gle%nvt(ideg)%nkt == 0.0_dp) CYCLE
          gle%nvt(ideg)%s(1) = map_info%s_kin(imap)
          s_tmp(1, imap) = map_info%s_kin(imap)
-         rng_stream => gle%nvt(ideg)%gaussian_rng_stream
-         rr = next_random_number(rng_stream)
+         rr = gle%nvt(ideg)%gaussian_rng_stream%next()
          e_tmp(1, imap) = rr
          DO iadd = 2, ndim
             s_tmp(iadd, imap) = gle%nvt(ideg)%s(iadd)
-            rr = next_random_number(rng_stream)
+            rr = gle%nvt(ideg)%gaussian_rng_stream%next()
             e_tmp(iadd, imap) = rr
          END DO
       END DO
@@ -502,8 +497,7 @@ CONTAINS
                   ind = map_info%index(i)
                   CALL section_vals_val_get(section_vals=work_section, keyword_name="_DEFAULT_KEYWORD_", &
                                             i_rep_val=ind, c_val=rng_record)
-                  CALL read_rng_stream(rng_stream=gle%nvt(i)%gaussian_rng_stream, &
-                                       rng_record=rng_record)
+                  gle%nvt(i)%gaussian_rng_stream = rng_stream_type_from_record(rng_record)
                END DO
             ELSE
                CALL cp_abort(__LOCATION__, &
@@ -528,14 +522,12 @@ CONTAINS
 
       INTEGER                                            :: i, j
       REAL(dp)                                           :: rr(gle%ndim), cc(gle%ndim, gle%ndim)
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CALL gle_cholesky_stab(gle%c_mat, cc, gle%ndim)
       DO i = 1, gle%loc_num_gle
-         rng_stream => gle%nvt(i)%gaussian_rng_stream
          DO j = 1, gle%ndim
             ! here s should be properly initialized, when it is not read from restart
-            rr(j) = next_random_number(rng_stream)
+            rr(j) = gle%nvt(i)%gaussian_rng_stream%next()
          END DO
          gle%nvt(i)%s = MATMUL(cc, rr)
       END DO

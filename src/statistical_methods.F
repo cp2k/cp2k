@@ -15,7 +15,6 @@ MODULE statistical_methods
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: dp
-   USE parallel_rng_types,              ONLY: next_random_number
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -456,12 +455,11 @@ CONTAINS
          NULLIFY (xdata)
          ALLOCATE (xdata(n))
          DO i = 1, 10
-            xdata(i) = 5.0_dp - REAL(i, KIND=dp)/2.0_dp + 0.1* &
-                       next_random_number(globenv%gaussian_rng_stream)
+            xdata(i) = 5.0_dp - REAL(i, KIND=dp)/2.0_dp + 0.1*globenv%gaussian_rng_stream%next()
             WRITE (3, *) xdata(i)
          END DO
          DO i = 11, n
-            xdata(i) = 0.1*next_random_number(globenv%gaussian_rng_stream)
+            xdata(i) = 0.1*globenv%gaussian_rng_stream%next()
          END DO
 
          ! Test for trend

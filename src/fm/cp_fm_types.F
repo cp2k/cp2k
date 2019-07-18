@@ -31,11 +31,6 @@ MODULE cp_fm_types
         cp2k_is_parallel, mp_allgather, mp_any_source, mp_bcast, mp_irecv, mp_isend, mp_max, &
         mp_proc_null, mp_recv, mp_request_null, mp_send, mp_sum, mp_waitall
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              get_rng_stream,&
-                                              random_numbers,&
-                                              reset_to_next_rng_substream,&
                                               rng_stream_type
 #include "../base/base_uses.f90"
 
@@ -299,7 +294,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buff
       REAL(KIND=dp), DIMENSION(3, 2), SAVE               :: seed
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
-      TYPE(rng_stream_type), POINTER                     :: rng
+      TYPE(rng_stream_type)                              :: rng
 
       CALL timeset(routineN, handle)
 
@@ -311,9 +306,8 @@ CONTAINS
       ! guarantee same seed over all tasks
       CALL mp_bcast(seed, 0, matrix%matrix_struct%para_env%group)
 
-      NULLIFY (rng)
-      CALL create_rng_stream(rng, "cp_fm_init_random_stream", distribution_type=UNIFORM, &
-                             extended_precision=.TRUE., seed=seed)
+      rng = rng_stream_type("cp_fm_init_random_stream", distribution_type=UNIFORM, &
+                            extended_precision=.TRUE., seed=seed)
 
       CPASSERT(.NOT. matrix%use_sp)
 
@@ -339,11 +333,11 @@ CONTAINS
       DO icol_local = 1, ncol_local
          CPASSERT(col_indices(icol_local) > icol_global)
          DO
-            CALL reset_to_next_rng_substream(rng)
+            CALL rng%reset_to_next_substream()
             icol_global = icol_global + 1
             IF (icol_global == col_indices(icol_local)) EXIT
          ENDDO
-         CALL random_numbers(buff, rng)
+         CALL rng%fill(buff)
          DO irow_local = 1, nrow_local
             local_data(irow_local, icol_local) = buff(row_indices(irow_local))
          ENDDO
@@ -352,8 +346,7 @@ CONTAINS
       DEALLOCATE (buff)
 
       ! store seed before deletion (unclear if this is the proper seed)
-      CALL get_rng_stream(rng, ig=seed)
-      CALL delete_rng_stream(rng)
+      CALL rng%get(ig=seed)
 
       CALL timestop(handle)
 
