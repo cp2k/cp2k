@@ -97,7 +97,7 @@ MODULE input_cp2k_dft
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
         xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip, do_hfx_potential_coulomb, &
-        do_hfx_potential_truncated, do_hfx_potential_short, xas_tdp_para_atom, xas_tdp_para_grid
+        do_hfx_potential_truncated, do_hfx_potential_short, xas_tdp_diag_std, xas_tdp_diag_syevr
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7885,7 +7885,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "//&
                           "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=10, n_subsections=5, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=5, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7948,24 +7948,7 @@ CONTAINS
                           usage="QUADRUPOLE {logical}", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARALLELIZATION", &
-                          variants=s2a("PARA", "PARALLEL"), &
-                          description="How the parallelization of xc kernel is treated.", &
-                          usage="PARALLELIZATION {string}", &
-                          default_i_val=xas_dip_vel, &
-                          enum_c_vals=s2a("BY_ATOM", "BY_GRID"), &
-                          enum_desc=s2a("The excited atoms are distributed over the processors " //&
-                                        "and treated independently. Better performance if there" //&
-                                        "are many excited atoms with smaller grids.", &
-                                        "The excited atoms are treated in a serial manner, but " //&
-                                        "all grid operations (mapping the density, integrating, ...)" //&
-                                        "are distributed over the processors. Better performance "//&
-                                        "is there are fewer excited atoms and finer grids."), & 
-                          enum_i_vals=(/xas_tdp_para_atom, xas_tdp_para_grid/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+      CALL keyword_release(keyword) 
 
 !  The donor state subsection
       
@@ -8040,7 +8023,7 @@ CONTAINS
                           variants=(/"SOC"/), &
                           description="Whether spin-orbit coupling should be added. " // &
                                       "Note: only applies for spin-restricted calculations with "//&
-                                      "or singlet and triplet excitations OR spin-unrestricted "//&
+                                      "singlet and triplet excitations OR spin-unrestricted "//&
                                       "calculations with both spin-conserving and spin-flip.", &
                           usage="SOC {logical}", &
                           default_l_val=.FALSE.)
@@ -8072,7 +8055,7 @@ CONTAINS
                           description="Set the choice of method and parameters for solving the "//&
                                       "XAS TDP eigenvalue problem.", &
                           n_keywords=2, &
-                          n_subsections=1, &
+                          n_subsections=0, &
                           repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="N_EXCITED", &
@@ -8086,54 +8069,22 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FULL_DIAG", &
-                          description="Whether the eigenvalue problem should be solved using standard"// &
-                                      "direct diagonalization routines for full matrices. Non-TDA"// &
-                                      "(full-TDDFT) XAS TDP can only be solved this way. Note: "// &
-                                      "all eigenvalues are computed and only N_EXCITED lowest are kept.", &
-                          usage="FULL_DIAG {logical}", &
-                          default_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="DIAGONALIZATION_TYPE", &
+                          variants=s2a("DIAG_TYPE", "DIAG"), &
+                          description="Which digonalization procedure to use", &
+                          usage="DIAGONALIZATION_TYPE {string}", &
+                          enum_c_vals=s2a("STD", "SYEVR"), &
+                          enum_desc=s2a("The standard used everywhere else in CP2K (usually ELPA),"//&
+                                        "all eigenvectors are computed but only N_EXCITED are kept.",&
+                                        "Using the PDSYEVR routine of ScalaPACK which allows to "//&
+                                        "only solve for N_EXCITED eigenvectors. Can be considerably"//& 
+                                        "faster than the standard for large problems, but might"//&
+                                        "crash for smaller problems due to a ScalaPACK bug (PDORMTR)"//&
+                                        "Requires version 2 of ScalaPACK"), &
+                          enum_i_vals=(/xas_tdp_diag_std, xas_tdp_diag_syevr/), &
+                          default_i_val=xas_tdp_diag_std)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
-      CALL section_create(subsubsection, __LOCATION__, name="OT_DIAG", &
-                          description="Defines a set of parameters in case the OT (orbital " // &
-                                      "transformation) iterative eigensolver should be used. " // &
-                                      "The parameters that are not defined here are set to defaults"// &
-                                      "according to SCF%DIAGONALIZATION%OT. Better convergence "// &
-                                      "is reached if there is an energy gap between the N_EXCITED"//& 
-                                      "and the N_EXCITED+1 LUMOs. No preconditioner is used."//&
-                                      "Run a CHECK_ONLY calculation for optimal values of N_EXCITEED", &
-                                      n_keywords=3, &
-                                      n_subsections=0, &
-                                      repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
-                          description="The maximum number of iterative steps allowed.", &
-                          usage="MAX_ITER {integer}", &
-                          default_i_val=1000)
-      CALL section_add_keyword(subsubsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
-                          description="Required accuracy in iterative OT diagonalization.", &
-                          usage="EPS_ITER {real}", &
-                          default_r_val=1.0E-6_dp)
-      CALL section_add_keyword(subsubsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MINIMIZER", &
-                          description="The minimizer to be used in the OT diagonalization.", &
-                          usage="MINIMIZER {string}", &
-                          default_i_val=ot_mini_cg, &
-                          enum_c_vals=s2a("CG", "DIIS"), &
-                          enum_desc=s2a("CG: safer", "DIIS: faster"), &
-                          enum_i_vals=(/ot_mini_cg, ot_mini_diis/))
-      CALL section_add_keyword(subsubsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_add_subsection(subsection, subsubsection)
-      CALL section_release(subsubsection)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -8142,9 +8093,22 @@ CONTAINS
 !  The KERNEL subsection
       CALL section_create(subsection, __LOCATION__, name="KERNEL", &
                           description="Defines how the kernel is built in terms of functionals.", &
-                          n_keywords=1, &
+                          n_keywords=2, &
                           n_subsections=1, &
                           repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NPROCS_GRID", &
+                          variants=s2a("BATCH_SIZE", "NPROCS_PER_GRID"), &
+                          description="The MPI processes are split into batches of size NPROCS_GRID "//&
+                                      "for the parallel treatment of the XC kernel. The excited "//&
+                                      "atoms are distributed over the batches and their radial " //&
+                                      "grids are split over the procs of the griven batch."//&
+                                      "Ideally, NPROCS_GRID should be divisor of the total number"//&
+                                      "of MPI ranks.", &
+                          usage="NPROCS_GRID {integer}", &
+                          default_i_val=1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RI_REGION", &
                           variants=(/"RI_RADIUS"/), &

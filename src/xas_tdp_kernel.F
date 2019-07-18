@@ -24,16 +24,10 @@ MODULE xas_tdp_kernel
         dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_symmetric
    USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE input_constants,                 ONLY: xas_tdp_para_grid
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_waitall
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
+   USE message_passing,                 ONLY: mp_bcast, mp_isend, mp_irecv, mp_waitall
+   USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env 
+   USE qs_kind_types,                   ONLY: get_qs_kind, qs_kind_type
    USE qs_o3c_methods,                  ONLY: contract3_o3c
    USE qs_o3c_types,                    ONLY: &
         get_o3c_container, get_o3c_iterator_info, get_o3c_vec, o3c_container_type, o3c_iterate, &
@@ -81,29 +75,28 @@ CONTAINS
    SUBROUTINE kernel_coulomb_xc(coul_ker, xc_ker, dist, blk_size, donor_state, xas_tdp_env, &
                                 xas_tdp_control, qs_env)
 
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: coul_ker
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: xc_ker
-      TYPE(dbcsr_distribution_type), POINTER             :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size
-      TYPE(donor_state_type), POINTER                    :: donor_state
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_type), INTENT(INOUT)                 :: coul_ker
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: xc_ker
+      TYPE(dbcsr_distribution_type), POINTER          :: dist
+      INTEGER, DIMENSION(:), POINTER                  :: blk_size
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER              :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kernel_coulomb_xc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = "kernel_coulomb_xc", routineP = moduleN//":"//routineN
 
-      INTEGER                                            :: bo(2), handle, i, iex, ip, lb, natom, &
-                                                            ndo_mo, ndo_so, nex_atom, nsgfp, &
-                                                            ri_atom, source, ub
-      LOGICAL                                            :: do_coulomb, do_sc, do_sf, do_sg, do_tp, &
-                                                            do_xc, found
-      REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: contr1_int
+      INTEGER                                         :: handle, ndo_mo, ri_atom, iex, &
+                                                         natom, nsgfp, source, nex_atom, bo(2),&
+                                                         ndo_so, i, ub, lb, nbatch, ibatch
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: contr1_int
+      REAL(dp), DIMENSION(:,:), POINTER               :: PQ
+      TYPE(dbcsr_distribution_type), POINTER          :: dbcsr_dist
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      LOGICAL                                         :: found, do_coulomb, do_xc, do_sg, do_tp, &
+                                                         do_sc, do_sf
 
-      NULLIFY (contr1_int, PQ, dbcsr_dist, para_env)
+      NULLIFY(contr1_int, PQ, dbcsr_dist, para_env)
 
 !  Initialization
       ndo_mo = donor_state%ndo_mo
@@ -116,7 +109,6 @@ CONTAINS
       ri_atom = donor_state%at_index
       CALL get_qs_env(qs_env, natom=natom, dbcsr_dist=dbcsr_dist, para_env=para_env)
       do_coulomb = xas_tdp_control%do_coulomb
-      IF (xas_tdp_control%para == xas_tdp_para_grid) xas_tdp_env%fxc_avail = .TRUE.
 
 !  If no Coulomb nor xc, simply exit
       IF ((.NOT. do_coulomb) .AND. (.NOT. do_xc)) RETURN
@@ -147,15 +139,18 @@ CONTAINS
             nsgfp = SIZE(PQ, 1)
             CALL get_qs_env(qs_env, para_env=para_env)
             found = .FALSE.
+            nbatch = para_env%num_pe/xas_tdp_control%batch_size
+            IF (nbatch*xas_tdp_control%batch_size .NE. para_env%num_pe) nbatch = nbatch+1
             nex_atom = SIZE(xas_tdp_env%ex_atom_indices)
-            DO ip = 0, para_env%num_pe-1
 
-               bo = get_limit(nex_atom, para_env%num_pe, ip)
+            DO ibatch = 0, nbatch-1
+
+               bo = get_limit(nex_atom, nbatch, ibatch)
                DO iex = bo(1), bo(2)
 
                   IF (xas_tdp_env%ex_atom_indices(iex) == ri_atom) THEN
-                     source = ip
-                     found = .TRUE.
+                     source = ibatch*xas_tdp_control%batch_size !fxc is on all procs of the batch, 
+                     found = .TRUE.                             !but simply take the first
                      EXIT
                   END IF
                END DO !iex

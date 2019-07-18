@@ -634,8 +634,8 @@ MODULE input_constants
                                                xas_tdp_by_kind = 2, &
                                                xas_tdp_roks = 1, &
                                                xas_tdp_uks = 2, &
-                                               xas_tdp_para_atom = 1, &
-                                               xas_tdp_para_grid = 2
+                                               xas_tdp_diag_std = 1, &
+                                               xas_tdp_diag_syevr = 2
 
    ! Form of dipole operator for TDDFPT oscillator strength calculation
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_dipole_berry = 1, &

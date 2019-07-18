@@ -9,10 +9,11 @@
 ! **************************************************************************************************
 
 MODULE xas_tdp_methods
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
-                                              arnoldi_ev,&
-                                              deallocate_arnoldi_data,&
-                                              get_selected_ritz_val,&
+   USE admm_types,                      ONLY: admm_type
+   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues, &
+                                              admm_uncorrect_for_eigenvalues
+   USE arnoldi_api,                     ONLY: arnoldi_data_type, arnoldi_ev,&
+                                              deallocate_arnoldi_data, get_selected_ritz_val, &
                                               setup_arnoldi_data
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -52,13 +53,15 @@ MODULE xas_tdp_methods
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE hfx_libint_wrapper,              ONLY: cp_libint_static_init
-   USE input_constants,                 ONLY: &
-        do_hfX_potential_short, do_hfx_potential_coulomb, do_hfx_potential_truncated, do_loc_none, &
-        op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
-        tddfpt_triplet, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, xas_dip_vel, &
-        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_para_atom
-   USE input_section_types,             ONLY: section_vals_duplicate,&
-                                              section_vals_get,&
+   USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
+                                              do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
+                                              op_loc_berry, tddfpt_singlet, tddfpt_spin_cons, &
+                                              tddfpt_triplet, xas_tdp_uks, xas_tdp_roks, &
+                                              general_roks, high_spin_roks, state_loc_list, &
+                                              tddfpt_spin_flip, do_hfx_potential_coulomb, &
+                                              xas_dip_vel, xas_dip_len, do_hfx_potential_truncated,&
+                                              do_hfX_potential_short
+   USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
                                               section_vals_release,&
@@ -140,6 +143,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp', routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle, ikind, iat, istate, tmp_index,&
+                                                            current_state_index, output_unit, &
+                                                            iatom, ispin
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(len=2)                                   :: symbol_of_kind
       INTEGER :: current_state_index, current_state_index, current_state_index, handle, handle, &
          handle, iat, iat, iat, iatom, iatom, ikind, ikind, ikind, istate, istate, istate, &
@@ -152,11 +161,13 @@ CONTAINS
       TYPE(donor_state_type), POINTER                    :: current_state
       TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      LOGICAL                                            :: do_os
+      TYPE(admm_type), POINTER                           :: admm_env
 
-      NULLIFY (xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
-      NULLIFY (xas_atom_env, dft_control)
+      NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
+      NULLIFY(xas_atom_env, dft_control, matrix_ks, admm_env)
 
       CALL timeset(routineN, handle)
 
@@ -190,7 +201,7 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          IF (xas_tdp_control%check_only) THEN
-            CPWARN("This is a CHECK_ONLY run for donor MOs (and possibly guess LUMOs) verification")
+            CPWARN("This is a CHECK_ONLY run for donor MOs verification")
          END IF
       END IF
 
@@ -234,7 +245,7 @@ CONTAINS
       END IF
       CALL write_mos_to_ex_atoms_association(xas_tdp_env, xas_tdp_control, qs_env)
 
-!  If CHECK_ONLY run, check the donor MOs and the guess LUMOs
+!  If CHECK_ONLY run, check the donor MOs 
       IF (xas_tdp_control%check_only) CALL print_checks(xas_tdp_env, xas_tdp_control, qs_env)
 
 !  If not simply exact exchange, setup a xas_atom_env and compute the xc integrals on the atomic grids
@@ -394,6 +405,14 @@ CONTAINS
          END DO ! atom of kind
       END DO ! kind
 
+!  Return to ususal KS matrix
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, matrix_ks=matrix_ks, admm_env=admm_env)
+         DO ispin = 1, dft_control%nspins
+            CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
+         END DO
+      END IF
+
 !  Clean-up
       CALL xas_tdp_env_release(xas_tdp_env)
       IF (output_unit > 0) THEN
@@ -443,12 +462,17 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: dft_section, loc_section, xas_tdp_section
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      REAL(dp)                                           :: fact
+      LOGICAL                                            :: do_uks, do_os, unique
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(admm_type), POINTER                           :: admm_env
 
-      NULLIFY (dft_section, xas_tdp_section, at_kind_set, ind_of_kind, &
-               dft_control)
-      NULLIFY (qs_loc_env, loc_section, mos, particle_set, rho, rho_ao, mo_evals, cell)
-      NULLIFY (mo_coeff, matrix_ks)
+      NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, qs_kind_set, dft_control)
+      NULLIFY(qs_loc_env, loc_section, mos, particle_set, rho, rho_ao, mo_evals, cell)
+      NULLIFY(mo_coeff, scf_control, matrix_ks, admm_env)
 
 !  XAS TDP control type initialization
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -577,8 +601,16 @@ CONTAINS
          CALL donor_state_create(xas_tdp_env%donor_states(i))
       END DO
 
-!  In case of ground state OT optimization, compute the MO eigenvalues => we need them. The arrays
-!  are allocated anyways so the only cost is that of a MM
+!  In case of ADMM, for the whole duration of the XAS_TDP, we need the total KS matrix
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env, matrix_ks=matrix_ks)
+
+         DO ispin = 1, dft_control%nspins
+            CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
+         END DO
+      END IF
+
+!  In case of ground state OT optimization, compute the MO eigenvalues and get canonical MOs
       IF (qs_env%scf_env%method == ot_method_nr) THEN
 
          CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks)
@@ -697,11 +729,6 @@ CONTAINS
          END DO
       END IF
 
-!  Computing the first LUMOs for guesses in case of OT eigensolver
-      IF (.NOT. xas_tdp_control%full_diag) THEN
-         CALL make_lumo_guess(xas_tdp_env, xas_tdp_control, qs_env)
-      END IF
-
 !  Check that everything is allowed
       CALL safety_check(xas_tdp_control)
 
@@ -764,10 +791,6 @@ CONTAINS
 
          IF (xas_tdp_control%do_spin_flip) THEN
             CPABORT("Spin-flip kernel only implemented for Tamm-Dancoff approximation")
-         END IF
-
-         IF (.NOT. xas_tdp_control%full_diag) THEN
-            CPABORT("Non-TDA (full TDDFT) calculation only available with stendard fm diagonalization")
          END IF
 
       END IF
@@ -860,13 +883,8 @@ CONTAINS
             "XAS_TDP| RI Region's Radius: ", xas_tdp_control%ri_radius*angstrom, " Ang"
 
          !parallelization scheme
-         IF (xas_tdp_control%para == xas_tdp_para_atom) THEN
-            WRITE (UNIT=ou, FMT="(T3,A)") &
-               "XAS_TDP| Parallelization scheme for XC kernel: BY_ATOM"
-         ELSE
-            WRITE (UNIT=ou, FMT="(T3,A)") &
-               "XAS_TDP| Parallelization scheme for XC kernel: BY_GRID"
-         END IF
+         WRITE(UNIT=ou, FMT="(T3,A,I4,A)") &
+            "XAS_TDP| Excited atoms distributed on batches of ", xas_tdp_control%batch_size, " procs"
 
          CALL libxc_version_info(tmpStr)
          WRITE (UNIT=ou, FMT="(T3,A,A,/,T3,A,/)") &
@@ -911,109 +929,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_info
-
-!> *************************************************************************************************
-!> \brief Computed the first N_EXCITED LUMOs for the OT eigensolver guesses
-!> \param xas_tdp_env ...
-!> \param xas_tdp_control ...
-!> \param qs_env ...
-!> \note Uses stendard diagonalization. Do not use the stendard make_lumo subroutine as it uses
-!>       the OT eigensolver and there is no guarantee that it will converge fast
-!> *************************************************************************************************
-   SUBROUTINE make_lumo_guess(xas_tdp_env, xas_tdp_control, qs_env)
-
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo_guess', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin, minel, nao, &
-                                                            nelec_spin(2), nevals(2), nocc(2), &
-                                                            nspins
-      LOGICAL                                            :: do_os
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, lumo_struct
-      TYPE(cp_fm_type), POINTER                          :: amatrix, bmatrix, evecs, work_fm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-
-      NULLIFY (matrix_ks, matrix_s, para_env, blacs_env)
-      NULLIFY (lumo_struct, amatrix, bmatrix, work_fm, fm_struct, evecs)
-
-      CALL timeset(routineN, handle)
-
-      do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
-      nspins = 1; IF (do_os) nspins = 2
-      ALLOCATE (xas_tdp_env%lumo_guess(nspins))
-      IF (xas_tdp_control%check_only) ALLOCATE (xas_tdp_env%lumo_evals(nspins))
-      CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s, nelectron_spin=nelec_spin, &
-                      para_env=para_env, blacs_env=blacs_env)
-      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
-      IF (do_os) THEN
-         nevals = nao-nelec_spin
-         nocc = nelec_spin
-      ELSE
-         nevals = nao-nelec_spin(1)/2
-         nocc = nelec_spin(1)/2
-      END IF
-      IF (xas_tdp_control%n_excited > 0 .AND. ANY(xas_tdp_control%n_excited < nevals)) THEN
-         nevals = xas_tdp_control%n_excited/nspins !total # of evals is n_excited
-
-         !Add some padding to make sure we have enough on both spins
-         !Less electron for a given spin => more evals
-         IF (do_os) THEN
-            minel = MINLOC(nelec_spin, 1)
-            nevals(minel) = nevals(minel)+ABS(nelec_spin(2)-nelec_spin(1))
-         END IF
-      END IF
-
-      DO ispin = 1, nspins
-
-         !Going through fm to diagonalize
-         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=nao)
-         CALL cp_fm_create(amatrix, fm_struct)
-         CALL cp_fm_create(bmatrix, fm_struct)
-         CALL cp_fm_create(evecs, fm_struct)
-         CALL cp_fm_create(work_fm, fm_struct)
-         ALLOCATE (evals(nocc(ispin)+nevals(ispin)))
-
-         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, amatrix)
-         CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, bmatrix)
-
-         !The actual diagonalization through Cholesky decomposition
-         CALL cp_fm_geeig(amatrix, bmatrix, evecs, evals, work_fm)
-
-         !Storing results
-         IF (xas_tdp_control%check_only) THEN
-            ALLOCATE (xas_tdp_env%lumo_evals(ispin)%array(nevals(ispin)))
-            xas_tdp_env%lumo_evals(ispin)%array(:) = evals(nocc(ispin)+1:nocc(ispin)+nevals(ispin))
-         END IF
-
-         CALL cp_fm_struct_create(lumo_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=nevals(ispin))
-         CALL cp_fm_create(xas_tdp_env%lumo_guess(ispin)%matrix, lumo_struct)
-
-         CALL cp_fm_to_fm_submat(evecs, xas_tdp_env%lumo_guess(ispin)%matrix, nrow=nao, &
-                                 ncol=nevals(ispin), s_firstrow=1, s_firstcol=nocc(ispin)+1, &
-                                 t_firstrow=1, t_firstcol=1)
-
-         !clean-up
-         CALL cp_fm_release(amatrix)
-         CALL cp_fm_release(bmatrix)
-         CALL cp_fm_release(evecs)
-         CALL cp_fm_release(work_fm)
-         CALL cp_fm_struct_release(fm_struct)
-         CALL cp_fm_struct_release(lumo_struct)
-         DEALLOCATE (evals)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE make_lumo_guess
 
 !> *************************************************************************************************
 !> \brief Assosciate (possibly localized) lowest energy  MOs to each excited atoms. The procedure
@@ -1172,17 +1087,16 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_assigned_mo_subset', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iat, ilmo, ispin, nao, nlmo, nspins
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: ks_struct, lmo_struct
-      TYPE(cp_fm_type), POINTER                          :: evecs, ks_fm, lmo_fm, mo_coeff, work
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      INTEGER                                         :: iat, nlmo, nao, ilmo, i, ispin, nspins
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
+      TYPE(cp_fm_type), POINTER                       :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                :: lmo_struct
+      TYPE(cp_fm_type), POINTER                       :: lmo_fm
 
-      NULLIFY (mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm, ks_struct, ks_fm)
-      NULLIFY (evecs, work)
+      NULLIFY(mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm)
 
       ! Get what we need from qs_env
       CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks, para_env=para_env, blacs_env=blacs_env)
@@ -1201,12 +1115,6 @@ CONTAINS
             CALL cp_fm_struct_create(lmo_struct, nrow_global=nao, ncol_global=nlmo, &
                                      para_env=para_env, context=blacs_env)
             CALL cp_fm_create(lmo_fm, lmo_struct)
-            CALL cp_fm_create(work, lmo_struct)
-
-            CALL cp_fm_struct_create(ks_struct, nrow_global=nlmo, ncol_global=nlmo, &
-                                     para_env=para_env, context=blacs_env)
-            CALL cp_fm_create(ks_fm, ks_struct)
-            CALL cp_fm_create(evecs, ks_struct)
 
             ! Loop over the localized MOs associated to this atom
             i = 0
@@ -1220,17 +1128,8 @@ CONTAINS
 
             END DO !ilmo
 
-            ! Computing the KS matrix in the subset of MOs
-            CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, lmo_fm, work, ncol=nlmo)
-            CALL cp_gemm('T', 'N', nlmo, nlmo, nao, 1.0_dp, lmo_fm, work, 0.0_dp, ks_fm)
-
-            ! Diagonalizing the KS matrix in the subset of MOs
-            ALLOCATE (evals(nlmo))
-            CALL cp_fm_syevd(ks_fm, evecs, evals)
-            DEALLOCATE (evals)
-
-            ! Express the MOs in the basis that diagonalizes KS
-            CALL cp_gemm('N', 'N', nao, nlmo, nlmo, 1.0_dp, lmo_fm, evecs, 0.0_dp, work)
+         ! Diagonalize in the subspace and rotate the orbitals into eigenstates
+            CALL calculate_subspace_eigenvalues(lmo_fm, matrix_ks(ispin)%matrix)
 
             ! Replacing the new MOs back in the MO coeffs
             i = 0
@@ -1238,18 +1137,14 @@ CONTAINS
                IF (xas_tdp_env%mos_of_ex_atoms(ilmo, iat, ispin) == -1) CYCLE
 
                i = i+1
-               CALL cp_fm_to_fm_submat(work, mo_coeff, nrow=nao, ncol=1, s_firstrow=1, &
+               CALL cp_fm_to_fm_submat(lmo_fm, mo_coeff, nrow=nao, ncol=1, s_firstrow=1, &
                                        s_firstcol=i, t_firstrow=1, t_firstcol=ilmo)
 
             END DO
 
             ! Excited atom clean-up
             CALL cp_fm_release(lmo_fm)
-            CALL cp_fm_release(work)
             CALL cp_fm_struct_release(lmo_struct)
-            CALL cp_fm_release(ks_fm)
-            CALL cp_fm_release(evecs)
-            CALL cp_fm_struct_release(ks_struct)
          END DO !iat
       END DO !ispin
 
@@ -1693,8 +1588,7 @@ CONTAINS
    END SUBROUTINE find_mo_centers
 
 ! **************************************************************************************************
-!> \brief Prints the MO to donor_state assocaition with overlap and Mulliken population analysis,
-!>        as well as the gaps in the LUMO eigenvalues in cas of OT solver.
+!> \brief Prints the MO to donor_state assocaition with overlap and Mulliken population analysis
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
 !> \param qs_env ...
@@ -1777,159 +1671,7 @@ CONTAINS
             "Use LOCALIZE and/or increase N_SEARCH for better results, if so required."
       END IF
 
-!  If OT eigensolver, then also analyse the LUMOs
-      IF (.NOT. xas_tdp_control%full_diag) CALL check_lumo_guess(xas_tdp_control, xas_tdp_env, qs_env)
-
    END SUBROUTINE print_checks
-
-! **************************************************************************************************
-!> \brief Analyze the LUMOs from the ground state calculations to be used as guess for the LR
-!>        orbitals. Mainly look for gaps in the spctrum such that OT converges optimally
-!> \param xas_tdp_control ...
-!> \param xas_tdp_env ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE check_lumo_guess(xas_tdp_control, xas_tdp_env, qs_env)
-
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_lumo_guess', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: ilumo, imo, ispin, nelec_spin(2), &
-                                                            nlumo(2), nspins, offset, output_unit
-      LOGICAL                                            :: do_os
-      REAL(dp)                                           :: min_gap
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: ref
-      REAL(dp), DIMENSION(:), POINTER                    :: mo_evals
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: lumo_evals
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices, matrix_ks, matrix_s
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-
-      NULLIFY (lumo_evals, mos, mo_evals, matrix_ks, matrix_s, matrices)
-
-      output_unit = cp_logger_get_default_io_unit()
-
-!  Get the LUMOs and their energies
-      do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
-      lumo_evals => xas_tdp_env%lumo_evals
-      nspins = SIZE(lumo_evals)
-      nlumo(1) = SIZE(lumo_evals(1)%array)
-      IF (do_os) nlumo(2) = SIZE(lumo_evals(2)%array)
-      CALL get_qs_env(qs_env, mos=mos, nelectron_spin=nelec_spin, matrix_ks=matrix_ks, &
-                      matrix_s=matrix_s)
-
-      IF (output_unit > 0) THEN
-         WRITE (output_unit, "(/,T3,A,/,T3,A,/,T3,A,/,T3,A)") &
-            "# Check the LUMOs eigenvalues for gaps, as the OT iterative eigensolver", &
-            "  takes LUMOs as guesses and converges well only in presence of a gap.", &
-            "  The LUMO energies below have the (spin) corresponding lowest MO ", &
-            "  eigenvalue as reference (plus a shift to make it more readable)."
-      END IF
-
-!  Set the minimal gap to an arbitrary 5.0 eV = 0.18 Ha
-      min_gap = 5.0_dp/evolt
-
-!  Get the energy reference
-      ALLOCATE (ref(nspins))
-      ref = 0.0_dp
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=mo_evals)
-      ref(1) = mo_evals(1)
-      IF (nspins == 2) THEN
-         CALL get_mo_set(mos(2)%mo_set, eigenvalues=mo_evals)
-         ref(2) = mo_evals(1)
-      END IF
-      ref = ref-MINVAL(ref, 1)
-
-      !if ROKS, the KS eigenvalues are not physical => need MO^T * KS * MO
-      IF (xas_tdp_control%do_roks) THEN
-         ALLOCATE (matrices(2))
-         matrices(2)%matrix => matrix_s(1)%matrix
-         DO ispin = 1, 2
-            matrices(1)%matrix => matrix_ks(ispin)%matrix
-
-            CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=50, threshold=1.0E-4_dp, &
-                                    selection_crit=3, nval_request=1, nrestarts=8, &
-                                    generalized_ev=.TRUE., iram=.FALSE.)
-            CALL arnoldi_ev(matrices, my_arnoldi)
-            ref(ispin) = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-            CALL deallocate_arnoldi_data(my_arnoldi)
-
-         END DO
-         DEALLOCATE (matrices)
-         ref = ref-MINVAL(ref, 1)
-      END IF
-
-!  Two different approaches depending on calculation type
-!  If spin-restricted
-      IF (.NOT. xas_tdp_control%do_uks .AND. .NOT. xas_tdp_control%do_roks) THEN
-         DO imo = 1, nlumo(1)-1
-            IF (min_gap <= lumo_evals(1)%array(imo+1)-lumo_evals(1)%array(imo)) THEN
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(/,T5,A22,I5,/,T8,A)") &
-                     "Found gap after LUMO # ", imo, &
-                     "LUMO index       Indicative energy (eV)"
-               END IF
-               DO ilumo = MAX(imo-1, 1), MIN(imo+1, nlumo(1))
-                  IF (output_unit > 0) THEN
-                     WRITE (output_unit, "(T8,I10,F29.3)") &
-                        ilumo, (lumo_evals(1)%array(ilumo)-ref(1))*evolt
-                  END IF
-               END DO !ilumo
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(T5,A,I5)") &
-                     "Corresponding N_EXCITED value: ", imo
-               END IF
-            END IF !gap
-         END DO !imo
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, "(/,T5,A,/,T5,A)") &
-               "Use one of the above value as N_EXCITED for optimal OT convergence.", &
-               "Increase current N_EXCITED and restart a CHECK_ONLY run for more options."
-         END IF
-      END IF !spin-unrestricted
-
-!  If open-shell, ignore the singly occupied MOs, consider the two LUMO eigenvalue vector with the
-!  appropriate reference (also with a shift)
-      IF (do_os) THEN
-         !assume more alpha electrons
-         offset = nelec_spin(1)-nelec_spin(2)
-         DO imo = 1, MINVAL(nlumo)-offset-1
-            !check that both spin chanels have gaps
-            IF ((min_gap <= lumo_evals(1)%array(imo+1)-lumo_evals(1)%array(imo)) .AND. &
-                (min_gap <= lumo_evals(2)%array(imo+offset+1)-lumo_evals(2)%array(imo+offset))) THEN
-
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(/,T5,A,I5,A,I5,A,/,T8,A)") &
-                     "Found gaps after LUMO # ", imo, " for spin 1     and LUMO #", imo+offset, &
-                     " for spin 2", &
-                     "LUMO index  Indicative energy (eV),       LUMO index  Indicative energy (eV)"
-               END IF
-               DO ilumo = MAX(imo-1, 1), MIN(imo+1, MINVAL(nlumo))
-                  IF (output_unit > 0) THEN
-                     WRITE (output_unit, "(T8,I10,F24.3,I18,F24.3)") &
-                        !different ref
-                        ilumo, (lumo_evals(1)%array(ilumo)-ref(1))*evolt, &
-                        ilumo+offset, (lumo_evals(2)%array(ilumo+offset)-ref(2))*evolt
-                  END IF
-               END DO !ilumo
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(T5,A,I5)") &
-                     "Corresponding N_EXCITED value: ", 2*imo+offset
-               END IF
-            END IF !gap
-         END DO !imo
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, "(/,T5,A,/,T5,A)") &
-               "Use one of the above value as N_EXCITED (or -1) for optimal OT convergence.", &
-               "Increase current N_EXCITED and restart a CHECK_ONLY run for more options."
-         END IF
-      END IF
-
-   END SUBROUTINE check_lumo_guess
 
 ! **************************************************************************************************
 !> \brief Computes the required multipole moment in the lenght representation for a given atom

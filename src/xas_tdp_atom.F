@@ -35,8 +35,7 @@ MODULE xas_tdp_atom
                                               dbcsr_distribution_new, dbcsr_distribution_release, &
                                               dbcsr_complete_redistribute
    USE distribution_2d_types,           ONLY: distribution_2d_type, distribution_2d_release
-   USE input_constants,                 ONLY: do_hfx_potential_id, xas_tdp_para_atom, &
-                                              xas_tdp_para_grid
+   USE input_constants,                 ONLY: do_hfx_potential_id
    USE input_section_types,             ONLY: section_vals_type, &
                                               section_vals_get_subs_vals
    USE kinds,                           ONLY: dp, default_string_length
@@ -44,7 +43,8 @@ MODULE xas_tdp_atom
                                               init_lebedev_grids, lebedev_grid
    USE mathconstants,                   ONLY: dfac, pi, gamma1
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum, mp_isend, mp_irecv, mp_waitall, mp_sync
+   USE message_passing,                 ONLY: mp_sum, mp_isend, mp_irecv, mp_waitall, mp_sync, &
+                                              mp_comm_split_direct, mp_comm_free
    USE orbital_pointers,                ONLY: nsoset, indso, ncoset, nco, nso, indco
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_methods,                ONLY: get_particle_set
@@ -827,7 +827,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = "calculate_density_coeffs", &
                                      routineP = moduleN//":"//routineN
 
-      INTEGER                                         :: nkind, katom, ikind, natom, &
+      INTEGER                                         :: nkind, katom, natom, &
                                                          iat, mepos, nthread, handle, &
                                                          nspins, ispin, ri_at, jnb, &
                                                          iex, exat, output_unit, &
@@ -910,7 +910,6 @@ CONTAINS
                NULLIFY(xas_atom_env%ri_dcoeff(iat,ispin,iex)%array)
                IF ((.NOT. ANY(xas_atom_env%exat_neighbors(iex)%array  == iat)) &
                     .AND. (.NOT. xas_atom_env%excited_atoms(iex) == iat)) CYCLE
-               ikind = particle_set(iat)%atomic_kind%kind_number
                ALLOCATE(xas_atom_env%ri_dcoeff(iat,ispin,iex)%array(nsgf(iat)))
                xas_atom_env%ri_dcoeff(iat,ispin,iex)%array = 0.0_dp
             END DO
@@ -1614,16 +1613,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Precomputes the spherical orbitals of the RI basis on the excited atom grids
 !> \param do_gga whether the gradient needs to be computed for GGA or not
-!> \param para whether we distribute the atoms or the grids
+!> \param batch_size among how many procs the grid is divided
+!> \param ipe the current proc index within the batch
 !> \param xas_atom_env ...
 !> \param qs_env ...
 !> \note the functions are split in a purely angular part of size na and a purely radial part of 
 !>       size nr. The full function on the grid can simply be obtained with dgemm and we save space
 ! **************************************************************************************************
-   SUBROUTINE precompute_so_dso(do_gga, para, xas_atom_env, qs_env)
+   SUBROUTINE precompute_so_dso(do_gga, batch_size, ipe, xas_atom_env, qs_env)
 
       LOGICAL, INTENT(IN)                             :: do_gga
-      INTEGER, INTENT(IN)                             :: para
+      INTEGER, INTENT(IN)                             :: batch_size, ipe
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       TYPE(qs_environment_type), POINTER              :: qs_env
 
@@ -1672,12 +1672,10 @@ CONTAINS
          sr = 1; er = nr
          n = na*nr
 
-         !Take local grid if needed
-         IF (para == xas_tdp_para_grid) THEN
-            bo = get_limit(nr, para_env%num_pe, para_env%mepos)
-            sr = bo(1); er = bo(2)
-            nr = er - sr + 1
-         END IF
+         !Split the grid 
+         bo = get_limit(nr, batch_size, ipe)
+         sr = bo(1); er = bo(2)
+         nr = er - sr + 1
 
          slm => harmonics%slm
          dslm_dxyz => harmonics%dslm_dxyz
@@ -1767,7 +1765,8 @@ CONTAINS
 
       INTEGER                                         :: natom, iatom, ikind, na, nr, handle, &
                                                          num_pe, mepos, bo(2), nex_atom, iex, i, &
-                                                         inb, nb, nbk, para
+                                                         inb, nb, nbk, batch_size, ipe, ibatch, &
+                                                         nbatch, subcomm
       INTEGER, DIMENSION(2,3)                         :: bounds
       INTEGER, DIMENSION(:), POINTER                  :: exat_neighbors
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set 
@@ -1801,27 +1800,33 @@ CONTAINS
       !spin conserving in the general sense here
       do_sc = xas_tdp_control%do_spin_cons .OR. xas_tdp_control%do_singlet .OR. xas_tdp_control%do_triplet
       do_sf = xas_tdp_control%do_spin_flip
-      para = xas_tdp_control%para
 
 !  Get some info on the functionals
       xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
       ! ask for lsd in any case 
       needs = xc_functionals_get_needs(xc_functionals, lsd=.TRUE., add_basic_components=.TRUE.)
       do_gga = needs%drho_spin !because either LDA or GGA, and the former does not need gradient
+      
+!  Distribute the excited atoms over the processors, which are split into batches
+      num_pe = para_env%num_pe
+      mepos = para_env%mepos
+      batch_size = xas_tdp_control%batch_size 
+      nbatch = num_pe/batch_size 
+      ibatch = mepos/batch_size 
+      !the proc index within the batch
+      ipe = MODULO(mepos, batch_size)
+      !make sure we include last procs if batch_size is not divisor of total num_procs
+      IF (nbatch*batch_size .NE. num_pe) nbatch = nbatch+1
+      !the size of the last batch might be less than nominal one
+      IF ((ibatch+1)*batch_size > num_pe) batch_size = num_pe-ibatch*batch_size
+      !distribute the excted atoms over the batches
+      bo = get_limit(nex_atom, nbatch, ibatch) 
+      !create a subcommunicator for this batch
+      CALL mp_comm_split_direct(para_env%group, subcomm, ibatch)
 
 !  Precompute the spherical orbital of the RI basis (and maybe their gradient) on the grids of the
 !  excited atoms. Needed for the GGA integration and to actually put the density on the grid
-      CALL precompute_so_dso(do_gga, para, xas_atom_env, qs_env)
-      
-!  Distribute the excited atoms over the processors
-      num_pe = para_env%num_pe
-      mepos = para_env%mepos
-      bo = get_limit(nex_atom, num_pe, mepos)
-      !in case of grid parallelization, loop over atoms in a serial manner
-      IF (para == xas_tdp_para_grid) THEN
-         bo(1) = 1
-         bo(2) = nex_atom
-      END IF
+      CALL precompute_so_dso(do_gga, batch_size, ipe, xas_atom_env, qs_env)
 
 !  Looping over the excited atoms
       DO iex = bo(1), bo(2)
@@ -1839,11 +1844,9 @@ CONTAINS
          bounds(1:2,1:3) = 1
          bounds(2,1) = na
          bounds(2,2) = nr
-         !if grid parallelization, split the grid by columns for best efficiency
-         IF (para == xas_tdp_para_grid) THEN
-            !only change the nr distribution
-            bounds(:,2) = get_limit(nr, num_pe, mepos)
-         END IF
+         !split the grid by columns for best efficiency 
+         bounds(:,2) = get_limit(nr, batch_size, ipe)
+
          CALL xc_rho_set_create(rho_set=rho_set, local_bounds=bounds,&
                                 rho_cutoff=dft_control%qs_control%eps_rho_rspace, &
                                 drho_cutoff=dft_control%qs_control%eps_rho_rspace)
@@ -1888,29 +1891,25 @@ CONTAINS
             CALL integrate_gga_fxc(int_fxc, iatom, ikind, rho_set, deriv_set, bounds, xas_atom_env, qs_env)
          END IF
 
+!     Sum the contribution of the different procs of the batch
+         DO i = 1, 4
+            IF (ASSOCIATED(int_fxc(iatom,i)%array)) THEN
+               CALL mp_sum(int_fxc(iatom,i)%array, subcomm)
+            END IF
+         END DO
+
 !     Clean-up
          CALL xc_dset_release(deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END DO !iex
 
-      !if grid distributed, need to sum up all contributions
-      IF (para == xas_tdp_para_grid) THEN
-
-         DO iex = 1, nex_atom
-            iatom = xas_atom_env%excited_atoms(iex)
-
-            DO i = 1, 4
-               IF (ASSOCIATED(int_fxc(iatom,i)%array)) THEN
-                  CALL mp_sum(int_fxc(iatom,i)%array, para_env%group)
-               END IF
-            END DO !i
-         END DO !iex
-      END IF
-
       !Not necessary to sync, but makes sure that any load inbalance (which can be significant if
-      !atom parallelization is done with nprocs>>nex) is reported here
+      !nbatch is not a divisor of n_excited) is reported here
       CALL mp_sync(para_env%group)
+
+      !clean-up
+      CALL mp_comm_free(subcomm)
 
       CALL timestop(handle)
 
