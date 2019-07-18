@@ -27,7 +27,7 @@ MODULE qs_3c_tensors
         dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, dbcsr_t_put_block, &
         dbcsr_t_reserve_blocks, dbcsr_t_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE distribution_2d_types,           ONLY: distribution_2d_create,&
+   USE distribution_2d_types,           ONLY: distribution_2d_create_prv => distribution_2d_create,&
                                               distribution_2d_release,&
                                               distribution_2d_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
@@ -41,7 +41,6 @@ MODULE qs_3c_tensors
    USE message_passing,                 ONLY: mp_cart_sub,&
                                               mp_comm_free,&
                                               mp_environ
-   USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
@@ -101,11 +100,91 @@ MODULE qs_3c_tensors
       INTEGER, DIMENSION(:), ALLOCATABLE    :: array
    END TYPE
 
-! **************************************************************************************************
-
-! *** Public data types ***
-
 CONTAINS
+! **************************************************************************************************
+!> \brief Create a 2d distribution. This mainly wraps distribution_2d_create
+!>        for consistency with distribution_3d_create.
+!> \param qs_env ...
+!> \param dist_2d 2d distribution object
+!> \param dist1 distribution vector along 1st process grid dimension
+!> \param dist2 distribution vector along 2nd process grid dimension
+!> \param mp_comm_2d MPI communicator with a 3d cartesian topology
+! **************************************************************************************************
+   SUBROUTINE distribution_2d_create(qs_env, dist_2d, dist1, dist2, mp_comm_2d)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(distribution_2d_type), POINTER                :: dist_2d
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2
+      INTEGER, INTENT(IN)                                :: mp_comm_2d
+
+      INTEGER                                            :: iatom, ikind, n, natom, nkind, nproc
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nparticle_local_col, nparticle_local_row
+      INTEGER, DIMENSION(2)                              :: mp_coor, mp_dims
+      INTEGER, DIMENSION(:, :), POINTER                  :: dist1_prv, dist2_prv
+      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER        :: local_particle_col, local_particle_row
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      NULLIFY (blacs_env, local_particle_col, local_particle_row, para_env, particle_set)
+
+      CALL mp_environ(nproc, mp_dims, mp_coor, mp_comm_2d)
+      CALL cp_para_env_create(para_env, mp_comm_2d, owns_group=.FALSE.)
+      CALL cp_blacs_env_create(blacs_env, para_env, &
+                               grid_2d=mp_dims)
+
+      CPASSERT(blacs_env%mepos(1) == mp_coor(1))
+      CPASSERT(blacs_env%mepos(2) == mp_coor(2))
+
+      CALL cp_para_env_release(para_env)
+
+      CALL get_qs_env(qs_env, &
+                      natom=natom, &
+                      particle_set=particle_set, &
+                      nkind=nkind)
+
+      ALLOCATE (dist1_prv(natom, 2), dist2_prv(natom, 2))
+      dist1_prv(:, 1) = dist1
+      dist2_prv(:, 1) = dist2
+
+      ALLOCATE (local_particle_col(nkind), local_particle_row(nkind))
+      ALLOCATE (nparticle_local_row(nkind), nparticle_local_col(nkind))
+      nparticle_local_row = 0; nparticle_local_col = 0
+
+      DO iatom = 1, natom
+         ikind = particle_set(iatom)%atomic_kind%kind_number
+
+         IF (dist1_prv(iatom, 1) == mp_coor(1)) nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
+         IF (dist2_prv(iatom, 1) == mp_coor(2)) nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
+      END DO
+
+      DO ikind = 1, nkind
+         n = nparticle_local_row(ikind)
+         ALLOCATE (local_particle_row(ikind)%array(n))
+
+         n = nparticle_local_col(ikind)
+         ALLOCATE (local_particle_col(ikind)%array(n))
+      END DO
+
+      nparticle_local_row = 0; nparticle_local_col = 0
+      DO iatom = 1, natom
+         ikind = particle_set(iatom)%atomic_kind%kind_number
+
+         IF (dist1_prv(iatom, 1) == mp_coor(1)) THEN
+            nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
+            local_particle_row(ikind)%array(nparticle_local_row(ikind)) = iatom
+         END IF
+         IF (dist2_prv(iatom, 1) == mp_coor(2)) THEN
+            nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
+            local_particle_col(ikind)%array(nparticle_local_col(ikind)) = iatom
+         END IF
+      END DO
+
+      CALL distribution_2d_create_prv(dist_2d, row_distribution_ptr=dist1_prv, &
+                                      col_distribution_ptr=dist2_prv, local_rows_ptr=local_particle_row, &
+                                      local_cols_ptr=local_particle_col, blacs_env=blacs_env)
+
+      CALL cp_blacs_env_release(blacs_env)
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Create a 3d distribution
@@ -127,28 +206,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_create', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: comm_2d_1, comm_2d_2, handle, iatom, &
-                                                            ikind, n, natom, nkind, nproc_1, &
+      INTEGER                                            :: comm_2d_1, comm_2d_2, handle, nproc_1, &
                                                             nproc_2
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nparticle_local_col, nparticle_local_row
       INTEGER, DIMENSION(2)                              :: mp_coor_1, mp_coor_2, mp_dims_1, &
                                                             mp_dims_2
-      INTEGER, DIMENSION(:, :), POINTER                  :: dist1_prv, dist2_prv_1, dist2_prv_2, &
-                                                            dist3_prv
-      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER        :: local_particle_col_1, &
-                                                            local_particle_col_2, &
-                                                            local_particle_row_1, &
-                                                            local_particle_row_2
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub_1, blacs_env_sub_2
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub_1, para_env_sub_2
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (dist1_prv, dist2_prv_1, dist2_prv_2, dist3_prv, local_particle_col_1, local_particle_col_2, local_particle_row_1, &
-               local_particle_row_2, para_env_sub_1, para_env_sub_2, particle_set, blacs_env_sub_1, blacs_env_sub_2, &
-               qs_kind_set)
 
       IF (PRESENT(own_comm)) THEN
          IF (own_comm) dist_3d%comm_3d = mp_comm_3d
@@ -159,116 +222,14 @@ CONTAINS
 
       CALL mp_cart_sub(mp_comm_3d, [.TRUE., .TRUE., .FALSE.], comm_2d_1)
       CALL mp_cart_sub(mp_comm_3d, [.FALSE., .TRUE., .TRUE.], comm_2d_2)
+
       CALL mp_environ(nproc_1, mp_dims_1, mp_coor_1, comm_2d_1)
       CALL mp_environ(nproc_2, mp_dims_2, mp_coor_2, comm_2d_2)
 
       CPASSERT(mp_coor_1(2) == mp_coor_2(1))
-      CALL cp_para_env_create(para_env_sub_1, comm_2d_1, owns_group=.FALSE.)
-      CALL cp_para_env_create(para_env_sub_2, comm_2d_2, owns_group=.FALSE.)
 
-      CALL cp_blacs_env_create(blacs_env_sub_1, para_env_sub_1, &
-                               grid_2d=mp_dims_1)
-      CALL cp_blacs_env_create(blacs_env_sub_2, para_env_sub_2, &
-                               grid_2d=mp_dims_2)
-      CPASSERT(blacs_env_sub_1%mepos(1) == mp_coor_1(1))
-      CPASSERT(blacs_env_sub_1%mepos(2) == mp_coor_1(2))
-      CPASSERT(blacs_env_sub_2%mepos(1) == mp_coor_2(1))
-      CPASSERT(blacs_env_sub_2%mepos(2) == mp_coor_2(2))
-
-      CALL cp_para_env_release(para_env_sub_1)
-      CALL cp_para_env_release(para_env_sub_2)
-
-      CALL get_qs_env(qs_env, &
-                      natom=natom, &
-                      qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set)
-
-      ALLOCATE (dist1_prv(natom, 2), dist2_prv_1(natom, 2), dist2_prv_2(natom, 2), dist3_prv(natom, 2))
-      dist1_prv(:, 1) = dist1
-      dist2_prv_1(:, 1) = dist2
-      dist2_prv_2(:, 1) = dist2
-      dist3_prv(:, 1) = dist3
-
-      nkind = SIZE(qs_kind_set)
-
-      ! boilerplate code to setup dist_2d_1
-      ALLOCATE (local_particle_col_1(nkind), local_particle_row_1(nkind))
-      ALLOCATE (nparticle_local_row(nkind), nparticle_local_col(nkind))
-      nparticle_local_row = 0; nparticle_local_col = 0
-
-      DO iatom = 1, natom
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-
-         IF (dist1_prv(iatom, 1) == mp_coor_1(1)) nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
-         IF (dist2_prv_1(iatom, 1) == mp_coor_1(2)) nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
-      END DO
-
-      DO ikind = 1, nkind
-         n = nparticle_local_row(ikind)
-         ALLOCATE (local_particle_row_1(ikind)%array(n))
-
-         n = nparticle_local_col(ikind)
-         ALLOCATE (local_particle_col_1(ikind)%array(n))
-      END DO
-
-      nparticle_local_row = 0; nparticle_local_col = 0
-      DO iatom = 1, natom
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-
-         IF (dist1_prv(iatom, 1) == mp_coor_1(1)) THEN
-            nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
-            local_particle_row_1(ikind)%array(nparticle_local_row(ikind)) = iatom
-         END IF
-         IF (dist2_prv_1(iatom, 1) == mp_coor_1(2)) THEN
-            nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
-            local_particle_col_1(ikind)%array(nparticle_local_col(ikind)) = iatom
-         END IF
-      END DO
-
-      CALL distribution_2d_create(dist_3d%dist_2d_1, row_distribution_ptr=dist1_prv, &
-                                  col_distribution_ptr=dist2_prv_1, local_rows_ptr=local_particle_row_1, &
-                                  local_cols_ptr=local_particle_col_1, blacs_env=blacs_env_sub_1)
-
-      CALL cp_blacs_env_release(blacs_env_sub_1)
-
-      ! boilerplate code to setup dist_2d_2
-      ALLOCATE (local_particle_col_2(nkind), local_particle_row_2(nkind))
-      nparticle_local_row = 0; nparticle_local_col = 0
-
-      DO iatom = 1, natom
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-
-         IF (dist2_prv_2(iatom, 1) == mp_coor_2(1)) nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
-         IF (dist3_prv(iatom, 1) == mp_coor_2(2)) nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
-      END DO
-
-      DO ikind = 1, nkind
-         n = nparticle_local_row(ikind)
-         ALLOCATE (local_particle_row_2(ikind)%array(n))
-
-         n = nparticle_local_col(ikind)
-         ALLOCATE (local_particle_col_2(ikind)%array(n))
-      END DO
-
-      nparticle_local_row = 0; nparticle_local_col = 0
-      DO iatom = 1, natom
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-
-         IF (dist2_prv_2(iatom, 1) == mp_coor_2(1)) THEN
-            nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
-            local_particle_row_2(ikind)%array(nparticle_local_row(ikind)) = iatom
-         END IF
-         IF (dist3_prv(iatom, 1) == mp_coor_2(2)) THEN
-            nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
-            local_particle_col_2(ikind)%array(nparticle_local_col(ikind)) = iatom
-         END IF
-      END DO
-
-      CALL distribution_2d_create(dist_3d%dist_2d_2, row_distribution_ptr=dist2_prv_2, &
-                                  col_distribution_ptr=dist3_prv, local_rows_ptr=local_particle_row_2, &
-                                  local_cols_ptr=local_particle_col_2, blacs_env=blacs_env_sub_2)
-
-      CALL cp_blacs_env_release(blacs_env_sub_2)
+      CALL distribution_2d_create(qs_env, dist_3d%dist_2d_1, dist1, dist2, comm_2d_1)
+      CALL distribution_2d_create(qs_env, dist_3d%dist_2d_2, dist2, dist3, comm_2d_2)
 
       dist_3d%comm_2d_1 = comm_2d_1
       dist_3d%comm_2d_2 = comm_2d_2
@@ -298,6 +259,138 @@ CONTAINS
       NULLIFY (dist%dist_2d_1, dist%dist_2d_2)
 
       CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Build 2-center neighborlists adapted to different operators
+!>        This mainly wraps build_neighbor_lists for consistency with build_3c_neighbor_lists
+!> \param ij_list 2c neighbor list for atom pairs i, j
+!> \param basis_i basis object for atoms i
+!> \param basis_j basis object for atoms j
+!> \param name name of 2c neighbor list
+!> \param qs_env ...
+!> \param sym_ij Symmetry in i, j (default .TRUE.)
+!> \param molecular ...
+!> \param op_ij operator
+!> \param x_range in case some truncated/screened operator is used, gives its range
+!> \param dist_2d optionally a custom 2d distribution
+! **************************************************************************************************
+   SUBROUTINE build_2c_neighbor_lists(ij_list, basis_i, basis_j, name, qs_env, &
+                                      sym_ij, molecular, op_ij, x_range, dist_2d)
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: ij_list
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_i, basis_j
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, molecular
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij
+      REAL(dp), INTENT(IN), OPTIONAL                     :: x_range
+      TYPE(distribution_2d_type), OPTIONAL, POINTER      :: dist_2d
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_neighbor_lists', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind, nkind, op_ij_prv
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: i_present, j_present
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
+      REAL(kind=dp)                                      :: subcells
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: i_radius, j_radius
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(distribution_2d_type), POINTER                :: dist_2d_prv
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      NULLIFY (atomic_kind_set, cell, local_particles, molecule_set, &
+               particle_set, dist_2d_prv)
+
+      IF (PRESENT(op_ij)) THEN
+         op_ij_prv = op_ij
+      ELSE
+         op_ij_prv = do_potential_id
+      ENDIF
+
+      CALL get_qs_env(qs_env, &
+                      nkind=nkind, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      local_particles=local_particles, &
+                      distribution_2d=dist_2d_prv, &
+                      molecule_set=molecule_set)
+
+      CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
+
+      ALLOCATE (i_present(nkind), j_present(nkind))
+      ALLOCATE (i_radius(nkind), j_radius(nkind))
+
+      i_present = .FALSE.
+      j_present = .FALSE.
+      i_radius = 0.0_dp
+      j_radius = 0.0_dp
+
+      IF (PRESENT(dist_2d)) dist_2d_prv => dist_2d
+
+      !  Set up the radii, depending on the operator type
+      IF (op_ij_prv == do_potential_id) THEN
+
+         !overlap => use the kind radius for both i and j
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
+               i_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
+            END IF
+            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
+               j_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
+            END IF
+         END DO
+
+      ELSE IF (op_ij_prv == do_potential_coulomb) THEN
+
+         !Coulomb operator, virtually infinite range => set j_radius to arbitrarily large number
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
+               j_present(ikind) = .TRUE.
+               j_radius(ikind) = 1000000.0_dp
+            END IF
+            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) i_present(ikind) = .TRUE.
+         END DO !ikind
+
+      ELSE IF (op_ij_prv == do_potential_truncated .OR. op_ij_prv == do_potential_short) THEN
+
+         !Truncated coulomb/short range: set j_radius to x_range + the kind_radii
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
+               i_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
+            END IF
+            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
+               j_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
+               j_radius(ikind) = j_radius(ikind)+x_range
+            END IF
+         END DO
+
+      ELSE
+         CPABORT("Operator not known")
+      END IF
+
+      ALLOCATE (pair_radius(nkind, nkind))
+      pair_radius = 0.0_dp
+      CALL pair_radius_setup(i_present, j_present, i_radius, j_radius, pair_radius)
+
+      ALLOCATE (atom2d(nkind))
+
+      CALL atom2d_build(atom2d, local_particles, dist_2d_prv, atomic_kind_set, &
+                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
+      CALL build_neighbor_lists(ij_list, particle_set, atom2d, cell, pair_radius, subcells, &
+                                symmetric=sym_ij, molecular=molecular, nlname=TRIM(name))
+
+      CALL atom2d_cleanup(atom2d)
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -334,178 +427,17 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_3c_neighbor_lists', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, nkind, op_ij_prv, &
-                                                            op_jk_prv, sym_level
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: i_present, j_present, k_present
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius_1, pair_radius_2
-      REAL(kind=dp)                                      :: subcells
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: i_radius, j_radius, k_radius
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(distribution_1d_type), POINTER                :: local_particles
-      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d_1, atom2d_2
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER                                            :: handle, sym_level
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atomic_kind_set, cell, local_particles, molecule_set, &
-               particle_set, molecule_kind_set)
+      CALL build_2c_neighbor_lists(ijk_list%ij_list, basis_i, basis_j, TRIM(name)//"_sub_1", &
+                                   qs_env, sym_ij=.FALSE., molecular=molecular, op_ij=op_ij, x_range=x_range, &
+                                   dist_2d=dist_3d%dist_2d_1)
 
-      CALL get_qs_env(qs_env, &
-                      nkind=nkind, &
-                      cell=cell, &
-                      particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      molecule_kind_set=molecule_kind_set, &
-                      local_particles=local_particles, &
-                      molecule_set=molecule_set)
-
-      CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
-
-      ALLOCATE (i_present(nkind), j_present(nkind), k_present(nkind))
-      ALLOCATE (i_radius(nkind), j_radius(nkind), k_radius(nkind))
-
-      ! boilerplate code to setup radii of first pair
-
-      i_present = .FALSE.
-      j_present = .FALSE.
-      i_radius = 0.0_dp
-      j_radius = 0.0_dp
-
-      IF (PRESENT(op_ij)) THEN
-         op_ij_prv = op_ij
-      ELSE
-         op_ij_prv = do_potential_id
-      ENDIF
-
-      IF (PRESENT(op_jk)) THEN
-         op_jk_prv = op_jk
-      ELSE
-         op_jk_prv = do_potential_id
-      ENDIF
-
-      !  Set up the radii, depending on the operator type
-      IF (op_ij_prv == do_potential_id) THEN
-
-         !overlap => use the kind radius for both a and c
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
-               i_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
-            END IF
-            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
-               j_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
-            END IF
-         END DO !ikind
-
-      ELSE IF (op_ij_prv == do_potential_coulomb) THEN
-
-         !Coulomb operator, virtually infinite range => set j_radius to arbitrarily large number
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
-               j_present(ikind) = .TRUE.
-               j_radius(ikind) = 1000000.0_dp
-            END IF
-            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) i_present(ikind) = .TRUE.
-         END DO !ikind
-
-      ELSE IF (op_ij_prv == do_potential_truncated .OR. op_ij_prv == do_potential_short) THEN
-
-         !Truncated coulomb/short range: set j_radius to x_range + the kind_radii
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
-               i_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
-            END IF
-            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
-               j_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
-               j_radius(ikind) = j_radius(ikind)+x_range
-            END IF
-         END DO !ikind
-
-      ELSE
-         CPABORT("Operator not known")
-      END IF
-
-      ALLOCATE (pair_radius_1(nkind, nkind))
-      pair_radius_1 = 0.0_dp
-      CALL pair_radius_setup(i_present, j_present, i_radius, j_radius, pair_radius_1)
-
-      ! boilerplate code to setup radii of second pair
-      j_present = .FALSE.
-      k_present = .FALSE.
-      j_radius = 0.0_dp
-      k_radius = 0.0_dp
-
-      !  Set up the radii, depending on the operator type
-      IF (op_jk_prv == do_potential_id) THEN
-
-         !overlap => use the kind radius for both a and c
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
-               j_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
-            END IF
-            IF (ASSOCIATED(basis_k(ikind)%gto_basis_set)) THEN
-               k_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_k(ikind)%gto_basis_set, kind_radius=k_radius(ikind))
-            END IF
-         END DO !ikind
-
-      ELSE IF (op_jk_prv == do_potential_coulomb) THEN
-
-         !Coulomb operator, virtually infinite range => set k_radius to arbitrarily large number
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(basis_k(ikind)%gto_basis_set)) THEN
-               k_present(ikind) = .TRUE.
-               k_radius(ikind) = 1000000.0_dp
-            END IF
-            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) j_present(ikind) = .TRUE.
-         END DO !ikind
-
-      ELSE IF (op_jk_prv == do_potential_truncated .OR. op_jk_prv == do_potential_short) THEN
-
-         !Truncated coulomb/short range: set k_radius to x_range + the kind_radii
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
-               j_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
-            END IF
-            IF (ASSOCIATED(basis_k(ikind)%gto_basis_set)) THEN
-               k_present(ikind) = .TRUE.
-               CALL get_gto_basis_set(basis_k(ikind)%gto_basis_set, kind_radius=k_radius(ikind))
-               k_radius(ikind) = k_radius(ikind)+x_range
-            END IF
-         END DO !ikind
-
-      ELSE
-         CPABORT("Operator not known")
-      END IF
-
-      ALLOCATE (pair_radius_2(nkind, nkind))
-      pair_radius_2 = 0.0_dp
-      CALL pair_radius_setup(j_present, k_present, j_radius, k_radius, pair_radius_2)
-
-      ALLOCATE (atom2d_1(nkind), atom2d_2(nkind))
-
-      CALL atom2d_build(atom2d_1, local_particles, dist_3d%dist_2d_1, atomic_kind_set, &
-                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
-      CALL build_neighbor_lists(ijk_list%ij_list, particle_set, atom2d_1, cell, pair_radius_1, subcells, &
-                                symmetric=.FALSE., molecular=molecular, nlname=TRIM(name)//"_sub_1")
-
-      CALL atom2d_cleanup(atom2d_1)
-
-      CALL atom2d_build(atom2d_2, local_particles, dist_3d%dist_2d_2, atomic_kind_set, &
-                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
-
-      CALL build_neighbor_lists(ijk_list%jk_list, particle_set, atom2d_2, cell, pair_radius_2, subcells, &
-                                symmetric=.FALSE., molecular=molecular, nlname=TRIM(name)//"_sub_2")
-
-      CALL atom2d_cleanup(atom2d_2)
+      CALL build_2c_neighbor_lists(ijk_list%jk_list, basis_j, basis_k, TRIM(name)//"_sub_2", &
+                                   qs_env, sym_ij=.FALSE., molecular=molecular, op_ij=op_jk, x_range=x_range, &
+                                   dist_2d=dist_3d%dist_2d_2)
 
       ijk_list%sym = symmetric_none
 
