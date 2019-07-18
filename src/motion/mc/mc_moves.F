@@ -51,8 +51,7 @@ MODULE mc_moves
                                               get_molecule_kind,&
                                               molecule_kind_type,&
                                               torsion_type
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
 #include "../../base/base_uses.f90"
@@ -144,7 +143,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
       CHARACTER(LEN=*), INTENT(IN)                       :: move_type
       LOGICAL, INTENT(OUT)                               :: lreject
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_conformation_change', &
          routineP = moduleN//':'//routineN
@@ -350,7 +349,7 @@ CONTAINS
             rand = 0.0E0_dp
          ELSE
             IF (ionode) THEN
-               rand = next_random_number(rng_stream)
+               rand = rng_stream%next()
             ENDIF
             CALL mp_bcast(rand, source, group)
          ENDIF
@@ -440,7 +439,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
       INTEGER, INTENT(IN)                                :: molecule_type
       LOGICAL, INTENT(OUT)                               :: lreject
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_translation', &
          routineP = moduleN//':'//routineN
@@ -536,13 +535,13 @@ CONTAINS
 ! move one molecule in the system
 
 ! call a random number to figure out which direction we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       ! 1,2,3 with equal prob
       move_direction = INT(3*rand) + 1
 
 ! call a random number to figure out how far we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       dis_mol = rmtrans(molecule_type)*(rand - 0.5E0_dp)*2.0E0_dp
 
@@ -592,7 +591,7 @@ CONTAINS
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
-            IF (ionode) rand = next_random_number(rng_stream)
+            IF (ionode) rand = rng_stream%next()
             CALL mp_bcast(rand, source, group)
          ENDIF
 
@@ -663,7 +662,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: box_number, start_atom, molecule_type
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
       LOGICAL, INTENT(OUT)                               :: lreject
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_rotation', &
          routineP = moduleN//':'//routineN
@@ -771,7 +770,7 @@ CONTAINS
 ! rotate one molecule in the system
 
 ! call a random number to figure out which direction we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
 !      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand, source, group)
       ! 1,2,3 with equal prob
@@ -798,7 +797,7 @@ CONTAINS
       nzcm = nzcm/masstot
 
 ! call a random number to figure out how far we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       dgamma = rmrot(molecule_type)*(rand - 0.5E0_dp)*2.0E0_dp
 
@@ -895,7 +894,7 @@ CONTAINS
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
-            IF (ionode) rand = next_random_number(rng_stream)
+            IF (ionode) rand = rng_stream%next()
             CALL mp_bcast(rand, source, group)
          ENDIF
 
@@ -968,7 +967,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r_old
       INTEGER, INTENT(IN)                                :: iw
       INTEGER, DIMENSION(1:3, 1:2), INTENT(INOUT)        :: discrete_array
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_volume_move', routineP = moduleN//':'//routineN
 
@@ -1047,7 +1046,7 @@ CONTAINS
 ! now do the move
 
 ! call a random number to figure out how far we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
 
 ! find the test cell lenghts for the discrete volume move
@@ -1063,7 +1062,7 @@ CONTAINS
 ! if we're increasing the volume, we need to find a side we can increase
          IF (lincrease) THEN
             DO
-               IF (ionode) rand = next_random_number(rng_stream)
+               IF (ionode) rand = rng_stream%next()
                CALL mp_bcast(rand, source, group)
                iside_change = CEILING(3.0_dp*rand)
                IF (discrete_array(iside_change, 1) .EQ. 1) THEN
@@ -1074,7 +1073,7 @@ CONTAINS
             ENDDO
          ELSE
             DO
-               IF (ionode) rand = next_random_number(rng_stream)
+               IF (ionode) rand = rng_stream%next()
                CALL mp_bcast(rand, source, group)
                iside_change = CEILING(3.0_dp*rand)
                IF (discrete_array(iside_change, 2) .EQ. 1) THEN
@@ -1240,7 +1239,7 @@ CONTAINS
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
       ENDIF
 
@@ -1311,7 +1310,7 @@ CONTAINS
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       REAL(KIND=dp), INTENT(OUT)                         :: dis_length
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'change_bond_length', &
          routineP = moduleN//':'//routineN
@@ -1347,7 +1346,7 @@ CONTAINS
 
 ! pick which bond in the molecule at random
       IF (ionode) THEN
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
       ENDIF
       CALL mp_bcast(rand, source, group)
       CALL get_molecule_kind(molecule_kind, natom=natom, nbond=nbond, &
@@ -1406,7 +1405,7 @@ CONTAINS
       ENDDO
 
 ! choose a displacement
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
 
       dis_length = rmbond(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
@@ -1478,7 +1477,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: molecule_type
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'change_bond_angle', &
          routineP = moduleN//':'//routineN
@@ -1517,7 +1516,7 @@ CONTAINS
 
 ! pick which bond in the molecule at random
       IF (ionode) THEN
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
       ENDIF
       CALL mp_bcast(rand, source, group)
       CALL get_molecule_kind(molecule_kind, natom=natom, nbend=nbend, &
@@ -1573,7 +1572,7 @@ CONTAINS
       ENDDO
 
 ! choose a displacement
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
 
       dis_angle = rmangle(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
@@ -1738,7 +1737,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: molecule_type
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'change_dihedral', &
          routineP = moduleN//':'//routineN
@@ -1778,7 +1777,7 @@ CONTAINS
 
 ! pick which bond in the molecule at random
       IF (ionode) THEN
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
 !      CALL RANDOM_NUMBER(rand)
       ENDIF
       CALL mp_bcast(rand, source, group)
@@ -1837,7 +1836,7 @@ CONTAINS
       ENDDO
 
 ! choose a displacement
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
 
       dis_angle = rmdihedral(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
@@ -1959,7 +1958,7 @@ CONTAINS
                                                             molecule_type, box_number
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy_old, last_bias_energy
       CHARACTER(LEN=*), INTENT(IN)                       :: move_type
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_avbmc_move', routineP = moduleN//':'//routineN
 
@@ -2247,7 +2246,7 @@ CONTAINS
       IF (w .GE. 1.0E0_dp) THEN
          rand = 0.0E0_dp
       ELSE
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
       ENDIF
 
@@ -2355,7 +2354,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: box_number
       REAL(KIND=dp), INTENT(INOUT)                       :: energy_check
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r_old
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', routineP = moduleN//':'//routineN
 
@@ -2425,7 +2424,7 @@ CONTAINS
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
       ENDIF
 
@@ -2490,7 +2489,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: box_number
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
       LOGICAL, INTENT(OUT)                               :: lreject
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_cluster_translation', &
          routineP = moduleN//':'//routineN
@@ -2586,17 +2585,17 @@ CONTAINS
       ENDIF
 
 ! call a random number to figure out which direction we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       move_direction = INT(3*rand) + 1
 
 ! call a random number to figure out how far we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       dis_mol = rmcltrans*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! choosing cluster
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       jpart = INT(1 + rand*total_clus)
 
@@ -2685,7 +2684,7 @@ CONTAINS
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
-            IF (ionode) rand = next_random_number(rng_stream)
+            IF (ionode) rand = rng_stream%next()
             CALL mp_bcast(rand, source, group)
          ENDIF
          IF (rand .LT. w) THEN
@@ -2725,4 +2724,3 @@ CONTAINS
    END SUBROUTINE mc_cluster_translation
 
 END MODULE mc_moves
-

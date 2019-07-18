@@ -163,7 +163,7 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, name="TEST", &
                           description="Tests to perform on the supported libraries.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key)
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY", &
@@ -224,12 +224,6 @@ CONTAINS
                           "given to this keyword", &
                           usage="mpi 6", default_i_val=0)
 
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="RANDOM_NUMBER_GENERATOR", variants=(/"rng"/), &
-                          description=" Tests the parallel random number generator (RNG)", &
-                          usage="rng 1000000", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

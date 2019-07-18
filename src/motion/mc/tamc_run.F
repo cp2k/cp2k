@@ -99,9 +99,6 @@ MODULE tamc_run
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -190,7 +187,7 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env_saved
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(reftraj_type), POINTER                        :: reftraj
-      TYPE(rng_stream_type), POINTER                     :: rng_stream, rng_stream_mc
+      TYPE(rng_stream_type)                              :: rng_stream_mc
       TYPE(section_vals_type), POINTER :: constraint_section, force_env_section, &
          free_energy_section, fs_section, global_section, mc_section, md_section, motion_section, &
          reftraj_section, subsys_section, work_section
@@ -308,7 +305,7 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MC setup up
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      NULLIFY (mc_env, mc_par, rng_stream_mc, MCaverages)
+      NULLIFY (mc_env, mc_par, MCaverages)
 
       CALL section_vals_get(force_env_section, n_repetition=isos)
       CPASSERT(isos == 1)
@@ -316,9 +313,8 @@ CONTAINS
 
 ! initialize the random numbers
 !       IF (para_env%ionode) THEN
-      CALL create_rng_stream(rng_stream=rng_stream_mc, &
-                             name="Random numbers for monte carlo acc/rej", &
-                             distribution_type=UNIFORM)
+      rng_stream_mc = rng_stream_type(name="Random numbers for monte carlo acc/rej", &
+                                      distribution_type=UNIFORM)
 !       ENDIF
 !!!!! this shoudl go in a routine hmc_read
 
@@ -361,9 +357,9 @@ CONTAINS
                          particles=particles, virial=virial)
 
       DO i = 1, rand2skip
-         auxRandom = next_random_number(rng_stream_mc)
+         auxRandom = rng_stream_mc%next()
          DO j = 1, 3*SIZE(particles%els)
-            auxRandom = next_random_number(globenv%gaussian_rng_stream)
+            auxRandom = globenv%gaussian_rng_stream%next()
          ENDDO
       ENDDO
 
@@ -435,12 +431,10 @@ CONTAINS
          IF (ASSOCIATED(force_env%meta_env)) THEN
             IF (force_env%meta_env%langevin) THEN
                CALL create_wiener_process_cv(force_env%meta_env)
-               NULLIFY (rng_stream)
                DO j = 1, (rand2skip - 1)/nmccycles
                   DO i = 1, force_env%meta_env%n_colvar
-                     rng_stream => force_env%meta_env%rng(i)%stream
-                     auxRandom = next_random_number(rng_stream)
-                     auxRandom = next_random_number(rng_stream)
+                     auxRandom = force_env%meta_env%rng(i)%next()
+                     auxRandom = force_env%meta_env%rng(i)%next()
                   ENDDO
                ENDDO
             ENDIF
@@ -652,7 +646,6 @@ CONTAINS
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
 !     IF (para_env%ionode) THEN
-      CALL delete_rng_stream(rng_stream_mc)
 !     ENDIF
       CALL MC_ENV_RELEASE(mc_env)
       DEALLOCATE (mc_par)
@@ -884,7 +877,7 @@ CONTAINS
       TYPE(mc_environment_type), POINTER                 :: mc_env
       TYPE(mc_moves_type), POINTER                       :: moves, gmoves
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r
-      TYPE(rng_stream_type), POINTER                     :: rng_stream_mc
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream_mc
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: xieta, An, fz
       TYPE(mc_averages_type), INTENT(INOUT), POINTER     :: averages
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: zbuff
@@ -910,7 +903,6 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(virial_type), POINTER                         :: virial
 
@@ -918,7 +910,6 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      NULLIFY (rng_stream)
 ! quantitites to be nullified for the get_md_env
       NULLIFY (simpar, force_env, para_env)
 ! quantities to be nullified for the force_env_get environment
@@ -955,9 +946,8 @@ CONTAINS
       !    *** Velocity Verlet for Langevin *** v(t)--> v(t+1/2)
       !!!!!! noise xi is in the first half, eta in the second half
       DO ivar = 1, force_env%meta_env%n_colvar
-         rng_stream => force_env%meta_env%rng(ivar)%stream
-         xieta(ivar) = next_random_number(rng_stream)
-         xieta(ivar + force_env%meta_env%n_colvar) = next_random_number(rng_stream)
+         xieta(ivar) = force_env%meta_env%rng(ivar)%next()
+         xieta(ivar + force_env%meta_env%n_colvar) = force_env%meta_env%rng(ivar)%next()
          gamma = force_env%meta_env%metavar(ivar)%gamma
          mass = force_env%meta_env%metavar(ivar)%mass
          sigma = SQRT((force_env%meta_env%temp_wanted*kelvin)*2.0_dp*(boltzmann/joule)*gamma/mass)
@@ -1010,7 +1000,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       TYPE(mc_moves_type), POINTER                       :: moves, gmoves
-      TYPE(rng_stream_type), POINTER                     :: rng_stream_mc
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream_mc
       INTEGER, INTENT(IN)                                :: output_unit
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: fz, zbuff
       INTEGER, INTENT(IN), OPTIONAL                      :: nskip
@@ -1146,7 +1136,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: old_epx, old_epz, energy_check
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r
       INTEGER, INTENT(IN)                                :: output_unit
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: zbuff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', routineP = moduleN//':'//routineN
@@ -1240,7 +1230,7 @@ CONTAINS
          w = EXP(value)
       ENDIF
 
-      rand = next_random_number(rng_stream)
+      rand = rng_stream%next()
       IF (rand < w) THEN
 ! accept the move
          moves%hmc%successes = moves%hmc%successes + 1
@@ -1444,7 +1434,7 @@ CONTAINS
       meta_env%ekin_s = 0.0_dp
       DO i_c = 1, meta_env%n_colvar
          cv => meta_env%metavar(i_c)
-         cv%vvp = next_random_number(force_env%globenv%gaussian_rng_stream)
+         cv%vvp = force_env%globenv%gaussian_rng_stream%next()
          meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
       END DO
       ekin_w = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar, KIND=dp)

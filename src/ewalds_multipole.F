@@ -44,9 +44,6 @@ MODULE ewalds_multipole
    USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              random_numbers,&
                                               rng_stream_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -1322,14 +1319,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                                                 e_field2
       REAL(KIND=dp), POINTER, &
          DIMENSION(:, :, :)                  :: quadrupoles
-      TYPE(rng_stream_type), POINTER           :: random_stream
+      TYPE(rng_stream_type)                    :: random_stream
       TYPE(multi_charge_type), DIMENSION(:), &
          POINTER                             :: multipoles
 
-      NULLIFY (random_stream, multipoles, charges, dipoles, g_forces, g_pv, &
+      NULLIFY (multipoles, charges, dipoles, g_forces, g_pv, &
                r_forces, r_pv, e_field1, e_field2)
-      CALL create_rng_stream(random_stream, name="DEBUG_EWALD_MULTIPOLE", &
-                             distribution_type=UNIFORM)
+      random_stream = rng_stream_type(name="DEBUG_EWALD_MULTIPOLE", &
+                                      distribution_type=UNIFORM)
       ! check:  charge - charge
       task = .FALSE.
       nparticles = SIZE(particle_set)
@@ -1553,7 +1550,6 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       DEALLOCATE (e_field2)
       DEALLOCATE (g_pv)
       DEALLOCATE (r_pv)
-      CALL delete_rng_stream(random_stream)
 
    CONTAINS
 ! **************************************************************************************************
@@ -1704,7 +1700,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       INTEGER, INTENT(IN)                                :: idim, istart, iend
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       REAL(KIND=dp), INTENT(IN)                          :: echarge
-      TYPE(rng_stream_type), POINTER                     :: random_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: random_stream
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: dipoles
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
@@ -1748,7 +1744,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                CPASSERT(ASSOCIATED(dipoles))
                ALLOCATE (multipoles(i)%charge_typ(isize)%charge(2))
                ALLOCATE (multipoles(i)%charge_typ(isize)%pos(3, 2))
-               CALL random_numbers(rvec, random_stream)
+               CALL random_stream%fill(rvec)
                rvec = rvec/(2.0_dp*SQRT(DOT_PRODUCT(rvec, rvec)))*dx
                multipoles(i)%charge_typ(isize)%charge(1) = echarge
                multipoles(i)%charge_typ(isize)%pos(1:3, 1) = rvec
@@ -1762,8 +1758,8 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                CPASSERT(ASSOCIATED(quadrupoles))
                ALLOCATE (multipoles(i)%charge_typ(isize)%charge(4))
                ALLOCATE (multipoles(i)%charge_typ(isize)%pos(3, 4))
-               CALL random_numbers(rvec1, random_stream)
-               CALL random_numbers(rvec2, random_stream)
+               CALL random_stream%fill(rvec1)
+               CALL random_stream%fill(rvec2)
                rvec1 = rvec1/SQRT(DOT_PRODUCT(rvec1, rvec1))
                rvec2 = rvec2-DOT_PRODUCT(rvec2, rvec1)*rvec1
                rvec2 = rvec2/SQRT(DOT_PRODUCT(rvec2, rvec2))

@@ -82,10 +82,8 @@ MODULE environment
                                               init_spherical_harmonics
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               check_rng,&
-                                              create_rng_stream,&
-                                              init_rng,&
-                                              write_rng_matrices,&
-                                              write_rng_stream
+                                              rng_stream_type,&
+                                              write_rng_matrices
    USE physcon,                         ONLY: write_physcon
    USE reference_manager,               ONLY: collect_citations_from_ranks,&
                                               print_all_references,&
@@ -411,7 +409,6 @@ CONTAINS
 
       ! Initialize the parallel random number generator
 
-      CALL init_rng()
       iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT/RNG_MATRICES", &
                                 extension=".Log")
       IF (iw > 0) THEN
@@ -432,11 +429,11 @@ CONTAINS
          CPABORT("Supply exactly 1 or 6 arguments for SEED in &GLOBAL only!")
       END IF
 
-      CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream, &
-                             name="Global Gaussian random numbers", &
-                             distribution_type=GAUSSIAN, &
-                             seed=initial_seed, &
-                             extended_precision=.TRUE.)
+      globenv%gaussian_rng_stream = rng_stream_type( &
+                                    name="Global Gaussian random numbers", &
+                                    distribution_type=GAUSSIAN, &
+                                    seed=initial_seed, &
+                                    extended_precision=.TRUE.)
 
       iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT/RNG_CHECK", &
                                 extension=".Log")
@@ -449,9 +446,9 @@ CONTAINS
 
       iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG", &
                                 extension=".Log")
-      IF (iw > 0) THEN
-         CALL write_rng_stream(globenv%gaussian_rng_stream, iw, write_all=.TRUE.)
-      END IF
+      IF (iw > 0) &
+         CALL globenv%gaussian_rng_stream%write(iw, write_all=.TRUE.)
+
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG")
 

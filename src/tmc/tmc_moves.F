@@ -19,10 +19,7 @@ MODULE tmc_moves
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: dihedral_angle,&
                                               rotate_vector
-   USE parallel_rng_types,              ONLY: get_rng_stream,&
-                                              next_random_number,&
-                                              rng_stream_type,&
-                                              set_rng_stream
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE physcon,                         ONLY: boltzmann,&
                                               joule
    USE tmc_calculations,                ONLY: center_of_mass,&
@@ -70,7 +67,7 @@ CONTAINS
                          new_subbox, move_rejected)
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(tmc_move_type), POINTER                       :: move_types
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: mv_conf
       LOGICAL                                            :: new_subbox, move_rejected
@@ -87,12 +84,11 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(ASSOCIATED(move_types))
-      CPASSERT(ASSOCIATED(rng_stream))
       CPASSERT(ASSOCIATED(elem))
 
       move_rejected = .FALSE.
 
-      CALL set_rng_stream(rng_stream=rng_stream, bg=elem%rng_seed(:, :, 1), &
+      CALL rng_stream%set(bg=elem%rng_seed(:, :, 1), &
                           cg=elem%rng_seed(:, :, 2), ig=elem%rng_seed(:, :, 3))
 
       IF (new_subbox) THEN
@@ -137,7 +133,7 @@ CONTAINS
             IF (tmc_params%nr_elem_mv .EQ. 0) THEN
                ind = (i - 1)*(tmc_params%dim_per_elem) + 1
             ELSE
-               rnd = next_random_number(rng_stream) ! next random number
+               rnd = rng_stream%next()
                ind = tmc_params%dim_per_elem* &
                      INT(rnd*(SIZE(elem%pos)/tmc_params%dim_per_elem)) + 1
             END IF
@@ -145,7 +141,7 @@ CONTAINS
             IF (elem%elem_stat(ind) .EQ. status_ok) THEN
                ! displace atom
                DO d = 0, tmc_params%dim_per_elem - 1
-                  rnd = next_random_number(rng_stream) ! next random number
+                  rnd = rng_stream%next()
                   elem%pos(ind + d) = elem%pos(ind + d) + (rnd - 0.5)*2.0* &
                                       move_types%mv_size(mv_type_atom_trans, mv_conf)
                END DO
@@ -197,7 +193,7 @@ CONTAINS
                IF (tmc_params%nr_elem_mv .EQ. 0) THEN
                   m = counter
                ELSE
-                  rnd = next_random_number(rng_stream) ! next random number
+                  rnd = rng_stream%next()
                   m = INT(rnd*nr_molec) + 1
                END IF
                CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
@@ -210,7 +206,7 @@ CONTAINS
                IF (mol_in_sb(m) .EQ. status_ok) THEN
                   ! calculate displacement
                   DO d = 1, tmc_params%dim_per_elem
-                     rnd = next_random_number(rng_stream) ! next random number
+                     rnd = rng_stream%next()
                      direction(d) = (rnd - 0.5)*2.0_dp*move_types%mv_size( &
                                     mv_type_mol_trans, mv_conf)
                   END DO
@@ -271,7 +267,7 @@ CONTAINS
                IF (tmc_params%nr_elem_mv .EQ. 0) THEN
                   m = counter
                ELSE
-                  rnd = next_random_number(rng_stream) ! next random number
+                  rnd = rng_stream%next()
                   m = INT(rnd*nr_molec) + 1
                END IF
                CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
@@ -352,7 +348,7 @@ CONTAINS
                        cp_to_string(elem%move_type))
       END SELECT
 
-      CALL get_rng_stream(rng_stream=rng_stream, bg=elem%rng_seed(:, :, 1), &
+      CALL rng_stream%get(bg=elem%rng_seed(:, :, 1), &
                           cg=elem%rng_seed(:, :, 2), ig=elem%rng_seed(:, :, 3))
 
    END SUBROUTINE change_pos
@@ -472,7 +468,7 @@ CONTAINS
    SUBROUTINE elements_in_new_subbox(tmc_params, rng_stream, elem, &
                                      nr_of_sub_box_elements)
       TYPE(tmc_param_type), POINTER                      :: tmc_params
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       TYPE(tree_type), POINTER                           :: elem
       INTEGER, INTENT(OUT)                               :: nr_of_sub_box_elements
 
@@ -501,19 +497,17 @@ CONTAINS
          ALLOCATE (atom_tmp(tmc_params%dim_per_elem))
          nr_of_sub_box_elements = 0
          ! -- define the center of the sub box
-         CALL set_rng_stream(rng_stream=rng_stream, &
-                             bg=elem%rng_seed(:, :, 1), cg=elem%rng_seed(:, :, 2), &
+         CALL rng_stream%set(bg=elem%rng_seed(:, :, 1), cg=elem%rng_seed(:, :, 2), &
                              ig=elem%rng_seed(:, :, 3))
 
          CALL get_cell(cell=tmc_params%cell, abc=box_size)
          DO i = 1, SIZE(tmc_params%sub_box_size)
-            rnd = next_random_number(rng_stream) ! next random number
+            rnd = rng_stream%next()
             center_of_sub_box(i) = rnd*box_size(i)
          END DO
          elem%subbox_center(:) = center_of_sub_box(:)
 
-         CALL get_rng_stream(rng_stream=rng_stream, &
-                             bg=elem%rng_seed(:, :, 1), cg=elem%rng_seed(:, :, 2), &
+         CALL rng_stream%get(bg=elem%rng_seed(:, :, 1), cg=elem%rng_seed(:, :, 2), &
                              ig=elem%rng_seed(:, :, 3))
 
          ! check all elements if they are in subbox
@@ -552,7 +546,7 @@ CONTAINS
       INTEGER                                            :: ind_start, ind_end
       REAL(KIND=dp)                                      :: max_angle
       TYPE(tmc_move_type), POINTER                       :: move_types
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       INTEGER                                            :: dim_per_elem
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mol_rot', routineP = moduleN//':'//routineN
@@ -571,11 +565,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(move_types))
 
       ! calculate rotation matrix (using quanternions)
-      rnd = next_random_number(rng_stream) ! next random number
+      rnd = rng_stream%next()
       a1 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
-      rnd = next_random_number(rng_stream) ! next random number
+      rnd = rng_stream%next()
       a2 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
-      rnd = next_random_number(rng_stream) ! next random number
+      rnd = rng_stream%next()
       a3 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
       q0 = COS(a2/2)*COS((a1 + a3)/2.0_dp)
       q1 = SIN(a2/2)*COS((a1 - a3)/2.0_dp)
@@ -615,7 +609,7 @@ CONTAINS
       TYPE(tmc_atom_type)                                :: atom_kind
       REAL(KIND=dp), INTENT(IN)                          :: phi, temp
       LOGICAL                                            :: rnd_sign_change
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'vel_change', routineP = moduleN//':'//routineN
 
@@ -624,12 +618,10 @@ CONTAINS
 
       kB = boltzmann/joule
 
-      CPASSERT(ASSOCIATED(rng_stream))
-
       !phi = move_types%mv_size(mv_type_MD,1) ! TODO parallel tempering move sizes for vel_change
       ! hence first producing a gaussian random number
-      rnd1 = next_random_number(rng_stream)
-      rnd2 = next_random_number(rng_stream)
+      rnd1 = rng_stream%next()
+      rnd2 = rng_stream%next()
 
       rnd_g = SQRT(-2.0_dp*LOG(rnd1))*COS(2.0_dp*PI*rnd2)
       !we can also produce a second one in the same step:
@@ -643,7 +635,7 @@ CONTAINS
       ! can be switched of using MD_vel_invert
       ! without still the balance condition should be fullfilled
 
-      rnd3 = next_random_number(rng_stream)
+      rnd3 = rng_stream%next()
       IF (rnd3 .GE. 0.5 .AND. rnd_sign_change) THEN
          d = -1
       ELSE
@@ -669,7 +661,7 @@ CONTAINS
                                                  tmc_params)
       TYPE(tree_type), POINTER                           :: elem
       LOGICAL                                            :: short_loop
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'search_and_do_proton_displace_loop', &
@@ -684,7 +676,6 @@ CONTAINS
       NULLIFY (mol_arr)
 
       CPASSERT(ASSOCIATED(elem))
-      CPASSERT(ASSOCIATED(rng_stream))
       CPASSERT(ASSOCIATED(tmc_params))
 
       ! start the timing
@@ -698,7 +689,7 @@ CONTAINS
       mol_arr(:) = -1
       donor_acceptor = not_selected
       ! select randomly if neighboring molecule is donor / acceptor
-      IF (next_random_number(rng_stream) .LT. 0.5_dp) THEN
+      IF (rng_stream%next() .LT. 0.5_dp) THEN
          donor_acceptor = proton_acceptor
       ELSE
          donor_acceptor = proton_donor
@@ -706,7 +697,7 @@ CONTAINS
 
       ! first step build loop
       !  select randomly one atom
-      rnd = next_random_number(rng_stream)
+      rnd = rng_stream%next()
       ! the randomly selected first atom
       mol = INT(rnd*nr_mol) + 1
       counter = counter + 1
@@ -773,7 +764,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: mol, donor_acceptor
       TYPE(tmc_param_type), POINTER                      :: tmc_params
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_nearest_proton_acceptor_donator', &
          routineP = moduleN//':'//routineN
@@ -885,7 +876,7 @@ CONTAINS
       END IF
 
       ! select randomly the next neighboring molecule
-      rnd = next_random_number(rng_stream)
+      rnd = rng_stream%next()
       ! the randomly selected atom: return value!
       mol_tmp = neighbor_mol(INT(rnd*SIZE(neighbor_mol(:))) + 1)
       mol = mol_tmp
@@ -1125,7 +1116,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: conf
       INTEGER                                            :: T_ind
       TYPE(tmc_move_type), POINTER                       :: move_types
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       LOGICAL                                            :: mv_cen_of_mass
 
@@ -1141,7 +1132,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(conf))
       CPASSERT(ASSOCIATED(move_types))
-      CPASSERT(ASSOCIATED(rng_stream))
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(T_ind .GT. 0 .AND. T_ind .LE. tmc_params%nr_temp)
       CPASSERT(tmc_params%dim_per_elem .EQ. 3)
@@ -1163,15 +1153,15 @@ CONTAINS
          IF (tmc_params%v_isotropic) THEN
             CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
                                  abc=box_length_new, vol=vol)
-            rnd = next_random_number(rng_stream)
+            rnd = rng_stream%next()
             vol = vol + (rnd - 0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
             box_length_new(:) = vol**(1/REAL(3, KIND=dp))
          ELSE
             CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
                                  abc=box_length_new, vol=vol)
-            rnd = next_random_number(rng_stream)
+            rnd = rng_stream%next()
             vol = vol + (rnd - 0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
-            rnd = next_random_number(rng_stream)
+            rnd = rng_stream%next()
             dir = 1 + INT(rnd*3)
             box_length_new(dir) = 1.0_dp
             box_length_new(dir) = vol/PRODUCT(box_length_new(:))
@@ -1181,15 +1171,15 @@ CONTAINS
          ! increase / decrease box lenght in this direction
          ! l_n = l_o +- rnd * mv_size
          IF (tmc_params%v_isotropic) THEN
-            rnd = next_random_number(rng_stream)
+            rnd = rng_stream%next()
             box_length_new(:) = box_length_new(:) + &
                                 (rnd - 0.5_dp)*2.0_dp* &
                                 move_types%mv_size(mv_type_volume_move, T_ind)
          ELSE
             ! select a random direction
-            rnd = next_random_number(rng_stream)
+            rnd = rng_stream%next()
             dir = 1 + INT(rnd*3)
-            rnd = next_random_number(rng_stream)
+            rnd = rng_stream%next()
             box_length_new(dir) = box_length_new(dir) + &
                                   (rnd - 0.5_dp)*2.0_dp* &
                                   move_types%mv_size(mv_type_volume_move, T_ind)
@@ -1254,7 +1244,7 @@ CONTAINS
    SUBROUTINE swap_atoms(conf, move_types, rng_stream, tmc_params)
       TYPE(tree_type), POINTER                           :: conf
       TYPE(tmc_move_type), POINTER                       :: move_types
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_atoms', routineP = moduleN//':'//routineN
@@ -1265,7 +1255,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(conf))
       CPASSERT(ASSOCIATED(move_types))
-      CPASSERT(ASSOCIATED(rng_stream))
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(ASSOCIATED(tmc_params%atoms))
 
@@ -1273,10 +1262,10 @@ CONTAINS
       atom_search_loop: DO
          ! select one atom randomly
          a_1 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem, KIND=dp)* &
-                   next_random_number(rng_stream)) + 1
+                   rng_stream%next()) + 1
          ! select the second atom randomly
          a_2 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem, KIND=dp)* &
-                   next_random_number(rng_stream)) + 1
+                   rng_stream%next()) + 1
          ! check if they have different kinds
          IF (tmc_params%atoms(a_1)%name .NE. tmc_params%atoms(a_2)%name) THEN
             ! if present, check if atoms have different type related to the specified table

@@ -19,8 +19,6 @@ MODULE al_system_dynamics
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
    USE particle_types,                  ONLY: particle_type
    USE thermostat_utils,                ONLY: ke_region_particles,&
                                               vel_rescale_particles
@@ -190,7 +188,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: w(:, :)
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(molecule_type), POINTER                       :: molecule
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       present_vel = PRESENT(vel)
 
@@ -222,10 +219,9 @@ CONTAINS
          CPASSERT(check)
          DO iparticle_local = 1, nparticle_local
             ipart = local_particles%list(iparticle_kind)%array(iparticle_local)
-            rng_stream => local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream
-            w(1, ipart) = next_random_number(rng_stream, variance=1.0_dp)
-            w(2, ipart) = next_random_number(rng_stream, variance=1.0_dp)
-            w(3, ipart) = next_random_number(rng_stream, variance=1.0_dp)
+            w(1, ipart) = local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream%next(variance=1.0_dp)
+            w(2, ipart) = local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream%next(variance=1.0_dp)
+            w(3, ipart) = local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream%next(variance=1.0_dp)
          END DO
       END DO
 

@@ -89,10 +89,6 @@ MODULE pint_methods
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
-                                              next_rng_seed,&
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -185,7 +181,6 @@ CONTAINS
                                                             ierr, ig, itmp, nrep, prep, stat
       LOGICAL                                            :: explicit, ltmp
       REAL(kind=dp)                                      :: dt, mass, omega
-      REAL(kind=dp), DIMENSION(3, 2)                     :: seed
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(global_constraint_type), POINTER              :: gci
@@ -338,14 +333,10 @@ CONTAINS
 !MK ... but we have to initialise v_tol
       pint_env%v_tol = 0.0_dp ! to be fixed
 
-      NULLIFY (pint_env%randomG)
-
-      seed(:, :) = next_rng_seed()
-      CALL create_rng_stream(pint_env%randomG, &
-                             name="pint_randomG", &
-                             distribution_type=GAUSSIAN, &
-                             extended_precision=.TRUE., &
-                             seed=seed)
+      pint_env%randomG = rng_stream_type( &
+                         name="pint_randomG", &
+                         distribution_type=GAUSSIAN, &
+                         extended_precision=.TRUE.)
 
       ALLOCATE (pint_env%e_pot_bead(pint_env%p))
       pint_env%e_pot_bead = 0._dp
@@ -731,7 +722,6 @@ CONTAINS
             IF (ASSOCIATED(pint_env%normalmode_env)) THEN
                CALL normalmode_release(pint_env%normalmode_env)
             END IF
-            CALL delete_rng_stream(pint_env%randomG)
 
             DEALLOCATE (pint_env%mass)
             DEALLOCATE (pint_env%e_pot_bead)
@@ -1052,7 +1042,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3)                        :: x0
       REAL(kind=dp), DIMENSION(3, 2)                     :: seed
       REAL(kind=dp), DIMENSION(:), POINTER               :: bx, r_vals
-      TYPE(rng_stream_type), POINTER                     :: rng_gaussian
+      TYPE(rng_stream_type), ALLOCATABLE                 :: rng_gaussian
       TYPE(section_vals_type), POINTER                   :: input_section
 
       CPASSERT(ASSOCIATED(pint_env))
@@ -1075,16 +1065,15 @@ CONTAINS
 
          NULLIFY (bx)
          ALLOCATE (bx(3*pint_env%p))
-         NULLIFY (rng_gaussian)
          CALL section_vals_val_get(pint_env%input, &
                                    "MOTION%PINT%INIT%LEVY_SEED", i_val=input_seed)
          seed(:, :) = REAL(input_seed, KIND=dp)
 !      seed(:,:) = next_rng_seed()
-         CALL create_rng_stream(rng_gaussian, &
-                                name="tmp_rng_gaussian", &
-                                distribution_type=GAUSSIAN, &
-                                extended_precision=.TRUE., &
-                                seed=seed)
+         rng_gaussian = rng_stream_type( &
+                        name="tmp_rng_gaussian", &
+                        distribution_type=GAUSSIAN, &
+                        extended_precision=.TRUE., &
+                        seed=seed)
 
          CALL section_vals_val_get(pint_env%input, &
                                    "MOTION%PINT%INIT%LEVY_CORRELATED", &
@@ -1126,7 +1115,6 @@ CONTAINS
 
          END IF
 
-         CALL delete_rng_stream(rng_gaussian)
          DEALLOCATE (bx)
          done_levy = .TRUE.
       END IF
@@ -1164,9 +1152,8 @@ CONTAINS
          DO idim = 1, pint_env%ndim
             DO ib = 1, pint_env%p
                pint_env%x(ib, idim) = pint_env%x(ib, idim) + &
-                                      next_random_number(rng_stream=pint_env%randomG, &
-                                                         variance=pint_env%beta/ &
-                                                         SQRT(12.0_dp*pint_env%mass(idim)))
+                                      pint_env%randomG%next(variance=pint_env%beta/ &
+                                                            SQRT(12.0_dp*pint_env%mass(idim)))
             END DO
          END DO
          done_rand = .TRUE.
@@ -1386,8 +1373,7 @@ CONTAINS
       DO idim = 1, SIZE(pint_env%uv, 2)
          DO ib = first_mode, SIZE(pint_env%uv, 1)
             pint_env%uv(ib, idim) = &
-               next_random_number(rng_stream=pint_env%randomG, &
-                                  variance=target_t/pint_env%mass_fict(ib, idim))
+               pint_env%randomG%next(variance=target_t/pint_env%mass_fict(ib, idim))
          END DO
       END DO
 
@@ -1399,8 +1385,7 @@ CONTAINS
       IF (ltmp) THEN
          CALL pint_u2x(pint_env, ux=pint_env%uv, x=pint_env%v)
          DO idim = 1, pint_env%ndim
-            rtmp = next_random_number(rng_stream=pint_env%randomG, &
-                                      variance=pint_env%mass(idim)*pint_env%kT) &
+            rtmp = pint_env%randomG%next(variance=pint_env%mass(idim)*pint_env%kT) &
                    /pint_env%mass(idim)
             DO ib = 1, pint_env%p
                pint_env%v(ib, idim) = pint_env%v(ib, idim) + rtmp
@@ -1569,8 +1554,7 @@ CONTAINS
             DO ib = 1, SIZE(pint_env%tv, 2)
                DO inos = 1, SIZE(pint_env%tv, 1)
                   pint_env%tv(inos, ib, idim) = &
-                     next_random_number(rng_stream=pint_env%randomG, &
-                                        variance=mykt/pint_env%Q(ib))
+                     pint_env%randomG%next(variance=mykt/pint_env%Q(ib))
                END DO
             END DO
          END DO

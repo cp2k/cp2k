@@ -45,8 +45,7 @@ MODULE mc_ge_moves
         mc_molecule_info_destroy, mc_molecule_info_type, mc_moves_p_type, &
         mc_simulation_parameters_p_type, set_mc_par
    USE message_passing,                 ONLY: mp_bcast
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE particle_methods,                ONLY: write_particle_coordinates
@@ -117,7 +116,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: box_flag
       TYPE(cp_subsys_p_type), DIMENSION(:), POINTER      :: subsys
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), INTENT(IN)                          :: unit_conv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_Quickstep_move', &
@@ -284,7 +283,7 @@ CONTAINS
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
       ENDIF
 
@@ -435,7 +434,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(1:2), INTENT(INOUT)       :: bias_energy_old, last_bias_energy
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_ge_swap_move', &
          routineP = moduleN//':'//routineN
@@ -511,7 +510,7 @@ CONTAINS
       ENDDO
 
 !     choose a direction to swap
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
 
       IF (rand .LE. 0.50E0_dp) THEN
@@ -531,7 +530,7 @@ CONTAINS
 !      insert_box=1
 
 ! now choose a molecule type at random
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
       DO itype = 1, nmol_types
          IF (rand .LT. pmswap_mol(itype)) THEN
@@ -552,7 +551,7 @@ CONTAINS
             moves(molecule_type, insert_box)%moves%empty + 1
       ELSE
 
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
          imolecule = CEILING(rand*nchains(molecule_type, remove_box))
 ! figure out the atom number this molecule starts on
@@ -627,7 +626,7 @@ CONTAINS
       IF (ionode) THEN
 ! choose an insertion point
          DO idim = 1, 3
-            rand = next_random_number(rng_stream)
+            rand = rng_stream%next()
             pos_insert(idim) = rand*abc_insert(idim)
          ENDDO
       ENDIF
@@ -1008,7 +1007,7 @@ CONTAINS
       IF (w .GE. 1.0E0_dp) THEN
          rand = 0.0E0_dp
       ELSE
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
       ENDIF
 
@@ -1138,7 +1137,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nnstep
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: old_energy, energy_check
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: r_old
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_ge_volume_move', &
          routineP = moduleN//':'//routineN
@@ -1237,7 +1236,7 @@ CONTAINS
       ENDDO
 
 ! call a random number to figure out how far we're moving
-      IF (ionode) rand = next_random_number(rng_stream)
+      IF (ionode) rand = rng_stream%next()
       CALL mp_bcast(rand, source, group)
 
       vol_dis = rmvolume*(rand - 0.5E0_dp)*2.0E0_dp
@@ -1363,7 +1362,7 @@ CONTAINS
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
-         IF (ionode) rand = next_random_number(rng_stream)
+         IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
       ENDIF
 

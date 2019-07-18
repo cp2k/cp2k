@@ -29,11 +29,9 @@ MODULE pint_piglet
                                               dp
    USE message_passing,                 ONLY: mp_bcast
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
-                                              read_rng_stream,&
-                                              rng_record_length
+                                              rng_record_length,&
+                                              rng_stream_type,&
+                                              rng_stream_type_from_record
    USE pint_io,                         ONLY: pint_write_line
    USE pint_types,                      ONLY: piglet_therm_type,&
                                               pint_env_type
@@ -277,21 +275,19 @@ CONTAINS
 
       !prepare Random number generator
       NULLIFY (rng_section)
-      NULLIFY (piglet_therm%gaussian_rng_stream)
       rng_section => section_vals_get_subs_vals(section, &
                                                 subsection_name="RNG_INIT")
       CALL section_vals_get(rng_section, explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(rng_section, "_DEFAULT_KEYWORD_", &
                                    i_rep_val=1, c_val=rng_record)
-         CALL read_rng_stream(rng_stream=piglet_therm%gaussian_rng_stream, &
-                              rng_record=rng_record)
+         piglet_therm%gaussian_rng_stream = rng_stream_type_from_record(rng_record)
       ELSE
          initial_seed(:, :) = REAL(pint_env%thermostat_rng_seed, dp)
-         CALL create_rng_stream(rng_stream=piglet_therm%gaussian_rng_stream, &
-                                name="piglet_rng_gaussian", distribution_type=GAUSSIAN, &
-                                extended_precision=.TRUE., &
-                                seed=initial_seed)
+         piglet_therm%gaussian_rng_stream = rng_stream_type( &
+                                            name="piglet_rng_gaussian", distribution_type=GAUSSIAN, &
+                                            extended_precision=.TRUE., &
+                                            seed=initial_seed)
       END IF
 
       !Compute the T and S matrices on every mpi process
@@ -385,7 +381,7 @@ CONTAINS
             ! Fill a vector with random numbers
             DO idim = 1, piglet_therm%ndim
                DO j = 1, piglet_therm%nsp1
-                  piglet_therm%temp2(j, idim) = next_random_number(piglet_therm%gaussian_rng_stream)
+                  piglet_therm%temp2(j, idim) = piglet_therm%gaussian_rng_stream%next()
                   !piglet_therm%temp2(j,idim) = 1.0_dp
                END DO
             END DO
@@ -469,7 +465,7 @@ CONTAINS
          !fill temp2 with gaussian random noise
          DO j = 1, nsp1
             DO idim = 1, ndim
-               piglet_therm%temp2(j, idim) = next_random_number(piglet_therm%gaussian_rng_stream)
+               piglet_therm%temp2(j, idim) = piglet_therm%gaussian_rng_stream%next()
                !piglet_therm%temp2(j,idim) = 1.0_dp
             END DO
          END DO
@@ -550,7 +546,6 @@ CONTAINS
             DEALLOCATE (piglet_therm%c_mat)
             DEALLOCATE (piglet_therm%gle_t)
             DEALLOCATE (piglet_therm%gle_s)
-            CALL delete_rng_stream(piglet_therm%gaussian_rng_stream)
             DEALLOCATE (piglet_therm%smalls)
             DEALLOCATE (piglet_therm%temp1)
             DEALLOCATE (piglet_therm%temp2)

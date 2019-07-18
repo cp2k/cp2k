@@ -15,8 +15,6 @@ MODULE pint_gle
    USE gle_system_dynamics,             ONLY: gle_cholesky_stab
    USE gle_system_types,                ONLY: gle_type
    USE kinds,                           ONLY: dp
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
    USE pint_types,                      ONLY: pint_env_type
 #include "../base/base_uses.f90"
 
@@ -55,7 +53,6 @@ CONTAINS
 
       INTEGER                                            :: i, ib, idim, imap, j
       REAL(dp) :: mf, rr(pint_env%gle%ndim), cc(pint_env%gle%ndim, pint_env%gle%ndim)
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CALL gle_cholesky_stab(pint_env%gle%c_mat, cc, pint_env%gle%ndim)
       DO i = 1, pint_env%gle%loc_num_gle
@@ -63,9 +60,8 @@ CONTAINS
          ib = 1 + (imap - 1)/pint_env%ndim
          idim = 1 + MOD(imap - 1, pint_env%ndim)
          mf = 1.0_dp/SQRT(pint_env%mass_fict(ib, idim))
-         rng_stream => pint_env%gle%nvt(i)%gaussian_rng_stream
          DO j = 1, pint_env%gle%ndim
-            rr(j) = next_random_number(rng_stream)*mf
+            rr(j) = pint_env%gle%nvt(i)%gaussian_rng_stream%next()*mf
          END DO
          pint_env%gle%nvt(i)%s = MATMUL(cc, rr)
       END DO
@@ -86,12 +82,10 @@ CONTAINS
       REAL(dp)                                           :: alpha, beta, mf, rr
       REAL(dp), DIMENSION(:, :), POINTER                 :: a_mat, e_tmp, h_tmp, s_tmp
       TYPE(gle_type), POINTER                            :: gle
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CALL timeset(routineN, handle)
 
       gle => pint_env%gle
-      NULLIFY (rng_stream)
       ndim = gle%ndim
 
       ALLOCATE (s_tmp(ndim, gle%loc_num_gle))
@@ -108,13 +102,12 @@ CONTAINS
          gle%nvt(ideg)%thermostat_energy = gle%nvt(ideg)%thermostat_energy &
                                            + 0.5_dp*pint_env%mass_fict(ib, idim)*gle%nvt(ideg)%s(1)**2
          s_tmp(1, imap) = gle%nvt(ideg)%s(1)
-         rng_stream => gle%nvt(ideg)%gaussian_rng_stream
-         rr = next_random_number(rng_stream)
+         rr = gle%nvt(ideg)%gaussian_rng_stream%next()
          mf = 1.0_dp/SQRT(pint_env%mass_fict(ib, idim))
          e_tmp(1, imap) = rr*mf
          DO iadd = 2, ndim
             s_tmp(iadd, imap) = gle%nvt(ideg)%s(iadd)
-            rr = next_random_number(rng_stream)
+            rr = gle%nvt(ideg)%gaussian_rng_stream%next()
             e_tmp(iadd, imap) = rr*mf
          END DO
       END DO

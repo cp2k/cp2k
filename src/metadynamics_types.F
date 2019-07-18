@@ -16,8 +16,7 @@ MODULE metadynamics_types
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE parallel_rng_types,              ONLY: delete_rng_stream,&
-                                              rng_stream_p_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -118,8 +117,8 @@ MODULE metadynamics_types
       TYPE(multiple_walkers_type), POINTER      :: multiple_walkers
       TYPE(cp_para_env_type), POINTER           :: para_env
       TYPE(section_vals_type), POINTER          :: metadyn_section
-      TYPE(rng_stream_p_type), DIMENSION(:), &
-         POINTER :: rng
+      TYPE(rng_stream_type), DIMENSION(:), &
+         ALLOCATABLE :: rng
       INTEGER                                   :: TAMCSteps
       REAL(kind=dp)                             :: zdt
    END TYPE meta_env_type
@@ -160,7 +159,6 @@ CONTAINS
       NULLIFY (meta_env%multiple_walkers, &
                meta_env%metadyn_section, &
                meta_env%time, &
-               meta_env%rng, &
                meta_env%hills_env)
 
       meta_env%use_plumed = .FALSE.
@@ -227,9 +225,6 @@ CONTAINS
       CALL section_vals_val_get(metadyn_section, "LANGEVIN", l_val=do_langevin)
       IF (do_langevin) THEN
          ALLOCATE (meta_env%rng(meta_env%n_colvar))
-         DO i = 1, meta_env%n_colvar
-            NULLIFY (meta_env%rng(meta_env%n_colvar)%stream)
-         END DO
       ENDIF
    END SUBROUTINE metadyn_create
 
@@ -310,14 +305,9 @@ CONTAINS
             END IF
 
             ! Langevin on COLVARS
-            IF (meta_env%langevin) THEN
-               DO i = 1, SIZE(meta_env%rng)
-                  IF (ASSOCIATED(meta_env%rng(i)%stream)) THEN
-                     CALL delete_rng_stream(meta_env%rng(i)%stream)
-                  END IF
-               END DO
+            IF (meta_env%langevin) &
                DEALLOCATE (meta_env%rng)
-            ENDIF
+
             NULLIFY (meta_env%time)
             NULLIFY (meta_env%metadyn_section)
             DEALLOCATE (meta_env)

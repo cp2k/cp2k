@@ -43,8 +43,7 @@ MODULE tmc_setup
                                               mp_comm_free,&
                                               mp_comm_split_direct
    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream
+                                              rng_stream_type
    USE physcon,                         ONLY: au2a => angstrom,&
                                               au2bar => bar
    USE tmc_analysis,                    ONLY: analysis_init,&
@@ -176,15 +175,15 @@ CONTAINS
                          tmc_env%m_env%rnd_init*10.0_dp, &
                          tmc_env%m_env%rnd_init*2.0_dp/), &
                        (/3, 2/))
-            CALL create_rng_stream(rng_stream=tmc_env%rng_stream, &
-                                   name="TMC_deterministic_rng_stream", &
-                                   seed=init_rng_seed(:, :), &
-                                   distribution_type=UNIFORM)
+            tmc_env%rng_stream = rng_stream_type( &
+                                 name="TMC_deterministic_rng_stream", &
+                                 seed=init_rng_seed(:, :), &
+                                 distribution_type=UNIFORM)
             DEALLOCATE (init_rng_seed)
          ELSE
-            CALL create_rng_stream(rng_stream=tmc_env%rng_stream, &
-                                   name="TMC_rng_stream", &
-                                   distribution_type=UNIFORM)
+            tmc_env%rng_stream = rng_stream_type( &
+                                 name="TMC_rng_stream", &
+                                 distribution_type=UNIFORM)
          END IF
 
          ! start running master and worker routines
@@ -310,8 +309,7 @@ CONTAINS
          END IF ! unused worker groups have nothing to do
 
          ! delete the random numbers
-         CPASSERT(ASSOCIATED(tmc_env%rng_stream))
-         CALL delete_rng_stream(tmc_env%rng_stream)
+         DEALLOCATE (tmc_env%rng_stream)
 
          ! deallocate the move types
          CALL finalize_mv_types(tmc_env%params)

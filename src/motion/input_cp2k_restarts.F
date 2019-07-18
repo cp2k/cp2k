@@ -64,9 +64,7 @@ MODULE input_cp2k_restarts
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE neb_types,                       ONLY: neb_var_type
-   USE parallel_rng_types,              ONLY: dump_rng_stream,&
-                                              get_rng_stream,&
-                                              rng_record_length
+   USE parallel_rng_types,              ONLY: rng_record_length
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: get_particle_pos_or_vel,&
                                               particle_type
@@ -1008,8 +1006,7 @@ CONTAINS
       ELSE IF (pint_env%pimd_thermostat == thermostat_pile) THEN
          tmpsec => section_vals_get_subs_vals(pint_section, &
                                               "PILE%RNG_INIT")
-         CALL dump_rng_stream(rng_stream=pint_env%pile_therm%gaussian_rng_stream, &
-                              rng_record=rng_record)
+         CALL pint_env%pile_therm%gaussian_rng_stream%dump(rng_record)
          CALL string_to_ascii(rng_record, ascii(:, 1))
          CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
                                   ascii=ascii)
@@ -1023,8 +1020,7 @@ CONTAINS
       ELSE IF (pint_env%pimd_thermostat == thermostat_piglet) THEN
          tmpsec => section_vals_get_subs_vals(pint_section, &
                                               "PIGLET%RNG_INIT")
-         CALL dump_rng_stream(rng_stream=pint_env%piglet_therm%gaussian_rng_stream, &
-                              rng_record=rng_record)
+         CALL pint_env%piglet_therm%gaussian_rng_stream%dump(rng_record)
          CALL string_to_ascii(rng_record, ascii(:, 1))
          CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
                                   ascii=ascii)
@@ -1261,8 +1257,8 @@ CONTAINS
          real_msg_gather(:) = 0.0_dp
 
          DO i = 1, SIZE(helium_env)
-            CALL get_rng_stream(helium_env(i)%helium%rng_stream_uniform, bg=bg, cg=cg, ig=ig, &
-                                buffer=bu, buffer_filled=lbf)
+            CALL helium_env(i)%helium%rng_stream_uniform%get(bg=bg, cg=cg, ig=ig, &
+                                                             buffer=bu, buffer_filled=lbf)
             off = 0
             real_msg(off + 1:off + 6) = PACK(bg, .TRUE.)
             real_msg(off + 7:off + 12) = PACK(cg, .TRUE.)
@@ -1274,8 +1270,8 @@ CONTAINS
             END IF
             real_msg(off + 19) = bf
             real_msg(off + 20) = bu
-            CALL get_rng_stream(helium_env(i)%helium%rng_stream_gaussian, bg=bg, cg=cg, ig=ig, &
-                                buffer=bu, buffer_filled=lbf)
+            CALL helium_env(i)%helium%rng_stream_gaussian%get(bg=bg, cg=cg, ig=ig, &
+                                                              buffer=bu, buffer_filled=lbf)
             off = 20
             real_msg(off + 1:off + 6) = PACK(bg, .TRUE.)
             real_msg(off + 7:off + 12) = PACK(cg, .TRUE.)
@@ -1553,8 +1549,7 @@ CONTAINS
       dwork = 0
       DO i = 1, csvr%loc_num_csvr
          my_index = csvr%map_info%index(i)
-         CALL dump_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream, &
-                              rng_record=rng_record)
+         CALL csvr%nvt(i)%gaussian_rng_stream%dump(rng_record)
          CALL string_to_ascii(rng_record, dwork(:, my_index))
       END DO
 
@@ -1681,8 +1676,7 @@ CONTAINS
       dwork = 0
       DO i = 1, loc_num
          j = gle%map_info%index(i)
-         CALL dump_rng_stream(rng_stream=gle%nvt(i)%gaussian_rng_stream, &
-                              rng_record=rng_record)
+         CALL gle%nvt(i)%gaussian_rng_stream%dump(rng_record)
          CALL string_to_ascii(rng_record, dwork(:, j))
       END DO
 

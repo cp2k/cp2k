@@ -50,7 +50,6 @@ MODULE metadynamics
                                  meta_walls, &
                                  restart_hills, &
                                  synchronize_multiple_walkers
-   USE parallel_rng_types, ONLY: next_random_number
    USE particle_list_types, ONLY: particle_list_type
 #if defined (__PLUMED2)
    USE physcon, ONLY: angstrom, &
@@ -401,7 +400,7 @@ CONTAINS
          meta_env%ekin_s = 0.0_dp
          DO i_c = 1, meta_env%n_colvar
             cv => meta_env%metavar(i_c)
-            cv%vvp = next_random_number(force_env%globenv%gaussian_rng_stream)
+            cv%vvp = force_env%globenv%gaussian_rng_stream%next()
             meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
          END DO
          ekin_w = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar, KIND=dp)

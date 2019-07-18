@@ -27,7 +27,6 @@ MODULE helium_common
                                               dp
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
-   USE parallel_rng_types,              ONLY: next_random_number
    USE physcon,                         ONLY: angstrom,&
                                               bohr
    USE pint_public,                     ONLY: pint_com_pos
@@ -1339,7 +1338,7 @@ CONTAINS
          ! number of random numbers to generate:
          c = 1000000000
          DO j = 1, c
-            v = next_random_number(helium%rng_stream_uniform)
+            v = helium%rng_stream_uniform%next()
             ! walk down the search tree:
             k = nb - 1
             DO
@@ -1418,7 +1417,7 @@ CONTAINS
       ! (should not be taken, but just in case it does we have something valid)
 
       helium%pweight = 0.0_dp
-      t = next_random_number(helium%rng_stream_uniform)
+      t = helium%rng_stream_uniform%next()
       helium%ptable(1) = 1 + INT(t*nb)
       helium%ptable(2) = -1
 

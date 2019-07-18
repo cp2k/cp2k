@@ -33,10 +33,6 @@
 MODULE tmc_tree_build
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
-   USE parallel_rng_types,              ONLY: get_rng_stream,&
-                                              next_random_number,&
-                                              reset_to_next_rng_substream,&
-                                              set_rng_stream
    USE tmc_calculations,                ONLY: calc_e_kin,&
                                               init_vel
    USE tmc_dot_tree,                    ONLY: create_dot,&
@@ -290,18 +286,19 @@ CONTAINS
                                          nr_temp=tmc_env%params%nr_temp)
 
       ! use initial/default values
-      CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
-                          bg=tmc_env%m_env%gt_act%rng_seed(:, :, 1), &
-                          cg=tmc_env%m_env%gt_act%rng_seed(:, :, 2), &
-                          ig=tmc_env%m_env%gt_act%rng_seed(:, :, 3))
+      CALL tmc_env%rng_stream%get( &
+         bg=tmc_env%m_env%gt_act%rng_seed(:, :, 1), &
+         cg=tmc_env%m_env%gt_act%rng_seed(:, :, 2), &
+         ig=tmc_env%m_env%gt_act%rng_seed(:, :, 3))
 
       global_tree => tmc_env%m_env%gt_act
       tmc_env%m_env%gt_head => tmc_env%m_env%gt_act
 
       ! set global random seed
-      CALL set_rng_stream(rng_stream=tmc_env%rng_stream, bg=global_tree%rng_seed(:, :, 1), &
-                          cg=global_tree%rng_seed(:, :, 2), ig=global_tree%rng_seed(:, :, 3))
-      global_tree%rnd_nr = next_random_number(tmc_env%rng_stream)
+      CALL tmc_env%rng_stream%set(bg=global_tree%rng_seed(:, :, 1), &
+                                  cg=global_tree%rng_seed(:, :, 2), &
+                                  ig=global_tree%rng_seed(:, :, 3))
+      global_tree%rnd_nr = tmc_env%rng_stream%next()
 
       !-- SUBTREES: set initial values
       DO i = 1, SIZE(global_tree%conf)
@@ -328,10 +325,10 @@ CONTAINS
          END IF
 
          !-- different random seeds for every subtree
-         CALL reset_to_next_rng_substream(tmc_env%rng_stream)
-         CALL get_rng_stream(rng_stream=tmc_env%rng_stream, bg=global_tree%conf(i)%elem%rng_seed(:, :, 1), &
-                             cg=global_tree%conf(i)%elem%rng_seed(:, :, 2), &
-                             ig=global_tree%conf(i)%elem%rng_seed(:, :, 3))
+         CALL tmc_env%rng_stream%reset_to_next_substream()
+         CALL tmc_env%rng_stream%get(bg=global_tree%conf(i)%elem%rng_seed(:, :, 1), &
+                                     cg=global_tree%conf(i)%elem%rng_seed(:, :, 2), &
+                                     ig=global_tree%conf(i)%elem%rng_seed(:, :, 3))
 
          !-- gaussian distributed velocities
          !-- calculating the kinetic energy of the initial configuration velocity
@@ -645,16 +642,16 @@ CONTAINS
             new_elem%conf(:) = tmp_elem%conf(:)
 
             !-- set rnd nr generator and set next conf to change
-            CALL set_rng_stream(rng_stream=tmc_env%rng_stream, &
-                                bg=new_elem%parent%rng_seed(:, :, 1), &
-                                cg=new_elem%parent%rng_seed(:, :, 2), &
-                                ig=new_elem%parent%rng_seed(:, :, 3))
-            CALL reset_to_next_rng_substream(tmc_env%rng_stream)
+            CALL tmc_env%rng_stream%set( &
+               bg=new_elem%parent%rng_seed(:, :, 1), &
+               cg=new_elem%parent%rng_seed(:, :, 2), &
+               ig=new_elem%parent%rng_seed(:, :, 3))
+            CALL tmc_env%rng_stream%reset_to_next_substream()
             ! the random number for acceptance check
-            new_elem%rnd_nr = next_random_number(tmc_env%rng_stream)
+            new_elem%rnd_nr = tmc_env%rng_stream%next()
 
             ! the next configuration index to move
-            !rnd = next_random_number(tmc_env%rng_stream)
+            !rnd = tmc_env%rng_stream%next()
             !new_elem%mv_conf = 1+INT(size(new_elem%conf)*rnd)
             ! one temperature after each other
             new_elem%mv_conf = new_elem%parent%mv_next_conf
@@ -665,12 +662,11 @@ CONTAINS
             IF (n_acc) new_elem%Temp = tmp_elem%Temp*(1 - tmc_env%m_env%temp_decrease)
 
             !-- rnd for swap
-            rnd = next_random_number(tmc_env%rng_stream)
-            rnd2 = next_random_number(tmc_env%rng_stream)
-            CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
-                                bg=new_elem%rng_seed(:, :, 1), &
-                                cg=new_elem%rng_seed(:, :, 2), &
-                                ig=new_elem%rng_seed(:, :, 3))
+            rnd = tmc_env%rng_stream%next()
+            rnd2 = tmc_env%rng_stream%next()
+            CALL tmc_env%rng_stream%get(bg=new_elem%rng_seed(:, :, 1), &
+                                        cg=new_elem%rng_seed(:, :, 2), &
+                                        ig=new_elem%rng_seed(:, :, 3))
 
             ! swap moves are not part of the subtree structure,
             !  because exisiting elements from DIFFERENT subtrees are swaped
@@ -893,14 +889,14 @@ CONTAINS
       END IF
 
       ! set new substream of random number generator
-      CALL set_rng_stream(rng_stream=tmc_env%rng_stream, &
-                          bg=new_elem%rng_seed(:, :, 1), &
-                          cg=new_elem%rng_seed(:, :, 2), &
-                          ig=new_elem%rng_seed(:, :, 3))
-      CALL reset_to_next_rng_substream(tmc_env%rng_stream)
+      CALL tmc_env%rng_stream%set( &
+         bg=new_elem%rng_seed(:, :, 1), &
+         cg=new_elem%rng_seed(:, :, 2), &
+         ig=new_elem%rng_seed(:, :, 3))
+      CALL tmc_env%rng_stream%reset_to_next_substream()
 
       ! set the temperature for the NMC moves
-      rnd = next_random_number(tmc_env%rng_stream)
+      rnd = tmc_env%rng_stream%next()
       IF (tmc_env%params%NMC_inp_file .NE. "") THEN
          new_elem%temp_created = INT(tmc_env%params%nr_temp*rnd) + 1
       ELSE
@@ -908,15 +904,15 @@ CONTAINS
       END IF
 
       ! rnd nr for selecting move
-      rnd = next_random_number(tmc_env%rng_stream)
+      rnd = tmc_env%rng_stream%next()
       !-- set move type
       new_elem%move_type = select_random_move_type( &
                            move_types=tmc_env%params%move_types, &
                            rnd=rnd)
-      CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
-                          bg=new_elem%rng_seed(:, :, 1), &
-                          cg=new_elem%rng_seed(:, :, 2), &
-                          ig=new_elem%rng_seed(:, :, 3))
+      CALL tmc_env%rng_stream%get( &
+         bg=new_elem%rng_seed(:, :, 1), &
+         cg=new_elem%rng_seed(:, :, 2), &
+         ig=new_elem%rng_seed(:, :, 3))
 
       ! move is only done by the master,
       !  when standard MC moves with single potential are done

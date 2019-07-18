@@ -62,12 +62,8 @@ MODULE helium_methods
                                               mp_comm_split_direct
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              next_random_number,&
                                               rng_stream_p_type,&
-                                              rng_stream_type,&
-                                              set_rng_stream
+                                              rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: a_mass,&
                                               angstrom,&
@@ -967,8 +963,8 @@ CONTAINS
                         helium_env(k)%helium%u0, &
                         helium_env(k)%helium%e0)
 
-               CALL delete_rng_stream(helium_env(k)%helium%rng_stream_uniform)
-               CALL delete_rng_stream(helium_env(k)%helium%rng_stream_gaussian)
+               DEALLOCATE (helium_env(k)%helium%rng_stream_uniform)
+               DEALLOCATE (helium_env(k)%helium%rng_stream_gaussian)
 
                ! deallocate solute-related arrays
                IF (helium_env(k)%helium%solute_present) THEN
@@ -1222,7 +1218,7 @@ CONTAINS
                   !minHeHedsttmp = 0.90_dp**(iter/100)*minHeHedst
                   minHeHedsttmp = 0.90_dp**MIN(0, iter - 2)*minHeHedst
                   DO ic = 1, 3
-                     r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                     r1 = helium_env(k)%helium%rng_stream_uniform%next()
                      r1 = 2.0_dp*r1 - 1.0_dp
                      r1 = r1*helium_env(k)%helium%cell_size
                      centroids(ic, ia) = r1
@@ -1292,7 +1288,7 @@ CONTAINS
                   ! if sampling fails to often, reduce he he criterion
                   minHeHedsttmp = 0.90_dp**MIN(0, iter - 2)*minHeHedst
                   DO ic = 1, 3
-                     rvek(ic) = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                     rvek(ic) = helium_env(k)%helium%rng_stream_uniform%next()
                      rvek(ic) = 2.0_dp*rvek(ic) - 1.0_dp
                      rvek(ic) = rvek(ic)*helium_env(k)%helium%droplet_radius
                   END DO
@@ -1419,7 +1415,7 @@ CONTAINS
             DO imode = 2, p
                omega = 2.0_dp*p*kbT*SIN((imode - 1)*pip)
                variance = kbT*p/(helium_env%he_mass_au*omega**2)
-               rand = next_random_number(helium_env%rng_stream_gaussian)
+               rand = helium_env%rng_stream_gaussian%next()
                nmhecoords(imode) = rand*SQRT(variance)
             END DO
             helium_env%pos(idim, iatom, 1:p) = MATMUL(u2x, nmhecoords)
@@ -1885,7 +1881,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(rng_stream_p_type), DIMENSION(:), POINTER     :: gaussian_array, uniform_array
-      TYPE(rng_stream_type), POINTER                     :: next_rngs, prev_rngs
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -1902,73 +1897,52 @@ CONTAINS
       ALLOCATE (uniform_array(helium_env(1)%helium%num_env), &
                 gaussian_array(helium_env(1)%helium%num_env))
       DO i = 1, helium_env(1)%helium%num_env
-         NULLIFY (uniform_array(i)%stream, gaussian_array(i)%stream)
+         ALLOCATE (uniform_array(i)%stream, gaussian_array(i)%stream)
       END DO
-      NULLIFY (prev_rngs, next_rngs)
 
       ! Create num_env RNG streams on processor all processors
       ! and distribute them so, that each processor gets unique
       ! RN sequences for his helium environments
       ! COMMENT: rng_stream can not be used with mp_bcast
 
-      CALL create_rng_stream(prev_rngs, &
-                             name="helium_rns_uniform", &
-                             distribution_type=UNIFORM, &
-                             extended_precision=.TRUE., &
-                             seed=initial_seed)
-      uniform_array(1)%stream => prev_rngs
+      uniform_array(1)%stream = rng_stream_type(name="helium_rns_uniform", &
+                                                distribution_type=UNIFORM, &
+                                                extended_precision=.TRUE., &
+                                                seed=initial_seed)
 
-      CALL create_rng_stream(next_rngs, &
-                             name="helium_rns_gaussian", &
-                             last_rng_stream=prev_rngs, &
-                             distribution_type=GAUSSIAN, &
-                             extended_precision=.TRUE.)
-      gaussian_array(1)%stream => next_rngs
-      NULLIFY (prev_rngs)
-      prev_rngs => next_rngs
-      NULLIFY (next_rngs)
-
+      gaussian_array(1)%stream = rng_stream_type(name="helium_rns_gaussian", &
+                                                 distribution_type=GAUSSIAN, &
+                                                 extended_precision=.TRUE., &
+                                                 last_rng_stream=uniform_array(1)%stream)
       DO i = 2, helium_env(1)%helium%num_env
-         CALL create_rng_stream(next_rngs, &
-                                name="helium_rns_uniform", &
-                                last_rng_stream=prev_rngs, &
-                                distribution_type=UNIFORM, &
-                                extended_precision=.TRUE.)
-         uniform_array(i)%stream => next_rngs
-         prev_rngs => next_rngs
-         NULLIFY (next_rngs)
+         uniform_array(i)%stream = rng_stream_type(name="helium_rns_uniform", &
+                                                   distribution_type=UNIFORM, &
+                                                   extended_precision=.TRUE., &
+                                                   last_rng_stream=gaussian_array(i - 1)%stream)
 
-         CALL create_rng_stream(next_rngs, &
-                                name="helium_rns_gaussian", &
-                                last_rng_stream=prev_rngs, &
-                                distribution_type=GAUSSIAN, &
-                                extended_precision=.TRUE.)
-         gaussian_array(i)%stream => next_rngs
-         prev_rngs => next_rngs
-         NULLIFY (next_rngs)
-
+         gaussian_array(i)%stream = rng_stream_type(name="helium_rns_uniform", &
+                                                    distribution_type=GAUSSIAN, &
+                                                    extended_precision=.TRUE., &
+                                                    last_rng_stream=uniform_array(i)%stream)
       END DO
-
-      NULLIFY (prev_rngs)
 
       offset = 0
       DO i = 1, logger%para_env%mepos
          offset = offset + helium_env(1)%env_all(i)
       END DO
 
-      IF (ASSOCIATED(helium_env)) THEN
-         DO i = 1, SIZE(helium_env)
-            NULLIFY (helium_env(i)%helium%rng_stream_uniform, &
-                     helium_env(i)%helium%rng_stream_gaussian)
-            helium_env(i)%helium%rng_stream_uniform => uniform_array(offset + i)%stream
-            helium_env(i)%helium%rng_stream_gaussian => gaussian_array(offset + i)%stream
-         END DO
-      END IF
+      DO i = 1, SIZE(helium_env)
+         NULLIFY (helium_env(i)%helium%rng_stream_uniform, &
+                  helium_env(i)%helium%rng_stream_gaussian)
+         helium_env(i)%helium%rng_stream_uniform => uniform_array(offset + i)%stream
+         helium_env(i)%helium%rng_stream_gaussian => gaussian_array(offset + i)%stream
+      END DO
 
       DO i = 1, helium_env(1)%helium%num_env
          IF (i .LE. offset .OR. i .GT. offset + SIZE(helium_env)) THEN
-            CALL delete_rng_stream(uniform_array(i)%stream)
-            CALL delete_rng_stream(gaussian_array(i)%stream)
+            ! only deallocate pointers here which were not passed on to helium_env(*)%helium
+            DEALLOCATE (uniform_array(i)%stream)
+            DEALLOCATE (gaussian_array(i)%stream)
          END IF
          NULLIFY (uniform_array(i)%stream)
          NULLIFY (gaussian_array(i)%stream)
@@ -1976,8 +1950,6 @@ CONTAINS
 
       DEALLOCATE (uniform_array)
       DEALLOCATE (gaussian_array)
-
-      RETURN
    END SUBROUTINE helium_rng_init
 
 ! ***************************************************************************
@@ -2060,8 +2032,8 @@ CONTAINS
             ELSE
                lbf = .FALSE.
             END IF
-            CALL set_rng_stream(helium_env(k)%helium%rng_stream_uniform, bg=bg, cg=cg, ig=ig, &
-                                buffer=bu, buffer_filled=lbf)
+            CALL helium_env(k)%helium%rng_stream_uniform%set(bg=bg, cg=cg, ig=ig, &
+                                                             buffer=bu, buffer_filled=lbf)
             bg(:, :) = UNPACK(message(off + 21:off + 26), MASK=m, FIELD=f)
             cg(:, :) = UNPACK(message(off + 27:off + 32), MASK=m, FIELD=f)
             ig(:, :) = UNPACK(message(off + 33:off + 38), MASK=m, FIELD=f)
@@ -2072,8 +2044,8 @@ CONTAINS
             ELSE
                lbf = .FALSE.
             END IF
-            CALL set_rng_stream(helium_env(k)%helium%rng_stream_gaussian, bg=bg, cg=cg, ig=ig, &
-                                buffer=bu, buffer_filled=lbf)
+            CALL helium_env(k)%helium%rng_stream_gaussian%set(bg=bg, cg=cg, ig=ig, &
+                                                              buffer=bu, buffer_filled=lbf)
          END DO
       END IF
 

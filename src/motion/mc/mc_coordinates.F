@@ -24,8 +24,7 @@ MODULE mc_coordinates
                                               mc_simpar_type
    USE message_passing,                 ONLY: mp_bcast
    USE molecule_types,                  ONLY: molecule_type
-   USE parallel_rng_types,              ONLY: next_random_number,&
-                                              rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
 #include "../../base/base_uses.f90"
@@ -345,7 +344,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: ionode, lremove
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mol_type, nchains
       INTEGER, INTENT(IN)                                :: source, group
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       INTEGER, INTENT(IN), OPTIONAL                      :: avbmc_atom
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rmin, rmax
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: move_type
@@ -463,7 +462,7 @@ CONTAINS
             ELSE
 ! find a new insertion point somewhere in the box
                DO i = 1, 3
-                  rand = next_random_number(rng_stream)
+                  rand = rng_stream%next()
                   r_insert(i) = rand*abc(i)
                ENDDO
 
@@ -548,7 +547,7 @@ CONTAINS
       total_running_weight = 0.0E0_dp
       choosen = 0
       IF (ionode) THEN
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
 !         CALL random_number(rand)
       ENDIF
       CALL mp_bcast(rand, source, group)
@@ -631,7 +630,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:natoms), INTENT(IN)     :: mass
       REAL(KIND=dp), DIMENSION(1:3, 1:natoms), &
          INTENT(INOUT)                                   :: r
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotate_molecule', &
          routineP = moduleN//':'//routineN
@@ -649,7 +648,7 @@ CONTAINS
       CALL get_center_of_mass(r(:, :), natoms, center_of_mass(:), mass(:))
 
 ! call a random number to figure out how far we're moving
-      rand = next_random_number(rng_stream)
+      rand = rng_stream%next()
       dgamma = pi*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation matrix ***
@@ -719,7 +718,7 @@ CONTAINS
 
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       INTEGER, INTENT(OUT)                               :: start_atom, box_number, molecule_type
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       INTEGER, INTENT(IN), OPTIONAL                      :: box, molecule_type_old
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_mc_test_molecule', &
@@ -747,7 +746,7 @@ CONTAINS
 
       IF (PRESENT(box) .AND. PRESENT(molecule_type_old)) THEN
 ! only need to find the atom number the molecule starts on
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
          molecule_number = CEILING(rand*REAL(nchains(molecule_type_old, box), KIND=dp))
 
          start_mol = 1
@@ -767,7 +766,7 @@ CONTAINS
 
       ELSEIF (PRESENT(box)) THEN
 ! any molecule in box...need to find molecule type and start atom
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
          molecule_number = CEILING(rand*REAL(SUM(nchains(:, box)), KIND=dp))
 
          start_mol = 1
@@ -785,7 +784,7 @@ CONTAINS
 
       ELSEIF (PRESENT(molecule_type_old)) THEN
 ! any molecule of type molecule_type_old...need to find box number and start atom
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
          molecule_number = CEILING(rand*REAL(SUM(nchains(molecule_type_old, :)), KIND=dp))
 
 ! find which box it's in
@@ -818,7 +817,7 @@ CONTAINS
          DO ibox = 1, SIZE(nchains(1, :))
             nchains_tot = nchains_tot + SUM(nchains(:, ibox))
          ENDDO
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
          molecule_number = CEILING(rand*REAL(nchains_tot, KIND=dp))
 
          molecule_type = mol_type(molecule_number)
@@ -939,7 +938,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: move_type
       REAL(KIND=dp), DIMENSION(1:3), INTENT(OUT)         :: r_insert
       REAL(KIND=dp), DIMENSION(1:3), INTENT(IN)          :: abc
-      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
       INTEGER                                            :: i
       REAL(dp)                                           :: dist, eta_1, eta_2, eta_sq, rand
@@ -950,8 +949,8 @@ CONTAINS
       IF (move_type == 'in') THEN
 ! generate a random unit vector, from Allen and Tildesley
          DO
-            eta_1 = next_random_number(rng_stream)
-            eta_2 = next_random_number(rng_stream)
+            eta_1 = rng_stream%next()
+            eta_2 = rng_stream%next()
             eta_sq = eta_1**2 + eta_2**2
             IF (eta_sq .LT. 1.0_dp) THEN
                r_insert(1) = 2.0_dp*eta_1*SQRT(1.0_dp - eta_sq)
@@ -962,7 +961,7 @@ CONTAINS
          ENDDO
 
 ! now scale that vector to be within the "in" region
-         rand = next_random_number(rng_stream)
+         rand = rng_stream%next()
          r_insert(1:3) = r_insert(1:3)*(rand*(rmax**3 - rmin**3) + rmin**3)** &
                          (1.0_dp/3.0_dp)
 
@@ -972,7 +971,7 @@ CONTAINS
 ! find a new insertion point somewhere in the box
          DO
             DO i = 1, 3
-               rand = next_random_number(rng_stream)
+               rand = rng_stream%next()
                r_insert(i) = rand*abc(i)
             ENDDO
 

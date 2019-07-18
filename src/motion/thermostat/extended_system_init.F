@@ -42,7 +42,6 @@ MODULE extended_system_init
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
-   USE parallel_rng_types,              ONLY: next_random_number
    USE simpar_types,                    ONLY: simpar_type
    USE thermostat_types,                ONLY: thermostat_info_type
    USE thermostat_utils,                ONLY: get_nhc_energies
@@ -750,7 +749,7 @@ CONTAINS
          ! Map deterministically determined random number to nhc % v
          DO i = 1, nhc%loc_num_nhc
             DO j = 1, nhc%nhc_len
-               nhc%nvt(j, i)%v = next_random_number(globenv%gaussian_rng_stream)
+               nhc%nvt(j, i)%v = globenv%gaussian_rng_stream%next()
             END DO
          END DO
 
@@ -787,7 +786,7 @@ CONTAINS
 
       CASE DEFAULT
          DO i = 1, tot_rn
-            array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream)
+            array_of_rn(i) = globenv%gaussian_rng_stream%next()
          END DO
          ! Map deterministically determined random number to nhc % v
          DO i = 1, nhc%loc_num_nhc
@@ -884,7 +883,7 @@ CONTAINS
       ! initializing velocities
       DO i = 1, SIZE(npt, 1)
          DO j = i, SIZE(npt, 2)
-            v = next_random_number(globenv%gaussian_rng_stream)
+            v = globenv%gaussian_rng_stream%next()
             ! Symmetrizing the initial barostat velocities to ensure
             ! no rotation of the cell under NPT_F
             npt(j, i)%v = v

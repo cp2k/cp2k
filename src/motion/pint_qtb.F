@@ -34,12 +34,9 @@ MODULE pint_qtb
                                               twopi
    USE message_passing,                 ONLY: mp_bcast
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
-                                              create_rng_stream,&
-                                              delete_rng_stream,&
-                                              dump_rng_stream,&
-                                              next_random_number,&
-                                              read_rng_stream,&
-                                              rng_record_length
+                                              rng_record_length,&
+                                              rng_stream_type,&
+                                              rng_stream_type_from_record
    USE pint_io,                         ONLY: pint_write_line
    USE pint_types,                      ONLY: normalmode_env_type,&
                                               pint_env_type,&
@@ -128,21 +125,19 @@ CONTAINS
 
       !prepare Random number generator
       NULLIFY (rng_section)
-      NULLIFY (qtb_therm%gaussian_rng_stream)
       rng_section => section_vals_get_subs_vals(section, &
                                                 subsection_name="RNG_INIT")
       CALL section_vals_get(rng_section, explicit=restart)
       IF (restart) THEN
          CALL section_vals_val_get(rng_section, "_DEFAULT_KEYWORD_", &
                                    i_rep_val=1, c_val=rng_record)
-         CALL read_rng_stream(rng_stream=qtb_therm%gaussian_rng_stream, &
-                              rng_record=rng_record)
+         qtb_therm%gaussian_rng_stream = rng_stream_type_from_record(rng_record)
       ELSE
          initial_seed(:, :) = REAL(pint_env%thermostat_rng_seed, dp)
-         CALL create_rng_stream(rng_stream=qtb_therm%gaussian_rng_stream, &
-                                name="qtb_rng_gaussian", distribution_type=GAUSSIAN, &
-                                extended_precision=.TRUE., &
-                                seed=initial_seed)
+         qtb_therm%gaussian_rng_stream = rng_stream_type( &
+                                         name="qtb_rng_gaussian", distribution_type=GAUSSIAN, &
+                                         extended_precision=.TRUE., &
+                                         seed=initial_seed)
       END IF
 
       !Initialization of the QTB random forces
@@ -183,15 +178,14 @@ CONTAINS
                DO i = 1, qtb_therm%nf - 1
                   qtb_therm%rng_status(i) = qtb_therm%rng_status(i + 1)
                END DO
-               CALL dump_rng_stream(rng_stream=qtb_therm%gaussian_rng_stream, &
-                                    rng_record=qtb_therm%rng_status(qtb_therm%nf))
+               CALL qtb_therm%gaussian_rng_stream%dump(qtb_therm%rng_status(qtb_therm%nf))
             END IF
             DO idim = 1, ndim
                !update random numbers
                DO i = 1, qtb_therm%nf - 1
                   qtb_therm%r(i, ibead, idim) = qtb_therm%r(i + 1, ibead, idim)
                END DO
-               qtb_therm%r(qtb_therm%nf, ibead, idim) = next_random_number(qtb_therm%gaussian_rng_stream)
+               qtb_therm%r(qtb_therm%nf, ibead, idim) = qtb_therm%gaussian_rng_stream%next()
                !compute new random force through the convolution product
                qtb_therm%rf(ibead, idim) = 0.0_dp
                DO i = 1, qtb_therm%nf
@@ -248,7 +242,6 @@ CONTAINS
             DEALLOCATE (qtb_therm%cpt)
             DEALLOCATE (qtb_therm%step)
             DEALLOCATE (qtb_therm%rng_status)
-            CALL delete_rng_stream(qtb_therm%gaussian_rng_stream)
             DEALLOCATE (qtb_therm)
          END IF
       END IF
@@ -435,15 +428,14 @@ CONTAINS
       ELSE
          !update the rng status
          DO i = 1, qtb_therm%nf
-            CALL dump_rng_stream(rng_stream=qtb_therm%gaussian_rng_stream, &
-                                 rng_record=qtb_therm%rng_status(i))
+            CALL qtb_therm%gaussian_rng_stream%dump(qtb_therm%rng_status(i))
          END DO
          !if no restart then initialize random numbers from scratch
          qtb_therm%cpt = 0
          DO idim = 1, ndim
             DO ibead = 1, p
                DO i = 1, nf
-                  qtb_therm%r(i, ibead, idim) = next_random_number(qtb_therm%gaussian_rng_stream)
+                  qtb_therm%r(i, ibead, idim) = qtb_therm%gaussian_rng_stream%next()
                END DO
             END DO
          END DO
@@ -486,14 +478,13 @@ CONTAINS
          qtb_therm%cpt = 0
          !update the rng status
          DO i = 1, qtb_therm%nf
-            CALL dump_rng_stream(rng_stream=qtb_therm%gaussian_rng_stream, &
-                                 rng_record=qtb_therm%rng_status(i))
+            CALL qtb_therm%gaussian_rng_stream%dump(qtb_therm%rng_status(i))
          END DO
          !first random numbers initialized from scratch
          DO idim = 1, pint_env%ndim
             DO ibead = 1, pint_env%p
                DO i = 1, qtb_therm%nf
-                  qtb_therm%r(i, ibead, idim) = next_random_number(qtb_therm%gaussian_rng_stream)
+                  qtb_therm%r(i, ibead, idim) = qtb_therm%gaussian_rng_stream%next()
                END DO
             END DO
          END DO
@@ -518,15 +509,14 @@ CONTAINS
                   DO i = 1, qtb_therm%nf - 1
                      qtb_therm%rng_status(i) = qtb_therm%rng_status(i + 1)
                   END DO
-                  CALL dump_rng_stream(rng_stream=qtb_therm%gaussian_rng_stream, &
-                                       rng_record=qtb_therm%rng_status(qtb_therm%nf))
+                  CALL qtb_therm%gaussian_rng_stream%dump(qtb_therm%rng_status(qtb_therm%nf))
                END IF
                DO idim = 1, pint_env%ndim
                   !update random numbers
                   DO i = 1, qtb_therm%nf - 1
                      qtb_therm%r(i, ibead, idim) = qtb_therm%r(i + 1, ibead, idim)
                   END DO
-                  qtb_therm%r(qtb_therm%nf, ibead, idim) = next_random_number(qtb_therm%gaussian_rng_stream)
+                  qtb_therm%r(qtb_therm%nf, ibead, idim) = qtb_therm%gaussian_rng_stream%next()
                END DO
                qtb_therm%cpt(ibead) = 0
             END IF

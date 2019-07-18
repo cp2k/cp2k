@@ -47,9 +47,6 @@ MODULE tmc_worker
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE molecule_list_types,             ONLY: molecule_list_type
-   USE parallel_rng_types,              ONLY: get_rng_stream,&
-                                              next_random_number,&
-                                              set_rng_stream
    USE particle_list_types,             ONLY: particle_list_type
    USE tmc_analysis,                    ONLY: analysis_init,&
                                               analysis_restart_print,&
@@ -613,7 +610,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
-      CPASSERT(ASSOCIATED(tmc_env%rng_stream))
+      CPASSERT(ALLOCATED(tmc_env%rng_stream))
       CPASSERT(ASSOCIATED(conf))
       CPASSERT(conf%temp_created .GT. 0)
       CPASSERT(conf%temp_created .LE. tmc_env%params%nr_temp)
@@ -662,15 +659,15 @@ CONTAINS
          END SELECT
 
          ! set move type
-         CALL set_rng_stream(rng_stream=tmc_env%rng_stream, &
-                             bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
-                             ig=conf%rng_seed(:, :, 3))
+         CALL tmc_env%rng_stream%set( &
+            bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
+            ig=conf%rng_seed(:, :, 3))
          conf%move_type = select_random_move_type( &
                           move_types=tmc_env%params%nmc_move_types, &
-                          rnd=next_random_number(tmc_env%rng_stream))
-         CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
-                             bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
-                             ig=conf%rng_seed(:, :, 3))
+                          rnd=tmc_env%rng_stream%next())
+         CALL tmc_env%rng_stream%get( &
+            bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
+            ig=conf%rng_seed(:, :, 3))
 
          ! do move
          CALL change_pos(tmc_params=tmc_env%params, &
@@ -704,13 +701,13 @@ CONTAINS
          END IF
 
          !check NMC step
-         CALL set_rng_stream(rng_stream=tmc_env%rng_stream, &
-                             bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
-                             ig=conf%rng_seed(:, :, 3))
-         rnd_nr = next_random_number(tmc_env%rng_stream)
-         CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
-                             bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
-                             ig=conf%rng_seed(:, :, 3))
+         CALL tmc_env%rng_stream%set( &
+            bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
+            ig=conf%rng_seed(:, :, 3))
+         rnd_nr = tmc_env%rng_stream%next()
+         CALL tmc_env%rng_stream%get( &
+            bg=conf%rng_seed(:, :, 1), cg=conf%rng_seed(:, :, 2), &
+            ig=conf%rng_seed(:, :, 3))
 
          IF (.NOT. change_rejected) THEN
             CALL acceptance_check(tree_element=conf, parent_element=last_acc_conf, &
