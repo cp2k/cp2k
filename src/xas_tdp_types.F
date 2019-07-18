@@ -24,15 +24,21 @@ MODULE xas_tdp_types
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE hfx_libint_wrapper,              ONLY: cp_libint_static_cleanup
-   USE input_constants,                 ONLY: &
-        do_hfx_potential_coulomb, do_hfx_potential_short, do_hfx_potential_truncated, ot_mini_cg, &
-        ot_mini_diis, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, &
-        xas_dip_vel, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_para_atom
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE input_constants,                 ONLY: xas_tdp_by_index,&
+                                              xas_tdp_by_kind, &
+                                              tddfpt_singlet, &
+                                              tddfpt_triplet, &
+                                              tddfpt_spin_cons, &
+                                              tddfpt_spin_flip, &
+                                              do_hfx_potential_coulomb, &
+                                              do_hfx_potential_truncated, &
+                                              do_hfx_potential_short, &
+                                              xas_dip_vel, &
+                                              xas_tdp_diag_std
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_get_subs_vals
+   USE kinds,                           ONLY: dp ,default_string_length
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
    USE physcon,                         ONLY: bohr
@@ -42,10 +48,8 @@ MODULE xas_tdp_types
                                               harmonics_atom_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release
-   USE qs_o3c_types,                    ONLY: o3c_container_type,&
-                                              release_o3c_container
-   USE qs_ot_types,                     ONLY: qs_ot_settings_init,&
-                                              qs_ot_settings_type
+   USE qs_o3c_types,                    ONLY: o3c_container_type, release_o3c_container
+                                     
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -57,12 +61,12 @@ MODULE xas_tdp_types
 !> \param define_excited whether excited atoms are chosen by kind or index
 !> \param dipole_form whether the dipole moment is computed in the length or velocity representation
 !> \param n_search # of lowest energy MOs to search for donor orbitals
-!> \param check_only whether a check run for donor MOs and LUMOs guesses is conducted
+!> \param check_only whether a check run for donor MOs is conducted
 !> \param do_hfx whether exact exchange is included
 !> \param do_xc wheter xc functional(s) is(are) included
 !> \param do_coulomb whether the coulomb kernel is computed, .FLASE. if no xc nor hfx => normal dft
 !> \param sx the scaling applied to exact exchange
-!> \param x_op the operator used for exact exchange (Coulomb, TC, Sk)
+!> \param x_op the operator used for exact exchange (Coulomb, TC, SR)
 !> \param x_range the range for exact exchane operator (truncated coulomb or SR)
 !> \param x_t_c_filename the file where the parameters for the TC operator should be read
 !> \param x_omega the range parameter in the short range interation erfc(omega*r)/r
@@ -84,12 +88,11 @@ MODULE xas_tdp_types
 !> \param state_types columns correspond to the states to excite for each atom kind/index
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
-!> \param full_diag whether the full direct diagonalization of the problem should take place
-!> \param ot_settings the settings for the OT diagonalization if so required
+!> \param diag_type which of the CP2K standard or syevr
 !> \param max_iter the maximum allowed number of iteration for OT diagonalization
 !> \param eps_iter the required accuracy for OT diagonalization
 !> \param is_periodic self-explanatory
-!> \param para whether the f_xc parallelization is by atom or by grid
+!> \param batch_size how many procs are allocated to the XC treatment of excited atoms
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
       INTEGER                                 :: define_excited
@@ -97,7 +100,7 @@ MODULE xas_tdp_types
       INTEGER                                 :: n_search
       INTEGER                                 :: n_excited
       INTEGER                                 :: max_iter
-      INTEGER                                 :: para
+      INTEGER                                 :: batch_size
       REAL(dp)                                :: sx
       REAL(dp)                                :: x_range
       REAL(dp)                                :: x_omega
@@ -121,7 +124,7 @@ MODULE xas_tdp_types
       LOGICAL                                 :: do_triplet
       LOGICAL                                 :: do_spin_cons
       LOGICAL                                 :: do_spin_flip
-      LOGICAL                                 :: full_diag
+      INTEGER                                 :: diag_type
       LOGICAL                                 :: is_periodic
       INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms
       CHARACTER(len=default_string_length), &
@@ -129,9 +132,8 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:, :), POINTER        :: state_types
       TYPE(section_vals_type), POINTER        :: loc_subsection
       TYPE(section_vals_type), POINTER        :: print_loc_subsection
-      CHARACTER(len=default_string_length), &
-         DIMENSION(:, :), POINTER  :: grid_info
-      TYPE(qs_ot_settings_type), POINTER      :: ot_settings
+      CHARACTER(len=default_string_length),&
+                     DIMENSION(:,:), POINTER  :: grid_info
 
    END TYPE xas_tdp_control_type
 
@@ -166,8 +168,6 @@ MODULE xas_tdp_types
 !> \param ri_fxc the array of xc integrals of type (P|fxc|Q), for alpha-alpha, alpha-beta and beta-beta
 !> \param fxc_avail a boolean telling whwther fxc is availavle on all procs
 !> \param orb_soc the matrix where the SOC is evaluated wrt the orbital basis set, for x,y,z
-!> \param lumo_guess the coefficients for the LUMOs as guees for the OT eigensolver
-!> \param lumo_evals the eigenvalues of the guess LUMOs
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
       CHARACTER(len=2), DIMENSION(3)          :: state_type_char
@@ -178,13 +178,9 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:, :), POINTER        :: state_types
       TYPE(o3c_container_type), POINTER       :: ri_o3c_coul
       TYPE(o3c_container_type), POINTER       :: ri_o3c_ex
-      TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER   :: lumo_guess
-      TYPE(cp_1d_r_p_type), DIMENSION(:), &
-         POINTER   :: lumo_evals
-      TYPE(donor_state_type), DIMENSION(:), &
-         POINTER   :: donor_states
-      INTEGER, DIMENSION(:, :, :), POINTER      :: mos_of_ex_atoms
+      TYPE(donor_state_type), DIMENSION(:),&
+                                    POINTER   :: donor_states
+      INTEGER, DIMENSION(:,:,:), POINTER      :: mos_of_ex_atoms
       TYPE(qs_loc_env_new_type), POINTER      :: qs_loc_env
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex
@@ -363,19 +359,17 @@ CONTAINS
       xas_tdp_control%do_triplet = .FALSE.
       xas_tdp_control%do_spin_cons = .FALSE.
       xas_tdp_control%do_spin_flip = .FALSE.
-      xas_tdp_control%full_diag = .TRUE.
+      xas_tdp_control%diag_type = xas_tdp_diag_std
       xas_tdp_control%is_periodic = .FALSE.
       xas_tdp_control%n_excited = -1
       xas_tdp_control%eps_iter = 1.0E-6_dp
       xas_tdp_control%max_iter = 1000
-      xas_tdp_control%para = xas_tdp_para_atom
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
       NULLIFY (xas_tdp_control%loc_subsection)
       NULLIFY (xas_tdp_control%print_loc_subsection)
       NULLIFY (xas_tdp_control%grid_info)
-      NULLIFY (xas_tdp_control%ot_settings)
 
    END SUBROUTINE xas_tdp_control_create
 
@@ -403,9 +397,6 @@ CONTAINS
          IF (ASSOCIATED(xas_tdp_control%grid_info)) THEN
             DEALLOCATE (xas_tdp_control%grid_info)
          END IF
-         IF (ASSOCIATED(xas_tdp_control%ot_settings)) THEN
-            DEALLOCATE (xas_tdp_control%ot_settings)
-         END IF
          DEALLOCATE (xas_tdp_control)
       END IF
 
@@ -421,12 +412,9 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_xas_tdp_control', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER                           :: k_list
-      INTEGER                                            :: excitation, irep, nexc, nrep, ot_method
+      INTEGER                                            :: irep, nrep, nexc, excitation
+      CHARACTER(len=default_string_length),&
+                     DIMENSION(:), POINTER               :: k_list
       INTEGER, DIMENSION(:), POINTER                     :: a_list, t_list
 
       NULLIFY (k_list, a_list, t_list)
@@ -447,8 +435,6 @@ CONTAINS
       CALL section_vals_val_get(xas_tdp_section, "QUADRUPOLE", l_val=xas_tdp_control%do_quad)
 
       CALL section_vals_val_get(xas_tdp_section, "GRID", n_rep_val=nrep)
-
-      CALL section_vals_val_get(xas_tdp_section, "PARALLELIZATION", i_val=xas_tdp_control%para)
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%grid_info)) THEN
          ALLOCATE (xas_tdp_control%grid_info(nrep, 3))
@@ -521,7 +507,8 @@ CONTAINS
             xas_tdp_control%state_types(irep, :) = t_list
          END DO
       END IF
-
+      IF (ALL(xas_tdp_control%state_types == 0)) CPABORT("Please specify STATE_TYPES")
+      
       CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%N_SEARCH", i_val=xas_tdp_control%n_search)
 
 !  Deal with the LOCALIZE subsection
@@ -538,6 +525,8 @@ CONTAINS
                                 l_val=xas_tdp_control%do_xc)
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%_SECTION_PARAMETERS_", &
                                 l_val=xas_tdp_control%do_hfx)
+
+      CALL section_vals_val_get(xas_tdp_section, "KERNEL%NPROCS_GRID", i_val=xas_tdp_control%batch_size)
 
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%RI_REGION", r_val=xas_tdp_control%ri_radius)
       xas_tdp_control%ri_radius = bohr*xas_tdp_control%ri_radius
@@ -583,23 +572,8 @@ CONTAINS
 !  Deal with the diagonalization subsection
       CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%N_EXCITED", &
                                 i_val=xas_tdp_control%n_excited)
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%FULL_DIAG", &
-                                l_val=xas_tdp_control%full_diag)
-
-      ALLOCATE (xas_tdp_control%ot_settings)
-      CALL qs_ot_settings_init(xas_tdp_control%ot_settings)
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%OT_DIAG%MINIMIZER", i_val=ot_method)
-      SELECT CASE (ot_method)
-      CASE (ot_mini_cg)
-         xas_tdp_control%ot_settings%ot_method = "CG"
-      CASE (ot_mini_diis)
-         xas_tdp_control%ot_settings%ot_method = "DIIS"
-      END SELECT
-
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%OT_DIAG%MAX_ITER", &
-                                i_val=xas_tdp_control%max_iter)
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%OT_DIAG%EPS_ITER", &
-                                r_val=xas_tdp_control%eps_iter)
+      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%DIAGONALIZATION_TYPE", &
+                                i_val=xas_tdp_control%diag_type)
 
    END SUBROUTINE read_xas_tdp_control
 
@@ -630,8 +604,6 @@ CONTAINS
       NULLIFY (xas_tdp_env%ri_inv_ex)
       NULLIFY (xas_tdp_env%opt_dist2d_coul)
       NULLIFY (xas_tdp_env%opt_dist2d_ex)
-      NULLIFY (xas_tdp_env%lumo_guess)
-      NULLIFY (xas_tdp_env%lumo_evals)
       NULLIFY (xas_tdp_env%q_projector)
       NULLIFY (xas_tdp_env%dipmat)
       NULLIFY (xas_tdp_env%quadmat)
@@ -691,20 +663,6 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%opt_dist2d_ex)) THEN
             CALL distribution_2d_release(xas_tdp_env%opt_dist2d_ex)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%lumo_guess)) THEN
-            DO i = 1, SIZE(xas_tdp_env%lumo_guess)
-               CALL cp_fm_release(xas_tdp_env%lumo_guess(i)%matrix)
-            END DO
-            DEALLOCATE (xas_tdp_env%lumo_guess)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%lumo_evals)) THEN
-            DO i = 1, SIZE(xas_tdp_env%lumo_evals)
-               IF (ASSOCIATED(xas_tdp_env%lumo_evals(i)%array)) THEN
-                  DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)
-               END IF
-            END DO
-            DEALLOCATE (xas_tdp_env%lumo_evals)
          END IF
          IF (ASSOCIATED(xas_tdp_env%q_projector)) THEN
             DO i = 1, SIZE(xas_tdp_env%q_projector)
