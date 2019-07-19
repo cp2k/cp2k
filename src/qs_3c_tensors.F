@@ -44,6 +44,14 @@ MODULE qs_3c_tensors
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
+   USE qs_3c_tensors_types,             ONLY: distribution_3d_type,&
+                                              neighbor_list_3c_iterator_type,&
+                                              neighbor_list_3c_type,&
+                                              symmetric_ij,&
+                                              symmetric_ijk,&
+                                              symmetric_jk,&
+                                              symmetric_none,&
+                                              symmetrik_ik
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -51,7 +59,6 @@ MODULE qs_3c_tensors
                                               get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type,&
                                               nl_sub_iterate
@@ -68,33 +75,9 @@ MODULE qs_3c_tensors
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_3c_tensors'
 
-   PUBLIC :: distribution_3d_type, neighbor_list_3c_type, neighbor_list_3c_iterator_type
-
    PUBLIC :: distribution_3d_create, distribution_3d_destroy, build_3c_neighbor_lists, &
              neighbor_list_3c_destroy, neighbor_list_3c_iterate, neighbor_list_3c_iterator_create, &
              neighbor_list_3c_iterator_destroy, get_3c_iterator_info, build_3c_integrals
-
-   INTEGER, PARAMETER :: symmetric_none = 0, symmetric_ij = 1, symmetric_jk = 2, symmetrik_ik = 3, symmetric_ijk = 4
-
-   TYPE distribution_3d_type
-      TYPE(distribution_2d_type), POINTER :: dist_2d_1 => NULL(), dist_2d_2 => NULL()
-      INTEGER :: comm_3d, comm_2d_1, comm_2d_2
-      LOGICAL :: owns_comm
-   END TYPE distribution_3d_type
-
-   TYPE neighbor_list_3c_type
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ij_list => NULL(), jk_list => NULL()
-      INTEGER :: sym
-      TYPE(distribution_3d_type) :: dist_3d
-      LOGICAL :: owns_dist
-   END TYPE
-
-   TYPE neighbor_list_3c_iterator_type
-      TYPE(neighbor_list_iterator_p_type), DIMENSION(:), POINTER :: iter_ij => NULL()
-      TYPE(neighbor_list_iterator_p_type), DIMENSION(:), POINTER :: iter_jk => NULL()
-      INTEGER                                                    :: iter_level
-      TYPE(neighbor_list_3c_type)                                :: ijk_nl
-   END TYPE
 
    TYPE one_dim_int_array
       INTEGER, DIMENSION(:), ALLOCATABLE    :: array

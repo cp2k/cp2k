@@ -116,8 +116,8 @@ MODULE mp2_integrals
    USE qs_3c_tensors,                   ONLY: build_3c_integrals,&
                                               build_3c_neighbor_lists,&
                                               distribution_3d_create,&
-                                              distribution_3d_type,&
-                                              neighbor_list_3c_destroy,&
+                                              neighbor_list_3c_destroy
+   USE qs_3c_tensors_types,             ONLY: distribution_3d_type,&
                                               neighbor_list_3c_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
