@@ -5,21 +5,11 @@
 # install Ubuntu packages
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
-    autoconf                               \
-    autogen                                \
-    automake                               \
-    autotools-dev                          \
-    ca-certificates                        \
-    cmake                                  \
-    git                                    \
-    less                                   \
-    libtool                                \
-    make                                   \
-    nano                                   \
-    pkg-config                             \
-    python                                 \
-    rsync                                  \
-    unzip                                  \
+    ca-certificates                         \
+    git                                     \
+    less                                    \
+    nano                                    \
+    rsync                                   \
     wget
 
 rm -rf /var/lib/apt/lists/*

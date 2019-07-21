@@ -4,7 +4,12 @@
 
 # install Ubuntu packages
 apt-get update -qq
-apt-get install -qq --no-install-recommends libfindbin-libs-perl
+apt-get install -qq --no-install-recommends \
+    libfindbin-libs-perl                    \
+    make                                    \
+    perl                                    \
+    python
+
 rm -rf /var/lib/apt/lists/*
 
 # pre-run prettify
