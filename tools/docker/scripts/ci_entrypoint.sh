@@ -25,14 +25,9 @@ if [ -n "${GIT_REF}" ]; then
 
 elif [ -d  /mnt/cp2k ]; then
     echo -e "\n========== Copying Changed Files =========="
-    # Don't skip by matching timestamp since Git (previous mirror) does not preserve timestamps
-    # and we end up with an outdated tree if the contents of /mnt/cp2k have been modified before
-    # the Docker image was generated.
-    # Also ignore the checksum since it is safe to assume that most files have not changed (which would
-    # mean they have the same filesize) which would mean we would do a read+read(+write) on most files
-    # anyway at which point it is simpler to do a read+write (e.g. replace the whole tree).
-    rsync --ignore-times                         \
-          --delete                               \
+    # Since this is for debugging, we assume the image was built on the same
+    # host and we can rely on rsync's default algorithm which uses timestamps.
+    rsync --delete                               \
           --executability                        \
           --verbose                              \
           --recursive                            \
