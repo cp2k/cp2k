@@ -19,7 +19,7 @@ apt-get install -qq --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip install --quiet flake8 aiida ase
+pip install --quiet flake8 aiida ase==3.17.0
 
 # create ubuntu user with sudo powers
 adduser --disabled-password --gecos "" ubuntu
