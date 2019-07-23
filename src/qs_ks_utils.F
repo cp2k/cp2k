@@ -18,6 +18,7 @@
 ! **************************************************************************************************
 
 MODULE qs_ks_utils
+   USE admm_types,                      ONLY: admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -52,8 +53,8 @@ MODULE qs_ks_utils
         dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
-        cdft_magnetization_constraint, do_ppl_grid, sic_ad, sic_eo, sic_list_all, &
-        sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
+        cdft_magnetization_constraint, do_admm_aux_exch_func_none, do_ppl_grid, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1219,6 +1220,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw, rigpw
       REAL(dp)                                           :: dvol, sign
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_ks_aux_fit, &
@@ -1243,7 +1245,7 @@ CONTAINS
       NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
                v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
                ksmat, matrix_ks_aux_fit_dft, lri_env, lri_density, atomic_kind_set, &
-               rho_ao_nokp, ks_env)
+               rho_ao_nokp, ks_env, admm_env)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1561,6 +1563,7 @@ CONTAINS
 
       ! Add contributions from ADMM if requested
       IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env)
          IF (ASSOCIATED(v_rspace_new_aux_fit)) THEN
             DO ispin = 1, nspins
                ! Calculate the xc potential
@@ -1572,17 +1575,19 @@ CONTAINS
                CALL dbcsr_copy(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, &
                                name="DFT exch. part of matrix_ks_aux_fit")
 
-               ! Add potential to ks_matrix aux_fit
+               ! Add potential to ks_matrix aux_fit, skip integration if no DFT correction
 
-               CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), &
-                                       pmat=rho_ao_aux(ispin), &
-                                       hmat=matrix_ks_aux_fit(ispin), &
-                                       qs_env=qs_env, &
-                                       calculate_forces=calculate_forces, &
-                                       force_adm=.TRUE., &
-                                       ispin=ispin, &
-                                       gapw=gapw_xc, &
-                                       basis_type="AUX_FIT")
+               IF (admm_env%aux_exch_func .NE. do_admm_aux_exch_func_none) THEN
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), &
+                                          pmat=rho_ao_aux(ispin), &
+                                          hmat=matrix_ks_aux_fit(ispin), &
+                                          qs_env=qs_env, &
+                                          calculate_forces=calculate_forces, &
+                                          force_adm=.TRUE., &
+                                          ispin=ispin, &
+                                          gapw=gapw_xc, &
+                                          basis_type="AUX_FIT")
+               END IF
 
                ! matrix_ks_aux_fit_dft(x_DFT)=matrix_ks_aux_fit_dft(old,k_HF)-matrix_ks_aux_fit(k_HF-x_DFT)
                CALL dbcsr_add(matrix_ks_aux_fit_dft(ispin)%matrix, &

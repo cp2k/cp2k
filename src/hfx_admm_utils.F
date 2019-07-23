@@ -155,9 +155,10 @@ CONTAINS
       IF (.NOT. do_hfx) &
          CPABORT("Wavefunction fitting requested without Hartree-Fock.")
 
-      ! ** Method only implemented for GPW
-      IF (dft_control%qs_control%gapw) THEN
-         CPABORT("ADMM only implemented for GPW")
+      ! ** Method runs with GAPW only if no DFT exchange correction
+      IF (dft_control%qs_control%gapw .AND. &
+          dft_control%admm_control%aux_exch_func .NE. do_admm_aux_exch_func_none) THEN
+         CPABORT("ADMM only works with GAPW without DFT exchange correction")
       END IF
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
