@@ -24,7 +24,7 @@ MODULE qs_o3c_methods
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_libint_wrapper,              ONLY: cp_libint_t, cp_libint_cleanup_3eri, &
                                               cp_libint_init_3eri, cp_libint_set_contrdepth
-   USE input_constants,                 ONLY: do_hfx_potential_truncated
+   USE input_constants,                 ONLY: do_potential_truncated
    USE kinds,                           ONLY: dp
    USE libint_3center,                  ONLY: eri_3center
    USE orbital_pointers,                ONLY: ncoset
@@ -404,7 +404,7 @@ CONTAINS
       IF (PRESENT(r_cutoff)) my_r_cutoff = r_cutoff
 
       !Init the truncated Coulomb operator
-      IF (op == do_hfx_potential_truncated) THEN
+      IF (op == do_potential_truncated) THEN
          CPASSERT(PRESENT(t_c_filename))
          CPASSERT(PRESENT(para_env))
 

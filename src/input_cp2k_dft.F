@@ -96,8 +96,8 @@ MODULE input_cp2k_dft
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
-        xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip, do_hfx_potential_coulomb, &
-        do_hfx_potential_truncated, do_hfx_potential_short, xas_tdp_diag_std, xas_tdp_diag_syevr
+        xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip, do_potential_coulomb, &
+        do_potential_truncated, do_potential_short, xas_tdp_diag_std, xas_tdp_diag_syevr
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7885,7 +7885,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "//&
                           "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=11, n_subsections=5, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7907,6 +7907,7 @@ CONTAINS
                                       "option allows for cheap verification of the input parameters", &
                           usage="CHECK_ONLY {logical}", &
                           default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE., &
                           repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -7946,7 +7947,8 @@ CONTAINS
                                       "oscillator strenghts (in the length representation with "// &
                                       "the origin set on the relevant excited atom)", &
                           usage="QUADRUPOLE {logical}", &
-                          default_l_val=.FALSE.)
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword) 
 
@@ -7955,7 +7957,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="DONOR_STATES", &
                           description="Specifications for the donor states from which core "// &
                                       "electrons are excited", &
-                          n_keywords=5, &
+                          n_keywords=6, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -8008,12 +8010,22 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="N_SEARCH", & 
                           description="Number of MOs (per spin) to search to find specified donor core "//&
                           "orbitals, starting from the lowest in energy and upward. By default, "//&
-                          "all HOMOs are searched. If the LOCALIZE subsection is used, "//&
+                          "all HOMOs are searched. If the LOCALIZE keyword is used, "//&
                           "then all searched states are first localized.",&
                           usage="N_SEARCH {integer}",&
                           default_i_val=-1)
       CALL section_add_keyword(subsection, keyword)         
       CALL keyword_release(keyword)        
+
+      CALL keyword_create(keyword, __LOCATION__, name="LOCALIZE", &
+                          variants=s2a("LOC", "DO_LOC"), &
+                          description="Whether the N_SEARCH potential donor states are localized."//&
+                                      "Necessary in case of symmetry equivalent excited atoms.", &
+                          usage="LOCALIZE {logical}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -8034,7 +8046,8 @@ CONTAINS
                           variants=(/"TDA"/), &
                           description="Whether the Tamm-Dancoff approximation should be used.", &
                           usage="TAMM_DANCOFF {logical}", &
-                          default_l_val=.FALSE.)
+                          default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)    
       CALL keyword_release(keyword)      
 
@@ -8177,13 +8190,13 @@ CONTAINS
                                       "Coulomb operator cannot be used in periodic systems.", &
                           usage="OPERATOR {string}", &
                           repeats=.FALSE., &
-                          default_i_val=do_hfx_potential_coulomb, &
+                          default_i_val=do_potential_coulomb, &
                           enum_c_vals=s2a("COULOMB", "TRUNCATED", "SHORTRANGE"), &
                           enum_desc=s2a("Stendard Coulomb operator: 1/r", &
                                         "Truncated Coulomb operator: 1/r if (r<R_c), 0 otherwise ",&
                                         "Short range: erfc(omega*r)/r"),&
-                          enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_truncated, &
-                                        do_hfx_potential_short/))
+                          enum_i_vals=(/do_potential_coulomb, do_potential_truncated, &
+                                        do_potential_short/))
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
@@ -8244,10 +8257,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 ! End of Kernel subsection
-
-      CALL create_localize_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information during "//&
                           "XAS TDP calculations", repeats=.FALSE.)

@@ -37,7 +37,6 @@ MODULE xas_tdp_utils
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_element, cp_fm_to_fm_submat, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
@@ -57,9 +56,9 @@ MODULE xas_tdp_utils
                                               cp_libint_init_3eri, cp_libint_set_contrdepth
    USE input_constants,                 ONLY: tddfpt_singlet, tddfpt_triplet, xas_tdp_uks, &
                                               xas_tdp_roks, tddfpt_spin_cons, tddfpt_spin_flip, &
-                                              do_hfx_potential_coulomb, do_hfx_potential_truncated,&
+                                              do_potential_coulomb, do_potential_truncated,&
                                               xas_dip_len, xas_dip_vel, do_eri_mme, &
-                                              do_hfx_potential_short, do_hfx_potential_id, &
+                                              do_potential_short, do_potential_id, &
                                               xas_tdp_diag_std, xas_tdp_diag_syevr
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -1512,11 +1511,11 @@ CONTAINS
       r = 0.0_dp
 
       SELECT CASE (xas_tdp_control%x_op)
-      CASE (do_hfx_potential_coulomb)
+      CASE (do_potential_coulomb)
          CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=xas_tdp_env%ri_inv_ex, &
                                       rab=r, fba=ri_basis, fbb=ri_basis, &
                                       calculate_forces=.FALSE.)
-      CASE (do_hfx_potential_truncated)
+      CASE (do_potential_truncated)
 
          !Make sure the operator is up to date
          IF (2*maxl+1 > get_lmax_init()) THEN
@@ -1533,7 +1532,7 @@ CONTAINS
                                       rab=r, fba=ri_basis, fbb=ri_basis, &
                                       r_cutoff=xas_tdp_control%x_range, calculate_forces=.FALSE.)
 
-      CASE (do_hfx_potential_short)
+      CASE (do_potential_short)
          CALL int_operators_r12_ab_os(r12_operator=operator_verfc, vab=xas_tdp_env%ri_inv_ex, &
                                       rab=r, fba=ri_basis, fbb=ri_basis, &
                                       omega=xas_tdp_control%x_omega, calculate_forces=.FALSE.)
@@ -1719,7 +1718,7 @@ CONTAINS
 !  Get the optimized distribution 2d for these integrals (and store it in xas_tdp_env)
       CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, &
                                  excited_atoms=xas_tdp_env%ex_atom_indices)
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_hfx_potential_id, &
+      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
                                qs_env, excited_atoms=xas_tdp_env%ex_atom_indices)
       CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_coul, ab_list, ac_list, basis_set_orb, &
                              basis_set_orb, basis_set_ri, qs_env)
@@ -1735,7 +1734,7 @@ CONTAINS
 
 !  Build a neighbor list for the ac centers. Since we later contract as (aI|c) and we assume I is
 !  very localized on the same atom as c, we take a,c as neighbors if they overlap
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_hfx_potential_id, &
+      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
                                qs_env, excited_atoms=xas_tdp_env%ex_atom_indices, &
                                ext_dist2d=xas_tdp_env%opt_dist2d_coul)
 
@@ -1744,7 +1743,7 @@ CONTAINS
       !only one spin needed for coulomb integrals
       CALL init_o3c_container(xas_tdp_env%ri_o3c_coul, 1, basis_set_orb, basis_set_orb, &
                               basis_set_ri, ab_list, ac_list, only_bc_same_center=.TRUE.)
-      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_coul, op=do_hfx_potential_coulomb)
+      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_coul, op=do_potential_coulomb)
 
 ! Clean-up
       CALL release_sab(ab_list)
@@ -2163,7 +2162,7 @@ CONTAINS
       c_radius = 0.0_dp
 
 !  Set up the radii, depending on the operator type
-      IF (op_type == do_hfx_potential_id) THEN
+      IF (op_type == do_potential_id) THEN
 
          !overlap => use the kind radius for both a and c
          DO ikind = 1, nkind
@@ -2179,7 +2178,7 @@ CONTAINS
             END IF
          END DO !ikind
 
-      ELSE IF (op_type == do_hfx_potential_coulomb) THEN
+      ELSE IF (op_type == do_potential_coulomb) THEN
 
          !Coulomb operator, virtually infinite range => set c_radius to arbitrarily large number
          DO ikind = 1, nkind
@@ -2190,7 +2189,7 @@ CONTAINS
             IF (ASSOCIATED(basis_a(ikind)%gto_basis_set)) a_present(ikind) = .TRUE.
          END DO !ikind
 
-      ELSE IF (op_type == do_hfx_potential_truncated .OR. op_type == do_hfx_potential_short) THEN
+      ELSE IF (op_type == do_potential_truncated .OR. op_type == do_potential_short) THEN
 
          !Truncated coulomb/short range: set c_radius to x_range + the kind_radii
          DO ikind = 1, nkind
