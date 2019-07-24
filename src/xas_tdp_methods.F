@@ -58,17 +58,22 @@ MODULE xas_tdp_methods
                                               op_loc_berry, tddfpt_singlet, tddfpt_spin_cons, &
                                               tddfpt_triplet, xas_tdp_uks, xas_tdp_roks, &
                                               general_roks, high_spin_roks, state_loc_list, &
-                                              tddfpt_spin_flip, do_hfx_potential_coulomb, &
-                                              xas_dip_vel, xas_dip_len, do_hfx_potential_truncated,&
-                                              do_hfX_potential_short
+                                              tddfpt_spin_flip, do_potential_coulomb, &
+                                              xas_dip_vel, xas_dip_len, do_potential_truncated,&
+                                              do_potential_short
+   USE input_cp2k_dft,                  ONLY: create_localize_section
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_get_subs_vals2,&
-                                              section_vals_release,&
-                                              section_vals_type,&
-                                              section_vals_val_set
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              section_vals_val_set, &
+                                              section_vals_duplicate, &
+                                              section_vals_release, &
+                                              section_vals_get, &
+                                              section_vals_val_get, &
+                                              section_vals_get_subs_vals2, &
+                                              section_vals_create, &
+                                              section_type, &
+                                              section_release
+   USE kinds,                           ONLY: dp, default_string_length
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
@@ -149,17 +154,12 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      CHARACTER(len=2)                                   :: symbol_of_kind
-      INTEGER :: current_state_index, current_state_index, current_state_index, handle, handle, &
-         handle, iat, iat, iat, iatom, iatom, ikind, ikind, ikind, istate, istate, istate, &
-         output_unit, output_unit, output_unit, tmp_index, tmp_index, tmp_index
+      CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
       LOGICAL                                            :: do_os
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(donor_state_type), POINTER                    :: current_state
-      TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section
+      TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -167,7 +167,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
 
       NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
-      NULLIFY(xas_atom_env, dft_control, matrix_ks, admm_env)
+      NULLIFY(xas_atom_env, dft_control, matrix_ks, admm_env, xas_tdp_section)
 
       CALL timeset(routineN, handle)
 
@@ -175,10 +175,9 @@ CONTAINS
 !        as they are better than hand-made stuff
 
 !  Logger initialization and XAS TDP banner printing
-      NULLIFY (logger, dft_section, xas_tdp_section)
+      NULLIFY (logger, xas_tdp_section)
       logger => cp_get_default_logger()
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-      xas_tdp_section => section_vals_get_subs_vals(dft_section, "XAS_TDP")
+      xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
       output_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".Log")
 
@@ -293,8 +292,8 @@ CONTAINS
       DO ikind = 1, SIZE(atomic_kind_set)
 
          IF (xas_tdp_control%check_only) EXIT
-
-         CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), element_symbol=symbol_of_kind, &
+         
+         CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), name=kind_name,&
                               atom_list=atoms_of_kind)
 
          IF (.NOT. ANY(xas_tdp_env%ex_kind_indices == ikind)) CYCLE
@@ -320,9 +319,9 @@ CONTAINS
             !compute the three center RI exchange integrals if so required
             IF (xas_tdp_control%do_hfx) THEN
                IF (output_unit > 0) THEN
-                  WRITE (UNIT=output_unit, FMT="(/,T3,A,I4,A1,A2)") &
+                  WRITE(UNIT=output_unit, FMT="(/,T3,A,I4,A1,A)") &
                      "# Computing the RI 3-center Exchange integrals for excited atom (idx/kind): ", &
-                     iatom, "/", symbol_of_kind
+                     iatom, "/", TRIM(kind_name)
                   CALL m_flush(output_unit)
                END IF
                CALL compute_ri_o3c_exchange(iatom, xas_tdp_env, xas_tdp_control, qs_env)
@@ -334,16 +333,16 @@ CONTAINS
                IF (xas_tdp_env%state_types(istate, tmp_index) == xas_not_excited) CYCLE
 
                current_state => xas_tdp_env%donor_states(current_state_index)
-               CALL set_donor_state(current_state, at_index=iatom, &
-                                    at_symbol=symbol_of_kind, kind_index=ikind, &
-                                    state_type=xas_tdp_env%state_types(istate, tmp_index))
+               CALL set_donor_state(current_state, at_index=iatom,&
+                                    at_symbol=kind_name, kind_index=ikind,&
+                                    state_type=xas_tdp_env%state_types(istate,tmp_index))
 
 !              Initial write for the donor state of interest
                IF (output_unit > 0) THEN
-                  WRITE (UNIT=output_unit, FMT="(/,T3,A,A2,A,I4,A,A2,/)") &
+                  WRITE(UNIT=output_unit, FMT="(/,T3,A,A2,A,I4,A,A,/)") &
                      "# Start of calculations for donor state of type ", &
-                     xas_tdp_env%state_type_char(current_state%state_type), " for atom", &
-                     current_state%at_index, " of kind ", current_state%at_symbol
+                     xas_tdp_env%state_type_char(current_state%state_type), " for atom",&
+                     current_state%at_index, " of kind ", TRIM(current_state%at_symbol)
                   CALL m_flush(output_unit)
                END IF
 
@@ -442,16 +441,18 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_init', routineP = moduleN//':'//routineN
-
-      CHARACTER(len=2)                                   :: symbol
-      INTEGER                                            :: at_ind, i, ispin, j, k, kind_ind, &
-                                                            n_donor_states, n_kinds, nao, &
-                                                            nat_of_kind, natom, nex_atoms, &
-                                                            nex_kinds, nmatch, nspins
-      INTEGER, DIMENSION(2)                              :: homo, n_mo, n_moloc
+      
+      TYPE(section_vals_type), POINTER                   :: xas_tdp_section, loc_section
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
+      INTEGER                                            :: nex_atoms, n_kinds, i, nat_of_kind,&
+                                                            j, nex_kinds, k, n_donor_states,&
+                                                            nspins, natom, nmatch, kind_ind, &
+                                                            at_ind, nao, ispin
+      INTEGER, DIMENSION(2)                              :: n_mo, n_moloc, homo
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
-      LOGICAL                                            :: do_os, do_uks, unique
-      REAL(dp)                                           :: fact
+      CHARACTER(LEN=default_string_length)               :: kind_name
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       REAL(dp), DIMENSION(:), POINTER                    :: mo_evals
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -469,14 +470,14 @@ CONTAINS
       LOGICAL                                            :: do_uks, do_os, unique
       TYPE(cell_type), POINTER                           :: cell
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(section_type), POINTER                        :: dummy_section
 
-      NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, qs_kind_set, dft_control)
+      NULLIFY(xas_tdp_section, at_kind_set, ind_of_kind, qs_kind_set, dft_control)
       NULLIFY(qs_loc_env, loc_section, mos, particle_set, rho, rho_ao, mo_evals, cell)
-      NULLIFY(mo_coeff, scf_control, matrix_ks, admm_env)
+      NULLIFY(mo_coeff, scf_control, matrix_ks, admm_env, dummy_section)
 
 !  XAS TDP control type initialization
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-      xas_tdp_section => section_vals_get_subs_vals(dft_section, "XAS_TDP")
+      xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       CALL xas_tdp_control_create(dft_control%xas_tdp_control)
@@ -538,12 +539,12 @@ CONTAINS
          ALLOCATE (xas_tdp_env%ex_kind_indices(nex_kinds))
          k = 0
 
-         DO i = 1, n_kinds
-            CALL get_atomic_kind(atomic_kind=at_kind_set(i), element_symbol=symbol, &
+         DO i = 1,n_kinds
+            CALL get_atomic_kind(atomic_kind=at_kind_set(i), name=kind_name,&
                                  natom=nat_of_kind, kind_number=kind_ind)
-            IF (ANY(xas_tdp_control%list_ex_kinds == symbol)) THEN
-               nex_atoms = nex_atoms+nat_of_kind
-               k = k+1
+            IF (ANY(xas_tdp_control%list_ex_kinds == kind_name)) THEN
+               nex_atoms = nex_atoms + nat_of_kind
+               k=k+1
                xas_tdp_env%ex_kind_indices(k) = kind_ind
             END IF
          END DO
@@ -553,15 +554,15 @@ CONTAINS
          nex_atoms = 0
          nmatch = 0
 
-         DO i = 1, n_kinds
-            CALL get_atomic_kind(atomic_kind=at_kind_set(i), element_symbol=symbol, &
-                                 natom=nat_of_kind, atom_list=ind_of_kind)
-            DO j = 1, nex_kinds
-               IF (xas_tdp_control%list_ex_kinds(j) == symbol) THEN
-                  xas_tdp_env%ex_atom_indices(nex_atoms+1:nex_atoms+nat_of_kind) = ind_of_kind
-                  DO k = 1, SIZE(xas_tdp_control%state_types, 1)
-                     xas_tdp_env%state_types(k, nex_atoms+1:nex_atoms+nat_of_kind) = &
-                        xas_tdp_control%state_types(k, j)
+         DO i = 1,n_kinds
+            CALL get_atomic_kind(atomic_kind=at_kind_set(i), name=kind_name,& 
+                                                natom=nat_of_kind, atom_list=ind_of_kind)
+            DO j = 1,nex_kinds
+               IF (xas_tdp_control%list_ex_kinds(j) == kind_name) THEN
+                  xas_tdp_env%ex_atom_indices(nex_atoms+1:nex_atoms + nat_of_kind) = ind_of_kind
+                  DO k = 1,SIZE(xas_tdp_control%state_types,1)
+                     xas_tdp_env%state_types(k,nex_atoms+1:nex_atoms + nat_of_kind) = &
+                                                                  xas_tdp_control%state_types(k,j)
                   END DO
                   nex_atoms = nex_atoms+nat_of_kind
                   nmatch = nmatch+1
@@ -623,6 +624,15 @@ CONTAINS
       END IF
 
 !  Initializing the qs_loc_env from the LOCALIZE subsection of XAS_TDP (largely inpired by MI's XAS)
+!  We create the LOCALIZE subsection here, since it is completely overwritten anyways
+      CALL create_localize_section(dummy_section)
+      CALL section_vals_create(xas_tdp_control%loc_subsection, dummy_section)
+      CALL section_vals_val_set(xas_tdp_control%loc_subsection, "_SECTION_PARAMETERS_", &
+                                l_val=xas_tdp_control%do_loc)
+      CALL section_release(dummy_section)
+      xas_tdp_control%print_loc_subsection => section_vals_get_subs_vals(&
+                                                         xas_tdp_control%loc_subsection, "PRINT")
+
       CALL qs_loc_env_create(xas_tdp_env%qs_loc_env)
       qs_loc_env => xas_tdp_env%qs_loc_env
       loc_section => xas_tdp_control%loc_subsection
@@ -749,7 +759,7 @@ CONTAINS
 
       !PB only available without exact exchange
       IF (xas_tdp_control%is_periodic .AND. xas_tdp_control%do_hfx &
-          .AND. xas_tdp_control%x_op == do_hfx_potential_coulomb) THEN
+          .AND. xas_tdp_control%x_op == do_potential_coulomb) THEN
          CPABORT("XAS TDP with Coulomb operator for exact exchange only supports non-periodic BCs")
       END IF
 
@@ -861,12 +871,12 @@ CONTAINS
 
       !Grid info
       IF (xas_tdp_control%do_soc .OR. xas_tdp_control%do_xc) THEN
-         WRITE (UNIT=ou, FMT="(T3,A)") &
-            "XAS_TDP| Radial Grid(s) Info: Symbol,  na,  nr"
-         DO i = 1, SIZE(xas_tdp_control%grid_info, 1)
-            WRITE (UNIT=ou, FMT="(T3,A,A6,A,A,A,A)") &
-               "                              ", TRIM(xas_tdp_control%grid_info(i, 1)), ", ", &
-               TRIM(xas_tdp_control%grid_info(i, 2)), ", ", TRIM(xas_tdp_control%grid_info(i, 3))
+         WRITE(UNIT=ou, FMT="(T3,A)") &
+            "XAS_TDP| Radial Grid(s) Info: Kind,  na,  nr"
+         DO i = 1, SIZE(xas_tdp_control%grid_info,1)
+            WRITE(UNIT=ou, FMT="(T3,A,A6,A,A,A,A)") &
+               "                            ", TRIM(xas_tdp_control%grid_info(i,1)), ", ", &
+               TRIM(xas_tdp_control%grid_info(i,2)), ", ", TRIM(xas_tdp_control%grid_info(i,3))
          END DO
       END IF
 
@@ -911,16 +921,16 @@ CONTAINS
          WRITE (UNIT=ou, FMT="(/,T3,A,/,/,T3,A,F5.3)") &
             "XAS_TDP| Exat Exchange Kernel: On ", &
             "EXACT_EXCHANGE| Scale: ", xas_tdp_control%sx
-         IF (xas_tdp_control%x_op == do_hfx_potential_coulomb) THEN
-            WRITE (UNIT=ou, FMT="(T3,A)") &
+         IF (xas_tdp_control%x_op == do_potential_coulomb) THEN
+            WRITE(UNIT=ou, FMT="(T3,A)") &
                "EXACT_EXCHANGE| Operator : Coulomb"
-         ELSE IF (xas_tdp_control%x_op == do_hfx_potential_truncated) THEN
-            WRITE (UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,A)") &
+         ELSE IF (xas_tdp_control%x_op == do_potential_truncated) THEN
+            WRITE(UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,A)") &
                "EXACT_EXCHANGE| Operator: Truncated Coulomb", &
                "EXACT_EXCHANGE| Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
                "EXACT_EXCHANGE| T_C_G_DATA: ", xas_tdp_control%x_t_c_filename
-         ELSE IF (xas_tdp_control%x_op == do_hfx_potential_short) THEN
-            WRITE (UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,F5.2,A,/,T3,A,ES7.1)") &
+         ELSE IF (xas_tdp_control%x_op == do_potential_short) THEN
+            WRITE(UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,F5.2,A,/,T3,A,ES7.1)") &
                "EXACT_EXCHANGE| Operator: Short Range", &
                "EXACT_EXCHANGE| Omega: ", xas_tdp_control%x_omega, ", (1/a0)", &
                "EXACT_EXCHANGE| Effective Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
@@ -1093,10 +1103,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
       TYPE(cp_para_env_type), POINTER                 :: para_env
       TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                :: lmo_struct
-      TYPE(cp_fm_type), POINTER                       :: lmo_fm
+      TYPE(cp_fm_struct_type), POINTER                :: lmo_struct, ks_struct
+      TYPE(cp_fm_type), POINTER                       :: lmo_fm, ks_fm, work, evecs
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: evals
 
-      NULLIFY(mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm)
+      NULLIFY(mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm, ks_struct, ks_fm)
+      NULLIFY(evecs, work)
 
       ! Get what we need from qs_env
       CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks, para_env=para_env, blacs_env=blacs_env)
@@ -1115,6 +1127,12 @@ CONTAINS
             CALL cp_fm_struct_create(lmo_struct, nrow_global=nao, ncol_global=nlmo, &
                                      para_env=para_env, context=blacs_env)
             CALL cp_fm_create(lmo_fm, lmo_struct)
+            CALL cp_fm_create(work, lmo_struct)
+
+            CALL cp_fm_struct_create(ks_struct, nrow_global=nlmo, ncol_global=nlmo, &
+                                     para_env=para_env, context=blacs_env)
+            CALL cp_fm_create(ks_fm, ks_struct)
+            CALL cp_fm_create(evecs, ks_struct)
 
             ! Loop over the localized MOs associated to this atom
             i = 0
@@ -1128,8 +1146,17 @@ CONTAINS
 
             END DO !ilmo
 
-         ! Diagonalize in the subspace and rotate the orbitals into eigenstates
-            CALL calculate_subspace_eigenvalues(lmo_fm, matrix_ks(ispin)%matrix)
+         ! Computing the KS matrix in the subset of MOs
+            CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, lmo_fm, work, ncol=nlmo)
+            CALL cp_gemm('T', 'N', nlmo, nlmo, nao, 1.0_dp, lmo_fm, work, 0.0_dp, ks_fm)
+         
+         ! Diagonalizing the KS matrix in the subset of MOs
+            ALLOCATE(evals(nlmo))
+            CALL cp_fm_syevd(ks_fm, evecs, evals)
+            DEALLOCATE(evals)
+
+         ! Express the MOs in the basis that diagonalizes KS
+            CALL cp_gemm('N', 'N', nao, nlmo, nlmo, 1.0_dp, lmo_fm, evecs, 0.0_dp, work)
 
             ! Replacing the new MOs back in the MO coeffs
             i = 0
@@ -1137,14 +1164,18 @@ CONTAINS
                IF (xas_tdp_env%mos_of_ex_atoms(ilmo, iat, ispin) == -1) CYCLE
 
                i = i+1
-               CALL cp_fm_to_fm_submat(lmo_fm, mo_coeff, nrow=nao, ncol=1, s_firstrow=1, &
+               CALL cp_fm_to_fm_submat(work, mo_coeff, nrow=nao, ncol=1, s_firstrow=1, &
                                        s_firstcol=i, t_firstrow=1, t_firstcol=ilmo)
 
             END DO
 
             ! Excited atom clean-up
             CALL cp_fm_release(lmo_fm)
+            CALL cp_fm_release(work)
             CALL cp_fm_struct_release(lmo_struct)
+            CALL cp_fm_release(ks_fm)
+            CALL cp_fm_release(evecs)
+            CALL cp_fm_struct_release(ks_struct)
          END DO !iat
       END DO !ispin
 
@@ -1602,12 +1633,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'print_checks', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=2)                                   :: symbol_of_kind
-      INTEGER                                            :: current_state_index, iat, iatom, ikind, &
-                                                            istate, output_unit, tmp_index
-      INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(donor_state_type), POINTER                    :: current_state
+      INTEGER                                         :: current_state_index, ikind, iat, iatom, &
+                                                         tmp_index, istate, output_unit
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+      INTEGER, DIMENSION(:), POINTER                  :: atoms_of_kind
+      CHARACTER(LEN=default_string_length)            :: kind_name
+      TYPE(donor_state_type), POINTER                 :: current_state
 
       NULLIFY (atomic_kind_set, atoms_of_kind, current_state)
 
@@ -1627,7 +1658,7 @@ CONTAINS
       !loop over atomic kinds
       DO ikind = 1, SIZE(atomic_kind_set)
 
-         CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), element_symbol=symbol_of_kind, &
+         CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), name=kind_name,&
                               atom_list=atoms_of_kind)
 
          IF (.NOT. ANY(xas_tdp_env%ex_kind_indices == ikind)) CYCLE
@@ -1645,14 +1676,14 @@ CONTAINS
                IF (xas_tdp_env%state_types(istate, tmp_index) == xas_not_excited) CYCLE
 
                current_state => xas_tdp_env%donor_states(current_state_index)
-               CALL set_donor_state(current_state, at_index=iatom, &
-                                    at_symbol=symbol_of_kind, kind_index=ikind, &
-                                    state_type=xas_tdp_env%state_types(istate, tmp_index))
+               CALL set_donor_state(current_state, at_index=iatom,&
+                                    at_symbol=kind_name, kind_index=ikind,&
+                                    state_type=xas_tdp_env%state_types(istate,tmp_index))
 
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(/,T4,A,A2,A,I4,A,A2,A)") &
-                     "-Donor state of type ", xas_tdp_env%state_type_char(current_state%state_type), &
-                     " for atom", current_state%at_index, " of kind ", current_state%at_symbol, ":"
+                  WRITE(output_unit, "(/,T4,A,A2,A,I4,A,A,A)") &
+                     "-Donor state of type ", xas_tdp_env%state_type_char(current_state%state_type),&
+                     " for atom", current_state%at_index, " of kind ", TRIM(current_state%at_symbol), ":"
                END IF
 
                !Assign the MOs and perform Mulliken
@@ -1980,16 +2011,16 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_to_ex_atoms_association', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=2)                                   :: at_symbol
-      INTEGER                                            :: at_index, imo, ispin, nmo, nspins, &
-                                                            output_unit, tmp_index
-      INTEGER, DIMENSION(3)                              :: perd_init
-      INTEGER, DIMENSION(:), POINTER                     :: ex_atom_indices
-      INTEGER, DIMENSION(:, :, :), POINTER               :: mos_of_ex_atoms
-      REAL(dp)                                           :: dist, mo_spread
-      REAL(dp), DIMENSION(3)                             :: at_pos, r_ac, wfn_center
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER                                         :: imo, nmo, at_index, tmp_index, &
+                                                         output_unit, ispin, nspins
+      REAL(dp), DIMENSION(3)                          :: wfn_center, at_pos, r_ac
+      INTEGER, DIMENSION(3)                           :: perd_init
+      TYPE(cell_type), POINTER                        :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+      INTEGER, DIMENSION(:,:,:), POINTER              :: mos_of_ex_atoms
+      INTEGER, DIMENSION(:), POINTER                  :: ex_atom_indices
+      REAL(dp)                                        :: dist, mo_spread
+      CHARACTER(LEN=default_string_length)            :: kind_name
 
       NULLIFY (cell, particle_set, mos_of_ex_atoms, ex_atom_indices)
 
@@ -2021,7 +2052,7 @@ CONTAINS
             IF (ANY(mos_of_ex_atoms(imo, :, ispin) == 1)) THEN
                tmp_index = MAXLOC(mos_of_ex_atoms(imo, :, ispin), 1)
                at_index = ex_atom_indices(tmp_index)
-               at_symbol = particle_set(at_index)%atomic_kind%element_symbol
+               kind_name = particle_set(at_index)%atomic_kind%name
 
                at_pos = particle_set(at_index)%r
                wfn_center = xas_tdp_env%qs_loc_env%localized_wfn_control%centers_set(ispin)%array(1:3, imo)
@@ -2032,10 +2063,10 @@ CONTAINS
 
                mo_spread = xas_tdp_env%qs_loc_env%localized_wfn_control%centers_set(ispin)%array(4, imo)
                mo_spread = mo_spread*angstrom*angstrom
-
-               IF (output_unit > 0) THEN
-                  WRITE (UNIT=output_unit, FMT="(T3,I4,I10,I14,A14,ES19.3,ES20.3)") &
-                     ispin, imo, at_index, at_symbol, dist, mo_spread
+         
+               IF (output_unit > 0 ) THEN
+                  WRITE(UNIT=output_unit, FMT="(T3,I4,I10,I14,A14,ES19.3,ES20.3)") &
+                     ispin, imo, at_index, TRIM(kind_name), dist, mo_spread
                END IF
 
             END IF
@@ -2182,7 +2213,7 @@ CONTAINS
                "XAS TDP open-shell spin-conserving (no SOC) excitations for DONOR STATE: ", &
                xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol, &
+               donor_state%kind_index, "/", TRIM(donor_state%at_symbol),&
                "=================================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come
@@ -2215,7 +2246,7 @@ CONTAINS
                "XAS TDP open-shell spin-flip (no SOC) excitations for DONOR STATE: ", &
                xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol, &
+               donor_state%kind_index, "/", TRIM(donor_state%at_symbol),&
                "==========================================================--======================"
 
 !           Simply dump the excitation energies/ oscillator strength as they come
@@ -2247,7 +2278,7 @@ CONTAINS
                "XAS TDP singlet excitations (no SOC) for DONOR STATE: ", &
                xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol, &
+               donor_state%kind_index, "/", TRIM(donor_state%at_symbol),&
                "=================================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come
@@ -2280,7 +2311,7 @@ CONTAINS
                "XAS TDP triplet excitations (no SOC) for DONOR STATE: ", &
                xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol, &
+               donor_state%kind_index, "/", TRIM(donor_state%at_symbol),&
                "=================================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come
@@ -2312,7 +2343,7 @@ CONTAINS
                "XAS TDP  excitations after spin-orbit coupling for DONOR STATE: ", &
                xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol, &
+               donor_state%kind_index, "/", TRIM(donor_state%at_symbol),&
                "=================================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come

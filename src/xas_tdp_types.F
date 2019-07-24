@@ -30,14 +30,15 @@ MODULE xas_tdp_types
                                               tddfpt_triplet, &
                                               tddfpt_spin_cons, &
                                               tddfpt_spin_flip, &
-                                              do_hfx_potential_coulomb, &
-                                              do_hfx_potential_truncated, &
-                                              do_hfx_potential_short, &
+                                              do_potential_coulomb, &
+                                              do_potential_truncated, &
+                                              do_potential_short, &
                                               xas_dip_vel, &
                                               xas_tdp_diag_std
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get,&
-                                              section_vals_get_subs_vals
+                                              section_vals_get_subs_vals, &
+                                              section_vals_release
    USE kinds,                           ONLY: dp ,default_string_length
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
@@ -234,7 +235,7 @@ MODULE xas_tdp_types
       INTEGER                                 :: at_index
       INTEGER                                 :: kind_index
       INTEGER                                 :: ndo_mo
-      CHARACTER(len=2)                        :: at_symbol
+      CHARACTER(LEN=default_string_length)    :: at_symbol
       INTEGER                                 :: state_type
       REAL(dp), DIMENSION(:, :), POINTER       :: energy_evals
       INTEGER, DIMENSION(:, :), POINTER        :: mo_indices
@@ -346,7 +347,7 @@ CONTAINS
       xas_tdp_control%eps_range = 1.0E-6_dp
       xas_tdp_control%eps_screen = 1.0E-10_dp
       xas_tdp_control%ri_radius = 0.0_dp
-      xas_tdp_control%x_op = do_hfx_potential_coulomb
+      xas_tdp_control%x_op = do_potential_coulomb
       xas_tdp_control%x_t_c_filename = " "
       xas_tdp_control%check_only = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
@@ -396,6 +397,10 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_control%grid_info)) THEN
             DEALLOCATE (xas_tdp_control%grid_info)
+         END IF
+         IF (ASSOCIATED(xas_tdp_control%loc_subsection)) THEN
+            !recursive, print_loc_subsection removed too
+            CALL section_vals_release(xas_tdp_control%loc_subsection)
          END IF
          DEALLOCATE (xas_tdp_control)
       END IF
@@ -511,14 +516,7 @@ CONTAINS
       
       CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%N_SEARCH", i_val=xas_tdp_control%n_search)
 
-!  Deal with the LOCALIZE subsection
-      xas_tdp_control%loc_subsection => section_vals_get_subs_vals(xas_tdp_section, "LOCALIZE")
-      xas_tdp_control%print_loc_subsection => section_vals_get_subs_vals( &
-                                              xas_tdp_control%loc_subsection, "PRINT")
-
-!  Deal with the PRINT subsection
-      CALL section_vals_val_get(xas_tdp_control%loc_subsection, "_SECTION_PARAMETERS_", &
-                                l_val=xas_tdp_control%do_loc)
+      CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%LOCALIZE", l_val=xas_tdp_control%do_loc)
 
 !  Deal with the KERNEL subsection
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
@@ -537,7 +535,7 @@ CONTAINS
          CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OPERATOR", &
                                    i_val=xas_tdp_control%x_op)
          !truncated Coulomb
-         IF (xas_tdp_control%x_op == do_hfx_potential_truncated) THEN
+         IF (xas_tdp_control%x_op == do_potential_truncated) THEN
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%T_C_G_DATA", &
                                       c_val=xas_tdp_control%x_t_c_filename)
             IF (.NOT. file_exists(xas_tdp_control%x_t_c_filename)) THEN
@@ -550,8 +548,8 @@ CONTAINS
          END IF
 
          !short range erfc
-         IF (xas_tdp_control%x_op == do_hfx_potential_short) THEN
-            CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OMEGA", &
+         IF (xas_tdp_control%x_op == do_potential_short) THEN
+            CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OMEGA", & 
                                       r_val=xas_tdp_control%x_omega)
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%EPS_RANGE", &
                                       r_val=xas_tdp_control%eps_range)
@@ -783,6 +781,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'set_donor_state', &
          routineP = moduleN//':'//routineN
 
+      INTEGER, INTENT(IN), OPTIONAL                        :: at_index, state_type, kind_index
+      CHARACTER(LEN=default_string_length), OPTIONAL       :: at_symbol
+      
       CPASSERT(ASSOCIATED(donor_state))
 
       IF (PRESENT(at_index)) donor_state%at_index = at_index

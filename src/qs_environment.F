@@ -802,6 +802,9 @@ CONTAINS
             IF (.NOT. ASSOCIATED(ri_xas_basis)) THEN
                CALL cp_warn(__LOCATION__, "Automatic Generation of RI_XAS basis. "// & 
                             "This is experimental code.")
+               !Because might need nco(l) with high l<=max_orbl in create_ri_aux_basis_set
+               CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
+               CALL init_orbital_pointers(2*maxlgto)
                CALL create_ri_aux_basis_set(ri_xas_basis, qs_kind, dft_control%auto_basis_ri_xas)
                CALL add_basis_set_to_container(qs_kind%basis_sets, ri_xas_basis, "RI_XAS")
             END IF

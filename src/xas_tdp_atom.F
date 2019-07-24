@@ -35,7 +35,7 @@ MODULE xas_tdp_atom
                                               dbcsr_distribution_new, dbcsr_distribution_release, &
                                               dbcsr_complete_redistribute
    USE distribution_2d_types,           ONLY: distribution_2d_type, distribution_2d_release
-   USE input_constants,                 ONLY: do_hfx_potential_id
+   USE input_constants,                 ONLY: do_potential_id
    USE input_section_types,             ONLY: section_vals_type, &
                                               section_vals_get_subs_vals
    USE kinds,                           ONLY: dp, default_string_length
@@ -193,27 +193,30 @@ CONTAINS
 
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       CHARACTER(len=default_string_length), &
-         DIMENSION(:, :), POINTER                        :: grid_info
-      LOGICAL, INTENT(IN)                                :: do_xc
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+                           DIMENSION(:,:), POINTER    :: grid_info
+      TYPE(qs_environment_type), POINTER              :: qs_env
+      LOGICAL, INTENT(IN)                             :: do_xc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_xas_atom_grid_harmo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = "init_xas_atom_grid_harmo", &
+                                     routineP = moduleN//":"//routineN
 
-      CHARACTER(len=2)                                   :: symbol
-      INTEGER :: igrid, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, lc2, lcleb, ll, llmax, &
-         lp, m1, m2, max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nr, quadrature, stat
-      REAL(dp)                                           :: kind_radius
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rga
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
-      TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(qs_control_type), POINTER                     :: qs_control
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      REAL(dp)                                        :: kind_radius
+      REAL(dp), DIMENSION(:, :, :), POINTER           :: my_CG
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)          :: rga
+      INTEGER                                         :: llmax, maxlgto, max_s_harm, max_s_set, &
+                                                         lcleb, lc1, iso1, l1, m1, lc2, iso2, &
+                                                         l2, m2, l1l2, mp, mm, lp, il, iso, &
+                                                         ikind, quadrature, ll, na, la, nr, &
+                                                         maxs, maxl, igrid, stat
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
+      TYPE(gto_basis_set_type), POINTER               :: tmp_basis
+      TYPE(grid_atom_type), POINTER                   :: grid_atom
+      TYPE(harmonics_atom_type), POINTER              :: harmonics
+      TYPE(qs_control_type), POINTER                  :: qs_control
+      TYPE(dft_control_type), POINTER                 :: dft_control
+      CHARACTER(LEN=default_string_length)            :: kind_name
 
-      NULLIFY (my_CG, qs_kind_set, tmp_basis, grid_atom, harmonics, qs_control, dft_control)
+      NULLIFY(my_CG, qs_kind_set, tmp_basis, grid_atom, harmonics, qs_control, dft_control)
 
 !  Initialization of some integer for the CG coeff generation
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
@@ -301,12 +304,12 @@ CONTAINS
          harmonics => xas_atom_env%harmonics_atom_set(ikind)%harmonics_atom
 
 !        Initialize some integers
-         CALL get_qs_kind(qs_kind_set(ikind), ngrid_rad=nr, ngrid_ang=na, element_symbol=symbol)
+         CALL get_qs_kind(qs_kind_set(ikind), ngrid_rad=nr, ngrid_ang=na, name=kind_name)
 
          !take the grid dimension given as input, if none, take the GAPW ones above
-         IF (ANY(grid_info == symbol)) THEN
-            DO igrid = 1, SIZE(grid_info, 1)
-               IF (grid_info(igrid, 1) == symbol) THEN
+         IF (ANY(grid_info == kind_name)) THEN
+            DO igrid = 1, SIZE(grid_info,1)
+               IF (grid_info(igrid,1) == kind_name) THEN
 
                   !hack to convert string into integer
                   READ (grid_info(igrid, 2), *, iostat=stat) na
@@ -316,6 +319,9 @@ CONTAINS
                   EXIT
                END IF
             END DO
+         ELSE IF (do_xc .AND. ANY(xas_atom_env%excited_kinds == ikind)) THEN
+            !need good integration grids for the xc kernel, but taking the default GAPW grid
+            CPWARN("The default (and possibly small) GAPW grid is beeing used for one excited KIND")
          END IF
 
          ll = get_number_of_lebedev_grid(n=na)
@@ -925,7 +931,7 @@ CONTAINS
 
       !Get the optimal distribution_2d for the overlap integrals (abc), centers c on excited atoms
       !and their neighbors defined by RI_RADIUS
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_hfx_potential_id, &
+      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
                                qs_env, excited_atoms=all_ri_atoms)
       CALL get_opt_3c_dist2d(opt_dist2d, sab_orb, ac_list, basis_set_orb, basis_set_orb, &
                              basis_set_ri, qs_env)
@@ -933,7 +939,7 @@ CONTAINS
 
       !get the ab and ac neighbor lists based on the optimized distribution
       CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, ext_dist2d=opt_dist2d)
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_hfx_potential_id, &
+      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
                                qs_env, excited_atoms=all_ri_atoms, ext_dist2d=opt_dist2d)
 
       !get the AO density matrix in the optimized distribution for compatibility
@@ -984,8 +990,8 @@ CONTAINS
          CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread) 
 
 !$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (o3c_iterator,xas_atom_env,nsgf,nspins,factor,nnb,neighbors,iex,idx_to_nb,ri_sinv,inb)&
-!$OMP PRIVATE (mepos,katom,tvec,work,jnb,ri_at,found,foundt,pblock,pblockt)
+!$OMP SHARED (o3c_iterator,xas_atom_env,nsgf,nspins,factor,nnb,neighbors,iex,idx_to_nb,ri_sinv)&
+!$OMP PRIVATE (mepos,katom,tvec,work,inb,jnb,ri_at,found,foundt,pblock,pblockt)
 
          mepos = 0
 !$       mepos = omp_get_thread_num()
