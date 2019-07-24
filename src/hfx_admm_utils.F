@@ -34,6 +34,7 @@ MODULE hfx_admm_utils
                                               dbcsr_type
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
@@ -227,6 +228,7 @@ CONTAINS
                                                             rho_ao_1d
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -255,7 +257,8 @@ CONTAINS
                       matrix_ks_aux_fit=matrix_ks_aux_fit, &
                       matrix_ks_aux_fit_im=matrix_ks_aux_fit_im, &
                       matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, &
-                      s_mstruct_changed=s_mstruct_changed)
+                      s_mstruct_changed=s_mstruct_changed, &
+                      x_data=x_data)
 
       nspins = dft_control%nspins
       nimages = dft_control%nimages
@@ -316,7 +319,7 @@ CONTAINS
          ! Finally the real hfx calulation
          ehfx = 0.0_dp
          DO ispin = 1, mspin
-            CALL integrate_four_center(qs_env, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
+            CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
                                        para_env, s_mstruct_changed, irep, distribute_fock_matrix, &
                                        ispin=ispin)
             ehfx = ehfx+eh1
@@ -365,7 +368,7 @@ CONTAINS
 
             ehfxrt = 0.0_dp
             DO ispin = 1, mspin
-               CALL integrate_four_center(qs_env, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
                                           para_env, .FALSE., irep, distribute_fock_matrix, &
                                           ispin=ispin)
                ehfxrt = ehfxrt+eh1
@@ -977,6 +980,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
@@ -989,7 +993,8 @@ CONTAINS
                       energy=energy, &
                       input=input, &
                       para_env=para_env, &
-                      s_mstruct_changed=s_mstruct_changed)
+                      s_mstruct_changed=s_mstruct_changed, &
+                      x_data=x_data)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
@@ -1015,7 +1020,7 @@ CONTAINS
             ! the real hfx calulation
             ehfx = 0.0_dp
             DO ispin = 1, mspin
-               CALL integrate_four_center(qs_env, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
                                           s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
                ehfx = ehfx+eh1
             END DO

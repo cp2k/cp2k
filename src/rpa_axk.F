@@ -452,9 +452,9 @@ CONTAINS
             rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
 
             CALL dbcsr_set(mat_2d(1, 1)%matrix, 0.0_dp)
-            CALL integrate_four_center(qs_env, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
                                        para_env_sub, my_recalc_hfx_integrals, irep, .TRUE., &
-                                       ispin=1, axk_x_data=x_data)
+                                       ispin=1)
          END DO
 
          my_recalc_hfx_integrals = .FALSE.

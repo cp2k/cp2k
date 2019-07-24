@@ -964,6 +964,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ehfx, total_rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       alpha_beta = .FALSE.
@@ -975,7 +976,7 @@ CONTAINS
       my_recalc_hfx_integrals = .FALSE.
       IF (PRESENT(recalc_hfx_integrals)) my_recalc_hfx_integrals = recalc_hfx_integrals
 
-      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL get_qs_env(qs_env, ks_env=ks_env, x_data=x_data)
       ! perform back transformation
       SELECT CASE (transf_type_in)
       CASE (1)
@@ -1233,7 +1234,7 @@ CONTAINS
             rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
             ns = SIZE(mat_mu_nu)
             mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
-            CALL integrate_four_center(qs_env, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
                                        para_env, my_recalc_hfx_integrals, irep, .TRUE., &
                                        ispin=1)
          END DO
