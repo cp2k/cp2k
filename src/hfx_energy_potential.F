@@ -110,6 +110,7 @@ CONTAINS
 !> \brief computes four center integrals for a full basis set and updates the
 !>      Kohn-Sham-Matrix and energy. Uses all 8 eri symmetries
 !> \param qs_env ...
+!> \param x_data ...
 !> \param ks_matrix ...
 !> \param ehfx energy calculated with the updated HFX matrix
 !> \param rho_ao density matrix in ao basis
@@ -120,8 +121,6 @@ CONTAINS
 !> \param distribute_fock_matrix Flag that indicates whether to communicate the
 !>        new fock matrix or not
 !> \param ispin ...
-!> \param do_exx ...
-!> \param axk_x_data ...
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -132,11 +131,12 @@ CONTAINS
 !>              [Tobias Binninger + Valery Weber]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE integrate_four_center(qs_env, ks_matrix, ehfx, rho_ao, hfx_section, para_env, &
+   SUBROUTINE integrate_four_center(qs_env, x_data, ks_matrix, ehfx, rho_ao, hfx_section, para_env, &
                                     geometry_did_change, irep, distribute_fock_matrix, &
-                                    ispin, do_exx, axk_x_data)
+                                    ispin)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       REAL(KIND=dp), INTENT(OUT)                         :: ehfx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
@@ -146,8 +146,6 @@ CONTAINS
       INTEGER                                            :: irep
       LOGICAL, INTENT(IN)                                :: distribute_fock_matrix
       INTEGER, INTENT(IN)                                :: ispin
-      LOGICAL, OPTIONAL                                  :: do_exx
-      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, POINTER :: axk_x_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
          routineP = moduleN//':'//routineN
@@ -190,7 +188,7 @@ CONTAINS
       INTEGER, SAVE                                      :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_disk_storage, do_dynamic_load_balancing, do_it, &
          do_kpoints, do_p_screening, do_periodic, do_print_load_balance_info, is_anti_symmetric, &
-         ks_fully_occ, my_do_exx, my_geo_change, treat_lsd_in_core, use_disk_storage
+         ks_fully_occ, my_geo_change, treat_lsd_in_core, use_disk_storage
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: afac, bintime_start, bintime_stop, cartesian_estimate, compression_factor, &
          compression_factor_disk, ene_x_aa, ene_x_aa_diag, ene_x_bb, ene_x_bb_diag, eps_schwarz, &
@@ -241,7 +239,6 @@ CONTAINS
          DIMENSION(:, :, :, :, :, :), POINTER            :: radii_pgf, screen_coeffs_pgf
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_task_list_type), DIMENSION(:), POINTER    :: shm_task_list, tmp_task_list
-      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(pair_list_type)                               :: list_ij, list_kl
@@ -291,19 +288,6 @@ CONTAINS
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
-
-      my_do_exx = .FALSE.
-      IF (PRESENT(do_exx)) my_do_exx = do_exx
-      NULLIFY (x_data)
-      IF (PRESENT(axk_x_data)) THEN ! In case of AXK, x_data is a subroutine argument
-         x_data => axk_x_data
-      ELSE
-         IF (my_do_exx) THEN
-            x_data => qs_env%mp2_env%ri_rpa%x_data
-         ELSE
-            x_data => qs_env%x_data
-         END IF ! my_do_exx
-      END IF ! AXK_x_data
 
       !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
       nkind = SIZE(atomic_kind_set, 1)

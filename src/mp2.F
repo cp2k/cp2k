@@ -1210,9 +1210,10 @@ CONTAINS
             ELSE
                matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
             END IF
-            CALL integrate_four_center(qs_env, matrix_ks_2d, eh1, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
+                                       rho_ao_2d, hfx_sections, &
                                        para_env, .TRUE., irep, .TRUE., &
-                                       ispin=1, do_exx=.TRUE.)
+                                       ispin=1)
             ehfx = ehfx+eh1
          END DO
 
@@ -1547,9 +1548,10 @@ CONTAINS
                   matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
                END IF
 
-               CALL integrate_four_center(qs_env, matrix_ks_2d, eh1, rho_ao_2d, hfx_sections, &
+               CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
+                                          rho_ao_2d, hfx_sections, &
                                           para_env, .TRUE., irep, .TRUE., &
-                                          ispin=1, do_exx=.TRUE.)
+                                          ispin=1)
                ehfx = ehfx+eh1
             END DO
          END IF
