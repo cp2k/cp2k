@@ -1141,13 +1141,14 @@ CONTAINS
          OPTIONAL, POINTER                               :: basis_ao_1, basis_ao_2, basis_RI
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
-      INTEGER                                            :: mp_comm_t3c_2, size_AO_1, size_AO_2, &
-                                                            size_RI
+      INTEGER                                            :: mp_comm_t3c_2, nkind, size_AO_1, &
+                                                            size_AO_2, size_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_ao_1, dist_ao_2, dist_RI
       INTEGER, DIMENSION(3)                              :: pcoor, pcoord, pdims
       LOGICAL                                            :: kp
       TYPE(dbcsr_t_distribution_type)                    :: dist
       TYPE(distribution_3d_type)                         :: dist_3d
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       IF (PRESENT(do_kpoints)) THEN
          kp = do_kpoints
@@ -1171,12 +1172,14 @@ CONTAINS
 
       IF (PRESENT(nl_3c)) THEN
          CPASSERT(PRESENT(qs_env))
+         CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
          CPASSERT(PRESENT(basis_RI))
          CPASSERT(PRESENT(basis_ao_1))
          CPASSERT(PRESENT(basis_ao_2))
          CALL dbcsr_t_mp_environ_pgrid(mp_comm_t3c, pdims, pcoor)
          CALL mp_cart_create(mp_comm_t3c%mp_comm_2d, 3, pdims, pcoord, mp_comm_t3c_2)
-         CALL distribution_3d_create(qs_env, dist_3d, dist_RI, dist_ao_1, dist_ao_2, mp_comm_t3c_2, own_comm=.TRUE.)
+         CALL distribution_3d_create(dist_3d, dist_RI, dist_ao_1, dist_ao_2, &
+                                     nkind, particle_set, mp_comm_t3c_2, own_comm=.TRUE.)
 
          ! we rely on symmetry of the two AO-indices only if no k-points
          CALL build_3c_neighbor_lists(nl_3c, basis_RI, basis_ao_1, basis_ao_2, &

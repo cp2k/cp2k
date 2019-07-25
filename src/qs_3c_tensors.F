@@ -87,26 +87,27 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Create a 2d distribution. This mainly wraps distribution_2d_create
 !>        for consistency with distribution_3d_create.
-!> \param qs_env ...
 !> \param dist_2d 2d distribution object
 !> \param dist1 distribution vector along 1st process grid dimension
 !> \param dist2 distribution vector along 2nd process grid dimension
+!> \param nkind ...
+!> \param particle_set ...
 !> \param mp_comm_2d MPI communicator with a 3d cartesian topology
 ! **************************************************************************************************
-   SUBROUTINE distribution_2d_create(qs_env, dist_2d, dist1, dist2, mp_comm_2d)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE distribution_2d_create(dist_2d, dist1, dist2, nkind, particle_set, mp_comm_2d)
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2
+      INTEGER, INTENT(IN)                                :: nkind
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: mp_comm_2d
 
-      INTEGER                                            :: iatom, ikind, n, natom, nkind, nproc
+      INTEGER                                            :: iatom, ikind, n, natom, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nparticle_local_col, nparticle_local_row
       INTEGER, DIMENSION(2)                              :: mp_coor, mp_dims
       INTEGER, DIMENSION(:, :), POINTER                  :: dist1_prv, dist2_prv
       TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER        :: local_particle_col, local_particle_row
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       NULLIFY (blacs_env, local_particle_col, local_particle_row, para_env, particle_set)
 
@@ -120,11 +121,7 @@ CONTAINS
 
       CALL cp_para_env_release(para_env)
 
-      CALL get_qs_env(qs_env, &
-                      natom=natom, &
-                      particle_set=particle_set, &
-                      nkind=nkind)
-
+      natom = SIZE(particle_set)
       ALLOCATE (dist1_prv(natom, 2), dist2_prv(natom, 2))
       dist1_prv(:, 1) = dist1
       dist2_prv(:, 1) = dist2
@@ -171,18 +168,20 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Create a 3d distribution
-!> \param qs_env ...
 !> \param dist_3d 3d distribution object
 !> \param dist1 distribution vector along 1st process grid dimension
 !> \param dist2 distribution vector along 2nd process grid dimension
 !> \param dist3 distribution vector along 3rd process grid dimension
+!> \param nkind ...
+!> \param particle_set ...
 !> \param mp_comm_3d MPI communicator with a 3d cartesian topology
 !> \param own_comm Whether mp_comm_3d should be owned by dist_3d (default false)
 ! **************************************************************************************************
-   SUBROUTINE distribution_3d_create(qs_env, dist_3d, dist1, dist2, dist3, mp_comm_3d, own_comm)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE distribution_3d_create(dist_3d, dist1, dist2, dist3, nkind, particle_set, mp_comm_3d, own_comm)
       TYPE(distribution_3d_type)                         :: dist_3d
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2, dist3
+      INTEGER, INTENT(IN)                                :: nkind
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: mp_comm_3d
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm
 
@@ -211,8 +210,8 @@ CONTAINS
 
       CPASSERT(mp_coor_1(2) == mp_coor_2(1))
 
-      CALL distribution_2d_create(qs_env, dist_3d%dist_2d_1, dist1, dist2, comm_2d_1)
-      CALL distribution_2d_create(qs_env, dist_3d%dist_2d_2, dist2, dist3, comm_2d_2)
+      CALL distribution_2d_create(dist_3d%dist_2d_1, dist1, dist2, nkind, particle_set, comm_2d_1)
+      CALL distribution_2d_create(dist_3d%dist_2d_2, dist2, dist3, nkind, particle_set, comm_2d_2)
 
       dist_3d%comm_2d_1 = comm_2d_1
       dist_3d%comm_2d_2 = comm_2d_2
