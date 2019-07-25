@@ -109,7 +109,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (blacs_env, local_particle_col, local_particle_row, para_env, particle_set)
+      NULLIFY (blacs_env, local_particle_col, local_particle_row, para_env)
 
       CALL mp_environ(nproc, mp_dims, mp_coor, mp_comm_2d)
       CALL cp_para_env_create(para_env, mp_comm_2d, owns_group=.FALSE.)
