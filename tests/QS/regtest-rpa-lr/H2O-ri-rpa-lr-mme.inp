@@ -10,13 +10,14 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
-    POTENTIAL_FILE_NAME  GTH_POTENTIALS
+    POTENTIAL_FILE_NAME  POTENTIAL
+#GTH_POTENTIAL
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF  500
+      REL_CUTOFF  30
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
@@ -34,8 +35,15 @@
       &END
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ 1.0E-8
+          SCREEN_ON_INITIAL_P FALSE
+        &END SCREENING
+      &END HF
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &INTERACTION_POTENTIAL
@@ -47,7 +55,8 @@
           REL_CUTOFF 20
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 40
+          RPA_NUM_QUAD_POINTS 15
+          MINIMAX
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -56,27 +65,29 @@
             &END SCREENING
           &END HF
         &END RI_RPA
+        ERI_METHOD MME
+        RI_METRIC COULOMB
         MEMORY  200.
         NUMBER_PROC  1
         DO_SVD
-        EPS_SVD 1.0E-5
+        EPS_SVD 1.0E-15
       &END
     &END XC
   &END DFT
   &SUBSYS
     &CELL
       ABC [angstrom]  8.000   8.000  8.000
-      PERIODIC NONE
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q1
+      POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q6
+      POTENTIAL  GTH-HF-q6
     &END KIND
     &TOPOLOGY
       COORD_FILE_NAME  H2O_gas.xyz
