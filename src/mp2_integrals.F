@@ -44,7 +44,8 @@ MODULE mp2_integrals
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_triangular_invert
+                                              cp_fm_triangular_invert, &
+                                              cp_fm_frobenius_norm
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_syevx
@@ -66,7 +67,7 @@ MODULE mp2_integrals
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
         dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, &
         dbcsr_scalar, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8, dbcsr_type_symmetric
+        dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_frobenius_norm
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
@@ -336,7 +337,7 @@ CONTAINS
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
                                                             impose_split, memory_info, do_svd
       REAL(KIND=dp)                                      :: cond_num, eps_svd, mem_for_iaK, &
-                                                            omega_metric, omega_pot, wfn_size
+                                                            omega_metric, omega_pot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_bse_ab, fm_BIb_bse_ij, fm_BIb_gw, &
@@ -482,11 +483,7 @@ CONTAINS
          sub_proc_map(para_env_sub%num_pe+i) = i
       END DO
 
-      IF (eri_method == do_eri_gpw .OR. potential_type == do_potential_long) THEN
-
-         ! maybe remove wfn_size??
-         wfn_size = REAL(SIZE(rho_r%pw%cr3d), KIND=dp)
-         CALL mp_max(wfn_size, para_env%group)
+      IF (eri_method == do_eri_gpw .OR. (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
 
          ! start real calculation
          NULLIFY (psi_L%pw)
@@ -516,7 +513,7 @@ CONTAINS
                            fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, &
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, &
-                           gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
+                           gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, eps_svd, &
                            num_small_eigen, potential_type, ri_metric, omega_pot, omega_metric, fm_matrix_L_RI_metric, do_im_time, &
                            do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set)
@@ -644,13 +641,12 @@ CONTAINS
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
-            CALL mp2_eri_3c_integrate(eri_param, para_env_sub, qs_env, &
+            CALL mp2_eri_3c_integrate(eri_param, ri_metric, omega_metric, para_env_sub, qs_env, &
                                       first_c=my_group_L_start, last_c=my_group_L_end, &
                                       mat_ab=mat_munu_local_L, &
                                       basis_type_a="ORB", basis_type_b="ORB", &
                                       basis_type_c="RI_AUX", &
-                                      sab_nl=sab_orb_sub, eri_method=eri_method, &
-                                      potential_type=ri_metric, omega=omega_metric)
+                                      sab_nl=sab_orb_sub, eri_method=eri_method)
 
             DO LLL = 1, my_group_L_size
                CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_ia_jnu, matrix_ia_jb, &
@@ -975,7 +971,7 @@ CONTAINS
 
       END IF
 
-      IF (eri_method == do_eri_gpw .OR. potential_type == do_potential_long) THEN
+      IF (eri_method == do_eri_gpw .OR. (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
 
@@ -1701,6 +1697,7 @@ CONTAINS
                                                             dimen_RI, kpoints)
 
          ELSE
+
             CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
                               dimen_RI, dimen_RI_red)
 
@@ -2312,10 +2309,10 @@ CONTAINS
           .AND. ri_metric .EQ. do_potential_coulomb .OR. &
           (eri_method .EQ. do_eri_mme .AND. ri_metric .EQ. do_potential_long)) THEN
 
-         CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
+         CALL mp2_eri_2c_integrate(eri_param, ri_metric, omega, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
-                                   eri_method=eri_method, potential_type=ri_metric, omega=omega)
+                                   eri_method=eri_method)
 
       ELSEIF (eri_method .EQ. do_eri_gpw .OR. ri_metric .NE. do_potential_coulomb) THEN
 
@@ -2454,8 +2451,6 @@ CONTAINS
          DEALLOCATE (wf_vector)
 
          CALL mp_sum(L_local_col, para_env_sub%group)
-
-!WRITE(*,*) L_local_col
 
       ELSE
          CPABORT("unknown ERI method")
@@ -2753,6 +2748,7 @@ CONTAINS
 
       NULLIFY (matrix)
       CALL cp_fm_create(matrix, fm_struct)
+      CALL cp_fm_set_all(matrix, 0.0_dp)
 
       CALL cp_fm_struct_release(fm_struct)
 
@@ -5177,7 +5173,6 @@ CONTAINS
             CPABORT("Need omega when longrange potential is requested.")
          END IF
       END IF
-!WRITE(*,*) my_potential_type == do_potential_long, omega
 
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator

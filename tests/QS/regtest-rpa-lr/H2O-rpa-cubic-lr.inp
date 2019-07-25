@@ -16,7 +16,7 @@
       REL_CUTOFF  20
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
@@ -48,7 +48,6 @@
           ! the time for the cubic_scaling RPA calculation
           EPS_FILTER  1.0E-6
         &END
-!        ERI_METHOD MME
         ERI_METHOD OS
         IM_TIME
         &RI_RPA
@@ -72,7 +71,7 @@
   &SUBSYS
     &CELL
       ABC [angstrom]  8.000   8.000  8.000
-      PERIODIC NONE
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH

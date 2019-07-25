@@ -71,6 +71,7 @@ MODULE mp2_gpw
                                               group_dist_d1_type,&
                                               release_group_dist
    USE input_constants,                 ONLY: do_eri_gpw,&
+                                              do_eri_os,&
                                               do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
@@ -461,7 +462,8 @@ CONTAINS
 
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. qs_env%mp2_env%potential_parameter%potential_type == do_potential_long) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. (qs_env%mp2_env%potential_parameter%potential_type == do_potential_long &
+          .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
 
          ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
          progression_factor = dft_control%qs_control%progression_factor
@@ -597,7 +599,8 @@ CONTAINS
          END IF
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. qs_env%mp2_env%potential_parameter%potential_type == do_potential_long) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. (qs_env%mp2_env%potential_parameter%potential_type == do_potential_long &
+          .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
 
          ! and now free the whole lot
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
@@ -613,9 +616,9 @@ CONTAINS
       ! moved down
       ! CALL deallocate_task_list(task_list_sub)
       ! CALL pw_env_release(pw_env_sub)
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw .AND. &
-          (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2) &
-          ) THEN
+      IF ((qs_env%mp2_env%eri_method == do_eri_gpw .OR. (qs_env%mp2_env%eri_method == do_eri_os .AND. &
+           qs_env%mp2_env%potential_parameter%potential_type == do_potential_long)) .AND. &
+           (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) THEN
          CALL deallocate_task_list(task_list_sub)
          CALL pw_env_release(pw_env_sub)
       END IF

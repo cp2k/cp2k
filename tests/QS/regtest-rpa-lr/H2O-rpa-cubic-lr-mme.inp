@@ -49,7 +49,6 @@
           EPS_FILTER  1.0E-6
         &END
         ERI_METHOD MME
-!        ERI_METHOD OS
         IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
