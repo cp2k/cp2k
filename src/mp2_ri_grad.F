@@ -328,13 +328,13 @@ CONTAINS
 
          ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
          I_tmp2(:, :) = 0.0_dp
-         CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
+         CALL mp2_eri_2c_integrate(eri_param, potential_type, omega, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=I_tmp2, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method, pab=G_PQ_local, force_a=force_2c)
 
          DEALLOCATE (I_tmp2)
-         CALL mp2_eri_3c_integrate(eri_param, para_env_sub, qs_env, &
+         CALL mp2_eri_3c_integrate(eri_param, potential_type, omega, para_env_sub, qs_env, &
                                    first_c=my_group_L_start, last_c=my_group_L_end, mat_ab=mat_munu_local, &
                                    basis_type_a="ORB", basis_type_b="ORB", basis_type_c="RI_AUX", &
                                    sab_nl=sab_orb_sub, eri_method=eri_method, &
