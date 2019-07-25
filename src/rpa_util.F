@@ -552,15 +552,12 @@ CONTAINS
                             mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local)
       END IF
 
+      ! Create Scalapack working matrix for the contraction with the metric
       IF (dimen_RI == dimen_RI_red) THEN
          NULLIFY (fm_mat_work)
          CALL cp_fm_create(fm_mat_work, fm_mat_Q%matrix_struct)
          CALL cp_fm_to_fm(fm_mat_Q, fm_mat_work)
          CALL cp_fm_set_all(matrix=fm_mat_work, alpha=0.0_dp)
-
-         NULLIFY (mat_work)
-         ALLOCATE (mat_work)
-         CALL dbcsr_create(mat_work, template=mat_L%matrix)
 
       ELSE
          NULLIFY (fm_struct)
@@ -573,14 +570,16 @@ CONTAINS
 
          CALL cp_fm_struct_release(fm_struct)
 
-         IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
-            CALL dbcsr_get_info(mat_L%matrix, col_blk_size=col_blk_size, row_blk_size=row_blk_size)
+      END IF
 
-            ! Create mat_work having the shape of the transposed of mat_L (compare with contract_P_omega_with_mat_L)
-            NULLIFY (mat_work)
-            ALLOCATE (mat_work)
-            CALL dbcsr_create(mat_work, template=mat_L%matrix, row_blk_size=col_blk_size, col_blk_size=row_blk_size)
-         END IF
+      ! Then its DBCSR counter part
+      IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
+         CALL dbcsr_get_info(mat_L%matrix, col_blk_size=col_blk_size, row_blk_size=row_blk_size)
+
+         ! Create mat_work having the shape of the transposed of mat_L (compare with contract_P_omega_with_mat_L)
+         NULLIFY (mat_work)
+         ALLOCATE (mat_work)
+         CALL dbcsr_create(mat_work, template=mat_L%matrix, row_blk_size=col_blk_size, col_blk_size=row_blk_size)
       END IF
 
       IF (do_ri_Sigma_x .OR. do_ic_model) THEN
@@ -777,7 +776,6 @@ CONTAINS
          fm_struct => fm_struct_template
       ELSE
          ! The template is assumed to be square such that we need a new fm_struct if dimensions are not equal
-         ALLOCATE(fm_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=dimen_RI_red, ncol_global=dimen_RI, template_fmstruct=fm_struct_template)
       END IF
 
@@ -805,7 +803,6 @@ CONTAINS
 
          ! Create a fm_struct with transposed sizes
          NULLIFY(fm_struct)
-         ALLOCATE(fm_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=dimen_RI, ncol_global=dimen_RI_red, &
                                   template_fmstruct=fm_mat_L(first_ikp_local, 1)%matrix%matrix_struct)!, force_block=.TRUE.)
       END IF
@@ -1936,7 +1933,10 @@ CONTAINS
          DEALLOCATE (mat_P_global_copy%matrix)
       ENDIF
 
-      IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) CALL dbcsr_release(mat_work)
+      IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
+         CALL dbcsr_release(mat_work)
+         DEALLOCATE(mat_work)
+      END IF
 
       CALL dbcsr_release(mat_L%matrix)
       DEALLOCATE (mat_L%matrix)

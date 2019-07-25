@@ -226,6 +226,8 @@ CONTAINS
                               my_beta_beta_case, local_ba, virtual_beta)
       ENDIF
 
+WRITE(*,*) NORM2(BIb_C), SUM(BIb_C)
+
       CALL timeset(routineN//"_RI_loop", handle2)
       null_mat_rec = 0.0_dp
       null_mat_send = 0.0_dp

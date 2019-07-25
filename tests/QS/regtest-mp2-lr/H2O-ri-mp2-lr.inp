@@ -54,7 +54,7 @@
         NUMBER_PROC  1
         CALC_COND_NUM
         DO_SVD
-        EPS_SVD 1.0E-5
+        EPS_SVD 1.0E-15
       &END
     &END XC
   &END DFT
