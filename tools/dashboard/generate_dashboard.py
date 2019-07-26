@@ -307,9 +307,10 @@ def gen_plots(archive_reports, log, outdir, full_archive):
             raw_output +=  "%8d    %40s"%(-age, report['git-sha'])
             for pname, cname in tags:
                 pp = [pp for pp in report['plotpoints'] if(pp['plot']==pname and pp['name']==cname)]
-                assert(len(pp)<=1)
+                if len(pp) > 1:
+                    print("Warning: Found redundant plot points.")
                 if(pp):
-                    raw_output += "   %18f   %22f"%(pp[0]['y'],pp[0]['yerr'])
+                    raw_output += "   %18f   %22f"%(pp[-1]['y'],pp[-1]['yerr'])
                 else:
                     raw_output += "   %18s   %22s"%("?","?")
             raw_output += "\n"
