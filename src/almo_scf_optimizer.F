@@ -906,6 +906,13 @@ CONTAINS
 
       nspins = almo_scf_env%nspins
 
+      ! if unprojected XALMOs are optimized
+      ! then we must use the "blissful_neglect" procedure
+      blissful_neglect = .FALSE.
+      IF (my_special_case .EQ. xalmo_case_normal .AND. .NOT. assume_t0_q0x) THEN
+         blissful_neglect = .TRUE.
+      ENDIF
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          SELECT CASE (my_special_case)
@@ -916,8 +923,13 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 20), &
                " Optimization of fully delocalized MOs ", REPEAT("-", 20)
          CASE (xalmo_case_normal)
-            WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 27), &
-               " Optimization of XALMOs ", REPEAT("-", 28)
+            IF (blissful_neglect) THEN
+               WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 25), &
+                  " LCP optimization of XALMOs ", REPEAT("-", 26)
+            ELSE
+               WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 27), &
+                  " Optimization of XALMOs ", REPEAT("-", 28)
+            ENDIF
          END SELECT
          WRITE (unit_nr, *)
          WRITE (unit_nr, '(T2,A13,A6,A23,A14,A14,A9)') "Method", "Iter", &
@@ -929,13 +941,6 @@ CONTAINS
       ! RZK-warning: change to normal keywords later
       optimize_theta = almo_scf_env%logical05
       eps_skip_gradients = almo_scf_env%real01
-
-      ! if unprojected XALMOs are optimized then compute both
-      ! then we must use the "blissful_neglect" procedure
-      blissful_neglect = .FALSE.
-      IF (my_special_case .EQ. xalmo_case_normal .AND. .NOT. assume_t0_q0x) THEN
-         blissful_neglect = .TRUE.
-      ENDIF
 
       ! penalty amplitude adjusts the strenght of volume conservation
       ! the following guidelines are useful
