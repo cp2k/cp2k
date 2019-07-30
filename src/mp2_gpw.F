@@ -72,6 +72,7 @@ MODULE mp2_gpw
                                               release_group_dist
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_os,&
+                                              do_eri_mme,&
                                               do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
@@ -193,11 +194,11 @@ CONTAINS
          dimen_RI, dimen_RI_red, group_size_3c, group_size_P, gw_corr_lev_occ, &
          gw_corr_lev_occ_beta, gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, &
          i, i_multigrid, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
-         n_multigrid, nelectron, nelectron_beta, nmo, nspins, ri_metric
+         n_multigrid, nelectron, nelectron_beta, nmo, nspins, ri_metric, eri_method
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc_t, starts_array_mc_t
       LOGICAL :: blacs_repeatable, do_bse, do_dbcsr_t, do_im_time, do_kpoints_cubic_RPA, do_mao, &
          my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2, &
-         skip_load_balance_distributed
+         skip_load_balance_distributed, do_gpw
       REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, Emp2_d_AB, &
          Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, progression_factor, &
          relative_cutoff_old
@@ -338,6 +339,8 @@ CONTAINS
 
       blacs_env_sub_mat_munu => blacs_env_sub
 
+      eri_method = qs_env%mp2_env%eri_method
+
       IF (do_im_time) THEN
 
          group_size_3c = mp2_env%ri_rpa_im_time%group_size_3c
@@ -374,7 +377,7 @@ CONTAINS
                                   blacs_grid_layout, &
                                   blacs_repeatable)
 
-         IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+         IF (eri_method == do_eri_gpw) THEN
             blacs_env_sub_mat_munu => blacs_env_sub
          ELSE
             blacs_env_sub_mat_munu => blacs_env_sub_im_time_3c
@@ -387,8 +390,7 @@ CONTAINS
       END IF
 
       IF (mp2_env%ri_metric == ri_default) THEN
-         mp2_env%ri_metric = mp2_env%potential_parameter%potential_type
-         mp2_env%omega = mp2_env%potential_parameter%omega
+         mp2_env%ri_metric = do_potential_coulomb
       END IF
 
       ! get stuff
@@ -424,6 +426,12 @@ CONTAINS
 
       ! which RI metric we want to have
       ri_metric = mp2_env%ri_metric
+
+      ! whether we need gpw integrals (plus pw stuff)
+      do_gpw = (eri_method == do_eri_gpw) .OR. &
+               ((mp2_env%potential_parameter%potential_type == do_potential_long .OR. ri_metric == do_potential_long) &
+                .AND. eri_method == do_eri_os) &
+               .OR. (ri_metric == do_potential_id .AND. eri_method == do_eri_mme)
 
       ! check if we want to do ri-g0w0 on top of ri-rpa
       my_do_gw = mp2_env%ri_rpa%do_ri_g0w0
@@ -462,8 +470,7 @@ CONTAINS
 
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. (qs_env%mp2_env%potential_parameter%potential_type == do_potential_long &
-          .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
+      IF (do_gpw) THEN
 
          ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
          progression_factor = dft_control%qs_control%progression_factor
@@ -599,8 +606,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw .OR. (qs_env%mp2_env%potential_parameter%potential_type == do_potential_long &
-          .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
+      IF (do_gpw) THEN
 
          ! and now free the whole lot
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
@@ -616,9 +622,7 @@ CONTAINS
       ! moved down
       ! CALL deallocate_task_list(task_list_sub)
       ! CALL pw_env_release(pw_env_sub)
-      IF ((qs_env%mp2_env%eri_method == do_eri_gpw .OR. (qs_env%mp2_env%eri_method == do_eri_os .AND. &
-           qs_env%mp2_env%potential_parameter%potential_type == do_potential_long)) .AND. &
-           (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) THEN
+      IF (do_gpw .AND. (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) THEN
          CALL deallocate_task_list(task_list_sub)
          CALL pw_env_release(pw_env_sub)
       END IF
@@ -695,7 +699,7 @@ CONTAINS
 
          IF (do_im_time) THEN
 
-            IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+            IF (eri_method == do_eri_gpw) THEN
                para_env_sub_RPA => para_env_sub
                blacs_env_sub_RPA => blacs_env_sub
             ELSE
@@ -842,7 +846,7 @@ CONTAINS
             IF (calc_forces) THEN
                ! since we have to compute again integrals reinitialize the stuff we need
                ! get some of the grids ready
-               IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+               IF (do_gpw) THEN
                   NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
                                          use_data=REALDATA3D, &
@@ -873,7 +877,7 @@ CONTAINS
                                           blacs_env_sub)
                ENDIF
 
-               IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+               IF (do_gpw) THEN
                   ! release
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
@@ -934,9 +938,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw .AND. &
-          (.NOT. (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) &
-          ) THEN
+      IF (do_gpw .AND. .NOT. (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) THEN
          CALL deallocate_task_list(task_list_sub)
          CALL pw_env_release(pw_env_sub)
       END IF
@@ -947,7 +949,7 @@ CONTAINS
       dft_control%qs_control%eps_gvg_rspace = eps_gvg_rspace_old
       CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
 
-      IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+      IF (do_gpw) THEN
          ! restore the initial value of the cutoff
          dft_control%qs_control%e_cutoff = e_cutoff_old
          dft_control%qs_control%cutoff = cutoff_old

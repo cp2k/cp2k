@@ -182,7 +182,7 @@ CONTAINS
          usage="RI_METRIC COULOMB", &
          enum_c_vals=s2a("DEFAULT", "COULOMB", "OVERLAP", "LONGRANGE"), &
          enum_i_vals=(/ri_default, do_potential_coulomb, do_potential_id, do_potential_long/), &
-         enum_desc=s2a("Use overlap metric for cubic scaling methods and interaction potential for higher scaling methods.", &
+         enum_desc=s2a("Use overlap metric for cubic scaling methods and Coulomb metric for higher scaling methods.", &
                        "Use Coulomb metric.", &
                        "Use overlap metric, recommended in combination with imaginary time for O(N^3) RPA.", &
                        "Use longrange metric. Not recommended with DO_SVD .TRUE."), &
