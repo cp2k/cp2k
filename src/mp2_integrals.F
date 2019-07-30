@@ -83,7 +83,8 @@ MODULE mp2_integrals
                                               do_eri_mme,&
                                               do_eri_os,&
                                               do_potential_coulomb,&
-                                              do_potential_long
+                                              do_potential_long,&
+                                              do_potential_id
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
@@ -335,7 +336,7 @@ CONTAINS
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
       INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
-                                                            impose_split, memory_info, do_svd
+                                                            impose_split, memory_info, do_svd, do_gpw
       REAL(KIND=dp)                                      :: cond_num, eps_svd, mem_for_iaK, &
                                                             omega_metric, omega_pot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
@@ -380,6 +381,11 @@ CONTAINS
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
       omega_pot = qs_env%mp2_env%potential_parameter%omega
       omega_metric = qs_env%mp2_env%omega_metric
+
+      ! whether we need gpw integrals (plus pw stuff)
+      do_gpw = (eri_method == do_eri_gpw) .OR. ((potential_type == do_potential_long .OR. ri_metric == do_potential_long) &
+                .AND. qs_env%mp2_env%eri_method == do_eri_os) &
+               .OR. (ri_metric == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)
 
       IF (do_svd .AND. calc_forces) THEN
          CPABORT("SVD not implemented for forces.!")
@@ -483,8 +489,7 @@ CONTAINS
          sub_proc_map(para_env_sub%num_pe+i) = i
       END DO
 
-      IF (eri_method == do_eri_gpw .OR. (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
-
+      IF (do_gpw) THEN
          ! start real calculation
          NULLIFY (psi_L%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, psi_L%pw, &
@@ -629,10 +634,6 @@ CONTAINS
          IF (eri_method == do_eri_mme .AND. (ri_metric == do_potential_coulomb .OR. ri_metric == do_potential_long) .OR. &
              eri_method == do_eri_os .AND. ri_metric == do_potential_coulomb) THEN
 
-            ! MME and Obara-Saika Coulomb integrals only used for RI with
-            ! Coulomb metric, not for overlap metric
-!            CPASSERT(ri_metric == do_potential_coulomb)
-
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
             DO LLL = 1, my_group_L_size
@@ -725,7 +726,7 @@ CONTAINS
             ENDDO
             DEALLOCATE (mat_munu_local_L)
 
-         ELSE IF (eri_method == do_eri_gpw .OR. ri_metric == do_potential_long) THEN
+         ELSE IF (do_gpw) THEN
 
             DO LLL = my_group_L_start, my_group_L_end
                i_counter = i_counter+1
@@ -779,6 +780,8 @@ CONTAINS
                END IF
 
             END DO
+         ELSE
+            CPABORT("No integration method chosen ?!")
          END IF
       ENDIF
 
@@ -971,7 +974,7 @@ CONTAINS
 
       END IF
 
-      IF (eri_method == do_eri_gpw .OR. (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os)) THEN
+      IF (do_gpw) THEN
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
 
@@ -2314,7 +2317,8 @@ CONTAINS
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method)
 
-      ELSEIF (eri_method .EQ. do_eri_gpw .OR. ri_metric .NE. do_potential_coulomb) THEN
+      ELSEIF (eri_method .EQ. do_eri_gpw .OR. (ri_metric == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
+              .OR. (ri_metric == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
 
          ALLOCATE (wf_vector(dimen_RI))
 

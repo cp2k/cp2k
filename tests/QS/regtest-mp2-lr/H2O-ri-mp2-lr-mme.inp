@@ -5,6 +5,8 @@
   &TIMINGS
      THRESHOLD 0.01
   &END
+  TRACE
+  TRACE_MASTER
 &END GLOBAL
 &FORCE_EVAL
   METHOD Quickstep
@@ -12,7 +14,7 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF  200
+      CUTOFF  100
       REL_CUTOFF  20
     &END MGRID
     &POISSON
@@ -50,8 +52,6 @@
           CUTOFF  100
           REL_CUTOFF 20
         &END
-        # DEFAULT is numerically unstable
-        RI_METRIC COULOMB
         ERI_METHOD MME
         MEMORY  200.
         NUMBER_PROC  1

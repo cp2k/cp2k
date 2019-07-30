@@ -16,7 +16,7 @@
       REL_CUTOFF  20
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
@@ -48,7 +48,7 @@
         &END INTERACTION_POTENTIAL
         &WFC_GPW
           CUTOFF  100
-          REL_CUTOFF 20
+          REL_CUTOFF 50
         &END
         MEMORY  200.
         NUMBER_PROC  1
@@ -61,7 +61,7 @@
   &SUBSYS
     &CELL
       ABC [angstrom]  8.000   8.000  8.000
-      PERIODIC NONE
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH
