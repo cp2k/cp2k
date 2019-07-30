@@ -93,7 +93,7 @@ MODULE mp2_gpw
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_cphf,                        ONLY: solve_z_vector_eq
-   USE mp2_integrals,                   ONLY: mp2_ri_gpw_compute_in
+   USE mp2_integrals,                   ONLY: mp2_ri_gpw_compute_in, cleanup_gpw, prepare_gpw
    USE mp2_ri_gpw,                      ONLY: mp2_ri_gpw_compute_en
    USE mp2_ri_grad,                     ONLY: calc_ri_mp2_nonsep
    USE mp2_types,                       ONLY: mp2_type
@@ -193,16 +193,14 @@ CONTAINS
       INTEGER :: blacs_grid_layout, color_sub, color_sub_3c, comm_sub, comm_sub_3c, dimen, &
          dimen_RI, dimen_RI_red, group_size_3c, group_size_P, gw_corr_lev_occ, &
          gw_corr_lev_occ_beta, gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, &
-         i, i_multigrid, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
-         n_multigrid, nelectron, nelectron_beta, nmo, nspins, ri_metric, eri_method
+         i, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
+         nelectron, nelectron_beta, nmo, nspins, ri_metric, eri_method
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc_t, starts_array_mc_t
       LOGICAL :: blacs_repeatable, do_bse, do_dbcsr_t, do_im_time, do_kpoints_cubic_RPA, do_mao, &
-         my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2, &
-         skip_load_balance_distributed, do_gpw
-      REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, Emp2_d_AB, &
-         Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, progression_factor, &
-         relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, Eigenval, Eigenval_beta
+         my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2, do_gpw
+      REAL(KIND=dp) :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, Emp2_d_AB, &
+         Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_beta, BIb_C_bse_ab, &
                                                             BIb_C_bse_ij, BIb_C_gw, BIb_C_gw_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_eigenvalues_beta
@@ -243,13 +241,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_all, sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: pot_g, rho_g, rho_r
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
 
@@ -470,61 +463,6 @@ CONTAINS
 
       END IF
 
-      IF (do_gpw) THEN
-
-         ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
-         progression_factor = dft_control%qs_control%progression_factor
-         n_multigrid = SIZE(dft_control%qs_control%e_cutoff)
-         ALLOCATE (e_cutoff_old(n_multigrid))
-         e_cutoff_old(:) = dft_control%qs_control%e_cutoff
-         cutoff_old = dft_control%qs_control%cutoff
-
-         dft_control%qs_control%cutoff = mp2_env%mp2_gpw%cutoff*0.5_dp
-         dft_control%qs_control%e_cutoff(1) = dft_control%qs_control%cutoff
-         DO i_multigrid = 2, n_multigrid
-            dft_control%qs_control%e_cutoff(i_multigrid) = dft_control%qs_control%e_cutoff(i_multigrid-1) &
-                                                           /progression_factor
-         END DO
-
-         relative_cutoff_old = dft_control%qs_control%relative_cutoff
-         dft_control%qs_control%relative_cutoff = mp2_env%mp2_gpw%relative_cutoff*0.5_dp
-
-         ! a pw_env
-         NULLIFY (pw_env_sub)
-         CALL pw_env_create(pw_env_sub)
-         CALL pw_env_rebuild(pw_env_sub, qs_env, para_env_sub)
-
-         CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, &
-                         poisson_env=poisson_env)
-         ! hack hack hack XXXXXXXXXXXXXXX
-
-         ! now we need a task list, hard code skip_load_balance_distributed
-         NULLIFY (task_list_sub)
-         skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
-         CALL allocate_task_list(task_list_sub)
-         CALL generate_qs_task_list(ks_env, task_list_sub, &
-                                    reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
-                                    skip_load_balance_distributed=skip_load_balance_distributed, &
-                                    pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
-
-         ! get some of the grids ready
-         NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-
-         ! run the FFT once, to set up buffers and to take into account the memory
-         rho_r%pw%cr3d = 0.0D0
-         CALL pw_transfer(rho_r%pw, rho_g%pw)
-
-      END IF
-
       ! now we're kind of ready to go....
       Emp2_S = 0.0_dp
       Emp2_T = 0.0_dp
@@ -534,11 +472,10 @@ CONTAINS
             ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
             CALL mp2_ri_gpw_compute_in( &
                BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, dimen_RI_red, qs_env, &
-               para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, nmo, homo, rho_r, rho_g, pot_g, &
+               para_env, para_env_sub, color_sub, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, nmo, homo, &
                mat_munu, mat_munu_mao_occ_virt, mat_munu_mao_virt_occ, sab_orb_sub, sab_orb_all, &
-               pw_env_sub, poisson_env, auxbas_pw_pool, &
-               task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
+               mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw .AND. .NOT. do_im_time, &
                do_bse, gd_B_all, starts_array_mc_t, ends_array_mc_t, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -553,12 +490,10 @@ CONTAINS
             ! closed shell case (RI)
             CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                        dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, &
-                                       color_sub, dft_control, cell, particle_set, &
-                                       atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, &
-                                       nmo, homo, rho_r, rho_g, pot_g, &
+                                       color_sub, cell, particle_set, &
+                                       atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, nmo, homo, &
                                        mat_munu, mat_munu_mao_occ_virt, mat_munu_mao_virt_occ, sab_orb_sub, &
-                                       sab_orb_all, pw_env_sub, poisson_env, auxbas_pw_pool, &
-                                       task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
+                                       sab_orb_all, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                                        mp2_env%mp2_gpw%eps_filter, unit_nr, &
                                        mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, &
                                        blacs_env_sub, my_do_gw .AND. .NOT. do_im_time, do_bse, gd_B_all, &
@@ -578,10 +513,9 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Alpha (ia|'
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
-               dft_control, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, rho_r, rho_g, pot_g, &
-               mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-               mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, mat_munu, &
+               sab_orb_sub, mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub, &
                homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, Eigenval_beta, Emp2_AB)
 
@@ -589,43 +523,24 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, *)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Beta (ia|'
             CALL mp2_gpw_compute( &
-               Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff_beta, Eigenval_beta, nmo, homo_beta, rho_r, rho_g, pot_g, &
-               mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-               mo_coeff_o_beta, mo_coeff_v_beta, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff_beta, Eigenval_beta, nmo, homo_beta, mat_munu, &
+               sab_orb_sub, mo_coeff_o_beta, mo_coeff_v_beta, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
 
          ELSE
             ! closed shell case
             CALL mp2_gpw_compute( &
-               Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, rho_r, rho_g, pot_g, &
-               mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-               mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, mat_munu, &
+               sab_orb_sub, mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
          END IF
-      END IF
-
-      IF (do_gpw) THEN
-
-         ! and now free the whole lot
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
-
       END IF
 
       ! Free possibly large buffers allocated by dbcsr on the GPU,
       ! large hybrid dgemm/pdgemm's coming later will need the space.
       CALL dbcsr_clear_mempools()
-
-      ! moved down
-      ! CALL deallocate_task_list(task_list_sub)
-      ! CALL pw_env_release(pw_env_sub)
-      IF (do_gpw .AND. (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) THEN
-         CALL deallocate_task_list(task_list_sub)
-         CALL pw_env_release(pw_env_sub)
-      END IF
 
       IF (calc_forces) THEN
          ! make a copy of mo_coeff_o and mo_coeff_v
@@ -844,44 +759,21 @@ CONTAINS
             ! if we need forces time to calculate the MP2 non-separable contribution
             ! and start coputing the Lagrangian
             IF (calc_forces) THEN
-               ! since we have to compute again integrals reinitialize the stuff we need
-               ! get some of the grids ready
-               IF (do_gpw) THEN
-                  NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
-                                         use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
-                                         use_data=COMPLEXDATA1D, &
-                                         in_space=RECIPROCALSPACE)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
-                                         use_data=COMPLEXDATA1D, &
-                                         in_space=RECIPROCALSPACE)
-               ENDIF
 
                IF (nspins == 2) THEN ! Open shell
-                  CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, dft_control, cell, &
+                  CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
                                           particle_set, atomic_kind_set, qs_kind_set, &
                                           mo_coeff, nmo, homo, dimen_RI, Eigenval, &
                                           my_group_L_start, my_group_L_end, my_group_L_size, &
-                                          sab_orb_sub, rho_r, rho_g, pot_g, &
-                                          mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
+                                          sab_orb_sub, mat_munu, &
                                           blacs_env_sub, Eigenval_beta, homo_beta, mo_coeff_beta)
                ELSE ! Closed shell
-                  CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, dft_control, cell, &
+                  CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
                                           particle_set, atomic_kind_set, qs_kind_set, &
                                           mo_coeff, nmo, homo, dimen_RI, Eigenval, &
                                           my_group_L_start, my_group_L_end, my_group_L_size, &
-                                          sab_orb_sub, rho_r, rho_g, pot_g, &
-                                          mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
+                                          sab_orb_sub, mat_munu, &
                                           blacs_env_sub)
-               ENDIF
-
-               IF (do_gpw) THEN
-                  ! release
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
                ENDIF
 
                CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_o)
@@ -938,23 +830,11 @@ CONTAINS
          END IF
       END IF
 
-      IF (do_gpw .AND. .NOT. (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) THEN
-         CALL deallocate_task_list(task_list_sub)
-         CALL pw_env_release(pw_env_sub)
-      END IF
-
       ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
       dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
       dft_control%qs_control%eps_rho_rspace = eps_rho_rspace_old
       dft_control%qs_control%eps_gvg_rspace = eps_gvg_rspace_old
       CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
-
-      IF (do_gpw) THEN
-         ! restore the initial value of the cutoff
-         dft_control%qs_control%e_cutoff = e_cutoff_old
-         dft_control%qs_control%cutoff = cutoff_old
-         dft_control%qs_control%relative_cutoff = relative_cutoff_old
-      END IF
 
       CALL cp_blacs_env_release(blacs_env_sub)
 
@@ -993,7 +873,6 @@ CONTAINS
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param color_sub ...
-!> \param dft_control ...
 !> \param cell ...
 !> \param particle_set ...
 !> \param atomic_kind_set ...
@@ -1002,14 +881,7 @@ CONTAINS
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param homo ...
-!> \param rho_r ...
-!> \param rho_g ...
-!> \param pot_g ...
 !> \param mat_munu ...
-!> \param pw_env_sub ...
-!> \param poisson_env ...
-!> \param auxbas_pw_pool ...
-!> \param task_list_sub ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param eps_filter ...
@@ -1023,10 +895,9 @@ CONTAINS
 !> \param Eigenval_beta ...
 !> \param Emp2_AB ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_gpw_compute(Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, dft_control, &
+   SUBROUTINE mp2_gpw_compute(Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
                               cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, &
-                              rho_r, rho_g, pot_g, mat_munu, pw_env_sub, &
-                              poisson_env, auxbas_pw_pool, task_list_sub, mo_coeff_o, mo_coeff_v, eps_filter, unit_nr, &
+                              mat_munu, sab_orb_sub, mo_coeff_o, mo_coeff_v, eps_filter, unit_nr, &
                               mp2_memory, calc_ex, blacs_env_sub, homo_beta, mo_coeff_o_beta, &
                               mo_coeff_v_beta, Eigenval_beta, Emp2_AB)
 
@@ -1034,7 +905,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1042,12 +912,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo, homo
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
-      TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(task_list_type), POINTER                      :: task_list_sub
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb_sub
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -1080,8 +947,9 @@ CONTAINS
                                                             local_col_row_info
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_alpha_beta
-      REAL(KIND=dp)                                      :: mem_min, mem_real, mem_try, pair_energy, &
-                                                            wfn_size
+      REAL(KIND=dp)                                      :: cutoff_old, mem_min, mem_real, mem_try, pair_energy, &
+                                                            relative_cutoff_old, wfn_size
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Cocc, my_Cvirt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_Ex, BIb_send
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
@@ -1093,6 +961,12 @@ CONTAINS
                                                             matrix_ia_jnu, matrix_ia_jnu_beta
       TYPE(pw_p_type)                                    :: psi_a
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: psi_i
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
+      TYPE(pw_env_type), POINTER                         :: pw_env_sub
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
 
@@ -1165,6 +1039,10 @@ CONTAINS
       ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
+
+      ! Get everything for GPW calculations
+      CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
+                       auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_a, sab_orb_sub)
 
       virtual = nmo-homo
 
@@ -1364,11 +1242,6 @@ CONTAINS
       CALL mp_sum(exchange_group_sizes, para_env_exchange%group)
       mepos_in_EX_group = para_env_exchange%mepos
       size_of_exchange_group = para_env_exchange%num_pe
-
-      NULLIFY (psi_a%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, psi_a%pw, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
 
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
@@ -1575,7 +1448,8 @@ CONTAINS
       END DO
       DEALLOCATE (psi_i)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_a%pw)
+      CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, pw_env_sub, &
+                       task_list_sub, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_a)
 
       CALL timestop(handle)
 
