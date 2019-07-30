@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  H2O-ri-rpa-lr
+  PROJECT  H2O-ri-rpa-lr-mme
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -11,9 +11,8 @@
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
-#GTH_POTENTIAL
     &MGRID
-      CUTOFF  500
+      CUTOFF  100
       REL_CUTOFF  30
     &END MGRID
     &POISSON
@@ -66,7 +65,6 @@
           &END HF
         &END RI_RPA
         ERI_METHOD MME
-        RI_METRIC COULOMB
         MEMORY  200.
         NUMBER_PROC  1
         DO_SVD
