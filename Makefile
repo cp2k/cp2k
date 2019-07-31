@@ -68,7 +68,7 @@ endif
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
-         toolversions extversions extclean libcp2k exts python-bindings \
+         toolversions extversions extclean libcp2k cp2k_shell exts python-bindings \
          doxify doxifyclean \
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help \
@@ -113,7 +113,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions extversions extclean libcp2k exts $(EXTSPACKAGES) python-bindings test testbg:
+$(EXE_NAMES) all toolversions extversions extclean libcp2k cp2k_shell exts $(EXTSPACKAGES) python-bindings test testbg:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -206,8 +206,11 @@ $(ALL_OBJECTS): $(EXTSDEPS_MOD)
 $(ALL_EXE_OBJECTS): $(EXTSDEPS_LIB)
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
-all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
+all: $(foreach e, $(EXE_NAMES) cp2k_shell, $(EXEDIR)/$(e).$(ONEVERSION))
 $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
+
+$(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
+	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
@@ -237,6 +240,7 @@ help:
 	grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
 	done
 	@echo "libcp2k                     Builds CP2K as a single library archive"
+	@echo "cp2k_shell                  Creates symlink for backward compatibility"
 	@echo ""
 	@echo "===================== Tools ====================="
 	@printf "%s\n" $(TOOL_HELP) | awk -F ':' '{printf "%-28s%s\n", $$1, $$2}'
