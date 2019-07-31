@@ -25,7 +25,7 @@
 !>                        and finally all the values (in eV/angstrom)
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-PROGRAM cp2k_shell
+MODULE cp2k_shell
    USE cp2k_info,                       ONLY: compile_arch,&
                                               compile_date,&
                                               compile_host,&
@@ -41,19 +41,20 @@ PROGRAM cp2k_shell
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE f77_interface,                   ONLY: &
-        calc_energy_force, calc_force, create_force_env, destroy_force_env, finalize_cp2k, &
-        get_cell, get_energy, get_force, get_natom, get_pos, get_stress_tensor, init_cp2k, &
-        set_cell, set_pos
+        calc_energy_force, calc_force, create_force_env, destroy_force_env, get_cell, get_energy, &
+        get_force, get_natom, get_pos, get_stress_tensor, set_cell, set_pos
    USE input_constants,                 ONLY: id_development_version
-   USE input_cp2k,                      ONLY: create_cp2k_root_section
-   USE input_section_types,             ONLY: section_release,&
-                                              section_type
+   USE input_section_types,             ONLY: section_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE machine,                         ONLY: &
-        default_output_unit, m_chdir, m_flush, m_getarg, m_getcwd, m_getlog, m_getpid, m_hostnm, &
-        m_iargc
+   USE machine,                         ONLY: default_output_unit,&
+                                              m_chdir,&
+                                              m_flush,&
+                                              m_getcwd,&
+                                              m_getlog,&
+                                              m_getpid,&
+                                              m_hostnm
    USE message_passing,                 ONLY: mp_bcast
    USE physcon,                         ONLY: angstrom,&
                                               evolt
@@ -61,522 +62,505 @@ PROGRAM cp2k_shell
                                               uppercase
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
+   PRIVATE
 
-  LOGICAL                                  :: eof, harsh,failure
-  INTEGER                                  :: ierr,i,iostat,shift,&
-                                              shift2,env_id,last_env_id,&
-                                              n_atom,stat,n_atom2,pid,n_lines
-  INTEGER                                  :: sout, file_unit
-  TYPE(cp_para_env_type), POINTER          :: para_env
-  TYPE(cp_logger_type), POINTER            :: logger
-  CHARACTER(LEN=default_path_length)       :: cmdStr, inp_filename, out_filename
-  CHARACTER(LEN=default_string_length)     :: cmd,units
-  CHARACTER(LEN=10*default_string_length)  :: line
-  REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
-  REAL(KIND=dp)                            :: e_pot,err
-  REAL(KIND=dp)                            :: e_fact,pos_fact
-  REAL(KIND=dp), DIMENSION(3,3)            :: cell, stress_tensor
-
-  LOGICAL, SAVE                            :: did_init = .FALSE.
-  INTEGER, SAVE                            :: eof_stat
-  TYPE(section_type), POINTER              :: input_declaration
-
-  CHARACTER(LEN=default_string_length), DIMENSION(43) :: helpMsg
-
-  helpMsg=(/ &
-  ll('Commands'),&
-  ll(' '),&
-  ll(' If there is [env_id] it means that an optional env_id can be given,'),&
-  ll(' if none is given it defaults to the last env_id loaded'),&
-  ll(' All commands are case insensitive.'),&
-  ll(' '),&
-  ll(' INFO: returns some information about cp2k.'),&
-  ll(' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'),&
-  ll(' WRITE_FILE: Writes content to a file (allows for using ASE over ssh).'),&
-  ll(' LOAD inp-filename [out-filename]: loads the filename, returns the env_id, or -1 in case of error'),&
-  ll('   out-filename is optional and defaults to <inp-filename>.out'),&
-  ll('   use "__STD_OUT__" for printing to the screen'),&
-  ll(' BG_LOAD filename: loads the filename, without returning the env_id'),&
-  ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
-  ll(' DESTROY [env_id]: destroys the given environment (last and default env'),&
-  ll('   might become invalid)'),&
-  ll(' NATOM [env_id]: returns the number of atoms in the environment env_id'),&
-  ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
-  ll('   by natom*3 (on a line) and then all the positions. Returns the max'),&
-  ll('   change of the coordinates (useful to avoid extra calculations).'),&
-  ll(' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'),&
-  ll(' GET_CELL [env_id]: gets the cell vectors'),&
-  ll(' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'),&
-  ll(' GET_POS [env_id]: gets the positions of the atoms, returns'),&
-  ll('   natom*3 (on a line) and then all the positions then "* END" '),&
-  ll('   (alone on a line)'),&
-  ll(' GET_E [env_id]: gets the energy of the last calculation on env_id'),&
-  ll(' GET_F [env_id]: gets the forces on the atoms,of the last calculation on '),&
-  ll('   env_id, if only the energy was calculated the content is undefined. Returns'),&
-  ll('   natom*3 (on a line) and then all the forces then "* END" (alone on'),&
-  ll('   a line)'),&
-  ll(' CALC_E [env_id]: calculate the energy and returns it'),&
-  ll(' EVAL_E [env_id]: calculate the energy (without returning it)'),&
-  ll(' CALC_EF [env_id]: calculate energy and forces and returns them,'),&
-  ll('   first the energy on a line, then the natom*3 (on a line)'),&
-  ll('   and finally all the values and "* END" (alone on a line)'),&
-  ll(' EVAL_EF [env_id]: calculate the energy and forces (without returning them)'),&
-  ll(' HARSH: stops on any error'),&
-  ll(' PERMISSIVE: stops only on serious errors'),&
-  ll(' UNITS: returns the units used for energy and position'),&
-  ll(' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'),&
-  ll(' EXIT: Quit the shell'),&
-  ll(' HELP: writes the present help') /)
-
-  sout = default_output_unit
-
-  IF(m_iargc()>0) THEN
-     CALL m_getarg(1, out_filename)
-     IF(m_iargc()>1 .OR. out_filename(:16) /= "--redirect-comm=") &
-       CPABORT("Usage: cp2k_shell [--redirect-comm=filename]")
-     ! Redirect shell-output away from stdout into a separate file/pipe.
-     ! This is used e.g. by the ASE calculator.
-     CALL open_file(file_name=TRIM(out_filename(17:)), unit_number=sout,&
-                     file_position="ASIS",&
-                     file_status="OLD",&
-                     file_form="FORMATTED",&
-                     file_action="WRITE")
-  END IF
-
-  CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
-  IF (ierr/=0) CPABORT('init_cp2k failure')
-
-  NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration)
-
-  pos_fact=1.0_dp
-  e_fact=1.0_dp
-  units='au'
-  harsh=.FALSE.
-  failure=.FALSE.
-
-  logger => cp_get_default_logger()
-  para_env => logger%para_env
-
-  eof=.FALSE.
-  last_env_id=-1
-  DO
-     IF (para_env%mepos==para_env%source) THEN
-        WRITE (sout,'("* READY")')
-        CALL m_flush(sout)
-     END IF
-     CALL m_flush(sout)
-     IF (para_env%mepos==para_env%source) THEN
-        READ(*,'(a)',iostat=iostat)cmdStr
-        IF (iostat/=0) THEN
-           IF (iostat==get_eof_stat()) THEN
-              WRITE(sout,'(a)',iostat=iostat) '* EOF'
-              ! ignoring iostat on purpose
-           END IF
-           eof=.TRUE.
-        END IF
-     END IF
-     CALL mp_bcast(eof,para_env%source,para_env%group)
-     IF (eof) EXIT
-     CALL mp_bcast(cmdStr,para_env%source,para_env%group)
-     shift=1
-     DO
-        IF(cmdStr(shift:shift)/=' ') EXIT
-        shift=shift+1
-        IF (shift>=LEN(cmdStr)) EXIT
-     END DO
-     shift2=shift
-     DO
-        IF(cmdStr(shift2:shift2)==' ') EXIT
-        shift2=shift2+1
-        IF (shift2>=LEN(cmdStr)) EXIT
-     END DO
-     shift2=shift2-1
-     CALL my_assert(shift<=shift2,'* No command',failure)
-     IF (failure) GOTO 10
-     cmd=cmdStr(shift:shift2)
-     CALL uppercase(cmd)
-     SELECT CASE(cmd)
-     CASE('HELP')
-        IF (para_env%source==para_env%mepos) THEN
-            DO i=1,SIZE(helpMsg)
-                WRITE(sout,'(a)',iostat=iostat) TRIM(helpMsg(i))
-                IF (iostat/=0) CPABORT('writing help')
-            END DO
-            CALL m_flush(sout)
-        END IF
-     CASE('INFO','INFORMATION','LICENSE')
-        IF (para_env%source==para_env%mepos) THEN
-            CALL print_v_info(sout)
-            CALL print_cp2k_license(sout)
-        END IF
-     CASE('VERSION')
-       ! Queried by ASE. Increase version after bug-fixing or behavior changes.
-        IF (para_env%source==para_env%mepos) THEN
-            WRITE(sout,'(a)',iostat=iostat) "CP2K Shell Version: 3.0"
-            IF (iostat/=0) CPABORT('writing version')
-        END IF
-     CASE('WRITE_FILE')
-        IF (para_env%mepos==para_env%source) THEN
-           READ (*,'(a)',iostat=iostat) out_filename
-           IF (iostat/=0) CPABORT('WRITE_FILE bad filename')
-           READ (*,*,iostat=iostat) n_lines
-           IF (iostat/=0) CPABORT('WRITE_FILE bad number of lines')
-
-           CALL open_file(file_name=TRIM(out_filename), unit_number=file_unit,&
-                file_status="UNKNOWN",file_form="FORMATTED",file_action="WRITE")
-
-           DO i=1, n_lines
-              READ(*,'(a)',iostat=iostat) line
-              IF (iostat/=0) CPABORT('WRITE_FILE read error')
-              WRITE(file_unit,'(a)',iostat=iostat) TRIM(line)
-              IF (iostat/=0) CPABORT('WRITE_FILE write error')
-           END DO
-           READ(*,'(a)',iostat=iostat) line
-           IF (iostat/=0) CPABORT('WRITE_FILE read error')
-           IF (TRIM(line) /= "*END") CPABORT('WRITE_FILE bad end delimiter')
-           CALL close_file(unit_number=file_unit)
-        ENDIF
-     CASE('LAST_ENV_ID')
-        IF (para_env%source==para_env%mepos) THEN
-           WRITE (sout,'(i10)',iostat=iostat) last_env_id
-           IF (iostat/=0) CPABORT(cmd//' failed writing last_env_id')
-           CALL m_flush(sout)
-        END IF
-     CASE('BG_LOAD','BGLOAD')
-        shift=shift2+1
-        CALL my_assert(shift<=LEN(cmdStr),'load without file',failure)
-        IF (failure) GOTO 10
-        DO
-           IF (cmdStr(shift:shift)/=' ') EXIT
-           shift=shift+1
-           IF (shift>=LEN(cmdStr)) EXIT
-        END DO
-        CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
-        IF (failure) GOTO 10
-        CALL create_force_env(new_env_id=last_env_id,&
-             input_declaration=input_declaration,&
-             input_path=cmdStr(shift:LEN_TRIM(cmdStr)),&
-             output_path=cmdStr(shift:LEN_TRIM(cmdStr))//'.out',&
-             owns_out_unit=.TRUE.,ierr=ierr)
-        IF (ierr/=0) last_env_id=-1
-        IF (last_env_id<=0) failure=.TRUE.
-     CASE('LOAD')
-        ! find beginning of inp-filename
-        shift=shift2+1
-        CALL my_assert(shift<=LEN(cmdStr),'load without file',failure)
-        IF (failure) GOTO 10
-        DO
-           IF (cmdStr(shift:shift)/=' ') EXIT
-           shift=shift+1
-           IF (shift>=LEN(cmdStr)) EXIT
-        END DO
-        CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
-        IF (failure) GOTO 10
-
-        ! find end of inp-filename
-        shift2 = shift+1
-        DO WHILE(shift2 < LEN(cmdStr))
-           shift2 = shift2+1
-           IF (cmdStr(shift2:shift2)==' ') EXIT
-        END DO
-        inp_filename = TRIM(cmdStr(shift:shift2))
-        out_filename = TRIM(inp_filename)//'.out'
-        IF(shift2 < LEN(cmdStr) .AND. LEN_TRIM(cmdStr(shift2:)) > 0) &
-           out_filename = ADJUSTL(cmdStr(shift2:))
-
-        CALL create_force_env(new_env_id=last_env_id,&
-             input_declaration=input_declaration,&
-             input_path=inp_filename,&
-             output_path=out_filename,&
-             owns_out_unit=.TRUE.,ierr=ierr)
-        IF (ierr/=0) last_env_id=-1
-        IF (para_env%source==para_env%mepos) THEN
-           WRITE (sout,'(i10)',iostat=iostat) last_env_id
-           IF (iostat/=0) CPABORT(cmd//' failed writing last_env_id')
-           CALL m_flush(sout)
-        END IF
-        IF (last_env_id<=0) failure=.TRUE.
-     CASE ('DESTROY')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        CALL destroy_force_env(env_id,ierr)
-        CALL my_assert(ierr==0,cmd//' failed destroy_force_env',failure)
-        IF (last_env_id==env_id) last_env_id=-1
-     CASE('NATOM','N_ATOM')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        CALL get_natom(env_id, n_atom, ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
-        IF (.NOT. failure .AND. para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(i10)',iostat=iostat) n_atom
-           CALL m_flush(sout)
-        END IF
-     CASE('SETPOS','SET_POS')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        CALL get_natom(env_id, n_atom, ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
-        IF (failure) GOTO 10
-        ALLOCATE(pos(3*n_atom),pos2(3*n_atom),stat=stat)
-        CALL my_assert(stat==0,cmd//' failed alloc',failure)
-        IF (para_env%mepos==para_env%source) THEN
-           READ (*,*,iostat=iostat) n_atom2
-           IF (iostat/=0) CPABORT('setpos read n_atom')
-           IF (n_atom2/=SIZE(pos)) THEN
-              CALL my_assert(.FALSE.,'setpos invalid number of atoms',failure)
-              DO i=1,n_atom
-                 READ(*,'(a)',iostat=iostat) cmdStr
-                 CALL compress(cmdStr,full=.TRUE.)
-                 CALL uppercase(cmdStr)
-                 IF (cmdStr=='*END') EXIT
-              END DO
-              GOTO 10
-           END IF
-           READ (*,*,iostat=iostat) pos
-           IF (iostat/=0) CPABORT('setpos read coord')
-           pos(:) = pos(:)/pos_fact
-           READ(*,'(a)',iostat=iostat) cmdStr
-           CALL compress(cmdStr,full=.TRUE.)
-           CALL uppercase(cmdStr)
-           CALL my_assert(cmdStr=='*END',' missing *END',failure)
-        END IF
-        CALL mp_bcast(pos,para_env%source,para_env%group)
-        CALL get_pos(env_id, pos2,n_el=3*n_atom,ierr=ierr)
-        CALL my_assert(ierr==0,'get_pos error',failure)
-        CALL set_pos(env_id, new_pos=pos, n_el=3*n_atom, ierr=ierr)
-        CALL my_assert(ierr==0,'set_pos error',failure)
-        err=0.0_dp
-        DO i=1,SIZE(pos)
-           err=MAX(err,ABS(pos(i)-pos2(i)))
-        END DO
-        DEALLOCATE(pos,pos2)
-        IF (para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(ES22.13)') err*pos_fact
-        END IF
-     CASE('SETCELL','SET_CELL')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        IF (para_env%mepos==para_env%source) THEN
-           READ (*,*,iostat=iostat) cell
-           IF (iostat/=0) CPABORT('setcell read')
-           cell(:,:) = cell(:,:)/pos_fact
-        END IF
-        CALL mp_bcast(cell,para_env%source,para_env%group)
-        CALL set_cell(env_id, new_cell=cell, ierr=ierr)
-        CALL my_assert(ierr==0,'set_cell error',failure)
-     CASE('GETCELL','GET_CELL')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        CALL get_cell(env_id,cell=cell,ierr=ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_cell',failure)
-        cell(:,:) = cell(:,:)*pos_fact
-        IF (para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(9ES22.13)',iostat=iostat) cell
-           IF (iostat/=0) CPABORT(cmd//' write get_cell')
-           CALL m_flush(sout)
-        END IF
-     CASE('GETSTRESS','GET_STRESS')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        CALL get_stress_tensor(env_id,stress_tensor=stress_tensor,ierr=ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_stress_tensor',failure)
-        stress_tensor(:,:) = stress_tensor(:,:)*(e_fact/pos_fact**3)
-        IF (para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(9ES22.13)',iostat=iostat) stress_tensor
-           IF (iostat/=0) CPABORT(cmd//' write get_stress')
-           CALL m_flush(sout)
-        END IF
-     CASE('GETPOS','GET_POS')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        CALL get_natom(env_id, n_atom, ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
-        IF (failure) GOTO 10
-        ALLOCATE(pos(3*n_atom),stat=stat)
-        IF (stat/=0) CPABORT(cmd//' failed alloc')
-        CALL get_pos(env_id, pos=pos, n_el=3*n_atom, ierr=ierr)
-        CALL my_assert(ierr==0,'get_pos error',failure)
-        pos(:) = pos(:)*pos_fact
-        IF (.not.failure.and.para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
-           IF (iostat/=0) CPABORT(cmd//' write ncoord')
-           WRITE (sout,'(3ES22.13)',iostat=iostat) pos
-           IF (iostat/=0) CPABORT(cmd//' write coord')
-           WRITE (sout,'(a)',iostat=iostat) "* END"
-           IF (iostat/=0) CPABORT(cmd//' write coord')
-           CALL m_flush(sout)
-        END IF
-        DEALLOCATE(pos)
-     CASE('GETE','GET_E')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        CALL get_energy(env_id,e_pot,ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_energy',failure)
-        e_pot=e_pot*e_fact
-        IF (para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
-           IF (iostat/=0) CPABORT(cmd//' write e_pot')
-           CALL m_flush(sout)
-        END IF
-     CASE('EVALE','EVAL_E')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        CALL calc_energy_force(env_id,calc_force=.FALSE.,ierr=ierr)
-        CALL my_assert(ierr==0,cmd//' calc_energy_force failed',failure)
-     CASE('CALCE','CALC_E')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        CALL calc_energy_force(env_id,calc_force=.FALSE.,ierr=ierr)
-        CALL my_assert(ierr==0,cmd//' calc_energy_force failed',failure)
-        CALL get_energy(env_id,e_pot,ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_energy',failure)
-        e_pot=e_pot*e_fact
-        IF (para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
-           IF (iostat/=0) CPABORT(cmd//' write e_pot')
-           CALL m_flush(sout)
-        END IF
-     CASE('EVALEF','EVAL_EF')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        CALL calc_energy_force(env_id,calc_force=.TRUE.,ierr=ierr)
-        CALL my_assert(ierr==0,cmd//' calc_energy_force failed',failure)
-     CASE('GETF','GET_F')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        CALL get_natom(env_id, n_atom, ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
-        IF (failure) GOTO 10
-        ALLOCATE(pos(3*n_atom),stat=stat)
-        IF (stat/=0) CPABORT(cmd//' failed alloc')
-        CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
-        CALL my_assert(ierr==0,'get_force error',failure)
-        pos(:) = pos(:)*(e_fact/pos_fact)
-        IF (.not.failure.and.para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
-           IF (iostat/=0) CPABORT(cmd//' write nforce')
-           WRITE (sout,'(3ES22.13)',iostat=iostat) pos
-           IF (iostat/=0) CPABORT(cmd//' write force')
-           WRITE (sout,'("* END")',iostat=iostat)
-           IF (iostat/=0) CPABORT(cmd//' write coord')
-           CALL m_flush(sout)
-        END IF
-        DEALLOCATE(pos)
-     CASE('CALCEF','CALC_EF')
-        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
-        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
-        IF (failure) GOTO 10
-        CALL calc_energy_force(env_id,calc_force=.TRUE.,ierr=ierr)
-        CALL my_assert(ierr==0,cmd//' calc_energy_force failed',failure)
-        IF (failure) GOTO 10
-        CALL get_energy(env_id,e_pot,ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_energy',failure)
-        IF (failure) GOTO 10
-        e_pot=e_pot*e_fact
-        CALL get_natom(env_id, n_atom, ierr)
-        CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
-        IF (failure) GOTO 10
-        ALLOCATE(pos(3*n_atom),stat=stat)
-        IF (stat/=0) CPABORT(cmd//' failed alloc')
-        CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
-        CALL my_assert(ierr==0,'get_force error',failure)
-        pos(:) = pos(:)*(e_fact/pos_fact)
-        IF (.not.failure.and.para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
-           IF (iostat/=0) CPABORT(cmd//' write e_pot')
-           WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
-           IF (iostat/=0) CPABORT(cmd//' write nforce')
-           WRITE (sout,'(3ES22.13)',iostat=iostat) pos
-           IF (iostat/=0) CPABORT(cmd//' write force')
-           WRITE (sout,'("* END")',iostat=iostat)
-           IF (iostat/=0) CPABORT(cmd//' write coord')
-           CALL m_flush(sout)
-        END IF
-        DEALLOCATE(pos)
-     CASE('UNITS_EVA','UNITS_EV_A')
-        e_fact=evolt
-        pos_fact=angstrom
-        units='eV_A'
-     CASE('UNITS_AU')
-        e_fact=1.0_dp
-        pos_fact=1.0_dp
-        units='au'
-     CASE('UNITS')
-        IF (para_env%source==para_env%mepos) THEN
-           WRITE (sout,'(a)',iostat=iostat) TRIM(units)
-           IF (iostat/=0) CPABORT(cmd//' writing units')
-           CALL m_flush(sout)
-        END IF
-     CASE('HARSH')
-        harsh=.TRUE.
-     CASE('PERMISSIVE')
-        harsh=.FALSE.
-     CASE('CD','CHDIR')
-        shift=shift2+1
-        CALL my_assert(shift<=LEN(cmdStr),'cd without directory not accepted',failure)
-        IF (failure) GOTO 10
-        DO
-           IF (cmdStr(shift:shift)/=' ') EXIT
-           shift=shift+1
-           IF (shift>=LEN(cmdStr)) EXIT
-        END DO
-        CALL my_assert(cmdStr(shift:shift)/=' ',&
-             'cd without directory not accepted2',failure)
-        CALL m_chdir(cmdStr(shift:LEN_TRIM(cmdStr)),ierr)
-        CALL my_assert(ierr==0,'error changing directory',failure)
-     CASE('PWD','CWD')
-        IF (para_env%source==para_env%mepos) THEN
-           CALL m_getcwd(cmdStr)
-           WRITE (sout,'(a)')TRIM(cmdStr)
-        END IF
-     CASE('EXIT')
-        WRITE(sout,'(a)',iostat=iostat) '* EXIT'
-        ! ignoring iostat on purpose
-        EXIT
-     CASE default
-        CALL my_assert(.FALSE.,'unknown command '//cmd,failure)
-     END SELECT
-10   IF (failure) THEN
-        IF (harsh) CPABORT('failure')
-        IF (para_env%mepos==para_env%source) THEN
-           WRITE(sout,'("* ERROR, type HELP for help")',iostat=iostat)
-           IF (iostat/=0) CPABORT('writing error')
-           CALL m_flush(sout)
-        END IF
-        failure=.FALSE.
-     END IF
-  END DO
-
-  CALL section_release(input_declaration)
-
-  CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
-  IF (ierr/=0) CPABORT('finalize_cp2k failure')
+   PUBLIC :: launch_cp2k_shell
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Launch the interactive CP2K shell.
+!> \param input_declaration ...
+! **************************************************************************************************
+   SUBROUTINE launch_cp2k_shell(input_declaration)
+      TYPE(section_type), POINTER                        :: input_declaration
+
+      CHARACTER(LEN=10*default_string_length)            :: line
+      CHARACTER(LEN=default_path_length)                 :: cmdStr, inp_filename, out_filename
+      CHARACTER(LEN=default_string_length)               :: cmd, units
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(43)                                   :: helpMsg
+      INTEGER                                            :: env_id, file_unit, i, ierr, iostat, &
+                                                            last_env_id, n_atom, n_atom2, n_lines, &
+                                                            shift, shift2, stat
+      LOGICAL                                            :: eof, failure, harsh
+      REAL(KIND=dp)                                      :: e_fact, e_pot, err, pos_fact
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pos, pos2
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cell, stress_tensor
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      helpMsg=(/ &
+      ll('Commands'),&
+      ll(' '),&
+      ll(' If there is [env_id] it means that an optional env_id can be given,'),&
+      ll(' if none is given it defaults to the last env_id loaded'),&
+      ll(' All commands are case insensitive.'),&
+      ll(' '),&
+      ll(' INFO: returns some information about cp2k.'),&
+      ll(' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'),&
+      ll(' WRITE_FILE: Writes content to a file (allows for using ASE over ssh).'),&
+      ll(' LOAD inp-filename [out-filename]: loads the filename, returns the env_id, or -1 in case of error'),&
+      ll('   out-filename is optional and defaults to <inp-filename>.out'),&
+      ll('   use "__STD_OUT__" for printing to the screen'),&
+      ll(' BG_LOAD filename: loads the filename, without returning the env_id'),&
+      ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
+      ll(' DESTROY [env_id]: destroys the given environment (last and default env'),&
+      ll('   might become invalid)'),&
+      ll(' NATOM [env_id]: returns the number of atoms in the environment env_id'),&
+      ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
+      ll('   by natom*3 (on a line) and then all the positions. Returns the max'),&
+      ll('   change of the coordinates (useful to avoid extra calculations).'),&
+      ll(' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'),&
+      ll(' GET_CELL [env_id]: gets the cell vectors'),&
+      ll(' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'),&
+      ll(' GET_POS [env_id]: gets the positions of the atoms, returns'),&
+      ll('   natom*3 (on a line) and then all the positions then "* END" '),&
+      ll('   (alone on a line)'),&
+      ll(' GET_E [env_id]: gets the energy of the last calculation on env_id'),&
+      ll(' GET_F [env_id]: gets the forces on the atoms,of the last calculation on '),&
+      ll('   env_id, if only the energy was calculated the content is undefined. Returns'),&
+      ll('   natom*3 (on a line) and then all the forces then "* END" (alone on'),&
+      ll('   a line)'),&
+      ll(' CALC_E [env_id]: calculate the energy and returns it'),&
+      ll(' EVAL_E [env_id]: calculate the energy (without returning it)'),&
+      ll(' CALC_EF [env_id]: calculate energy and forces and returns them,'),&
+      ll('   first the energy on a line, then the natom*3 (on a line)'),&
+      ll('   and finally all the values and "* END" (alone on a line)'),&
+      ll(' EVAL_EF [env_id]: calculate the energy and forces (without returning them)'),&
+      ll(' HARSH: stops on any error'),&
+      ll(' PERMISSIVE: stops only on serious errors'),&
+      ll(' UNITS: returns the units used for energy and position'),&
+      ll(' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'),&
+      ll(' EXIT: Quit the shell'),&
+      ll(' HELP: writes the present help') /)
+
+      pos_fact=1.0_dp
+      e_fact=1.0_dp
+      units='au'
+      harsh=.FALSE.
+      failure=.FALSE.
+
+      logger => cp_get_default_logger()
+      para_env => logger%para_env
+
+      eof=.FALSE.
+      last_env_id=-1
+      DO
+         IF (para_env%mepos==para_env%source) THEN
+            WRITE (default_output_unit,'("* READY")')
+            CALL m_flush(default_output_unit)
+         END IF
+         CALL m_flush(default_output_unit)
+         IF (para_env%mepos==para_env%source) THEN
+            READ(*,'(a)',iostat=iostat)cmdStr
+            IF (iostat/=0) THEN
+               IF (iostat==get_eof_stat()) THEN
+                  WRITE(default_output_unit,'(a)',iostat=iostat) '* EOF'
+                  ! ignoring iostat on purpose
+               END IF
+               eof=.TRUE.
+            END IF
+         END IF
+         CALL mp_bcast(eof,para_env%source,para_env%group)
+         IF (eof) EXIT
+         CALL mp_bcast(cmdStr,para_env%source,para_env%group)
+         shift=1
+         DO
+            IF(cmdStr(shift:shift)/=' ') EXIT
+            shift=shift+1
+            IF (shift>=LEN(cmdStr)) EXIT
+         END DO
+         shift2=shift
+         DO
+            IF(cmdStr(shift2:shift2)==' ') EXIT
+            shift2=shift2+1
+            IF (shift2>=LEN(cmdStr)) EXIT
+         END DO
+         shift2=shift2-1
+         CALL my_assert(shift<=shift2,'* No command',harsh,failure,para_env)
+         IF (failure) GOTO 10
+         cmd=cmdStr(shift:shift2)
+         CALL uppercase(cmd)
+         SELECT CASE(cmd)
+         CASE('HELP')
+            IF (para_env%source==para_env%mepos) THEN
+                DO i=1,SIZE(helpMsg)
+                    WRITE(default_output_unit,'(a)',iostat=iostat) TRIM(helpMsg(i))
+                    IF (iostat/=0) CPABORT('writing help')
+                END DO
+                CALL m_flush(default_output_unit)
+            END IF
+         CASE('INFO','INFORMATION','LICENSE')
+            IF (para_env%source==para_env%mepos) THEN
+                CALL print_v_info(default_output_unit)
+                CALL print_cp2k_license(default_output_unit)
+            END IF
+         CASE('VERSION')
+           ! Queried by ASE. Increase version after bug-fixing or behavior changes.
+            IF (para_env%source==para_env%mepos) THEN
+                WRITE(default_output_unit,'(a)',iostat=iostat) "CP2K Shell Version: 3.0"
+                IF (iostat/=0) CPABORT('writing version')
+            END IF
+         CASE('WRITE_FILE')
+            IF (para_env%mepos==para_env%source) THEN
+               READ (*,'(a)',iostat=iostat) out_filename
+               IF (iostat/=0) CPABORT('WRITE_FILE bad filename')
+               READ (*,*,iostat=iostat) n_lines
+               IF (iostat/=0) CPABORT('WRITE_FILE bad number of lines')
+
+               CALL open_file(file_name=TRIM(out_filename), unit_number=file_unit,&
+                    file_status="UNKNOWN",file_form="FORMATTED",file_action="WRITE")
+
+               DO i=1, n_lines
+                  READ(*,'(a)',iostat=iostat) line
+                  IF (iostat/=0) CPABORT('WRITE_FILE read error')
+                  WRITE(file_unit,'(a)',iostat=iostat) TRIM(line)
+                  IF (iostat/=0) CPABORT('WRITE_FILE write error')
+               END DO
+               READ(*,'(a)',iostat=iostat) line
+               IF (iostat/=0) CPABORT('WRITE_FILE read error')
+               IF (TRIM(line) /= "*END") CPABORT('WRITE_FILE bad end delimiter')
+               CALL close_file(unit_number=file_unit)
+            ENDIF
+         CASE('LAST_ENV_ID')
+            IF (para_env%source==para_env%mepos) THEN
+               WRITE (default_output_unit,'(i10)',iostat=iostat) last_env_id
+               IF (iostat/=0) CPABORT(cmd//' failed writing last_env_id')
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('BG_LOAD','BGLOAD')
+            shift=shift2+1
+            CALL my_assert(shift<=LEN(cmdStr),'load without file',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            DO
+               IF (cmdStr(shift:shift)/=' ') EXIT
+               shift=shift+1
+               IF (shift>=LEN(cmdStr)) EXIT
+            END DO
+            CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL create_force_env(new_env_id=last_env_id,&
+                 input_declaration=input_declaration,&
+                 input_path=cmdStr(shift:LEN_TRIM(cmdStr)),&
+                 output_path=cmdStr(shift:LEN_TRIM(cmdStr))//'.out',&
+                 owns_out_unit=.TRUE.,ierr=ierr)
+            IF (ierr/=0) last_env_id=-1
+            IF (last_env_id<=0) failure=.TRUE.
+         CASE('LOAD')
+            ! find beginning of inp-filename
+            shift=shift2+1
+            CALL my_assert(shift<=LEN(cmdStr),'load without file',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            DO
+               IF (cmdStr(shift:shift)/=' ') EXIT
+               shift=shift+1
+               IF (shift>=LEN(cmdStr)) EXIT
+            END DO
+            CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',harsh,failure,para_env)
+            IF (failure) GOTO 10
+
+            ! find end of inp-filename
+            shift2 = shift+1
+            DO WHILE(shift2 < LEN(cmdStr))
+               shift2 = shift2+1
+               IF (cmdStr(shift2:shift2)==' ') EXIT
+            END DO
+            inp_filename = TRIM(cmdStr(shift:shift2))
+            out_filename = TRIM(inp_filename)//'.out'
+            IF(shift2 < LEN(cmdStr) .AND. LEN_TRIM(cmdStr(shift2:)) > 0) &
+               out_filename = ADJUSTL(cmdStr(shift2:))
+
+            CALL create_force_env(new_env_id=last_env_id,&
+                 input_declaration=input_declaration,&
+                 input_path=inp_filename,&
+                 output_path=out_filename,&
+                 owns_out_unit=.TRUE.,ierr=ierr)
+            IF (ierr/=0) last_env_id=-1
+            IF (para_env%source==para_env%mepos) THEN
+               WRITE (default_output_unit,'(i10)',iostat=iostat) last_env_id
+               IF (iostat/=0) CPABORT(cmd//' failed writing last_env_id')
+               CALL m_flush(default_output_unit)
+            END IF
+            IF (last_env_id<=0) failure=.TRUE.
+         CASE ('DESTROY')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL destroy_force_env(env_id,ierr)
+            CALL my_assert(ierr==0,cmd//' failed destroy_force_env',harsh,failure,para_env)
+            IF (last_env_id==env_id) last_env_id=-1
+         CASE('NATOM','N_ATOM')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL get_natom(env_id, n_atom, ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_natom',harsh,failure,para_env)
+            IF (.NOT. failure .AND. para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(i10)',iostat=iostat) n_atom
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('SETPOS','SET_POS')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL get_natom(env_id, n_atom, ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_natom',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            ALLOCATE(pos(3*n_atom),pos2(3*n_atom),stat=stat)
+            CALL my_assert(stat==0,cmd//' failed alloc',harsh,failure,para_env)
+            IF (para_env%mepos==para_env%source) THEN
+               READ (*,*,iostat=iostat) n_atom2
+               IF (iostat/=0) CPABORT('setpos read n_atom')
+               IF (n_atom2/=SIZE(pos)) THEN
+                  CALL my_assert(.FALSE.,'setpos invalid number of atoms',harsh,failure,para_env)
+                  DO i=1,n_atom
+                     READ(*,'(a)',iostat=iostat) cmdStr
+                     CALL compress(cmdStr,full=.TRUE.)
+                     CALL uppercase(cmdStr)
+                     IF (cmdStr=='*END') EXIT
+                  END DO
+                  GOTO 10
+               END IF
+               READ (*,*,iostat=iostat) pos
+               IF (iostat/=0) CPABORT('setpos read coord')
+               pos(:) = pos(:)/pos_fact
+               READ(*,'(a)',iostat=iostat) cmdStr
+               CALL compress(cmdStr,full=.TRUE.)
+               CALL uppercase(cmdStr)
+               CALL my_assert(cmdStr=='*END',' missing *END',harsh,failure,para_env)
+            END IF
+            CALL mp_bcast(pos,para_env%source,para_env%group)
+            CALL get_pos(env_id, pos2,n_el=3*n_atom,ierr=ierr)
+            CALL my_assert(ierr==0,'get_pos error',harsh,failure,para_env)
+            CALL set_pos(env_id, new_pos=pos, n_el=3*n_atom, ierr=ierr)
+            CALL my_assert(ierr==0,'set_pos error',harsh,failure,para_env)
+            err=0.0_dp
+            DO i=1,SIZE(pos)
+               err=MAX(err,ABS(pos(i)-pos2(i)))
+            END DO
+            DEALLOCATE(pos,pos2)
+            IF (para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(ES22.13)') err*pos_fact
+            END IF
+         CASE('SETCELL','SET_CELL')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            IF (para_env%mepos==para_env%source) THEN
+               READ (*,*,iostat=iostat) cell
+               IF (iostat/=0) CPABORT('setcell read')
+               cell(:,:) = cell(:,:)/pos_fact
+            END IF
+            CALL mp_bcast(cell,para_env%source,para_env%group)
+            CALL set_cell(env_id, new_cell=cell, ierr=ierr)
+            CALL my_assert(ierr==0,'set_cell error',harsh,failure,para_env)
+         CASE('GETCELL','GET_CELL')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            CALL get_cell(env_id,cell=cell,ierr=ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_cell',harsh,failure,para_env)
+            cell(:,:) = cell(:,:)*pos_fact
+            IF (para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(9ES22.13)',iostat=iostat) cell
+               IF (iostat/=0) CPABORT(cmd//' write get_cell')
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('GETSTRESS','GET_STRESS')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            CALL get_stress_tensor(env_id,stress_tensor=stress_tensor,ierr=ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_stress_tensor',harsh,failure,para_env)
+            stress_tensor(:,:) = stress_tensor(:,:)*(e_fact/pos_fact**3)
+            IF (para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(9ES22.13)',iostat=iostat) stress_tensor
+               IF (iostat/=0) CPABORT(cmd//' write get_stress')
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('GETPOS','GET_POS')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL get_natom(env_id, n_atom, ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_natom',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            ALLOCATE(pos(3*n_atom),stat=stat)
+            IF (stat/=0) CPABORT(cmd//' failed alloc')
+            CALL get_pos(env_id, pos=pos, n_el=3*n_atom, ierr=ierr)
+            CALL my_assert(ierr==0,'get_pos error',harsh,failure,para_env)
+            pos(:) = pos(:)*pos_fact
+            IF (.not.failure.and.para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(i10)',iostat=iostat) 3*n_atom
+               IF (iostat/=0) CPABORT(cmd//' write ncoord')
+               WRITE (default_output_unit,'(3ES22.13)',iostat=iostat) pos
+               IF (iostat/=0) CPABORT(cmd//' write coord')
+               WRITE (default_output_unit,'(a)',iostat=iostat) "* END"
+               IF (iostat/=0) CPABORT(cmd//' write coord')
+               CALL m_flush(default_output_unit)
+            END IF
+            DEALLOCATE(pos)
+         CASE('GETE','GET_E')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            CALL get_energy(env_id,e_pot,ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_energy',harsh,failure,para_env)
+            e_pot=e_pot*e_fact
+            IF (para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(ES22.13)',iostat=iostat) e_pot
+               IF (iostat/=0) CPABORT(cmd//' write e_pot')
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('EVALE','EVAL_E')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            CALL calc_energy_force(env_id,calc_force=.FALSE.,ierr=ierr)
+            CALL my_assert(ierr==0,cmd//' calc_energy_force failed',harsh,failure,para_env)
+         CASE('CALCE','CALC_E')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            CALL calc_energy_force(env_id,calc_force=.FALSE.,ierr=ierr)
+            CALL my_assert(ierr==0,cmd//' calc_energy_force failed',harsh,failure,para_env)
+            CALL get_energy(env_id,e_pot,ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_energy',harsh,failure,para_env)
+            e_pot=e_pot*e_fact
+            IF (para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(ES22.13)',iostat=iostat) e_pot
+               IF (iostat/=0) CPABORT(cmd//' write e_pot')
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('EVALEF','EVAL_EF')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL calc_energy_force(env_id,calc_force=.TRUE.,ierr=ierr)
+            CALL my_assert(ierr==0,cmd//' calc_energy_force failed',harsh,failure,para_env)
+         CASE('GETF','GET_F')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            CALL get_natom(env_id, n_atom, ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_natom',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            ALLOCATE(pos(3*n_atom),stat=stat)
+            IF (stat/=0) CPABORT(cmd//' failed alloc')
+            CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
+            CALL my_assert(ierr==0,'get_force error',harsh,failure,para_env)
+            pos(:) = pos(:)*(e_fact/pos_fact)
+            IF (.not.failure.and.para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(i10)',iostat=iostat) 3*n_atom
+               IF (iostat/=0) CPABORT(cmd//' write nforce')
+               WRITE (default_output_unit,'(3ES22.13)',iostat=iostat) pos
+               IF (iostat/=0) CPABORT(cmd//' write force')
+               WRITE (default_output_unit,'("* END")',iostat=iostat)
+               IF (iostat/=0) CPABORT(cmd//' write coord')
+               CALL m_flush(default_output_unit)
+            END IF
+            DEALLOCATE(pos)
+         CASE('CALCEF','CALC_EF')
+            env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+            CALL my_assert(env_id>0,cmd//' invalid env_id',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL calc_energy_force(env_id,calc_force=.TRUE.,ierr=ierr)
+            CALL my_assert(ierr==0,cmd//' calc_energy_force failed',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            CALL get_energy(env_id,e_pot,ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_energy',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            e_pot=e_pot*e_fact
+            CALL get_natom(env_id, n_atom, ierr)
+            CALL my_assert(ierr==0,cmd//' failed get_natom',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            ALLOCATE(pos(3*n_atom),stat=stat)
+            IF (stat/=0) CPABORT(cmd//' failed alloc')
+            CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
+            CALL my_assert(ierr==0,'get_force error',harsh,failure,para_env)
+            pos(:) = pos(:)*(e_fact/pos_fact)
+            IF (.not.failure.and.para_env%mepos==para_env%source) THEN
+               WRITE (default_output_unit,'(ES22.13)',iostat=iostat) e_pot
+               IF (iostat/=0) CPABORT(cmd//' write e_pot')
+               WRITE (default_output_unit,'(i10)',iostat=iostat) 3*n_atom
+               IF (iostat/=0) CPABORT(cmd//' write nforce')
+               WRITE (default_output_unit,'(3ES22.13)',iostat=iostat) pos
+               IF (iostat/=0) CPABORT(cmd//' write force')
+               WRITE (default_output_unit,'("* END")',iostat=iostat)
+               IF (iostat/=0) CPABORT(cmd//' write coord')
+               CALL m_flush(default_output_unit)
+            END IF
+            DEALLOCATE(pos)
+         CASE('UNITS_EVA','UNITS_EV_A')
+            e_fact=evolt
+            pos_fact=angstrom
+            units='eV_A'
+         CASE('UNITS_AU')
+            e_fact=1.0_dp
+            pos_fact=1.0_dp
+            units='au'
+         CASE('UNITS')
+            IF (para_env%source==para_env%mepos) THEN
+               WRITE (default_output_unit,'(a)',iostat=iostat) TRIM(units)
+               IF (iostat/=0) CPABORT(cmd//' writing units')
+               CALL m_flush(default_output_unit)
+            END IF
+         CASE('HARSH')
+            harsh=.TRUE.
+         CASE('PERMISSIVE')
+            harsh=.FALSE.
+         CASE('CD','CHDIR')
+            shift=shift2+1
+            CALL my_assert(shift<=LEN(cmdStr),'cd without directory not accepted',harsh,failure,para_env)
+            IF (failure) GOTO 10
+            DO
+               IF (cmdStr(shift:shift)/=' ') EXIT
+               shift=shift+1
+               IF (shift>=LEN(cmdStr)) EXIT
+            END DO
+            CALL my_assert(cmdStr(shift:shift)/=' ',&
+                 'cd without directory not accepted2',harsh,failure,para_env)
+            CALL m_chdir(cmdStr(shift:LEN_TRIM(cmdStr)),ierr)
+            CALL my_assert(ierr==0,'error changing directory',harsh,failure,para_env)
+         CASE('PWD','CWD')
+            IF (para_env%source==para_env%mepos) THEN
+               CALL m_getcwd(cmdStr)
+               WRITE (default_output_unit,'(a)')TRIM(cmdStr)
+            END IF
+         CASE('EXIT')
+            WRITE(default_output_unit,'(a)',iostat=iostat) '* EXIT'
+            ! ignoring iostat on purpose
+            EXIT
+         CASE default
+            CALL my_assert(.FALSE.,'unknown command '//cmd,harsh,failure,para_env)
+         END SELECT
+10       IF (failure) THEN
+            IF (harsh) CPABORT('failure')
+            IF (para_env%mepos==para_env%source) THEN
+               WRITE(default_output_unit,'("* ERROR, type HELP for help")',iostat=iostat)
+               IF (iostat/=0) CPABORT('writing error')
+               CALL m_flush(default_output_unit)
+            END IF
+            failure=.FALSE.
+         END IF
+      END DO
+   END SUBROUTINE launch_cp2k_shell
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param tst ...
 !> \param msg ...
+!> \param harsh ...
 !> \param failure ...
+!> \param para_env ...
 ! **************************************************************************************************
-  SUBROUTINE my_assert(tst,msg,failure)
+  SUBROUTINE my_assert(tst,msg,harsh,failure,para_env)
       LOGICAL, INTENT(in)                                :: tst
       CHARACTER(LEN=*), INTENT(in)                       :: msg
+      LOGICAL, INTENT(in)                                :: harsh
       LOGICAL, INTENT(inout)                             :: failure
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
     IF (.not.tst) THEN
        IF (harsh) CPABORT(msg)
        IF (para_env%mepos==para_env%source) THEN
-          WRITE(sout,'("* ERROR ",a)') msg
+          WRITE(default_output_unit,'("* ERROR ",a)') msg
        END IF
        failure=.TRUE.
     END IF
@@ -632,6 +616,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: cwd
       CHARACTER(LEN=default_string_length)               :: dev_flag, host_name, user_name
+      INTEGER                                            :: pid
 
     CALL m_getcwd(cwd)
     CALL m_getpid(pid)
@@ -676,6 +661,8 @@ CONTAINS
 
       CHARACTER(LEN=5)                                   :: rdBuf
       INTEGER                                            :: stat_n, unit
+      INTEGER, SAVE                                      :: eof_stat
+      LOGICAL, SAVE                                      :: did_init = .FALSE.
 
     IF (.NOT.did_init) THEN
        unit=get_unit_number()
@@ -701,4 +688,4 @@ CONTAINS
     res=eof_stat
   END FUNCTION get_eof_stat
 
-END PROGRAM cp2k_shell
+END MODULE cp2k_shell
