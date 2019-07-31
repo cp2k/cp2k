@@ -760,8 +760,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
       LOGICAL                                            :: do_kpoints
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_L_transposed, fmdummy
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_L_transposed, fmdummy
 
       CALL timeset(routineN, handle)
 
@@ -771,7 +771,7 @@ CONTAINS
       END IF
 
       ! Get the fm_struct for fm_mat_L
-      NULLIFY(fm_struct)
+      NULLIFY (fm_struct)
       IF (dimen_RI == dimen_RI_red) THEN
          fm_struct => fm_struct_template
       ELSE
@@ -802,9 +802,9 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct)
 
          ! Create a fm_struct with transposed sizes
-         NULLIFY(fm_struct)
+         NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=dimen_RI, ncol_global=dimen_RI_red, &
-                                  template_fmstruct=fm_mat_L(first_ikp_local, 1)%matrix%matrix_struct)!, force_block=.TRUE.)
+                                  template_fmstruct=fm_mat_L(first_ikp_local, 1)%matrix%matrix_struct) !, force_block=.TRUE.)
       END IF
 
       ! Allocate buffer matrix
@@ -858,7 +858,7 @@ CONTAINS
 
          CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size)
 
-         DEALLOCATE(row_blk_size)
+         DEALLOCATE (row_blk_size)
       END IF
       IF (.NOT. (do_kpoints)) THEN
          CALL copy_fm_to_dbcsr(fm_mat_L(1, 1)%matrix, mat_L%matrix)
@@ -1935,7 +1935,7 @@ CONTAINS
 
       IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
          CALL dbcsr_release(mat_work)
-         DEALLOCATE(mat_work)
+         DEALLOCATE (mat_work)
       END IF
 
       CALL dbcsr_release(mat_L%matrix)

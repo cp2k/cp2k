@@ -311,7 +311,7 @@ CONTAINS
          mp2_env%mp2_memory = mp2_env%mp2_memory-mem_real
          IF (mp2_env%mp2_memory < 0.0_dp) mp2_env%mp2_memory = 1.0_dp
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Available memory per MPI processes for MP2:', &
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Available memory per MPI process for MP2:', &
             mp2_env%mp2_memory, ' MiB'
       END IF
 
