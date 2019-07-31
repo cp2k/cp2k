@@ -54,7 +54,7 @@ MODULE mp2_cphf
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
-   USE mp2_integrals,                   ONLY: calc_potential_gpw
+   USE mp2_eri_gpw,                     ONLY: calc_potential_gpw
    USE mp2_types,                       ONLY: mp2_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
