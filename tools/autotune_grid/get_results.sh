@@ -2,7 +2,7 @@
 #
 #   get_results
 #   ==============================================
-#       Extract the best combinations from all the 
+#       Extract the best combinations from all the
 #          directories.
 #
 #    @author: Ruyman Reyes (rreyesc@epcc.ed.ac.uk)
@@ -34,9 +34,9 @@ echo "l Time Opt" > best_timings
       continue
    fi
    # echo "($error) Error was $tmp , accepted $iopt"
-   # Extract the time of the combination 
+   # Extract the time of the combination
    tmp=$(cat out_${l}_${iopt}/out_test_${l}_${iopt}_T_${icollo} | tr -s ' ' | grep "best time" | cut -f 5 -d ' ')
-   
+
    test "$tmp" || continue
    dif=$(python -c "print $bsf>$tmp")
 
@@ -71,12 +71,12 @@ done # for icollo
 echo " Generating optimal combination "
 (
    echo $lmax
-	for l in `seq 0 $lmax`; do
-	   echo ${bsf_iopt_global_0[$l]}
-	done
-	echo $lmax
-	for l in `seq 0 $lmax`; do
-	   echo ${bsf_iopt_global_1[$l]}
-	done
+    for l in `seq 0 $lmax`; do
+       echo ${bsf_iopt_global_0[$l]}
+    done
+    echo $lmax
+    for l in `seq 0 $lmax`; do
+       echo ${bsf_iopt_global_1[$l]}
+    done
 ) > generate_best
 

@@ -205,7 +205,7 @@
 
 #============================================================================
 # qs types....what basic types are needed to do a qs calculation (but not e.g. fist)
-# 
+#
 #============================================================================
         {'dirname':'qstypes',
          'requires':["../base", "../common", "../mpiwrap", "../input", "../aobasis","../systemtypes", "../fm", "../dbcsr", "../pw", "../dbcsrwrap"],

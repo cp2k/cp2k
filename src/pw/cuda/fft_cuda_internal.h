@@ -26,8 +26,8 @@ static const int   max_2d_plans = 0;
 static const int   max_1d_plans = 30;
 
 
-static const int   sum_plans = max_3d_plans + max_2d_plans + max_1d_plans; 
-static const int   max_plans = sum_plans > 1? sum_plans : 1; 
+static const int   sum_plans = max_3d_plans + max_2d_plans + max_1d_plans;
+static const int   max_plans = sum_plans > 1? sum_plans : 1;
 
 #if (__CUDACC_VER_MAJOR__<8)
 // configuration(s)

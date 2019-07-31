@@ -645,7 +645,7 @@ download_pkg() {
         return 1
     fi
     # checksum
-    checksum "$__filename" "$__sha256" 
+    checksum "$__filename" "$__sha256"
 }
 
 # verify the checksums inside the given checksum file

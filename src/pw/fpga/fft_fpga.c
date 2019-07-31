@@ -38,8 +38,8 @@ void pw_fpga_final_(){
 }
 
 /******************************************************************************
- * \brief  check whether FFT3d can be computed on the FPGA or not. This depends 
- *         on the availability of bitstreams whose sizes are for now listed here 
+ * \brief  check whether FFT3d can be computed on the FPGA or not. This depends
+ *         on the availability of bitstreams whose sizes are for now listed here
  *         If the fft sizes are found and the FPGA is not setup before, it is done
  * \param  data_path - path to the data directory
  * \param  N - integer pointer to the size of the FFT3d
@@ -86,11 +86,11 @@ int pw_fpga_check_bitstream_(char *data_path, int N[3]){
 /******************************************************************************
  * \brief   compute an in-place single precision complex 3D-FFT on the FPGA
  * \param   direction : direction - 1/forward, otherwise/backward FFT3d
- * \param   N   : integer pointer to size of FFT3d  
- * \param   din : complex input/output single precision data pointer 
+ * \param   N   : integer pointer to size of FFT3d
+ * \param   din : complex input/output single precision data pointer
  *****************************************************************************/
 void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
-  // setup device specific constructs 
+  // setup device specific constructs
   if(direction == 1){
     fftfpga_run_3d(0, N, din);
   }
@@ -102,11 +102,11 @@ void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
 /******************************************************************************
  * \brief   compute an in-place double precision complex 3D-FFT on the FPGA
  * \param   direction : direction - 1/forward, otherwise/backward FFT3d
- * \param   N   : integer pointer to size of FFT3d  
- * \param   din : complex input/output single precision data pointer 
+ * \param   N   : integer pointer to size of FFT3d
+ * \param   din : complex input/output single precision data pointer
  *****************************************************************************/
 void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
-  // setup device specific constructs 
+  // setup device specific constructs
   if(direction == 1){
     fftfpga_run_3d(0, N, din);
   }
@@ -118,15 +118,15 @@ void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
 /******************************************************************************
  * \brief   Execute a single precision complex FFT3d
  * \param   inverse : int
- * \param   N       : integer pointer to size of FFT3d  
- * \param   din     : complex input/output single precision data pointer 
+ * \param   N       : integer pointer to size of FFT3d
+ * \param   din     : complex input/output single precision data pointer
  *****************************************************************************/
 void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
   cl_int status = 0;
   int inverse_int = inverse;
   cl_kernel fft_kernel = NULL, fft_kernel_2 = NULL;
   cl_kernel fetch_kernel = NULL, transpose_kernel = NULL, transpose_kernel_2 = NULL;
-  
+
 // Device memory buffers
   cl_mem d_inData, d_outData;
 
@@ -216,25 +216,25 @@ void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
   queue_cleanup();
 
   if (h_outData)
-	  free(h_outData);
+    free(h_outData);
   if (h_inData)
-	  free(h_inData);
+    free(h_inData);
 
   if (d_inData)
-  	clReleaseMemObject(d_inData);
-  if (d_outData) 
-	  clReleaseMemObject(d_outData);
+    clReleaseMemObject(d_inData);
+  if (d_outData)
+    clReleaseMemObject(d_outData);
 
-  if(fetch_kernel) 
-    clReleaseKernel(fetch_kernel);  
-  if(fft_kernel) 
-    clReleaseKernel(fft_kernel);  
-  if(fft_kernel_2) 
-    clReleaseKernel(fft_kernel_2);  
-  if(transpose_kernel) 
-    clReleaseKernel(transpose_kernel);  
-  if(transpose_kernel_2) 
-    clReleaseKernel(transpose_kernel_2); 
+  if(fetch_kernel)
+    clReleaseKernel(fetch_kernel);
+  if(fft_kernel)
+    clReleaseKernel(fft_kernel);
+  if(fft_kernel_2)
+    clReleaseKernel(fft_kernel_2);
+  if(transpose_kernel)
+    clReleaseKernel(transpose_kernel);
+  if(transpose_kernel_2)
+    clReleaseKernel(transpose_kernel_2);
 }
 
 
@@ -267,7 +267,7 @@ void init_program(int N[3], char *data_path){
  * \brief   Free resources allocated during program initialization
  *****************************************************************************/
 void cleanup_program(){
-  if(program) 
+  if(program)
     clReleaseProgram(program);
   if(context)
     clReleaseContext(context);
@@ -325,17 +325,17 @@ void queue_setup(){
  * \brief   Release all command queues
  *****************************************************************************/
 void queue_cleanup() {
-  if(queue1) 
+  if(queue1)
     clReleaseCommandQueue(queue1);
-  if(queue2) 
+  if(queue2)
     clReleaseCommandQueue(queue2);
-  if(queue3) 
+  if(queue3)
     clReleaseCommandQueue(queue3);
-  if(queue4) 
+  if(queue4)
     clReleaseCommandQueue(queue4);
-  if(queue5) 
+  if(queue5)
     clReleaseCommandQueue(queue5);
-  if(queue6) 
+  if(queue6)
     clReleaseCommandQueue(queue6);
 }
 
