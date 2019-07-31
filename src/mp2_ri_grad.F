@@ -50,7 +50,9 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
-   USE mp2_integrals,                   ONLY: calc_potential_gpw, cleanup_gpw, prepare_gpw
+   USE mp2_integrals,                   ONLY: calc_potential_gpw,&
+                                              cleanup_gpw,&
+                                              prepare_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -168,8 +170,9 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: alpha_beta, map_it_here, skip_shell, &
                                                             use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, factor, omega, &
-                                                            pair_energy, rab2, total_rho, relative_cutoff_old
+      REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, &
+                                                            factor, omega, pair_energy, rab2, &
+                                                            relative_cutoff_old, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab
@@ -186,22 +189,22 @@ CONTAINS
                                                             matrix_P_munu_local
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
                                                             mo_coeff_v_beta
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_3c_aux, force_3c_orb_mu, &
                                                             force_3c_orb_nu
-      TYPE(pw_p_type)                                    :: dvg(3), psi_L, psi_L_beta, temp_pw_g
+      TYPE(pw_env_type), POINTER                         :: pw_env_sub
+      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, psi_L_beta, rho_g, &
+                                                            rho_r, temp_pw_g
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
-      TYPE(virial_type), POINTER                         :: virial
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
-      TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(task_list_type), POINTER                      :: task_list_sub
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 

@@ -44,8 +44,7 @@ MODULE mp2_integrals
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_triangular_invert, &
-                                              cp_fm_frobenius_norm
+                                              cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_syevx
@@ -67,7 +66,7 @@ MODULE mp2_integrals
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
         dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, &
         dbcsr_scalar, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_frobenius_norm
+        dbcsr_type_real_8, dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
@@ -83,8 +82,8 @@ MODULE mp2_integrals
                                               do_eri_mme,&
                                               do_eri_os,&
                                               do_potential_coulomb,&
-                                              do_potential_long,&
-                                              do_potential_id
+                                              do_potential_id,&
+                                              do_potential_long
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
@@ -331,8 +330,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
                                                             impose_split, memory_info, do_svd, do_gpw
-      REAL(KIND=dp)                                      :: cond_num, eps_svd, mem_for_iaK, &
-                                                            omega_metric, omega_pot
+      REAL(KIND=dp)                                      :: cond_num, cutoff_old, eps_svd, &
+                                                            mem_for_iaK, omega_metric, omega_pot, &
+                                                            relative_cutoff_old
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_bse_ab, fm_BIb_bse_ij, fm_BIb_gw, &
@@ -345,18 +346,16 @@ CONTAINS
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
       TYPE(neighbor_list_3c_type)                        :: nl_3c
-      TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g, psi_L
-      TYPE(two_dim_real_array), ALLOCATABLE, &
-         DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
+      TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      REAL(KIND=dp)                                      :: cutoff_old, relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
+      TYPE(two_dim_real_array), ALLOCATABLE, &
+         DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
 
       CALL timeset(routineN, handle)
 
@@ -385,7 +384,7 @@ CONTAINS
 
       ! whether we need gpw integrals (plus pw stuff)
       do_gpw = (eri_method == do_eri_gpw) .OR. ((potential_type == do_potential_long .OR. ri_metric == do_potential_long) &
-                .AND. qs_env%mp2_env%eri_method == do_eri_os) &
+                                                .AND. qs_env%mp2_env%eri_method == do_eri_os) &
                .OR. (ri_metric == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)
 
       IF (do_svd .AND. calc_forces) THEN
@@ -1569,6 +1568,7 @@ CONTAINS
 !> \param mp2_eps_pgf_orb_S ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
+!> \param sab_orb_sub ...
 ! **************************************************************************************************
    SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                               fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff, &
@@ -2149,6 +2149,7 @@ CONTAINS
 !> \param num_small_eigen ...
 !> \param ri_metric ...
 !> \param omega ...
+!> \param sab_orb_sub ...
 !> \param external_matrix_struc ...
 !> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
@@ -2196,8 +2197,9 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, my_do_im_time, &
                                                             my_external_matrix_struc
-      REAL(KIND=dp)                                      :: min_mem_for_QK, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egen_L, wf_vector
+      REAL(KIND=dp)                                      :: cutoff_old, min_mem_for_QK, rab2, &
+                                                            relative_cutoff_old
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, egen_L, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab, L_external_col, L_local_col
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
@@ -2208,22 +2210,20 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_diag
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(group_dist_d1_type)                           :: gd_sub_array
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env_sub
+      TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type)                                    :: psi_L, rho_r, rho_g, pot_g
-      TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      REAL(KIND=dp)                                      :: cutoff_old, relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -2624,26 +2624,45 @@ CONTAINS
 
    END SUBROUTINE compute_2c_integrals
 
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param dft_control ...
+!> \param e_cutoff_old ...
+!> \param cutoff_old ...
+!> \param relative_cutoff_old ...
+!> \param para_env_sub ...
+!> \param pw_env_sub ...
+!> \param auxbas_pw_pool ...
+!> \param poisson_env ...
+!> \param task_list_sub ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param psi_L ...
+!> \param sab_orb_sub ...
+! **************************************************************************************************
    SUBROUTINE prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                           auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_L, sab_orb_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: e_cutoff_old
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff_old, relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT)           :: e_cutoff_old
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type), INTENT(OUT)                       :: pot_g, rho_g, rho_r, psi_L
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
+      TYPE(pw_p_type), INTENT(OUT)                       :: rho_r, rho_g, pot_g, psi_L
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_gpw', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i_multigrid, n_multigrid
-      LOGICAL :: skip_load_balance_distributed
-      REAL(KIND=dp) :: progression_factor
+      INTEGER                                            :: handle, i_multigrid, n_multigrid
+      LOGICAL                                            :: skip_load_balance_distributed
+      REAL(KIND=dp)                                      :: progression_factor
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
@@ -2708,15 +2727,30 @@ CONTAINS
 
    END SUBROUTINE prepare_gpw
 
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param e_cutoff_old ...
+!> \param cutoff_old ...
+!> \param relative_cutoff_old ...
+!> \param pw_env_sub ...
+!> \param task_list_sub ...
+!> \param auxbas_pw_pool ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param psi_L ...
+! **************************************************************************************************
    SUBROUTINE cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, pw_env_sub, &
                           task_list_sub, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: e_cutoff_old
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_old, relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)           :: e_cutoff_old
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_p_type), INTENT(INOUT)                     :: pot_g, rho_g, rho_r, psi_L
       TYPE(task_list_type), POINTER                      :: task_list_sub
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g, psi_L
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cleanup_gpw', routineP = moduleN//':'//routineN
 
