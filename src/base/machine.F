@@ -18,8 +18,8 @@ MODULE machine
                                               dp,&
                                               int_8
    USE machine_internal,                ONLY: &
-        m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, m_getlog, m_getpid, &
-        m_hostnm, m_iargc, m_memory, m_memory_details, m_memory_max, m_mov, m_procrun
+        m_abort, m_chdir, m_flush_internal=>m_flush, m_getcwd, m_getlog, m_getpid, &
+        m_hostnm, m_memory, m_memory_details, m_memory_max, m_mov, m_procrun
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_GET_WTIME
 
@@ -57,7 +57,7 @@ MODULE machine
   PRIVATE
 
   PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, m_flush_internal,&
-            m_getcwd, m_getlog, m_getpid, m_getarg, m_iargc, m_procrun, m_abort,&
+            m_getcwd, m_getlog, m_getpid, m_procrun, m_abort,&
             m_chdir, m_mov, m_memory, m_memory_details, m_memory_max, m_energy,&
             m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name
 
