@@ -41,7 +41,7 @@ MODULE mp2_gpw_method
                                               mp_min,&
                                               mp_sendrecv,&
                                               mp_sum
-   USE mp2_integrals,                   ONLY: calc_potential_gpw,&
+   USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
                                               prepare_gpw
    USE particle_types,                  ONLY: particle_type
@@ -65,7 +65,7 @@ MODULE mp2_gpw_method
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_method'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_gpw_method'
 
    PUBLIC :: mp2_gpw_compute
 
