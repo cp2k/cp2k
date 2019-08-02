@@ -65,41 +65,41 @@ Args:
 
 {
    int sockfd, ai_err;
-   
+
    if (*inet>0)
    {  // creates an internet socket
 
-      // fetches information on the host      
-      struct addrinfo hints, *res;  
+      // fetches information on the host
+      struct addrinfo hints, *res;
       char service[256];
-   
+
       memset(&hints, 0, sizeof(hints));
       hints.ai_socktype = SOCK_STREAM;
       hints.ai_family = AF_INET;
       hints.ai_flags = AI_PASSIVE;
 
       sprintf(service,"%d",*port); // convert the port number to a string
-      ai_err = getaddrinfo(host, service, &hints, &res); 
+      ai_err = getaddrinfo(host, service, &hints, &res);
       if (ai_err!=0) { perror("Error fetching host data. Wrong host name?"); exit(-1); }
 
       // creates socket
       sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
       if (sockfd < 0) { perror("Error opening socket"); exit(-1); }
-    
+
       // makes connection
       if (connect(sockfd, res->ai_addr, res->ai_addrlen) < 0) { perror("Error opening INET socket: wrong port or server unreachable"); exit(-1); }
       freeaddrinfo(res);
    }
    else
    {  // creates a unix socket
-      struct sockaddr_un serv_addr;    
+      struct sockaddr_un serv_addr;
 
       // fills up details of the socket addres
       memset(&serv_addr, 0, sizeof(serv_addr));
       serv_addr.sun_family = AF_UNIX;
       strcpy(serv_addr.sun_path, "/tmp/ipi_");
       strcpy(serv_addr.sun_path+9, host);
-  
+
       // creates the socket
       sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
 
@@ -161,7 +161,7 @@ void uwait(double *dsec)
 {
    int rn;
    struct timespec wt, rem;
-   wt.tv_sec = floor(*dsec); wt.tv_nsec=(*dsec-wt.tv_sec)*1000000000;   
+   wt.tv_sec = floor(*dsec); wt.tv_nsec=(*dsec-wt.tv_sec)*1000000000;
    rn = nanosleep(&wt, &rem);
 }
 

@@ -66,7 +66,7 @@ cl_platform_id findPlatform(char *platform_name){
   size_t sz;
   for(i=0; i<num_platforms; i++){
     // Get the size of the platform name referred to by the id
-		status = clGetPlatformInfo(pids[i], CL_PLATFORM_NAME, 0, NULL, &sz);
+    status = clGetPlatformInfo(pids[i], CL_PLATFORM_NAME, 0, NULL, &sz);
     if (status != CL_SUCCESS){
       printf("Query for platform info failed\n");
       free(pids);
@@ -77,7 +77,7 @@ cl_platform_id findPlatform(char *platform_name){
     char plat_name[sz];
 
     // Store the name of string size
-	  status = clGetPlatformInfo(pids[i], CL_PLATFORM_NAME, sz, pl_name, NULL);
+    status = clGetPlatformInfo(pids[i], CL_PLATFORM_NAME, sz, pl_name, NULL);
     if (status != CL_SUCCESS){
       printf("Query for platform info failed\n");
       free(pids);
@@ -97,7 +97,7 @@ cl_platform_id findPlatform(char *platform_name){
 
 /******************************************************************************
  * \brief   returns the list of all devices for the specfic platform
- * \param   platform id to search for devices 
+ * \param   platform id to search for devices
  * \param   specific type of device to search for
  * \param   total number of devices found for the given platform
  * \retval  array of device ids
@@ -155,7 +155,7 @@ cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
 #endif
   char *foldername;
   const char *filename = "fft3d.aocx";
-   
+
   if( !getFolderPath(&foldername, N) ){
     printf("Path not found for the size (%d,%d,%d)", N[0], N[1], N[2]);
     return NULL;
@@ -207,7 +207,7 @@ int getFolderPath(char **folderPath, int N[3]){
     char folder[] = "syn32/";
     *folderPath = malloc(strlen(folder)+1);
     strncpy(*folderPath, folder, strlen(folder));
-  } 
+  }
   else if (N[0] == 64 && N[1] == 64 && N[2] == 64){
     char folder[] = "syn64/";
     *folderPath = malloc(strlen(folder)+1);
@@ -247,7 +247,7 @@ static size_t loadBinary(char *binary_path, char **buf){
 }
 
 /******************************************************************************
- * \brief   Allocate host side buffers to be 64-byte aligned to make use of DMA 
+ * \brief   Allocate host side buffers to be 64-byte aligned to make use of DMA
  *          transfer between host and global memory
  * \param   size in bytes : allocate size bytes multiples of 64
  * \retval  pointer to allocated memory on successful allocation otherwise NULL
@@ -353,7 +353,7 @@ void _checkError(const char *file, int line, const char *func, cl_int err, const
     printError(err);
     printf("\nError Location: %s:%d:%s\n", file, line, func);
 
-    // custom message 
+    // custom message
     va_list vl;
     va_start(vl, msg);
     vprintf(msg, vl);
@@ -369,7 +369,7 @@ void _checkError(const char *file, int line, const char *func, cl_int err, const
 /******************************************************************************
  * \brief   converts a given null-terminated string to lowercase and stores in q
  * \param   p : null-terminated string
- * \param   q : string with (strlen(p)+1) length 
+ * \param   q : string with (strlen(p)+1) length
  *****************************************************************************/
 static void tolowercase(char *p, char *q){
   int i;

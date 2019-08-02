@@ -121,7 +121,7 @@ case "$with_openblas" in
                     FC="${FC}" \
                     PREFIX="${pkg_install_dir}" \
                     install > install.omp.log 2>&1
-            fi 
+            fi
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi

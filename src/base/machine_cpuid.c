@@ -28,7 +28,7 @@ int m_cpuid_static(void)
   return CP_MACHINE_X86_SSE4;
 #else
   return CP_MACHINE_CPU_GENERIC;
-#endif  
+#endif
 }
 
 #if defined(__cplusplus)
