@@ -3,13 +3,13 @@
 !   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-!     **************************************************************************************************
-!     > \brief Interface to the SIRIUS Library
-!     > \par History
-!     >      07.2018 initial create
-!     > \author JHU
-!     **************************************************************************************************
-      MODULE sirius_interface
+!**************************************************************************************************
+!> \brief Interface to the SIRIUS Library
+!> \par History
+!>      07.2018 initial create
+!> \author JHU
+!**************************************************************************************************
+MODULE sirius_interface
 #if defined(__SIRIUS)
          USE sirius, ONLY: &
             string, bool, sirius_initialize, sirius_finalize, sirius_create_context, sirius_import_parameters, &
@@ -236,12 +236,12 @@
             pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
             IF (ASSOCIATED(pwdft_sub_section)) THEN
                CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("parameters"))
-               CALL section_vals_val_get(pwdft_sub_section, "ngridk", i_vals=kk)
+               CALL section_vals_val_get(pwdft_sub_section, "k_grid", i_vals=kk)
                k_grid(1) = kk(1)
                k_grid(2) = kk(2)
                k_grid(3) = kk(3)
 
-               CALL section_vals_val_get(pwdft_sub_section, "shiftk", i_vals=kk)
+               CALL section_vals_val_get(pwdft_sub_section, "k_shift", i_vals=kk)
                k_shift(1) = kk(1)
                k_shift(2) = kk(2)
                k_shift(3) = kk(3)
@@ -642,21 +642,18 @@
          END SUBROUTINE cp_sirius_feel_in_section
 #endif
 
-!     **************************************************************************************************
-!     > \brief ...
-!     > \param pwdft_env ...
-!     > \param
-!     > \par History
-!     >      07.2018 start the Sirius library
-!     > \author JHU
-!     **************************************************************************************************
-#if defined(__SIRIUS)
-! **************************************************************************************************
+!**************************************************************************************************
 !> \brief ...
 !> \param pwdft_env ...
-! **************************************************************************************************
-         SUBROUTINE cp_sirius_energy_force(pwdft_env)
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+!> \param
+!> \par History
+!>      07.2018 start the Sirius library
+!> \author JHU
+!**************************************************************************************************
+#if defined(__SIRIUS)
+   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces)
+      TYPE(pwdft_environment_type), POINTER, INTENT(INOUT) :: pwdft_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_energy_force', &
          routineP = moduleN//':'//routineN
@@ -667,50 +664,51 @@
       REAL(KIND=C_DOUBLE), DIMENSION(3, 3)               :: cstress
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stress
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
-      TYPE(C_PTR)                                        :: gs_handler = C_NULL_PTR
+      TYPE(C_PTR)                                        :: gs_handler
       TYPE(pwdft_energy_type), POINTER                   :: energy
 
-            CPASSERT(ASSOCIATED(pwdft_env))
-            CALL pwdft_env_get(pwdft_env=pwdft_env, gs_handler=gs_handler)
-            CALL sirius_find_ground_state(gs_handler)
-            CALL pwdft_env_get(pwdft_env=pwdft_env, energy=energy, forces=forces)
-            etotal = 0.0_C_DOUBLE
-            CALL sirius_get_energy(gs_handler, string('total'), etotal)
-            energy%etotal = etotal
-            n1 = SIZE(forces, 1)
-            n2 = SIZE(forces, 2)
-            ALLOCATE (cforces(n2, n1))
-            cforces = 0.0_C_DOUBLE
-            CALL sirius_get_forces(gs_handler, string('total'), cforces(1, 1))
-! Sirius computes the forces but cp2k use the gradient everywhere
-! so a minus sign is needed.
-! note also that sirius and cp2k store the forces transpose to each other
-! sirius : forces(coordinates, atoms)
-! cp2k : forces(atoms, coordinates)
-            forces = -TRANSPOSE(cforces(:, :))
-            DEALLOCATE (cforces)
-            cstress = 0.0_C_DOUBLE
-            CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
-            stress(1:3, 1:3) = cstress(1:3, 1:3)
-            CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
+      CPASSERT(ASSOCIATED(pwdft_env))
 
-         END SUBROUTINE cp_sirius_energy_force
+      gs_handler = C_NULL_PTR
+
+      CALL pwdft_env_get(pwdft_env=pwdft_env, gs_handler=gs_handler)
+      CALL sirius_find_ground_state(gs_handler)
+      CALL pwdft_env_get(pwdft_env=pwdft_env, energy=energy)
+      etotal = 0.0_C_DOUBLE
+
+      CALL sirius_get_energy(gs_handler, string('total'), etotal)
+      energy%etotal = etotal
+
+      IF (calculate_forces) THEN
+         CALL pwdft_env_get(pwdft_env=pwdft_env, forces=forces)
+         n1 = SIZE(forces, 1)
+         n2 = SIZE(forces, 2)
+
+         ALLOCATE (cforces(n2, n1))
+         cforces = 0.0_C_DOUBLE
+         CALL sirius_get_forces(gs_handler, string('total'), cforces(1, 1))
+         ! Sirius computes the forces but cp2k use the gradient everywhere
+         ! so a minus sign is needed.
+         ! note also that sirius and cp2k store the forces transpose to each other
+         ! sirius : forces(coordinates, atoms)
+         ! cp2k : forces(atoms, coordinates)
+         forces = -TRANSPOSE(cforces(:, :))
+         DEALLOCATE (cforces)
+
+         cstress = 0.0_C_DOUBLE
+         CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
+         stress(1:3, 1:3) = cstress(1:3, 1:3)
+         CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
+      ENDIF
+   END SUBROUTINE cp_sirius_energy_force
 #else
-!     **************************************************************************************************
-!     > \brief ...
-!     > \param pwdft_env ...
-!     **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param pwdft_env ...
-! **************************************************************************************************
-         SUBROUTINE cp_sirius_energy_force(pwdft_env)
+   SUBROUTINE cp_sirius_energy_force(pwdft_env)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-            CPASSERT(ASSOCIATED(pwdft_env))
-            CPABORT("Sirius library is missing")
+      CPASSERT(ASSOCIATED(pwdft_env))
+      CPABORT("Sirius library is missing")
 
-         END SUBROUTINE cp_sirius_energy_force
+   END SUBROUTINE cp_sirius_energy_force
 #endif
 
-      END MODULE sirius_interface
+END MODULE sirius_interface
