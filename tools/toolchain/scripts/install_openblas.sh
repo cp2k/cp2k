@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openblas_ver="0.3.5"  # Keep in sync with get_openblas_arch.sh.
-openblas_sha256="0950c14bd77c90a6427e26210d6dab422271bc86f9fc69126725833ecdaa0e85"
+openblas_ver="0.3.6"  # Keep in sync with get_openblas_arch.sh.
+openblas_sha256="e64c8fe083832ffbc1459ab6c72f71d53afd3b36e8497c922a15a06b72e9002f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -15,7 +15,9 @@ source "${INSTALLDIR}"/toolchain.env
 OPENBLAS_CFLAGS=''
 OPENBLAS_LDFLAGS=''
 OPENBLAS_LIBS=''
-PATCHES=()
+PATCHES=(
+    "openblas-0.3.6-disable-avx512.patch"
+)
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -35,23 +37,13 @@ case "$with_openblas" in
                              -o OpenBLAS-${openblas_ver}.tar.gz
             fi
 
-            for patch in "${PATCHES[@]}" ; do
-                fname="${patch##*/}"
-                if [ -f "${fname}" ] ; then
-                    echo "${fname} is found"
-                else
-                    # parallel build patch
-                    download_pkg ${DOWNLOADER_FLAGS} "${patch}"
-                fi
-            done
-
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
             tar -zxf OpenBLAS-${openblas_ver}.tar.gz
             cd OpenBLAS-${openblas_ver}
 
             for patch in "${PATCHES[@]}" ; do
-                patch -p1 < ../"${patch##*/}"
+                patch -p1 < "${SCRIPT_DIR}/${patch}"
             done
 
             # First attempt to make openblas using auto detected

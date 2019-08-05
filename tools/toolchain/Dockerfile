@@ -52,8 +52,11 @@ RUN ./scripts/install_cmake.sh && rm -rf ./build
 COPY ./scripts/install_gcc.sh ./scripts/
 RUN ./scripts/install_gcc.sh && rm -rf ./build
 
-COPY ./scripts/get_openblas_arch.sh \
-     ./scripts/setup_buildtools.sh ./scripts/
+COPY \
+    ./scripts/get_openblas_arch.sh \
+    ./scripts/setup_buildtools.sh \
+    ./scripts/openblas-0.3.6-disable-avx512.patch \
+    ./scripts/
 RUN ./scripts/setup_buildtools.sh && rm -rf ./build
 
 COPY ./scripts/install_mpich.sh ./scripts/
