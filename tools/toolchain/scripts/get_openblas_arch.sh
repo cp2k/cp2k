@@ -3,8 +3,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 
-openblas_ver="0.3.5"  #  Keep in sync with install_openblas.sh.
-openblas_sha256="0950c14bd77c90a6427e26210d6dab422271bc86f9fc69126725833ecdaa0e85"
+openblas_ver="0.3.6"  #  Keep in sync with install_openblas.sh.
+openblas_sha256="e64c8fe083832ffbc1459ab6c72f71d53afd3b36e8497c922a15a06b72e9002f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
