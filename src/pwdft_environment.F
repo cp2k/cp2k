@@ -245,7 +245,7 @@ CONTAINS
       IF (iw > 0) CALL m_flush(iw)
 
       ! calculate energy and forces/stress
-      CALL cp_sirius_energy_force(pwdft_env)
+      CALL cp_sirius_energy_force(pwdft_env, calculate_forces)
 
       IF (calculate_forces) THEN
          CALL pwdft_env_get(pwdft_env=pwdft_env, qs_subsys=qs_subsys)
