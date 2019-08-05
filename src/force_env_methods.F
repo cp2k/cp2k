@@ -183,7 +183,7 @@ CONTAINS
 !> \brief Interface routine for force and energy calculations
 !> \param force_env the force_env of which you want the energy and forces
 !> \param calc_force if false the forces *might* be left unchanged
-!>        or be unvalid, no guarantee on them is done.Defaults to true
+!>        or be invalid, no guarantees can be given. Defaults to true
 !> \param consistent_energies Performs an additional qs_ks_update_qs_env, so
 !>          that the energies are appropriate to the forces, they are in the
 !>          non-selfconsistent case not consistent to each other! [08.2005, TdK]
