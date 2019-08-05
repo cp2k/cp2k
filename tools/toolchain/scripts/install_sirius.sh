@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver="6.1.5"
-sirius_sha256="379f0a2e5208fd6d91c2bd4939c3a5c40002975fb97652946fa1bfe4a3ef97cb"
+sirius_ver="6.3.0"
+sirius_sha256="c957f17dfc502606a7f651f91d730d9e6ba4d2845194ea6a22f1d528d52a300e"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -199,9 +199,9 @@ case "$with_sirius" in
         require_env LIBVDWXC_LDFLAGS
         require_env LIBVDWXC_LIBS
 
-        check_lib -lsirius_f "sirius_f"
+        check_lib -lsirius "sirius"
         add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
-        add_lib_from_paths SIRIUS_LDFLAGS "libsirius_f.*" $LIB_PATHS
+        add_lib_from_paths SIRIUS_LDFLAGS "libsirius.*" $LIB_PATHS
         ;;
     *)
         echo "==================== Linking SIRIUS_Dist to user paths ===================="
@@ -212,7 +212,7 @@ case "$with_sirius" in
         ;;
 esac
 if [ "$with_sirius" != "__DONTUSE__" ] ; then
-    SIRIUS_LIBS="-lsirius_f IF_CUDA(-lsirius_cu -lcusolver|)"
+    SIRIUS_LIBS="-lsirius IF_CUDA(-lcusolver|)"
     SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
     SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
