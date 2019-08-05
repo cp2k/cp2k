@@ -2,36 +2,36 @@
   METHOD SIRIUS
   &PW_DFT
     &CONTROL
-      cyclic_block_size 16
-      processing_unit cpu
-      std_evp_solver_type lapack
-      gen_evp_solver_type lapack
-      verbosity 1
-      reduce_gvec true
+      CYCLIC_BLOCK_SIZE 16
+      PROCESSING_UNIT cpu
+      STD_EVP_SOLVER_TYPE lapack
+      GEN_EVP_SOLVER_TYPE lapack
+      VERBOSITY 1
+      REDUCE_GVEC true
     &END CONTROL
     &PARAMETERS
-      electronic_structure_method pseudopotential
-      smearing_width 0.02
-      use_symmetry true
-      num_mag_dims 1
-      gk_cutoff 6.0
-      pw_cutoff 25.00
-      energy_tol 1e-8
-      num_dft_iter 100
-      ngridk 2 2 2
+      ELECTRONIC_STRUCTURE_METHOD pseudopotential
+      SMEARING_WIDTH 0.02
+      USE_SYMMETRY true
+      NUM_MAG_DIMS 1
+      GK_CUTOFF 6.0
+      PW_CUTOFF 25.00
+      ENERGY_TOL 1e-8
+      NUM_DFT_ITER 100
+      K_GRID 2 2 2
     &END PARAMETERS
     &ITERATIVE_SOLVER
-      energy_tolerance 1e-2
-      residual_tolerance 1e-6
-      num_steps 20
-      subspace_size 4
-      type davidson
-      converge_by_energy 1
+      ENERGY_TOLERANCE 1e-2
+      RESIDUAL_TOLERANCE 1e-6
+      NUM_STEPS 20
+      SUBSPACE_SIZE 4
+      TYPE davidson
+      CONVERGE_BY_ENERGY 1
     &END ITERATIVE_SOLVER
     &MIXER
-      beta 0.7
-      type broyden1
-      max_history 8
+      BETA 0.7
+      TYPE broyden1
+      MAX_HISTORY 8
     &END MIXER
   &END PW_DFT
   &DFT
