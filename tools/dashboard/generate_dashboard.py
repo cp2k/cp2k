@@ -556,6 +556,10 @@ def retrieve_report(url):
         if r.status_code == 304:  # Not Modified - cache hit
             return data_file.read_text()
 
+        # check report size
+        report_size = int(r.headers['Content-Length'])
+        assert report_size < 3*1024*1024  # 3 MB
+
         # cache miss - store response
         if 'ETag' in r.headers:
             data_file.write_text(r.text)
