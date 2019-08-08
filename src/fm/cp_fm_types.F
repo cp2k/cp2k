@@ -290,19 +290,14 @@ CONTAINS
       INTEGER :: handle, icol_global, icol_local, irow_local, my_ncol, my_start_col, ncol_global, &
          ncol_local, nrow_global, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL, SAVE                                      :: FIRST = .TRUE.
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buff
-      REAL(KIND=dp), DIMENSION(3, 2), SAVE               :: seed
+      REAL(KIND=dp), DIMENSION(3, 2), SAVE :: &
+         seed = RESHAPE((/1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp/), (/3, 2/))
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(rng_stream_type)                              :: rng
 
       CALL timeset(routineN, handle)
 
-      ! first setup a parallel rng
-      IF (FIRST) THEN
-         seed(:, :) = RESHAPE((/1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp/), (/3, 2/))
-         FIRST = .FALSE.
-      ENDIF
       ! guarantee same seed over all tasks
       CALL mp_bcast(seed, 0, matrix%matrix_struct%para_env%group)
 
@@ -346,7 +341,7 @@ CONTAINS
       DEALLOCATE (buff)
 
       ! store seed before deletion (unclear if this is the proper seed)
-      CALL rng%get(ig=seed)
+      CALL rng%get(cg=seed)
 
       CALL timestop(handle)
 
