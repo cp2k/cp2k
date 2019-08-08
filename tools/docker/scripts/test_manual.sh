@@ -25,6 +25,7 @@ cp ${TOOLS}/manual/toggle_folding.js .
 set +e # disable error trapping for remainder of script
 (
 set -e # abort if error is encountered
+sed -i 's/\x0/?/g' cp2k_input.xml  # replace null bytes which would crash saxon
 SAXON="java -jar /usr/share/java/Saxon-HE.jar"
 $SAXON -o:index.html ./cp2k_input.xml ${TOOLS}/manual/cp2k_input.xsl add_edit_links=yes
 $SAXON -o:cp2k.vim   ./cp2k_input.xml ${TOOLS}/input_editing/vim/vim.xsl
