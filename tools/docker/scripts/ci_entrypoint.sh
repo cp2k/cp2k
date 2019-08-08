@@ -25,9 +25,10 @@ if [ -n "${GIT_REF}" ]; then
 
 elif [ -d  /mnt/cp2k ]; then
     echo -e "\n========== Copying Changed Files =========="
-    # Since this is for debugging, we assume the image was built on the same
-    # host and we can rely on rsync's default algorithm which uses timestamps.
-    rsync --delete                               \
+    # We can't rely on timestamps as they depend on the git checkout time.
+    # Hence, we use checksums despite the IO because a full rebuild would be even more costly.
+    rsync --checksum                             \
+          --delete                               \
           --executability                        \
           --verbose                              \
           --recursive                            \
