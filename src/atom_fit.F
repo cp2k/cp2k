@@ -19,14 +19,20 @@ MODULE atom_fit
                                               atom_write_pseudo_param
    USE atom_types,                      ONLY: &
         GTO_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, atom_p_type, &
-        atom_potential_type, atom_type, create_opgrid, lmat, opgrid_type, release_opgrid, set_atom
+        atom_potential_type, atom_type, create_opgrid, create_opmat, lmat, opgrid_type, &
+        opmat_type, release_opgrid, release_opmat, set_atom
    USE atom_utils,                      ONLY: &
-        atom_completeness, atom_condnumber, atom_consistent_method, atom_denmat, atom_density, &
-        atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, get_maxn_occ, &
-        integrate_grid
+        atom_completeness, atom_condnumber, atom_consistent_method, atom_core_density, &
+        atom_denmat, atom_density, atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, &
+        atom_wfnr0, get_maxn_occ, integrate_grid
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE input_constants,                 ONLY: do_analytic
+   USE input_constants,                 ONLY: do_analytic,&
+                                              do_rhf_atom,&
+                                              do_rks_atom,&
+                                              do_rohf_atom,&
+                                              do_uhf_atom,&
+                                              do_uks_atom
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -495,7 +501,7 @@ CONTAINS
                                                             n10, np, nre, nreinit, ntarget
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
       INTEGER, DIMENSION(0:lmat)                         :: ncore
-      LOGICAL                                            :: explicit
+      LOGICAL                                            :: explicit, noopt_nlcc, preopt_nlcc
       REAL(KIND=dp) :: afun, charge, de, deig, drho, dx, eig, fopt, oc, pchg, peig, pv, rcm, rcov, &
          rmax, semicore_level, step_size_scaling, t_ener, t_psir0, t_semi, t_valence, t_virt, &
          w_ener, w_node, w_psir0, w_semi, w_valence, w_virt, wtot
@@ -531,6 +537,9 @@ CONTAINS
       CALL section_vals_val_get(powell_section, "TARGET_DELTA_ENERGY", r_val=t_ener)
 
       CALL section_vals_val_get(powell_section, "SEMICORE_LEVEL", r_val=semicore_level)
+
+      CALL section_vals_val_get(powell_section, "NOOPT_NLCC", l_val=noopt_nlcc)
+      CALL section_vals_val_get(powell_section, "PREOPT_NLCC", l_val=preopt_nlcc)
 
       n = SIZE(atom_info, 1)
       m = SIZE(atom_info, 2)
@@ -572,9 +581,16 @@ CONTAINS
          CALL open_file(file_name="POWELL_RESULT", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
       END IF
 
+      IF (ppot%gth_pot%nlcc) THEN
+         CALL opt_nlcc_param(atom_info, atom_refs, ppot%gth_pot, iunit, preopt_nlcc)
+      ELSE
+         noopt_nlcc = .TRUE.
+         preopt_nlcc = .FALSE.
+      END IF
+
       ALLOCATE (xi(200))
       !decide here what to optimize
-      CALL get_pseudo_param(xi, ostate%nvar, ppot%gth_pot)
+      CALL get_pseudo_param(xi, ostate%nvar, ppot%gth_pot, noopt_nlcc)
       ALLOCATE (x(ostate%nvar))
       x(1:ostate%nvar) = xi(1:ostate%nvar)
       DEALLOCATE (xi)
@@ -602,7 +618,7 @@ CONTAINS
                IF (atom%state%multiplicity == -1) THEN
                   ! no spin polarization
                   atom%weight = wem(i, j)
-                  ncore = get_maxn_occ(atom_info(i, j)%atom%state%core)
+                  ncore = get_maxn_occ(atom%state%core)
                   DO l = 0, lmat
                      np = atom%state%maxn_calc(l)
                      DO k = 1, np
@@ -773,7 +789,7 @@ CONTAINS
       ALLOCATE (xi(ostate%nvar))
       DO nre = 1, nreinit
          xi(:) = x(:)
-         CALL put_pseudo_param(x, ppot%gth_pot)
+         CALL put_pseudo_param(x, ppot%gth_pot, noopt_nlcc)
          CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .TRUE.)
          IF (nre == 1) THEN
             WRITE (iunit, '(/," POWELL| Initial errors of target values")')
@@ -910,7 +926,7 @@ CONTAINS
          DO
 
             IF (ostate%state == 2) THEN
-               CALL put_pseudo_param(x, ppot%gth_pot)
+               CALL put_pseudo_param(x, ppot%gth_pot, noopt_nlcc)
                CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .FALSE.)
                fopt = MIN(fopt, ostate%f)
             END IF
@@ -925,7 +941,7 @@ CONTAINS
             IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0 .AND. ostate%nf > 2) THEN
                WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &
                   INT(REAL(ostate%nf, dp)/REAL(ostate%maxfun, dp)*100._dp), fopt
-               CALL put_pseudo_param(ostate%xopt, ppot%gth_pot)
+               CALL put_pseudo_param(ostate%xopt, ppot%gth_pot, noopt_nlcc)
                CALL atom_write_pseudo_param(ppot%gth_pot)
             END IF
 
@@ -943,7 +959,7 @@ CONTAINS
          END IF
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, x, ostate)
-         CALL put_pseudo_param(x, ppot%gth_pot)
+         CALL put_pseudo_param(x, ppot%gth_pot, noopt_nlcc)
          CALL atom_write_pseudo_param(ppot%gth_pot)
          ! dx < SQRT(ostate%rhoend)
          IF ((dx*dx) < ostate%rhoend) EXIT
@@ -955,7 +971,7 @@ CONTAINS
          WRITE (iunit, '(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
          WRITE (iunit, '(" POWELL| Final value of function",T61,F20.10)') ostate%fopt
 
-         CALL put_pseudo_param(x, ppot%gth_pot)
+         CALL put_pseudo_param(x, ppot%gth_pot, noopt_nlcc)
          CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .FALSE.)
          afun = wtot*ostate%f
 
@@ -1144,6 +1160,135 @@ CONTAINS
       END IF
 
    END SUBROUTINE atom_fit_pseudo
+
+! **************************************************************************************************
+!> \brief Fit NLCC density on core densities
+!> \param atom_info ...
+!> \param atom_refs ...
+!> \param gthpot ...
+!> \param iunit ...
+!> \param preopt_nlcc ...
+! **************************************************************************************************
+   SUBROUTINE opt_nlcc_param(atom_info, atom_refs, gthpot, iunit, preopt_nlcc)
+      TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info, atom_refs
+      TYPE(atom_gthpot_type), INTENT(inout)              :: gthpot
+      INTEGER, INTENT(in)                                :: iunit
+      LOGICAL, INTENT(in)                                :: preopt_nlcc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'opt_nlcc_param', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, im, j, k, method
+      REAL(KIND=dp)                                      :: rcov, zcore, zrc, zrch
+      TYPE(atom_type), POINTER                           :: aref, atom
+      TYPE(opgrid_type), POINTER                         :: corden, den, den1, den2, density
+      TYPE(opmat_type), POINTER                          :: denmat, dma, dmb
+
+      CPASSERT(gthpot%nlcc)
+
+      IF (iunit > 0) THEN
+         WRITE (iunit, '(/," Core density information")')
+         WRITE (iunit, '(A,T37,A,T55,A,T75,A)') "     State       Density:", "Full", "Rcov/2", "Rcov/4"
+      END IF
+
+      rcov = ptable(atom_refs(1, 1)%atom%z)%covalent_radius*bohr
+      atom => atom_info(1, 1)%atom
+      NULLIFY (density)
+      CALL create_opgrid(density, atom%basis%grid)
+      density%op = 0.0_dp
+      im = 0
+      DO i = 1, SIZE(atom_info, 1)
+         DO j = 1, SIZE(atom_info, 2)
+            atom => atom_info(i, j)%atom
+            aref => atom_refs(i, j)%atom
+            IF (atom_consistent_method(atom%method_type, atom%state%multiplicity)) THEN
+               NULLIFY (den, denmat)
+               CALL create_opgrid(den, atom%basis%grid)
+               CALL create_opmat(denmat, atom%basis%nbas)
+
+               method = atom%method_type
+               SELECT CASE (method)
+               CASE (do_rks_atom, do_rhf_atom)
+                  CALL atom_denmat(denmat%op, aref%orbitals%wfn, &
+                                   atom%basis%nbas, atom%state%core, &
+                                   aref%state%maxl_occ, aref%state%maxn_occ)
+               CASE (do_uks_atom, do_uhf_atom)
+                  NULLIFY (dma, dmb)
+                  CALL create_opmat(dma, atom%basis%nbas)
+                  CALL create_opmat(dmb, atom%basis%nbas)
+                  CALL atom_denmat(dma%op, aref%orbitals%wfna, &
+                                   atom%basis%nbas, atom%state%core, &
+                                   aref%state%maxl_occ, aref%state%maxn_occ)
+                  CALL atom_denmat(dmb%op, aref%orbitals%wfnb, &
+                                   atom%basis%nbas, atom%state%core, &
+                                   aref%state%maxl_occ, aref%state%maxn_occ)
+                  denmat%op = 0.5_dp*(dma%op+dmb%op)
+                  CALL release_opmat(dma)
+                  CALL release_opmat(dmb)
+               CASE (do_rohf_atom)
+                  CPABORT("")
+               CASE DEFAULT
+                  CPABORT("")
+               END SELECT
+
+               im = im+1
+               CALL atom_density(den%op, denmat%op, atom%basis, aref%state%maxl_occ, typ="RHO")
+               density%op = density%op+den%op
+               zcore = integrate_grid(den%op, atom%basis%grid)
+               zcore = fourpi*zcore
+               NULLIFY (den1, den2)
+               CALL create_opgrid(den1, atom%basis%grid)
+               CALL create_opgrid(den2, atom%basis%grid)
+               den1%op = 0.0_dp
+               den2%op = 0.0_dp
+               DO k = 1, atom%basis%grid%nr
+                  IF (atom%basis%grid%rad(k) < 0.50_dp*rcov) THEN
+                     den1%op(k) = den%op(k)
+                  END IF
+                  IF (atom%basis%grid%rad(k) < 0.25_dp*rcov) THEN
+                     den2%op(k) = den%op(k)
+                  END IF
+               END DO
+               zrc = integrate_grid(den1%op, atom%basis%grid)
+               zrc = fourpi*zrc
+               zrch = integrate_grid(den2%op, atom%basis%grid)
+               zrch = fourpi*zrch
+               CALL release_opgrid(den1)
+               CALL release_opgrid(den2)
+               CALL release_opgrid(den)
+               CALL release_opmat(denmat)
+               IF (iunit > 0) THEN
+                  WRITE (iunit, '(2I5,T31,F10.4,T51,F10.4,T71,F10.4)') i, j, zcore, zrc, zrch
+               END IF
+            END IF
+         END DO
+      END DO
+      density%op = density%op/REAL(im, KIND=dp)
+      !
+      IF (preopt_nlcc) THEN
+         gthpot%nexp_nlcc = 1
+         gthpot%nct_nlcc = 0
+         gthpot%cval_nlcc = 0._dp
+         gthpot%alpha_nlcc = 0._dp
+         gthpot%nct_nlcc(1) = 1
+         gthpot%cval_nlcc(1, 1) = 1.0_dp
+         gthpot%alpha_nlcc(1) = gthpot%rc
+         NULLIFY (corden)
+         CALL create_opgrid(corden, atom%basis%grid)
+         CALL atom_core_density(corden%op, atom%potential, typ="RHO", rr=atom%basis%grid%rad)
+         DO k = 1, atom%basis%grid%nr
+            IF (atom%basis%grid%rad(k) > 0.25_dp*rcov) THEN
+               corden%op(k) = 0.0_dp
+            END IF
+         END DO
+         zrc = integrate_grid(corden%op, atom%basis%grid)
+         zrc = fourpi*zrc
+         gthpot%cval_nlcc(1, 1) = zrch/zrc
+         CALL release_opgrid(corden)
+      END IF
+      CALL release_opgrid(density)
+
+   END SUBROUTINE opt_nlcc_param
+
 ! **************************************************************************************************
 !> \brief Low level routine to fit an atomic electron density.
 !> \param density  electron density on an atomic radial grid 'atom%basis%grid'
@@ -1552,11 +1697,13 @@ CONTAINS
 !> \param pvec ...
 !> \param nval ...
 !> \param gthpot ...
+!> \param noopt_nlcc ...
 ! **************************************************************************************************
-   SUBROUTINE get_pseudo_param(pvec, nval, gthpot)
+   SUBROUTINE get_pseudo_param(pvec, nval, gthpot, noopt_nlcc)
       REAL(KIND=dp), DIMENSION(:), INTENT(out)           :: pvec
       INTEGER, INTENT(out)                               :: nval
       TYPE(atom_gthpot_type), INTENT(in)                 :: gthpot
+      LOGICAL, INTENT(in)                                :: noopt_nlcc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_pseudo_param', &
          routineP = moduleN//':'//routineN
@@ -1592,7 +1739,7 @@ CONTAINS
                END DO
             END DO
          END IF
-         IF (gthpot%nlcc) THEN
+         IF (gthpot%nlcc .AND. (.NOT. noopt_nlcc)) THEN
             DO j = 1, gthpot%nexp_nlcc
                ival = ival+1
                pvec(ival) = rcpro(-1, gthpot%alpha_nlcc(j))
@@ -1628,10 +1775,12 @@ CONTAINS
 !> \brief ...
 !> \param pvec ...
 !> \param gthpot ...
+!> \param noopt_nlcc ...
 ! **************************************************************************************************
-   SUBROUTINE put_pseudo_param(pvec, gthpot)
+   SUBROUTINE put_pseudo_param(pvec, gthpot, noopt_nlcc)
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: pvec
       TYPE(atom_gthpot_type), INTENT(inout)              :: gthpot
+      LOGICAL, INTENT(in)                                :: noopt_nlcc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'put_pseudo_param', &
          routineP = moduleN//':'//routineN
@@ -1665,7 +1814,7 @@ CONTAINS
                END DO
             END DO
          END IF
-         IF (gthpot%nlcc) THEN
+         IF (gthpot%nlcc .AND. (.NOT. noopt_nlcc)) THEN
             DO j = 1, gthpot%nexp_nlcc
                ival = ival+1
                gthpot%alpha_nlcc(j) = rcpro(1, pvec(ival))
