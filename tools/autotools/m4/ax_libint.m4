@@ -51,8 +51,9 @@ AS_IF([test "$with_libint" != "no"],
                 [libint2_found="yes"])
        ])
 
-       AC_SUBST(LIBINT2_CFLAGS)
-       AC_SUBST(LIBINT2_LIBS)
-       AC_SUBST(LIBINT2_FFLAGS)
+       AC_SUBST(LIBINT_CFLAGS)
+       AC_SUBST(LIBINT_LIBS)
+       AC_SUBST(LIBINT_FFLAGS)
+       AC_SUBST(LIBINT_LDFLAGS)
        AS_IF([test "$libint2_found" == "yes"], [$1], [$2])
 ])

@@ -190,12 +190,12 @@ CONTAINS
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("parameters"))
-         CALL section_vals_val_get(pwdft_sub_section, "k_grid", i_vals=kk)
+         CALL section_vals_val_get(pwdft_sub_section, "ngridk", i_vals=kk)
          k_grid(1) = kk(1)
          k_grid(2) = kk(2)
          k_grid(3) = kk(3)
 
-         CALL section_vals_val_get(pwdft_sub_section, "k_shift", i_vals=kk)
+         CALL section_vals_val_get(pwdft_sub_section, "shiftk", i_vals=kk)
          k_shift(1) = kk(1)
          k_shift(2) = kk(2)
          k_shift(3) = kk(3)
