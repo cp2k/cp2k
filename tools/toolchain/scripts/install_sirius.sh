@@ -2,8 +2,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver="6.3.0"
-sirius_sha256="c957f17dfc502606a7f651f91d730d9e6ba4d2845194ea6a22f1d528d52a300e"
+sirius_ver="6.3.2"
+sirius_sha256="1723e5ad338dad9a816369a6957101b2cae7214425406b12e8712c82447a7ee5"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -127,19 +128,14 @@ case "$with_sirius" in
                   -DCMAKE_CXX_COMPILER=mpic++ \
                   -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .."
 
-             cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+            cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
                   -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                   -DCMAKE_CXX_COMPILER=mpic++ \
                   -DCMAKE_C_COMPILER=mpicc \
-                  ${COMPILATION_OPTIONS} .. > compile.log 2>&1
-             make -j $NPROCS -C src >> compile.log 2>&1
-
-            install -d ${pkg_install_dir}/include >> install.log 2>&1
-            install -d ${pkg_install_dir}/lib >> install.log 2>&1
-            cp -R ../src/* ${pkg_install_dir}/include >> install.log 2>&1
-            install -m 644 src/*.a ${pkg_install_dir}/lib >> install.log 2>&1
-            install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include >> install.log 2>&1
+                  ${COMPILATION_OPTIONS} -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} .. > compile.log 2>&1
+            make -j $NPROCS >> compile.log 2>&1
+	        make install >> compile.log 2>&1
             cd ..
 
             # now do we have cuda as well
@@ -154,16 +150,14 @@ case "$with_sirius" in
                       -DUSE_CUDA=ON \
                       -DGPU_MODEL=P100 \
                       -DCMAKE_CXX_COMPILER=mpic++ \
-                      -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
-                make -j $NPROCS -C src >> compile.log 2>&1
-                install -d ${pkg_install_dir}/lib/cuda
-                install -d ${pkg_install_dir}/include/cuda
-                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-                install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
-                SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
+                      -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda .. >> compile.log 2>&1
+                make -j $NPROCS >> compile.log 2>&1
+                make install >> compile.log 2>&1
+
+                SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}-cuda/lib' -Wl,-rpath='${pkg_install_dir}-cuda/lib'"
                 cd ..
             fi
-            SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/cuda'"
+            SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"
             SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
@@ -213,26 +207,26 @@ case "$with_sirius" in
 esac
 if [ "$with_sirius" != "__DONTUSE__" ] ; then
     SIRIUS_LIBS="-lsirius IF_CUDA(-lcusolver|)"
-    SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
+    SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}-cuda/lib' -Wl,-rpath='${pkg_install_dir}-cuda/lib'"
     SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
     if [ "$with_sirius" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_sirius"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib/cuda"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib/cuda"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib/cuda"
-prepend_path CPATH "$pkg_install_dir/include"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}-cuda/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}-cuda/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}-cuda/lib"
+prepend_path CPATH "${pkg_install_dir}/include"
 EOF
         cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
     fi
     cat <<EOF >> "${BUILDDIR}/setup_sirius"
-export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
-export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
+export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include|-I${pkg_install_dir}/include)"
+export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include|-I${pkg_install_dir}/include)"
 export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
+export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}-cuda/lib' -Wl,-rpath='${pkg_install_dir}-cuda/lib'"
 export SIRIUS_LIBS="${SIRIUS_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP("-D__SIRIUS"|)|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(IF_OMP("\${SIRIUS_CFLAGS}"|)|)"

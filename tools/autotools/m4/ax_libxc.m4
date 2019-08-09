@@ -16,7 +16,8 @@ AC_DEFUN([ACX_LIBXC],
                                           [PKG_CHECK_MODULES(LIBXC,
                                                              [libxc >= 4.3.0 libxcf90 >= 4.3.0 libxcf03 >= 4.3.0],
                                                              [pc_libxc_found="yes"
-							      libxc_found="yes"],
+							      libxc_found="yes"
+								xc_headers_found="yes"],
                                                              [pc_libxc_found="no"])
 			])
 			])
