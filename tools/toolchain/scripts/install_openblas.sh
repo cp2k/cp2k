@@ -4,6 +4,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 openblas_ver="0.3.6"  # Keep in sync with get_openblas_arch.sh.
 openblas_sha256="e64c8fe083832ffbc1459ab6c72f71d53afd3b36e8497c922a15a06b72e9002f"
+openblas_pkg="OpenBLAS-${openblas_ver}.tar.gz"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -29,17 +31,17 @@ case "$with_openblas" in
         if verify_checksums "${install_lock_file}" ; then
             echo "openblas-${openblas_ver} is already installed, skipping it."
         else
-            if [ -f OpenBLAS-${openblas_ver}.tar.gz ] ; then
-                echo "OpenBLAS-${openblas_ver}.tar.gz is found"
+            if [ -f ${openblas_pkg} ] ; then
+                echo "${openblas_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${openblas_sha256} \
                              https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
-                             -o OpenBLAS-${openblas_ver}.tar.gz
+                             -o ${openblas_pkg}
             fi
 
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
-            tar -zxf OpenBLAS-${openblas_ver}.tar.gz
+            tar -zxf ${openblas_pkg}
             cd OpenBLAS-${openblas_ver}
 
             for patch in "${PATCHES[@]}" ; do
