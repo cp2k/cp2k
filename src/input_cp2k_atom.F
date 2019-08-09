@@ -1223,6 +1223,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NOOPT_NLCC", &
+                          description="Don't optimize NLCC parameters.", &
+                          usage="NOOPT_NLCC T", &
+                          type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PREOPT_NLCC", &
+                          description="Optimize NLCC parameters by fitting core charge density.", &
+                          usage="PREOPT_NLCC T", &
+                          type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_powell_section
 
 ! **************************************************************************************************
