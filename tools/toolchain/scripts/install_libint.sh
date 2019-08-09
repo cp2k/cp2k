@@ -9,6 +9,7 @@ source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
 libint_ver="2.5.0"
+libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz"
 
 case "$LIBINT_LMAX" in
     4)
@@ -45,15 +46,15 @@ case "$with_libint" in
         if verify_checksums "${install_lock_file}" ; then
             echo "libint-${libint_ver} is already installed, skipping it."
         else
-            if [ -f libint_cp2k-${libint_ver}.tgz ] ; then
-                echo "libint_cp2k-${libint_ver}.tgz is found"
+            if [ -f ${libint_pkg} ] ; then
+                echo "${libint_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
                              https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz
             fi
 
             [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
-            tar -xzf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz
+            tar -xzf ${libint_pkg}
 
             echo "Installing from scratch into ${pkg_install_dir}"
             cd libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
