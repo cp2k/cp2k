@@ -81,6 +81,7 @@ MODULE force_env_methods
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE grrm_utils,                      ONLY: write_grrm
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
    USE input_constants,                 ONLY: &
@@ -204,10 +205,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
          routineP = moduleN//':'//routineN
+
       REAL(kind=dp), PARAMETER                           :: ateps = 1.0E-6_dp
 
       INTEGER                                            :: i, j, nat, ndigits, output_unit, &
-                                                            print_forces
+                                                            print_forces, print_grrm
       LOGICAL                                            :: calculate_forces, &
                                                             calculate_stress_tensor, &
                                                             energy_consistency, eval_ef, &
@@ -420,6 +422,16 @@ CONTAINS
          CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
                                            "PRINT%PROGRAM_RUN_INFO")
       END IF
+
+      ! Print GRMM interface file
+      print_grrm = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%GRRM",&
+                                        file_position="REWIND", extension=".rrm")
+      IF ((print_grrm > 0) .AND. calculate_forces) THEN
+         CALL force_env_get(force_env, subsys=subsys)
+         CALL cp_subsys_get(subsys, particles=particles)
+         CALL write_grrm(print_grrm, particles%els, e_pot)
+      END IF
+      CALL cp_print_key_finished_output(print_grrm, logger, force_env%force_env_section, "PRINT%GRRM")
 
       ! Atomic stress
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &

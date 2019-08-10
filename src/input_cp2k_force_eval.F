@@ -12,6 +12,7 @@
 MODULE input_cp2k_force_eval
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
+                                              debug_print_level,&
                                               high_print_level,&
                                               low_print_level,&
                                               medium_print_level
@@ -364,6 +365,12 @@ CONTAINS
                           repeats=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "GRRM", &
+                                       description="Controls the printing of the GRRM interface file", &
+                                       print_level=debug_print_level, filename="CP2K_GRMM")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

@@ -52,6 +52,7 @@ MODULE vibrational_analysis
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE grrm_utils,                      ONLY: write_grrm
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
@@ -107,7 +108,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
          iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, nRotTrM, nvib, output_unit, &
-         output_unit_eig, prep, proc_dist_type
+         output_unit_eig, prep, proc_dist_type, print_grrm
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
@@ -129,10 +130,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, &
                                                             mode_tracking_section, print_section, &
                                                             vib_section
-
-!      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-
-!      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
       NULLIFY (D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, &
@@ -400,6 +397,19 @@ CONTAINS
                   Hessian(j, i) = Hessian(i, j)
                END DO
             END DO
+            !
+            ! Print GRMM interface file
+            print_grrm = cp_print_key_unit_nr(logger, force_env_section, "PRINT%GRRM",&
+                                              file_position="REWIND",extension=".rrm")
+            IF (print_grrm > 0) THEN
+               DO i = 1, natoms
+                  imap = Mlist(i)
+                  particles(imap)%f(1:3) = rep_env%f((imap-1)*3+1:(imap-1)*3+3, 1)
+               ENDDO
+               CALL write_grrm(print_grrm, particles, minimum_energy, hessian=hessian)
+            END IF
+            CALL cp_print_key_finished_output(print_grrm, logger, force_env_section, "PRINT%GRRM")
+            !
             nvib = ncoord-nRotTrM
             ALLOCATE (H_eigval1(ncoord))
             ALLOCATE (H_eigval2(SIZE(D, 2)))
