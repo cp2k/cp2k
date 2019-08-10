@@ -111,6 +111,9 @@ MODULE force_env_methods
                                               mixed_environment_type
    USE mixed_environment_utils,         ONLY: get_subsys_map_index,&
                                               mixed_map_forces
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
+   USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                              molecule_kind_type
    USE optimize_dmfet_potential,        ONLY: build_full_dm,&
                                               check_dmfet,&
                                               prepare_dmfet_opt,&
@@ -208,8 +211,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
       REAL(kind=dp), PARAMETER                           :: ateps = 1.0E-6_dp
 
-      INTEGER                                            :: i, j, nat, ndigits, output_unit, &
-                                                            print_forces, print_grrm
+      INTEGER                                            :: i, ikind, j, nat, ndigits, nfixed_atoms, &
+                                                            nfixed_atoms_total, nkind, &
+                                                            output_unit, print_forces, print_grrm
       LOGICAL                                            :: calculate_forces, &
                                                             calculate_stress_tensor, &
                                                             energy_consistency, eval_ef, &
@@ -222,6 +226,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(virial_type), POINTER                         :: virial
@@ -435,8 +442,19 @@ CONTAINS
                                         file_position="REWIND", extension=".rrm")
       IF (print_grrm > 0) THEN
          CALL force_env_get(force_env, subsys=subsys)
-         CALL cp_subsys_get(subsys, particles=particles)
-         CALL write_grrm(print_grrm, particles%els, e_pot)
+         CALL cp_subsys_get(subsys=subsys, particles=particles, &
+                            molecule_kinds=molecule_kinds)
+         ! Count the number of fixed atoms
+         nfixed_atoms_total = 0
+         nkind = molecule_kinds%n_els
+         molecule_kind_set => molecule_kinds%els
+         DO ikind = 1, nkind
+            molecule_kind => molecule_kind_set(ikind)
+            CALL get_molecule_kind(molecule_kind, nfixd=nfixed_atoms)
+            nfixed_atoms_total = nfixed_atoms_total+nfixed_atoms
+         END DO
+         !
+         CALL write_grrm(print_grrm, particles%els, e_pot, fixed_atoms=nfixed_atoms_total)
       END IF
       CALL cp_print_key_finished_output(print_grrm, logger, force_env%force_env_section, "PRINT%GRRM")
 

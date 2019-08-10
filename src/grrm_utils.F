@@ -36,8 +36,9 @@ CONTAINS
 !> \param hessian ...
 !> \param dipder ...
 !> \param polar ...
+!> \param fixed_atoms ...
 ! **************************************************************************************************
-   SUBROUTINE write_grrm(iounit, particles, energy, dipole, hessian, dipder, polar)
+   SUBROUTINE write_grrm(iounit, particles, energy, dipole, hessian, dipder, polar, fixed_atoms)
 
       INTEGER, INTENT(IN)                                :: iounit
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particles
@@ -47,6 +48,7 @@ CONTAINS
          OPTIONAL                                        :: hessian, dipder
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: polar
+      INTEGER, INTENT(IN), OPTIONAL                      :: fixed_atoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_grrm', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
@@ -56,6 +58,7 @@ CONTAINS
 
       IF (iounit > 0) THEN
          natom = SIZE(particles)
+         IF (PRESENT(fixed_atoms)) natom = natom-fixed_atoms
          WRITE (iounit, "(A7)") "RESULTS"
          WRITE (iounit, "(A18)") "CURRENT COORDINATE"
          DO i = 1, natom
@@ -77,8 +80,7 @@ CONTAINS
          fz = zero
          WRITE (iounit, "(A7)") "HESSIAN"
          IF (PRESENT(hessian)) THEN
-            nc = SIZE(hessian, 1)
-            CPASSERT(nc == 3*natom)
+            nc = 3*natom
             DO i = 1, nc, 5
                DO j = i, nc
                   WRITE (iounit, "(5(F13.9,1X))") hessian(j, i:MIN(j, i + 4))
