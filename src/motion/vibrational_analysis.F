@@ -411,7 +411,7 @@ CONTAINS
                ENDDO
                DO i = 1, ncoord
                   DO j = 1, ncoord
-                     Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
+                     Hint1(j, i) = -Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
                   END DO
                END DO
                CALL write_grrm(print_grrm, particles, minimum_energy, hessian=Hint1)
