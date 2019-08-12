@@ -407,10 +407,10 @@ CONTAINS
                ALLOCATE (Hint1(ncoord, ncoord), rmass(ncoord))
                DO i = 1, natoms
                   imap = Mlist(i)
-                  rmass(3*imap+1:3*imap+3) = mass(imap)
+                  rmass(3*(imap-1)+1:3*(imap-1)+3) = mass(imap)
                ENDDO
                DO i = 1, ncoord
-                  DO j = i, ncoord
+                  DO j = 1, ncoord
                      Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
                   END DO
                END DO
