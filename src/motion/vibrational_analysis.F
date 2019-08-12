@@ -38,13 +38,13 @@ MODULE vibrational_analysis
    USE cp_result_methods,               ONLY: get_results
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
+   USE grrm_utils,                      ONLY: write_grrm
    USE header,                          ONLY: vib_header
    USE input_constants,                 ONLY: do_rep_blocked
    USE input_section_types,             ONLY: section_type,&
@@ -52,7 +52,6 @@ MODULE vibrational_analysis
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE grrm_utils,                      ONLY: write_grrm
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
@@ -71,7 +70,6 @@ MODULE vibrational_analysis
    USE physcon,                         ONLY: &
         a_bohr, boltzmann, e_mass, h_bar, hertz, kelvin, kjmol, massunit, n_avogadro, pascal, &
         vibfac, wavenumbers
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -108,7 +106,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
          iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, nRotTrM, nvib, output_unit, &
-         output_unit_eig, prep, proc_dist_type, print_grrm
+         output_unit_eig, prep, print_grrm, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
@@ -399,8 +397,8 @@ CONTAINS
             END DO
             !
             ! Print GRMM interface file
-            print_grrm = cp_print_key_unit_nr(logger, force_env_section, "PRINT%GRRM",&
-                                              file_position="REWIND",extension=".rrm")
+            print_grrm = cp_print_key_unit_nr(logger, force_env_section, "PRINT%GRRM", &
+                                              file_position="REWIND", extension=".rrm")
             IF (print_grrm > 0) THEN
                DO i = 1, natoms
                   imap = Mlist(i)

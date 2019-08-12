@@ -81,9 +81,9 @@ MODULE force_env_methods
                                               finalizef,&
                                               initf,&
                                               parsef
-   USE grrm_utils,                      ONLY: write_grrm
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
+   USE grrm_utils,                      ONLY: write_grrm
    USE input_constants,                 ONLY: &
         debug_run, dfet, dmfet, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, &
         mix_minimum, mix_restrained, mixed_cdft_serial, use_bazant_eip, use_lenosky_eip
@@ -205,7 +205,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
          routineP = moduleN//':'//routineN
-
       REAL(kind=dp), PARAMETER                           :: ateps = 1.0E-6_dp
 
       INTEGER                                            :: i, j, nat, ndigits, output_unit, &
@@ -424,7 +423,7 @@ CONTAINS
       END IF
 
       ! Print GRMM interface file
-      print_grrm = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%GRRM",&
+      print_grrm = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%GRRM", &
                                         file_position="REWIND", extension=".rrm")
       IF ((print_grrm > 0) .AND. calculate_forces) THEN
          CALL force_env_get(force_env, subsys=subsys)
