@@ -93,6 +93,7 @@ case "$with_sirius" in
             tar -xzf SIRIUS-${sirius_ver}.tar.gz
             cd SIRIUS-${sirius_ver}
             cd src && sed -i -e "s/desciption/description/g" options.json && cd ..
+	        patch -Np1 -i ${SCRIPT_DIR}/patch-deactivate-libvdwxc-mpi.patch
             rm -Rf build
             mkdir build
             cd build
