@@ -425,7 +425,7 @@ CONTAINS
       ! Print GRMM interface file
       print_grrm = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%GRRM", &
                                         file_position="REWIND", extension=".rrm")
-      IF ((print_grrm > 0) .AND. calculate_forces) THEN
+      IF (print_grrm > 0) THEN
          CALL force_env_get(force_env, subsys=subsys)
          CALL cp_subsys_get(subsys, particles=particles)
          CALL write_grrm(print_grrm, particles%els, e_pot)
