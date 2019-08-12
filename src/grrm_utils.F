@@ -67,7 +67,7 @@ CONTAINS
          WRITE (iounit, "(A7,F17.12)") "S**2  =", zero
          WRITE (iounit, "(A8)") "GRADIENT"
          DO i = 1, natom
-            WRITE (iounit, "(F17.12)")-particles(i)%f(1:3)
+            WRITE (iounit, "(F17.12)") particles(i)%f(1:3)
          END DO
          IF (PRESENT(dipole)) THEN
             WRITE (iounit, "(A7,3F17.12)") "DIPOLE=", dipole(1:3)
