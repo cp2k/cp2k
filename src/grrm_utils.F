@@ -81,14 +81,14 @@ CONTAINS
             CPASSERT(nc == 3*natom)
             DO i = 1, nc, 5
                DO j = i, nc
-                  WRITE (iounit, "(5F17.12)") hessian(j, i:MIN(j, i+4))
+                  WRITE (iounit, "(5F14.9)") hessian(j, i:MIN(j, i+4))
                END DO
             END DO
          ELSE
             nc = 3*natom
             DO i = 1, nc, 5
                DO j = i, nc
-                  WRITE (iounit, "(5F17.12)") fz(1:MIN(j-i+1, 5))
+                  WRITE (iounit, "(5F14.9)") fz(1:MIN(j-i+1, 5))
                END DO
             END DO
          END IF

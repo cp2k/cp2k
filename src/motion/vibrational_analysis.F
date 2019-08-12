@@ -404,7 +404,18 @@ CONTAINS
                   imap = Mlist(i)
                   particles(imap)%f(1:3) = rep_env%f((imap-1)*3+1:(imap-1)*3+3, 1)
                ENDDO
-               CALL write_grrm(print_grrm, particles, minimum_energy, hessian=hessian)
+               ALLOCATE (Hint1(ncoord, ncoord), rmass(ncoord))
+               DO i = 1, natoms
+                  imap = Mlist(i)
+                  rmass(3*imap+1:3*imap+3) = mass(imap)
+               ENDDO
+               DO i = 1, ncoord
+                  DO j = i, ncoord
+                     Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
+                  END DO
+               END DO
+               CALL write_grrm(print_grrm, particles, minimum_energy, hessian=Hint1)
+               DEALLOCATE (Hint1, rmass)
             END IF
             CALL cp_print_key_finished_output(print_grrm, logger, force_env_section, "PRINT%GRRM")
             !
