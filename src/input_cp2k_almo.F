@@ -8,22 +8,23 @@
 !> \author Rustam Khaliullin
 ! **************************************************************************************************
 MODULE input_cp2k_almo
-   USE bibliography,                    ONLY: Khaliullin2007,&
-                                              Khaliullin2008,&
-                                              Khaliullin2013,&
-                                              Scheiber2018
+   USE bibliography,                    ONLY: Khaliullin2007, &
+                                              Khaliullin2008, &
+                                              Scheiber2018, &
+                                              Khaliullin2013
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               low_print_level
    USE input_constants,                 ONLY: &
         almo_deloc_none, almo_deloc_scf, almo_deloc_x, almo_deloc_x_then_scf, &
         almo_deloc_xalmo_1diag, almo_deloc_xalmo_scf, almo_deloc_xalmo_x, almo_frz_crystal, &
-        almo_frz_none, almo_occ_vol_penalty_lndet, almo_occ_vol_penalty_none, almo_scf_diag, &
+        almo_frz_none, almo_scf_diag, &
         almo_scf_pcg, almo_scf_skip, almo_scf_trustr, atomic_guess, cg_dai_yuan, cg_fletcher, &
         cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, &
         cg_zero, molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, &
         optimizer_trustr, spd_inversion_dense_cholesky, spd_inversion_ls_hotelling, &
         spd_inversion_ls_taylor, trustr_cauchy, trustr_dogleg, trustr_steihaug, xalmo_prec_domain, &
-        xalmo_prec_full, xalmo_prec_zero, xalmo_trial_r0_out, xalmo_trial_simplex
+        xalmo_prec_full, xalmo_prec_zero, xalmo_trial_r0_out, xalmo_trial_simplex, &
+        op_loc_berry, op_loc_pipek
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -46,6 +47,7 @@ MODULE input_cp2k_almo
    INTEGER, PARAMETER, PRIVATE :: optimizer_xalmo_pcg = 3
    INTEGER, PARAMETER, PRIVATE :: optimizer_xalmo_trustr = 4
    INTEGER, PARAMETER, PRIVATE :: optimizer_newton_pcg_solver = 5
+   INTEGER, PARAMETER, PRIVATE :: optimizer_nlmo_pcg = 6
 
    PUBLIC :: create_almo_scf_section
 
@@ -207,6 +209,12 @@ CONTAINS
                           "to Quickstep (i.e. for calculation of properties)", &
                           usage="RETURN_ORTHOGONALIZED_MOS .TRUE.", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section,keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword,__LOCATION__, name="CONSTRUCT_NLMOS", &
+                          description="Turns on post-SCF construction of NLMOs", &
+                          usage="CONSTRUCT_NLMOS .TRUE.", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -533,7 +541,7 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_penalty_section(subsection)
+      CALL create_optimizer_section(subsection, optimizer_nlmo_pcg)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -584,13 +592,22 @@ CONTAINS
       CASE (optimizer_block_diagonal_pcg)
          CALL section_create(section, __LOCATION__, name="ALMO_OPTIMIZER_PCG", &
                              description="Controls the PCG optimization of block-diagonal ALMOs.", &
-                             n_keywords=9, n_subsections=0, repeats=.FALSE.)
+                             n_keywords=9, n_subsections=1, repeats=.FALSE.)
          optimizer_type = optimizer_pcg
+      CASE (optimizer_nlmo_pcg)
+         CALL section_create(section, __LOCATION__, name="NLMO_OPTIMIZER_PCG", &
+                             description="Controls the PCG optimization of nonorthogonal localized MOs.", &
+                             n_keywords=9, n_subsections=1, repeats=.FALSE.)
+         optimizer_type = optimizer_pcg
+         NULLIFY (subsection)
+         CALL create_penalty_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
       CASE (optimizer_xalmo_pcg)
          CALL section_create(section, __LOCATION__, name="XALMO_OPTIMIZER_PCG", &
                              description="Controls the PCG optimization of extended ALMOs.", &
-                             n_keywords=10, n_subsections=1, repeats=.FALSE.)
-         NULLIFY (subsection)
+                             n_keywords=10, n_subsections=2, repeats=.FALSE.)
+         NULLIFY(subsection)
          CALL create_optimizer_section(subsection, optimizer_newton_pcg_solver)
          CALL section_add_subsection(section, subsection)
          CALL section_release(subsection)
@@ -792,6 +809,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (section)
@@ -842,33 +860,63 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (section)
 
       CALL section_create(section, __LOCATION__, name="PENALTY", &
                           description="Add penalty terms to the energy functional.", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
       CALL keyword_create( &
-         keyword, __LOCATION__, name="OCCUPIED_VOLUME_PENALTY_METHOD", &
-         description="Penalty that prevents nonorthogonal orbitals from becoming linear dependent.", &
-         usage="OCCUPIED_VOLUME_PENALTY_METHOD LNDET", &
-         default_i_val=almo_occ_vol_penalty_none, &
-         enum_c_vals=s2a("NONE", "LNDET"), &
-         enum_desc=s2a("Do not use penalties", &
-                       "Use -coeff*ln(det(MO-overlap)) term."), &
-         enum_i_vals=(/almo_occ_vol_penalty_none, almo_occ_vol_penalty_lndet/))
+         keyword, __LOCATION__, name="OPERATOR", &
+         description="Type of opertator which defines the spread functional", &
+         usage="OPERATOR PIPEK", &
+         enum_c_vals=s2a("BERRY", "PIPEK"), &
+         enum_i_vals=(/op_loc_berry, op_loc_pipek/), &
+         default_i_val=op_loc_berry)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OCCUPIED_VOLUME_PENALTY_COEFF", &
-                          description="Multiplication factor that determines the strength of the penalty term.", &
-                          usage="OCCUPIED_VOLUME_PENALTY_COEFF 10.0", default_r_val=1.0_dp)
+      CALL keyword_create(keyword, __LOCATION__, name="PENALTY_STRENGTH", &
+         description="Strength of the orthogonalization penalty", &
+         usage="PENALTY_STRENGTH 1.1", default_r_val=1.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PENALTY_STRENGTH_DECREASE_FACTOR", &
+         description="Factor that decreases the strength of the orthogonalization penalty.", &
+         usage="PENALTY_STRENGTH_DECREASE_FACTOR 1.1", default_r_val=1.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DETERMINANT_TOLERANCE", &
+         description="Stop the optimization of the penalty strength if the determinant of the overlap changes less than this tolerance threshold.", &
+         usage="DETERMINANT_TOLERANCE 1.0E-4", default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FINAL_DETERMINANT", &
+         description="The final determinant that obtained after optimization.", &
+         usage="FINAL_DETERMINANT 0.1", default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COMPACTIFICATION_FILTER_START", &
+         description="Set orbital coefficients with absolute value smaller than this value to zero.", &
+         usage="COMPACTIFICATION_FILTER_START 1.e-6", default_r_val=1.e-7_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword,__LOCATION__, name="VIRTUAL_NLMOS", &
+                          description="Localize virtual oribtals", &
+                          usage="VIRTUAL_NLMOS .TRUE.", default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
 
    END SUBROUTINE create_penalty_section
 

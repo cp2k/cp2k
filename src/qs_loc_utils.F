@@ -99,7 +99,7 @@ MODULE qs_loc_utils
 
 ! *** Public ***
    PUBLIC :: jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart, &
-             retain_history, qs_loc_init, &
+             retain_history, qs_loc_init, compute_berry_operator, &
              set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
 
 CONTAINS
@@ -278,7 +278,9 @@ CONTAINS
 
                ct = COS(theta)
                st = SIN(theta)
+
                CALL rotate_rmat_real(istate, jstate, st, ct, rmat)
+
                CALL rotate_zij_real(istate, jstate, st, ct, zij_fm_set)
             END DO
          END DO
@@ -649,21 +651,13 @@ CONTAINS
    END SUBROUTINE qs_loc_env_init
 
 ! **************************************************************************************************
-!> \brief Computes the Berry operator for periodic systems
-!>       used to define the spread of the MOS
-!>       Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu>
-!>       are computed, where mu and nu are the contracted basis functions.
-!>       Namely the Berry operator is exp(ikr)
-!>       k is defined somewhere
-!>       the pair lists are exploited and sparse matrixes are constructed
+!> \brief A wrapper to compute the Berry operator for periodic systems
 !> \param qs_loc_env new environment for the localization calculations
 !> \param qs_env the qs_env in which the qs_env lives
 !> \par History
 !>      04.2005 created [MI]
+!>      04.2018 modified [RZK, ZL]
 !> \author MI
-!> \note
-!>      The intgrals are computed analytically  using the primitives GTO
-!>      The contraction is performed block-wise
 ! **************************************************************************************************
    SUBROUTINE get_berry_operator(qs_loc_env, qs_env)
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
@@ -672,9 +666,50 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: dim_op, handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, &
+      INTEGER :: dim_op, handle, i, j
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell, op_sm_set)
+      CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set, &
+                          cell=cell, dim_op=dim_op)
+      CALL compute_berry_operator(qs_env, cell, op_sm_set, dim_op)
+
+
+      CALL timestop(handle)
+   END SUBROUTINE get_berry_operator
+
+! **************************************************************************************************
+!> \brief Computes the Berry operator for periodic systems
+!>       used to define the spread of the MOS
+!>       Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu>
+!>       are computed, where mu and nu are the contracted basis functions.
+!>       Namely the Berry operator is exp(ikr)
+!>       k is defined somewhere
+!>       the pair lists are exploited and sparse matrixes are constructed
+!> \param qs_env the qs_env in which the qs_env lives
+!> \par History
+!>      04.2005 created [MI]
+!>      04.2018 wrapped old code [RZK, ZL]
+!> \author MI
+!> \note
+!>      The intgrals are computed analytically  using the primitives GTO
+!>      The contraction is performed block-wise
+! **************************************************************************************************
+   SUBROUTINE compute_berry_operator(qs_env, cell, op_sm_set, dim_op)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
+      INTEGER                                            :: dim_op
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_berry_operator', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, jatom, jkind, jset, &
          last_jatom, ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, &
-         sgfb
+         sgfb, inub, jnub, j
       INTEGER, DIMENSION(3)                              :: perd0
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -686,8 +721,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cosab, rpgfa, rpgfb, sinab, sphi_a, &
                                                             sphi_b, work, zeta, zetb
       TYPE(block_p_type), DIMENSION(:), POINTER          :: op_cos, op_sin
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
@@ -699,9 +732,8 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
-
       NULLIFY (qs_kind, qs_kind_set)
-      NULLIFY (cell, op_sm_set, particle_set)
+      NULLIFY (particle_set)
       NULLIFY (sab_orb)
       NULLIFY (cosab, sinab, work)
       NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
@@ -721,9 +753,6 @@ CONTAINS
       sinab = 0.0_dp
       ALLOCATE (work(ldwork, ldwork))
       work = 0.0_dp
-
-      CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set, &
-                          cell=cell, dim_op=dim_op)
 
       ALLOCATE (op_cos(dim_op))
       ALLOCATE (op_sin(dim_op))
@@ -825,12 +854,12 @@ CONTAINS
 
          nrow = 0
          DO iset = 1, nseta
-
+ 
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
-
+    
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
@@ -838,7 +867,6 @@ CONTAINS
 
 !           *** Calculate the primitive overlap integrals ***
                   DO i = 1, dim_op
-
                      kvec(1:3) = vector_k(1:3, i)
                      cosab = 0.0_dp
                      sinab = 0.0_dp
@@ -846,7 +874,6 @@ CONTAINS
                                  la_min(iset), lb_max(jset), npgfb(jset), zetb(:, jset), &
                                  rpgfb(:, jset), lb_min(jset), &
                                  ra, rb, kvec, cosab, sinab)
-
                      CALL contract_cossin(op_cos(i)%block, op_sin(i)%block, &
                                           iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
                                           jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
@@ -876,7 +903,7 @@ CONTAINS
       DEALLOCATE (cosab, sinab, work, basis_set_list)
 
       CALL timestop(handle)
-   END SUBROUTINE get_berry_operator
+   END SUBROUTINE compute_berry_operator
 
 ! **************************************************************************************************
 !> \brief ...

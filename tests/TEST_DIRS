@@ -263,3 +263,4 @@ QS/regtest-sto
 QS/regtest-ri-laplace-mp2-cubic                             libint mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==16||mpiranks==24
 QS/regtest-dm-ls-scf-4
 QS/regtest-almo-trustr
+QS/regtest-nlmo

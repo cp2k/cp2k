@@ -75,9 +75,52 @@ MODULE almo_scf_methods
       distribute_domains, &
       almo_scf_ks_to_ks_xx, &
       construct_domain_r_down, &
-      xalmo_initial_guess
+      xalmo_initial_guess, &
+      fill_matrix_with_ones
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Fill all matrix blocks with 1.0_dp
+!> \par History
+!>       2019.09 created [Rustam Z Khaliullin]
+!> \author Rustam Z Khaliullin
+! **************************************************************************************************
+   SUBROUTINE fill_matrix_with_ones(matrix)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      INTEGER                                            :: col, hold, iblock_col, &
+                                                            iblock_row, ispin, mynode, &
+                                                            nblkcols_tot, nblkrows_tot, row
+      LOGICAL                                            :: tr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL dbcsr_get_info(matrix, distribution=dist)
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
+      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
+      nblkrows_tot = dbcsr_nblkrows_total(matrix)
+      nblkcols_tot = dbcsr_nblkcols_total(matrix)
+      DO row = 1, nblkrows_tot
+         DO col = 1, nblkcols_tot
+            tr = .FALSE.
+            iblock_row = row
+            iblock_col = col
+            CALL dbcsr_get_stored_coordinates(matrix, &
+                                              iblock_row, iblock_col, hold)
+            IF (hold .EQ. mynode) THEN
+               NULLIFY (p_new_block)
+               CALL dbcsr_reserve_block2d(matrix, &
+                                          iblock_row, iblock_col, p_new_block)
+               CPASSERT(ASSOCIATED(p_new_block))
+               p_new_block(:, :) = 1.0_dp
+            ENDIF
+         ENDDO
+      ENDDO
+      CALL dbcsr_finalize(matrix)
+
+   END SUBROUTINE fill_matrix_with_ones
 
 ! **************************************************************************************************
 !> \brief builds projected KS matrices for the overlapping domains

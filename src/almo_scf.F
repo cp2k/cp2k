@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief Routines for all ALMO-based SCF methods
-!>        RZK-warning marks unresolved issues
+!>        'RZK-warning' marks unresolved issues
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -19,6 +19,7 @@ MODULE almo_scf
    USE almo_scf_optimizer,              ONLY: almo_scf_block_diagonal,&
                                               almo_scf_xalmo_eigensolver,&
                                               almo_scf_xalmo_pcg,&
+                                              almo_scf_construct_nlmos,&
                                               almo_scf_xalmo_trustr
    USE almo_scf_qs,                     ONLY: almo_dm_to_almo_ks,&
                                               almo_scf_construct_quencher,&
@@ -57,7 +58,9 @@ MODULE almo_scf
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create, &
+        dbcsr_init_random, dbcsr_add, dbcsr_iterator_type, dbcsr_iterator_next_block, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_start, dbcsr_iterator_stop
    USE domain_submatrix_methods,        ONLY: init_submatrices,&
                                               release_submatrices
    USE input_constants,                 ONLY: &
@@ -70,7 +73,8 @@ MODULE almo_scf
         xalmo_case_block_diag, xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
    USE input_section_types,             ONLY: section_vals_type
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
-                                              matrix_sqrt_Newton_Schulz
+                                              matrix_sqrt_Newton_Schulz, &
+                                              determinant
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathlib,                         ONLY: binomial
@@ -91,6 +95,9 @@ MODULE almo_scf
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
+   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
+   USE message_passing,                 ONLY: mp_sum
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -141,6 +148,9 @@ CONTAINS
 
       ! allow electron delocalization
       CALL almo_scf_delocalization(qs_env, almo_scf_env)
+
+      ! construct NLMOs
+      CALL construct_nlmos(qs_env, almo_scf_env)
 
       ! electron correlation methods
       !CALL almo_correlation_main(qs_env,almo_scf_env)
@@ -198,6 +208,7 @@ CONTAINS
       almo_scf_env%opt_xalmo_diis%optimizer_type = optimizer_diis
       almo_scf_env%opt_xalmo_pcg%optimizer_type = optimizer_pcg
       almo_scf_env%opt_xalmo_trustr%optimizer_type = optimizer_trustr
+      almo_scf_env%opt_nlmo_pcg%optimizer_type = optimizer_pcg
       almo_scf_env%opt_xalmo_newton_pcg_solver%optimizer_type = optimizer_lin_eq_pcg
 
       ! get info from the qs_env
@@ -1658,6 +1669,440 @@ CONTAINS
 
    END SUBROUTINE almo_scf_delocalization
 
+! **************************************************************************************************
+!> \brief selects various post scf routines
+!> \param qs_env ...
+!> \param almo_scf_env ...
+!> \par History
+!>       2018.09 created [Ziling Luo]
+!> \author Ziling Luo
+! **************************************************************************************************
+   SUBROUTINE construct_nlmos(qs_env, almo_scf_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(almo_scf_env_type)                            :: almo_scf_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos', &
+         routineP = moduleN//':'//routineN
+      INTEGER                                            :: unit_nr, ispin
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      ! define the output_unit
+      logger => cp_get_default_logger()
+      IF (logger%para_env%ionode) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
+
+      IF (almo_scf_env%construct_nlmos) THEN
+
+         DO ispin = 1, almo_scf_env%nspins
+
+            CALL orthogonalize_mos(ket=almo_scf_env%matrix_t(ispin), &
+                                   overlap=almo_scf_env%matrix_sigma(ispin), &
+                                   metric=almo_scf_env%matrix_s(1), &
+                                   retain_locality=.FALSE., &
+                                   only_normalize=.FALSE., &
+                                   nocc_of_domain=almo_scf_env%nocc_of_domain(:,ispin), &
+                                   eps_filter=almo_scf_env%eps_filter, &
+                                   order_lanczos=almo_scf_env%order_lanczos, &
+                                   eps_lanczos=almo_scf_env%eps_lanczos, &
+                                   max_iter_lanczos=almo_scf_env%max_iter_lanczos)
+         ENDDO
+
+         CALL construct_nlmos_wrapper(qs_env, almo_scf_env, virtuals=.FALSE.)
+
+         IF (almo_scf_env%opt_nlmo_pcg%opt_penalty%virtual_nlmos) THEN
+           CALL construct_virtuals(almo_scf_env)
+           CALL construct_nlmos_wrapper(qs_env, almo_scf_env, virtuals=.TRUE.)
+         ENDIF
+
+         IF (almo_scf_env%opt_nlmo_pcg%opt_penalty%compactification_filter_start .GT. 0.0_dp) THEN
+           CALL nlmo_compactification(qs_env, almo_scf_env, almo_scf_env%matrix_t)
+         ENDIF
+
+      ENDIF
+
+   END SUBROUTINE construct_nlmos
+
+! **************************************************************************************************
+!> \brief selects various post scf routines
+!> \param qs_env ...
+!> \param almo_scf_env ...
+!> \par History
+!>       2019.10 created [Ziling Luo]
+!> \author Ziling Luo
+! **************************************************************************************************
+   SUBROUTINE construct_nlmos_wrapper(qs_env, almo_scf_env, virtuals)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      LOGICAL                                            :: virtuals
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos_wrapper', &
+         routineP = moduleN//':'//routineN
+      REAL(KIND=dp)                                      :: occ_vol_saved, initial_vol_coeff, &
+                                                            det_diff, prev_determinant
+
+         almo_scf_env%overlap_determinant=1.0
+         ! KEEP: initial_vol_coeff = almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength
+         almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength = &
+            -1.0_dp*almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength !NEW1
+
+         ! loop over the strength of the orthogonalization penalty
+         prev_determinant = 10.0_dp
+         DO WHILE (almo_scf_env%overlap_determinant .gt. almo_scf_env%opt_nlmo_pcg%opt_penalty%final_determinant) 
+
+            IF (.NOT.virtuals) THEN
+               CALL almo_scf_construct_nlmos(qs_env=qs_env, &
+                                             optimizer=almo_scf_env%opt_nlmo_pcg, &
+                                             matrix_s=almo_scf_env%matrix_s(1), &
+                                             matrix_mo_in=almo_scf_env%matrix_t, &
+                                             matrix_mo_out=almo_scf_env%matrix_t, &
+                                             template_matrix_sigma=almo_scf_env%matrix_sigma_inv, &
+                                             overlap_determinant=almo_scf_env%overlap_determinant, &
+                                             mat_distr_aos=almo_scf_env%mat_distr_aos, &
+                                             virtuals=virtuals, &
+                                             eps_filter=almo_scf_env%eps_filter)
+            ELSE
+               CALL almo_scf_construct_nlmos(qs_env=qs_env, &
+                                             optimizer=almo_scf_env%opt_nlmo_pcg, &
+                                             matrix_s=almo_scf_env%matrix_s(1), &
+                                             matrix_mo_in=almo_scf_env%matrix_v, &
+                                             matrix_mo_out=almo_scf_env%matrix_v, &
+                                             template_matrix_sigma=almo_scf_env%matrix_sigma_vv, &
+                                             overlap_determinant=almo_scf_env%overlap_determinant, &
+                                             mat_distr_aos=almo_scf_env%mat_distr_aos, &
+                                             virtuals=virtuals, &
+                                             eps_filter=almo_scf_env%eps_filter)
+
+            ENDIF
+
+
+            det_diff = prev_determinant - almo_scf_env%overlap_determinant
+            almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength = &
+               almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength / &
+               ABS(almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength_dec_factor)
+
+            IF (det_diff < almo_scf_env%opt_nlmo_pcg%opt_penalty%determinant_tolerance) THEN
+               EXIT
+            ENDIF
+            prev_determinant = almo_scf_env%overlap_determinant
+
+         ENDDO
+
+   END SUBROUTINE construct_nlmos_wrapper
+
+! **************************************************************************************************
+!> \brief selects various post scf routines
+!> \param qs_env ...
+!> \param almo_scf_env ...
+!> \par History
+!>       2019.10 created [Ziling Luo]
+!> \author Ziling Luo
+! **************************************************************************************************
+   SUBROUTINE construct_virtuals(almo_scf_env)
+
+      TYPE(almo_scf_env_type)                            :: almo_scf_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_virtuals', &
+         routineP = moduleN//':'//routineN
+      TYPE(dbcsr_type)                                   :: tempNV1, tempVOcc1, &
+                                                            tempVOcc2, tempVV1, &
+                                                            tempVV2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      REAL(KIND=dp)                                      :: det1
+      INTEGER                                            :: ispin, n
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+
+      DO ispin = 1, almo_scf_env%nspins
+
+         CALL dbcsr_create(tempNV1, &
+                           template=almo_scf_env%matrix_v(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(tempVOcc1, &
+                           template=almo_scf_env%matrix_vo(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(tempVOcc2, &
+                           template=almo_scf_env%matrix_vo(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(tempVV1, &
+                           template=almo_scf_env%matrix_sigma_vv(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(tempVV2, &
+                           template=almo_scf_env%matrix_sigma_vv(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+
+         ! Generate random virtual matrix
+         CALL dbcsr_init_random(almo_scf_env%matrix_v(ispin), &
+                                keep_sparsity=.FALSE.)
+
+         ! Project the orbital subspace out
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                 almo_scf_env%matrix_s(1), &
+                 almo_scf_env%matrix_v(ispin), &
+                 0.0_dp, tempNV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_multiply("T", "N", 1.0_dp, &
+                 tempNV1, &
+                 almo_scf_env%matrix_t(ispin), &
+                 0.0_dp, tempVOcc1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                 tempVOcc1, &
+                 almo_scf_env%matrix_sigma_inv(ispin), &
+                 0.0_dp, tempVOcc2, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_multiply("N", "T", 1.0_dp, &
+                 almo_scf_env%matrix_t(ispin), &
+                 tempVOcc2, &
+                 0.0_dp, tempNV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_add(almo_scf_env%matrix_v(ispin), tempNV1, 1.0_dp, -1.0_dp)
+
+         ! compute VxV overlap
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                 almo_scf_env%matrix_s(1), &
+                 almo_scf_env%matrix_v(ispin), &
+                 0.0_dp, tempNV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_multiply("T", "N", 1.0_dp, &
+                 almo_scf_env%matrix_v(ispin), &
+                 tempNV1, &
+                 0.0_dp, tempVV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL orthogonalize_mos(ket=almo_scf_env%matrix_v(ispin), &
+                                overlap=tempVV1, & 
+                                metric=almo_scf_env%matrix_s(1), &
+                                retain_locality=.FALSE., &
+                                only_normalize=.FALSE., &
+                                nocc_of_domain=almo_scf_env%nocc_of_domain(:,ispin), &
+                                eps_filter=almo_scf_env%eps_filter, &
+                                order_lanczos=almo_scf_env%order_lanczos, &
+                                eps_lanczos=almo_scf_env%eps_lanczos, &
+                                max_iter_lanczos=almo_scf_env%max_iter_lanczos)
+
+         ! compute VxV overlap
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                 almo_scf_env%matrix_ks(ispin), &
+                 almo_scf_env%matrix_v(ispin), &
+                 0.0_dp, tempNV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_multiply("T", "N", 1.0_dp, &
+                 almo_scf_env%matrix_v(ispin), &
+                 tempNV1, &
+                 0.0_dp, tempVV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_get_info(tempVV1, nfullrows_total=n)
+         ALLOCATE(eigenvalues(n))
+         CALL cp_dbcsr_syevd(tempVV1, tempVV2, &
+                             eigenvalues, &
+                             para_env=almo_scf_env%para_env, &
+                             blacs_env=almo_scf_env%blacs_env)
+         DEALLOCATE(eigenvalues)
+
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                 almo_scf_env%matrix_v(ispin), &
+                 tempVV2, &
+                 0.0_dp, tempNV1, &
+                 filter_eps=almo_scf_env%eps_filter)
+
+         CALL dbcsr_copy(almo_scf_env%matrix_v(ispin), tempNV1)
+
+         CALL dbcsr_release(tempNV1)
+         CALL dbcsr_release(tempVOcc1)
+         CALL dbcsr_release(tempVOcc2)
+         CALL dbcsr_release(tempVV1)
+         CALL dbcsr_release(tempVV2)
+      ENDDO
+
+   END SUBROUTINE construct_virtuals
+
+! **************************************************************************************************
+!> \brief selects various post scf routines
+!> \param qs_env ...
+!> \param almo_scf_env ...
+!> \par History
+!>       2019.10 created [Ziling Luo]
+!> \author Ziling Luo
+! **************************************************************************************************
+   SUBROUTINE nlmo_compactification(qs_env, almo_scf_env, matrix)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'nlmo_compactification', &
+         routineP = moduleN//':'//routineN
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_tmp, &
+                                                            matrix_p_tmp
+      INTEGER                                            :: unit_nr, &
+                                                            ispin, nspins, Nrows, Ncols
+      REAL(KIND=dp)                                      :: eps_local, energy, eps_start, &
+                                                            spin_factor, max_element, &
+                                                            stop_eps
+      TYPE(cp_logger_type), POINTER                      :: logger
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occ, retained
+      INTEGER                                            :: iblock_col, irow, icol, &
+                                                            iblock_col_size, iblock_row, &
+                                                            iblock_row_size, para_group
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p
+      TYPE(dbcsr_iterator_type)                          :: iter
+      LOGICAL                                            :: element_by_element 
+
+
+      ! define the output_unit
+      logger => cp_get_default_logger()
+      IF (logger%para_env%ionode) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
+
+      nspins = SIZE(matrix)
+      element_by_element = .FALSE.
+
+      IF (nspins .EQ. 1) THEN
+         spin_factor = 2.0_dp
+      ELSE
+         spin_factor = 1.0_dp
+      ENDIF
+
+      ALLOCATE(matrix_t_tmp(nspins))
+      ALLOCATE(matrix_p_tmp(nspins))
+      ALLOCATE(occ(nspins))
+      ALLOCATE(retained(nspins))
+
+      DO ispin = 1, nspins
+
+         ! init temporary storage
+         CALL dbcsr_create(matrix_t_tmp(ispin), &
+                           template=matrix(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_copy(matrix_t_tmp(ispin), matrix(ispin))
+
+         CALL dbcsr_create(matrix_p_tmp(ispin), &
+                           template=almo_scf_env%matrix_p(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_copy(matrix_p_tmp(ispin), almo_scf_env%matrix_p(ispin))
+
+      ENDDO
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') "Filter-energy"
+         WRITE (unit_nr, '(T2,A16,A3,A16,A3,A16,A3,A26)') "EPS filter", "   ", &
+                         "Occupation Spin1", "   ", &
+                         "Occupation Spin2", "   ", "Energy"
+      ENDIF
+
+      eps_start = almo_scf_env%opt_nlmo_pcg%opt_penalty%compactification_filter_start
+      eps_local = MAX(eps_start, 10E-14_dp)
+
+      DO
+         IF (eps_local > 0.11_dp) EXIT
+
+         DO ispin = 1, nspins
+
+            retained(ispin)=0
+            CALL dbcsr_work_create(matrix_t_tmp(ispin), work_mutable=.TRUE.)
+            CALL dbcsr_iterator_start(iter, matrix_t_tmp(ispin))
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, data_p, &
+                                              row_size=iblock_row_size, col_size=iblock_col_size)
+               DO icol = 1, iblock_col_size
+
+                  IF (element_by_element) THEN
+
+                     DO irow = 1, iblock_row_size
+                        IF (ABS(data_p(irow,icol)) .lt. eps_local) THEN
+                          data_p(irow, icol) = 0.0_dp
+                        ELSE
+                           retained(ispin) = retained(ispin) + 1
+                        ENDIF
+                     ENDDO
+
+                  ELSE ! rows are blocked
+
+                     max_element = 0.0_dp
+                     DO irow = 1, iblock_row_size
+                        IF (ABS(data_p(irow,icol)) .gt. max_element) THEN
+                           max_element = ABS(data_p(irow,icol))
+                         ENDIF
+                     ENDDO
+                     IF (max_element .lt. eps_local) THEN
+                        DO irow = 1, iblock_row_size
+                           data_p(irow, icol) = 0.0_dp
+                        ENDDO
+                     ELSE
+                        retained(ispin) = retained(ispin) + iblock_row_size
+                     ENDIF
+
+                  ENDIF ! block rows?
+               ENDDO ! icol
+
+            ENDDO ! iterator
+            CALL dbcsr_iterator_stop(iter)
+            CALL dbcsr_finalize(matrix_t_tmp(ispin))
+            CALL dbcsr_filter(matrix_t_tmp(ispin), eps_local)
+
+            CALL dbcsr_get_info(matrix_t_tmp(ispin), group=para_group, &
+                                nfullrows_total=Nrows, &
+                                nfullcols_total=Ncols)
+            CALL mp_sum(retained(ispin), para_group)
+
+            !devide by the total no. elements
+            occ(ispin) = retained(ispin)/Nrows/Ncols
+
+            ! compute the global projectors (for the density matrix)
+            CALL almo_scf_t_to_proj( &
+                    t=matrix_t_tmp(ispin), &
+                    p=matrix_p_tmp(ispin), &
+                    eps_filter=almo_scf_env%eps_filter, &
+                    orthog_orbs=.FALSE., &
+                    nocc_of_domain=almo_scf_env%nocc_of_domain(:, ispin), &
+                    s=almo_scf_env%matrix_s(1), &
+                    sigma=almo_scf_env%matrix_sigma(ispin), &
+                    sigma_inv=almo_scf_env%matrix_sigma_inv(ispin), &
+                    use_guess=.FALSE., &
+                    algorithm=almo_scf_env%sigma_inv_algorithm, &
+                    inv_eps_factor=almo_scf_env%matrix_iter_eps_error_factor, &
+                    inverse_accelerator=almo_scf_env%order_lanczos, &
+                    eps_lanczos=almo_scf_env%eps_lanczos, &
+                    max_iter_lanczos=almo_scf_env%max_iter_lanczos, &
+                    para_env=almo_scf_env%para_env, &
+                    blacs_env=almo_scf_env%blacs_env)
+
+            ! compute dm from the projector(s)
+            CALL dbcsr_scale(matrix_p_tmp(ispin), spin_factor)
+
+         ENDDO
+
+         ! the KS matrix is updated outside the spin loop
+         CALL almo_dm_to_almo_ks(qs_env, &
+                                 matrix_p_tmp, &
+                                 almo_scf_env%matrix_ks, &
+                                 energy, &
+                                 almo_scf_env%eps_filter, &
+                                 almo_scf_env%mat_distr_aos)
+
+         IF (nspins .lt. 2) occ(2)=0.0_dp
+         IF (unit_nr > 0) WRITE (unit_nr, '(T2,E16.5,A3,E16.5,A3,E16.5,A3,F26.15)') eps_local, &
+                                 " : ", occ(1), "   ", occ(2), "   ", energy
+         eps_local = eps_local + eps_local
+
+      ENDDO
+
+   END SUBROUTINE nlmo_compactification
+
 ! *****************************************************************************
 !> \brief after SCF we have the final density and KS matrices compute various
 !>        post-scf quantities
@@ -1676,7 +2121,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed, &
+                                                            matrix_v_processed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
@@ -1687,6 +2133,7 @@ CONTAINS
 
       ! orthogonalize orbitals before returning them to QS
       ALLOCATE (matrix_t_processed(almo_scf_env%nspins))
+      ALLOCATE (matrix_v_processed(almo_scf_env%nspins))
 
       DO ispin = 1, almo_scf_env%nspins
 
@@ -1696,6 +2143,13 @@ CONTAINS
 
          CALL dbcsr_copy(matrix_t_processed(ispin), &
                          almo_scf_env%matrix_t(ispin))
+
+         CALL dbcsr_create(matrix_v_processed(ispin), &
+                           template=almo_scf_env%matrix_v(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+
+         CALL dbcsr_copy(matrix_v_processed(ispin), &
+                         almo_scf_env%matrix_v(ispin))
 
          IF (almo_scf_env%return_orthogonalized_mos) THEN
 
