@@ -63,18 +63,24 @@ case "$with_libint" in
             # level 2 (default for -g flag) leads to very large binary size
             LIBINT_CXXFLAGS="$CXXFLAGS -g1"
 
-            # hack for -with-cxx, needed for -fsanitize=thread that also
-            # needs to be passed to the linker, but seemingly ldflags is
-            # ignored by libint configure
+            # cmake build broken with libint 2.6, uncomment for libint 2.7 and above
+            #cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+            #        -DCMAKE_CXX_COMPILER="$CXX" \
+            #        -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
+            #        -DENABLE_FORTRAN=ON \
+            #        -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
+            #cmake --build . > cmake.log 2>&1
+            #cmake --build . --target install > install.log 2>&1
 
-            cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                    -DCMAKE_CXX_COMPILER="$CXX $LIBINT_CXXFLAGS" \
-                    -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
-                    -DENABLE_FORTRAN=ON \
-                    CXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
+            ./configure --prefix=${pkg_install_dir} \
+                        --with-cxx="$CXX $LIBINT_CXXFLAGS" \
+                        --with-cxx-optflags="$LIBINT_CXXFLAGS" \
+                        --enable-fortran \
+                        --libdir="${pkg_install_dir}/lib" \
+                        > configure.log 2>&1
 
-            cmake --build . > cmake.log 2>&1
-            cmake --build . --target install > install.log 2>&1
+            make -j $NPROCS > make.log 2>&1
+            make install > install.log 2>&1
 
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
