@@ -10,7 +10,6 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf_methods
-   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -21,6 +20,12 @@ MODULE dm_ls_scf_methods
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_type_real_4
+   USE dbcsr_arnoldi_api,               ONLY: arnoldi_extremal
+   USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling,&
+                                              matrix_sign_Newton_Schulz,&
+                                              matrix_sign_proot,&
+                                              matrix_sqrt_Newton_Schulz,&
+                                              matrix_sqrt_proot
    USE dm_ls_scf_qs,                    ONLY: matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_mstruct_type,&
@@ -33,11 +38,6 @@ MODULE dm_ls_scf_methods
                                               ls_s_sqrt_proot,&
                                               ls_scf_sign_ns,&
                                               ls_scf_sign_proot
-   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling,&
-                                              matrix_sign_Newton_Schulz,&
-                                              matrix_sign_proot,&
-                                              matrix_sqrt_Newton_Schulz,&
-                                              matrix_sqrt_proot
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               sp

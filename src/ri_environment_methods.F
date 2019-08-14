@@ -25,9 +25,8 @@ MODULE ri_environment_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_create, dbcsr_dot, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbcsr_arnoldi_api,               ONLY: arnoldi_conjugate_gradient
    USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp

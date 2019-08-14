@@ -35,11 +35,11 @@ MODULE qs_energy_window
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_type
+   USE dbcsr_iterate_matrix,            ONLY: matrix_sqrt_Newton_Schulz
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_env_types,                    ONLY: pw_env_get,&

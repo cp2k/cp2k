@@ -26,6 +26,7 @@ MODULE pao_methods
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_type
+   USE dbcsr_iterate_matrix,            ONLY: purify_mcweeny
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
@@ -35,7 +36,6 @@ MODULE pao_methods
                                               matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
-   USE dbcsr_iterate_matrix,                  ONLY: purify_mcweeny
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_walltime

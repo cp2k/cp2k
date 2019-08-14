@@ -35,8 +35,8 @@ MODULE mao_methods
         dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling
    USE input_constants,                 ONLY: mao_basis_ext,&
                                               mao_basis_orb,&

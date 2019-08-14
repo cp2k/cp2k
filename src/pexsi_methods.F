@@ -19,11 +19,12 @@ MODULE pexsi_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
-        dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE dbcsr_arnoldi_api,               ONLY: arnoldi_data_type,&
                                               arnoldi_ev,&
                                               deallocate_arnoldi_data,&
@@ -204,10 +205,10 @@ CONTAINS
 
       IF (.NOT. pexsi_env%csr_screening) CALL dbcsr_set(pexsi_env%csr_sparsity, 1.0)
       CALL dbcsr_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
-                                 pexsi_env%csr_mat_s, &
-                                 dbcsr_csr_eqrow_floor_dist, &
-                                 csr_sparsity=pexsi_env%csr_sparsity, &
-                                 numnodes=pexsi_env%num_ranks_per_pole)
+                                       pexsi_env%csr_mat_s, &
+                                       dbcsr_csr_eqrow_floor_dist, &
+                                       csr_sparsity=pexsi_env%csr_sparsity, &
+                                       numnodes=pexsi_env%num_ranks_per_pole)
 
       IF (unit_nr > 0) WRITE (unit_nr, "(/T2,A)") "SPARSITY OF THE OVERLAP MATRIX IN CSR FORMAT"
       CALL dbcsr_csr_print_sparsity(pexsi_env%csr_mat_s, unit_nr)
@@ -365,12 +366,12 @@ CONTAINS
       ! conversion to CSR format.
       CALL dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, matrix_s)
       CALL dbcsr_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
-                                pexsi_env%csr_mat_s)
+                                      pexsi_env%csr_mat_s)
 
       CALL dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, &
                                     matrix_ks)
       CALL dbcsr_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
-                                pexsi_env%csr_mat_ks)
+                                      pexsi_env%csr_mat_ks)
 
       ! Get PEXSI input delta_E (upper bound for largest eigenvalue) using Arnoldi
       NULLIFY (arnoldi_matrices)
@@ -489,10 +490,10 @@ CONTAINS
 
       ! Convert PEXSI CSR matrices to DBCSR matrices
       CALL dbcsr_convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
-                                pexsi_env%csr_mat_p)
+                                      pexsi_env%csr_mat_p)
       CALL dbcsr_copy(matrix_p, pexsi_env%dbcsr_template_matrix_nonsym)
       CALL dbcsr_convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
-                                pexsi_env%csr_mat_E)
+                                      pexsi_env%csr_mat_E)
       CALL dbcsr_copy(matrix_w%matrix, pexsi_env%dbcsr_template_matrix_nonsym)
 
       ! Convert to spin unrestricted

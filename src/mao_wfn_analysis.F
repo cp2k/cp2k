@@ -29,8 +29,7 @@ MODULE mao_wfn_analysis
         dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, &
-        dbcsr_reserve_diag_blocks, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_reserve_diag_blocks, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_type,&
