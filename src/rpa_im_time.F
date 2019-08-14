@@ -300,7 +300,7 @@ CONTAINS
                            ENDIF
                         ENDDO
 
-                        CALL timeset(routineN//"_copy_M_t", handle5)
+                        CALL timeset(routineN//"_copy_M_occ_t", handle5)
 
                         ! copy matrix to optimal contraction layout - copy is done manually in order
                         ! to better control memory allocations (we can release data of previous
@@ -340,7 +340,7 @@ CONTAINS
                            ENDIF
                         ENDDO
 
-                        CALL timeset(routineN//"_copy_M_t", handle5)
+                        CALL timeset(routineN//"_copy_M_virt_t", handle5)
                         CALL dbcsr_t_copy(t_3c_M_tmp, t_3c_M_virt, order=[1, 2, 3], move_data=.TRUE.)
                         CALL dbcsr_t_filter(t_3c_M_virt, eps_filter)
                         CALL dbcsr_t_clear(t_3c_M_tmp)
