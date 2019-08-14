@@ -64,8 +64,7 @@ MODULE rpa_util
                                               qs_environment_type
    USE rpa_communication,               ONLY: fm_redistribute
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
-   USE rpa_im_time,                     ONLY: setup_mat_for_mem_cut_3c,&
-                                              setup_tensor_for_mem_cut_3c
+   USE rpa_im_time,                     ONLY: setup_mat_for_mem_cut_3c
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -814,8 +813,6 @@ CONTAINS
 !> \param mat_3c_overl_int_mao_for_occ ...
 !> \param mat_3c_overl_int_mao_for_virt ...
 !> \param do_dbcsr_t ...
-!> \param t_3c_O ...
-!> \param t_3c_O_cut ...
 !> \param eps_filter ...
 !> \param cut_RI ...
 !> \param cut_memory ...
@@ -825,11 +822,9 @@ CONTAINS
 !> \param ends_array_cm ...
 !> \param ends_array_cm_mao_occ ...
 !> \param ends_array_cm_mao_virt ...
-!> \param ends_array_mc_t ...
 !> \param starts_array_cm ...
 !> \param starts_array_cm_mao_occ ...
 !> \param starts_array_cm_mao_virt ...
-!> \param starts_array_mc_t ...
 !> \param do_kpoints_cubic_RPA ...
 !> \param needed_cutRI_mem_R1vec_R2vec_for_kp ...
 !> \param mat_3c_overl_int_cut ...
@@ -837,11 +832,11 @@ CONTAINS
 !> \param mat_3c_overl_int_mao_for_virt_cut ...
 ! **************************************************************************************************
    SUBROUTINE get_mat_3c_overl_int_cut(para_env_sub, do_mao, do_gw_im_time, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
-                                       mat_3c_overl_int_mao_for_virt, do_dbcsr_t, t_3c_O, t_3c_O_cut, eps_filter, cut_RI, &
+                                       mat_3c_overl_int_mao_for_virt, do_dbcsr_t, eps_filter, cut_RI, &
                                        cut_memory, num_3c_repl, my_group_L_sizes_im_time, &
                                        non_zero_blocks_3c_cut_col, ends_array_cm, ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
-                                       ends_array_mc_t, starts_array_cm, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
-                                       starts_array_mc_t, do_kpoints_cubic_RPA, needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                       starts_array_cm, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                       do_kpoints_cubic_RPA, needed_cutRI_mem_R1vec_R2vec_for_kp, &
                                        mat_3c_overl_int_cut, mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut)
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       LOGICAL, INTENT(IN)                                :: do_mao, do_gw_im_time
@@ -849,23 +844,14 @@ CONTAINS
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       LOGICAL, INTENT(IN)                                :: do_dbcsr_t
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: t_3c_O
-      TYPE(dbcsr_t_type), ALLOCATABLE, &
-         DIMENSION(:, :, :), INTENT(OUT)                 :: t_3c_O_cut
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: cut_RI, cut_memory
       INTEGER, INTENT(OUT)                               :: num_3c_repl
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_group_L_sizes_im_time
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :), &
          INTENT(OUT)                                     :: non_zero_blocks_3c_cut_col
-      INTEGER, DIMENSION(:), POINTER                     :: ends_array_cm, ends_array_cm_mao_occ, &
-                                                            ends_array_cm_mao_virt
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ends_array_mc_t
-      INTEGER, DIMENSION(:), POINTER                     :: starts_array_cm, &
-                                                            starts_array_cm_mao_occ, &
-                                                            starts_array_cm_mao_virt
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc_t
+      INTEGER, DIMENSION(:), POINTER :: ends_array_cm, ends_array_cm_mao_occ, &
+         ends_array_cm_mao_virt, starts_array_cm, starts_array_cm_mao_occ, starts_array_cm_mao_virt
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :), INTENT(OUT) :: &
          needed_cutRI_mem_R1vec_R2vec_for_kp
@@ -880,10 +866,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! This splitting allows to keep allocation for gw im.time outside from remaining allocation routines retaining slim interfaces
-      IF (do_dbcsr_t) THEN
-         CALL setup_tensor_for_mem_cut_3c(t_3c_O_cut, t_3c_O, cut_memory, &
-                                          starts_array_mc_t, ends_array_mc_t, eps_filter)
-      ELSE
+      IF (.NOT. do_dbcsr_t) THEN
          CALL setup_mat_for_mem_cut_3c(mat_3c_overl_int_cut, mat_3c_overl_int, cut_memory, cut_RI, &
                                        starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, eps_filter, &
                                        do_kpoints_cubic_RPA, do_gw_im_time, num_3c_repl)
@@ -1737,7 +1720,7 @@ CONTAINS
 !> \param mat_3c_overl_int_mao_for_occ_cut ...
 !> \param mat_3c_overl_int_mao_for_virt_cut ...
 !> \param t_3c_M ...
-!> \param t_3c_O_cut ...
+!> \param t_3c_O ...
 !> \param mat_dm_loc_occ ...
 !> \param mat_dm_loc_virt ...
 !> \param fm_mo_coeff_occ_beta ...
@@ -1753,7 +1736,7 @@ CONTAINS
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
                               mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, mat_P_omega, mat_P_omega_kp, &
                               mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, mat_3c_overl_int_mao_for_occ_cut, &
-                              mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O_cut, mat_dm_loc_occ, mat_dm_loc_virt, &
+                              mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O, mat_dm_loc_occ, mat_dm_loc_virt, &
                               fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
 
       LOGICAL, INTENT(IN)                                :: do_mao, do_dbcsr_t, do_ri_sos_laplace_mp2
@@ -1795,8 +1778,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut, &
          mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
       TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: t_3c_O_cut
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(dbcsr_type), POINTER                          :: mat_dm_loc_occ, mat_dm_loc_virt
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
                                                             fm_mo_coeff_virt_beta
@@ -1806,7 +1788,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_im_time', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i_size, j_size, k_size
+      INTEGER                                            :: handle, i_size, j_size
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -1888,16 +1870,13 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int_mao_for_virt_cut)
          END IF
       ELSE
-         DO i_size = 1, SIZE(t_3c_O_cut, 1)
-            DO j_size = 1, SIZE(t_3c_O_cut, 2)
-               DO k_size = 1, SIZE(t_3c_O_cut, 3)
-                  CALL dbcsr_t_destroy(t_3c_O_cut(i_size, j_size, k_size))
-               ENDDO
+         DO i_size = 1, SIZE(t_3c_O, 1)
+            DO j_size = 1, SIZE(t_3c_O, 2)
+               CALL dbcsr_t_destroy(t_3c_O(i_size, j_size))
             ENDDO
          ENDDO
 
-         DEALLOCATE (t_3c_O_cut)
-
+         DEALLOCATE (t_3c_O)
          CALL dbcsr_t_destroy(t_3c_M)
       ENDIF
 

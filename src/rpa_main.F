@@ -1495,8 +1495,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut, &
          mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
-      TYPE(dbcsr_t_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: t_3c_O_cut
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
                                                             mat_contr_W, mat_dm_loc_occ, &
                                                             mat_dm_loc_virt
@@ -1630,11 +1628,11 @@ CONTAINS
          END IF
 
          CALL get_mat_3c_overl_int_cut(para_env_sub, do_mao, my_do_gw, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
-                                       mat_3c_overl_int_mao_for_virt, do_dbcsr_t, t_3c_O, t_3c_O_cut, eps_filter, cut_RI, &
+                                       mat_3c_overl_int_mao_for_virt, do_dbcsr_t, eps_filter, cut_RI, &
                                        cut_memory, num_3c_repl, my_group_L_sizes_im_time, &
                                        non_zero_blocks_3c_cut_col, ends_array_cm, ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
-                                       ends_array_mc_t, starts_array_cm, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
-                                       starts_array_mc_t, do_kpoints_cubic_RPA, needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                       starts_array_cm, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                       do_kpoints_cubic_RPA, needed_cutRI_mem_R1vec_R2vec_for_kp, &
                                        mat_3c_overl_int_cut, mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut)
 
       END IF
@@ -1810,7 +1808,7 @@ CONTAINS
                                      mao_coeff_occ, mao_coeff_virt, 1, &
                                      mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                      mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, &
-                                     do_dbcsr_t, t_3c_M, t_3c_O_cut, &
+                                     do_dbcsr_t, t_3c_M, t_3c_O, &
                                      starts_array_mc_t, ends_array_mc_t, &
                                      mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                      weights_cos_tf_t_to_w, tj, tau_tj, e_fermi, eps_filter, alpha, &
@@ -1845,7 +1843,7 @@ CONTAINS
                                            mao_coeff_occ, mao_coeff_virt, 2, &
                                            mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                            mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, &
-                                           do_dbcsr_t, t_3c_M, t_3c_O_cut, &
+                                           do_dbcsr_t, t_3c_M, t_3c_O, &
                                            starts_array_mc_t, ends_array_mc_t, &
                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
@@ -1874,7 +1872,7 @@ CONTAINS
                                            mao_coeff_occ, mao_coeff_virt, 2, &
                                            mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                            mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, &
-                                           do_dbcsr_t, t_3c_M, t_3c_O_cut, &
+                                           do_dbcsr_t, t_3c_M, t_3c_O, &
                                            starts_array_mc_t, ends_array_mc_t, &
                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
@@ -2205,7 +2203,7 @@ CONTAINS
                                  fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, &
                                  mat_M_P_munu_virt, mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
                                  mat_P_omega, mat_P_omega_kp, mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, &
-                                 mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O_cut, &
+                                 mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O, &
                                  mat_dm_loc_occ, mat_dm_loc_virt, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
          ELSE
             CALL dealloc_im_time(do_mao, do_dbcsr_t, do_ri_sos_laplace_mp2, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -2217,7 +2215,7 @@ CONTAINS
                                  fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, &
                                  mat_M_P_munu_virt, mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
                                  mat_P_omega, mat_P_omega_kp, mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, &
-                                 mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O_cut, &
+                                 mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O, &
                                  mat_dm_loc_occ, mat_dm_loc_virt)
          END IF
 
