@@ -8,21 +8,21 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-libint_ver="2.5.0"
+libint_ver="2.6.0"
 libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz"
 
 case "$LIBINT_LMAX" in
     4)
-        libint_sha256="8b797a518fd5a0fa19c420c84794a7ec5225821ffc56d1666845a406d0b62982"
+        libint_sha256="7c8d28bfb03920936231228b79686ba0fd87ea922c267199789bc131cf21ac08"
         ;;
     5)
-        libint_sha256="5f2f1f1ee2cd04ec302415ea9b20e2ef01173e083d05b02cd633fd6f640e8e4c"
+        libint_sha256="1cd72206afddb232bcf2179c6229fbf6e42e4ba8440e701e6aa57ff1e871e9db"
         ;;
     6)
-        libint_sha256="9301591a97e6a91a26dcefdcdea7e36c946e310b5e9574a3d749b20700ad832b"
+        libint_sha256="bea76a433cd32bde280879f73b5fc8228c78b62e3ea57ace4c6d74b65910b8af"
         ;;
     7)
-        libint_sha256="d6ccce6de5964642093edb6eac139cc587aee826394d0c54d68e706ede05b2c2"
+        libint_sha256="3bcdcc55e1dbafe38a785d4af171df8e300bb8b7775894b57186cdf35807c334"
         ;;
     *)
        report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
@@ -50,7 +50,7 @@ case "$with_libint" in
                 echo "${libint_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
-                             https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz
+                             https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/${libint_pkg}
             fi
 
             [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
@@ -63,9 +63,14 @@ case "$with_libint" in
             # level 2 (default for -g flag) leads to very large binary size
             LIBINT_CXXFLAGS="$CXXFLAGS -g1"
 
-            # hack for -with-cxx, needed for -fsanitize=thread that also
-            # needs to be passed to the linker, but seemingly ldflags is
-            # ignored by libint configure
+            # cmake build broken with libint 2.6, uncomment for libint 2.7 and above
+            #cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+            #        -DCMAKE_CXX_COMPILER="$CXX" \
+            #        -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
+            #        -DENABLE_FORTRAN=ON \
+            #        -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
+            #cmake --build . > cmake.log 2>&1
+            #cmake --build . --target install > install.log 2>&1
 
             ./configure --prefix=${pkg_install_dir} \
                         --with-cxx="$CXX $LIBINT_CXXFLAGS" \
@@ -76,6 +81,7 @@ case "$with_libint" in
 
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
+
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
