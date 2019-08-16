@@ -34,7 +34,10 @@ set -e # abort if error is encountered
 for i in ./ase/test/cp2k/cp2k_*.py
 do
   echo "Running $i ..."
-  python3 "$i"
+  python3 "$i" |& tee "/tmp/test_ase.out"
+  if grep "Exception ignored" "/tmp/test_ase.out" ; then
+    exit 1  # Found unraisable exception, e.g. in __del__.
+  fi
 done
 )
 
