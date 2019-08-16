@@ -10,19 +10,16 @@
 !>    * 02.2016 created [Juerg Hutter]
 ! **************************************************************************************************
 MODULE atom_upf
-#if defined(__JSON)
-   USE json_module, ONLY: json_file
-#endif
-   USE cp_parser_methods, ONLY: parser_get_next_line, &
-      parser_get_object, &
-      parser_test_next_token
-   USE cp_parser_types, ONLY: cp_parser_type, &
-      parser_create, &
-      parser_release
-   USE kinds, ONLY: default_string_length, &
-      dp
-   USE periodic_table, ONLY: get_ptable_info, &
-      ptable
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_get_object,&
+                                              parser_test_next_token
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE periodic_table,                  ONLY: get_ptable_info,&
+                                              ptable
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,10 +102,8 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: upf_filename
       LOGICAL, INTENT(IN), OPTIONAL                      :: read_header
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf', routineP = moduleN//':'//routineN
-
       CHARACTER(LEN=2)                                   :: symbol
-      INTEGER                                            :: l1, l2, ncore, nel
+      INTEGER                                            :: l, ncore, nel
       LOGICAL                                            :: readall
 
       IF (PRESENT(read_header)) THEN
@@ -117,14 +112,14 @@ CONTAINS
          readall = .TRUE.
       END IF
 
-      ! check for json file
-      l2 = LEN_TRIM(upf_filename)
-      l1 = l2-4
-      IF (upf_filename(l1:l2) == '.json') THEN
-         CALL atom_read_upf_json(pot, upf_filename)
-      ELSE
-         CALL atom_read_upf_orig(pot, upf_filename, readall)
-      END IF
+      ! filename
+      pot%filename = ADJUSTL(TRIM(upf_filename))
+
+      ! Ignore json potentials as SIRIUS will parse those on its own.
+      l = LEN_TRIM(pot%filename)
+      IF (pot%filename(l-4:l) == '.json') RETURN
+
+      CALL atom_read_upf_v2(pot, upf_filename, readall)
 
       ! set up econf
       IF (SUM(pot%econf) == 0) THEN
@@ -174,9 +169,6 @@ CONTAINS
          pot%pname = ADJUSTL(TRIM(pot%symbol))
       END IF
 
-      ! filename
-      pot%filename = ADJUSTL(TRIM(upf_filename))
-
    END SUBROUTINE atom_read_upf
 
 ! **************************************************************************************************
@@ -185,14 +177,11 @@ CONTAINS
 !> \param upf_filename ...
 !> \param readall ...
 ! **************************************************************************************************
-   SUBROUTINE atom_read_upf_orig(pot, upf_filename, readall)
+   SUBROUTINE atom_read_upf_v2(pot, upf_filename, readall)
 
       TYPE(atom_upfpot_type)                             :: pot
       CHARACTER(len=*), INTENT(IN)                       :: upf_filename
       LOGICAL, INTENT(IN)                                :: readall
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf_orig', &
-         routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: nametag
       INTEGER                                            :: ib, ntag
@@ -287,7 +276,8 @@ CONTAINS
          END IF
       END IF
 
-   END SUBROUTINE atom_read_upf_orig
+   END SUBROUTINE atom_read_upf_v2
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param parser ...
@@ -875,51 +865,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param pot ...
-!> \param upf_filename ...
-! **************************************************************************************************
-   SUBROUTINE atom_read_upf_json(pot, upf_filename)
-
-      TYPE(atom_upfpot_type)                             :: pot
-      CHARACTER(len=*), INTENT(IN)                       :: upf_filename
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf_json', routineP = moduleN//':'//routineN
-
-#if defined(__JSON)
-      TYPE(json_file)                                    :: json
-      LOGICAL                                            :: found
-      CHARACTER(LEN=:), ALLOCATABLE                      :: symbol
-      REAL(KIND=dp)                                      :: z_valence
-#endif
-
-#if defined(__JSON)
-      CALL json%initialize(compact_reals=.TRUE.)
-      CALL json%load_file(filename=upf_filename)
-      CALL json%get('$.pseudo_potential.header.z_valence', z_valence, found)
-      CPASSERT(found)
-      CALL json%get('$.pseudo_potential.header.element', symbol, found)
-      CPASSERT(found)
-      CALL json%destroy()
-      pot%zion = z_valence
-      pot%symbol = TRIM(symbol)
-#else
-      pot%symbol = upf_filename(1:2)
-      CPWARN(upf_filename)
-      CPABORT("No json support available")
-#endif
-
-   END SUBROUTINE atom_read_upf_json
-
-! **************************************************************************************************
-!> \brief ...
 !> \param upfpot ...
 ! **************************************************************************************************
    SUBROUTINE atom_release_upf(upfpot)
 
       TYPE(atom_upfpot_type)                             :: upfpot
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_release_upf', &
-         routineP = moduleN//':'//routineN
 
       IF (ALLOCATED(upfpot%r)) DEALLOCATE (upfpot%r)
       IF (ALLOCATED(upfpot%rab)) DEALLOCATE (upfpot%rab)
