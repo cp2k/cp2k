@@ -38,6 +38,7 @@ MODULE cp2k_shell
                                               cp2k_version,&
                                               id_cp2k_version,&
                                               print_cp2k_license
+   USE cp2k_runs,                       ONLY: run_input
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -142,6 +143,8 @@ CONTAINS
             CALL get_forces_command(shell, arg1)
          CASE ('CALCEF', 'CALC_EF')
             CALL calc_energy_forces_command(shell, arg1)
+         CASE ('RUN')
+            CALL run_command(shell, input_declaration, arg1, arg2)
          CASE ('UNITS_EVA', 'UNITS_EV_A')
             CALL set_units_ev_a(shell)
          CASE ('UNITS_AU')
@@ -306,10 +309,10 @@ CONTAINS
          WRITE (iw, *) ' INFO: returns some information about cp2k.'
          WRITE (iw, *) ' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'
          WRITE (iw, *) ' WRITE_FILE: Writes content to a file (allows for using ASE over ssh).'
-         WRITE (iw, *) ' LOAD inp-filename [out-filename]: loads the filename, returns the env_id, or -1 in case of error'
+         WRITE (iw, *) ' LOAD <inp-filename> [out-filename]: loads the filename, returns the env_id, or -1 in case of error'
          WRITE (iw, *) '   out-filename is optional and defaults to <inp-filename>.out'
          WRITE (iw, *) '   use "__STD_OUT__" for printing to the screen'
-         WRITE (iw, *) ' BG_LOAD filename: loads the filename, without returning the env_id'
+         WRITE (iw, *) ' BG_LOAD <filename>: loads the filename, without returning the env_id'
          WRITE (iw, *) ' LAST_ENV_ID: returns the env_id of the last environment loaded'
          WRITE (iw, *) ' DESTROY [env_id]: destroys the given environment (last and default env'
          WRITE (iw, *) '   might become invalid)'
@@ -334,10 +337,14 @@ CONTAINS
          WRITE (iw, *) '   first the energy on a line, then the natom*3 (on a line)'
          WRITE (iw, *) '   and finally all the values and "* END" (alone on a line)'
          WRITE (iw, *) ' EVAL_EF [env_id]: calculate the energy and forces (without returning them)'
+         WRITE (iw, *) ' RUN <inp-filename> <out-filename>: run the given input file'
          WRITE (iw, *) ' HARSH: stops on any error'
          WRITE (iw, *) ' PERMISSIVE: stops only on serious errors'
          WRITE (iw, *) ' UNITS: returns the units used for energy and position'
          WRITE (iw, *) ' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'
+         WRITE (iw, *) ' UNITS_AU: sets the units atomic units'
+         WRITE (iw, *) ' CD <dir>: change working directory'
+         WRITE (iw, *) ' PWD: print working directory'
          WRITE (iw, *) ' EXIT: Quit the shell'
          WRITE (iw, *) ' HELP: writes the present help'
          CALL m_flush(iw)
@@ -821,6 +828,23 @@ CONTAINS
       END IF
       DEALLOCATE (forces)
    END SUBROUTINE calc_energy_forces_command
+
+! **************************************************************************************************
+!> \brief ...
+!> \param shell ...
+!> \param input_declaration ...
+!> \param arg1 ...
+!> \param arg2 ...
+! **************************************************************************************************
+   SUBROUTINE run_command(shell, input_declaration, arg1, arg2)
+      TYPE(cp2k_shell_type)                              :: shell
+      TYPE(section_type), POINTER                        :: input_declaration
+      CHARACTER(LEN=*), INTENT(IN)                       :: arg1, arg2
+
+      IF (.NOT. my_assert(LEN_TRIM(arg1) > 0, "input-file argument missing", shell)) RETURN
+      IF (.NOT. my_assert(LEN_TRIM(arg2) > 0, "input-file argument missing", shell)) RETURN
+      CALL run_input(input_declaration, arg1, arg2)
+   END SUBROUTINE run_command
 
 ! **************************************************************************************************
 !> \brief ...

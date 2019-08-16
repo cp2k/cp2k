@@ -148,12 +148,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief performs an instance of a cp2k run
-!>      cp2k_run_OK == .TRUE. if everything went fine
 !> \param input_declaration ...
 !> \param input_file_name name of the file to be opened for input
 !> \param output_unit unit to which output should be written
 !> \param mpi_comm ...
-!> \return ...
 !> \author Joost VandeVondele
 !> \note
 !>      para_env should be a valid communicator
@@ -170,11 +168,10 @@ CONTAINS
 !>      able to run simultaneously / multithreaded / sequential / parallel / ...
 !>      and able to fail safe
 ! **************************************************************************************************
-   RECURSIVE FUNCTION cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm) RESULT(cp2k_run_OK)
+   RECURSIVE SUBROUTINE cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       INTEGER, INTENT(IN)                                :: output_unit, mpi_comm
-      LOGICAL                                            :: cp2k_run_OK
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', routineP = moduleN//':'//routineN
 
@@ -182,7 +179,7 @@ CONTAINS
                                                             method_name_id, new_env_id, &
                                                             prog_name_id, run_type_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
-      LOGICAL                                            :: echo_input, I_was_ionode, was_present
+      LOGICAL                                            :: echo_input, I_was_ionode
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -191,11 +188,8 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section
 
-      cp2k_run_OK = .FALSE.
-      was_present = .FALSE.
       NULLIFY (para_env, f_env, dft_control)
-      CALL cp_para_env_create(para_env, group=mpi_comm, &
-                              owns_group=.FALSE.)
+      CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
 
       IF (dbcsr_acc_get_ndevices() > 0) &
          CALL dbcsr_acc_set_active_device(MOD(para_env%mepos, dbcsr_acc_get_ndevices()))
@@ -433,9 +427,8 @@ CONTAINS
       END IF
 
       CALL cp_para_env_release(para_env)
-      cp2k_run_OK = .TRUE.
 
-   END FUNCTION cp2k_run
+   END SUBROUTINE cp2k_run
 
 ! **************************************************************************************************
 !> \brief performs a farming run that performs several independent cp2k_runs
@@ -468,8 +461,7 @@ CONTAINS
                                                   master_slave_partition, &
                                                   slave_distribution, &
                                                   slave_status
-      LOGICAL                                  :: found, master, &
-                                                  run_OK, slave
+      LOGICAL                                  :: found, master, slave
       REAL(KIND=dp)                            :: t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: waittime
       TYPE(cp_logger_type), POINTER            :: logger
@@ -843,7 +835,7 @@ CONTAINS
             new_output_unit = -1
          ENDIF
 
-         run_OK = cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group)
+         CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group)
 
          IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
@@ -1082,23 +1074,20 @@ CONTAINS
 !> \param input_file_path the path of the input file
 !> \param output_file_path path of the output file (to which it is appended)
 !>        if it is "__STD_OUT__" the default_output_unit is used
-!> \param ierr will return a number different from 0 if there was an error
 !> \param mpi_comm the mpi communicator to be used for this environment
 !>        it will not be freed
 !> \author fawzi
 !> \note
 !>      moved here because of circular dependencies
 ! **************************************************************************************************
-   SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, ierr, mpi_comm)
+   SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, mpi_comm)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
-      INTEGER, INTENT(out)                               :: ierr
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_input', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: unit_nr
-      LOGICAL                                            :: success
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       IF (PRESENT(mpi_comm)) THEN
@@ -1119,12 +1108,7 @@ CONTAINS
       ELSE
          unit_nr = -1
       END IF
-      success = cp2k_run(input_declaration, input_file_path, unit_nr, para_env%group)
-      IF (.NOT. success) THEN
-         ierr = cp_failure_level
-      ELSE
-         ierr = 0
-      END IF
+      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env%group)
       CALL cp_para_env_release(para_env) !XXXXXXXXXXXX uninitiliased error
    END SUBROUTINE run_input
 
