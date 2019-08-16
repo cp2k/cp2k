@@ -126,9 +126,6 @@ RUN ./scripts/install_libvdwxc.sh && rm -rf ./build
 COPY ./scripts/install_sirius.sh ./scripts/
 RUN ./scripts/install_sirius.sh && rm -rf ./build
 
-COPY ./scripts/install_json_fortran.sh ./scripts/
-RUN ./scripts/install_json_fortran.sh && rm -rf ./build
-
 COPY ./scripts/arch_base.tmpl \
      ./scripts/generate_arch_files.sh ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
