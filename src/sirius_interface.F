@@ -3,65 +3,66 @@
 !   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-!**************************************************************************************************
+!***************************************************************************************************
 !> \brief Interface to the SIRIUS Library
 !> \par History
 !>      07.2018 initial create
 !> \author JHU
-!**************************************************************************************************
-MODULE sirius_interface
+!***************************************************************************************************
 #if defined(__SIRIUS)
-   USE sirius, ONLY: &
-      string, bool, sirius_initialize, sirius_finalize, sirius_create_context, sirius_import_parameters, &
-      sirius_create_ground_state, sirius_initialize_context, sirius_set_mpi_grid_dims, &
-      sirius_set_lattice_vectors, sirius_add_atom_type, sirius_add_atom, sirius_create_kset, &
-      sirius_get_energy, sirius_get_forces, sirius_get_stress_tensor, sirius_create_kset_from_grid, &
-      sirius_find_ground_state, sirius_update_context, sirius_set_atom_position, sirius_update_ground_state, &
-      sirius_set_atom_type_radial_grid, sirius_add_atom_type_radial_function, sirius_set_atom_type_dion, &
-      sirius_option_set_string, sirius_option_set_logical, sirius_option_set_double, &
-      sirius_option_set_int, sirius_option_get_string, sirius_option_get_logical, &
-      sirius_option_get_double, sirius_option_get_int, sirius_option_get_name_and_type, &
-      sirius_option_get_length, sirius_dump_runtime_setup, sirius_option_add_string_to, sirius_add_xc_functional
-#endif
-   USE input_section_types, ONLY: section_vals_val_get, section_vals_get_subs_vals2, section_vals_get, &
-      section_vals_duplicate
-   USE input_constants, ONLY: do_gapw_log
-   USE atom_kind_orbitals, ONLY: gth_potential_conversion, calculate_atomic_orbitals
-   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind
-   USE atom_types, ONLY: atom_gthpot_type, release_atom_potential
-   USE atom_utils, ONLY: atom_local_potential
-   USE atom_upf, ONLY: atom_read_upf, &
-      atom_release_upf, &
-      atom_upfpot_type
-   USE cell_methods, ONLY: read_cell, write_cell
-   USE cell_types, ONLY: real_to_scaled, cell_clone, cell_create, &
-      cell_release, cell_type
-   USE qs_grid_atom, ONLY: grid_atom_type, allocate_grid_atom, &
-      deallocate_grid_atom, create_grid_atom
-   USE qs_kind_types, ONLY: &
-      check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
-      init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
-   USE qs_subsys_types, ONLY: qs_subsys_get, qs_subsys_retain, &
-      qs_subsys_release, qs_subsys_set, qs_subsys_type
-   USE cp_para_types, ONLY: cp_para_env_type
-   USE cp_subsys_methods, ONLY: cp_subsys_create
-   USE cp_subsys_types, ONLY: cp_subsys_release, cp_subsys_set, cp_subsys_type
-   USE input_section_types, ONLY: section_vals_get_subs_vals, section_vals_type, section_vals_val_get
-   USE particle_types, ONLY: particle_type
-   USE external_potential_types, ONLY: &
-      all_potential_type, allocate_potential, deallocate_potential, get_potential, &
-      gth_potential_type, init_potential, local_potential_type, read_potential, &
-      set_default_all_potential, set_potential, sgp_potential_type, write_potential
-   USE mathconstants, ONLY: dfac, &
-      gamma1, &
-      pi, fourpi
-   USE pwdft_environment_types, ONLY: pwdft_environment_type, pwdft_energy_type, pwdft_env_set, pwdft_env_get
-   USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_BOOL, C_DOUBLE, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_FUNPTR, C_NULL_PTR, &
-      C_PTR, C_CHAR
-   USE kinds, ONLY: dp, default_string_length
-
+MODULE sirius_interface
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_DOUBLE,&
+                                              C_INT,&
+                                              C_NULL_PTR,&
+                                              C_PTR
+   USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals,&
+                                              gth_potential_conversion
+   USE atom_types,                      ONLY: atom_gthpot_type
+   USE atom_upf,                        ONLY: atom_upfpot_type
+   USE atom_utils,                      ONLY: atom_local_potential
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE cell_types,                      ONLY: cell_type,&
+                                              real_to_scaled
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE external_potential_types,        ONLY: gth_potential_type
+   USE input_constants,                 ONLY: do_gapw_log
+   USE input_section_types,             ONLY: section_vals_duplicate,&
+                                              section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_get_subs_vals2,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE mathconstants,                   ONLY: fourpi,&
+                                              gamma1
+   USE particle_types,                  ONLY: particle_type
+   USE pwdft_environment_types,         ONLY: pwdft_energy_type,&
+                                              pwdft_env_get,&
+                                              pwdft_env_set,&
+                                              pwdft_environment_type
+   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
+                                              create_grid_atom,&
+                                              deallocate_grid_atom,&
+                                              grid_atom_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
+   USE sirius,                          ONLY: &
+        bool, sirius_add_atom, sirius_add_atom_type, sirius_add_atom_type_radial_function, &
+        sirius_create_context, sirius_create_ground_state, sirius_create_kset_from_grid, &
+        sirius_dump_runtime_setup, sirius_finalize, sirius_find_ground_state, sirius_get_energy, &
+        sirius_get_forces, sirius_get_stress_tensor, sirius_import_parameters, sirius_initialize, &
+        sirius_initialize_context, sirius_option_add_string_to, sirius_option_get_length, &
+        sirius_option_get_name_and_type, sirius_option_set_double, sirius_option_set_int, &
+        sirius_option_set_logical, sirius_option_set_string, sirius_set_atom_position, &
+        sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, &
+        sirius_update_ground_state, string
 #include "./base/base_uses.f90"
+
    IMPLICIT NONE
 
    PRIVATE
@@ -77,7 +78,7 @@ MODULE sirius_interface
 
 CONTAINS
 
-!**************************************************************************************************
+!***************************************************************************************************
 !> \brief ...
 !> \param
 !> \par History
@@ -85,15 +86,10 @@ CONTAINS
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_init()
-#if defined(__SIRIUS)
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_init', routineP = moduleN//':'//routineN
-
       CALL sirius_initialize(bool(.FALSE.))
-#endif
    END SUBROUTINE cp_sirius_init
 
-!**************************************************************************************************
+!***************************************************************************************************
 !> \brief ...
 !> \param
 !> \par History
@@ -101,16 +97,10 @@ CONTAINS
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_finalize()
-#if defined(__SIRIUS)
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_finalize', &
-                                     routineP = moduleN//':'//routineN
-
       CALL sirius_finalize(bool(.FALSE.), bool(.FALSE.), bool(.FALSE.))
-#endif
    END SUBROUTINE cp_sirius_finalize
 
-!**************************************************************************************************
+!***************************************************************************************************
 !> \brief ...
 !> \param pwdft_env ...
 !> \param
@@ -121,10 +111,6 @@ CONTAINS
    SUBROUTINE cp_sirius_create_env(pwdft_env)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_create_env', &
-                                     routineP = moduleN//':'//routineN
-
-#if defined(__SIRIUS)
       CHARACTER(len=2)                                   :: element_symbol
       CHARACTER(len=64)                                  :: section_name
       CHARACTER(len=default_string_length)               :: label
@@ -197,13 +183,13 @@ CONTAINS
 !     import control section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("control"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("control"))
       ENDIF
 
 !     import parameters section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("parameters"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("parameters"))
          CALL section_vals_val_get(pwdft_sub_section, "k_grid", i_vals=kk)
          k_grid(1) = kk(1)
          k_grid(2) = kk(2)
@@ -220,13 +206,13 @@ CONTAINS
 !     import mixer section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "mixer")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("mixer"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("mixer"))
       ENDIF
 
       !     import solver section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "iterative_solver")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_feel_in_section(sctx, pwdft_sub_section, string("iterative_solver"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("iterative_solver"))
       ENDIF
 
       CALL sirius_dump_runtime_setup(sctx, string("runtime.json"))
@@ -435,14 +421,9 @@ CONTAINS
       gs_handler = sirius_create_ground_state(ks_handler)
 
       CALL pwdft_env_set(pwdft_env, sctx=sctx, gs_handler=gs_handler, ks_handler=ks_handler)
-
-#else
-      CPASSERT(ASSOCIATED(pwdft_env))
-      CPABORT("Sirius library is missing")
-#endif
    END SUBROUTINE cp_sirius_create_env
 
-!**************************************************************************************************
+!***************************************************************************************************
 !> \brief ...
 !> \param pwdft_env ...
 !> \param
@@ -453,10 +434,6 @@ CONTAINS
    SUBROUTINE cp_sirius_update_context(pwdft_env)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_update_context', &
-                                     routineP = moduleN//':'//routineN
-
-#if defined(__SIRIUS)
       INTEGER                                            :: iatom, natom
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v2
       REAL(KIND=dp), DIMENSION(3)                        :: vr, vs
@@ -494,20 +471,15 @@ CONTAINS
 
       CALL pwdft_env_set(pwdft_env, sctx=sctx, gs_handler=gs_handler)
 
-#else
-      CPASSERT(ASSOCIATED(pwdft_env))
-      CPABORT("Sirius library is missing")
-#endif
    END SUBROUTINE cp_sirius_update_context
 
-#if defined(__SIRIUS)
 ! **************************************************************************************************
 !> \brief ...
 !> \param sctx ...
 !> \param section ...
 !> \param section_name ...
 ! **************************************************************************************************
-   SUBROUTINE cp_sirius_feel_in_section(sctx, section, section_name)
+   SUBROUTINE cp_sirius_fill_in_section(sctx, section, section_name)
       TYPE(C_PTR), INTENT(INOUT)                         :: sctx
       TYPE(section_vals_type), POINTER                   :: section
       CHARACTER(len=1, kind=C_CHAR), DIMENSION(*), &
@@ -579,10 +551,9 @@ CONTAINS
             END SELECT
          END IF
       END DO
-   END SUBROUTINE cp_sirius_feel_in_section
-#endif
+   END SUBROUTINE cp_sirius_fill_in_section
 
-!**************************************************************************************************
+!***************************************************************************************************
 !> \brief ...
 !> \param pwdft_env ...
 !> \param calculate_forces ...
@@ -596,10 +567,6 @@ CONTAINS
          POINTER                                         :: pwdft_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_energy_force', &
-                                     routineP = moduleN//':'//routineN
-
-#if defined(__SIRIUS)
       INTEGER                                            :: n1, n2
       REAL(KIND=C_DOUBLE)                                :: etotal
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: cforces
@@ -642,12 +609,75 @@ CONTAINS
          stress(1:3, 1:3) = cstress(1:3, 1:3)
          CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
       ENDIF
-
-#else
-      CPASSERT(ASSOCIATED(pwdft_env))
-      MARK_USED(calculate_forces)
-      CPABORT("Sirius library is missing")
-#endif
    END SUBROUTINE cp_sirius_energy_force
 
 END MODULE sirius_interface
+
+#else
+
+!***************************************************************************************************
+!> \brief Empty implementation in case SIRIUS is not compiled in.
+!***************************************************************************************************
+MODULE sirius_interface
+   USE pwdft_environment_types, ONLY: pwdft_environment_type
+#include "./base/base_uses.f90"
+
+   IMPLICIT NONE
+   PRIVATE
+
+   PUBLIC :: cp_sirius_init, cp_sirius_finalize
+   PUBLIC :: cp_sirius_create_env, cp_sirius_energy_force, cp_sirius_update_context
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Empty implementation in case SIRIUS is not compiled in.
+! **************************************************************************************************
+   SUBROUTINE cp_sirius_init()
+   END SUBROUTINE cp_sirius_init
+
+! **************************************************************************************************
+!> \brief Empty implementation in case SIRIUS is not compiled in.
+! **************************************************************************************************
+   SUBROUTINE cp_sirius_finalize()
+   END SUBROUTINE cp_sirius_finalize
+
+! **************************************************************************************************
+!> \brief Empty implementation in case SIRIUS is not compiled in.
+!> \param pwdft_env ...
+! **************************************************************************************************
+   SUBROUTINE cp_sirius_create_env(pwdft_env)
+      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+
+      MARK_USED(pwdft_env)
+      CPABORT("Sirius library is missing")
+   END SUBROUTINE cp_sirius_create_env
+
+! **************************************************************************************************
+!> \brief Empty implementation in case SIRIUS is not compiled in.
+!> \param pwdft_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces)
+      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+      LOGICAL                                            :: calculate_forces
+
+      MARK_USED(pwdft_env)
+      MARK_USED(calculate_forces)
+      CPABORT("Sirius library is missing")
+   END SUBROUTINE cp_sirius_energy_force
+
+! **************************************************************************************************
+!> \brief Empty implementation in case SIRIUS is not compiled in.
+!> \param pwdft_env ...
+! **************************************************************************************************
+   SUBROUTINE cp_sirius_update_context(pwdft_env)
+      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+
+      MARK_USED(pwdft_env)
+      CPABORT("Sirius library is missing")
+   END SUBROUTINE cp_sirius_update_context
+
+END MODULE sirius_interface
+
+#endif
