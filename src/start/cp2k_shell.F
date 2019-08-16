@@ -42,6 +42,7 @@ MODULE cp2k_shell
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE f77_interface,                   ONLY: &
@@ -52,8 +53,7 @@ MODULE cp2k_shell
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE machine,                         ONLY: default_output_unit,&
-                                              m_chdir,&
+   USE machine,                         ONLY: m_chdir,&
                                               m_flush,&
                                               m_getcwd,&
                                               m_getlog,&
@@ -78,6 +78,7 @@ MODULE cp2k_shell
       TYPE(cp_para_env_type), POINTER                    :: para_env => Null()
       CHARACTER(LEN=5)                                   :: units = "au"
       INTEGER                                            :: env_id = -1
+      INTEGER                                            :: iw
    END TYPE cp2k_shell_type
 
    PUBLIC :: launch_cp2k_shell
@@ -97,6 +98,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       shell%para_env => logger%para_env
+      shell%iw = cp_logger_get_default_io_unit()
 
       DO
          IF (.NOT. parse_next_line(shell, cmd, arg1, arg2)) EXIT
@@ -160,7 +162,7 @@ CONTAINS
          CASE ('PWD', 'CWD')
             CALL get_pwd_command(shell)
          CASE ('EXIT')
-            WRITE (default_output_unit, '(a)') '* EXIT'
+            WRITE (shell%iw, '(a)') '* EXIT'
             EXIT
          CASE default
             CALL print_error('unknown command: '//cmd, shell)
@@ -186,13 +188,13 @@ CONTAINS
       INTEGER                                            :: i, iostat
 
       success = .TRUE.
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '("* READY")')
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '("* READY")')
+         CALL m_flush(shell%iw)
          READ (*, '(a)', iostat=iostat) line
          IF (iostat /= 0) THEN
             IF (iostat == IOSTAT_END) THEN
-               WRITE (default_output_unit, '(a)') '* EOF'
+               WRITE (shell%iw, '(a)') '* EOF'
             END IF
             success = .FALSE. ! EOF
          END IF
@@ -284,8 +286,8 @@ CONTAINS
 
       IF (shell%harsh) CPABORT(message)
 
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '("* ERROR ",a)') message
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '("* ERROR ",a)') message
       END IF
    END SUBROUTINE print_error
 
@@ -298,8 +300,8 @@ CONTAINS
 
       INTEGER                                            :: iw
 
-      IF (shell%para_env%ionode) THEN
-         iw = default_output_unit
+      IF (shell%iw > 0) THEN
+         iw = shell%iw
          WRITE (iw, *) 'Commands'
          WRITE (iw, *) ' '
          WRITE (iw, *) ' If there is [env_id] it means that an optional env_id can be given,'
@@ -362,41 +364,41 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: dev_flag, host_name, user_name
       INTEGER                                            :: pid
 
-      IF (shell%para_env%ionode) THEN
+      IF (shell%iw > 0) THEN
          CALL m_getcwd(cwd)
          CALL m_getpid(pid)
          CALL m_getlog(user_name)
          CALL m_hostnm(host_name)
          dev_flag = ""
          IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
-         WRITE (UNIT=default_output_unit, FMT="(A,A)") &
+         WRITE (UNIT=shell%iw, FMT="(A,A)") &
             " PROGRAM STARTED ON ", TRIM(host_name)
-         WRITE (UNIT=default_output_unit, FMT="(A,A)") &
+         WRITE (UNIT=shell%iw, FMT="(A,A)") &
             " PROGRAM STARTED BY ", TRIM(user_name)
-         WRITE (UNIT=default_output_unit, FMT="(A,i10)") &
+         WRITE (UNIT=shell%iw, FMT="(A,i10)") &
             " PROGRAM PROCESS ID ", pid
-         WRITE (UNIT=default_output_unit, FMT="(A,A)") &
+         WRITE (UNIT=shell%iw, FMT="(A,A)") &
             " PROGRAM STARTED IN ", TRIM(cwd)
-         WRITE (UNIT=default_output_unit, FMT="(/,T2,A,T31,A50)") &
+         WRITE (UNIT=shell%iw, FMT="(/,T2,A,T31,A50)") &
             "CP2K| version string: ", &
             ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
-         WRITE (UNIT=default_output_unit, FMT="(T2,A,T41,A40)") &
+         WRITE (UNIT=shell%iw, FMT="(T2,A,T41,A40)") &
             "CP2K| source code revision number:", &
             ADJUSTR(compile_revision)
-         WRITE (UNIT=default_output_unit, FMT="(T2,A,T41,A40)") &
+         WRITE (UNIT=shell%iw, FMT="(T2,A,T41,A40)") &
             "CP2K| is freely available from ", &
             ADJUSTR(TRIM(cp2k_home))
-         WRITE (UNIT=default_output_unit, FMT="(T2,A,T31,A50)") &
+         WRITE (UNIT=shell%iw, FMT="(T2,A,T31,A50)") &
             "CP2K| Program compiled at", &
             ADJUSTR(compile_date(1:MIN(50, LEN(compile_date))))
-         WRITE (UNIT=default_output_unit, FMT="(T2,A,T31,A50)") &
+         WRITE (UNIT=shell%iw, FMT="(T2,A,T31,A50)") &
             "CP2K| Program compiled on", &
             ADJUSTR(compile_host(1:MIN(50, LEN(compile_host))))
-         WRITE (UNIT=default_output_unit, FMT="(T2,A,T31,A50)") &
+         WRITE (UNIT=shell%iw, FMT="(T2,A,T31,A50)") &
             "CP2K| Program compiled for", &
             ADJUSTR(compile_arch(1:MIN(50, LEN(compile_arch))))
 
-         CALL print_cp2k_license(default_output_unit)
+         CALL print_cp2k_license(shell%iw)
       END IF
 
    END SUBROUTINE info_license_command
@@ -408,9 +410,9 @@ CONTAINS
    SUBROUTINE version_command(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(a,a)') "CP2K Shell Version: ", CP2K_SHELL_VERSION
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(a,a)') "CP2K Shell Version: ", CP2K_SHELL_VERSION
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE version_command
 
@@ -425,7 +427,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: out_filename
       INTEGER                                            :: file_unit, i, iostat, n_lines
 
-      IF (shell%para_env%ionode) THEN
+      IF (shell%iw > 0) THEN
          READ (*, '(a)', iostat=iostat) out_filename
          IF (iostat /= 0) CPABORT('WRITE_FILE bad filename')
          READ (*, *, iostat=iostat) n_lines
@@ -452,9 +454,9 @@ CONTAINS
    SUBROUTINE get_last_env_id(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(i10)') shell%env_id
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(i10)') shell%env_id
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_last_env_id
 
@@ -510,9 +512,9 @@ CONTAINS
       IF (ierr /= 0) THEN
          shell%env_id = -1
          CALL print_error("create_force_env failed", shell)
-      ELSE IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(i10)') shell%env_id
-         CALL m_flush(default_output_unit)
+      ELSE IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(i10)') shell%env_id
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE load_command
 
@@ -547,9 +549,9 @@ CONTAINS
       IF (.NOT. parse_env_id(arg1, shell)) RETURN
       CALL get_natom(shell%env_id, n_atom, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_natom failed', shell)) RETURN
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(i10)', iostat=iostat) n_atom
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(i10)', iostat=iostat) n_atom
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_natom_command
 
@@ -571,7 +573,7 @@ CONTAINS
       CALL get_natom(shell%env_id, n_atom, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_natom failed', shell)) RETURN
       ALLOCATE (pos(3*n_atom), old_pos(3*n_atom))
-      IF (shell%para_env%ionode) THEN
+      IF (shell%iw > 0) THEN
          READ (*, *, iostat=iostat) n_atom
          IF (.NOT. my_assert(iostat == 0, 'setpos read n_atom failed', shell)) RETURN
          IF (.NOT. my_assert(n_atom == SIZE(pos), 'setpos invalid number of atoms', shell)) RETURN
@@ -579,6 +581,7 @@ CONTAINS
          IF (.NOT. my_assert(iostat == 0, 'setpos read coords failed', shell)) RETURN
          pos(:) = pos(:)/shell%pos_fact
          READ (*, '(a)', iostat=iostat) line
+         IF (.NOT. my_assert(iostat == 0, 'setpos read END failed', shell)) RETURN
          CALL uppercase(line)
          IF (.NOT. my_assert(TRIM(line) == '*END', 'missing *END', shell)) RETURN
       END IF
@@ -592,9 +595,9 @@ CONTAINS
          max_change = MAX(max_change, ABS(pos(i)-old_pos(i)))
       END DO
       DEALLOCATE (pos, old_pos)
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(ES22.13)') max_change*shell%pos_fact
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(ES22.13)') max_change*shell%pos_fact
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE set_pos_command
 
@@ -611,7 +614,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cell
 
       IF (.NOT. parse_env_id(arg1, shell)) RETURN
-      IF (shell%para_env%ionode) THEN
+      IF (shell%iw > 0) THEN
          READ (*, *, iostat=iostat) cell
          IF (.NOT. my_assert(iostat == 0, 'setcell read failed', shell)) RETURN
          cell(:, :) = cell(:, :)/shell%pos_fact
@@ -637,9 +640,9 @@ CONTAINS
       CALL get_cell(shell%env_id, cell=cell, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_cell failed', shell)) RETURN
       cell(:, :) = cell(:, :)*shell%pos_fact
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(9ES22.13)') cell
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(9ES22.13)') cell
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_cell_command
 
@@ -659,9 +662,9 @@ CONTAINS
       CALL get_stress_tensor(shell%env_id, stress_tensor=stress_tensor, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_stress_tensor failed', shell)) RETURN
       stress_tensor(:, :) = stress_tensor(:, :)*(shell%e_fact/shell%pos_fact**3)
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(9ES22.13)') stress_tensor
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(9ES22.13)') stress_tensor
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_stress_command
 
@@ -683,11 +686,11 @@ CONTAINS
       ALLOCATE (pos(3*n_atom))
       CALL get_pos(shell%env_id, pos=pos, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_pos failed', shell)) RETURN
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(i10)') 3*n_atom
-         WRITE (default_output_unit, '(3ES22.13)') pos(:)*shell%pos_fact
-         WRITE (default_output_unit, '(a)') "* END"
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(i10)') 3*n_atom
+         WRITE (shell%iw, '(3ES22.13)') pos(:)*shell%pos_fact
+         WRITE (shell%iw, '(a)') "* END"
+         CALL m_flush(shell%iw)
       END IF
       DEALLOCATE (pos)
    END SUBROUTINE get_pos_command
@@ -707,9 +710,9 @@ CONTAINS
       IF (.NOT. parse_env_id(arg1, shell)) RETURN
       CALL get_energy(shell%env_id, e_pot, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_energy failed', shell)) RETURN
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(ES22.13)') e_pot*shell%e_fact
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(ES22.13)') e_pot*shell%e_fact
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_energy_command
 
@@ -746,9 +749,9 @@ CONTAINS
       IF (.NOT. my_assert(ierr == 0, 'calc_energy_force failed', shell)) RETURN
       CALL get_energy(shell%env_id, e_pot, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_energy failed', shell)) RETURN
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(ES22.13)') e_pot*shell%e_fact
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(ES22.13)') e_pot*shell%e_fact
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE calc_energy_command
 
@@ -787,11 +790,11 @@ CONTAINS
       CALL get_force(shell%env_id, frc=forces, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_force failed', shell)) RETURN
       forces(:) = forces(:)*(shell%e_fact/shell%pos_fact)
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(i10)') 3*n_atom
-         WRITE (default_output_unit, '(3ES22.13)') forces
-         WRITE (default_output_unit, '("* END")')
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(i10)') 3*n_atom
+         WRITE (shell%iw, '(3ES22.13)') forces
+         WRITE (shell%iw, '("* END")')
+         CALL m_flush(shell%iw)
       END IF
       DEALLOCATE (forces)
    END SUBROUTINE get_forces_command
@@ -819,12 +822,12 @@ CONTAINS
       ALLOCATE (forces(3*n_atom))
       CALL get_force(shell%env_id, frc=forces, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_energy failed', shell)) RETURN
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(ES22.13)') e_pot*shell%e_fact
-         WRITE (default_output_unit, '(i10)') 3*n_atom
-         WRITE (default_output_unit, '(3ES22.13)') forces*(shell%e_fact/shell%pos_fact)
-         WRITE (default_output_unit, '("* END")')
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(ES22.13)') e_pot*shell%e_fact
+         WRITE (shell%iw, '(i10)') 3*n_atom
+         WRITE (shell%iw, '(3ES22.13)') forces*(shell%e_fact/shell%pos_fact)
+         WRITE (shell%iw, '("* END")')
+         CALL m_flush(shell%iw)
       END IF
       DEALLOCATE (forces)
    END SUBROUTINE calc_energy_forces_command
@@ -877,9 +880,9 @@ CONTAINS
    SUBROUTINE get_units(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      IF (shell%para_env%ionode) THEN
-         WRITE (default_output_unit, '(a)') TRIM(shell%units)
-         CALL m_flush(default_output_unit)
+      IF (shell%iw > 0) THEN
+         WRITE (shell%iw, '(a)') TRIM(shell%units)
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_units
 
@@ -908,9 +911,9 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: cwd
 
-      IF (shell%para_env%ionode) THEN
+      IF (shell%iw > 0) THEN
          CALL m_getcwd(cwd)
-         WRITE (default_output_unit, '(a)') TRIM(cwd)
+         WRITE (shell%iw, '(a)') TRIM(cwd)
       END IF
    END SUBROUTINE get_pwd_command
 
