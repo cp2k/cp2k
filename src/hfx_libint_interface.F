@@ -237,9 +237,7 @@ CONTAINS
          factor = 1.0_dp
       CASE (do_potential_id)
          F(1) = (Pi*RhoInv)**(1.5_dp)
-         DO i = 2, m_max+1
-            F(i) = 0.0_dp
-         END DO
+         F(2:m_max+1) = 0.0_dp
          factor = 1.0_dp
       END SELECT
 
