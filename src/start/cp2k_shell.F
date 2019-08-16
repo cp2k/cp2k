@@ -162,7 +162,7 @@ CONTAINS
          CASE ('PWD', 'CWD')
             CALL get_pwd_command(shell)
          CASE ('EXIT')
-            WRITE (shell%iw, '(a)') '* EXIT'
+            IF (shell%iw > 0) WRITE (shell%iw, '(a)') '* EXIT'
             EXIT
          CASE default
             CALL print_error('unknown command: '//cmd, shell)
@@ -298,58 +298,55 @@ CONTAINS
    SUBROUTINE help_command(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      INTEGER                                            :: iw
-
       IF (shell%iw > 0) THEN
-         iw = shell%iw
-         WRITE (iw, *) 'Commands'
-         WRITE (iw, *) ' '
-         WRITE (iw, *) ' If there is [env_id] it means that an optional env_id can be given,'
-         WRITE (iw, *) ' if none is given it defaults to the last env_id loaded'
-         WRITE (iw, *) ' All commands are case insensitive.'
-         WRITE (iw, *) ' '
-         WRITE (iw, *) ' INFO: returns some information about cp2k.'
-         WRITE (iw, *) ' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'
-         WRITE (iw, *) ' WRITE_FILE: Writes content to a file (allows for using ASE over ssh).'
-         WRITE (iw, *) ' LOAD <inp-filename> [out-filename]: loads the filename, returns the env_id, or -1 in case of error'
-         WRITE (iw, *) '   out-filename is optional and defaults to <inp-filename>.out'
-         WRITE (iw, *) '   use "__STD_OUT__" for printing to the screen'
-         WRITE (iw, *) ' BG_LOAD <filename>: loads the filename, without returning the env_id'
-         WRITE (iw, *) ' LAST_ENV_ID: returns the env_id of the last environment loaded'
-         WRITE (iw, *) ' DESTROY [env_id]: destroys the given environment (last and default env'
-         WRITE (iw, *) '   might become invalid)'
-         WRITE (iw, *) ' NATOM [env_id]: returns the number of atoms in the environment env_id'
-         WRITE (iw, *) ' SET_POS [env_id]: sets the positions of the atoms, should be followed'
-         WRITE (iw, *) '   by natom*3 (on a line) and then all the positions. Returns the max'
-         WRITE (iw, *) '   change of the coordinates (useful to avoid extra calculations).'
-         WRITE (iw, *) ' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'
-         WRITE (iw, *) ' GET_CELL [env_id]: gets the cell vectors'
-         WRITE (iw, *) ' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'
-         WRITE (iw, *) ' GET_POS [env_id]: gets the positions of the atoms, returns'
-         WRITE (iw, *) '   natom*3 (on a line) and then all the positions then "* END" '
-         WRITE (iw, *) '   (alone on a line)'
-         WRITE (iw, *) ' GET_E [env_id]: gets the energy of the last calculation on env_id'
-         WRITE (iw, *) ' GET_F [env_id]: gets the forces on the atoms,of the last calculation on '
-         WRITE (iw, *) '   env_id, if only the energy was calculated the content is undefined. Returns'
-         WRITE (iw, *) '   natom*3 (on a line) and then all the forces then "* END" (alone on'
-         WRITE (iw, *) '   a line)'
-         WRITE (iw, *) ' CALC_E [env_id]: calculate the energy and returns it'
-         WRITE (iw, *) ' EVAL_E [env_id]: calculate the energy (without returning it)'
-         WRITE (iw, *) ' CALC_EF [env_id]: calculate energy and forces and returns them,'
-         WRITE (iw, *) '   first the energy on a line, then the natom*3 (on a line)'
-         WRITE (iw, *) '   and finally all the values and "* END" (alone on a line)'
-         WRITE (iw, *) ' EVAL_EF [env_id]: calculate the energy and forces (without returning them)'
-         WRITE (iw, *) ' RUN <inp-filename> <out-filename>: run the given input file'
-         WRITE (iw, *) ' HARSH: stops on any error'
-         WRITE (iw, *) ' PERMISSIVE: stops only on serious errors'
-         WRITE (iw, *) ' UNITS: returns the units used for energy and position'
-         WRITE (iw, *) ' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'
-         WRITE (iw, *) ' UNITS_AU: sets the units atomic units'
-         WRITE (iw, *) ' CD <dir>: change working directory'
-         WRITE (iw, *) ' PWD: print working directory'
-         WRITE (iw, *) ' EXIT: Quit the shell'
-         WRITE (iw, *) ' HELP: writes the present help'
-         CALL m_flush(iw)
+         WRITE (shell%iw, *) 'Commands'
+         WRITE (shell%iw, *) ' '
+         WRITE (shell%iw, *) ' If there is [env_id] it means that an optional env_id can be given,'
+         WRITE (shell%iw, *) ' if none is given it defaults to the last env_id loaded'
+         WRITE (shell%iw, *) ' All commands are case insensitive.'
+         WRITE (shell%iw, *) ' '
+         WRITE (shell%iw, *) ' INFO: returns some information about cp2k.'
+         WRITE (shell%iw, *) ' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'
+         WRITE (shell%iw, *) ' WRITE_FILE: Writes content to a file (allows for using ASE over ssh).'
+         WRITE (shell%iw, *) ' LOAD <inp-filename> [out-filename]: loads the filename, returns the env_id, or -1 in case of error'
+         WRITE (shell%iw, *) '   out-filename is optional and defaults to <inp-filename>.out'
+         WRITE (shell%iw, *) '   use "__STD_OUT__" for printing to the screen'
+         WRITE (shell%iw, *) ' BG_LOAD <filename>: loads the filename, without returning the env_id'
+         WRITE (shell%iw, *) ' LAST_ENV_ID: returns the env_id of the last environment loaded'
+         WRITE (shell%iw, *) ' DESTROY [env_id]: destroys the given environment (last and default env'
+         WRITE (shell%iw, *) '   might become invalid)'
+         WRITE (shell%iw, *) ' NATOM [env_id]: returns the number of atoms in the environment env_id'
+         WRITE (shell%iw, *) ' SET_POS [env_id]: sets the positions of the atoms, should be followed'
+         WRITE (shell%iw, *) '   by natom*3 (on a line) and then all the positions. Returns the max'
+         WRITE (shell%iw, *) '   change of the coordinates (useful to avoid extra calculations).'
+         WRITE (shell%iw, *) ' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'
+         WRITE (shell%iw, *) ' GET_CELL [env_id]: gets the cell vectors'
+         WRITE (shell%iw, *) ' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'
+         WRITE (shell%iw, *) ' GET_POS [env_id]: gets the positions of the atoms, returns'
+         WRITE (shell%iw, *) '   natom*3 (on a line) and then all the positions then "* END" '
+         WRITE (shell%iw, *) '   (alone on a line)'
+         WRITE (shell%iw, *) ' GET_E [env_id]: gets the energy of the last calculation on env_id'
+         WRITE (shell%iw, *) ' GET_F [env_id]: gets the forces on the atoms,of the last calculation on '
+         WRITE (shell%iw, *) '   env_id, if only the energy was calculated the content is undefined. Returns'
+         WRITE (shell%iw, *) '   natom*3 (on a line) and then all the forces then "* END" (alone on'
+         WRITE (shell%iw, *) '   a line)'
+         WRITE (shell%iw, *) ' CALC_E [env_id]: calculate the energy and returns it'
+         WRITE (shell%iw, *) ' EVAL_E [env_id]: calculate the energy (without returning it)'
+         WRITE (shell%iw, *) ' CALC_EF [env_id]: calculate energy and forces and returns them,'
+         WRITE (shell%iw, *) '   first the energy on a line, then the natom*3 (on a line)'
+         WRITE (shell%iw, *) '   and finally all the values and "* END" (alone on a line)'
+         WRITE (shell%iw, *) ' EVAL_EF [env_id]: calculate the energy and forces (without returning them)'
+         WRITE (shell%iw, *) ' RUN <inp-filename> <out-filename>: run the given input file'
+         WRITE (shell%iw, *) ' HARSH: stops on any error'
+         WRITE (shell%iw, *) ' PERMISSIVE: stops only on serious errors'
+         WRITE (shell%iw, *) ' UNITS: returns the units used for energy and position'
+         WRITE (shell%iw, *) ' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'
+         WRITE (shell%iw, *) ' UNITS_AU: sets the units atomic units'
+         WRITE (shell%iw, *) ' CD <dir>: change working directory'
+         WRITE (shell%iw, *) ' PWD: print working directory'
+         WRITE (shell%iw, *) ' EXIT: Quit the shell'
+         WRITE (shell%iw, *) ' HELP: writes the present help'
+         CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE help_command
 
@@ -399,6 +396,7 @@ CONTAINS
             ADJUSTR(compile_arch(1:MIN(50, LEN(compile_arch))))
 
          CALL print_cp2k_license(shell%iw)
+         CALL m_flush(shell%iw)
       END IF
 
    END SUBROUTINE info_license_command
