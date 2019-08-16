@@ -347,7 +347,6 @@ CONTAINS
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ierr
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
@@ -356,9 +355,8 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, ierr=ierr)
+      CALL run_input(input_declaration, ifp, ofp)
       CALL section_release(input_declaration)
-      CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_run_input
 
 ! **************************************************************************************************
@@ -372,7 +370,6 @@ CONTAINS
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ierr
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
@@ -381,9 +378,8 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, ierr, mpi_comm)
+      CALL run_input(input_declaration, ifp, ofp, mpi_comm)
       CALL section_release(input_declaration)
-      CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_run_input_comm
 
 ! **************************************************************************************************

@@ -59,7 +59,6 @@ PROGRAM cp2k
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: default_output_unit
-   USE message_passing,                 ONLY: mp_max
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -297,9 +296,7 @@ PROGRAM cp2k
          ENDIF
 
          IF (run_it .OR. force_run) THEN
-            CALL run_input(input_declaration, input_file_name, output_file_name, ierr=ierr)
-            CALL mp_max(ierr, default_para_env%group)
-            IF (ierr .NE. 0) CPABORT("Failed to run input")
+            CALL run_input(input_declaration, input_file_name, output_file_name)
          END IF
 
          CALL section_release(input_declaration)
