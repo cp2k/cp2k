@@ -5,9 +5,16 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
-make -j VERSION=pdbg
+echo -n "Compiling cp2k... "
+if make -j VERSION=pdbg &> /dev/null ; then
+   echo "done."
+else
+   echo -e "failed.\n\n"
+   echo "Summary: Compilation failed."
+   echo "Status: FAILED"
+   exit
+fi
 
 echo -e "\n========== Installing CP2K =========="
 # The cp2k main binary is used by ase/test/cp2k/cp2k_dcd.py.
