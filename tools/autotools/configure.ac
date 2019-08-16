@@ -207,13 +207,6 @@ dnl check for libvdwxc
 ACX_LIBVDWXC([options="$options libvdwxc"; LIBVDWXC_DFLAGS="-D__LIBVDWXC"], [])
 AC_SUBST(LIBVDWXC_DFLAGS)
 
-SECTION_TITLE([json fortran (SIRIUS dependency)])
-dnl check for libvdwxc
-ACX_JSON_FORTRAN([options="$options json-fortran"; JSON_FORTRAN_DFLAGS="-D__JSON"], [])
-AC_SUBST(JSON_FORTRAN_DFLAGS)
-
-
-
 SECTION_TITLE([ParMETIS, PTSCOTCH and SuperLU])
 dnl check for parmetis
 ACX_PARMETIS([options="$options ParMETIS"; PARMETIS_DFLAGS="-D__PARMETIS"], [])

@@ -171,19 +171,13 @@ A library for finding and handling crystal symmetries
   * The spglib can be downloaded from https://github.com/atztogo/spglib
   * For building CP2K with the spglib add `-D__SPGLIB` to DFLAGS
 
-### 2q. JSON-Fortran (optional, required for SIRIUS)
-JSON-Fortran is a Fortran 2008 JSON API.
-  * The code is available at https://github.com/jacobwilliams/json-fortran
-  * For building CP2K with JSON-Fortran add `-D__JSON` to DFLAGS.
-
-### 2r. SIRIUS (optional, plane wave calculations)
+### 2q. SIRIUS (optional, plane wave calculations)
 SIRIUS is a domain specific library for electronic structure calculations.
   * The code is available at https://github.com/electronic-structure/SIRIUS
   * For building CP2K with SIRIUS add `-D__SIRIUS` to DFLAGS.
-  * Furthermore, SIRIUS depends on JSON-Fortran.
   * See https://electronic-structure.github.io/SIRIUS/ for more information.
 
-### 2s. FPGA (optional, plane wave FFT calculations)
+### 2r. FPGA (optional, plane wave FFT calculations)
   * Use `-D__PW_FPGA` to enable FPGA support for PW (fft) calculations. Currently tested only for Intel Stratix 10 and Arria 10 GX1150 FPGAs.
   * Supports single precision and double precision fft calculations with the use of dedicated APIs.
   * Double precision is the default API chosen when set using the `-D__PW_FPGA` flag.

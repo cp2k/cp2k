@@ -212,7 +212,7 @@ The --with-PKG options follow the rules:
   --with-quip             Enable interface to QUIP library
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
-                          This package requires: gsl, libspg, elpa, scalapack, json-fortran, hdf5 and libxc.
+                          This package requires: gsl, libspg, elpa, scalapack, hdf5 and libxc.
                           Default = install
   --with-gsl              Enable the gnu scientific library
                           Default = install
@@ -223,10 +223,6 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-hdf5             Enable the hdf5 library (used by the sirius library)
                           Default = install
-  --with-json-fortran     Enable the json fortran library (used by cp2k when sirius is activated)
-                          This package depends on cmake.
-                          Default = install
-
 
 FURTHER INSTRUCTIONS
 
@@ -263,7 +259,7 @@ tool_list="valgrind cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
-          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius json_fortran"
+          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 
@@ -304,7 +300,6 @@ with_sirius="__INSTALL__"
 with_gsl="__INSTALL__"
 with_spglib="__INSTALL__"
 with_hdf5="__INSTALL__"
-with_json_fortran="__INSTALL__"
 with_elpa="__INSTALL__"
 with_libvdwxc="__INSTALL__"
 
@@ -600,9 +595,6 @@ while [ $# -ge 1 ] ; do
         --with-hdf5*)
             with_hdf5=$(read_with $1)
             ;;
-        --with-json*)
-            with_json_fortran=$(read_with $1)
-            ;;
         --with-libvdwxc*)
             with_libvdwxc=$(read_with $1)
             ;;
@@ -741,11 +733,6 @@ if [ "$with_spglib" = "__INSTALL__" ] ; then
     [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
-# json-fortran requires cmake.
-if [ "$with_json_fortran" = "__INSTALL__" ] ; then
-    [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
-fi
-
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
 if [ "$with_sirius" = "__INSTALL__" ] ; then
     if [ "$with_gsl" = "__DONTUSE__" ] ; then
@@ -767,10 +754,6 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
     if [ "$with_hdf5" = "__DONTUSE__" ] ; then
         report_error "For SIRIUS to work you need a working hdf5 library use --with-hdf5 option to specify if you wish to install the library or specify its location."
         exit 1
-    fi
-    if [ "$with_json_fortran" = "__DONTUSE__"  ] ; then
-        report_error "For SIRIUS to work you need a working json-fortran library use --with-json option to specify if you wish to install it or specify its location."
-    exit 1
     fi
 fi
 
@@ -945,7 +928,6 @@ else
     ./scripts/install_hdf5.sh
     ./scripts/install_libvdwxc.sh
     ./scripts/install_sirius.sh
-    ./scripts/install_json_fortran.sh
     ./scripts/generate_arch_files.sh
 fi
 
