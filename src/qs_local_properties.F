@@ -29,9 +29,9 @@ MODULE qs_local_properties
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_derive,&
                                               pw_integrate_function,&
                                               pw_multiply,&
-                                              pw_derive,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -293,7 +293,7 @@ CONTAINS
       ELSE
          do_pressure = .FALSE.
       END IF
-      IF(PRESENT(beta)) THEN
+      IF (PRESENT(beta)) THEN
          my_beta = beta
       ELSE
          my_beta = 0.0_dp
