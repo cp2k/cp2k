@@ -34,7 +34,6 @@ MODULE qs_local_properties
                                               pw_derive,&
                                               pw_integrate_function,&
                                               pw_multiply,&
-                                              pw_derive,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
