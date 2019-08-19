@@ -425,8 +425,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: blk, ewald_type, handle, ia, iatom, &
-                                                            ikind, is, ispin, jatom, jkind, natom, &
-                                                            nsgf, nspins
+                                                            ikind, is, ispin, jatom, jkind, jspin, &
+                                                            natom, nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
@@ -496,7 +496,6 @@ CONTAINS
 
       DO ispin = 1, nspins
          ct => work%ctransformed(ispin)%matrix
-         xt => xtransformed(ispin)%matrix
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct, nrow_global=nsgf)
          ALLOCATE (tv(nsgf))
          CALL cp_fm_create(cvec, fmstruct)
@@ -504,18 +503,22 @@ CONTAINS
          ! *** Coulomb contribution
          !
          IF (do_coulomb) THEN
-            ! CV(mu,j) = CT(mu,j)*XT(mu,j)
-            CALL cp_fm_schur_product(ct, xt, cvec)
-            ! TV(mu) = SUM_j CV(mu,j)
-            CALL cp_fm_vectorssum(cvec, tv, "R")
-            ! contract charges
-            ! TC(a) = SUM_(mu of a) TV(mu)
-            DO ia = 1, natom
-               tcharge(ia) = 0.0_dp
-               DO is = first_sgf(ia), last_sgf(ia)
-                  tcharge(ia) = tcharge(ia)+tv(is)
+            tcharge(:) = 0.0_dp
+            DO jspin = 1, nspins
+               ct => work%ctransformed(jspin)%matrix
+               xt => xtransformed(jspin)%matrix
+               ! CV(mu,j) = CT(mu,j)*XT(mu,j)
+               CALL cp_fm_schur_product(ct, xt, cvec)
+               ! TV(mu) = SUM_j CV(mu,j)
+               CALL cp_fm_vectorssum(cvec, tv, "R")
+               ! contract charges
+               ! TC(a) = SUM_(mu of a) TV(mu)
+               DO ia = 1, natom
+                  DO is = first_sgf(ia), last_sgf(ia)
+                     tcharge(ia) = tcharge(ia)+tv(is)
+                  END DO
                END DO
-            END DO
+            ENDDO !!openshell
             ! Apply tcharge*gab -> gtcharge
             ! gT(b) = SUM_a g(a,b)*TC(a)
             ! gab = work%gamma_exchange(1)%matrix
@@ -571,6 +574,7 @@ CONTAINS
                END DO
             END DO
             ! CV(mu,i) = TV(mu)*CV(mu,i)
+            ct => work%ctransformed(ispin)%matrix
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             ! rho(nu,i) = rho(nu,i) + Shalf(nu,mu)*CV(mu,i)
@@ -587,6 +591,8 @@ CONTAINS
             tempmat => work%shalf
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
+            ct => work%ctransformed(ispin)%matrix
+            xt => xtransformed(ispin)%matrix
             CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
                                        1.0_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
