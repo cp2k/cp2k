@@ -1681,6 +1681,12 @@ CONTAINS
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="kT_CORRECTION", &
+                          description="Corrects for the loss of temperature due to constrained "// &
+                          "degrees of freedom for Nose-Hover chains and numeric integration", &
+                          repeats=.FALSE., default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="T_tol", variants=(/"temp_to"/), &
                           description="threshold for the oscillations of the temperature "// &
                           "excedeed which the temperature is rescaled. 0 means no rescaling.", &

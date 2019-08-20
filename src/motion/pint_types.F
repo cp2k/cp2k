@@ -12,6 +12,7 @@ MODULE pint_types
    USE parallel_rng_types,              ONLY: rng_record_length,&
                                               rng_stream_type
    USE replica_types,                   ONLY: replica_env_type
+   USE simpar_types,                    ONLY: simpar_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -135,6 +136,11 @@ MODULE pint_types
       TYPE(piglet_therm_type), POINTER     :: piglet_therm
       TYPE(qtb_therm_type), POINTER        :: qtb_therm
       TYPE(pint_propagator_type), POINTER  :: propagator
+      TYPE(simpar_type), POINTER           :: simpar
+      INTEGER                              :: n_atoms_constraints
+      INTEGER, DIMENSION(:), POINTER       :: atoms_constraints
+      REAL(KIND=dp)                        :: kTcorr
+
    END TYPE pint_env_type
 
    ! ***************************************************************************
@@ -194,13 +200,13 @@ MODULE pint_types
    !> \author Felix Uhl
    ! ***************************************************************************
    TYPE pile_therm_type
-      INTEGER                              :: ref_count
-      REAL(KIND=dp)                        :: lamb, tau, thermostat_energy
-      REAL(KIND=dp), DIMENSION(:), POINTER :: c1
-      REAL(KIND=dp), DIMENSION(:), POINTER :: c2
-      REAL(KIND=dp), DIMENSION(:), POINTER :: g_fric
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: massfact
-      TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
+      INTEGER                                    :: ref_count
+      REAL(KIND=dp)                              :: lamb, tau, thermostat_energy
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c1
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c2
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact
+      TYPE(rng_stream_type), POINTER             :: gaussian_rng_stream
    END TYPE pile_therm_type
 
    ! ***************************************************************************
