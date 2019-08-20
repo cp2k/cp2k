@@ -441,8 +441,8 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
-      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: ct, cvec, xt
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstructjspin
+      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin, cvec, cvecjspin, xt
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: pdens
@@ -505,12 +505,15 @@ CONTAINS
          IF (do_coulomb) THEN
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
-               ct => work%ctransformed(jspin)%matrix
+               ctjspin => work%ctransformed(jspin)%matrix
                xt => xtransformed(jspin)%matrix
+               CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
+               CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
+               CALL cp_fm_create(cvecjspin, fmstructjspin)
                ! CV(mu,j) = CT(mu,j)*XT(mu,j)
-               CALL cp_fm_schur_product(ct, xt, cvec)
+               CALL cp_fm_schur_product(ctjspin, xt, cvecjspin)
                ! TV(mu) = SUM_j CV(mu,j)
-               CALL cp_fm_vectorssum(cvec, tv, "R")
+               CALL cp_fm_vectorssum(cvecjspin, tv, "R")
                ! contract charges
                ! TC(a) = SUM_(mu of a) TV(mu)
                DO ia = 1, natom
@@ -518,7 +521,8 @@ CONTAINS
                      tcharge(ia) = tcharge(ia)+tv(is)
                   END DO
                END DO
-            ENDDO !!openshell
+               CALL cp_fm_release(cvecjspin)
+            ENDDO !jspin
             ! Apply tcharge*gab -> gtcharge
             ! gT(b) = SUM_a g(a,b)*TC(a)
             ! gab = work%gamma_exchange(1)%matrix
