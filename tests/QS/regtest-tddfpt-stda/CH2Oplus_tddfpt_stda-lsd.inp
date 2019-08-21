@@ -1,0 +1,63 @@
+&GLOBAL
+  PROJECT CH2Oplus_tddfpt_stda-lsd
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &PROPERTIES
+    &TDDFPT
+       KERNEL sTDA
+       &sTDA
+          FRACTION 0.2
+       &END sTDA
+       NSTATES      3
+       MAX_ITER    500
+       CONVERGENCE [eV] 1.0e-10
+    &END TDDFPT
+  &END PROPERTIES
+  &DFT
+    LSD
+    MULTIPLICITY 2
+    CHARGE 1
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      MAX_SCF 20
+      EPS_SCF   1e-7
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.0 9.0 9.0
+    &END CELL
+    &COORD
+  O         0.094933   -0.000368    0.895642
+  C        -0.031077   -0.000121   -0.307326
+  H        -0.090437    0.947608   -0.895642
+  H        -0.094933   -0.947608   -0.895562
+    &END COORD
+    &KIND O
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &KIND C
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+    &KIND H
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

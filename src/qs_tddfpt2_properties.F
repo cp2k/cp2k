@@ -973,6 +973,7 @@ CONTAINS
                CALL cp_fm_create(tmat, fm_mo_struct)
                CALL init_mo_set(nto_set(i)%mo_set, fm_ref=tmat, name=nto_name(i))
                CALL cp_fm_release(tmat)
+               CALL cp_fm_struct_release(fm_mo_struct)
             END DO
             !
             ALLOCATE (teig(nspins))
@@ -1183,6 +1184,7 @@ CONTAINS
       CALL cp_fm_scale(norm(1), vec)
       CALL copy_fm_to_dbcsr(vec, vout, keep_sparsity=.FALSE.)
 
+      CALL cp_fm_release(csvec)
       CALL cp_fm_release(svec)
       CALL cp_fm_release(vec)
 
