@@ -45,7 +45,6 @@ PROGRAM cp2k
                                               id_cp2k_version,&
                                               print_cp2k_license
    USE cp2k_runs,                       ONLY: run_input,&
-                                              write_cp2k_html_manual,&
                                               write_xml_file
    USE cp2k_shell,                      ONLY: launch_cp2k_shell
    USE f77_interface,                   ONLY: check_input,&
@@ -68,7 +67,7 @@ PROGRAM cp2k
    CHARACTER(LEN=default_string_length) :: dev_flag
    INTEGER                              :: output_unit, l, i
    INTEGER                              :: ierr, i_arg
-   LOGICAL                              :: check, manual, usage, echo_input, command_line_error
+   LOGICAL                              :: check, usage, echo_input, command_line_error
    LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license, shell_mode
    TYPE(section_type), POINTER          :: input_declaration
 
@@ -79,7 +78,6 @@ PROGRAM cp2k
 
    ! set default behaviour for the command line switches
    check = .FALSE.
-   manual = .FALSE.
    usage = .FALSE.
    echo_input = .FALSE.
    has_input = .FALSE.
@@ -126,9 +124,6 @@ PROGRAM cp2k
          check = .TRUE.
          run_it = .FALSE.
          echo_input = .TRUE.
-      CASE ("--html-manual")
-         manual = .TRUE.
-         run_it = .FALSE.
       CASE ("-v", "--version")
          print_version = .TRUE.
          run_it = .FALSE.
@@ -206,7 +201,7 @@ PROGRAM cp2k
          IF (default_para_env%ionode) THEN
             l = LEN_TRIM(command)
             WRITE (UNIT=output_unit, FMT="(/,(T2,A))") &
-               TRIM(command)//" [-c|--check] [-e|--echo] [-h|--help] [--html-manual]", &
+               TRIM(command)//" [-c|--check] [-e|--echo] [-h|--help]", &
                REPEAT(" ", l)//" [-i] <input_file>", &
                REPEAT(" ", l)//" [-mpi-mapping|--mpi-mapping] <method>", &
                REPEAT(" ", l)//" [-o] <output_file>", &
@@ -224,9 +219,6 @@ PROGRAM cp2k
                "--echo, -e        : echoes the <input_file>, and make all defaults explicit", &
                "                    The input is also checked, but only a failure is reported", &
                "--help, -h        : writes this message", &
-               "--html-manual     : writes a HTML reference manual of the CP2K input", &
-               "                    in the current directory. The file index.html is a good", &
-               "                    starting point for browsing", &
                "--license         : prints the CP2K license", &
                "--mpi-mapping     : applies a given MPI reordering to CP2K", &
                "--run, -r         : forces a CP2K run regardless of other specified flags", &
@@ -257,13 +249,6 @@ PROGRAM cp2k
             IF (default_para_env%ionode) THEN
                CALL print_cp2k_license(output_unit)
             ENDIF
-         ENDIF
-
-         ! if a manual is needed
-         IF (manual) THEN
-            IF (default_para_env%ionode) THEN
-               CALL write_cp2k_html_manual()
-            END IF
          ENDIF
 
          IF (xml) THEN
