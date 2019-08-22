@@ -1497,7 +1497,7 @@ CONTAINS
             factor = SQRT(REAL(pint_env%p, dp))
          ELSE
             ! lowest NM is centroid
-            factor = 1
+            factor = 1.0_dp
          END IF
 
          IF (pint_env%logger%para_env%ionode) THEN
@@ -2002,7 +2002,7 @@ CONTAINS
             ! Multiply with 1/SQRT(n_beads) due to normal mode transformation in RPMD
             factor = SQRT(REAL(pint_env%p, dp))
          ELSE
-            factor = 1
+            factor = 1.0_dp
          END IF
 
          CALL getold(gci, local_molecules, molecule_set, &
@@ -2224,9 +2224,11 @@ CONTAINS
                ! Apply centroid constraints (RATTLE)
                IF (pint_env%simpar%constraint) THEN
                   IF (pint_env%logger%para_env%ionode) THEN
+                     ! Reset particle r, due to force calc:
                      DO i = 1, nparticle
                         DO j = 1, 3
                            vel(j, i) = pint_env%uv(1, j+(i-1)*3)
+                           particle_set(i)%r(j) = pint_env%ux(1, j+(i-1)*3)
                         END DO
                      END DO
 
@@ -2429,12 +2431,13 @@ CONTAINS
          IF (pint_env%simpar%constraint) THEN
             IF (pint_env%logger%para_env%ionode) THEN
                ! Transform positions and velocities to Cartesian coordinates:
+               ! Reset particle r, due to force calc:
                DO i = 1, nparticle
                   DO j = 1, 3
                      vel(j, i) = pint_env%uv(1, j+(i-1)*3)/factor
+                     particle_set(i)%r(j) = pint_env%ux(1, j+(i-1)*3)/factor
                   END DO
                END DO
-
                CALL rattle_control(gci, local_molecules, &
                                    molecule_set, molecule_kind_set, &
                                    particle_set, vel, dti, &
