@@ -618,6 +618,8 @@ CONTAINS
       constraint_section => section_vals_get_subs_vals(pint_env%input, &
                                                        "MOTION%CONSTRAINT")
       CALL section_vals_get(constraint_section, explicit=explicit)
+      CALL create_simpar_type(pint_env%simpar)
+      pint_env%simpar%constraint = explicit
       IF (explicit) THEN
          ! Staging not supported yet, since lowest mode is assumed
          ! to be related to centroid
@@ -641,8 +643,6 @@ CONTAINS
             CPWARN(msg)
          END IF
 
-         CALL create_simpar_type(pint_env%simpar)
-         pint_env%simpar%constraint = explicit
          CALL section_vals_val_get(constraint_section, "SHAKE_TOLERANCE", &
                                    r_val=pint_env%simpar%shake_tol)
          pint_env%simpar%info_constraint = cp_print_key_unit_nr(pint_env%logger, &
