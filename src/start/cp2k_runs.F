@@ -19,8 +19,7 @@ MODULE cp2k_runs
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                              cp_get_default_logger,&
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_logger_would_log,&
@@ -42,12 +41,12 @@ MODULE cp2k_runs
                                               cp_unit_set_type,&
                                               print_all_units
    USE cuda_profiling,                  ONLY: cuda_nvtx_init
-   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+   USE dbcsr_api,                       ONLY: dbcsr_acc_get_ndevices,&
+                                              dbcsr_acc_set_active_device,&
+                                              dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
-                                              dbcsr_print_statistics,&
-                                              dbcsr_acc_get_ndevices,&
-                                              dbcsr_acc_set_active_device
+                                              dbcsr_print_statistics
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -77,11 +76,12 @@ MODULE cp2k_runs
                                               globenv_release,&
                                               globenv_retain
    USE input_constants,                 ONLY: &
-        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_farming, do_fist, &
-        do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_sirius, do_swarm, do_tamc, do_test, &
-        do_embed, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
-        energy_force_run, energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal, negf_run
+        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
+        do_fist, do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_sirius, do_swarm, &
+        do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
+        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, linear_response_run, &
+        mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, real_time_propagation, &
+        tree_mc_run, vib_anal
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
@@ -90,10 +90,9 @@ MODULE cp2k_runs
    USE input_keyword_types,             ONLY: keyword_release
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
-        section_describe_html, section_describe_index_html, section_release, section_type, &
-        section_vals_create, section_vals_get_subs_vals, section_vals_release, &
-        section_vals_retain, section_vals_type, section_vals_val_get, section_vals_write, &
-        write_section_xml
+        section_release, section_type, section_vals_create, section_vals_get_subs_vals, &
+        section_vals_release, section_vals_retain, section_vals_type, section_vals_val_get, &
+        section_vals_write, write_section_xml
    USE ipi_driver,                      ONLY: run_driver
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -121,15 +120,16 @@ MODULE cp2k_runs
    USE pint_methods,                    ONLY: do_pint_run
    USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                               pw_cuda_init
-   USE pw_fpga,                         ONLY: pw_fpga_init, &
-                                              pw_fpga_finalize
+   USE pw_fpga,                         ONLY: pw_fpga_finalize,&
+                                              pw_fpga_init
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_linres_module,                ONLY: linres_calculation
    USE qs_tddfpt_module,                ONLY: tddfpt_calculation
    USE reference_manager,               ONLY: print_all_references,&
                                               print_format_html
    USE rt_propagation,                  ONLY: rt_prop_setup
-   USE sirius_interface,                ONLY: cp_sirius_init, cp_sirius_finalize
+   USE sirius_interface,                ONLY: cp_sirius_finalize,&
+                                              cp_sirius_init
    USE string_utilities,                ONLY: html_entity_table,&
                                               write_html_tables
    USE swarm,                           ONLY: run_swarm
@@ -142,7 +142,7 @@ MODULE cp2k_runs
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: write_cp2k_html_manual, write_xml_file, run_input
+   PUBLIC :: write_xml_file, run_input
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
 CONTAINS
 
@@ -845,152 +845,6 @@ CONTAINS
 
       END SUBROUTINE execute_job
    END SUBROUTINE farming_run
-
-! **************************************************************************************************
-!> \brief writes a small html description of the cp2k input
-!> \author joost [fawzi]
-! **************************************************************************************************
-   SUBROUTINE write_cp2k_html_manual()
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_cp2k_html_manual', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: unit_nr
-      TYPE(section_type), POINTER                        :: root_section
-
-      NULLIFY (root_section)
-      CALL create_cp2k_root_section(root_section)
-      ! remove the default keyword that ignores things outside the section
-      CALL keyword_release(root_section%keywords(0)%keyword)
-
-      CALL section_describe_html(root_section, "InputReference", 0, default_output_unit)
-
-      CALL open_file(unit_number=unit_nr, file_name="index.html", &
-                     file_action="WRITE", file_status="REPLACE")
-      WRITE (unit_nr, FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
-      WRITE (unit_nr, FMT='(A)') "<H1>CP2K input reference</H1>"
-      WRITE (unit_nr, FMT='(A)') "<H2>Version information</H2>"
-      WRITE (unit_nr, FMT='(A)') &
-         "This html manual can be generated automatically from a given cp2k executable "// &
-         "using the --html-manual command line option. The manual describes exactly that version of the code. "// &
-         "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "// &
-         "The source code revision number is "//TRIM(compile_revision)//"."
-
-      WRITE (unit_nr, FMT='(A)') '<H2>Search the online input reference manual</H2>'
-      WRITE (unit_nr, FMT='(A)') '<TABLE><TR><TD>'
-      ! Yahoo seems to actually search our pages
-      WRITE (unit_nr, FMT='(A)') ' <!-- START CODE --> '
-      WRITE (unit_nr, FMT='(A)') '         <div id="ysrchForm" style="border:1px solid #7E9DB9;'
-      WRITE (unit_nr, FMT='(A)') '                                background:#FFFFFF;'
-      WRITE (unit_nr, FMT='(A)') '                                width:300px;'
-      WRITE (unit_nr, FMT='(A)') '                                margin:0 auto;'
-      WRITE (unit_nr, FMT='(A)') '                                padding:20px; '
-      WRITE (unit_nr, FMT='(A)') '                                position:relative;'
-      WRITE (unit_nr, FMT='(A)') '                              ">'
-      WRITE (unit_nr, FMT='(A)') &
-         '           <form id="searchBoxForm_undefined" action="http://search.yahoo.com/search" style="padding:0;">'
-      WRITE (unit_nr, FMT='(A)') '                         '
-      WRITE (unit_nr, FMT='(A)') '                         <input name="ei" value="UTF-8" type="hidden">'
-      WRITE (unit_nr, FMT='(A)') &
-         '                         <input name="fr" value="ystg" type="hidden"><div style="padding:0 80px 0 0;zoom:1;">'
-      WRITE (unit_nr, FMT='(A)') '                                         <input type="text" id="searchTerm"'
-      WRITE (unit_nr, FMT='(A)') '                                                 onFocus="this.style.background=''#fff'';"'
-      WRITE (unit_nr, FMT='(A)') &
-         '                                                 onBlur="if(this.value=='''')this.style.background='// &
-         '''#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif) 3px center  no-repeat''"'
-      WRITE (unit_nr, FMT='(A)') &
-         ' name="p" style=" margin:1px 0; width:100%; border:1px solid #7E9DB9; color:#666666; height:18px; '// &
-         'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'// &
-         ' 3px center no-repeat; position:relative;">'
-      WRITE (unit_nr, FMT='(A)') ' <input type="submit" id="btn_undefined" value="Search" '
-      WRITE (unit_nr, FMT='(A)') &
-         ' style=" padding-bottom:2px; position:absolute; right:20px; top:20px; margin:0px; height:22px; width:65px; ">'
-      WRITE (unit_nr, FMT='(A)') ' </div><ul style="color:#666666;'
-      WRITE (unit_nr, FMT='(A)') '            font:11px/11px normal Arial, Helvetica, sans-serif;'
-      WRITE (unit_nr, FMT='(A)') '            margin:0;'
-      WRITE (unit_nr, FMT='(A)') '            padding:0;'
-      WRITE (unit_nr, FMT='(A)') '            text-align:left;'
-      WRITE (unit_nr, FMT='(A)') '            list-style-type:none;radios"><li style="display:inline;padding-right:10px;">'
-      WRITE (unit_nr, FMT='(A)') &
-         ' <input name="vs" id="web_radio" value=""    type="radio" style="vertical-align:middle;margin-right:5px; ">'
-      WRITE (unit_nr, FMT='(A)') ' <label for="web_radio" style="vertical-align:middle;">Web</label>'
-      WRITE (unit_nr, FMT='(A)') ' </li><li style="display:inline;padding-right:10px;">'
-      WRITE (unit_nr, FMT='(A)') &
-         ' <input name="vs" id="site_radio" value="www.cp2k.org"   checked="checked" type="radio"'// &
-         ' style="vertical-align:middle;margin-right:5px; ">'
-      WRITE (unit_nr, FMT='(A)') ' <label for="site_radio" style="vertical-align:middle;">this Site</label>'
-      WRITE (unit_nr, FMT='(A)') ' </li></ul></form></div>'
-      WRITE (unit_nr, FMT='(A)') ' <!-- END CODE --></TD><TD> '
-
-      WRITE (unit_nr, FMT='(A)') '</TD></TR></TABLE>'
-
-      WRITE (unit_nr, FMT='(A)') '<H2>Journal papers</H2>'
-      WRITE (unit_nr, FMT='(A)') '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
-
-      WRITE (unit_nr, FMT='(A)') '<H2>Units of Measurement</H2>'
-      WRITE (unit_nr, FMT='(A)') '<A HREF="units.html">List of unites</A> organized into groups based on the physical quantity '// &
-         "they measure. The units can be used to specify an alternative unit of measurement for keyword values, for which a "// &
-         "default unit has been explicitly defined."
-
-      WRITE (unit_nr, FMT='(A)') "<H2>Internal Input Preprocessor</H2>"
-      WRITE (unit_nr, FMT='(A)') "Before the input is parsed, the input is run through a very simple internal preprocessor."
-      WRITE (unit_nr, FMT='(A)') "The preprocessor recognizes the following directives independent of capitalization:<BR><DL>"
-      WRITE (unit_nr, FMT='(A)') "<DT><B>@INCLUDE 'filename.inc'</B></DT>"
-      WRITE (unit_nr, FMT='(A)') "<DD>The file referenced by <I>filename.inc</I> is included into the input file and parsed."
-      WRITE (unit_nr, FMT='(A)') "Recursive inclusions are not allowed and the files have to exist in the current working "
-      WRITE (unit_nr, FMT='(A)') "directory. There can be only one @INCLUDE statement per line. Single or double quotes "
-      WRITE (unit_nr, FMT='(A)') "can be used and <B>have</B> to be used if the filename contains blanks.</DD>"
-      WRITE (unit_nr, FMT='(A)') "<DT><B>@SET VAR value</B></DT>"
-      WRITE (unit_nr, FMT='(A)') "<DD>Assigns the text <I>value</I> to the preprocessing variable <I>VAR</I>. <I>value</I> "
-      WRITE (unit_nr, FMT='(A)') "is the text following <I>VAR</I> with the outer whitespace removed. The variable can be "
-      WRITE (unit_nr, FMT='(A)') "recalled with a <I>${VAR}</I> statement. There can be only one @SET statement per line.</DD>"
-      WRITE (unit_nr, FMT='(A)') "<DT><B>${VAR}</B></DT>"
-      WRITE (unit_nr, FMT='(A)') "<DD>Expand the variable <I>VAR</I>. The text <I>${VAR}</I> is replaced with the value assigned "
-      WRITE (unit_nr, FMT='(A)') "to <I>VAR</I> in the last corresponding @SET directive. There can be multiple variables per line."
-      WRITE (unit_nr, FMT='(A)') "The expansion process is repeated until no more variables are found.</DD>"
-      WRITE (unit_nr, FMT='(A)') "<DT><B>@IF / @ENDIF</B></DT>"
-      WRITE (unit_nr, FMT='(A)') "<DD>Conditional block. The text from the @IF line up to the next line with a valid "
-      WRITE (unit_nr, FMT='(A)') "@ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. "
-      WRITE (unit_nr, FMT='(A)') "Available expressions are lexical comparisons for equality '==' or inequality '/='."
-      WRITE (unit_nr, FMT='(A)') "If none of the two operators are found, a '0' or whitespace resolves to <I>false</I> "
-      WRITE (unit_nr, FMT='(A)') "while any text resolves to <I>true</I>. @IF/@ENDIF blocks cannot be nested and "
-      WRITE (unit_nr, FMT='(A)') "cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>"
-      WRITE (unit_nr, FMT='(A)') "</DL><P>"
-
-      WRITE (unit_nr, FMT='(A)') "<H2>Input structure</H2>"
-      WRITE (unit_nr, FMT='(A)') "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
-      WRITE (unit_nr, FMT='(A)') "A description of each section, and a list of keywords can be obtained clicking on the links. "
-      WRITE (unit_nr, FMT='(A)') "<BR><UL>"
-
-      CALL section_describe_index_html(root_section, "InputReference", unit_nr)
-
-      WRITE (unit_nr, FMT='(A)') '</UL><BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
-      WRITE (unit_nr, FMT='(A)') "</BODY></HTML>"
-
-      CALL close_file(unit_nr)
-      CALL section_release(root_section)
-
-      ! References
-      CALL open_file(unit_number=unit_nr, file_name="references.html", &
-                     file_action="WRITE", file_status="REPLACE")
-      WRITE (unit_nr, FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
-      WRITE (unit_nr, FMT='(A)') "<H1>CP2K references</H1>"
-      CALL print_all_references(sorted=.TRUE., cited_only=.FALSE., &
-                                FORMAT=print_format_html, unit=unit_nr)
-      WRITE (unit_nr, FMT='(A)') '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
-      WRITE (unit_nr, FMT='(A)') "</BODY></HTML>"
-      CALL close_file(unit_nr)
-
-      ! Units
-      CALL open_file(unit_number=unit_nr, file_name="units.html", &
-                     file_action="WRITE", file_status="REPLACE")
-      WRITE (unit_nr, FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
-      WRITE (unit_nr, FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
-      CALL print_all_units(unit_nr=unit_nr)
-      WRITE (unit_nr, FMT='(A)') '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
-      WRITE (unit_nr, FMT='(A)') "</BODY></HTML>"
-      CALL close_file(unit_nr)
-   END SUBROUTINE write_cp2k_html_manual
 
 ! **************************************************************************************************
 !> \brief ...

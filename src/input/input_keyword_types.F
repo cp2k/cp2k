@@ -24,9 +24,7 @@ MODULE input_keyword_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE print_messages,                  ONLY: print_message
-   USE reference_manager,               ONLY: get_citation_key,&
-                                              print_format_journal,&
-                                              print_reference
+   USE reference_manager,               ONLY: get_citation_key
    USE string_utilities,                ONLY: a2s,&
                                               compress,&
                                               substitute_special_xml_tokens,&
@@ -45,7 +43,7 @@ MODULE input_keyword_types
 
    PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain, &
              keyword_release, keyword_get, keyword_describe, &
-             keyword_describe_html, write_keyword_xml, keyword_typo_match
+             write_keyword_xml, keyword_typo_match
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a keyword (to make arrays of pointers)
@@ -615,157 +613,6 @@ CONTAINS
          END IF
       END IF
    END SUBROUTINE keyword_describe
-
-! **************************************************************************************************
-!> \brief writes out a description of the keyword
-!> \param keyword the keyword to describe
-!> \param unit_nr the unit to write to
-!> \author Joost VandeVondele [10.2004], based on keyword_describe
-! **************************************************************************************************
-   SUBROUTINE keyword_describe_html(keyword, unit_nr)
-      TYPE(keyword_type), POINTER                        :: keyword
-      INTEGER, INTENT(in)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_html', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(len=default_string_length)               :: c_string, my_unit
-      INTEGER                                            :: i, iref
-      LOGICAL                                            :: any_description
-
-      CPASSERT(ASSOCIATED(keyword))
-      CPASSERT(keyword%ref_count > 0)
-      WRITE (unit_nr, '(a)') '<TR><TD WITDH="20%">'// &
-         '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(keyword%names(1))//'</u></A>'// &
-         '<TD WIDTH="80%">'
-      WRITE (unit_nr, '(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%">'//TRIM(keyword%usage)
-      WRITE (unit_nr, '(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%"><i>'//TRIM(a2s(keyword%description))//'</i>'
-      WRITE (unit_nr, "(a)", advance="NO") '<TR><TD WIDTH="10%"><TD> This keyword '
-      SELECT CASE (keyword%type_of_var)
-      CASE (logical_t)
-         IF (keyword%n_var == -1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a list of logicals'
-         ELSE IF (keyword%n_var == 1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a logical'
-         ELSE
-            WRITE (unit_nr, '(a,i6,a)', ADVANCE="NO") 'expects precisely', keyword%n_var, ' logicals'
-         END IF
-         ! (provide a link to this info) WRITE(unit_nr,"('  (T,TRUE,YES,ON) and (F,FALSE,NO,OFF) are synonyms')")
-      CASE (integer_t)
-         IF (keyword%n_var == -1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a list of integers'
-         ELSE IF (keyword%n_var == 1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects an integer'
-         ELSE
-            WRITE (unit_nr, '(a,i6,a)', ADVANCE="NO") 'expects precisely', keyword%n_var, ' integers'
-         END IF
-      CASE (real_t)
-         IF (keyword%n_var == -1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a list of reals'
-         ELSE IF (keyword%n_var == 1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a real'
-         ELSE
-            WRITE (unit_nr, '(a,i6,a)', ADVANCE="NO") 'expects precisely', keyword%n_var, ' reals'
-         END IF
-      CASE (char_t)
-         IF (keyword%n_var == -1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a list of words'
-         ELSE IF (keyword%n_var == 1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a word'
-         ELSE
-            WRITE (unit_nr, '(a,i6,a)', ADVANCE="NO") 'expects precisely', keyword%n_var, ' words'
-         END IF
-      CASE (lchar_t)
-         WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a string'
-      CASE (enum_t)
-         IF (keyword%n_var == -1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a list of keywords'
-         ELSE IF (keyword%n_var == 1) THEN
-            WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a keyword'
-         ELSE
-            WRITE (unit_nr, '(a,i6,a)', ADVANCE="NO") 'expects precisely', keyword%n_var, ' keywords'
-         END IF
-      CASE (no_t)
-         WRITE (unit_nr, '(a)', ADVANCE="NO") 'expects a non-standard input type'
-      CASE DEFAULT
-         CPABORT("")
-      END SELECT
-      IF (keyword%repeats) THEN
-         WRITE (unit_nr, "(', and may repeat')", ADVANCE="NO")
-      END IF
-      IF (ASSOCIATED(keyword%lone_keyword_value) .AND. keyword%type_of_var /= no_t) THEN
-         WRITE (unit_nr, '(a)', advance="NO") '<TR><TD WIDTH="10%"><TD>This keyword behaves as a switch'
-         CALL val_write(keyword%lone_keyword_value, unit_nr=unit_nr)
-      END IF
-      IF (ASSOCIATED(keyword%default_value) .AND. keyword%type_of_var /= no_t) THEN
-         IF (ASSOCIATED(keyword%unit)) THEN
-            my_unit = cp_unit_desc(keyword%unit, accept_undefined=.TRUE.)
-            WRITE (unit_nr, '(a)', advance="NO") '. Default unit: '//'['//TRIM(my_unit)//'], default value: '
-         ELSE
-            WRITE (unit_nr, '(a)', advance="NO") '. Default value: '
-         ENDIF
-         CALL val_write(keyword%default_value, unit=keyword%unit, unit_nr=unit_nr)
-         IF (ASSOCIATED(keyword%unit)) THEN
-            WRITE (unit_nr, '(a)', advance="NO") TRIM(my_unit)
-         END IF
-      ELSE
-         IF (ASSOCIATED(keyword%unit)) THEN
-            my_unit = cp_unit_desc(keyword%unit, accept_undefined=.TRUE.)
-            WRITE (unit_nr, '(a)', advance="NO") '. Default unit: '//'['//TRIM(my_unit)//'].'
-         END IF
-      ENDIF
-
-      IF (keyword%type_of_var == enum_t) THEN
-         any_description = .FALSE.
-         DO i = 1, SIZE(keyword%enum%c_vals)
-            any_description = any_description .OR. SIZE(keyword%enum%desc(i)%chars) > 1
-         ENDDO
-         IF (any_description) THEN
-            WRITE (unit_nr, '(a)', advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
-            DO i = 1, SIZE(keyword%enum%c_vals)
-               c_string = keyword%enum%c_vals(i)
-               WRITE (unit_nr, '(a,a,a,a,a)') "<li><code>", &
-                  TRIM(c_string), "</code>: ", TRIM(a2s(keyword%enum%desc(i)%chars)), "</li>"
-            END DO
-            WRITE (unit_nr, '(a)', advance='NO') '</ul>'
-         ELSE
-            WRITE (unit_nr, '(a)', advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords: '
-            IF (SIZE(keyword%enum%c_vals) > 0) &
-               WRITE (unit_nr, '(a)', advance='NO') TRIM(keyword%enum%c_vals(1))
-            DO i = 2, SIZE(keyword%enum%c_vals)
-               c_string = keyword%enum%c_vals(i)
-               WRITE (unit_nr, '(a)', advance='NO') ", "//TRIM(c_string)
-            END DO
-         ENDIF
-         IF (.NOT. keyword%enum%strict) THEN
-            WRITE (unit_nr, "('     other integer values are also accepted.')")
-         END IF
-      END IF
-      IF (SIZE(keyword%names) > 1) THEN
-         WRITE (unit_nr, "(a)", advance="NO") '<TR><TD WIDTH="10%"><TD>variants: '
-         DO i = 2, SIZE(keyword%names)
-            WRITE (unit_nr, "(a)", advance="NO") TRIM(keyword%names(i))
-            IF (i .NE. SIZE(keyword%names)) THEN
-               WRITE (unit_nr, '(a)', advance='NO') ', '
-            ENDIF
-         END DO
-      ENDIF
-      IF (ASSOCIATED(keyword%citations)) THEN
-         IF (SIZE(keyword%citations, 1) > 1) THEN
-            WRITE (unit_nr, FMT='(A)') '<BR> This keyword cites following references: '
-         ELSE
-            WRITE (unit_nr, FMT='(A)') '<BR> This keyword cites following reference: '
-         ENDIF
-         DO iref = 1, SIZE(keyword%citations, 1)
-            WRITE (unit_nr, FMT='(A,I0,A)') &
-               '<A HREF="references.html#reference_', keyword%citations(iref), '" TITLE="'
-            CALL print_reference(keyword%citations(iref), FORMAT=print_format_journal, unit=unit_nr)
-            WRITE (unit_nr, FMT='(A)') &
-               '">['//TRIM(get_citation_key(keyword%citations(iref)))//']</A>'
-         ENDDO
-      ENDIF
-
-   END SUBROUTINE keyword_describe_html
 
 ! **************************************************************************************************
 !> \brief Prints a description of a keyword in XML format
