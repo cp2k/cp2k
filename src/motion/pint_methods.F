@@ -140,7 +140,8 @@ MODULE pint_methods
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
                                               replica_env_type
-   USE simpar_types,                    ONLY: create_simpar_type
+   USE simpar_types,                    ONLY: create_simpar_type,&
+                                              release_simpar_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -753,6 +754,11 @@ CONTAINS
             DEALLOCATE (pint_env%rtmp_ndim)
             DEALLOCATE (pint_env%rtmp_natom)
             DEALLOCATE (pint_env%propagator)
+
+            IF (pint_env%simpar%constraint) THEN
+               DEALLOCATE(pint_env%atoms_constraints)
+            END IF
+            CALL release_simpar_type(pint_env%simpar)
 
             IF (pint_env%harm_integrator == integrate_exact) THEN
                DEALLOCATE (pint_env%wsinex)
