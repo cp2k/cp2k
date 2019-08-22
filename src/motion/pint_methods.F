@@ -621,6 +621,7 @@ CONTAINS
       CALL section_vals_get(constraint_section, explicit=explicit)
       CALL create_simpar_type(pint_env%simpar)
       pint_env%simpar%constraint = explicit
+      pint_env%kTcorr = 1.0_dp
       IF (explicit) THEN
          ! Staging not supported yet, since lowest mode is assumed
          ! to be related to centroid
@@ -682,8 +683,6 @@ CONTAINS
                                    l_val=ltmp)
          IF (ltmp) THEN
             pint_env%kTcorr = 1.0_dp+REAL(3*pint_env%n_atoms_constraints, dp)/(REAL(pint_env%ndim, dp)*REAL(pint_env%p, dp))
-         ELSE
-            pint_env%kTcorr = 1.0_dp
          END IF
       END IF
 
