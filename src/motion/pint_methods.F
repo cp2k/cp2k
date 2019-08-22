@@ -756,7 +756,7 @@ CONTAINS
             DEALLOCATE (pint_env%propagator)
 
             IF (pint_env%simpar%constraint) THEN
-               DEALLOCATE(pint_env%atoms_constraints)
+               DEALLOCATE (pint_env%atoms_constraints)
             END IF
             CALL release_simpar_type(pint_env%simpar)
 
