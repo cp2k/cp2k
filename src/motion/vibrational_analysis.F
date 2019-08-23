@@ -38,13 +38,13 @@ MODULE vibrational_analysis
    USE cp_result_methods,               ONLY: get_results
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
+   USE grrm_utils,                      ONLY: write_grrm
    USE header,                          ONLY: vib_header
    USE input_constants,                 ONLY: do_rep_blocked
    USE input_section_types,             ONLY: section_type,&
@@ -70,7 +70,6 @@ MODULE vibrational_analysis
    USE physcon,                         ONLY: &
         a_bohr, boltzmann, e_mass, h_bar, hertz, kelvin, kjmol, massunit, n_avogadro, pascal, &
         vibfac, wavenumbers
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -107,7 +106,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
          iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, nRotTrM, nvib, output_unit, &
-         output_unit_eig, prep, proc_dist_type
+         output_unit_eig, prep, print_grrm, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
@@ -129,10 +128,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, &
                                                             mode_tracking_section, print_section, &
                                                             vib_section
-
-!      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-
-!      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
       NULLIFY (D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, &
@@ -400,6 +395,30 @@ CONTAINS
                   Hessian(j, i) = Hessian(i, j)
                END DO
             END DO
+            !
+            ! Print GRMM interface file
+            print_grrm = cp_print_key_unit_nr(logger, force_env_section, "PRINT%GRRM", &
+                                              file_position="REWIND", extension=".rrm")
+            IF (print_grrm > 0) THEN
+               DO i = 1, natoms
+                  imap = Mlist(i)
+                  particles(imap)%f(1:3) = rep_env%f((imap-1)*3+1:(imap-1)*3+3, 1)
+               ENDDO
+               ALLOCATE (Hint1(ncoord, ncoord), rmass(ncoord))
+               DO i = 1, natoms
+                  imap = Mlist(i)
+                  rmass(3*(imap-1)+1:3*(imap-1)+3) = mass(imap)
+               ENDDO
+               DO i = 1, ncoord
+                  DO j = 1, ncoord
+                     Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
+                  END DO
+               END DO
+               CALL write_grrm(print_grrm, particles, minimum_energy, hessian=Hint1)
+               DEALLOCATE (Hint1, rmass)
+            END IF
+            CALL cp_print_key_finished_output(print_grrm, logger, force_env_section, "PRINT%GRRM")
+            !
             nvib = ncoord-nRotTrM
             ALLOCATE (H_eigval1(ncoord))
             ALLOCATE (H_eigval2(SIZE(D, 2)))

@@ -83,6 +83,7 @@ MODULE force_env_methods
                                               parsef
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
+   USE grrm_utils,                      ONLY: write_grrm
    USE input_constants,                 ONLY: &
         debug_run, dfet, dmfet, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, &
         mix_minimum, mix_restrained, mixed_cdft_serial, use_bazant_eip, use_lenosky_eip
@@ -207,7 +208,7 @@ CONTAINS
       REAL(kind=dp), PARAMETER                           :: ateps = 1.0E-6_dp
 
       INTEGER                                            :: i, j, nat, ndigits, output_unit, &
-                                                            print_forces
+                                                            print_forces, print_grrm
       LOGICAL                                            :: calculate_forces, &
                                                             calculate_stress_tensor, &
                                                             energy_consistency, eval_ef, &
@@ -420,6 +421,16 @@ CONTAINS
          CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
                                            "PRINT%PROGRAM_RUN_INFO")
       END IF
+
+      ! Print GRMM interface file
+      print_grrm = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%GRRM", &
+                                        file_position="REWIND", extension=".rrm")
+      IF (print_grrm > 0) THEN
+         CALL force_env_get(force_env, subsys=subsys)
+         CALL cp_subsys_get(subsys, particles=particles)
+         CALL write_grrm(print_grrm, particles%els, e_pot)
+      END IF
+      CALL cp_print_key_finished_output(print_grrm, logger, force_env%force_env_section, "PRINT%GRRM")
 
       ! Atomic stress
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
