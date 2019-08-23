@@ -40,6 +40,11 @@
    <h2>CP2K units</h2>
    <p>
     <a href="units.html">Available units of measurement</a> which can be used in the CP2K input for keyword values.
+    The units can be used to specify an alternative unit of measurement for keyword values, for which a
+    default unit has been explicitly defined.
+    They are specified in the form of a string <code>[unit]</code> as a separate token before any value.
+    A unit specification is applied to all values on the same line following that specification, unless explicitly
+    overwritten by a another unit specification.
    </p>
    <h2>Internal input preprocessor</h2>
    <p>
