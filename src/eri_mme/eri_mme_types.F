@@ -328,8 +328,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
       INTEGER                                            :: i_grid, n_mm
-      REAL(KIND=dp)                                      :: cutoff, cutoff_delta, err_c, err_c_prev, &
-                                                            err_mm, err_mm_prev
+      REAL(KIND=dp)                                      :: cutoff, cutoff_delta, err_mm, err_mm_prev
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: minimax_aw, minimax_aw_prev
 
       cutoff_delta = (cutoff_max/cutoff_min)**(1.0_dp/(n_grids))
@@ -362,7 +361,6 @@ CONTAINS
             minimax_aw_prev(:) = minimax_aw(:)
             DEALLOCATE (minimax_aw)
             err_mm_prev = err_mm
-            err_c_prev = err_c
          ENDDO
          cutoff = cutoff/cutoff_delta
       ENDDO
