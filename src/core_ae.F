@@ -104,6 +104,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: habd, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab, pab, verf, vnuc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, rpgfa, rpgfb, sphi_a, &
                                                             sphi_b, zeta, zetb
@@ -137,6 +138,10 @@ CONTAINS
                               alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
+      END IF
+
+      IF (use_virial) THEN
+         pv_loc = virial%pv_virial
       END IF
 
       maxder = ncoset(nder)
@@ -399,6 +404,9 @@ CONTAINS
                               alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
+      END IF
+      IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_ppl = virial%pv_virial-pv_loc
       END IF
 
       CALL timestop(handle)

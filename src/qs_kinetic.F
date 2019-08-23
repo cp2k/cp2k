@@ -121,6 +121,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: f0, ff, rab2, tab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: kab, pab, qab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: k_block, p_block, rpgfa, rpgfb, scon_a, &
                                                             scon_b, zeta, zetb
@@ -189,6 +190,7 @@ CONTAINS
          ! if forces -> maybe virial too
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         pv_loc = virial%pv_virial
          ! we need density matrix for forces
          IF (dokp) THEN
             CPASSERT(PRESENT(matrixkp_p))
@@ -357,6 +359,10 @@ CONTAINS
       IF (do_forces) DEALLOCATE (pab, dab)
 !$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
+
+      IF (do_forces .AND. use_virial) THEN
+         virial%pv_ekin = virial%pv_virial-pv_loc
+      END IF
 
       IF (dokp) THEN
          DO ic = 1, nimg

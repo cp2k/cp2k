@@ -879,7 +879,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rcpbc
       REAL(KIND=dp), DIMENSION(3)                        :: fdij, fdik, ra, rab, rb, rb0, rbc, rc, &
                                                             rc0, rca, rij, rik, sab_max
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_virial_thread
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_loc, pv_virial_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atener
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -963,6 +963,9 @@ CONTAINS
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
          IF (use_virial .AND. debugall) THEN
             dvirial = virial%pv_virial
+         END IF
+         IF (use_virial) THEN
+            pv_loc = virial%pv_virial
          END IF
       ELSE IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
                 dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc) THEN
@@ -1744,6 +1747,10 @@ CONTAINS
 
       IF (domol) THEN
          DEALLOCATE (atom2mol)
+      END IF
+
+      IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_vdw = virial%pv_virial-pv_loc
       END IF
 
       IF (ASSOCIATED(dispersion_env%dftd_section)) THEN

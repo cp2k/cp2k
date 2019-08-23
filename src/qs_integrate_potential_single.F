@@ -256,6 +256,7 @@ CONTAINS
 
             IF (use_virial) THEN
                virial%pv_virial = virial%pv_virial+my_virial_a*rho_rspace%pw%pw_grid%dvol
+               virial%pv_ppl = virial%pv_ppl+my_virial_a*rho_rspace%pw%pw_grid%dvol
                CPABORT("Virial not debuged for CORE_PPL")
             END IF
          END DO
@@ -450,6 +451,7 @@ CONTAINS
 
                IF (use_virial) THEN
                   virial%pv_virial = virial%pv_virial+my_virial_a*rho_rspace%pw%pw_grid%dvol
+                  virial%pv_exc = virial%pv_exc+my_virial_a*rho_rspace%pw%pw_grid%dvol
                END IF
             END DO
 
@@ -610,6 +612,7 @@ CONTAINS
 
                IF (use_virial) THEN
                   virial%pv_virial = virial%pv_virial+my_virial_a
+                  virial%pv_hartree = virial%pv_hartree+my_virial_a
                END IF
                IF (ASSOCIATED(atprop)) THEN
                   atprop%ateb(atom_a) = atprop%ateb(atom_a)+0.5_dp*hab(1, 1)*pab(1, 1)

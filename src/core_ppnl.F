@@ -120,6 +120,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, rac, rbc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, h_nl, p_block, rpgfa, &
                                                             sphi_a, vprj_ppnl, zeta
@@ -163,6 +164,10 @@ CONTAINS
                                  alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
                END DO
             END IF
+         END IF
+
+         IF (use_virial) THEN
+            pv_loc = virial%pv_virial
          END IF
 
          maxder = ncoset(nder)
@@ -530,6 +535,10 @@ CONTAINS
                                  alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
                END DO
             END IF
+         END IF
+
+         IF (calculate_forces .AND. use_virial) THEN
+            virial%pv_ppnl = virial%pv_virial-pv_loc
          END IF
 
       END IF !ppnl_present

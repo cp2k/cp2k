@@ -11,6 +11,7 @@
 ! **************************************************************************************************
 MODULE qs_local_properties
    USE bibliography,                    ONLY: Cohen2000,&
+                                              Filippetti2000,&
                                               Rogers2002,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -25,6 +26,7 @@ MODULE qs_local_properties
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: det_3x3
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -54,6 +56,7 @@ MODULE qs_local_properties
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -264,9 +267,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_local_stress', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, nimages, nkind, nspins
-      LOGICAL                                            :: do_pressure, do_stress, gapw, gapw_xc
+      INTEGER                                            :: handle, i, iounit, j, nimages, nkind, &
+                                                            nspins
+      LOGICAL                                            :: do_pressure, do_stress, gapw, gapw_xc, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: my_beta
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_hartree_gspace, v_hartree_rspace, &
@@ -276,9 +283,11 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
+      CALL cite_reference(Filippetti2000)
       CALL cite_reference(Rogers2002)
 
       CPASSERT(ASSOCIATED(qs_env))
@@ -298,6 +307,9 @@ CONTAINS
       ELSE
          my_beta = 0.0_dp
       END IF
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit()
 
       !!!!!!
       CALL cp_warn(__LOCATION__, "Local Stress Tensor code is not tested")
@@ -355,6 +367,22 @@ CONTAINS
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, efield(i)%pw)
       END DO
+
+      pv_loc = 0.0_dp
+
+      CALL get_qs_env(qs_env=qs_env, virial=virial)
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (.NOT. use_virial) THEN
+         CALL cp_warn(__LOCATION__, "Local stress should be used with standard stress calculation.")
+      END IF
+      IF (iounit > 0 .AND. use_virial) THEN
+         WRITE (UNIT=iounit, FMT="(/,T3,A)") REPEAT("=", 78)
+         WRITE (UNIT=iounit, FMT="(T4,A)") "Local Stress Calculation"
+         WRITE (UNIT=iounit, FMT="(T42,A,T64,A)") "       1/3 Trace", "     Determinant"
+         WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Total Stress", &
+            (pv_loc(1, 1)+pv_loc(2, 2)+pv_loc(3, 3))/3.0_dp, det_3x3(pv_loc)
+         WRITE (UNIT=iounit, FMT="(T3,A)") REPEAT("=", 78)
+      END IF
 
       CALL timestop(handle)
 

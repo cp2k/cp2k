@@ -84,11 +84,7 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007, &
-<<<<<<< HEAD
-                            Ren2011, Ren2013
-=======
-                            Cohen2000, Rogers2002
->>>>>>> Local energy for GPW method
+                            Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000
 
 CONTAINS
 
@@ -4082,6 +4078,18 @@ CONTAINS
                          "DI 10.1103/PhysRevB.65.224117", &
                          "ER"), &
                          DOI="10.1103/PhysRevB.65.224117")
+
+      CALL add_reference(key=Filippetti2000, ISI_record=s2a( &
+                         "AU Filippetti, Alessio", &
+                         "   Fiorentini, Vincenzo", &
+                         "TI Theory and applications of the stress density", &
+                         "SO PHYSICAL REVIEW B", &
+                         "DT Article", &
+                         "PY 2000", &
+                         "VL 61", &
+                         "BP 8433", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.61.8433")
 
    END SUBROUTINE add_all_references
 
