@@ -391,6 +391,8 @@ CONTAINS
       TYPE(cp_libint_t) :: lib
       REAL(KIND=dp) :: get_ssss_f_val
 
+      get_ssss_f_val = 0
+
 #if(__LIBINT)
       get_ssss_f_val = lib%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_0(1)
 #else
