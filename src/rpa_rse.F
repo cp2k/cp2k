@@ -307,7 +307,7 @@ CONTAINS
          CALL mp_sum(diag_diff, para_env%group)
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global, rse_term) &
-!$OMP             SHARED(rse_corr,ncol_local,nrow_local,col_indices,row_indices,diag_diff, eigenval_beta, fm_X_mo_Beta,homo_beta)
+!$OMP             SHARED(rse_corr_beta,ncol_local,nrow_local,col_indices,row_indices,diag_diff, eigenval_beta, fm_X_mo_Beta,homo_beta)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
