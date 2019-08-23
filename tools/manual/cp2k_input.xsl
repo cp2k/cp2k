@@ -23,11 +23,11 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <a href="https://github.com/cp2k/cp2k/tree/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (<xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
-    and was generated automatically from a CP2K executable
-    compiled on <xsl:value-of select="COMPILE_DATE"/> using the
-    <big class="tt">--xml</big> command line option (see
-    <a href="generate_manual_howto.html">how to generate this manual</a>).
+    <a href="https://github.com/cp2k/cp2k/tree/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}" target="_blank">
+     <xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (<xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)
+    </a>
+    and was generated automatically from a CP2K executable compiled on <xsl:value-of select="COMPILE_DATE"/> using the
+    <code>--xml</code> command line option (see <a href="generate_manual_howto.html">how to generate this manual</a>).
     Thus the manual describes exactly this version of the code.
    </p>
    <p>
@@ -126,9 +126,9 @@
      <ul class="none">
       <li>
        Section path:
-       <big class="uctt">
+       <code class="upper">
         <a href="CP2K_INPUT.html">CP2K_INPUT</a>
-       </big>
+       </code>
       </li>
      </ul>
      <ul class="none">
@@ -184,8 +184,7 @@
  <style type="text/css">
   a {text-decoration: none;}
   body {background-color: #ffffff;}
-  big.tt {font-family: monospace; font-size: 100%;}
-  big.uctt {font-family: monospace; font-size: 100%; text-transform: uppercase;}
+  code.upper {text-transform: uppercase;}
   li {margin-left: 0em; padding-left: 0em; text-indent: 0em;}
   p.uctt {font-family: monospace; text-transform: uppercase;}
   table.default {table-layout: fixed; width: 100%;}
@@ -303,13 +302,13 @@
      <ul class="none">
       <li>
        Section path:
-       <big class="uctt">
+       <code class="upper">
         <xsl:call-template name="link_section_path">
          <xsl:with-param name="string" select="$local_path"/>
          <xsl:with-param name="separator" select="'/'"/>
          <xsl:with-param name="root" select="$root"/>
         </xsl:call-template>
-       </big>
+       </code>
       </li>
      </ul>
      <ul class="none">
@@ -471,17 +470,17 @@
      <td class="r">
       <xsl:choose>
        <xsl:when test="NAME[@type='default'] = 'DEFAULT_KEYWORD'">
-        <big class="tt"><xsl:value-of disable-output-escaping="yes" select="USAGE"/></big>
+        <code><xsl:value-of disable-output-escaping="yes" select="USAGE"/></code>
        </xsl:when>
        <xsl:otherwise>
         <xsl:variable name="vartype" select="concat(upper-case(substring(DATA_TYPE/@kind,1,1)),substring(DATA_TYPE/@kind,2))"/>
         <xsl:if test="DATA_TYPE/N_VAR > 0">
          <xsl:choose>
           <xsl:when test="NAME[@type='default'] = 'SECTION_PARAMETERS'">
-           <big class="uctt">&amp;<xsl:value-of disable-output-escaping="yes" select="../NAME"/></big>
+           <code class="upper">&amp;<xsl:value-of disable-output-escaping="yes" select="../NAME"/></code>
           </xsl:when>
           <xsl:otherwise>
-           <big class="uctt"><xsl:value-of disable-output-escaping="yes" select="NAME[@type='default']"/></big>
+           <code class="upper"><xsl:value-of disable-output-escaping="yes" select="NAME[@type='default']"/></code>
           </xsl:otherwise>
          </xsl:choose>
          <xsl:call-template name="repeat">
@@ -491,10 +490,10 @@
          </xsl:call-template>
         </xsl:if>
         <xsl:if test="DATA_TYPE/N_VAR = -1">
-         <big class="uctt"><xsl:value-of disable-output-escaping="yes" select="NAME[@type='default']"/></big>
-         <big class="tt">&#160;{<xsl:value-of select="$vartype"/>}&#160;...</big>
+         <code class="upper"><xsl:value-of disable-output-escaping="yes" select="NAME[@type='default']"/></code>
+         <code>&#160;{<xsl:value-of select="$vartype"/>}&#160;...</code>
          <xsl:if test="contains(upper-case(NAME[@type='default']),'LIST')">
-          <big class="tt">&#160;or&#160;a&#160;range&#160;{<xsl:value-of select="$vartype"/>}..{<xsl:value-of select="$vartype"/>}</big>
+          <code>&#160;or&#160;a&#160;range&#160;{<xsl:value-of select="$vartype"/>}..{<xsl:value-of select="$vartype"/>}</code>
          </xsl:if>
         </xsl:if>
        </xsl:otherwise>
@@ -542,16 +541,16 @@
       <td class="r">
        <xsl:if test="DATA_TYPE/@kind = 'logical'">
         The lone keyword behaves as a switch to
-        <big class="uctt">
+        <code class="upper">
          <xsl:if test="LONE_KEYWORD_VALUE = 'T'">.TRUE.</xsl:if>
          <xsl:if test="LONE_KEYWORD_VALUE = 'F'">.FALSE.</xsl:if>
-        </big>
+        </code>
        </xsl:if>
        <xsl:if test="DATA_TYPE/@kind = 'integer' or DATA_TYPE/@kind = 'real'">
         The lone keyword defaults to
-        <big class="uctt">
+        <code class="upper">
          <xsl:value-of select="LONE_KEYWORD_VALUE"/>
-        </big>
+        </code>
        </xsl:if>
       </td>
      </tr>
@@ -562,7 +561,7 @@
       </td>
       <td class="r">
        Default value<xsl:if test="DATA_TYPE/N_VAR > 1">s</xsl:if>:
-       <big class="uctt">
+       <code class="upper">
         <xsl:choose>
          <xsl:when test="DATA_TYPE/@kind = 'logical'">
           <xsl:if test="DEFAULT_VALUE = 'T'">.TRUE.</xsl:if>
@@ -572,7 +571,7 @@
           <xsl:value-of select="DEFAULT_VALUE"/>
          </xsl:otherwise>
         </xsl:choose>
-       </big>
+       </code>
       </td>
      </tr>
     </xsl:if>
@@ -582,9 +581,9 @@
       </td>
       <td class="r">
        <a href="{$root}units.html">Default unit:</a>
-       <big class="tt">
+       <code>
         [<xsl:value-of select="DEFAULT_UNIT"/>]
-       </big>
+       </code>
       </td>
      </tr>
     </xsl:if>
@@ -600,9 +599,9 @@
          <li>
           <dl>
            <dt>
-            <big class="uctt">
+            <code class="upper">
              <xsl:value-of select="NAME"/>
-            </big>
+            </code>
            </dt>
            <dd>
             <em>
@@ -697,25 +696,25 @@
     <ul class="disc">
      <li>
       Prepare a CP2K executable. It does not matter which type of CP2K executable (e.g. psmp) you are using,
-      since running a CP2K executable with the flag <big class="tt">--xml</big> like:
+      since running a CP2K executable with the flag <code>--xml</code> like:
       <ul class="none">
-       <li><big class="tt">cp2k.psmp --xml</big></li>
+       <li><code>cp2k.psmp --xml</code></li>
       </ul>
-      will generate a file named <big class="tt">cp2k_input.xml</big> with an XML dump of the entire CP2K input structure
+      will generate a file named <code>cp2k_input.xml</code> with an XML dump of the entire CP2K input structure
       in the same directory describing all features of the actual CP2K executable.<br/>
-      That XML output in <big class="tt">cp2k_input.xml</big> has to be transformed to HTML using an XML 2.0 compliant
+      That XML output in <code>cp2k_input.xml</code> has to be transformed to HTML using an XML 2.0 compliant
       translator like SAXON. Preferentially, you may want to employ the platform independent Java version of SAXON, which
       can be downloaded from <a href="https://sourceforge.net/projects/saxon">https://sourceforge.net/projects/saxon</a>.<br/>
      </li>
      <li>
       Alternatively, you can also run the script
       <ul class="none">
-       <li><big class="tt">update_manual local psmp</big></li>
+       <li><code>update_manual local psmp</code></li>
       </ul>
       in the folder cp2k/tools/manual/ which will perform all steps using the CP2K executable cp2k/exe/local/cp2k.psmp.
      </li>
      <li>
-      Launch your favorite web browser and load the generated <big class="tt">index.html</big> file, e.g. in cp2k/tools/manual/local/psmp
+      Launch your favorite web browser and load the generated <code>index.html</code> file, e.g. in cp2k/tools/manual/local/psmp
       from the previous step.
      </li>
      <li>
@@ -791,7 +790,7 @@
  <xsl:param name="ivar"/>
  <xsl:param name="nvar"/>
  <xsl:param name="vartype"/>
- <big class="tt">&#160;{<xsl:value-of select="concat(upper-case(substring($vartype,1,1)),substring($vartype,2))"/>}</big>
+ <code>&#160;{<xsl:value-of select="concat(upper-case(substring($vartype,1,1)),substring($vartype,2))"/>}</code>
  <xsl:if test="not($ivar = $nvar)">
   <xsl:call-template name="repeat">
    <xsl:with-param name="ivar" select="$ivar + 1"/>
