@@ -16,6 +16,8 @@ MODULE rpa_main
    USE bibliography,                    ONLY: Bates2013,&
                                               DelBen2013,&
                                               DelBen2015,&
+                                              Ren2011,&
+                                              Ren2013,&
                                               cite_reference
    USE bse,                             ONLY: do_subspace_iterations,&
                                               mult_B_with_W_and_fill_local_3c_arrays
@@ -259,6 +261,10 @@ CONTAINS
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL cite_reference(Bates2013)
 
+      ENDIF
+      IF (mp2_env%ri_rpa%do_rse) THEN
+         CALL cite_reference(Ren2011)
+         CALL cite_reference(Ren2013)
       ENDIF
 
       my_open_shell = .FALSE.

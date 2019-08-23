@@ -83,7 +83,8 @@ MODULE bibliography
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
-                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007
+                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007, &
+                            Ren2011, Ren2013
 
 CONTAINS
 
@@ -4016,6 +4017,36 @@ CONTAINS
                          "DI 10.1063/1.3700154", &
                          "ER"), &
                          DOI="10.1063/1.3700154")
+
+      CALL add_reference(key=Ren2011, ISI_record=s2a( &
+                         "AU Ren,Xinguo", &
+                         "   Tkatchenko,Aleksandre", &
+                         "   Rinke,Patrick", &
+                         "   Scgeffler,Matthias", &
+                         "TI Beyond the Random-Phase Approximation for the Electron Correlation Energy: ", &
+                         "   The Importance of Single Excitations", &
+                         "SO PHYSICAL REVIEW LETTERS", &
+                         "PY 2011", &
+                         "VL 106", &
+                         "IS 15", &
+                         "BP 153003", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevLett.106.153003")
+
+      CALL add_reference(key=Ren2013, ISI_record=s2a( &
+                         "AU Ren,Xinguo", &
+                         "   Rinke,Patrick", &
+                         "   Scuseria,Gustavo", &
+                         "   Scgeffler,Matthias", &
+                         "TI Renormalized second-order perturbation theory for the electron correlation energy: ", &
+                         "   Concept, implementation, and benchmarks", &
+                         "SO PHYSICAL REVIEW B", &
+                         "PY 2013", &
+                         "VL 88", &
+                         "IS 3", &
+                         "BP 035120", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.88.035120")
 
    END SUBROUTINE add_all_references
 

@@ -723,12 +723,21 @@ CONTAINS
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_axk
          ENDIF
+         IF (mp2_env%ri_rpa%do_rse) THEN
+            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Diagonal singles correction (dRSE) = ', &
+               mp2_env%ri_rpa%rse_corr_diag
+            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Full singles correction (RSE) =', &
+               mp2_env%ri_rpa%rse_corr
+         ENDIF
       END IF
       IF (unit_nr > 0) WRITE (unit_nr, *)
 
       ! we have it !!!!
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          Emp2 = Emp2+mp2_env%ri_rpa%ener_axk
+      ENDIF
+      IF (mp2_env%ri_rpa%do_rse) THEN
+         Emp2 = Emp2+mp2_env%ri_rpa%rse_corr
       ENDIF
       energy%mp2 = Emp2
       energy%total = energy%total+Emp2

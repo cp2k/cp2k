@@ -584,6 +584,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="RSE", &
+         variants=(/"SE"/), &
+         description="Decide whether to add singles correction.", &
+         usage="RI_AXK", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="ADMM", &
          description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "// &
          "Not really recommended. In most cases, the Hartree-Fock exchange is not expensive "// &

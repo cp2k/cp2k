@@ -104,9 +104,12 @@ MODULE mp2_types
       LOGICAL                  :: do_admm
       LOGICAL                  :: do_RI_overlap
       LOGICAL                  :: do_ri_axk
+      LOGICAL                  :: do_rse
       TYPE(dbcsr_type), POINTER             :: mo_coeff_o, &
                                                mo_coeff_v
       REAL(KIND=dp)            :: ener_axk
+      REAL(KIND=dp)            :: rse_corr_diag
+      REAL(KIND=dp)            :: rse_corr
    END TYPE
 
    TYPE ri_rpa_im_time_util
