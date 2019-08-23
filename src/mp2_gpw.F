@@ -133,6 +133,7 @@ MODULE mp2_gpw
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE rpa_main,                        ONLY: rpa_ri_compute_en
+   USE rpa_rse,                         ONLY: rse_energy
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&
@@ -739,6 +740,12 @@ CONTAINS
                                    mp2_env%mp2_gpw%eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
                                    gd_B_virtual_beta, &
                                    mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
+
+            IF (mp2_env%ri_rpa%do_rse) &
+               CALL rse_energy(qs_env, mp2_env, para_env, dft_control, &
+                               mo_coeff, nmo, homo, Eigenval, &
+                               Eigenval_beta, homo_beta, mo_coeff_beta)
+
          ELSE
             CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
                                    para_env, para_env_sub_RPA, color_sub, &
@@ -753,6 +760,10 @@ CONTAINS
                                    starts_array_mc_t, ends_array_mc_t, &
                                    mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
                                    mp2_env%mp2_gpw%eps_filter)
+
+            IF (mp2_env%ri_rpa%do_rse) &
+               CALL rse_energy(qs_env, mp2_env, para_env, dft_control, &
+                               mo_coeff, nmo, homo, Eigenval)
          END IF
 
          IF (do_im_time) THEN
