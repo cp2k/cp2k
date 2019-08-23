@@ -1,3 +1,14 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief Routines to compute singles correction to RPA (RSE)
+!> \par History
+!>      08.2019 created [Vladimir Rybkin]
+!> \author Vladimir Rybkin
+! **************************************************************************************************
 MODULE rpa_rse
 
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
