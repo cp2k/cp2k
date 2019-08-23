@@ -49,9 +49,9 @@ CONTAINS
          OPTIONAL                                        :: polar
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_grrm', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: i, j, natom, nc
-      REAL(KIND=dp)                                      :: zero = 0.0_dp
       REAL(KIND=dp), DIMENSION(5)                        :: fz
 
       IF (iounit > 0) THEN
