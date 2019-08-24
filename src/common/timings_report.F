@@ -14,13 +14,11 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE timings_report
+   USE callgraph,                       ONLY: callgraph_item_type,&
+                                              callgraph_items
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dict,                            ONLY: dict_get,&
-                                              dict_haskey,&
-                                              dict_i4tuple_callstat_item_type,&
-                                              dict_items
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -36,6 +34,8 @@ MODULE timings_report
                                               mp_max,&
                                               mp_maxloc,&
                                               mp_sum
+   USE routine_map,                     ONLY: routine_map_get,&
+                                              routine_map_haskey
    USE timings,                         ONLY: get_timer_env
    USE timings_base_type,               ONLY: call_stat_type,&
                                               routine_report_type,&
@@ -157,8 +157,8 @@ CONTAINS
          r_report%routineN = routineN
 
          ! If routineN was called on local node, add local stats
-         IF (dict_haskey(timer_env%routine_names, routineN)) THEN
-            local_routine_id = dict_get(timer_env%routine_names, routineN)
+         IF (routine_map_haskey(timer_env%routine_names, routineN)) THEN
+            local_routine_id = routine_map_get(timer_env%routine_names, routineN)
             collected(local_routine_id) = 1
             r_stat => list_get(timer_env%routine_stats, local_routine_id)
             r_report%max_total_calls = r_stat%total_calls
@@ -347,8 +347,7 @@ CONTAINS
 
       INTEGER                                            :: i, unit
       TYPE(call_stat_type), POINTER                      :: c_stat
-      TYPE(dict_i4tuple_callstat_item_type), &
-         DIMENSION(:), POINTER                           :: ct_items
+      TYPE(callgraph_item_type), DIMENSION(:), POINTER   :: ct_items
       TYPE(routine_stat_type), POINTER                   :: r_stat
       TYPE(timer_env_type), POINTER                      :: timer_env
 
@@ -371,7 +370,7 @@ CONTAINS
             INT(E*r_stat%excl_energy_accu, KIND=int_8)
       END DO
 
-      ct_items => dict_items(timer_env%callgraph)
+      ct_items => callgraph_items(timer_env%callgraph)
       DO i = 1, SIZE(ct_items)
          c_stat => ct_items(i)%value
          WRITE (UNIT=unit, FMT="(A,I0,A)") "fn=(", ct_items(i)%key(1), ")"

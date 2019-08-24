@@ -15,16 +15,15 @@
 MODULE timings
    USE base_hooks,                      ONLY: timeset_hook,&
                                               timestop_hook
+   USE callgraph,                       ONLY: callgraph_destroy,&
+                                              callgraph_get,&
+                                              callgraph_init,&
+                                              callgraph_item_type,&
+                                              callgraph_items,&
+                                              callgraph_set
    USE cuda_profiling,                  ONLY: cuda_mem_info,&
                                               cuda_nvtx_range_pop,&
                                               cuda_nvtx_range_push
-   USE dict,                            ONLY: dict_destroy,&
-                                              dict_get,&
-                                              dict_i4tuple_callstat_item_type,&
-                                              dict_init,&
-                                              dict_items,&
-                                              dict_set,&
-                                              dict_size
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -35,6 +34,11 @@ MODULE timings
                                               m_flush,&
                                               m_memory,&
                                               m_walltime
+   USE routine_map,                     ONLY: routine_map_destroy,&
+                                              routine_map_get,&
+                                              routine_map_init,&
+                                              routine_map_set,&
+                                              routine_map_size
    USE timings_base_type,               ONLY: call_stat_type,&
                                               callstack_entry_type,&
                                               routine_stat_type
@@ -106,16 +110,12 @@ CONTAINS
    SUBROUTINE timer_env_create(timer_env)
       TYPE(timer_env_type), POINTER                      :: timer_env
 
-      INTEGER                                            :: stat
-
-      ALLOCATE (timer_env, stat=stat)
-      IF (stat /= 0) &
-         CPABORT("timer_env_create: allocation failed")
+      ALLOCATE (timer_env)
       timer_env%ref_count = 0
       timer_env%trace_max = -1 ! tracing disabled by default
       timer_env%trace_all = .FALSE.
-      CALL dict_init(timer_env%routine_names)
-      CALL dict_init(timer_env%callgraph)
+      CALL routine_map_init(timer_env%routine_names)
+      CALL callgraph_init(timer_env%callgraph)
       CALL list_init(timer_env%routine_stats)
       CALL list_init(timer_env%callstack)
    END SUBROUTINE timer_env_create
@@ -171,8 +171,7 @@ CONTAINS
       TYPE(timer_env_type), POINTER                      :: timer_env
 
       INTEGER                                            :: i
-      TYPE(dict_i4tuple_callstat_item_type), &
-         DIMENSION(:), POINTER                           :: ct_items
+      TYPE(callgraph_item_type), DIMENSION(:), POINTER   :: ct_items
       TYPE(routine_stat_type), POINTER                   :: r_stat
 
       IF (.NOT. ASSOCIATED(timer_env)) &
@@ -189,14 +188,14 @@ CONTAINS
          DEALLOCATE (r_stat)
       END DO
 
-      ct_items => dict_items(timer_env%callgraph)
+      ct_items => callgraph_items(timer_env%callgraph)
       DO i = 1, SIZE(ct_items)
          DEALLOCATE (ct_items(i)%value)
       END DO
       DEALLOCATE (ct_items)
 
-      CALL dict_destroy(timer_env%routine_names)
-      CALL dict_destroy(timer_env%callgraph)
+      CALL routine_map_destroy(timer_env%routine_names)
+      CALL callgraph_destroy(timer_env%callgraph)
       CALL list_destroy(timer_env%callstack)
       CALL list_destroy(timer_env%routine_stats)
       DEALLOCATE (timer_env)
@@ -355,13 +354,13 @@ CONTAINS
 
          !update callgraph
          routine_tuple = (/prev_cs_entry%routine_id, routine_id/)
-         c_stat => dict_get(timer_env%callgraph, routine_tuple, default_value=Null(c_stat))
+         c_stat => callgraph_get(timer_env%callgraph, routine_tuple, default_value=Null(c_stat))
          IF (.NOT. ASSOCIATED(c_stat)) THEN
             ALLOCATE (c_stat)
             c_stat%total_calls = 0
             c_stat%incl_walltime_accu = 0.0_dp
             c_stat%incl_energy_accu = 0.0_dp
-            CALL dict_set(timer_env%callgraph, routine_tuple, c_stat)
+            CALL callgraph_set(timer_env%callgraph, routine_tuple, c_stat)
          END IF
          c_stat%total_calls = c_stat%total_calls+1
          c_stat%incl_walltime_accu = c_stat%incl_walltime_accu+wt_elapsed
@@ -472,12 +471,11 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: routineN
       INTEGER                                            :: routine_id
 
-      INTEGER                                            :: stat
       TYPE(routine_stat_type), POINTER                   :: r_stat
       TYPE(timer_env_type), POINTER                      :: timer_env
 
       timer_env => list_peek(timers_stack)
-      routine_id = dict_get(timer_env%routine_names, routineN, default_value=-1)
+      routine_id = routine_map_get(timer_env%routine_names, routineN, default_value=-1)
 
       IF (routine_id /= -1) RETURN ! found an id - let's return it
       ! routine not found - let's create it
@@ -488,12 +486,10 @@ CONTAINS
       END IF
 
       ! register routine_name_dsl with new routine_id
-      routine_id = dict_size(timer_env%routine_names)+1
-      CALL dict_set(timer_env%routine_names, routineN, routine_id)
+      routine_id = routine_map_size(timer_env%routine_names)+1
+      CALL routine_map_set(timer_env%routine_names, routineN, routine_id)
 
-      ALLOCATE (r_stat, stat=stat)
-      IF (stat /= 0) &
-         CPABORT("timings_name2id: allocation failed")
+      ALLOCATE (r_stat)
       r_stat%routine_id = routine_id
       r_stat%routineN = routineN
       r_stat%active_calls = 0
@@ -505,8 +501,7 @@ CONTAINS
       r_stat%stackdepth_accu = 0
       r_stat%trace = .FALSE.
       CALL list_push(timer_env%routine_stats, r_stat)
-      IF (list_size(timer_env%routine_stats) /= dict_size(timer_env%routine_names)) &
-         CPABORT("timings_name2id: assertion failed")
+      CPASSERT(list_size(timer_env%routine_stats) == routine_map_size(timer_env%routine_names))
    END FUNCTION routine_name2id
 
 END MODULE timings
