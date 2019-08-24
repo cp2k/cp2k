@@ -59,23 +59,6 @@ MODULE cp_fm_elpa
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_elpa'
 
-   PUBLIC :: cp_fm_diag_elpa, &
-             get_elpa_number_kernels, &
-             get_elpa_kernel_index, &
-             set_elpa_kernel, &
-             set_elpa_qr, &
-             set_elpa_print, &
-             elpa_kernel_names, &
-             elpa_kernel_descriptions, &
-             initialize_elpa_library, &
-             finalize_elpa_library
-
-   INTEGER, SAVE :: elpa_kernel = -1 ! auto
-   LOGICAL, SAVE :: elpa_qr = .FALSE., &
-                    elpa_qr_unsafe = .FALSE., &
-                    elpa_should_print = .FALSE., &
-                    elpa_use_gpu = .FALSE.
-
    CHARACTER(len=14), DIMENSION(*), PARAMETER :: elpa_kernel_names = [ CHARACTER(len=14) :: &
       "AUTO", &
       "GENERIC", &
@@ -117,6 +100,23 @@ MODULE cp_fm_elpa
       "Kernel optimized for Intel AVX-512 (block=4)", &
       "Kernel optimized for Intel AVX-512 (block=6)", &
       "Kernel targeting GPUs"]
+
+   INTEGER, SAVE :: elpa_kernel = -1 ! auto
+   LOGICAL, SAVE :: elpa_qr = .FALSE., &
+                    elpa_qr_unsafe = .FALSE., &
+                    elpa_should_print = .FALSE., &
+                    elpa_use_gpu = .FALSE.
+
+   PUBLIC :: cp_fm_diag_elpa, &
+             get_elpa_number_kernels, &
+             get_elpa_kernel_index, &
+             set_elpa_kernel, &
+             set_elpa_qr, &
+             set_elpa_print, &
+             elpa_kernel_names, &
+             elpa_kernel_descriptions, &
+             initialize_elpa_library, &
+             finalize_elpa_library
 
 CONTAINS
 
