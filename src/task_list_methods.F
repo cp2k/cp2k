@@ -77,6 +77,10 @@ MODULE task_list_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_methods'
 
+#if !defined(_OPENMP)
+   INTEGER, PARAMETER, PRIVATE :: omp_lock_kind = int_8
+#endif
+
    PUBLIC :: generate_qs_task_list, &
              task_list_inner_loop
    PUBLIC :: distribute_tasks, &
@@ -2131,14 +2135,14 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, i, iatom, ilevel, img, ipgf, &
                                                             iset, j, jatom, jpgf, jset
-      INTEGER(KIND=int_8)                                :: natom8, nim8
+      INTEGER(KIND=int_8)                                :: natoms8, nimages8
       INTEGER, DIMENSION(:), POINTER                     :: index
 
       ! calculate list of atom pairs
       ! fill pair list taking into acount symmetry
 
-      natom8 = natoms
-      nim8 = nimages
+      natoms8 = natoms
+      nimages8 = nimages
 
       atom_pair = 0
       DO i = 1, SIZE(atom_pair)
@@ -2159,12 +2163,12 @@ CONTAINS
             ! If sending, we need to use the 'real rank' as the pair has to be sent to the process which
             ! actually has the correct part of the rs_grid to do the mapping
             atom_pair(i) = rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(my_tasks(1, i), SIZE(rs_descs))) &
-                           *natom8*natom8*nim8+(arow-1)*natom8*nim8+(acol-1)*nim8+(img-1)
+                           *natoms8*natoms8*nimages8+(arow-1)*natoms8*nimages8+(acol-1)*nimages8+(img-1)
          ELSE
             ! If we are recieving, then no conversion is needed as the rank is that of the process with the
             ! required matrix block, and the ordering of the rs grid is irrelevant
             atom_pair(i) = decode_rank(my_tasks(2, i), SIZE(rs_descs)) &
-                           *natom8*natom8*nim8+(arow-1)*natom8*nim8+(acol-1)*nim8+(img-1)
+                           *natoms8*natoms8*nimages8+(arow-1)*natoms8*nimages8+(acol-1)*nimages8+(img-1)
          ENDIF
       ENDDO
 
@@ -2220,25 +2224,21 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, i, img, j, k, l, me, &
                                                             nblkcols_total, nblkrows_total, ncol, &
-                                                            nrow, nthread, nthread_left
-      INTEGER(KIND=int_8)                                :: natom8, nim8, pair
+                                                            nrow
+      INTEGER(KIND=int_8)                                :: natoms8, nimages8, pair
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
+         DIMENSION(:)                                    :: locks
       INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, last_row, recv_disps, &
          recv_pair_count, recv_pair_disps, recv_sizes, send_disps, send_pair_count, &
          send_pair_disps, send_sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf_r, send_buf_r
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block
-      TYPE(dbcsr_type), POINTER                          :: hmat, pmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
+      TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(realspace_grid_desc_type), POINTER            :: desc
 
-!$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
-
       CALL timeset(routineN, handle)
-
-      IF (.NOT. scatter) THEN
-         CPASSERT(PRESENT(hmats))
-      END IF
 
       desc => rs_descs(1)%rs_desc
       me = desc%my_pos+1
@@ -2264,20 +2264,20 @@ CONTAINS
       CALL dbcsr_convert_sizes_to_offsets(row_blk_size, first_row, last_row)
       CALL dbcsr_convert_sizes_to_offsets(col_blk_size, first_col, last_col)
       ! set up send buffer sizes
-      natom8 = natoms
-      nim8 = nimages
+      natoms8 = natoms
+      nimages8 = nimages
 
       send_sizes = 0
       send_pair_count = 0
       DO i = 1, SIZE(atom_pair_send)
 
          ! proc we're sending this block to
-         k = INT(atom_pair_send(i)/(nim8*natom8**2))+1
+         k = INT(atom_pair_send(i)/(nimages8*natoms8**2))+1
 
-         pair = MOD(atom_pair_send(i), nim8*natom8**2)
+         pair = MOD(atom_pair_send(i), nimages8*natoms8**2)
 
-         arow = INT(pair/(nim8*natom8))+1
-         acol = INT(MOD(pair, nim8*natom8)/nim8)+1
+         arow = INT(pair/(nimages8*natoms8))+1
+         acol = INT(MOD(pair, nimages8*natoms8)/nimages8)+1
 
          nrow = last_row(arow)-first_row(arow)+1
          ncol = last_col(acol)-first_col(acol)+1
@@ -2303,12 +2303,12 @@ CONTAINS
       DO i = 1, SIZE(atom_pair_recv)
 
          ! proc we're receiving this data from
-         k = INT(atom_pair_recv(i)/(nim8*natom8**2))+1
+         k = INT(atom_pair_recv(i)/(nimages8*natoms8**2))+1
 
-         pair = MOD(atom_pair_recv(i), nim8*natom8**2)
+         pair = MOD(atom_pair_recv(i), nimages8*natoms8**2)
 
-         arow = INT(pair/(nim8*natom8))+1
-         acol = INT(MOD(pair, nim8*natom8)/nim8)+1
+         arow = INT(pair/(nimages8*natoms8))+1
+         acol = INT(MOD(pair, nimages8*natoms8)/nimages8)+1
 
          nrow = last_row(arow)-first_row(arow)+1
          ncol = last_col(acol)-first_col(acol)+1
@@ -2327,19 +2327,14 @@ CONTAINS
       ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          SHARED(desc,send_pair_count,send_pair_disps,natom8,nim8,nimages),&
+!$OMP          SHARED(desc,send_pair_count,send_pair_disps,natoms8,nimages8,natoms,nimages),&
 !$OMP          SHARED(last_row,first_row,last_col,first_col),&
 !$OMP          SHARED(pmats,send_buf_r,send_disps,send_sizes),&
 !$OMP          SHARED(atom_pair_send,me,hmats,nblkrows_total),&
 !$OMP          SHARED(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$OMP          SHARED(recv_sizes,recv_disps,recv_pair_count,locks), &
 !$OMP          PRIVATE(i,img,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
-!$OMP          PRIVATE(nthread,h_block,nthread_left,hmat,pmat)
-
-      nthread = 1
-!$    nthread = omp_get_num_threads()
-      nthread_left = 1
-!$    nthread_left = MAX(1, nthread-1)
+!$OMP          PRIVATE(pmat)
 
       ! do packing
 !$OMP DO schedule(guided)
@@ -2347,11 +2342,11 @@ CONTAINS
          IF (l .EQ. me) CYCLE
          send_sizes(l) = 0
          DO i = 1, send_pair_count(l)
-            pair = MOD(atom_pair_send(send_pair_disps(l)+i), nim8*natom8**2)
+            pair = MOD(atom_pair_send(send_pair_disps(l)+i), nimages8*natoms8**2)
 
-            arow = INT(pair/(nim8*natom8))+1
-            acol = INT(MOD(pair, nim8*natom8)/nim8)+1
-            img = INT(MOD(pair, nim8))+1
+            arow = INT(pair/(nimages8*natoms8))+1
+            acol = INT(MOD(pair, nimages8*natoms8)/nimages8)+1
+            img = INT(MOD(pair, nimages8))+1
 
             nrow = last_row(arow)-first_row(arow)+1
             ncol = last_col(acol)-first_col(acol)+1
@@ -2371,68 +2366,123 @@ CONTAINS
       ENDDO
 !$OMP END DO
 
-      IF (.NOT. scatter) THEN
-         ! We need locks to protect concurrent summation into H
-!$OMP SINGLE
-!$       ALLOCATE (locks(nthread*10))
-!$OMP END SINGLE
-
-!$OMP DO
-!$       do i = 1, nthread*10
-!$          call omp_init_lock(locks(i))
-!$       end do
-!$OMP END DO
-      END IF
-
 !$OMP MASTER
       ! do communication
       CALL mp_alltoall(send_buf_r, send_sizes, send_disps, &
                        recv_buf_r, recv_sizes, recv_disps, desc%group)
 !$OMP END MASTER
 
-      ! If this is a scatter, then no need to copy local blocks,
-      ! If not, we sum them directly into H (bypassing the alltoall)
-      IF (.NOT. scatter) THEN
-
-         ! Distribute work over remaining threads assuming one is still in the alltoall
-!$OMP DO schedule(dynamic,MAX(1,send_pair_count(me)/nthread_left))
-         DO i = 1, send_pair_count(me)
-            pair = MOD(atom_pair_send(send_pair_disps(me)+i), nim8*natom8**2)
-
-            arow = INT(pair/(nim8*natom8))+1
-            acol = INT(MOD(pair, nim8*natom8)/nim8)+1
-            img = INT(MOD(pair, nim8))+1
-
-            nrow = last_row(arow)-first_row(arow)+1
-            ncol = last_col(acol)-first_col(acol)+1
-
-            hmat => hmats(img)%matrix
-            pmat => pmats(img)%matrix
-            CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
-                                   BLOCK=h_block, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                   BLOCK=p_block, found=found)
-            CPASSERT(found)
-
-!$          call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
-            DO k = 1, ncol
-               DO j = 1, nrow
-                  h_block(j, k) = h_block(j, k)+p_block(j, k)
-               ENDDO
-            ENDDO
-!$          call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
-         ENDDO
-!$OMP END DO
+      IF (scatter) THEN
+         CALL rs_receive_matrix_scatter(pmats=pmats, &
+                                        desc=desc, &
+                                        recv_buf_r=recv_buf_r, &
+                                        atom_pair_recv=atom_pair_recv, &
+                                        recv_pair_count=recv_pair_count, &
+                                        recv_pair_disps=recv_pair_disps, &
+                                        recv_disps=recv_disps, &
+                                        recv_sizes=recv_sizes, &
+                                        first_col=first_col, &
+                                        first_row=first_row, &
+                                        last_col=last_col, &
+                                        last_row=last_row, &
+                                        natoms=natoms, &
+                                        nimages=nimages)
       ELSE
-         ! We will insert new blocks into P, so create mutable work matrices
-         DO img = 1, nimages
-            pmat => pmats(img)%matrix
-            CALL dbcsr_work_create(pmat, work_mutable=.TRUE., &
-                                   nblks_guess=SIZE(atom_pair_recv)/nthread, sizedata_guess=SIZE(recv_buf_r)/nthread, &
-                                   n=nthread)
-         END DO
-      END IF
+         CPASSERT(PRESENT(hmats))
+         CALL rs_receive_matrix_non_scatter(pmats=pmats, &
+                                            hmats=hmats, &
+                                            desc=desc, &
+                                            locks=locks, &
+                                            recv_buf_r=recv_buf_r, &
+                                            atom_pair_send=atom_pair_send, &
+                                            atom_pair_recv=atom_pair_recv, &
+                                            send_pair_count=send_pair_count, &
+                                            send_pair_disps=send_pair_disps, &
+                                            recv_pair_count=recv_pair_count, &
+                                            recv_pair_disps=recv_pair_disps, &
+                                            recv_disps=recv_disps, &
+                                            recv_sizes=recv_sizes, &
+                                            first_col=first_col, &
+                                            first_row=first_row, &
+                                            last_col=last_col, &
+                                            last_row=last_row, &
+                                            nblkrows_total=nblkrows_total, &
+                                            natoms=natoms, &
+                                            nimages=nimages)
+      ENDIF
+
+!$OMP END PARALLEL
+
+      DEALLOCATE (send_buf_r)
+      DEALLOCATE (recv_buf_r)
+      DEALLOCATE (send_sizes)
+      DEALLOCATE (recv_sizes)
+      DEALLOCATE (send_disps)
+      DEALLOCATE (recv_disps)
+      DEALLOCATE (send_pair_count)
+      DEALLOCATE (recv_pair_count)
+      DEALLOCATE (send_pair_disps)
+      DEALLOCATE (recv_pair_disps)
+      DEALLOCATE (first_row, last_row, first_col, last_col)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rs_distribute_matrix
+
+! **************************************************************************************************
+!> \brief Helper for rs_distribute_matrix which unpacks received blocks in case scatter==.TRUE.
+!> \param pmats ...
+!> \param desc ...
+!> \param recv_buf_r ...
+!> \param atom_pair_recv ...
+!> \param recv_pair_count ...
+!> \param recv_disps ...
+!> \param recv_sizes ...
+!> \param recv_pair_disps ...
+!> \param first_col ...
+!> \param first_row ...
+!> \param last_col ...
+!> \param last_row ...
+!> \param natoms ...
+!> \param nimages ...
+!> \par History
+!>      08.2019 factored out of rs_distribute_matrix [Ole Schuett]
+! **************************************************************************************************
+   SUBROUTINE rs_receive_matrix_scatter(pmats, desc, recv_buf_r, atom_pair_recv, &
+                                        recv_pair_count, recv_disps, recv_sizes, recv_pair_disps, &
+                                        first_col, first_row, last_col, last_row, natoms, nimages)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(inout)    :: pmats
+      TYPE(realspace_grid_desc_type), INTENT(in)         :: desc
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: recv_buf_r
+      INTEGER(KIND=int_8), DIMENSION(:), INTENT(in)      :: atom_pair_recv
+      INTEGER, DIMENSION(:), INTENT(in)                  :: recv_pair_count, recv_disps
+      INTEGER, DIMENSION(:), INTENT(inout)               :: recv_sizes
+      INTEGER, DIMENSION(:), INTENT(in)                  :: recv_pair_disps, first_col, first_row, &
+                                                            last_col, last_row
+      INTEGER, INTENT(in)                                :: natoms, nimages
+
+      INTEGER                                            :: acol, arow, i, img, l, me, ncol, nrow, &
+                                                            nthreads
+      INTEGER(KIND=int_8)                                :: natoms8, nimages8, pair
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
+      TYPE(dbcsr_type), POINTER                          :: pmat
+
+      natoms8 = natoms
+      nimages8 = nimages
+      me = desc%my_pos+1
+
+      nthreads = 1
+!$    nthreads = omp_get_num_threads()
+
+      ! We will insert new blocks into P, so create mutable work matrices
+      DO img = 1, nimages
+         pmat => pmats(img)%matrix
+         CALL dbcsr_work_create(pmat, work_mutable=.TRUE., &
+                                nblks_guess=SIZE(atom_pair_recv)/nthreads, &
+                                sizedata_guess=SIZE(recv_buf_r)/nthreads, &
+                                n=nthreads)
+      END DO
 
 ! wait for comm and setup to finish
 !$OMP BARRIER
@@ -2443,11 +2493,11 @@ CONTAINS
          IF (l .EQ. me) CYCLE
          recv_sizes(l) = 0
          DO i = 1, recv_pair_count(l)
-            pair = MOD(atom_pair_recv(recv_pair_disps(l)+i), nim8*natom8**2)
+            pair = MOD(atom_pair_recv(recv_pair_disps(l)+i), nimages8*natoms8**2)
 
-            arow = INT(pair/(nim8*natom8))+1
-            acol = INT(MOD(pair, nim8*natom8)/nim8)+1
-            img = INT(MOD(pair, nim8))+1
+            arow = INT(pair/(nimages8*natoms8))+1
+            acol = INT(MOD(pair, nimages8*natoms8)/nimages8)+1
+            img = INT(MOD(pair, nimages8))+1
 
             nrow = last_row(arow)-first_row(arow)+1
             ncol = last_col(acol)-first_col(acol)+1
@@ -2457,71 +2507,176 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
                                    BLOCK=p_block, found=found)
 
-            IF (PRESENT(hmats)) THEN
-               hmat => hmats(img)%matrix
-               CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
-                                      BLOCK=h_block, found=found)
-               CPASSERT(found)
-            ENDIF
-
-            IF (scatter .AND. .NOT. ASSOCIATED(p_block)) THEN
+            IF (.NOT. ASSOCIATED(p_block)) THEN !TODO: shouldn't this always be true???
                CALL dbcsr_put_block(pmat, arow, acol, &
                                     block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol))
             END IF
-            IF (.NOT. scatter) THEN
-!$             call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
-               DO k = 1, ncol
-                  DO j = 1, nrow
-                     h_block(j, k) = h_block(j, k)+recv_buf_r(recv_disps(l)+recv_sizes(l)+j+(k-1)*nrow)
-                  ENDDO
-               ENDDO
-!$             call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
-            ENDIF
             recv_sizes(l) = recv_sizes(l)+nrow*ncol
          ENDDO
       ENDDO
 !$OMP END DO
 
-!$    IF (.not. scatter) THEN
+      ! Blocks were added to P
+      DO img = 1, nimages
+         pmat => pmats(img)%matrix
+         CALL dbcsr_finalize(pmat)
+      END DO
+
+   END SUBROUTINE rs_receive_matrix_scatter
+
+! **************************************************************************************************
+!> \brief Helper for rs_distribute_matrix which unpacks received blocks in case scatter==.FALSE.
+!> \param pmats ...
+!> \param hmats ...
+!> \param desc ...
+!> \param locks ...
+!> \param recv_buf_r ...
+!> \param atom_pair_send ...
+!> \param atom_pair_recv ...
+!> \param send_pair_count ...
+!> \param send_pair_disps ...
+!> \param recv_pair_count ...
+!> \param recv_pair_disps ...
+!> \param recv_disps ...
+!> \param recv_sizes ...
+!> \param first_col ...
+!> \param first_row ...
+!> \param last_col ...
+!> \param last_row ...
+!> \param nblkrows_total ...
+!> \param natoms ...
+!> \param nimages ...
+!> \par History
+!>      08.2019 factored out of rs_distribute_matrix [Ole Schuett]
+! **************************************************************************************************
+   SUBROUTINE rs_receive_matrix_non_scatter(pmats, hmats, desc, locks, recv_buf_r, &
+                                            atom_pair_send, atom_pair_recv, &
+                                            send_pair_count, send_pair_disps, &
+                                            recv_pair_count, recv_pair_disps, recv_disps, recv_sizes, &
+                                            first_col, first_row, last_col, last_row, &
+                                            nblkrows_total, natoms, nimages)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(inout)    :: pmats, hmats
+      TYPE(realspace_grid_desc_type), INTENT(in)         :: desc
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
+         DIMENSION(:)                                    :: locks
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: recv_buf_r
+      INTEGER(KIND=int_8), DIMENSION(:), INTENT(in)      :: atom_pair_send, atom_pair_recv
+      INTEGER, DIMENSION(:), INTENT(in)                  :: send_pair_count, send_pair_disps, &
+                                                            recv_pair_count, recv_pair_disps, &
+                                                            recv_disps
+      INTEGER, DIMENSION(:), INTENT(inout)               :: recv_sizes
+      INTEGER, DIMENSION(:), INTENT(in)                  :: first_col, first_row, last_col, last_row
+      INTEGER, INTENT(in)                                :: nblkrows_total, natoms, nimages
+
+      INTEGER                                            :: acol, arow, i, img, j, k, l, me, ncol, &
+                                                            nrow, nthreads, nthreads_left
+      INTEGER(KIND=int_8)                                :: natoms8, nimages8, pair
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block
+      TYPE(dbcsr_type), POINTER                          :: hmat, pmat
+
+      ! only needed of OpenMP
+      MARK_USED(locks)
+      MARK_USED(nblkrows_total)
+
+      natoms8 = natoms
+      nimages8 = nimages
+      me = desc%my_pos+1
+
+      nthreads = 1
+!$    nthreads = omp_get_num_threads()
+      nthreads_left = 1
+!$    nthreads_left = MAX(1, nthreads-1)
+
+!We need locks to protect concurrent summation into H
+!$OMP SINGLE
+!$    ALLOCATE (locks(nthreads*10))
+!$OMP END SINGLE
+
 !$OMP DO
-!$       do i = 1, nthread*10
-!$          call omp_destroy_lock(locks(i))
-!$       end do
+!$    DO i = 1, nthreads*10
+!$       CALL omp_init_lock(locks(i))
+!$    END DO
 !$OMP END DO
-!$    END IF
+
+      ! We need to sum the local blockes directly into H (bypassing the alltoall)
+      ! Distribute work over remaining threads assuming one is still in the alltoall
+!$OMP DO schedule(dynamic,MAX(1,send_pair_count(me)/nthreads_left))
+      DO i = 1, send_pair_count(me)
+         pair = MOD(atom_pair_send(send_pair_disps(me)+i), nimages8*natoms8**2)
+
+         arow = INT(pair/(nimages8*natoms8))+1
+         acol = INT(MOD(pair, nimages8*natoms8)/nimages8)+1
+         img = INT(MOD(pair, nimages8))+1
+
+         nrow = last_row(arow)-first_row(arow)+1
+         ncol = last_col(acol)-first_col(acol)+1
+
+         hmat => hmats(img)%matrix
+         pmat => pmats(img)%matrix
+         CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
+                                BLOCK=h_block, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
+                                BLOCK=p_block, found=found)
+         CPASSERT(found)
+
+!$       CALL omp_set_lock(locks((arow-1)*nthreads*10/nblkrows_total+1))
+         DO k = 1, ncol
+            DO j = 1, nrow
+               h_block(j, k) = h_block(j, k)+p_block(j, k)
+            ENDDO
+         ENDDO
+!$       CALL omp_unset_lock(locks((arow-1)*nthreads*10/nblkrows_total+1))
+      ENDDO
+!$OMP END DO
+
+! wait for comm and setup to finish
+!$OMP BARRIER
+
+      !do unpacking
+!$OMP DO schedule(guided)
+      DO l = 1, desc%group_size
+         IF (l .EQ. me) CYCLE
+         recv_sizes(l) = 0
+         DO i = 1, recv_pair_count(l)
+            pair = MOD(atom_pair_recv(recv_pair_disps(l)+i), nimages8*natoms8**2)
+
+            arow = INT(pair/(nimages8*natoms8))+1
+            acol = INT(MOD(pair, nimages8*natoms8)/nimages8)+1
+            img = INT(MOD(pair, nimages8))+1
+
+            nrow = last_row(arow)-first_row(arow)+1
+            ncol = last_col(acol)-first_col(acol)+1
+
+            hmat => hmats(img)%matrix
+            CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
+                                   BLOCK=h_block, found=found)
+            CPASSERT(found)
+
+!$          call omp_set_lock(locks((arow-1)*nthreads*10/nblkrows_total+1))
+            DO k = 1, ncol
+               DO j = 1, nrow
+                  h_block(j, k) = h_block(j, k)+recv_buf_r(recv_disps(l)+recv_sizes(l)+j+(k-1)*nrow)
+               ENDDO
+            ENDDO
+!$          call omp_unset_lock(locks((arow-1)*nthreads*10/nblkrows_total+1))
+            recv_sizes(l) = recv_sizes(l)+nrow*ncol
+         ENDDO
+      ENDDO
+!$OMP END DO
+
+!$OMP DO
+!$    DO i = 1, nthreads*10
+!$       CALL omp_destroy_lock(locks(i))
+!$    END DO
+!$OMP END DO
 
 !$OMP SINGLE
-!$    IF (.not. scatter) THEN
-!$       DEALLOCATE (locks)
-!$    END IF
+!$    DEALLOCATE (locks)
 !$OMP END SINGLE NOWAIT
 
-      IF (scatter) THEN
-         ! Blocks were added to P
-         DO img = 1, nimages
-            pmat => pmats(img)%matrix
-            CALL dbcsr_finalize(pmat)
-         END DO
-      END IF
-!$OMP END PARALLEL
-
-      DEALLOCATE (send_buf_r)
-      DEALLOCATE (recv_buf_r)
-
-      DEALLOCATE (send_sizes)
-      DEALLOCATE (recv_sizes)
-      DEALLOCATE (send_disps)
-      DEALLOCATE (recv_disps)
-      DEALLOCATE (send_pair_count)
-      DEALLOCATE (recv_pair_count)
-      DEALLOCATE (send_pair_disps)
-      DEALLOCATE (recv_pair_disps)
-
-      DEALLOCATE (first_row, last_row, first_col, last_col)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE rs_distribute_matrix
+   END SUBROUTINE rs_receive_matrix_non_scatter
 
 ! **************************************************************************************************
 !> \brief determines the rank of the processor who's real rs grid contains point

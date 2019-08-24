@@ -162,7 +162,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
          has_threads, map_consistent, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, &
-         p_duplicated, pab_required, scatter, use_subpatch, use_virial
+         p_duplicated, pab_required, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_gvg_rspace, &
                                                             rab2, scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb
@@ -776,16 +776,15 @@ CONTAINS
       IF (h_duplicated) THEN
          ! Reconstruct H matrix if using distributed RS grids
          ! note send and recv direction reversed WRT collocate
-         scatter = .FALSE.
          IF (do_kp) THEN
             CALL rs_distribute_matrix(rs_descs, dhmat, atom_pair_recv, atom_pair_send, &
-                                      natom, nimages, scatter, hmats=hmat_kp)
+                                      natom, nimages, scatter=.FALSE., hmats=hmat_kp)
          ELSE
             ALLOCATE (htemp(1))
             htemp(1)%matrix => hmat%matrix
 
             CALL rs_distribute_matrix(rs_descs, dhmat, atom_pair_recv, atom_pair_send, &
-                                      natom, nimages, scatter, hmats=htemp)
+                                      natom, nimages, scatter=.FALSE., hmats=htemp)
 
             NULLIFY (htemp(1)%matrix)
             DEALLOCATE (htemp)
