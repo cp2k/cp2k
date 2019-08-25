@@ -117,7 +117,8 @@ MODULE qs_collocate_density
                                               density_rs2pw_basic
    USE task_list_methods,               ONLY: int2pair,&
                                               rs_distribute_matrix
-   USE task_list_types,                 ONLY: task_list_type
+   USE task_list_types,                 ONLY: task_list_type,&
+                                              task_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -1443,7 +1444,6 @@ CONTAINS
          na2, natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, &
          nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -1469,6 +1469,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
       CALL timeset(routineN, handle)
 
@@ -1715,7 +1716,7 @@ CONTAINS
          loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
          loop_tasks: DO itask = task_list%taskstart(ipair, igrid_level), task_list%taskstop(ipair, igrid_level)
             !decode the atom pair and basis info (igrid_level_dummy equals do loop variable by construction).
-            CALL int2pair(tasks(3, itask), igrid_level_dummy, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+            CALL int2pair(tasks(itask)%pair, igrid_level_dummy, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                           nimages, natoms, maxset, maxpgf)
             ikind = particle_set(iatom)%atomic_kind%kind_number
             jkind = particle_set(jatom)%atomic_kind%kind_number
@@ -1826,8 +1827,8 @@ CONTAINS
 
             ! check whether we need to use fawzi's generalised collocation scheme
             IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
-               !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
-               IF (tasks(4, itask) .EQ. 2) THEN
+               !tasks(:)%type is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
+               IF (tasks(itask)%type .EQ. 2) THEN
                   use_subpatch = .TRUE.
                ELSE
                   use_subpatch = .FALSE.
@@ -1848,7 +1849,7 @@ CONTAINS
                      idir=my_idir, &
                      lgrid=lgrid, ithread=ithread, &
                      map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(6, itask), lmax_global=lmax_global)
+                     subpatch_pattern=tasks(itask)%alt_destination, lmax_global=lmax_global)
                ELSE
                   rab_inv = -rab
                   CALL collocate_pgf_product_rspace( &
@@ -1861,7 +1862,7 @@ CONTAINS
                      idir=my_idir, &
                      lgrid=lgrid, ithread=ithread, &
                      map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(6, itask), lmax_global=lmax_global)
+                     subpatch_pattern=tasks(itask)%alt_destination, lmax_global=lmax_global)
                END IF
             ELSE
                IF (iatom <= jatom) THEN
@@ -1874,7 +1875,7 @@ CONTAINS
                      ga_gb_function=ga_gb_function, &
                      idir=my_idir, &
                      map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(6, itask), lmax_global=lmax_global)
+                     subpatch_pattern=tasks(itask)%alt_destination, lmax_global=lmax_global)
                ELSE
                   rab_inv = -rab
                   CALL collocate_pgf_product_rspace( &
@@ -1886,7 +1887,7 @@ CONTAINS
                      ga_gb_function=ga_gb_function, &
                      idir=my_idir, &
                      map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(6, itask), lmax_global=lmax_global)
+                     subpatch_pattern=tasks(itask)%alt_destination, lmax_global=lmax_global)
                END IF
             END IF
          END DO loop_tasks
@@ -1995,7 +1996,6 @@ CONTAINS
          jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, &
          natoms, nb1, nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -2023,6 +2023,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
       CALL timeset(routineN, handle)
 
@@ -2179,7 +2180,7 @@ CONTAINS
          loop_tasks: DO itask = 1, ntasks
 
             !decode the atom pair and basis info
-            CALL int2pair(tasks(3, itask), igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+            CALL int2pair(tasks(itask)%pair, igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                           nimages, natoms, maxset, maxpgf)
 
             ikind = particle_set(iatom)%atomic_kind%kind_number
@@ -2293,8 +2294,8 @@ CONTAINS
 
             ! check whether we need to use fawzi's generalised collocation scheme
             IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
-               !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
-               IF (tasks(4, itask) .EQ. 2) THEN
+               !tasks(:)%type is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
+               IF (tasks(itask)%type .EQ. 2) THEN
                   use_subpatch = .TRUE.
                ELSE
                   use_subpatch = .FALSE.
@@ -2311,7 +2312,7 @@ CONTAINS
                   eps_rho_rspace, &
                   ga_gb_function=FUNC_DABpADB, &
                   idir=idir, &
-                  map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(6, itask), &
+                  map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%alt_destination, &
                   lmax_global=lmax_global)
             ELSE
                rab_inv = -rab
@@ -2323,7 +2324,7 @@ CONTAINS
                   eps_rho_rspace, &
                   ga_gb_function=FUNC_DABpADB, &
                   idir=idir, &
-                  map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(6, itask), &
+                  map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%alt_destination, &
                   lmax_global=lmax_global)
             END IF
 

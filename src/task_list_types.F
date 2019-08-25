@@ -21,9 +21,24 @@ MODULE task_list_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_types'
 
-! **************************************************************************************************
+!>        tasks(1,i) := destination
+!>        tasks(2,i) := source
+!>        tasks(3,i) := compressed type (iatom, jatom, ....)
+!>        tasks(4,i) := type (0: replicated, 1: distributed local, 2: distributed generalised)
+!>        tasks(5,i) := cost
+!>        tasks(6,i) := alternate destination code (0 if none available)
+
+   TYPE task_type
+      INTEGER(kind=int_8)                           :: destination ! index 1
+      INTEGER(kind=int_8)                           :: source ! index 2
+      INTEGER(kind=int_8)                           :: pair ! index 3
+      INTEGER(kind=int_8)                           :: TYPE ! index 4
+      INTEGER(kind=int_8)                           :: cost ! index 5
+      INTEGER(kind=int_8)                           :: alt_destination ! index 6
+   END TYPE task_type
+
    TYPE task_list_type
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER        :: tasks
       REAL(KIND=dp), DIMENSION(:, :), POINTER       :: dist_ab
       INTEGER(kind=int_8), DIMENSION(:), POINTER    :: atom_pair_send, atom_pair_recv
       INTEGER                                       :: ntasks
@@ -31,10 +46,11 @@ MODULE task_list_types
       INTEGER, DIMENSION(:), POINTER                :: npairs
    END TYPE task_list_type
 
-   PUBLIC :: task_list_type
+   PUBLIC :: task_list_type, task_type
 
    PUBLIC :: allocate_task_list, &
-             deallocate_task_list
+             deallocate_task_list, &
+             reallocate_tasks
 
 CONTAINS
 
@@ -98,4 +114,33 @@ CONTAINS
 
       DEALLOCATE (task_list)
    END SUBROUTINE deallocate_task_list
+
+! **************************************************************************************************
+!> \brief Grow an array of tasks while preserving the existing entries.
+!> \param tasks ...
+!> \param new_size ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE reallocate_tasks(tasks, new_size)
+      TYPE(task_type), DIMENSION(:), INTENT(inout), &
+         POINTER                                         :: tasks
+      INTEGER, INTENT(in)                                :: new_size
+
+      TYPE(task_type), DIMENSION(:), POINTER             :: old_tasks
+
+      IF (.NOT. ASSOCIATED(tasks)) THEN
+         ALLOCATE (tasks(new_size))
+         RETURN
+      ENDIF
+
+      IF (new_size <= SIZE(tasks)) RETURN
+
+      old_tasks => tasks
+      NULLIFY (tasks)
+
+      ALLOCATE (tasks(new_size))
+      tasks(1:SIZE(old_tasks)) = old_tasks(:)
+      DEALLOCATE (old_tasks)
+   END SUBROUTINE reallocate_tasks
+
 END MODULE task_list_types

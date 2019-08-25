@@ -62,7 +62,9 @@ MODULE task_list_methods
                                               rs_grid_locate_rank,&
                                               rs_grid_release,&
                                               rs_grid_reorder_ranks
-   USE task_list_types,                 ONLY: task_list_type
+   USE task_list_types,                 ONLY: reallocate_tasks,&
+                                              task_list_type,&
+                                              task_type
    USE util,                            ONLY: sort
 
 !$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_get_num_threads, omp_init_lock, &
@@ -133,7 +135,6 @@ CONTAINS
       INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, igrid_level_old, &
          ikind, ilevel, img, img_old, inode, ipair, ipgf, iset, itask, jatom, jatom_old, jkind, &
          jpgf, jset, maxpgf, maxset, natoms, nimages, nkind, nseta, nsetb
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: blocks
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -162,6 +163,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
       CALL timeset(routineN, handle)
 
@@ -228,11 +230,11 @@ CONTAINS
 
       ! construct a list of all tasks
       IF (.NOT. ASSOCIATED(task_list%tasks)) THEN
-         CALL reallocate(task_list%tasks, 1, 6, 1, max_tasks)
+         CALL reallocate_tasks(task_list%tasks, max_tasks)
          CALL reallocate(task_list%dist_ab, 1, 3, 1, max_tasks)
       ENDIF
       task_list%ntasks = 0
-      curr_tasks = SIZE(task_list%tasks, 2)
+      curr_tasks = SIZE(task_list%tasks)
 
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
@@ -330,7 +332,7 @@ CONTAINS
       task_list%npairs = 0
 
       DO i = 1, task_list%ntasks
-         CALL int2pair(task_list%tasks(3, i), igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+         CALL int2pair(task_list%tasks(i)%pair, igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                        nimages, natoms, maxset, maxpgf)
          IF (igrid_level .NE. igrid_level_old) THEN
             IF (igrid_level_old .NE. -1) THEN
@@ -366,7 +368,7 @@ CONTAINS
       task_list%taskstop = 0
 
       DO i = 1, task_list%ntasks
-         CALL int2pair(task_list%tasks(3, i), igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+         CALL int2pair(task_list%tasks(i)%pair, igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                        nimages, natoms, maxset, maxpgf)
          IF (igrid_level .NE. igrid_level_old) THEN
             IF (igrid_level_old .NE. -1) THEN
@@ -408,7 +410,7 @@ CONTAINS
             blocks = -1
             DO ipair = 1, task_list%npairs(igrid_level)
                itask = task_list%taskstart(ipair, igrid_level)
-               CALL int2pair(tasks(3, itask), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+               CALL int2pair(tasks(itask)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                              nimages, natoms, maxset, maxpgf)
                IF (blocks(iatom, jatom, img) == -1 .AND. blocks(jatom, iatom, img) == -1) THEN
                   blocks(iatom, jatom, img) = 1
@@ -423,7 +425,7 @@ CONTAINS
                img_old = img
                DO itask = task_list%taskstart(ipair, igrid_level), task_list%taskstop(ipair, igrid_level)
 
-                  CALL int2pair(tasks(3, itask), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+                  CALL int2pair(tasks(itask)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                                 nimages, natoms, maxset, maxpgf)
                   IF (iatom /= iatom_old .OR. jatom /= jatom_old .OR. img /= img_old) THEN
                      WRITE (6, *) "TASK LIST CONFLICT IN TASK       ", itask
@@ -485,7 +487,7 @@ CONTAINS
                                    iatom, jatom, rpgfa, rpgfb, zeta, zetb, kind_radius_b, set_radius_a, set_radius_b, ra, rab, &
                                    la_max, la_min, lb_max, lb_min, npgfa, npgfb, maxpgf, maxset, natoms, nimages, nseta, nsetb)
 
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab
       INTEGER                                            :: ntasks, curr_tasks
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
@@ -721,7 +723,7 @@ CONTAINS
                            rab, cindex, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natoms, maxset, maxpgf, &
                            la_max, lb_max, rs_desc, igrid_level, n_levels, cube_center, lb_cube, ub_cube)
 
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab
       INTEGER, INTENT(INOUT)                             :: ntasks, curr_tasks
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
@@ -742,7 +744,7 @@ CONTAINS
       ntasks = ntasks+1
       IF (ntasks > curr_tasks) THEN
          curr_tasks = INT((curr_tasks+add_tasks)*mult_tasks)
-         CALL reallocate(tasks, 1, 6, 1, curr_tasks)
+         CALL reallocate_tasks(tasks, curr_tasks)
       END IF
 
       IF (rs_desc%distributed) THEN
@@ -753,18 +755,18 @@ CONTAINS
                            ntasks=ntasks, tasks=tasks, lb_cube=lb_cube, ub_cube=ub_cube, added_tasks=added_tasks)
 
       ELSE
-         tasks(1, ntasks) = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
-         tasks(4, ntasks) = 0
-         tasks(6, ntasks) = 0
+         tasks(ntasks)%destination = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
+         tasks(ntasks)%type = 0
+         tasks(ntasks)%alt_destination = 0
          added_tasks = 1
       ENDIF
 
-      IF (SIZE(dist_ab, 2) .NE. SIZE(tasks, 2)) THEN
-         CALL reallocate(dist_ab, 1, 3, 1, SIZE(tasks, 2))
+      IF (SIZE(dist_ab, 2) .NE. SIZE(tasks)) THEN
+         CALL reallocate(dist_ab, 1, 3, 1, SIZE(tasks))
       ENDIF
 
       lmax = la_max+lb_max
-      is_ortho = (tasks(4, ntasks) == 0 .OR. tasks(4, ntasks) == 1) .AND. rs_desc%orthorhombic
+      is_ortho = (tasks(ntasks)%type == 0 .OR. tasks(ntasks)%type == 1) .AND. rs_desc%orthorhombic
       ! we assume the load is shared equally between processes dealing with a generalised Gaussian.
       ! this could be refined in the future
       tfraction = 1.0_dp/added_tasks
@@ -773,11 +775,11 @@ CONTAINS
 
       DO j = 1, added_tasks
 
-         tasks(2, ntasks-added_tasks+j) = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
-         tasks(5, ntasks-added_tasks+j) = cost
+         tasks(ntasks-added_tasks+j)%source = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
+         tasks(ntasks-added_tasks+j)%cost = cost
 
          !encode the atom pairs and basis info as a single long integer
-         CALL pair2int(tasks(3, ntasks-added_tasks+j), igrid_level, cindex, &
+         CALL pair2int(tasks(ntasks-added_tasks+j)%pair, igrid_level, cindex, &
                        iatom, jatom, iset, jset, ipgf, jpgf, nimages, natoms, maxset, maxpgf)
 
          dist_ab(1, ntasks-added_tasks+j) = rab(1)
@@ -913,7 +915,7 @@ CONTAINS
    SUBROUTINE load_balance_distributed(tasks, ntasks, rs_descs, grid_level, &
                                        nimages, natoms, maxset, maxpgf)
 
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       INTEGER                                            :: ntasks
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -1196,7 +1198,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: grid_level
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       INTEGER                                            :: ntasks, nimages, natoms, maxset, maxpgf
       LOGICAL                                            :: create_list
 
@@ -1234,12 +1236,12 @@ CONTAINS
          itask_start = itask_stop+1
          itask_stop = itask_start
          IF (itask_stop > ntasks) EXIT
-         CALL int2pair(tasks(3, itask_stop), ilevel, img_old, iatom, jatom, iset, jset, ipgf, jpgf, &
+         CALL int2pair(tasks(itask_stop)%pair, ilevel, img_old, iatom, jatom, iset, jset, ipgf, jpgf, &
                        nimages, natoms, maxset, maxpgf)
          ipair_old = (iatom-1)*natom8+(jatom-1)
          DO
             IF (itask_stop+1 > ntasks) EXIT
-            CALL int2pair(tasks(3, itask_stop+1), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+            CALL int2pair(tasks(itask_stop+1)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                           nimages, natoms, maxset, maxpgf)
             ipair = (iatom-1)*natom8+(jatom-1)
             IF (ipair == ipair_old .AND. img == img_old) THEN
@@ -1257,10 +1259,10 @@ CONTAINS
          DEALLOCATE (index)
          ALLOCATE (INDEX(nshort))
          DO i = 1, nshort
-            CALL int2pair(tasks(3, itask_start+i-1), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+            CALL int2pair(tasks(itask_start+i-1)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                           nimages, natoms, maxset, maxpgf)
             IF (ilevel .EQ. grid_level) THEN
-               all_dests(i) = decode_rank(tasks(1, itask_start+i-1), SIZE(rs_descs))
+               all_dests(i) = decode_rank(tasks(itask_start+i-1)%destination, SIZE(rs_descs))
             ELSE
                all_dests(i) = HUGE(all_dests(i))
             END IF
@@ -1276,17 +1278,17 @@ CONTAINS
 
          DO itask = itask_start, itask_stop
 
-            dest = decode_rank(tasks(1, itask), SIZE(rs_descs)) ! notice that dest can be changed
-            CALL int2pair(tasks(3, itask), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
+            dest = decode_rank(tasks(itask)%destination, SIZE(rs_descs)) ! notice that dest can be changed
+            CALL int2pair(tasks(itask)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
                           nimages, natoms, maxset, maxpgf)
             ! Only proceed with tasks which are on this grid level
             IF (ilevel .NE. grid_level) CYCLE
             ipair = (iatom-1)*natom8+(jatom-1)
-            cost = INT(tasks(5, itask))
+            cost = INT(tasks(itask)%cost)
 
-            SELECT CASE (tasks (4, itask))
+            SELECT CASE (tasks (itask)%type)
             CASE (1)
-               bit_pattern = tasks(6, itask)
+               bit_pattern = tasks(itask)%alt_destination
                nopt = 0
                IF (BTEST(bit_pattern, 0)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/-1, 0, 0/))
@@ -1344,13 +1346,13 @@ CONTAINS
                   list(2, li, dest) = list(2, li, dest)+cost
                ELSE
                   IF (list(1, li, dest) == dest) THEN
-                     tasks(1, itask) = encode_rank(dest, ilevel, SIZE(rs_descs))
+                     tasks(itask)%destination = encode_rank(dest, ilevel, SIZE(rs_descs))
                   ELSE
                      IF (list(2, li, dest) >= cost) THEN
                         list(2, li, dest) = list(2, li, dest)-cost
-                        tasks(1, itask) = encode_rank(list(1, li, dest), ilevel, SIZE(rs_descs))
+                        tasks(itask)%destination = encode_rank(list(1, li, dest), ilevel, SIZE(rs_descs))
                      ELSE
-                        tasks(1, itask) = encode_rank(dest, ilevel, SIZE(rs_descs))
+                        tasks(itask)%destination = encode_rank(dest, ilevel, SIZE(rs_descs))
                      ENDIF
                   ENDIF
                ENDIF
@@ -1360,13 +1362,13 @@ CONTAINS
                   list(2, li, dest) = list(2, li, dest)+cost
                ELSE
                   IF (list(1, li, dest) == dest) THEN
-                     tasks(1, itask) = encode_rank(dest, ilevel, SIZE(rs_descs))
+                     tasks(itask)%destination = encode_rank(dest, ilevel, SIZE(rs_descs))
                   ELSE
                      IF (list(2, li, dest) >= cost) THEN
                         list(2, li, dest) = list(2, li, dest)-cost
-                        tasks(1, itask) = encode_rank(list(1, li, dest), ilevel, SIZE(rs_descs))
+                        tasks(itask)%destination = encode_rank(list(1, li, dest), ilevel, SIZE(rs_descs))
                      ELSE
-                        tasks(1, itask) = encode_rank(dest, ilevel, SIZE(rs_descs))
+                        tasks(itask)%destination = encode_rank(dest, ilevel, SIZE(rs_descs))
                      ENDIF
                   ENDIF
                ENDIF
@@ -1491,7 +1493,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       INTEGER                                            :: grid_level, ntasks, nimages, natom, &
                                                             maxset, maxpgf
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       LOGICAL, INTENT(IN)                                :: use_reordered_ranks
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_current_loads', &
@@ -1517,16 +1519,16 @@ CONTAINS
       ! send buffer now contains for each target the cost of the tasks it will receive
       send_buf_i = 0
       DO i = 1, ntasks
-         CALL int2pair(tasks(3, i), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natom, maxset, maxpgf)
+         CALL int2pair(tasks(i)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natom, maxset, maxpgf)
          IF (ilevel .NE. grid_level) CYCLE
          IF (use_reordered_ranks) THEN
-            send_buf_i(rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(1, i), SIZE(rs_descs)))+1) = &
-               send_buf_i(rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(1, i), SIZE(rs_descs)))+1) &
-               +tasks(5, i)
+            send_buf_i(rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(i)%destination, SIZE(rs_descs)))+1) = &
+               send_buf_i(rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(i)%destination, SIZE(rs_descs)))+1) &
+               +tasks(i)%cost
          ELSE
-            send_buf_i(decode_rank(tasks(1, i), SIZE(rs_descs))+1) = &
-               send_buf_i(decode_rank(tasks(1, i), SIZE(rs_descs))+1) &
-               +tasks(5, i)
+            send_buf_i(decode_rank(tasks(i)%destination, SIZE(rs_descs))+1) = &
+               send_buf_i(decode_rank(tasks(i)%destination, SIZE(rs_descs))+1) &
+               +tasks(i)%cost
          END IF
       END DO
       CALL mp_alltoall(send_buf_i, recv_buf_i, 1, desc%group)
@@ -1560,7 +1562,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: ntasks
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       INTEGER, INTENT(IN)                                :: nimages, natoms, maxset, maxpgf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_replicated', &
@@ -1620,9 +1622,9 @@ CONTAINS
       ! but only those tasks which have not yet been assigned
       cost_task_rep = 0
       DO i = 1, ntasks
-         IF (tasks(4, i) .EQ. 0 &
-             .AND. decode_rank(tasks(1, i), SIZE(rs_descs)) == decode_rank(tasks(2, i), SIZE(rs_descs))) THEN
-            cost_task_rep = cost_task_rep+tasks(5, i)
+         IF (tasks(i)%type .EQ. 0 &
+             .AND. decode_rank(tasks(i)%destination, SIZE(rs_descs)) == decode_rank(tasks(i)%source, SIZE(rs_descs))) THEN
+            cost_task_rep = cost_task_rep+tasks(i)%cost
          ENDIF
       ENDDO
 
@@ -1670,16 +1672,16 @@ CONTAINS
          ! we fill this up by adjusting the destination of tasks on the replicated grid,
          ! then move to next most underloaded proc
          DO j = 1, ntasks
-            IF (tasks(4, j) .EQ. 0 &
-                .AND. decode_rank(tasks(1, j), SIZE(rs_descs)) == decode_rank(tasks(2, j), SIZE(rs_descs))) THEN
+            IF (tasks(j)%type .EQ. 0 &
+                .AND. decode_rank(tasks(j)%destination, SIZE(rs_descs)) == decode_rank(tasks(j)%source, SIZE(rs_descs))) THEN
                ! just avoid sending to non existing procs due to integer truncation
                ! in the computation of the average
                IF (proc_receiving .GT. no_underloaded) EXIT
                ! set new destination
-               CALL int2pair(tasks(3, j), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natoms, maxset, maxpgf)
-               tasks(1, j) = encode_rank(INDEX(proc_receiving)-1, ilevel, SIZE(rs_descs))
-               offset = offset+tasks(5, j)
-               count = count+tasks(5, j)
+               CALL int2pair(tasks(j)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natoms, maxset, maxpgf)
+               tasks(j)%destination = encode_rank(INDEX(proc_receiving)-1, ilevel, SIZE(rs_descs))
+               offset = offset+tasks(j)%cost
+               count = count+tasks(j)%cost
                IF (count .GE. load_imbalance(desc%my_pos+1)) EXIT
                IF (offset .GT. 0) THEN
                   proc_receiving = proc_receiving+1
@@ -1719,10 +1721,10 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: ntasks
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval
       INTEGER                                            :: ntasks_recv
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks_recv
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks_recv
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval_recv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_local_tasks', &
@@ -1750,7 +1752,8 @@ CONTAINS
       ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
       send_buf_i = 0
       DO i = 1, ntasks
-         rank = rs_descs(decode_level(tasks(1, i), SIZE(rs_descs)))%rs_desc%virtual2real(decode_rank(tasks(1, i), SIZE(rs_descs)))
+         rank = rs_descs(decode_level(tasks(i)%destination, SIZE(rs_descs))) &
+                %rs_desc%virtual2real(decode_rank(tasks(i)%destination, SIZE(rs_descs)))
          send_buf_i(rank+1) = send_buf_i(rank+1)+1
       END DO
 
@@ -1758,7 +1761,7 @@ CONTAINS
 
       ! pack the tasks, and send them around
 
-      task_dim = SIZE(tasks, 1)
+      task_dim = 6 !TODO move this to an serialize task_type routine
 
       send_sizes = 0
       send_disps = 0
@@ -1786,10 +1789,15 @@ CONTAINS
       send_buf_i = 0
       send_sizes = 0
       DO j = 1, ntasks
-         i = rs_descs(decode_level(tasks(1, j), SIZE(rs_descs)))%rs_desc%virtual2real(decode_rank(tasks(1, j), SIZE(rs_descs)))+1
-         DO k = 1, task_dim
-            send_buf_i(send_disps(i)+send_sizes(i)+k) = tasks(k, j)
-         ENDDO
+         i = rs_descs(decode_level(tasks(j)%destination, SIZE(rs_descs))) &
+             %rs_desc%virtual2real(decode_rank(tasks(j)%destination, SIZE(rs_descs)))+1
+         !TODO move this to a serialize_task routine
+         send_buf_i(send_disps(i)+send_sizes(i)+1) = tasks(j)%destination
+         send_buf_i(send_disps(i)+send_sizes(i)+2) = tasks(j)%source
+         send_buf_i(send_disps(i)+send_sizes(i)+3) = tasks(j)%pair
+         send_buf_i(send_disps(i)+send_sizes(i)+4) = tasks(j)%type
+         send_buf_i(send_disps(i)+send_sizes(i)+5) = tasks(j)%cost
+         send_buf_i(send_disps(i)+send_sizes(i)+6) = tasks(j)%alt_destination
          send_sizes(i) = send_sizes(i)+task_dim
       ENDDO
 
@@ -1799,16 +1807,20 @@ CONTAINS
       DEALLOCATE (send_buf_i)
 
       ntasks_recv = SUM(recv_sizes)/task_dim
-      ALLOCATE (tasks_recv(task_dim, ntasks_recv))
+      ALLOCATE (tasks_recv(ntasks_recv))
 
       ! do unpacking
       l = 0
       DO i = 1, desc%group_size
          DO j = 0, recv_sizes(i)/task_dim-1
             l = l+1
-            DO k = 1, task_dim
-               tasks_recv(k, l) = recv_buf_i(recv_disps(i)+j*task_dim+k)
-            ENDDO
+            !TODO move this to a unserialize_task routine
+            tasks_recv(l)%destination = recv_buf_i(recv_disps(i)+j*task_dim+1)
+            tasks_recv(l)%source = recv_buf_i(recv_disps(i)+j*task_dim+2)
+            tasks_recv(l)%pair = recv_buf_i(recv_disps(i)+j*task_dim+3)
+            tasks_recv(l)%type = recv_buf_i(recv_disps(i)+j*task_dim+4)
+            tasks_recv(l)%cost = recv_buf_i(recv_disps(i)+j*task_dim+5)
+            tasks_recv(l)%alt_destination = recv_buf_i(recv_disps(i)+j*task_dim+6)
          ENDDO
       ENDDO
 
@@ -1829,7 +1841,8 @@ CONTAINS
       !do packing
       send_sizes = 0
       DO j = 1, ntasks
-         i = rs_descs(decode_level(tasks(1, j), SIZE(rs_descs)))%rs_desc%virtual2real(decode_rank(tasks(1, j), SIZE(rs_descs)))+1
+         i = rs_descs(decode_level(tasks(j)%destination, SIZE(rs_descs))) &
+             %rs_desc%virtual2real(decode_rank(tasks(j)%destination, SIZE(rs_descs)))+1
          DO k = 1, task_dim
             send_buf_r(send_disps(i)+send_sizes(i)+k) = rval(k, j)
          ENDDO
@@ -1890,7 +1903,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: ntasks, natoms, maxset, maxpgf, nimages
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_send, atom_pair_recv
       LOGICAL, INTENT(IN)                                :: symmetric, reorder_rs_grid_ranks, &
@@ -1904,11 +1917,12 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: load_gap, max_load, replicated_load
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: taskid, total_loads, total_loads_tmp, &
                                                             trial_loads
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: loads, tasks_recv
+      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: loads
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index, real2virtual, total_index
       LOGICAL                                            :: distributed_grids, fixed_first_grid
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval_recv
       TYPE(realspace_grid_desc_type), POINTER            :: desc
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks_recv
 
       CALL timeset(routineN, handle)
 
@@ -2084,12 +2098,12 @@ CONTAINS
       ALLOCATE (taskid(ntasks_recv))
       ALLOCATE (INDEX(ntasks_recv))
 
-      taskid(:) = tasks_recv(3, 1:ntasks_recv)
-      CALL sort(taskid, SIZE(taskid), index)
-
-      DO k = 1, SIZE(tasks_recv, 1)
-         tasks_recv(k, 1:ntasks_recv) = tasks_recv(k, index)
+      DO k = 1, ntasks_recv
+         taskid(k) = tasks_recv(k)%pair
       ENDDO
+
+      CALL sort(taskid, SIZE(taskid), index)
+      tasks_recv(1:ntasks_recv) = tasks_recv(index)
 
       DO k = 1, SIZE(rval, 1)
          rval(k, 1:ntasks_recv) = rval(k, index)
@@ -2125,7 +2139,7 @@ CONTAINS
                             maxpgf, nimages, rs_descs)
 
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: my_tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: my_tasks
       LOGICAL                                            :: send, symmetric
       INTEGER                                            :: natoms, maxset, maxpgf, nimages
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
@@ -2146,7 +2160,7 @@ CONTAINS
 
       atom_pair = 0
       DO i = 1, SIZE(atom_pair)
-         CALL int2pair(my_tasks(3, i), ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natoms, maxset, maxpgf)
+         CALL int2pair(my_tasks(i)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, nimages, natoms, maxset, maxpgf)
          IF (symmetric) THEN
             IF (iatom .LE. jatom) THEN
                arow = iatom
@@ -2162,12 +2176,12 @@ CONTAINS
          IF (send) THEN
             ! If sending, we need to use the 'real rank' as the pair has to be sent to the process which
             ! actually has the correct part of the rs_grid to do the mapping
-            atom_pair(i) = rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(my_tasks(1, i), SIZE(rs_descs))) &
+            atom_pair(i) = rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(my_tasks(i)%destination, SIZE(rs_descs))) &
                            *natoms8*natoms8*nimages8+(arow-1)*natoms8*nimages8+(acol-1)*nimages8+(img-1)
          ELSE
             ! If we are recieving, then no conversion is needed as the rank is that of the process with the
             ! required matrix block, and the ordering of the rs grid is irrelevant
-            atom_pair(i) = decode_rank(my_tasks(2, i), SIZE(rs_descs)) &
+            atom_pair(i) = decode_rank(my_tasks(i)%source, SIZE(rs_descs)) &
                            *natoms8*natoms8*nimages8+(arow-1)*natoms8*nimages8+(acol-1)*nimages8+(img-1)
          ENDIF
       ENDDO
@@ -2701,7 +2715,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: igrid_level, n_levels
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cube_center
       INTEGER, INTENT(INOUT)                             :: ntasks
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lb_cube, ub_cube
       INTEGER, INTENT(OUT)                               :: added_tasks
 
@@ -2726,9 +2740,9 @@ CONTAINS
       IF (ALL((rs_desc%lb_global(:, dest)-rs_desc%border) .LE. lbc) .AND. &
           ALL((rs_desc%ub_global(:, dest)+rs_desc%border) .GE. ubc)) THEN
          !standard distributed collocation/integration
-         tasks(1, ntasks) = encode_rank(dest, igrid_level, n_levels)
-         tasks(4, ntasks) = 1
-         tasks(6, ntasks) = 0
+         tasks(ntasks)%destination = encode_rank(dest, igrid_level, n_levels)
+         tasks(ntasks)%type = 1
+         tasks(ntasks)%alt_destination = 0
          added_tasks = 1
 
          ! here we figure out if there is an alternate location for this task
@@ -2771,7 +2785,7 @@ CONTAINS
                ENDIF
             ENDIF
          ENDDO
-         tasks(6, ntasks) = bit_pattern
+         tasks(ntasks)%alt_destination = bit_pattern
 
       ELSE
          ! generalised collocation/integration needed
@@ -2825,26 +2839,26 @@ CONTAINS
          added_tasks = PRODUCT(ub_coord-lb_coord+1)
          itask = ntasks
          ntasks = ntasks+added_tasks-1
-         IF (ntasks > SIZE(tasks, 2)) THEN
-            curr_tasks = INT((SIZE(tasks, 2)+add_tasks)*mult_tasks)
-            CALL reallocate(tasks, 1, 6, 1, curr_tasks)
+         IF (ntasks > SIZE(tasks)) THEN
+            curr_tasks = INT((SIZE(tasks)+add_tasks)*mult_tasks)
+            CALL reallocate_tasks(tasks, curr_tasks)
          END IF
          DO iz = lb_coord(3), ub_coord(3)
          DO iy = lb_coord(2), ub_coord(2)
          DO ix = lb_coord(1), ub_coord(1)
             icoord = MODULO((/ix, iy, iz/), rs_desc%group_dim)
             idest = rs_desc%coord2rank(icoord(1), icoord(2), icoord(3))
-            tasks(1, itask) = encode_rank(idest, igrid_level, n_levels)
-            tasks(4, itask) = 2
-            tasks(6, itask) = 0
+            tasks(itask)%destination = encode_rank(idest, igrid_level, n_levels)
+            tasks(itask)%type = 2
+            tasks(itask)%alt_destination = 0
             ! encode the domain size for this task
             ! if the bit is set, we need to add the border in that direction
-            IF (ix == lb_coord(1) .AND. .NOT. dir_periodic(1)) tasks(6, itask) = IBSET(tasks(6, itask), 0)
-            IF (ix == ub_coord(1) .AND. .NOT. dir_periodic(1)) tasks(6, itask) = IBSET(tasks(6, itask), 1)
-            IF (iy == lb_coord(2) .AND. .NOT. dir_periodic(2)) tasks(6, itask) = IBSET(tasks(6, itask), 2)
-            IF (iy == ub_coord(2) .AND. .NOT. dir_periodic(2)) tasks(6, itask) = IBSET(tasks(6, itask), 3)
-            IF (iz == lb_coord(3) .AND. .NOT. dir_periodic(3)) tasks(6, itask) = IBSET(tasks(6, itask), 4)
-            IF (iz == ub_coord(3) .AND. .NOT. dir_periodic(3)) tasks(6, itask) = IBSET(tasks(6, itask), 5)
+            IF (ix == lb_coord(1) .AND. .NOT. dir_periodic(1)) tasks(itask)%alt_destination = IBSET(tasks(itask)%alt_destination, 0)
+            IF (ix == ub_coord(1) .AND. .NOT. dir_periodic(1)) tasks(itask)%alt_destination = IBSET(tasks(itask)%alt_destination, 1)
+            IF (iy == lb_coord(2) .AND. .NOT. dir_periodic(2)) tasks(itask)%alt_destination = IBSET(tasks(itask)%alt_destination, 2)
+            IF (iy == ub_coord(2) .AND. .NOT. dir_periodic(2)) tasks(itask)%alt_destination = IBSET(tasks(itask)%alt_destination, 3)
+            IF (iz == lb_coord(3) .AND. .NOT. dir_periodic(3)) tasks(itask)%alt_destination = IBSET(tasks(itask)%alt_destination, 4)
+            IF (iz == ub_coord(3) .AND. .NOT. dir_periodic(3)) tasks(itask)%alt_destination = IBSET(tasks(itask)%alt_destination, 5)
             itask = itask+1
          ENDDO
          ENDDO
