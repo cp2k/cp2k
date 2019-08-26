@@ -209,7 +209,7 @@ CONTAINS
             IF (filename(1:1) == '/') THEN
                ! this is an absolute path filename, don't change
             ELSE
-               filename = "xc_section"//'/'//filename 
+               filename = "xc_section"//'/'//filename
             ENDIF
          END IF
          IF (.NOT.file_exists(TRIM(filename))) THEN
@@ -508,7 +508,7 @@ CONTAINS
    END SUBROUTINE inpp_end_include
 
 ! **************************************************************************************************
-!> \brief expand all ${VAR} or $VAR variable entries on the input string
+!> \brief expand all ${VAR} or $VAR variable entries on the input string (LTR, no nested vars)
 !> \param inpp ...
 !> \param input_line ...
 !> \param input_file_name ...
@@ -537,7 +537,7 @@ CONTAINS
          pos1 = INDEX(input_line, '${')
          pos1 = pos1+2
          pos2 = INDEX(input_line(pos1:), '}')
-         CPASSERT(pos2 > 0)
+
          IF (pos2 == 0) THEN
             WRITE (UNIT=message, FMT="(3A,I6)") &
                "Missing '}' in file: ", &
@@ -548,7 +548,7 @@ CONTAINS
          pos2 = pos1+pos2-2
          varname = input_line(pos1:pos2)
          idx = inpp_find_variable(inpp, varname)
-         CPASSERT(idx >= 0)
+
          IF (idx == 0) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
                "Variable ${", TRIM(varname), "} not defined in file: ", &
@@ -571,13 +571,14 @@ CONTAINS
          pos1 = INDEX(input_line, '$')
          pos1 = pos1+1
          pos2 = INDEX(input_line(pos1:), ' ')
-         CPASSERT(pos2 >= 0)
-         IF (pos2 == 0) pos2 = LEN_TRIM(input_line(pos1:))+1
+
+         IF (pos2 == 0) &
+            pos2 = LEN_TRIM(input_line(pos1:))+1
 
          pos2 = pos1+pos2-1
          varname = input_line(pos1:pos2)
          idx = inpp_find_variable(inpp, varname)
-         CPASSERT(idx >= 0)
+
          IF (idx == 0) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
                "INPP_@SET: Variable $", TRIM(varname), " not defined in file: ", &
