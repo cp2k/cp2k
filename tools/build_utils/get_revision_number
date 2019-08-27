@@ -4,11 +4,27 @@ export LANG=C
 export LC_MESSAGES=C
 export LC_ALL=C
 
-[ -z "$1" ] || cd "$1"
+# meant to be run with CP2K's src dir as first argument
 
-if [ -s "$1/../REVISION" ]; then
+if [ -s "$1/../REVISION" ] ; then
   cat "$1/../REVISION"
-elif git rev-parse > /dev/null 2>&1 ; then
-  echo -n "git:"
-  git rev-parse --short HEAD
+  exit 0
+fi
+
+GIT_DIR="$1/../.git"
+GIT_HEAD="${GIT_DIR}/HEAD"
+
+if [ ! -s "${GIT_HEAD}" ] ; then
+  echo "<unknown revision>"
+  exit 1
+fi
+
+REF="`awk '{print $2}' "${GIT_HEAD}"`"
+
+# if there is no second column, then we're in a detached HEAD
+# and the file contains the revision
+if [ -z "${REF}" ] ; then
+  echo "git:`head -c 7 "${GIT_HEAD}"`"
+else
+  echo "git:`head -c 7 "${GIT_DIR}/${REF}"`"
 fi
