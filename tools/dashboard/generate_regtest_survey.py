@@ -40,6 +40,8 @@ def main():
     def get_sortkey(s): return config.getint(s, "sortkey")
     for tname in sorted(config.sections(), key=get_sortkey):
         list_recent = open(outdir+"archive/%s/list_recent.txt"%tname).readlines()
+        if not list_recent:
+            continue  # list_recent is empty
         latest_report_url = list_recent[0].strip()
         report = parse_report(latest_report_url)
         if report:
