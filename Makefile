@@ -426,10 +426,17 @@ vpath %.cc    $(ALL_SRC_DIRS)
 # Add additional dependency of cp2k_info.F to git-HEAD.
 # Ensuring that cp2k prints the correct source code revision number in its banner.
 #
-GIT_HEAD := $(wildcard $(CP2KHOME)/../.git/HEAD*)
-ifneq ($(strip $(GIT_HEAD)),)
-cp2k_info.o: $(GIT_HEAD)
-endif
+GIT_REF := ${MAINOBJDIR}/git-ref
+
+# use a force (fake) target to always rebuild this file but have Make consider this updated
+# iff it was actually rewritten (a .PHONY target is always considered new)
+$(GIT_REF): FORCE
+	@$(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR) > "$@.tmp"
+	@cmp "$@.tmp" "$@" || mv -f "$@.tmp" "$@"
+
+FORCE: ;
+
+cp2k_info.o: $(GIT_REF)
 
 # Add some practical metadata about the build.
 FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
