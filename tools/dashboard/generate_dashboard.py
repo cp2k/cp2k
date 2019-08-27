@@ -155,6 +155,8 @@ def gen_frontpage(config, log, status_fn, outdir):
         for issue in issues:
             link_pattern = "dashboard.cp2k.org/archive/{}/".format(s)
             matching_labels = [label for label in issue['labels'] if s in label['name']]
+            if "pull_request" in issue:
+                continue  # GitHub's REST API v3 considers every pull request an issue.
             if link_pattern in issue['body'] or any(matching_labels):
                 issue_tmpl = '<a href="{}">#{}</a>'
                 matching_issues.append(issue_tmpl.format(issue['html_url'], issue['number']))
