@@ -54,7 +54,7 @@ MODULE xtb_matrices
    USE qs_charge_mixing,                ONLY: charge_mixing
    USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
-                                              d3_cnumber_bcast,&
+                                              dcnum_distribute,&
                                               dcnum_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -305,7 +305,7 @@ CONTAINS
       DEALLOCATE (ghost, floating, atomnumber)
       CALL mp_sum(cnumbers, para_env%group)
       IF (calculate_forces) THEN
-         CALL d3_cnumber_bcast(dcnum, para_env)
+         CALL dcnum_distribute(dcnum, para_env)
       END IF
 
       ! Calculate Huckel parameters
