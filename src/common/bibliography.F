@@ -4022,7 +4022,7 @@ CONTAINS
                          "AU Ren,Xinguo", &
                          "   Tkatchenko,Aleksandre", &
                          "   Rinke,Patrick", &
-                         "   Scgeffler,Matthias", &
+                         "   Scheffler,Matthias", &
                          "TI Beyond the Random-Phase Approximation for the Electron Correlation Energy: ", &
                          "   The Importance of Single Excitations", &
                          "SO PHYSICAL REVIEW LETTERS", &
@@ -4037,7 +4037,7 @@ CONTAINS
                          "AU Ren,Xinguo", &
                          "   Rinke,Patrick", &
                          "   Scuseria,Gustavo", &
-                         "   Scgeffler,Matthias", &
+                         "   Scheffler,Matthias", &
                          "TI Renormalized second-order perturbation theory for the electron correlation energy: ", &
                          "   Concept, implementation, and benchmarks", &
                          "SO PHYSICAL REVIEW B", &

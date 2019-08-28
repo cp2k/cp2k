@@ -106,7 +106,7 @@ CONTAINS
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: beta, do_hfx, hfx_treat_lsd_in_core
-      REAL(KIND=dp)                                      :: coeff, rse_corr, rse_corr_beta, rse_term
+      REAL(KIND=dp)                                      :: coeff, rse_corr, rse_corr_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -274,17 +274,16 @@ CONTAINS
 
       ! Compute the correction
       rse_corr = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global, rse_term) &
-!$OMP             SHARED(rse_corr,ncol_local,nrow_local,col_indices,row_indices,diag_diff, eigenval, fm_X_mo,homo)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP             REDUCTION(+: rse_corr) &
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,diag_diff, eigenval, fm_X_mo,homo)
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF ((i_global .LE. homo) .AND. (j_global .GT. homo)) THEN
-               rse_term = 0.0_dp
-               rse_term = fm_X_mo%local_data(iib, jjb)**2.0_dp/ &
+               rse_corr = rse_corr+fm_X_mo%local_data(iib, jjb)**2.0_dp/ &
                           (eigenval(i_global)-eigenval(j_global)-diag_diff(i_global)+diag_diff(j_global))
-               rse_corr = rse_corr+rse_term
             ENDIF
          END DO
       END DO
@@ -317,17 +316,17 @@ CONTAINS
 !$OMP END PARALLEL DO
          CALL mp_sum(diag_diff, para_env%group)
 
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global, rse_term) &
-!$OMP SHARED(rse_corr_beta,ncol_local,nrow_local,col_indices,row_indices,diag_diff,eigenval_beta,fm_X_mo_Beta,homo_beta)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP             REDUCTION(+: rse_corr_beta) &
+!$OMP SHARED(ncol_local,nrow_local,col_indices,row_indices,diag_diff,eigenval_beta,fm_X_mo_Beta,homo_beta)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               rse_term = 0.0_dp
-               IF ((i_global .LE. homo_beta) .AND. (j_global .GT. homo_beta)) &
-                  rse_term = fm_X_mo_beta%local_data(iib, jjb)**2.0_dp/ &
-                             (eigenval_beta(i_global)-eigenval_beta(j_global)-diag_diff(i_global)+diag_diff(j_global))
-               rse_corr_beta = rse_corr_beta+rse_term
+               IF ((i_global .LE. homo_beta) .AND. (j_global .GT. homo_beta)) THEN
+                  rse_corr_beta = rse_corr_beta+fm_X_mo_beta%local_data(iib, jjb)**2.0_dp/ &
+                                  (eigenval_beta(i_global)-eigenval_beta(j_global)-diag_diff(i_global)+diag_diff(j_global))
+               ENDIF
             END DO
          END DO
 !$OMP END PARALLEL DO
@@ -605,8 +604,8 @@ CONTAINS
 !> \param eigenval_beta ...
 !> \param homo_beta ...
 ! **************************************************************************************************
-   SUBROUTINE non_diag_rse(fm_F_mo, eigenval, dimen, homo, para_env, blacs_env, &
-                           rse_corr, fm_F_mo_beta, eigenval_beta, homo_beta)
+   SUBROUTINE non_diag_rse(fm_F_mo, eigenval, dimen, homo, para_env, &
+                           blacs_env, rse_corr, fm_F_mo_beta, eigenval_beta, homo_beta)
       TYPE(cp_fm_type), POINTER                          :: fm_F_mo
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: dimen, homo
@@ -624,7 +623,7 @@ CONTAINS
                                                             virtual_beta
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta
-      REAL(KIND=dp)                                      :: rse_corr_beta, rse_term
+      REAL(KIND=dp)                                      :: rse_corr_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_o, eig_semi_can, eig_v
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_F_oo, fm_F_ov, fm_F_vv, fm_O, fm_tmp, &
@@ -648,8 +647,10 @@ CONTAINS
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            IF (i_global .EQ. j_global) fm_F_mo%local_data(iib, jjb) = &
-               fm_F_mo%local_data(iib, jjb)+eigenval(i_global)
+            IF (i_global .EQ. j_global) THEN
+               fm_F_mo%local_data(iib, jjb) = &
+                  fm_F_mo%local_data(iib, jjb)+eigenval(i_global)
+            ENDIF
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -706,6 +707,7 @@ CONTAINS
                               t_firstrow=1, t_firstcol=1)
 
       ! Diagonalize occupied-occupied and virtual-virtual matrices
+
       ALLOCATE (eig_o(homo))
       ALLOCATE (eig_v(virtual))
       eig_v = 0.0_dp
@@ -734,8 +736,16 @@ CONTAINS
                               s_firstrow=1, s_firstcol=homo+1, &
                               t_firstrow=1, t_firstcol=1)
 
+      CALL cp_fm_get_info(matrix=fm_F_ov, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
       CALL cp_gemm(transa='N', transb='N', m=homo, n=virtual, k=homo, alpha=1.0_dp, &
                    matrix_a=fm_O, matrix_b=fm_F_ov, beta=0.0_dp, matrix_c=fm_tmp)
+
+      CALL cp_fm_set_all(fm_F_ov, 0.0_dp)
 
       CALL cp_gemm(transa='N', transb='N', m=homo, n=virtual, k=virtual, alpha=1.0_dp, &
                    matrix_a=fm_tmp, matrix_b=fm_U, beta=0.0_dp, matrix_c=fm_F_ov)
@@ -748,16 +758,15 @@ CONTAINS
                           col_indices=col_indices)
 
       rse_corr = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global,rse_term) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_F_ov,eig_semi_can,rse_corr,homo)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP             REDUCTION(+:rse_corr) &
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_F_ov,eig_semi_can,homo)
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            rse_term = 0.0_dp
-            rse_term = fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
+            rse_corr = rse_corr+fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
                        (eig_semi_can(i_global)-eig_semi_can(j_global+homo))
-            rse_corr = rse_corr+rse_term
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -848,16 +857,15 @@ CONTAINS
                              row_indices=row_indices, &
                              col_indices=col_indices)
          rse_corr_beta = 0.0_dp
-!$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global,rse_term) &
-!$OMP                SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_F_ov,eig_semi_can,rse_corr_beta,homo_beta)
+!$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP             REDUCTION(+:rse_corr_beta) &
+!$OMP                SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_F_ov,eig_semi_can,homo_beta)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               rse_term = 0.0_dp
-               rse_term = fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
-                          (eig_semi_can(i_global)-eig_semi_can(j_global+homo_beta))
-               rse_corr_beta = rse_corr_beta+rse_term
+               rse_corr_beta = rse_corr_beta+fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
+                               (eig_semi_can(i_global)-eig_semi_can(j_global+homo_beta))
             END DO
          END DO
 !$OMP    END PARALLEL DO
