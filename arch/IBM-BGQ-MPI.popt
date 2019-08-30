@@ -10,14 +10,12 @@
 #
 CC       = mpixlc_r
 CXX      = mpixlcxx_r
-CPP      = cpp -P -traditional-cpp
-FC       = mpixlf2003_r
+FC       = mpixlf2003_r -qpreprocess
 LD       = mpixlf2003_r
 AR       = ar -r
 LIBXC_INCLUDE=$(HOME)/libxc-2.2.2-install/include
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2 -D__MPI_VERSION=2
-CPPFLAGS = $(DFLAGS) -I$(FFTW3_INCLUDE) -I$(LIBXC_INCLUDE) -I$(LIBINT_INCLUDE)
-FCFLAGS  = -O3 -qstrict -q64 -qarch=qp -qtune=qp \
+FCFLAGS  = $(DFLAGS) -O3 -qstrict -q64 -qarch=qp -qtune=qp \
            -I/opt/ibmmath/essl/5.1/include/ \
            -I$(LAPACK_INCLUDE) -I$(FFTW3_INCLUDE) -I$(LIBXC_INCLUDE)
 LDFLAGS  = $(FCFLAGS) -Wl,--allow-multiple-definition

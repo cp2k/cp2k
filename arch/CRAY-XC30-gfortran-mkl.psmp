@@ -5,11 +5,9 @@
 # version from fftw.org is needed for thread safety.
 
 CC       = cc
-CPP      = 
 FC       = ftn
 LD       = ftn
 AR       = ar -r
-CPPFLAGS =
 DFLAGS   = -D__MKL -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ftree-vectorize \

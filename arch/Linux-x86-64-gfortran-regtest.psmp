@@ -1,7 +1,6 @@
 # Tested with: GFortran 7.4.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 2.5.0, Libxc 4.3.4, ELPA 2019.05.001, PLUMED 2.5.2
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2019)
 CC         = mpicc
-CPP        =
 FC         = mpif90
 LD         = mpif90
 AR         = ar -r
@@ -19,7 +18,6 @@ DFLAGS     = -D__ELPA -D__FFTW3 -D__LIBINT -D__LIBXC \
              -D__MPI_VERSION=3 -D__PLUMED2 \
              -D__parallel -D__SCALAPACK -D__CHECK_DIAG
 CFLAGS     = -fopenmp -g -march=native
-CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
              -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
              -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow \

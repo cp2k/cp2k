@@ -25,7 +25,6 @@ LIBS    += -L$(LIBXC_PATH)/lib \
 LIBS    += -lOpenCL
 
 # PROG's ###############################################################
-CPP      =
 CC       = gcc
 FC       = gfortran
 LD       = gfortran
@@ -41,7 +40,6 @@ DFLAGS   = -D__FFTW3 \
 
 
 AFLAGS   = $(DFLAGS) -O3 -mtune=native -funroll-loops -ftree-vectorize
-CPPFLAGS = $(DFLAGS) -traditional -C
 CFLAGS   = $(AFLAGS)
 FCFLAGS  = $(AFLAGS) -ffree-form -ffree-line-length-none
 LDFLAGS  = $(FCFLAGS)

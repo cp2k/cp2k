@@ -1,13 +1,11 @@
 NVCC     = nvcc -D__GNUC_MINOR__=6
 CC       = gcc
 CXX      = CC
-CPP      =
 FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 GPUVER   = K20X
 
-CPPFLAGS =
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11 -fopenmp
 
 #https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html

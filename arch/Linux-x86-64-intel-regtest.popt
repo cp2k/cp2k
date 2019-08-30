@@ -17,11 +17,9 @@ LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.13/include
 LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.13/lib
 
 CC          = mpiicc
-CPP         =
 FC          = mpiifort
 LD          = mpiifort
 AR          = ar -r
-CPPFLAGS    =
 DFLAGS      = -D__ELPA -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
               -D__MKL -D__MPI_VERSION=3 -D__PLUMED2 -D__MAX_CONTR=4 \
               -D__parallel -D__SCALAPACK -D__CHECK_DIAG
