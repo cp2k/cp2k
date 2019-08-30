@@ -211,6 +211,8 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-quip             Enable interface to QUIP library
                           Default = no
+  --with-plumed           Enable interface to the PLUMED library.
+                          Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
                           This package requires: gsl, libspg, elpa, scalapack, hdf5 and libxc.
                           Default = install
@@ -258,7 +260,7 @@ EOF
 tool_list="valgrind cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
-lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
+lib_list="fftw libint libxc libsmm libxsmm scalapack elpa plumed \
           ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
@@ -582,6 +584,9 @@ while [ $# -ge 1 ] ; do
             ;;
         --with-quip*)
             with_quip=$(read_with $1)
+            ;;
+        --with-plumed*)
+            with_plumed=$(read_with $1)
             ;;
         --with-sirius*)
             with_sirius=$(read_with $1)
@@ -923,6 +928,7 @@ else
     ./scripts/install_superlu.sh
     ./scripts/install_pexsi.sh
     ./scripts/install_quip.sh
+    ./scripts/install_plumed.sh
     ./scripts/install_gsl.sh
     ./scripts/install_spglib.sh
     ./scripts/install_hdf5.sh

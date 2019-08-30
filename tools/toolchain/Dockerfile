@@ -24,6 +24,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     python \
     unzip \
     wget \
+    xxd \
     zlib1g-dev \
    && rm -rf /var/lib/apt/lists/*
 
@@ -36,6 +37,8 @@ COPY ./scripts/VERSION \
      ./scripts/common_vars.sh \
      ./scripts/signal_trap.sh ./scripts/
 
+# Dry-run leaves behind config files for the followup install scripts.
+# This breaks up the lengthy installation into smaller docker build steps.
 COPY ./install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh  \
     --install-all \
@@ -52,11 +55,10 @@ RUN ./scripts/install_cmake.sh && rm -rf ./build
 COPY ./scripts/install_gcc.sh ./scripts/
 RUN ./scripts/install_gcc.sh && rm -rf ./build
 
-COPY \
-    ./scripts/get_openblas_arch.sh \
-    ./scripts/setup_buildtools.sh \
-    ./scripts/openblas-0.3.6-disable-avx512.patch \
-    ./scripts/
+COPY ./scripts/get_openblas_arch.sh \
+     ./scripts/setup_buildtools.sh \
+     ./scripts/openblas-0.3.6-disable-avx512.patch \
+     ./scripts/
 RUN ./scripts/setup_buildtools.sh && rm -rf ./build
 
 COPY ./scripts/install_mpich.sh ./scripts/
@@ -110,6 +112,9 @@ RUN ./scripts/install_pexsi.sh && rm -rf ./build
 
 COPY ./scripts/install_quip.sh ./scripts/
 RUN ./scripts/install_quip.sh && rm -rf ./build
+
+COPY ./scripts/install_plumed.sh ./scripts/
+RUN ./scripts/install_plumed.sh && rm -rf ./build
 
 COPY ./scripts/install_gsl.sh ./scripts/
 RUN ./scripts/install_gsl.sh && rm -rf ./build
