@@ -1,7 +1,6 @@
 # Tested with: GFortran 7.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.5.0, Libxc 4.3.4
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2019)
 CC         = gcc
-CPP        =
 FC         = gfortran
 LD         = gfortran
 AR         = ar -r
@@ -13,7 +12,6 @@ LIBXC_INC  = $(GNU_PATH)/libxc/4.3.4-regtest/include
 LIBXC_LIB  = $(GNU_PATH)/libxc/4.3.4-regtest/lib
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__CHECK_DIAG
 CFLAGS     = -fopenmp -g -march=native
-CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
              -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
              -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow \

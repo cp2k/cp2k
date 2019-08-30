@@ -7,11 +7,9 @@ LIBINT   = /home/users/p02464/libs/libint/intel/1.1.6
 LIBELPA  = /home/users/p02464/libs/libelpa/intel/2017.05.002
 
 CC       = cc
-CPP      = 
 FC       = mpiifort
 LD       = mpiifort
 AR       = ar -r
-CPPFLAGS =
 DFLAGS   = -D__MKL -D__FFTW3 -D__LIBXSMM \
 	   -D__parallel -D__SCALAPACK \
 	   -D__ELPA=201705 \

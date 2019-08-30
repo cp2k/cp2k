@@ -5,14 +5,12 @@
 NVCC     = nvcc
 CC       = cc
 CXX      = CC
-CPP      =
 FC       = ftn
 LD       = ftn
 AR       = ar -r
 HWTOPO   = yes
 GPUVER   = K20X
 
-CPPFLAGS =
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11 -fopenmp
 DFLAGS   = -D__GEMINI -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC
 CFLAGS   = $(DFLAGS)

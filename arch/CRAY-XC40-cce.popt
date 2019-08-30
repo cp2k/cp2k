@@ -4,11 +4,9 @@
 # Tested with CCE v8.6.x
 
 CC       = cc
-CPP      = 
 FC       = ftn
 LD       = ftn
 AR       = ar -r
-CPPFLAGS =
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__FORCE_USE_FAST_MATH
 DFLAGS  += -hnoomp
 CFLAGS   = $(DFLAGS)

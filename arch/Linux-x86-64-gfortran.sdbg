@@ -1,7 +1,6 @@
 # Tested with: GFortran 6.4.0, LAPACK 3.8.0, FFTW 3.3, Libint 1.1.6, Libxc 4.3.4, libxsmm 1.9
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2019)
 CC          = gcc
-CPP         =
 FC          = gfortran
 LD          = gfortran
 AR          = ar -r
@@ -14,7 +13,6 @@ LIBXC_LIB   = $(GCC_DIR)/libxc/4.3.4-regtest/lib
 LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.9/include
 LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.9/lib
 DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM -D__CHECK_DIAG
-CPPFLAGS    =
 WFLAGS      = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
               -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
               -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow \

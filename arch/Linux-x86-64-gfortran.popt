@@ -1,7 +1,6 @@
 # Tested with: GFortran 7.4.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.6, Libxc 4.3.4, libxsmm 1.12, ELPA 2017.05.003, PLUMED 2.4.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2019)
 CC          = gcc
-CPP         =
 FC          = mpif90
 LD          = mpif90
 AR          = ar -r
@@ -21,7 +20,6 @@ DFLAGS      = -D__ELPA=201705 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
               -D__MPI_VERSION=3 -D__PLUMED2 \
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4 \
               -D__parallel -D__SCALAPACK
-CPPFLAGS    =
 FCFLAGS     = $(DFLAGS) -O2 -ffree-form -ffree-line-length-none \
               -ftree-vectorize -funroll-loops -mtune=native -std=f2008 \
               -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules \

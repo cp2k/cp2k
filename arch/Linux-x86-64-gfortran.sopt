@@ -1,7 +1,6 @@
 # Tested with: GFortran 7.4.0, LAPACK 3.8.0, FFTW 3.3, Libint 1.1.6, Libxc 4.3.4, libxsmm 1.12
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2019)
 CC          = gcc
-CPP         =
 FC          = gfortran
 LD          = gfortran
 AR          = ar -r
@@ -15,7 +14,6 @@ LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.12/include
 LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.12/lib
 DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
-CPPFLAGS    =
 FCFLAGS     = $(DFLAGS) -O2 -ffree-form -ffree-line-length-none \
               -ftree-vectorize -funroll-loops -mtune=native -std=f2008 \
               -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)

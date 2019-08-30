@@ -431,40 +431,21 @@ ifneq ($(strip $(GIT_HEAD)),)
 cp2k_info.o: $(GIT_HEAD)
 endif
 
-# some practical variables for the build
-ifeq ($(CPPSHELL),)
-CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
-            -D__COMPILE_DATE="\"$(shell date)\""\
-            -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
-            -D__DATA_DIR="\"$(DATA_DIR)\""
-endif
+# Add some practical metadata about the build.
+FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
+           -D__COMPILE_DATE="\"$(shell date)\""\
+           -D__COMPILE_HOST="\"$(shell hostname)\""\
+           -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
+           -D__DATA_DIR="\"$(DATA_DIR)\""
 
-ifneq ($(CPP),)
-# always add the SRCDIR to the include path (-I here might not be portable)
-CPPFLAGS += $(CPPSHELL) -I$(SRCDIR)
-else
-FCFLAGS += $(CPPSHELL)
-endif
-
-# the rule how to generate the .o from the .F
-# only if CPP is different from null we do a step over the C preprocessor (which is slower)
-# in the other case the fortran compiler takes care of this directly
-#
 # $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
 # This is used e.g. by the convention checker.
 
 FYPPFLAGS ?= -n
 
 %.o: %.F
-ifneq ($(CPP),)
-	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 > $*.f90
-	$(FC) -c $(FCFLAGS) $(OBJEXTSINCL) $*.f90 $(FCLOGPIPE)
-else
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
 	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
-endif
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
