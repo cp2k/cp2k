@@ -117,7 +117,7 @@ CONTAINS
                helium_env(k)%helium%rho_accu(:, :, :, :) = 0.0_dp
             END IF
             IF (helium_env(k)%helium%rdf_present) THEN
-               helium_env(k)%helium%rdf_accu(:, :, :) = 0.0_dp
+               helium_env(k)%helium%rdf_accu(:, :) = 0.0_dp
             END IF
          END DO
       END IF
@@ -315,8 +315,8 @@ CONTAINS
          END IF
          IF (helium_env(k)%helium%rdf_present) THEN
             CALL helium_set_rdf_coord_system(helium_env(k)%helium, pint_env)
-            CALL helium_calc_rdf(helium_env(k)%helium, helium_env(k)%helium%rdf_centers)
-            helium_env(k)%helium%rdf_accu(:, :, :) = helium_env(k)%helium%rdf_accu(:, :, :)+helium_env(k)%helium%rdf_inst(:, :, :)
+            CALL helium_calc_rdf(helium_env(k)%helium)
+            helium_env(k)%helium%rdf_accu(:, :) = helium_env(k)%helium%rdf_accu(:, :)+helium_env(k)%helium%rdf_inst(:, :)
          END IF
 
          ! running averages (restart-aware)

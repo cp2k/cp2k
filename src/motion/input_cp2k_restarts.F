@@ -1350,25 +1350,25 @@ CONTAINS
          IF (helium_env(1)%helium%rdf_present) THEN
 
             ! work on the temporary array so that accumulated data remains intact
-            helium_env(1)%helium%rdf_inst(:, :, :) = 0.0_dp
+            helium_env(1)%helium%rdf_inst(:, :) = 0.0_dp
             DO i = 1, SIZE(helium_env)
-               helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)+ &
-                                                        helium_env(i)%helium%rdf_accu(:, :, :)
+               helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)+ &
+                                                     helium_env(i)%helium%rdf_accu(:, :)
             END DO
 
             ! average over processors / helium environments
             CALL mp_sum(helium_env(1)%helium%rdf_inst, helium_env(1)%comm)
             itmp = helium_env(1)%helium%num_env
             invproc = 1.0_dp/REAL(itmp, dp)
-            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)*invproc
+            helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)*invproc
 
             nsteps = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
-            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)/REAL(nsteps, dp)
+            helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)/REAL(nsteps, dp)
             iweight = helium_env(1)%helium%rdf_iweight
             ! average over the old and the current density (observe the weights!)
-            helium_env(1)%helium%rdf_inst(:, :, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :, :)+ &
-                                                     iweight*helium_env(1)%helium%rdf_rstr(:, :, :)
-            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)/REAL(nsteps+iweight, dp)
+            helium_env(1)%helium%rdf_inst(:, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :)+ &
+                                                  iweight*helium_env(1)%helium%rdf_rstr(:, :)
+            helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)/REAL(nsteps+iweight, dp)
             ! update in the global input structure
             NULLIFY (real_msg)
             msglen = SIZE(helium_env(1)%helium%rdf_inst)

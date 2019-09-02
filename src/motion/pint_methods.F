@@ -1782,7 +1782,7 @@ CONTAINS
                   helium_env(k)%helium%rho_accu(:, :, :, :) = 0.0_dp
                END IF
                IF (helium_env(k)%helium%rdf_present) THEN
-                  helium_env(k)%helium%rdf_accu(:, :, :) = 0.0_dp
+                  helium_env(k)%helium%rdf_accu(:, :) = 0.0_dp
                END IF
             END DO
          END IF
