@@ -15,4 +15,5 @@ he32_density.inp                                      40      2e-14       -6.843
 he32_only_worm.inp                                    40      1e-11       -7.4218580526706079E-005
 he32_only_worm_restart.inp                            40      1e-11       -7.4132839644739615E-005
 water-in-helium-worm.inp                               9      1e-11       -4.2313594800864277E-004
+water-in-helium-striding.inp                           9      1e-11       9.2155027972146239E-002
 #EOF
