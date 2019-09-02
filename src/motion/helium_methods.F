@@ -2022,10 +2022,10 @@ CONTAINS
          "MOTION%PINT%HELIUM%RDF%HE_HE", &
          l_val=helium%rdf_he_he)
 
-     ! Prevent He_He Rdfs for a single he atom:
-     IF (helium%atoms <= 1) THEN
-        helium%rdf_he_he = .FALSE.
-     END IF
+      ! Prevent He_He Rdfs for a single he atom:
+      IF (helium%atoms <= 1) THEN
+         helium%rdf_he_he = .FALSE.
+      END IF
 
       helium%rdf_num = 0
       IF (helium%rdf_sol_he) THEN
