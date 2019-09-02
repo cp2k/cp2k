@@ -635,8 +635,8 @@ CONTAINS
             IF (helium_env(k)%helium%solute_present) THEN
                IF (helium_env(k)%helium%solute_beads > helium_env(k)%helium%beads) THEN
                   ! Imaginary time striding for solute:
-                  helium_env(k)%helium%bead_ratio = helium_env(k)%helium%solute_beads/&
-                     helium_env(k)%helium%beads
+                  helium_env(k)%helium%bead_ratio = helium_env(k)%helium%solute_beads/ &
+                                                    helium_env(k)%helium%beads
                   ! check if bead numbers are commensurate:
                   i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%beads-helium_env(k)%helium%solute_beads
                   IF (i /= 0) THEN
@@ -644,9 +644,9 @@ CONTAINS
                      CPABORT(msg_str)
                   END IF
                   msg_str = "Using multiple-time stepping in imaginary time for solute to couple "// &
-                     "to fewer solvent beads. Warning: Avoid too large coupling factors."
+                            "to fewer solvent beads. Warning: Avoid too large coupling factors."
                   CPWARN(msg_str)
-               ELSE IF  (helium_env(k)%helium%solute_beads < helium_env(k)%helium%beads)
+               ELSE IF (helium_env(k)%helium%solute_beads < helium_env(k)%helium%beads) THEN
                   msg_str = "Solute beads < solvent beads: Not supported."
                   CPABORT(msg_str)
                END IF

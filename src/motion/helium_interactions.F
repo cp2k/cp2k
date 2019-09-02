@@ -296,6 +296,8 @@ CONTAINS
 !> \param helium_r_opt       explicit helium bead coordinates (optional)
 !> \param energy             calculated energy
 !> \param force              calculated force (if requested)
+!> \par History
+!>         2019-09 Added multiple-time striding in imag. time [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_bead_solute_e_f(pint_env, helium, helium_part_index, &
@@ -363,11 +365,10 @@ CONTAINS
 
       ! Account for Imaginary time striding in forces:
       IF (PRESENT(force)) THEN
-         stride = 1
          IF (hbeads < pint_env%p) THEN
             stride = pint_env%p/hbeads
+            force = force*REAL(stride, dp)
          END IF
-         force = force*REAL(stride,dp)
       END IF
 
       RETURN
