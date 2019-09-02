@@ -647,8 +647,19 @@ CONTAINS
                             "to fewer solvent beads. Warning: Avoid too large coupling factors."
                   CPWARN(msg_str)
                ELSE IF (helium_env(k)%helium%solute_beads < helium_env(k)%helium%beads) THEN
-                  msg_str = "Solute beads < solvent beads: Not supported."
-                  CPABORT(msg_str)
+                  ! Imaginary time striding for solvent:
+                  helium_env(k)%helium%bead_ratio = helium_env(k)%helium%beads/ &
+                                                    helium_env(k)%helium%solute_beads
+                  ! check if bead numbers are commensurate:
+                  i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%solute_beads-helium_env(k)%helium%beads
+                  IF (i /= 0) THEN
+                     msg_str = "Adjust number of solvent beads to multiple of solute beads."
+                     CPABORT(msg_str)
+                  END IF
+                  msg_str = "Coupling solvent beads to fewer solute beads via "// &
+                            "direct coupling, e.g. for factor 3: "// &
+                            "sol_1 - he_1,2,3; sol_2 - he_4,5,6..."
+                  CPWARN(msg_str)
                END IF
 !TODO       Adjust helium bead number if not comm. and if coords not given expl.
 
