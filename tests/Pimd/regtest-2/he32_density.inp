@@ -21,6 +21,9 @@
         BISECTION              8
         MAX_PERM_CYCLE         4
       &END CEPERLEY
+      &RDF
+        HE_HE
+      &END RDF
       PERIODIC               T
       CELL_SHAPE             OCTAHEDRON
       &RHO

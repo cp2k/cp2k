@@ -2412,7 +2412,7 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, name="RDF", &
                           description="Radial distribution settings", &
-                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Whether or not to actually calculate this property", &
@@ -2434,9 +2434,16 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CENTERS_FILE_NAME", &
-                          description="Calculate RDFs wrt centers read from a file", &
-                          repeats=.FALSE., default_lc_val="centers.xyz")
+      CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_HE", &
+                          description="Whether or not to calculate solute-He RDFs"// &
+                          "(if solute is present)", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="HE_HE", &
+                          description="Whether or not to calculate He-He RDFs", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
