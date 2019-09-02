@@ -633,11 +633,23 @@ CONTAINS
             ! fill in the solute-related data structures
             helium_env(k)%helium%e_corr = 0.0_dp
             IF (helium_env(k)%helium%solute_present) THEN
-               helium_env(k)%helium%bead_ratio = helium_env(k)%helium%beads/helium_env(k)%helium%solute_beads
-
-               ! check if bead numbers are commensurate:
-               i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%solute_beads-helium_env(k)%helium%beads
-               CPASSERT(i == 0)
+               IF (helium_env(k)%helium%solute_beads > helium_env(k)%helium%beads) THEN
+                  ! Imaginary time striding for solute:
+                  helium_env(k)%helium%bead_ratio = helium_env(k)%helium%solute_beads/&
+                     helium_env(k)%helium%beads
+                  ! check if bead numbers are commensurate:
+                  i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%beads-helium_env(k)%helium%solute_beads
+                  IF (i /= 0) THEN
+                     msg_str = "Adjust number of solute beads to multiple of solvent beads."
+                     CPABORT(msg_str)
+                  END IF
+                  msg_str = "Using multiple-time stepping in imaginary time for solute to couple "// &
+                     "to fewer solvent beads. Warning: Avoid too large coupling factors."
+                  CPWARN(msg_str)
+               ELSE IF  (helium_env(k)%helium%solute_beads < helium_env(k)%helium%beads)
+                  msg_str = "Solute beads < solvent beads: Not supported."
+                  CPABORT(msg_str)
+               END IF
 !TODO       Adjust helium bead number if not comm. and if coords not given expl.
 
                ! check if tau, temperature and bead number are consistent:

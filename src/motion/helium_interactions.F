@@ -312,7 +312,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_bead_solute_e_f', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: hbeads, hi, qi
+      INTEGER                                            :: hbeads, hi, qi, stride
       REAL(KIND=dp), DIMENSION(3)                        :: helium_r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_force
 
@@ -360,6 +360,15 @@ CONTAINS
       CASE DEFAULT
 
       END SELECT
+
+      ! Account for Imaginary time striding in forces:
+      IF (PRESENT(force)) THEN
+         stride = 1
+         IF (hbeads < pint_env%p) THEN
+            stride = pint_env%p/hbeads
+         END IF
+         force = force*REAL(stride,dp)
+      END IF
 
       RETURN
    END SUBROUTINE helium_bead_solute_e_f
