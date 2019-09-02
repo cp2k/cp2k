@@ -644,7 +644,9 @@ CONTAINS
                      CPABORT(msg_str)
                   END IF
                   msg_str = "Using multiple-time stepping in imaginary time for solute to couple "// &
-                            "to fewer solvent beads. Warning: Avoid too large coupling factors."
+                            "to fewer solvent beads, e.g. for factor 3: "// &
+                            "he_1 - 3*sol_1; he_2 - 3*sol_4... "// &
+                            "Avoid too large coupling factors."
                   CPWARN(msg_str)
                ELSE IF (helium_env(k)%helium%solute_beads < helium_env(k)%helium%beads) THEN
                   ! Imaginary time striding for solvent:
