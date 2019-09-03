@@ -187,8 +187,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample', routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: msg_str
-      INTEGER                                            :: i, ires, irot, iweight, k, nslices, &
-                                                            nsteps, num_env, offset, sel_mp_source
+      INTEGER                                            :: i, irot, iweight, k, nslices, nsteps, &
+                                                            num_env, offset, sel_mp_source
       REAL(KIND=dp)                                      :: inv_num_env, inv_xn, rnd, rtmp, rweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work_2d
       TYPE(cp_logger_type), POINTER                      :: logger

@@ -20,14 +20,14 @@ MODULE helium_interactions
                                               e_id_virial,&
                                               helium_solvent_p_type,&
                                               helium_solvent_type
-   USE input_constants,                 ONLY: helium_solute_intpot_mwater,&
+   USE input_constants,                 ONLY: helium_sampling_worm,&
                                               helium_solute_intpot_ch5,&
-                                              helium_solute_intpot_seltable,&
-                                              helium_solute_intpot_none, &
-                                              helium_sampling_worm, &
-                                              helium_solute_intpot_cubetable
-   USE kinds,                           ONLY: dp, &
-                                              default_string_length
+                                              helium_solute_intpot_cubetable,&
+                                              helium_solute_intpot_mwater,&
+                                              helium_solute_intpot_none,&
+                                              helium_solute_intpot_seltable
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE physcon,                         ONLY: angstrom,&
                                               kelvin
    USE pint_types,                      ONLY: pint_env_type
@@ -229,7 +229,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_action', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iatom, ibead, jatom, patom, opatom
+      INTEGER                                            :: iatom, ibead, jatom, opatom, patom
       INTEGER, DIMENSION(:), POINTER                     :: perm
       REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
@@ -245,7 +245,7 @@ CONTAINS
                r(:) = helium%pos(:, iatom, ibead)-helium%pos(:, jatom, ibead)
                rp(:) = helium%pos(:, iatom, ibead+1)-helium%pos(:, jatom, ibead+1)
 !WRITE(*,*) "@FUg", helium_eval_expansion(helium, r, rp, helium%uij, 1)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END DO
       END DO
@@ -268,7 +268,7 @@ CONTAINS
       END DO
 
       ! correct for open worm configurations
-      IF (.NOT.helium%worm_is_closed) THEN
+      IF (.NOT. helium%worm_is_closed) THEN
 !WRITE(*,*) "@FUg total correcting action for open worm"
          ! special treatment if double bead is first bead
          iatom = helium%worm_atom_idx
@@ -281,17 +281,17 @@ CONTAINS
                opatom = helium%iperm(jatom)
 !WRITE(*,*) "@FUg total rm  ", iatom ,"--",jatom,":", 1, helium%beads
                ! substract pair action for closed link
-               r(:) = helium%pos(:, iatom, 1) - helium%pos(:, jatom, 1)
+               r(:) = helium%pos(:, iatom, 1)-helium%pos(:, jatom, 1)
                rp(:) = helium%pos(:, patom, helium%beads)-helium%pos(:, opatom, helium%beads)
-               pairaction = pairaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg ", r(:)
 !WRITE(*,*) "@FUg ", rp(:)
 !WRITE(*,*) "@FUg - ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! and add corrected extra link
                ! rp stays the same
 !WRITE(*,*) "@FUg total add ", iatom ,"--",jatom,":", "        xtra", helium%beads
-               r(:) = helium%worm_xtra_bead(:) - helium%pos(:, jatom, 1)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = helium%worm_xtra_bead(:)-helium%pos(:, jatom, 1)
+               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg ", r(:)
 !WRITE(*,*) "@FUg + ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
@@ -303,15 +303,15 @@ CONTAINS
                IF (jatom == helium%worm_atom_idx) CYCLE
 !WRITE(*,*) "@FUg total rm  ", iatom ,"--",jatom,":", ibead, ibead-1
                ! substract pair action for closed link
-               r(:) = helium%pos(:, iatom, ibead) - helium%pos(:, jatom, ibead)
+               r(:) = helium%pos(:, iatom, ibead)-helium%pos(:, jatom, ibead)
                rp(:) = helium%pos(:, iatom, ibead-1)-helium%pos(:, jatom, ibead-1)
-               pairaction = pairaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg - ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! and add corrected extra link
                ! rp stays the same
 !WRITE(*,*) "@FUg total add ", iatom,"--",jatom,":", "        xtra", ibead-1
-               r(:) = helium%worm_xtra_bead(:) - helium%pos(:, jatom, ibead)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = helium%worm_xtra_bead(:)-helium%pos(:, jatom, ibead)
+               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg + ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END IF
@@ -331,10 +331,10 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_action', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_actionw', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iatom, ibead, jatom, patom, opatom
+      INTEGER                                            :: iatom, ibead, jatom, opatom, patom
       INTEGER, DIMENSION(:), POINTER                     :: perm
       REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
@@ -373,7 +373,7 @@ CONTAINS
       END DO
 
       ! correct for open worm configurations
-      IF (.NOT.helium%worm_is_closed) THEN
+      IF (.NOT. helium%worm_is_closed) THEN
 !WRITE(*,*) "@FUg total correcting actionw for open worm"
          ! special treatment if double bead is first bead
          iatom = helium%worm_atom_idx_work
@@ -386,17 +386,17 @@ CONTAINS
                opatom = helium%iperm(jatom)
 !WRITE(*,*) "@FUg total rm  ", iatom ,"--",jatom,":", 1, helium%beads
                ! substract pair action for closed link
-               r(:) = helium%work(:, iatom, 1) - helium%work(:, jatom, 1)
+               r(:) = helium%work(:, iatom, 1)-helium%work(:, jatom, 1)
                rp(:) = helium%work(:, patom, helium%beads)-helium%work(:, opatom, helium%beads)
-               pairaction = pairaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg ", r(:)
 !WRITE(*,*) "@FUg ", rp(:)
 !WRITE(*,*) "@FUg - ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! and add corrected extra link
                ! rp stays the same
 !WRITE(*,*) "@FUg total add ", iatom ,"--",jatom,":", "        xtra", helium%beads
-               r(:) = helium%worm_xtra_bead_work(:) - helium%work(:, jatom, 1)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = helium%worm_xtra_bead_work(:)-helium%work(:, jatom, 1)
+               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg ", r(:)
 !WRITE(*,*) "@FUg + ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
@@ -408,15 +408,15 @@ CONTAINS
                IF (jatom == helium%worm_atom_idx_work) CYCLE
 !WRITE(*,*) "@FUg total rm  ", iatom ,"--",jatom,":", ibead, ibead-1
                ! substract pair action for closed link
-               r(:) = helium%work(:, iatom, ibead) - helium%work(:, jatom, ibead)
+               r(:) = helium%work(:, iatom, ibead)-helium%work(:, jatom, ibead)
                rp(:) = helium%work(:, iatom, ibead-1)-helium%work(:, jatom, ibead-1)
-               pairaction = pairaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg - ", helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! and add corrected extra link
                ! rp stays the same
 !WRITE(*,*) "@FUg total add ", iatom ,"--",jatom,":", "        xtra", ibead-1
-               r(:) = helium%worm_xtra_bead_work(:) - helium%work(:, jatom, ibead)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = helium%worm_xtra_bead_work(:)-helium%work(:, jatom, ibead)
+               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
 !WRITE(*,*) "@FUg + ",  helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END IF
@@ -458,34 +458,40 @@ CONTAINS
             END DO
          END DO
          IF (helium%sampling_method == helium_sampling_worm) THEN
-            IF (.NOT.helium%worm_is_closed) THEN
+            IF (.NOT. helium%worm_is_closed) THEN
                ! subtract half of tail bead interaction again
                CALL helium_bead_solute_e_f(pint_env, helium, &
                                            helium%worm_atom_idx, helium%worm_bead_idx, &
-                                           helium%pos(:,helium%worm_atom_idx, helium%worm_bead_idx), e)
+                                           helium%pos(:, helium%worm_atom_idx, helium%worm_bead_idx), e)
 !WRITE(*,*) "@FUg -0.5 ",  helium%worm_atom_idx, helium%worm_bead_idx, e
-               interaction = interaction - 0.5_dp*e
+               interaction = interaction-0.5_dp*e
                ! add half of head bead interaction
                CALL helium_bead_solute_e_f(pint_env, helium, &
                                            helium%worm_atom_idx, helium%worm_bead_idx, &
                                            helium%worm_xtra_bead, e)
 !WRITE(*,*) "@FUg +0.5 ",  "head ", e
-               interaction = interaction + 0.5_dp*e
+               interaction = interaction+0.5_dp*e
             END IF
          END IF
       END IF
 
-      interaction = interaction * helium%tau
+      interaction = interaction*helium%tau
 
       RETURN
    END FUNCTION helium_total_inter_action
 
-      REAL(KIND=dp) FUNCTION helium_total_inter_actionw(pint_env, helium) RESULT(interaction)
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \return ...
+! **************************************************************************************************
+   REAL(KIND=dp) FUNCTION helium_total_inter_actionw(pint_env, helium) RESULT(interaction)
 
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_inter_action', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_inter_actionw', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iatom, ibead
@@ -504,24 +510,24 @@ CONTAINS
             END DO
          END DO
          IF (helium%sampling_method == helium_sampling_worm) THEN
-            IF (.NOT.helium%worm_is_closed) THEN
+            IF (.NOT. helium%worm_is_closed) THEN
                ! subtract half of tail bead interaction again
                CALL helium_bead_solute_e_f(pint_env, helium, &
                                            helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-                                           helium%work(:,helium%worm_atom_idx_work, helium%worm_bead_idx_work), e)
+                                           helium%work(:, helium%worm_atom_idx_work, helium%worm_bead_idx_work), e)
 !WRITE(*,*) "@FUg -0.5 ",  helium%worm_atom_idx, helium%worm_bead_idx, e
-               interaction = interaction - 0.5_dp*e
+               interaction = interaction-0.5_dp*e
                ! add half of head bead interaction
                CALL helium_bead_solute_e_f(pint_env, helium, &
                                            helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
                                            helium%worm_xtra_bead_work, e)
 !WRITE(*,*) "@FUg +0.5 ",  "head ", e
-               interaction = interaction + 0.5_dp*e
+               interaction = interaction+0.5_dp*e
             END IF
          END IF
       END IF
 
-      interaction = interaction * helium%tau
+      interaction = interaction*helium%tau
 
       RETURN
    END FUNCTION helium_total_inter_actionw
@@ -594,37 +600,37 @@ CONTAINS
          END IF
 
       CASE (helium_solute_intpot_ch5)
-        IF (PRESENT(force)) THEN
-          force(:,:) = 0.0_dp
-          my_force => force(qi,:)
-          CALL helium_intpot_ch5_kuchenbaecker_e_f( &
-            pint_env%x(qi,:), &
-            helium, &
-            helium_r, &
-            energy, &
-            my_force &
-          )
-        ELSE
-          CALL helium_intpot_ch5_kuchenbaecker_e_f( &
-            pint_env%x(qi,:), &
+         IF (PRESENT(force)) THEN
+            force(:, :) = 0.0_dp
+            my_force => force(qi, :)
+            CALL helium_intpot_ch5_kuchenbaecker_e_f( &
+               pint_env%x(qi, :), &
+               helium, &
+               helium_r, &
+               energy, &
+               my_force &
+               )
+         ELSE
+            CALL helium_intpot_ch5_kuchenbaecker_e_f( &
+               pint_env%x(qi, :), &
+               helium, &
+               helium_r, &
+               energy &
+               )
+
+         END IF
+
+      CASE (helium_solute_intpot_seltable)
+         IF (PRESENT(force)) THEN
+            ! not implemented for this potential, thus
+            force(:, :) = 0.0_dp
+         END IF
+         CALL helium_intpot_seltable_e( &
+            pint_env%x(qi, :), &
             helium, &
             helium_r, &
             energy &
-          )
-
-        END IF
-
-      CASE (helium_solute_intpot_seltable)
-        IF (PRESENT(force)) THEN
-          ! not implemented for this potential, thus
-          force(:,:) = 0.0_dp
-        END IF
-        CALL helium_intpot_seltable_e( &
-          pint_env%x(qi,:), &
-          helium, &
-          helium_r, &
-          energy &
-        )
+            )
 
       CASE (helium_solute_intpot_cubetable)
          IF (PRESENT(force)) THEN
@@ -732,95 +738,78 @@ CONTAINS
    END SUBROUTINE helium_solute_e
 
    ! ***************************************************************************
-  !> \brief Calculate helium-solute interaction energy and forces between one helium bead
-  !>        and the corresponding solute time slice asuming CH5+ solute.
-  !> \param solute_x  solute positions ARR(3*NATOMS)
-  !> \param helium    only needed for helium_pbc call at the moment
-  !> \param helium_x  helium bead position ARR(3)
-  !> \param energy    calculated interaction energy
-  !> \note  Based on original subroutine from Harald's standalone program
-  !>        with induction.
-  !> \author Felix Uhl
-  ! ***************************************************************************
+   !> \brief Calculate helium-solute interaction energy and forces between one helium bead
+   !>        and the corresponding solute time slice asuming CH5+ solute.
+   !> \param solute_x  solute positions ARR(3*NATOMS)
+   !> \param helium    only needed for helium_pbc call at the moment
+   !> \param helium_x  helium bead position ARR(3)
+   !> \param energy    calculated interaction energy
+   !> \note  Based on original subroutine from Harald's standalone program
+   !>        with induction.
+   !> \author Felix Uhl
+   ! ***************************************************************************
 
-  SUBROUTINE helium_intpot_ch5_kuchenbaecker_e_f(solute_x, helium, helium_x, energy, force)
+! **************************************************************************************************
+!> \brief ...
+!> \param solute_x ...
+!> \param helium ...
+!> \param helium_x ...
+!> \param energy ...
+!> \param force ...
+! **************************************************************************************************
+   SUBROUTINE helium_intpot_ch5_kuchenbaecker_e_f(solute_x, helium, helium_x, energy, force)
 
-      IMPLICIT NONE
-
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: solute_x
-      TYPE(helium_solvent_type), POINTER       :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: helium_x
-      REAL(KIND=dp), INTENT(OUT)               :: energy
-      REAL(KIND=dp), DIMENSION(:), POINTER, &
-      INTENT(OUT),OPTIONAL                     :: force
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: solute_x
+      TYPE(helium_solvent_type), POINTER                 :: helium
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: helium_x
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), &
+         OPTIONAL, POINTER                               :: force
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_intpot_ch5_kuchenbaecker_e_f', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER :: alpha2h = 10.0000883993_dp, alphac = 537.2365703187_dp, &
+         alphah = 11.1227066949_dp, alphawx = 0.1393170339_dp, beta2h = 4.9999902914_dp, &
+         betac = 2.6414399416_dp, betah = 3.0453141136_dp, betawx = 1.8943211280_dp, &
+         Csixc = 25.1486400697_dp, Csixh = -20.7731766063_dp, Csixwx = 0.9756843988_dp, &
+         Csixx = 6.1486734828_dp, deltac = 2.1660761212_dp, deltadc = 5.3180112328_dp, &
+         deltadh = 1.0000000000_dp, deltadx = 8.0000000000_dp, deltah = 4.7880909104_dp, &
+         deltaqc = 1.0000000001_dp, deltaqh = 1.0000000000_dp, deltaqx = 1.6120189633_dp, &
+         deltawx = 3.8778221297_dp
+      REAL(KIND=dp), PARAMETER :: deltax = 0.0062370139_dp, dp_pol_He = 1.3824_dp, &
+         findu = 2.0050419163_dp, fvdw = 0.8134562093_dp, fwvdw = 1.6108570993_dp, &
+         qc = 4.6431264647_dp, qh = -0.6771456067_dp, qp_pol_He = 2.538_dp*3.0_dp/2.0_dp, &
+         qx = -0.0514796862_dp
 
-      ! Induction Parameters
-      ! Helium polarizabilities
-      REAL(KIND=dp), PARAMETER :: dp_pol_He =   1.3824_dp
-      REAL(KIND=dp), PARAMETER :: qp_pol_He =   2.538_dp*3.0_dp/2.0_dp
-      ! Induction charges
-      REAL(KIND=dp), PARAMETER :: qc        =   4.6431264647_dp
-      REAL(KIND=dp), PARAMETER :: qh        =  -0.6771456067_dp
-      REAL(KIND=dp), PARAMETER :: qx        =  -0.0514796862_dp
-      ! dipole field
-      REAL(KIND=dp), PARAMETER :: deltadc   =   5.3180112328_dp
-      REAL(KIND=dp), PARAMETER :: deltadh   =   1.0000000000_dp
-      REAL(KIND=dp), PARAMETER :: deltadx   =   8.0000000000_dp
-      ! quadrupole field
-      REAL(KIND=dp), PARAMETER :: deltaqc   =   1.0000000001_dp
-      REAL(KIND=dp), PARAMETER :: deltaqh   =   1.0000000000_dp
-      REAL(KIND=dp), PARAMETER :: deltaqx   =   1.6120189633_dp
-      ! extrasite position
-      REAL(KIND=dp), PARAMETER :: findu     =   2.0050419163_dp
+      INTEGER                                            :: i, ig, j, k, m, n, num_carbon, &
+                                                            num_hydrogen
+      REAL(KIND=dp) :: ddenom, ddenomsq, Eindd, Eindq, Evdw, expbetar, expbetarsq, qdenom, &
+         qdenomsq, Qxx, Qxy, Qxz, Qyy, Qyz, Qzz, r, rcube, rfif, rfour, rsqr, vdenom, vdenomsq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: F, rvekt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dQxx, dQxy, dQxz, dQyy, dQyz, dQzz, &
+                                                            gradient, indusites, solute, vdwsites, &
+                                                            vdwwsites
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Fprime
 
-      !VDW Parameters
-      ! pre exponential factor
-      REAL(KIND=dp), PARAMETER :: alphac    = 537.2365703187_dp
-      REAL(KIND=dp), PARAMETER :: alphah    =  11.1227066949_dp
-      REAL(KIND=dp), PARAMETER :: alpha2h   =  10.0000883993_dp
-      REAL(KIND=dp), PARAMETER :: alphawx   =   0.1393170339_dp
-      ! exponential factor
-      REAL(KIND=dp), PARAMETER :: betac     =   2.6414399416_dp
-      REAL(KIND=dp), PARAMETER :: betah     =   3.0453141136_dp
-      REAL(KIND=dp), PARAMETER :: beta2h    =   4.9999902914_dp
-      REAL(KIND=dp), PARAMETER :: betawx    =   1.8943211280_dp
-      ! C6-VDW factor
-      REAL(KIND=dp), PARAMETER :: Csixc     =  25.1486400697_dp
-      REAL(KIND=dp), PARAMETER :: Csixh     = -20.7731766063_dp
-      REAL(KIND=dp), PARAMETER :: Csixx     =   6.1486734828_dp
-      REAL(KIND=dp), PARAMETER :: Csixwx    =   0.9756843988_dp
-      ! denominator shift
-      REAL(KIND=dp), PARAMETER :: deltac    =   2.1660761212_dp
-      REAL(KIND=dp), PARAMETER :: deltah    =   4.7880909104_dp
-      REAL(KIND=dp), PARAMETER :: deltax    =   0.0062370139_dp
-      REAL(KIND=dp), PARAMETER :: deltawx   =   3.8778221297_dp
-      ! extrasite position
-      REAL(KIND=dp), PARAMETER :: fvdw      =   0.8134562093_dp
-      ! angular extrasite position
-      REAL(KIND=dp), PARAMETER :: fwvdw     =   1.6108570993_dp
-
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: indusites
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: vdwsites
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: vdwwsites
-
-      ! TODO avoid hard wired array size!
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: solute, gradient
-      REAL(KIND=dp) :: Eindd, Eindq, Evdw
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: rvekt
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE ::   F !Field
-      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: Fprime !Dipole Field gradient (term index, diff index, atom index)
-      REAL(KIND=dp) :: Qxx, Qyy, Qzz, Qxy, Qxz, Qyz !Quadrupole (Fieldgradient)
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: dQxx, dQyy, dQzz, dQxy, dQxz, dQyz !Quadrupole gradients
-      REAL(KIND=dp) :: ddenom, ddenomsq
-      REAL(KIND=dp) :: qdenom, qdenomsq
-      REAL(KIND=dp) :: vdenom, vdenomsq
-      REAL(KIND=dp) :: betar, betarsq
-      REAL(KIND=dp) :: expbetar, expbetarsq
-      REAL(KIND=dp) :: r, rsqr, rcube, rfour, rfif ! r, r**2, r**3, r**4, r**5
-      INTEGER :: i, j, k, num_carbon, num_hydrogen, ig, n, m
+! Induction Parameters
+! Helium polarizabilities
+! Induction charges
+! dipole field
+! quadrupole field
+! extrasite position
+!VDW Parameters
+! pre exponential factor
+! exponential factor
+! C6-VDW factor
+! denominator shift
+! extrasite position
+! angular extrasite position
+! TODO avoid hard wired array size!
+!Field
+!Dipole Field gradient (term index, diff index, atom index)
+!Quadrupole (Fieldgradient)
+!Quadrupole gradients
+! r, r**2, r**3, r**4, r**5
 
       num_carbon = 1
       num_hydrogen = 5
@@ -828,16 +817,16 @@ CONTAINS
       energy = 0.0_dp
 
       ! Allocate all arrays for energy and optionally the gradient ones
-      ALLOCATE(F(3))
+      ALLOCATE (F(3))
       F(:) = 0.0_dp
-      ALLOCATE(indusites(3,5))
-      indusites(:,:) = 0.0_dp
-      ALLOCATE(vdwsites(3,5))
-      vdwsites(:,:) = 0.0_dp
-      ALLOCATE(vdwwsites(3,10))
-      vdwwsites(:,:) = 0.0_dp
-      ALLOCATE(solute(3,6))
-      ALLOCATE(rvekt(3))
+      ALLOCATE (indusites(3, 5))
+      indusites(:, :) = 0.0_dp
+      ALLOCATE (vdwsites(3, 5))
+      vdwsites(:, :) = 0.0_dp
+      ALLOCATE (vdwwsites(3, 10))
+      vdwwsites(:, :) = 0.0_dp
+      ALLOCATE (solute(3, 6))
+      ALLOCATE (rvekt(3))
 
       Qxx = 0.0_dp
       Qyy = 0.0_dp
@@ -851,29 +840,29 @@ CONTAINS
       Eindq = 0.0_dp
 
       IF (PRESENT(force)) THEN
-         ALLOCATE(Fprime(3,3,6))
-         Fprime(:,:,:) = 0.0_dp
-         ALLOCATE(dQxx(3,6))
-         dQxx(:,:) = 0.0_dp
-         ALLOCATE(dQyy(3,6))
-         dQyy(:,:) = 0.0_dp
-         ALLOCATE(dQzz(3,6))
-         dQzz(:,:) = 0.0_dp
-         ALLOCATE(dQxy(3,6))
-         dQxy(:,:) = 0.0_dp
-         ALLOCATE(dQxz(3,6))
-         dQxz(:,:) = 0.0_dp
-         ALLOCATE(dQyz(3,6))
-         dQyz(:,:) = 0.0_dp
-         ALLOCATE(gradient(3,6))
-         gradient(:,:) = 0.0_dp
+         ALLOCATE (Fprime(3, 3, 6))
+         Fprime(:, :, :) = 0.0_dp
+         ALLOCATE (dQxx(3, 6))
+         dQxx(:, :) = 0.0_dp
+         ALLOCATE (dQyy(3, 6))
+         dQyy(:, :) = 0.0_dp
+         ALLOCATE (dQzz(3, 6))
+         dQzz(:, :) = 0.0_dp
+         ALLOCATE (dQxy(3, 6))
+         dQxy(:, :) = 0.0_dp
+         ALLOCATE (dQxz(3, 6))
+         dQxz(:, :) = 0.0_dp
+         ALLOCATE (dQyz(3, 6))
+         dQyz(:, :) = 0.0_dp
+         ALLOCATE (gradient(3, 6))
+         gradient(:, :) = 0.0_dp
       END IF
 
       ig = 1
       DO j = 1, helium%solute_atoms
          IF ("C " == helium%solute_element(j)) THEN
             DO i = 1, 3
-               solute(i,ig) = solute_x(3*(j-1)+i)
+               solute(i, ig) = solute_x(3*(j-1)+i)
             END DO
             ig = ig+1
          END IF
@@ -881,7 +870,7 @@ CONTAINS
       DO j = 1, helium%solute_atoms
          IF ("H " == helium%solute_element(j)) THEN
             DO i = 1, 3
-               solute(i,ig) = solute_x(3*(j-1)+i)
+               solute(i, ig) = solute_x(3*(j-1)+i)
             END DO
             ig = ig+1
          END IF
@@ -890,14 +879,14 @@ CONTAINS
       ! calculate induction sites
       DO j = 2, 6
          DO i = 1, 3
-            indusites(i,j-1) = solute(i,1) + findu*(solute(i,j) -  solute(i,1))
+            indusites(i, j-1) = solute(i, 1)+findu*(solute(i, j)-solute(i, 1))
          END DO
       END DO
 
       ! calculate vdw sites
       DO j = 2, 6
          DO i = 1, 3
-            vdwsites(i,j-1) = solute(i,1) + fvdw*(solute(i,j) -  solute(i,1))
+            vdwsites(i, j-1) = solute(i, 1)+fvdw*(solute(i, j)-solute(i, 1))
          END DO
       END DO
 
@@ -905,211 +894,210 @@ CONTAINS
       ! calculate angular vdw sites
       ig = 0
       DO k = 2, 5
-         DO j = k + 1, 6
-            ig = ig + 1
+         DO j = k+1, 6
+            ig = ig+1
             DO i = 1, 3
-               vdwwsites(i,ig) = solute(i,1) + 0.5_dp*fwvdw*(solute(i,k) + solute(i,j) - 2.0_dp*solute(i,1))
+               vdwwsites(i, ig) = solute(i, 1)+0.5_dp*fwvdw*(solute(i, k)+solute(i, j)-2.0_dp*solute(i, 1))
             END DO
          END DO
       END DO
 
       ! CARBON
       DO j = 1, 3
-         rvekt(j) = solute(j,1) - helium_x(j)
+         rvekt(j) = solute(j, 1)-helium_x(j)
       END DO
-      CALL helium_pbc( helium, rvekt)
-      rsqr = rvekt(1)*rvekt(1) + rvekt(2)*rvekt(2) + rvekt(3)*rvekt(3)
+      CALL helium_pbc(helium, rvekt)
+      rsqr = rvekt(1)*rvekt(1)+rvekt(2)*rvekt(2)+rvekt(3)*rvekt(3)
       r = SQRT(rsqr)
       rcube = r*rsqr
       rfour = rsqr*rsqr
       rfif = rsqr*rcube
-      ddenom = rcube + deltadc**3
-      qdenom = rfif  + deltaqc**5
-      vdenom = rcube*rcube + deltac**6
+      ddenom = rcube+deltadc**3
+      qdenom = rfif+deltaqc**5
+      vdenom = rcube*rcube+deltac**6
       expbetar = EXP(-betac*r)
       expbetarsq = EXP(-1.5_dp*rsqr)
       !vdwenergy
-      Evdw = Evdw + alphac * expbetar
-      Evdw = Evdw + Csixc / vdenom
-      Evdw = Evdw + 1.0d6*expbetarsq
+      Evdw = Evdw+alphac*expbetar
+      Evdw = Evdw+Csixc/vdenom
+      Evdw = Evdw+1.0d6*expbetarsq
       !dipole induction terms
       DO j = 1, 3
-         F(j) = F(j) + qc * rvekt(j)/ddenom
+         F(j) = F(j)+qc*rvekt(j)/ddenom
       END DO
       !quadrupole induction terms
-      Qxx = Qxx + qc*(3.0_dp*rvekt(1)*rvekt(1)-rsqr)/qdenom
-      Qyy = Qyy + qc*(3.0_dp*rvekt(2)*rvekt(2)-rsqr)/qdenom
-      Qzz = Qzz + qc*(3.0_dp*rvekt(3)*rvekt(3)-rsqr)/qdenom
-      Qxy = Qxy + qc*(3.0_dp*rvekt(1)*rvekt(2))/qdenom
-      Qxz = Qxz + qc*(3.0_dp*rvekt(1)*rvekt(3))/qdenom
-      Qyz = Qyz + qc*(3.0_dp*rvekt(2)*rvekt(3))/qdenom
+      Qxx = Qxx+qc*(3.0_dp*rvekt(1)*rvekt(1)-rsqr)/qdenom
+      Qyy = Qyy+qc*(3.0_dp*rvekt(2)*rvekt(2)-rsqr)/qdenom
+      Qzz = Qzz+qc*(3.0_dp*rvekt(3)*rvekt(3)-rsqr)/qdenom
+      Qxy = Qxy+qc*(3.0_dp*rvekt(1)*rvekt(2))/qdenom
+      Qxz = Qxz+qc*(3.0_dp*rvekt(1)*rvekt(3))/qdenom
+      Qyz = Qyz+qc*(3.0_dp*rvekt(2)*rvekt(3))/qdenom
       IF (PRESENT(force)) THEN
          vdenomsq = vdenom*vdenom
          DO k = 1, 3
-            gradient(k,1) = gradient(k,1) - alphac * betac * expbetar * rvekt(k)/r
-            gradient(k,1) = gradient(k,1) - 6.0_dp * Csixc * rfour * rvekt(k) / vdenomsq
-            gradient(k,1) = gradient(k,1) - 3.0_dp*1.0d6 * expbetarsq * rvekt(k)
+            gradient(k, 1) = gradient(k, 1)-alphac*betac*expbetar*rvekt(k)/r
+            gradient(k, 1) = gradient(k, 1)-6.0_dp*Csixc*rfour*rvekt(k)/vdenomsq
+            gradient(k, 1) = gradient(k, 1)-3.0_dp*1.0d6*expbetarsq*rvekt(k)
          END DO
          !dipole gradients
-         ddenomsq = ddenom * ddenom
+         ddenomsq = ddenom*ddenom
          DO i = 1, 3
-            Fprime(i,i,1) = Fprime(i,i,1) + qc*(ddenom - 3.0_dp*rvekt(i)**2 *r)/ddenomsq
+            Fprime(i, i, 1) = Fprime(i, i, 1)+qc*(ddenom-3.0_dp*rvekt(i)**2*r)/ddenomsq
          END DO
          !off diagnoal elements
-         DO i = 1,2
-            DO j = i+1,3
-               Fprime(j,i,1) = Fprime(j,i,1) + qc*(-3.0_dp*rvekt(i)*rvekt(j)*r)/ddenomsq
+         DO i = 1, 2
+            DO j = i+1, 3
+               Fprime(j, i, 1) = Fprime(j, i, 1)+qc*(-3.0_dp*rvekt(i)*rvekt(j)*r)/ddenomsq
             END DO
          END DO
          !quadrupole gradients
-         qdenomsq = qdenom * qdenom
-            dQxx(1,1) = dQxx(1,1) + qc*( 4.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)**3*rcube + &
-                                         5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQxx(2,1) = dQxx(2,1) + qc*(-2.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)*rvekt(1)**2*rcube + &
-                                         5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQxx(3,1) = dQxx(3,1) + qc*(-2.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)*rvekt(1)**2*rcube + &
-                                         5.0_dp*rvekt(3)*rfif)/qdenomsq
+         qdenomsq = qdenom*qdenom
+         dQxx(1, 1) = dQxx(1, 1)+qc*(4.0_dp*rvekt(1)*qdenom- &
+                                     15.0_dp*rvekt(1)**3*rcube+ &
+                                     5.0_dp*rvekt(1)*rfif)/qdenomsq
+         dQxx(2, 1) = dQxx(2, 1)+qc*(-2.0_dp*rvekt(2)*qdenom- &
+                                     15.0_dp*rvekt(2)*rvekt(1)**2*rcube+ &
+                                     5.0_dp*rvekt(2)*rfif)/qdenomsq
+         dQxx(3, 1) = dQxx(3, 1)+qc*(-2.0_dp*rvekt(3)*qdenom- &
+                                     15.0_dp*rvekt(3)*rvekt(1)**2*rcube+ &
+                                     5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQyy(1,1) = dQyy(1,1) + qc*(-2.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)*rvekt(2)**2*rcube + &
-                                         5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQyy(2,1) = dQyy(2,1) + qc*( 4.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)**3*rcube + &
-                                         5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQyy(3,1) = dQyy(3,1) + qc*(-2.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)*rvekt(2)**2*rcube + &
-                                         5.0_dp*rvekt(3)*rfif)/qdenomsq
+         dQyy(1, 1) = dQyy(1, 1)+qc*(-2.0_dp*rvekt(1)*qdenom- &
+                                     15.0_dp*rvekt(1)*rvekt(2)**2*rcube+ &
+                                     5.0_dp*rvekt(1)*rfif)/qdenomsq
+         dQyy(2, 1) = dQyy(2, 1)+qc*(4.0_dp*rvekt(2)*qdenom- &
+                                     15.0_dp*rvekt(2)**3*rcube+ &
+                                     5.0_dp*rvekt(2)*rfif)/qdenomsq
+         dQyy(3, 1) = dQyy(3, 1)+qc*(-2.0_dp*rvekt(3)*qdenom- &
+                                     15.0_dp*rvekt(3)*rvekt(2)**2*rcube+ &
+                                     5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQzz(1,1) = dQzz(1,1) + qc*(-2.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)*rvekt(3)**2*rcube + &
-                                         5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQzz(2,1) = dQzz(2,1) + qc*(-2.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)*rvekt(3)**2*rcube + &
-                                         5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQzz(3,1) = dQzz(3,1) + qc*( 4.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)**3*rcube + &
-                                         5.0_dp*rvekt(3)*rfif)/qdenomsq
+         dQzz(1, 1) = dQzz(1, 1)+qc*(-2.0_dp*rvekt(1)*qdenom- &
+                                     15.0_dp*rvekt(1)*rvekt(3)**2*rcube+ &
+                                     5.0_dp*rvekt(1)*rfif)/qdenomsq
+         dQzz(2, 1) = dQzz(2, 1)+qc*(-2.0_dp*rvekt(2)*qdenom- &
+                                     15.0_dp*rvekt(2)*rvekt(3)**2*rcube+ &
+                                     5.0_dp*rvekt(2)*rfif)/qdenomsq
+         dQzz(3, 1) = dQzz(3, 1)+qc*(4.0_dp*rvekt(3)*qdenom- &
+                                     15.0_dp*rvekt(3)**3*rcube+ &
+                                     5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQxy(1,1) = dQxy(1,1) + qc*( 3.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)*rvekt(1)**2*rcube)/qdenomsq
-            dQxy(2,1) = dQxy(2,1) + qc*( 3.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)*rvekt(2)**2*rcube)/qdenomsq
-            dQxy(3,1) = dQxy(3,1) - qc*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+         dQxy(1, 1) = dQxy(1, 1)+qc*(3.0_dp*rvekt(2)*qdenom- &
+                                     15.0_dp*rvekt(2)*rvekt(1)**2*rcube)/qdenomsq
+         dQxy(2, 1) = dQxy(2, 1)+qc*(3.0_dp*rvekt(1)*qdenom- &
+                                     15.0_dp*rvekt(1)*rvekt(2)**2*rcube)/qdenomsq
+         dQxy(3, 1) = dQxy(3, 1)-qc*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
 
-            dQxz(1,1) = dQxz(1,1) + qc*( 3.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)*rvekt(1)**2*rcube)/qdenomsq
-            dQxz(2,1) = dQxz(2,1) - qc*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQxz(3,1) = dQxz(3,1) + qc*( 3.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)*rvekt(3)**2*rcube)/qdenomsq
+         dQxz(1, 1) = dQxz(1, 1)+qc*(3.0_dp*rvekt(3)*qdenom- &
+                                     15.0_dp*rvekt(3)*rvekt(1)**2*rcube)/qdenomsq
+         dQxz(2, 1) = dQxz(2, 1)-qc*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+         dQxz(3, 1) = dQxz(3, 1)+qc*(3.0_dp*rvekt(1)*qdenom- &
+                                     15.0_dp*rvekt(1)*rvekt(3)**2*rcube)/qdenomsq
 
-            dQyz(1,1) = dQyz(1,1) - qc*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQyz(2,1) = dQyz(2,1) + qc*( 3.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)*rvekt(2)**2*rcube)/qdenomsq
-            dQyz(3,1) = dQyz(3,1) + qc*( 3.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)*rvekt(3)**2*rcube)/qdenomsq
+         dQyz(1, 1) = dQyz(1, 1)-qc*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+         dQyz(2, 1) = dQyz(2, 1)+qc*(3.0_dp*rvekt(3)*qdenom- &
+                                     15.0_dp*rvekt(3)*rvekt(2)**2*rcube)/qdenomsq
+         dQyz(3, 1) = dQyz(3, 1)+qc*(3.0_dp*rvekt(2)*qdenom- &
+                                     15.0_dp*rvekt(2)*rvekt(3)**2*rcube)/qdenomsq
       END IF
-
 
       ! HYDROGEN
       DO i = 2, 6
          DO j = 1, 3
-            rvekt(j) = solute(j,i) - helium_x(j)
+            rvekt(j) = solute(j, i)-helium_x(j)
          END DO
-         CALL helium_pbc( helium, rvekt)
-         rsqr = rvekt(1)*rvekt(1) + rvekt(2)*rvekt(2) + rvekt(3)*rvekt(3)
+         CALL helium_pbc(helium, rvekt)
+         rsqr = rvekt(1)*rvekt(1)+rvekt(2)*rvekt(2)+rvekt(3)*rvekt(3)
          r = SQRT(rsqr)
          rcube = r*rsqr
          rfour = rsqr*rsqr
          rfif = rsqr*rcube
-         ddenom = rcube + deltadh**3
-         qdenom = rfif  + deltaqh**5
-         vdenom = rcube*rcube + deltah**6
-         expbetar = EXP(-betah * r)
-         expbetarsq = EXP(-beta2h * rsqr)
+         ddenom = rcube+deltadh**3
+         qdenom = rfif+deltaqh**5
+         vdenom = rcube*rcube+deltah**6
+         expbetar = EXP(-betah*r)
+         expbetarsq = EXP(-beta2h*rsqr)
          !vdw energy
-         Evdw = Evdw + alphah * expbetar
-         Evdw = Evdw + Csixh / vdenom
-         Evdw = Evdw + alpha2h * expbetarsq
+         Evdw = Evdw+alphah*expbetar
+         Evdw = Evdw+Csixh/vdenom
+         Evdw = Evdw+alpha2h*expbetarsq
          !dipole induction terms
          DO j = 1, 3
-            F(j) = F(j) + qh * rvekt(j)/ddenom
+            F(j) = F(j)+qh*rvekt(j)/ddenom
          END DO
          !quadrupole induction terms
-         Qxx = Qxx + qh*(3.0_dp*rvekt(1)*rvekt(1)-rsqr)/qdenom
-         Qyy = Qyy + qh*(3.0_dp*rvekt(2)*rvekt(2)-rsqr)/qdenom
-         Qzz = Qzz + qh*(3.0_dp*rvekt(3)*rvekt(3)-rsqr)/qdenom
-         Qxy = Qxy + qh*(3.0_dp*rvekt(1)*rvekt(2))/qdenom
-         Qxz = Qxz + qh*(3.0_dp*rvekt(1)*rvekt(3))/qdenom
-         Qyz = Qyz + qh*(3.0_dp*rvekt(2)*rvekt(3))/qdenom
+         Qxx = Qxx+qh*(3.0_dp*rvekt(1)*rvekt(1)-rsqr)/qdenom
+         Qyy = Qyy+qh*(3.0_dp*rvekt(2)*rvekt(2)-rsqr)/qdenom
+         Qzz = Qzz+qh*(3.0_dp*rvekt(3)*rvekt(3)-rsqr)/qdenom
+         Qxy = Qxy+qh*(3.0_dp*rvekt(1)*rvekt(2))/qdenom
+         Qxz = Qxz+qh*(3.0_dp*rvekt(1)*rvekt(3))/qdenom
+         Qyz = Qyz+qh*(3.0_dp*rvekt(2)*rvekt(3))/qdenom
          IF (PRESENT(force)) THEN
-            vdenomsq = vdenom * vdenom
+            vdenomsq = vdenom*vdenom
             DO k = 1, 3
-               gradient(k,i) = gradient(k,i) - alphah * betah * expbetar * rvekt(k)/r
-               gradient(k,i) = gradient(k,i) - 6.0_dp*Csixh*rfour*rvekt(k) / vdenomsq
-               gradient(k,i) = gradient(k,i) - 2.0_dp*alpha2h * beta2h * expbetarsq * rvekt(k)/r
+               gradient(k, i) = gradient(k, i)-alphah*betah*expbetar*rvekt(k)/r
+               gradient(k, i) = gradient(k, i)-6.0_dp*Csixh*rfour*rvekt(k)/vdenomsq
+               gradient(k, i) = gradient(k, i)-2.0_dp*alpha2h*beta2h*expbetarsq*rvekt(k)/r
             END DO
             ! dipole field gradient with respect to ith hydrogen coordinate
-            ddenomsq = ddenom * ddenom
+            ddenomsq = ddenom*ddenom
             DO j = 1, 3
-               Fprime(j,j,i) = Fprime(j,j,i) + qh*(ddenom - 3.0_dp*rvekt(j)**2 *r)/ddenomsq
+               Fprime(j, j, i) = Fprime(j, j, i)+qh*(ddenom-3.0_dp*rvekt(j)**2*r)/ddenomsq
             END DO
             !off diagnoal elements
-            DO j = 1,2
-               DO k = j+1,3
-                  Fprime(k,j,i) = Fprime(k,j,i) + qh*(-3.0_dp*rvekt(j)*rvekt(k)*r)/ddenomsq
+            DO j = 1, 2
+               DO k = j+1, 3
+                  Fprime(k, j, i) = Fprime(k, j, i)+qh*(-3.0_dp*rvekt(j)*rvekt(k)*r)/ddenomsq
                END DO
             END DO
             ! Quadrupole field gradient
-            qdenomsq = qdenom * qdenom
-            dQxx(1,i) = dQxx(1,i) + qh*( 4.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)**3*rcube + &
-                                         5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQxx(2,i) = dQxx(2,i) + qh*(-2.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)*rvekt(1)**2*rcube + &
-                                         5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQxx(3,i) = dQxx(3,i) + qh*(-2.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)*rvekt(1)**2*rcube + &
-                                         5.0_dp*rvekt(3)*rfif)/qdenomsq
+            qdenomsq = qdenom*qdenom
+            dQxx(1, i) = dQxx(1, i)+qh*(4.0_dp*rvekt(1)*qdenom- &
+                                        15.0_dp*rvekt(1)**3*rcube+ &
+                                        5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQxx(2, i) = dQxx(2, i)+qh*(-2.0_dp*rvekt(2)*qdenom- &
+                                        15.0_dp*rvekt(2)*rvekt(1)**2*rcube+ &
+                                        5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQxx(3, i) = dQxx(3, i)+qh*(-2.0_dp*rvekt(3)*qdenom- &
+                                        15.0_dp*rvekt(3)*rvekt(1)**2*rcube+ &
+                                        5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQyy(1,i) = dQyy(1,i) + qh*(-2.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)*rvekt(2)**2*rcube + &
-                                         5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQyy(2,i) = dQyy(2,i) + qh*( 4.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)**3*rcube + &
-                                         5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQyy(3,i) = dQyy(3,i) + qh*(-2.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)*rvekt(2)**2*rcube + &
-                                         5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQyy(1, i) = dQyy(1, i)+qh*(-2.0_dp*rvekt(1)*qdenom- &
+                                        15.0_dp*rvekt(1)*rvekt(2)**2*rcube+ &
+                                        5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQyy(2, i) = dQyy(2, i)+qh*(4.0_dp*rvekt(2)*qdenom- &
+                                        15.0_dp*rvekt(2)**3*rcube+ &
+                                        5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQyy(3, i) = dQyy(3, i)+qh*(-2.0_dp*rvekt(3)*qdenom- &
+                                        15.0_dp*rvekt(3)*rvekt(2)**2*rcube+ &
+                                        5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQzz(1,i) = dQzz(1,i) + qh*(-2.0_dp*rvekt(1)*qdenom - &
-                                        15.0_dp*rvekt(1)*rvekt(3)**2*rcube + &
-                                         5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQzz(2,i) = dQzz(2,i) + qh*(-2.0_dp*rvekt(2)*qdenom - &
-                                        15.0_dp*rvekt(2)*rvekt(3)**2*rcube + &
-                                         5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQzz(3,i) = dQzz(3,i) + qh*( 4.0_dp*rvekt(3)*qdenom - &
-                                        15.0_dp*rvekt(3)**3*rcube + &
-                                         5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQzz(1, i) = dQzz(1, i)+qh*(-2.0_dp*rvekt(1)*qdenom- &
+                                        15.0_dp*rvekt(1)*rvekt(3)**2*rcube+ &
+                                        5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQzz(2, i) = dQzz(2, i)+qh*(-2.0_dp*rvekt(2)*qdenom- &
+                                        15.0_dp*rvekt(2)*rvekt(3)**2*rcube+ &
+                                        5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQzz(3, i) = dQzz(3, i)+qh*(4.0_dp*rvekt(3)*qdenom- &
+                                        15.0_dp*rvekt(3)**3*rcube+ &
+                                        5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQxy(1,i) = dQxy(1,i) + qh*( 3.0_dp*rvekt(2)*qdenom - &
+            dQxy(1, i) = dQxy(1, i)+qh*(3.0_dp*rvekt(2)*qdenom- &
                                         15.0_dp*rvekt(2)*rvekt(1)**2*rcube)/qdenomsq
-            dQxy(2,i) = dQxy(2,i) + qh*( 3.0_dp*rvekt(1)*qdenom - &
+            dQxy(2, i) = dQxy(2, i)+qh*(3.0_dp*rvekt(1)*qdenom- &
                                         15.0_dp*rvekt(1)*rvekt(2)**2*rcube)/qdenomsq
-            dQxy(3,i) = dQxy(3,i) - qh*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQxy(3, i) = dQxy(3, i)-qh*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
 
-            dQxz(1,i) = dQxz(1,i) + qh*( 3.0_dp*rvekt(3)*qdenom - &
+            dQxz(1, i) = dQxz(1, i)+qh*(3.0_dp*rvekt(3)*qdenom- &
                                         15.0_dp*rvekt(3)*rvekt(1)**2*rcube)/qdenomsq
-            dQxz(2,i) = dQxz(2,i) - qh*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQxz(3,i) = dQxz(3,i) + qh*( 3.0_dp*rvekt(1)*qdenom - &
+            dQxz(2, i) = dQxz(2, i)-qh*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQxz(3, i) = dQxz(3, i)+qh*(3.0_dp*rvekt(1)*qdenom- &
                                         15.0_dp*rvekt(1)*rvekt(3)**2*rcube)/qdenomsq
 
-            dQyz(1,i) = dQyz(1,i) - qh*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQyz(2,i) = dQyz(2,i) + qh*( 3.0_dp*rvekt(3)*qdenom - &
+            dQyz(1, i) = dQyz(1, i)-qh*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQyz(2, i) = dQyz(2, i)+qh*(3.0_dp*rvekt(3)*qdenom- &
                                         15.0_dp*rvekt(3)*rvekt(2)**2*rcube)/qdenomsq
-            dQyz(3,i) = dQyz(3,i) + qh*( 3.0_dp*rvekt(2)*qdenom - &
+            dQyz(3, i) = dQyz(3, i)+qh*(3.0_dp*rvekt(2)*qdenom- &
                                         15.0_dp*rvekt(2)*rvekt(3)**2*rcube)/qdenomsq
          END IF
       END DO
@@ -1118,168 +1106,168 @@ CONTAINS
       DO i = 1, 5
          !VDW
          DO j = 1, 3
-            rvekt(j) = vdwsites(j,i) - helium_x(j)
+            rvekt(j) = vdwsites(j, i)-helium_x(j)
          END DO
-         CALL helium_pbc( helium, rvekt)
-         rsqr = rvekt(1)*rvekt(1) + rvekt(2)*rvekt(2) + rvekt(3)*rvekt(3)
+         CALL helium_pbc(helium, rvekt)
+         rsqr = rvekt(1)*rvekt(1)+rvekt(2)*rvekt(2)+rvekt(3)*rvekt(3)
          r = SQRT(rsqr)
          rcube = r*rsqr
          rfour = rsqr*rsqr
          rfif = rsqr*rcube
-         vdenom = rcube*rcube + deltax**6
+         vdenom = rcube*rcube+deltax**6
          !vdw energy
-         Evdw = Evdw + Csixx / vdenom
+         Evdw = Evdw+Csixx/vdenom
          IF (PRESENT(force)) THEN
-            vdenomsq = vdenom * vdenom
+            vdenomsq = vdenom*vdenom
             DO k = 1, 3
                ! Carbon gradient via chain rule
-               gradient(k,1) = gradient(k,1) - (1.0_dp-fvdw) * 6.0_dp*Csixx*rfour*rvekt(k) / vdenomsq
+               gradient(k, 1) = gradient(k, 1)-(1.0_dp-fvdw)*6.0_dp*Csixx*rfour*rvekt(k)/vdenomsq
                ! Hydrogen gradient via chain rule
-               gradient(k,i+1) = gradient(k,i+1) - fvdw * 6.0_dp*Csixx*rfour*rvekt(k) / vdenomsq
+               gradient(k, i+1) = gradient(k, i+1)-fvdw*6.0_dp*Csixx*rfour*rvekt(k)/vdenomsq
             END DO
          END IF
          !INDUCTION
          DO j = 1, 3
-            rvekt(j) = indusites(j,i) - helium_x(j)
+            rvekt(j) = indusites(j, i)-helium_x(j)
          END DO
-         CALL helium_pbc( helium, rvekt)
-         rsqr = rvekt(1)*rvekt(1) + rvekt(2)*rvekt(2) + rvekt(3)*rvekt(3)
+         CALL helium_pbc(helium, rvekt)
+         rsqr = rvekt(1)*rvekt(1)+rvekt(2)*rvekt(2)+rvekt(3)*rvekt(3)
          r = SQRT(rsqr)
          rcube = r*rsqr
          rfif = rsqr*rcube
-         ddenom = rcube + deltadx**3
-         qdenom = rfif  + deltaqx**5
+         ddenom = rcube+deltadx**3
+         qdenom = rfif+deltaqx**5
          ! dipole induction terms
          DO j = 1, 3
-            F(j) = F(j) + qx * rvekt(j)/ddenom
+            F(j) = F(j)+qx*rvekt(j)/ddenom
          END DO
          !quadrupole induction terms
-         Qxx = Qxx + qx*(3.0_dp*rvekt(1)*rvekt(1)-rsqr)/qdenom
-         Qyy = Qyy + qx*(3.0_dp*rvekt(2)*rvekt(2)-rsqr)/qdenom
-         Qzz = Qzz + qx*(3.0_dp*rvekt(3)*rvekt(3)-rsqr)/qdenom
-         Qxy = Qxy + qx*(3.0_dp*rvekt(1)*rvekt(2))/qdenom
-         Qxz = Qxz + qx*(3.0_dp*rvekt(1)*rvekt(3))/qdenom
-         Qyz = Qyz + qx*(3.0_dp*rvekt(2)*rvekt(3))/qdenom
+         Qxx = Qxx+qx*(3.0_dp*rvekt(1)*rvekt(1)-rsqr)/qdenom
+         Qyy = Qyy+qx*(3.0_dp*rvekt(2)*rvekt(2)-rsqr)/qdenom
+         Qzz = Qzz+qx*(3.0_dp*rvekt(3)*rvekt(3)-rsqr)/qdenom
+         Qxy = Qxy+qx*(3.0_dp*rvekt(1)*rvekt(2))/qdenom
+         Qxz = Qxz+qx*(3.0_dp*rvekt(1)*rvekt(3))/qdenom
+         Qyz = Qyz+qx*(3.0_dp*rvekt(2)*rvekt(3))/qdenom
          IF (PRESENT(force)) THEN
-            ddenomsq = ddenom * ddenom
+            ddenomsq = ddenom*ddenom
             !dipole gradient with respect to carbon coordinate
             DO j = 1, 3
-               Fprime(j,j,1) = Fprime(j,j,1) + qx*(1.0_dp-findu)*(ddenom - 3.0_dp*rvekt(j)**2 *r)/ddenomsq
+               Fprime(j, j, 1) = Fprime(j, j, 1)+qx*(1.0_dp-findu)*(ddenom-3.0_dp*rvekt(j)**2*r)/ddenomsq
             END DO
             !off diagnoal elements
-            DO j = 1,2
-               DO k = j+1,3
-                  Fprime(k,j,1) = Fprime(k,j,1) + qx*(1.0_dp-findu)*(-3.0_dp*rvekt(j)*rvekt(k)*r)/ddenomsq
+            DO j = 1, 2
+               DO k = j+1, 3
+                  Fprime(k, j, 1) = Fprime(k, j, 1)+qx*(1.0_dp-findu)*(-3.0_dp*rvekt(j)*rvekt(k)*r)/ddenomsq
                END DO
             END DO
             ! dipole gradient with respect to ith hydrogen coordinate
             DO j = 1, 3
-               Fprime(j,j,i+1) = Fprime(j,j,i+1) + qx*findu*(ddenom-3.0_dp*rvekt(j)**2 *r)/ddenomsq
+               Fprime(j, j, i+1) = Fprime(j, j, i+1)+qx*findu*(ddenom-3.0_dp*rvekt(j)**2*r)/ddenomsq
             END DO
             !off diagnoal elements
-            DO j = 1,2
-               DO k = j+1,3
-                  Fprime(k,j,i+1) = Fprime(k,j,i+1) + qx*findu*(-3.0_dp*rvekt(j)*rvekt(k)*r)/ddenomsq
+            DO j = 1, 2
+               DO k = j+1, 3
+                  Fprime(k, j, i+1) = Fprime(k, j, i+1)+qx*findu*(-3.0_dp*rvekt(j)*rvekt(k)*r)/ddenomsq
                END DO
             END DO
             ! Quadrupole field gradient
-            qdenomsq = qdenom * qdenom
+            qdenomsq = qdenom*qdenom
             ! gradient with respect to the carbon atom
-            dQxx(1,1) = dQxx(1,1) + qx*(1.0_dp-findu)*( 4.0_dp*rvekt(1)*qdenom - &
-                                                       15.0_dp*rvekt(1)**3*rcube + &
-                                                        5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQxx(2,1) = dQxx(2,1) + qx*(1.0_dp-findu)*(-2.0_dp*rvekt(2)*qdenom - &
-                                                       15.0_dp*rvekt(2)*rvekt(1)**2*rcube + &
-                                                        5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQxx(3,1) = dQxx(3,1) + qx*(1.0_dp-findu)*(-2.0_dp*rvekt(3)*qdenom - &
-                                                       15.0_dp*rvekt(3)*rvekt(1)**2*rcube + &
-                                                        5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQxx(1, 1) = dQxx(1, 1)+qx*(1.0_dp-findu)*(4.0_dp*rvekt(1)*qdenom- &
+                                                       15.0_dp*rvekt(1)**3*rcube+ &
+                                                       5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQxx(2, 1) = dQxx(2, 1)+qx*(1.0_dp-findu)*(-2.0_dp*rvekt(2)*qdenom- &
+                                                       15.0_dp*rvekt(2)*rvekt(1)**2*rcube+ &
+                                                       5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQxx(3, 1) = dQxx(3, 1)+qx*(1.0_dp-findu)*(-2.0_dp*rvekt(3)*qdenom- &
+                                                       15.0_dp*rvekt(3)*rvekt(1)**2*rcube+ &
+                                                       5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQyy(1,1) = dQyy(1,1) + qx*(1.0_dp-findu)*(-2.0_dp*rvekt(1)*qdenom - &
-                                                       15.0_dp*rvekt(1)*rvekt(2)**2*rcube + &
-                                                        5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQyy(2,1) = dQyy(2,1) + qx*(1.0_dp-findu)*( 4.0_dp*rvekt(2)*qdenom - &
-                                                       15.0_dp*rvekt(2)**3*rcube + &
-                                                        5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQyy(3,1) = dQyy(3,1) + qx*(1.0_dp-findu)*(-2.0_dp*rvekt(3)*qdenom - &
-                                                       15.0_dp*rvekt(3)*rvekt(2)**2*rcube + &
-                                                        5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQyy(1, 1) = dQyy(1, 1)+qx*(1.0_dp-findu)*(-2.0_dp*rvekt(1)*qdenom- &
+                                                       15.0_dp*rvekt(1)*rvekt(2)**2*rcube+ &
+                                                       5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQyy(2, 1) = dQyy(2, 1)+qx*(1.0_dp-findu)*(4.0_dp*rvekt(2)*qdenom- &
+                                                       15.0_dp*rvekt(2)**3*rcube+ &
+                                                       5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQyy(3, 1) = dQyy(3, 1)+qx*(1.0_dp-findu)*(-2.0_dp*rvekt(3)*qdenom- &
+                                                       15.0_dp*rvekt(3)*rvekt(2)**2*rcube+ &
+                                                       5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQzz(1,1) = dQzz(1,1) + qx*(1.0_dp-findu)*(-2.0_dp*rvekt(1)*qdenom - &
-                                                       15.0_dp*rvekt(1)*rvekt(3)**2*rcube + &
-                                                        5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQzz(2,1) = dQzz(2,1) + qx*(1.0_dp-findu)*(-2.0_dp*rvekt(2)*qdenom - &
-                                                       15.0_dp*rvekt(2)*rvekt(3)**2*rcube + &
-                                                        5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQzz(3,1) = dQzz(3,1) + qx*(1.0_dp-findu)*( 4.0_dp*rvekt(3)*qdenom - &
-                                                       15.0_dp*rvekt(3)**3*rcube + &
-                                                        5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQzz(1, 1) = dQzz(1, 1)+qx*(1.0_dp-findu)*(-2.0_dp*rvekt(1)*qdenom- &
+                                                       15.0_dp*rvekt(1)*rvekt(3)**2*rcube+ &
+                                                       5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQzz(2, 1) = dQzz(2, 1)+qx*(1.0_dp-findu)*(-2.0_dp*rvekt(2)*qdenom- &
+                                                       15.0_dp*rvekt(2)*rvekt(3)**2*rcube+ &
+                                                       5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQzz(3, 1) = dQzz(3, 1)+qx*(1.0_dp-findu)*(4.0_dp*rvekt(3)*qdenom- &
+                                                       15.0_dp*rvekt(3)**3*rcube+ &
+                                                       5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQxy(1,1) = dQxy(1,1) + qx*(1.0_dp-findu)*( 3.0_dp*rvekt(2)*qdenom - &
+            dQxy(1, 1) = dQxy(1, 1)+qx*(1.0_dp-findu)*(3.0_dp*rvekt(2)*qdenom- &
                                                        15.0_dp*rvekt(2)*rvekt(1)**2*rcube)/qdenomsq
-            dQxy(2,1) = dQxy(2,1) + qx*(1.0_dp-findu)*( 3.0_dp*rvekt(1)*qdenom - &
+            dQxy(2, 1) = dQxy(2, 1)+qx*(1.0_dp-findu)*(3.0_dp*rvekt(1)*qdenom- &
                                                        15.0_dp*rvekt(1)*rvekt(2)**2*rcube)/qdenomsq
-            dQxy(3,1) = dQxy(3,1) - qx*(1.0_dp-findu)*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQxy(3, 1) = dQxy(3, 1)-qx*(1.0_dp-findu)*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
 
-            dQxz(1,1) = dQxz(1,1) + qx*(1.0_dp-findu)*( 3.0_dp*rvekt(3)*qdenom - &
+            dQxz(1, 1) = dQxz(1, 1)+qx*(1.0_dp-findu)*(3.0_dp*rvekt(3)*qdenom- &
                                                        15.0_dp*rvekt(3)*rvekt(1)**2*rcube)/qdenomsq
-            dQxz(2,1) = dQxz(2,1) - qx*(1.0_dp-findu)*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQxz(3,1) = dQxz(3,1) + qx*(1.0_dp-findu)*( 3.0_dp*rvekt(1)*qdenom - &
+            dQxz(2, 1) = dQxz(2, 1)-qx*(1.0_dp-findu)*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQxz(3, 1) = dQxz(3, 1)+qx*(1.0_dp-findu)*(3.0_dp*rvekt(1)*qdenom- &
                                                        15.0_dp*rvekt(1)*rvekt(3)**2*rcube)/qdenomsq
 
-            dQyz(1,1) = dQyz(1,1) - qx*(1.0_dp-findu)*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQyz(2,1) = dQyz(2,1) + qx*(1.0_dp-findu)*( 3.0_dp*rvekt(3)*qdenom - &
+            dQyz(1, 1) = dQyz(1, 1)-qx*(1.0_dp-findu)*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQyz(2, 1) = dQyz(2, 1)+qx*(1.0_dp-findu)*(3.0_dp*rvekt(3)*qdenom- &
                                                        15.0_dp*rvekt(3)*rvekt(2)**2*rcube)/qdenomsq
-            dQyz(3,1) = dQyz(3,1) + qx*(1.0_dp-findu)*( 3.0_dp*rvekt(2)*qdenom - &
+            dQyz(3, 1) = dQyz(3, 1)+qx*(1.0_dp-findu)*(3.0_dp*rvekt(2)*qdenom- &
                                                        15.0_dp*rvekt(2)*rvekt(3)**2*rcube)/qdenomsq
 
             ! gradient with respect to the hydrogen atom
-            dQxx(1,i+1) = dQxx(1,i+1) + qx*findu*( 4.0_dp*rvekt(1)*qdenom - &
-                                                  15.0_dp*rvekt(1)**3*rcube + &
-                                                   5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQxx(2,i+1) = dQxx(2,i+1) + qx*findu*(-2.0_dp*rvekt(2)*qdenom - &
-                                                  15.0_dp*rvekt(2)*rvekt(1)**2*rcube + &
-                                                   5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQxx(3,i+1) = dQxx(3,i+1) + qx*findu*(-2.0_dp*rvekt(3)*qdenom - &
-                                                  15.0_dp*rvekt(3)*rvekt(1)**2*rcube + &
-                                                   5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQxx(1, i+1) = dQxx(1, i+1)+qx*findu*(4.0_dp*rvekt(1)*qdenom- &
+                                                  15.0_dp*rvekt(1)**3*rcube+ &
+                                                  5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQxx(2, i+1) = dQxx(2, i+1)+qx*findu*(-2.0_dp*rvekt(2)*qdenom- &
+                                                  15.0_dp*rvekt(2)*rvekt(1)**2*rcube+ &
+                                                  5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQxx(3, i+1) = dQxx(3, i+1)+qx*findu*(-2.0_dp*rvekt(3)*qdenom- &
+                                                  15.0_dp*rvekt(3)*rvekt(1)**2*rcube+ &
+                                                  5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQyy(1,i+1) = dQyy(1,i+1) + qx*findu*(-2.0_dp*rvekt(1)*qdenom - &
-                                                  15.0_dp*rvekt(1)*rvekt(2)**2*rcube + &
-                                                   5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQyy(2,i+1) = dQyy(2,i+1) + qx*findu*( 4.0_dp*rvekt(2)*qdenom - &
-                                                  15.0_dp*rvekt(2)**3*rcube + &
-                                                   5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQyy(3,i+1) = dQyy(3,i+1) + qx*findu*(-2.0_dp*rvekt(3)*qdenom - &
-                                                  15.0_dp*rvekt(3)*rvekt(2)**2*rcube + &
-                                                   5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQyy(1, i+1) = dQyy(1, i+1)+qx*findu*(-2.0_dp*rvekt(1)*qdenom- &
+                                                  15.0_dp*rvekt(1)*rvekt(2)**2*rcube+ &
+                                                  5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQyy(2, i+1) = dQyy(2, i+1)+qx*findu*(4.0_dp*rvekt(2)*qdenom- &
+                                                  15.0_dp*rvekt(2)**3*rcube+ &
+                                                  5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQyy(3, i+1) = dQyy(3, i+1)+qx*findu*(-2.0_dp*rvekt(3)*qdenom- &
+                                                  15.0_dp*rvekt(3)*rvekt(2)**2*rcube+ &
+                                                  5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQzz(1,i+1) = dQzz(1,i+1) + qx*findu*(-2.0_dp*rvekt(1)*qdenom - &
-                                                  15.0_dp*rvekt(1)*rvekt(3)**2*rcube + &
-                                                   5.0_dp*rvekt(1)*rfif)/qdenomsq
-            dQzz(2,i+1) = dQzz(2,i+1) + qx*findu*(-2.0_dp*rvekt(2)*qdenom - &
-                                                  15.0_dp*rvekt(2)*rvekt(3)**2*rcube + &
-                                                   5.0_dp*rvekt(2)*rfif)/qdenomsq
-            dQzz(3,i+1) = dQzz(3,i+1) + qx*findu*( 4.0_dp*rvekt(3)*qdenom - &
-                                                  15.0_dp*rvekt(3)**3*rcube + &
-                                                   5.0_dp*rvekt(3)*rfif)/qdenomsq
+            dQzz(1, i+1) = dQzz(1, i+1)+qx*findu*(-2.0_dp*rvekt(1)*qdenom- &
+                                                  15.0_dp*rvekt(1)*rvekt(3)**2*rcube+ &
+                                                  5.0_dp*rvekt(1)*rfif)/qdenomsq
+            dQzz(2, i+1) = dQzz(2, i+1)+qx*findu*(-2.0_dp*rvekt(2)*qdenom- &
+                                                  15.0_dp*rvekt(2)*rvekt(3)**2*rcube+ &
+                                                  5.0_dp*rvekt(2)*rfif)/qdenomsq
+            dQzz(3, i+1) = dQzz(3, i+1)+qx*findu*(4.0_dp*rvekt(3)*qdenom- &
+                                                  15.0_dp*rvekt(3)**3*rcube+ &
+                                                  5.0_dp*rvekt(3)*rfif)/qdenomsq
 
-            dQxy(1,i+1) = dQxy(1,i+1) + qx*findu*( 3.0_dp*rvekt(2)*qdenom - &
+            dQxy(1, i+1) = dQxy(1, i+1)+qx*findu*(3.0_dp*rvekt(2)*qdenom- &
                                                   15.0_dp*rvekt(2)*rvekt(1)**2*rcube)/qdenomsq
-            dQxy(2,i+1) = dQxy(2,i+1) + qx*findu*( 3.0_dp*rvekt(1)*qdenom - &
+            dQxy(2, i+1) = dQxy(2, i+1)+qx*findu*(3.0_dp*rvekt(1)*qdenom- &
                                                   15.0_dp*rvekt(1)*rvekt(2)**2*rcube)/qdenomsq
-            dQxy(3,i+1) = dQxy(3,i+1) - qx*findu*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQxy(3, i+1) = dQxy(3, i+1)-qx*findu*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
 
-            dQxz(1,i+1) = dQxz(1,i+1) + qx*findu*( 3.0_dp*rvekt(3)*qdenom - &
+            dQxz(1, i+1) = dQxz(1, i+1)+qx*findu*(3.0_dp*rvekt(3)*qdenom- &
                                                   15.0_dp*rvekt(3)*rvekt(1)**2*rcube)/qdenomsq
-            dQxz(2,i+1) = dQxz(2,i+1) - qx*findu*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQxz(3,i+1) = dQxz(3,i+1) + qx*findu*( 3.0_dp*rvekt(1)*qdenom - &
+            dQxz(2, i+1) = dQxz(2, i+1)-qx*findu*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQxz(3, i+1) = dQxz(3, i+1)+qx*findu*(3.0_dp*rvekt(1)*qdenom- &
                                                   15.0_dp*rvekt(1)*rvekt(3)**2*rcube)/qdenomsq
 
-            dQyz(1,i+1) = dQyz(1,i+1) - qx*findu*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
-            dQyz(2,i+1) = dQyz(2,i+1) + qx*findu*( 3.0_dp*rvekt(3)*qdenom - &
+            dQyz(1, i+1) = dQyz(1, i+1)-qx*findu*(15.0_dp*rvekt(1)*rvekt(2)*rvekt(3)*rcube)/qdenomsq
+            dQyz(2, i+1) = dQyz(2, i+1)+qx*findu*(3.0_dp*rvekt(3)*qdenom- &
                                                   15.0_dp*rvekt(3)*rvekt(2)**2*rcube)/qdenomsq
-            dQyz(3,i+1) = dQyz(3,i+1) + qx*findu*( 3.0_dp*rvekt(2)*qdenom - &
+            dQyz(3, i+1) = dQyz(3, i+1)+qx*findu*(3.0_dp*rvekt(2)*qdenom- &
                                                   15.0_dp*rvekt(2)*rvekt(3)**2*rcube)/qdenomsq
          END IF
       END DO
@@ -1288,80 +1276,77 @@ CONTAINS
       i = 0
       DO n = 2, 5
          DO m = n+1, 6
-            i = i + 1
+            i = i+1
             !VDW
             DO j = 1, 3
-               rvekt(j) = vdwwsites(j,i) - helium_x(j)
+               rvekt(j) = vdwwsites(j, i)-helium_x(j)
             END DO
-            CALL helium_pbc( helium, rvekt)
-            rsqr = rvekt(1)*rvekt(1) + rvekt(2)*rvekt(2) + rvekt(3)*rvekt(3)
+            CALL helium_pbc(helium, rvekt)
+            rsqr = rvekt(1)*rvekt(1)+rvekt(2)*rvekt(2)+rvekt(3)*rvekt(3)
             r = SQRT(rsqr)
             rcube = r*rsqr
             rfour = rsqr*rsqr
             rfif = rsqr*rcube
-            vdenom = rcube*rcube + deltawx**6
-            expbetar = EXP(-betawx * r)
+            vdenom = rcube*rcube+deltawx**6
+            expbetar = EXP(-betawx*r)
             !vdw energy
-            Evdw = Evdw + alphawx * expbetar
-            Evdw = Evdw + Csixwx / vdenom
+            Evdw = Evdw+alphawx*expbetar
+            Evdw = Evdw+Csixwx/vdenom
             IF (PRESENT(force)) THEN
-               vdenomsq = vdenom * vdenom
+               vdenomsq = vdenom*vdenom
                DO k = 1, 3
                   ! Carbon gradient via chain rule
-                  gradient(k,1) = gradient(k,1) - (1.0_dp - fwvdw) * alphawx *betawx * expbetar *rvekt(k)/r
-                  gradient(k,1) = gradient(k,1) - (1.0_dp-fwvdw) * 6.0_dp*Csixwx*rfour*rvekt(k) / vdenomsq
+                  gradient(k, 1) = gradient(k, 1)-(1.0_dp-fwvdw)*alphawx*betawx*expbetar*rvekt(k)/r
+                  gradient(k, 1) = gradient(k, 1)-(1.0_dp-fwvdw)*6.0_dp*Csixwx*rfour*rvekt(k)/vdenomsq
                   ! nth Hydrogen gradient via chain rule
-                  gradient(k,n) = gradient(k,n) - 0.5_dp * fwvdw * alphawx *betawx * expbetar *rvekt(k)/r
-                  gradient(k,n) = gradient(k,n) - 0.5_dp * fwvdw * 6.0_dp*Csixwx*rfour*rvekt(k) / vdenomsq
+                  gradient(k, n) = gradient(k, n)-0.5_dp*fwvdw*alphawx*betawx*expbetar*rvekt(k)/r
+                  gradient(k, n) = gradient(k, n)-0.5_dp*fwvdw*6.0_dp*Csixwx*rfour*rvekt(k)/vdenomsq
                   ! mth Hydrogen gradient via chain rule
-                  gradient(k,m) = gradient(k,m) - 0.5_dp * fwvdw * alphawx *betawx * expbetar *rvekt(k)/r
-                  gradient(k,m) = gradient(k,m) - 0.5_dp * fwvdw * 6.0_dp*Csixwx*rfour*rvekt(k) / vdenomsq
+                  gradient(k, m) = gradient(k, m)-0.5_dp*fwvdw*alphawx*betawx*expbetar*rvekt(k)/r
+                  gradient(k, m) = gradient(k, m)-0.5_dp*fwvdw*6.0_dp*Csixwx*rfour*rvekt(k)/vdenomsq
                END DO
             END IF
          END DO
       END DO
 
       ! Dipole energy induced by field
-      Eindd = Eindd -0.5_dp * dp_pol_He * (F(1)**2 + F(2)**2 + F(3)**2)
+      Eindd = Eindd-0.5_dp*dp_pol_He*(F(1)**2+F(2)**2+F(3)**2)
       !quadrupole induced by field
       ! Grad(alpha,aplha)*Grad(alpha,alpha)
-      Eindq = 2.0_dp/3.0_dp*(Qxx*Qxx + Qyy*Qyy + Qzz*Qzz)
+      Eindq = 2.0_dp/3.0_dp*(Qxx*Qxx+Qyy*Qyy+Qzz*Qzz)
       ! Grad(alpha,alpha)*Grad(beta,beta)
-      Eindq = Eindq - 2.0_dp/3.0_dp*(Qxx*Qyy + Qxx*Qzz + Qyy*Qzz)
+      Eindq = Eindq-2.0_dp/3.0_dp*(Qxx*Qyy+Qxx*Qzz+Qyy*Qzz)
       ! Grad(alpha,beta)*Grad(beta,alpha) + Grad(alpha,beta)*Grad(alpha,beta)
-      Eindq = Eindq + 2.0_dp/1.0_dp*(Qxy*Qxy + Qxz*Qxz + Qyz*Qyz)
-      Eindq = -1.0_dp/6.0_dp * qp_pol_He * Eindq
-      energy = Evdw + Eindd + Eindq
-
-
-
+      Eindq = Eindq+2.0_dp/1.0_dp*(Qxy*Qxy+Qxz*Qxz+Qyz*Qyz)
+      Eindq = -1.0_dp/6.0_dp*qp_pol_He*Eindq
+      energy = Evdw+Eindd+Eindq
 
       IF (PRESENT(force)) THEN
          ! symetrerize dipole gradient tensor
          DO i = 1, 6
-            DO j = 1,2
-               DO k = j+1,3
-                  Fprime(j,k,i) = Fprime(k,j,i)
+            DO j = 1, 2
+               DO k = j+1, 3
+                  Fprime(j, k, i) = Fprime(k, j, i)
                END DO
             END DO
          END DO
          !gradient of dipole field
          DO j = 1, 6
             DO i = 1, 3
-               gradient(i,j) = gradient(i,j) - dp_pol_He * (F(1)*Fprime(1,i,j) + &
-                                                            F(2)*Fprime(2,i,j) + &
-                                                            F(3)*Fprime(3,i,j))
+               gradient(i, j) = gradient(i, j)-dp_pol_He*(F(1)*Fprime(1, i, j)+ &
+                                                          F(2)*Fprime(2, i, j)+ &
+                                                          F(3)*Fprime(3, i, j))
             END DO
          END DO
          !gradient of quadrupole field
          DO j = 1, 6
             DO i = 1, 3
-               gradient(i,j) = gradient(i,j) - 1.0_dp/6.0_dp*qp_pol_He * &
-                               ( 4.0_dp/3.0_dp*(Qxx*dQxx(i,j) + Qyy*dQyy(i,j)  + Qzz*dQzz(i,j)) &
-                                -2.0_dp/3.0_dp*(Qyy*dQxx(i,j) + Qxx*dQyy(i,j)  + &
-                                                Qzz*dQxx(i,j) + Qxx*dQzz(i,j)  + &
-                                                Qyy*dQzz(i,j) + Qzz*dQyy(i,j)) + &
-                                 4.0_dp/1.0_dp*(Qxy*dQxy(i,j) + Qxz*dQxz(i,j)  + Qyz*dQyz(i,j)) )
+               gradient(i, j) = gradient(i, j)-1.0_dp/6.0_dp*qp_pol_He* &
+                                (4.0_dp/3.0_dp*(Qxx*dQxx(i, j)+Qyy*dQyy(i, j)+Qzz*dQzz(i, j)) &
+                                 -2.0_dp/3.0_dp*(Qyy*dQxx(i, j)+Qxx*dQyy(i, j)+ &
+                                                 Qzz*dQxx(i, j)+Qxx*dQzz(i, j)+ &
+                                                 Qyy*dQzz(i, j)+Qzz*dQyy(i, j))+ &
+                                 4.0_dp/1.0_dp*(Qxy*dQxy(i, j)+Qxz*dQxz(i, j)+Qyz*dQyz(i, j)))
             END DO
          END DO
 
@@ -1369,7 +1354,7 @@ CONTAINS
          DO j = 1, helium%solute_atoms
             IF ("C " == helium%solute_element(j)) THEN
                DO i = 1, 3
-                  force(3*(j-1)+i) = - gradient(i,j)
+                  force(3*(j-1)+i) = -gradient(i, j)
                END DO
                ig = ig+1
             END IF
@@ -1377,26 +1362,26 @@ CONTAINS
          DO j = 1, helium%solute_atoms
             IF ("H " == helium%solute_element(j)) THEN
                DO i = 1, 3
-                  force(3*(j-1)+i) = - gradient(i,j)
+                  force(3*(j-1)+i) = -gradient(i, j)
                END DO
                ig = ig+1
             END IF
          END DO
 
-         DEALLOCATE(Fprime)
-         DEALLOCATE(dQxx)
-         DEALLOCATE(dQyy)
-         DEALLOCATE(dQzz)
-         DEALLOCATE(dQxy)
-         DEALLOCATE(dQxz)
-         DEALLOCATE(dQyz)
-         DEALLOCATE(gradient)
+         DEALLOCATE (Fprime)
+         DEALLOCATE (dQxx)
+         DEALLOCATE (dQyy)
+         DEALLOCATE (dQzz)
+         DEALLOCATE (dQxy)
+         DEALLOCATE (dQxz)
+         DEALLOCATE (dQyz)
+         DEALLOCATE (gradient)
       END IF
 
-      DEALLOCATE(F)
-      DEALLOCATE(indusites)
-      DEALLOCATE(vdwsites)
-      DEALLOCATE(vdwwsites)
+      DEALLOCATE (F)
+      DEALLOCATE (indusites)
+      DEALLOCATE (vdwsites)
+      DEALLOCATE (vdwwsites)
 
 !IF (PRESENT(force)) THEN
 !WRITE(*,*) "@FU: C ", (solute(i,1),i=1,3)
@@ -1426,127 +1411,129 @@ CONTAINS
 !END IF
       RETURN
 
-  END SUBROUTINE helium_intpot_ch5_kuchenbaecker_e_f
+   END SUBROUTINE helium_intpot_ch5_kuchenbaecker_e_f
 
-SUBROUTINE helium_intpot_seltable_e(solute_x, helium, helium_x, energy)
+! **************************************************************************************************
+!> \brief ...
+!> \param solute_x ...
+!> \param helium ...
+!> \param helium_x ...
+!> \param energy ...
+! **************************************************************************************************
+   SUBROUTINE helium_intpot_seltable_e(solute_x, helium, helium_x, energy)
 
-      IMPLICIT NONE
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: solute_x
+      TYPE(helium_solvent_type), POINTER                 :: helium
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: helium_x
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
 
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: solute_x
-      TYPE(helium_solvent_type), POINTER       :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: helium_x
-      REAL(KIND=dp), INTENT(OUT)               :: energy
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_intpot_table_e', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_intpot_seltable_e', &
          routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nr = 41
+      REAL(KIND=dp), PARAMETER :: phimax = 360.0_dp, phimin = 0.0_dp, phistep = 7.5_dp, &
+         pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164_dp, &
+         thetamax = 180.0_dp, thetamin = 0.0_dp, thetastep = 7.5_dp
+      INTEGER, PARAMETER :: ntheta = INT((thetamax-thetamin)/thetastep+0.5_dp), &
+         nphi = INT((phimax-phimin)/phistep+0.5_dp)
 
-      INTEGER, SAVE ::  nval = 0
-      REAL(KIND=dp), SAVE, POINTER        :: tabpot(:,:)
-      LOGICAL, SAVE :: readpotential = .FALSE.
-      REAL(KIND=dp), DIMENSION(3) :: dvek
-      REAL(KIND=dp) :: r, theta, phi
-      REAL(KIND=dp), PARAMETER :: pi=3.1415926535897932384626433832795028841971693993751058209749445923078164_dp
-      REAL(KIND=dp), PARAMETER :: thetamin = 0.0_dp, thetastep = 7.5_dp, thetamax = 180.0_dp
-      REAL(KIND=dp), PARAMETER :: phimin = 0.0_dp, phistep = 7.5_dp, phimax = 360.0_dp
-      INTEGER :: thetaindx, phiindx, rindx
-      INTEGER, PARAMETER :: nr = 41
-      INTEGER, PARAMETER :: ntheta = INT((thetamax - thetamin)/thetastep +0.5_dp)
-      INTEGER, PARAMETER :: nphi = INT((phimax - phimin)/phistep + 0.5_dp)
-      INTEGER :: i,j
-      INTEGER :: selindx, nearidx
-      REAL(KIND=dp) :: dist, olddist
-      REAL(KIND=dp), DIMENSION(3) :: cartpot
-      INTEGER :: readerr
-     !!INCLUDE './heliumpottable.dat'
-      IF (.NOT.readpotential) THEN
+      INTEGER                                            :: i, j, phiindx, readerr, rindx, selindx, &
+                                                            thetaindx
+      INTEGER, SAVE                                      :: nval = 0
+      LOGICAL, SAVE                                      :: readpotential = .FALSE.
+      REAL(KIND=dp)                                      :: phi, r, theta
+      REAL(KIND=dp), DIMENSION(3)                        :: dvek
+      REAL(KIND=dp), POINTER, SAVE                       :: tabpot(:, :)
+
+      !!INCLUDE './heliumpottable.dat'
+      IF (.NOT. readpotential) THEN
          readpotential = .TRUE.
          readerr = 0
-         OPEN(137, FILE="./heliumpottable.dat", FORM="formatted", STATUS="old")
+         OPEN (137, FILE="./heliumpottable.dat", FORM="formatted", STATUS="old")
          DO WHILE (readerr == 0)
-            READ(137,*,iostat=readerr) energy
+            READ (137, *, iostat=readerr) energy
             IF (readerr == 0) nval = nval+1
          END DO
-         CLOSE(137)
-         WRITE(*,*) "Allocating for ", nval, "points"
-         ALLOCATE(tabpot(4,nval))
-         WRITE(*,*) "reading potential"
-         OPEN(137, FILE="./heliumpottable.dat", FORM="formatted", STATUS="old")
+         CLOSE (137)
+         WRITE (*, *) "Allocating for ", nval, "points"
+         ALLOCATE (tabpot(4, nval))
+         WRITE (*, *) "reading potential"
+         OPEN (137, FILE="./heliumpottable.dat", FORM="formatted", STATUS="old")
          DO j = 1, nval
-            READ(137,*,iostat=readerr) (tabpot(i,j), i = 1,4)
-            IF (readerr /= 0) WRITE(*,*) "FUHL READ ERROR!!!"
+            READ (137, *, iostat=readerr) (tabpot(i, j), i=1, 4)
+            IF (readerr /= 0) WRITE (*, *) "FUHL READ ERROR!!!"
             IF (readerr /= 0) STOP
          END DO
-         CLOSE(137)
-         WRITE(*,*) "read potential"
+         CLOSE (137)
+         WRITE (*, *) "read potential"
       END IF
 
       DO j = 1, 3
          dvek(j) = helium_x(j)
       END DO
-      CALL helium_pbc( helium, dvek)
+      CALL helium_pbc(helium, dvek)
       energy = 0.0_dp
-      r = SQRT(dvek(1)**2 + dvek(2)**2 + dvek(3)**2)
-      IF ( r < 1.0_dp) THEN
+      r = SQRT(dvek(1)**2+dvek(2)**2+dvek(3)**2)
+      IF (r < 1.0_dp) THEN
          energy = 10.0_dp**6
          RETURN
       END IF
-      theta = dvek(3) / r
-      IF (ABS(theta) > REAL(1.0 - EPSILON(1.0),dp)) THEN
+      theta = dvek(3)/r
+      IF (ABS(theta) > REAL(1.0-EPSILON(1.0), dp)) THEN
          phi = 0.0_dp
       ELSE
-         phi = ATAN2(dvek(2),dvek(1)) * 180.0_dp / pi
-         IF (phi < phimin) phi = phimax + phi
+         phi = ATAN2(dvek(2), dvek(1))*180.0_dp/pi
+         IF (phi < phimin) phi = phimax+phi
       END IF
-      theta = ACOS(theta) * 180.0_dp / pi
+      theta = ACOS(theta)*180.0_dp/pi
 
       ! get theta index
-      IF (theta < thetamin + thetastep /2.0_dp) THEN
+      IF (theta < thetamin+thetastep/2.0_dp) THEN
          thetaindx = 0
-      ELSE IF (theta > thetamax-thetastep /2.0_dp) THEN
+      ELSE IF (theta > thetamax-thetastep/2.0_dp) THEN
          thetaindx = ntheta
       ELSE
-         thetaindx = INT((theta - thetamin)/thetastep + 0.5_dp)
+         thetaindx = INT((theta-thetamin)/thetastep+0.5_dp)
       END IF
 
       ! get phi index
-      IF (phi > phimax - phistep / 2.0_dp) THEN
+      IF (phi > phimax-phistep/2.0_dp) THEN
          phiindx = 1
       ELSE IF (thetaindx == ntheta) THEN
          phiindx = 0
       ELSE
-         phiindx = INT((phi - phimin)/phistep + 0.5_dp)
+         phiindx = INT((phi-phimin)/phistep+0.5_dp)
       END IF
 
       ! get r index
       !rindx = MIN(MAX(INT((r - 2.5)/0.25 + 0.5_dp) + 1 , 1),nr)
-      r = r * 0.529177249_dp
+      r = r*0.529177249_dp
       IF (r < 2.5_dp) THEN
          rindx = 1
-      ELSE IF ((r >= 2.5_dp).AND.(r < 4.9_dp)) THEN
-         rindx = MIN(MAX(INT((r - 2.5)/0.1_dp + 0.5_dp) + 1, 2),24)
-      ELSE IF ((r >= 4.9_dp).AND.(r < 5.25_dp)) THEN
+      ELSE IF ((r >= 2.5_dp) .AND. (r < 4.9_dp)) THEN
+         rindx = MIN(MAX(INT((r-2.5)/0.1_dp+0.5_dp)+1, 2), 24)
+      ELSE IF ((r >= 4.9_dp) .AND. (r < 5.25_dp)) THEN
          rindx = 25
-      ELSE IF ((r >= 5.25_dp).AND.(r < 13.0_dp)) THEN
-         rindx = INT((r - 5_dp)/0.5_dp + 0.5_dp) + 25
+      ELSE IF ((r >= 5.25_dp) .AND. (r < 13.0_dp)) THEN
+         rindx = INT((r-5_dp)/0.5_dp+0.5_dp)+25
       ELSE
          rindx = 41
       END IF
 
-     ! get final index
+      ! get final index
       selindx = 0
-      IF (thetaindx ==0) THEN
+      IF (thetaindx == 0) THEN
          selindx = rindx
       ELSE IF (thetaindx == INT(thetamax/thetastep+0.5_dp)) THEN
-         selindx = rindx + nr + (ntheta-1)*nphi*nr
+         selindx = rindx+nr+(ntheta-1)*nphi*nr
       ELSE
-         selindx = nr + (thetaindx-1)*nphi*nr + phiindx*nr + rindx
+         selindx = nr+(thetaindx-1)*nphi*nr+phiindx*nr+rindx
       END IF
 
-      energy = tabpot(4,selindx)
+      energy = tabpot(4, selindx)
 
       RETURN
 
-  END SUBROUTINE helium_intpot_seltable_e
+   END SUBROUTINE helium_intpot_seltable_e
 ! ***************************************************************************
 !> \brief Calculate l-th Legendre polynomial P_{l}(x) at point x
 !> \param x ...
@@ -1743,9 +1730,8 @@ SUBROUTINE helium_intpot_seltable_e(solute_x, helium, helium_x, energy)
 !> \param helium ...
 !> \param helium_x ...
 !> \param energy ...
-!> \param force ...
 ! **************************************************************************************************
-   SUBROUTINE helium_intpot_cubetable(solute_x,  helium, helium_x, energy)
+   SUBROUTINE helium_intpot_cubetable(solute_x, helium, helium_x, energy)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: solute_x
       TYPE(helium_solvent_type), POINTER                 :: helium
@@ -1755,20 +1741,18 @@ SUBROUTINE helium_intpot_seltable_e(solute_x, helium, helium_x, energy)
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_intpot_cubetable', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ix, iy, iz, &
-                                                            readerr, &
-                                                            e_ind, handle
-      INTEGER, SAVE                                      :: ndim, cubenat
-      LOGICAL, SAVE                                      :: readpot= .FALSE.
+      CHARACTER(len=default_string_length)               :: dummy
+      INTEGER                                            :: e_ind, handle, i, ix, iy, iz, readerr
       INTEGER, DIMENSION(3)                              :: indices
       INTEGER, DIMENSION(3), SAVE                        :: cubenvox
+      INTEGER, SAVE                                      :: cubenat
+      LOGICAL, SAVE                                      :: readpot = .FALSE.
       REAL(KIND=dp)                                      :: thresh
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         SAVE                                            :: pottable
       REAL(KIND=dp), DIMENSION(3)                        :: dvek
       REAL(KIND=dp), DIMENSION(3), SAVE                  :: cubeorig
       REAL(KIND=dp), DIMENSION(3, 3), SAVE               :: cubevec
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:), SAVE :: pottable
-
-      CHARACTER(len=default_string_length)               :: dummy
 
       CALL timeset(routineN, handle)
 
@@ -1781,66 +1765,66 @@ SUBROUTINE helium_intpot_seltable_e(solute_x, helium, helium_x, energy)
          cubenat = 0
          cubenvox(:) = 0
          cubeorig(:) = 0.0_dp
-         cubevec(:,:) = 0.0_dp
-         OPEN(137, FILE="./heliumpot.cube", FORM="formatted", STATUS="old")
+         cubevec(:, :) = 0.0_dp
+         OPEN (137, FILE="./heliumpot.cube", FORM="formatted", STATUS="old")
          ! Read header:
-         READ(137,*,iostat=readerr) dummy
-         READ(137,*,iostat=readerr) dummy
-         READ(137,*,iostat=readerr) cubenat, cubeorig(:)
-         DO i=1,3
-           READ(137,*,iostat=readerr) cubenvox(i), cubevec(:,i)
+         READ (137, *, iostat=readerr) dummy
+         READ (137, *, iostat=readerr) dummy
+         READ (137, *, iostat=readerr) cubenat, cubeorig(:)
+         DO i = 1, 3
+            READ (137, *, iostat=readerr) cubenvox(i), cubevec(:, i)
          END DO
-         DO i=1,cubenat
-           READ(137,*,iostat=readerr) dummy
+         DO i = 1, cubenat
+            READ (137, *, iostat=readerr) dummy
          END DO
 
          !WRITE(*,*) cubenat, cubeorig
          !WRITE(*,*) cubenvox, cubeorig
 
          !ndim=cubenvox(1)*cubenvox(2)*cubenvox(3)
-         ALLOCATE(pottable(cubenvox(1),cubenvox(2),cubenvox(3)))
-         pottable(:,:,:) = 0.0_dp
+         ALLOCATE (pottable(cubenvox(1), cubenvox(2), cubenvox(3)))
+         pottable(:, :, :) = 0.0_dp
 
-         i=1
+         i = 1
          ! Read pot:
          DO ix = 1, cubenvox(1)
             DO iy = 1, cubenvox(2)
                DO iz = 1, cubenvox(3)
-                  READ(137,*,iostat=readerr) pottable(ix,iy,iz)
-                  IF (readerr /= 0) WRITE(*,*) "READ ERROR, PROVIDE CUBE IN RIGHT FORMAT!!!"
+                  READ (137, *, iostat=readerr) pottable(ix, iy, iz)
+                  IF (readerr /= 0) WRITE (*, *) "READ ERROR, PROVIDE CUBE IN RIGHT FORMAT!!!"
                   IF (readerr /= 0) STOP
-                  i = i + 1
+                  i = i+1
                END DO
             END DO
          END DO
-         CLOSE(137)
+         CLOSE (137)
       END IF
 
       DO i = 1, 3
-        dvek(i) = helium_x(i)
+         dvek(i) = helium_x(i)
       END DO
-      CALL helium_pbc( helium, dvek)
+      CALL helium_pbc(helium, dvek)
 
       ! Get indices:
-      indices(:)=0
+      indices(:) = 0
       !WRITE(*,*) dvek
-      thresh= 0.00001_dp
+      thresh = 0.00001_dp
       DO i = 1, 3
-        IF (dvek(i)- cubeorig(i) <= thresh) THEN
-           indices(i) = 1
-        ! Assume cube cubes only!!
-        ELSE IF (dvek(i) -( cubeorig(i)+(cubenvox(i)-1)*cubevec(i,i)) >= thresh ) THEN
-           indices(i) = cubenvox(i)
-        ELSE
-           indices(i) = CEILING((dvek(i)-cubeorig(i))/cubevec(i,i)+0.5_dp)
-        END IF
+         IF (dvek(i)-cubeorig(i) <= thresh) THEN
+            indices(i) = 1
+            ! Assume cube cubes only!!
+         ELSE IF (dvek(i)-(cubeorig(i)+(cubenvox(i)-1)*cubevec(i, i)) >= thresh) THEN
+            indices(i) = cubenvox(i)
+         ELSE
+            indices(i) = CEILING((dvek(i)-cubeorig(i))/cubevec(i, i)+0.5_dp)
+         END IF
       END DO
       !WRITE(*,*) indices
 
       ! calculate energy:
       e_ind = indices(3)+(indices(2)-1)*cubenvox(3)+(indices(1)-1)*cubenvox(3)*cubenvox(2)
       !WRITE(*,*) pottable(73,18,63)
-      energy = pottable(indices(1),indices(2),indices(3))
+      energy = pottable(indices(1), indices(2), indices(3))
 
       ! Deallocate:
       !DEALLOCATE (pottable)
