@@ -1,6 +1,6 @@
 /*****************************************************************************
  *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - 2018  CP2K developers group                         *
+ *  Copyright (C) 2000 - 2019  CP2K developers group                         *
  *****************************************************************************/
 
 #ifndef FFT_CUDA_INTERNAL_H
@@ -26,8 +26,8 @@ static const int   max_2d_plans = 0;
 static const int   max_1d_plans = 30;
 
 
-static const int   sum_plans = max_3d_plans + max_2d_plans + max_1d_plans; 
-static const int   max_plans = sum_plans > 1? sum_plans : 1; 
+static const int   sum_plans = max_3d_plans + max_2d_plans + max_1d_plans;
+static const int   max_plans = sum_plans > 1? sum_plans : 1;
 
 #if (__CUDACC_VER_MAJOR__<8)
 // configuration(s)

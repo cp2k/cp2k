@@ -6,7 +6,10 @@
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory.
-CP2KHOME     := $(abspath $(PWD))
+ifeq ($(CP2KHOME),)
+CP2KHOME     := $(abspath $(shell pwd))
+export CP2KHOME
+endif
 ARCH         := local
 export VERSION=sopt
 
@@ -25,6 +28,14 @@ SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
 REVISION     := $(shell $(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR))
 
+EXTSDIR      := exts
+EXTSHOME     := $(CP2KHOME)/$(EXTSDIR)
+EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d )
+
+PYTHON       := /usr/bin/env python
+
+# Common Targets ============================================================
+default_target: all
 
 # Discover programs =========================================================
 ifeq ($(ALL_EXE_FILES),)
@@ -38,45 +49,44 @@ ifneq ($(ONEVERSION),)
 MODDEPS = "lower"
 include $(ARCHDIR)/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
+LIBEXTSDIR := $(LIBDIR)/$(EXTSDIR)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
-TSTDIR  := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
+OBJEXTSDIR := $(OBJDIR)/$(EXTSDIR)
+OBJEXTSINCL := $(foreach dir,$(EXTSPACKAGES),-I'$(OBJEXTSDIR)/$(dir)')
+TSTDIR     := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
 ifneq ($(LD_SHARED),)
- ARCHIVE_EXT := .$(ONEVERSION).so
+ ARCHIVE_EXT := .so
 else
  ARCHIVE_EXT := .a
 endif
+include $(EXTSHOME)/Makefile.inc
 endif
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
-         toolversions libcp2k \
+         toolversions extversions extclean libcp2k cp2k_shell exts python-bindings \
          doxify doxifyclean \
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help \
-         test testbg testclean testrealclean
-
+         test testbg testclean testrealclean \
+	 $(EXTSPACKAGES)
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
-LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find . -type d -name "libcusmm")
-LIBCUSMM_ABS_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.c")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "*/python*" -name "*.c")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cc")
-
-
 ifneq ($(NVCC),)
-OBJ_SRC_FILES += $(shell cd $(SRCDIR);  find . ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
-OBJ_SRC_FILES += $(LIBCUSMM_DIR)/libcusmm.cu
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
 endif
 
 # Included files used by Fypp preprocessor and standard includes
@@ -94,9 +104,6 @@ ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
 ALL_NONEXE_OBJECTS = $(filter-out $(ALL_EXE_OBJECTS), $(ALL_OBJECTS))
 
-# Common Targets ============================================================
-default_target: all
-
 # stage 1: Call make recursively with each element in $(VERSION) as a target,
 #          The actual target is stored in ORIG_TARGET.
 #          Make can then parallelize over multiple versions targets.
@@ -106,7 +113,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions libcp2k test testbg:
+$(EXE_NAMES) all toolversions extversions extclean libcp2k cp2k_shell exts $(EXTSPACKAGES) python-bindings test testbg:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -119,10 +126,10 @@ else
 # stage 3: Include arch-file, create dirs, and run makedep.py for given $(ONEVERSION).
 #          Afterwards, call make recursively again with -C $(OBJDIR) and INCLUDE_DEPS=true
 ifeq ($(INCLUDE_DEPS),)
-$(EXE_NAMES): dirs makedep
+$(EXE_NAMES): makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(EXEDIR)/$@.$(ONEVERSION) INCLUDE_DEPS=true
 
-all: dirs makedep
+all: makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
 # foreground testing, compilation happens in do_regtest
@@ -133,13 +140,25 @@ test: dirs
 testbg: dirs makedep all
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) testbg INCLUDE_DEPS=true
 
-libcp2k: dirs makedep
+libcp2k: makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
 
+python-bindings: libcp2k
+	@cd $(SRCDIR)/start/python ; \
+		env CC='$(CC)' LDSHARED='$(LD) -shared' CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LDFLAGS_C) $(LIBS)' \
+			$(PYTHON) setup.py build_ext \
+				--build-temp="$(OBJDIR)/python" \
+				--build-lib="$(LIBDIR)/python" \
+				--library-dirs="$(LIBDIR)" \
+				--libraries="$(patsubst -l%,%,$(filter -l%,$(LIBS)))"
+
+exts: $(EXTSPACKAGES)
 
 dirs:
 	@mkdir -p $(OBJDIR)
+	@mkdir -p $(OBJEXTSDIR)
 	@mkdir -p $(LIBDIR)
+	@mkdir -p $(LIBEXTSDIR)
 	@mkdir -p $(EXEDIR)
 	@mkdir -p $(TSTDIR)
 
@@ -178,13 +197,20 @@ endif
 	$(MAKE) --version
 	@echo ""
 	@echo "========= Python ($(ONEVERSION)) ========="
-	/usr/bin/env python --version
+	$(PYTHON) --version
 
 else
 
+# Force CP2K recompilations if exts are updated
+$(ALL_OBJECTS): $(EXTSDEPS_MOD)
+$(ALL_EXE_OBJECTS): $(EXTSDEPS_LIB)
+
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
-all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
+all: $(foreach e, $(EXE_NAMES) cp2k_shell, $(EXEDIR)/$(e).$(ONEVERSION))
 $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
+
+$(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
+	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
@@ -202,6 +228,9 @@ OTHER_HELP += "testbg : run the regression tests in background"
 
 OTHER_HELP += "toolversions : Print versions of build tools"
 
+OTHER_HELP += "extversions : Print versions of external modules"
+OTHER_HELP += "extclean : Clean build of external modules"
+
 #   extract help text from doxygen "\brief"-tag
 help:
 	@echo "=================== Binaries ===================="
@@ -211,6 +240,7 @@ help:
 	grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
 	done
 	@echo "libcp2k                     Builds CP2K as a single library archive"
+	@echo "cp2k_shell                  Creates symlink for backward compatibility"
 	@echo ""
 	@echo "===================== Tools ====================="
 	@printf "%s\n" $(TOOL_HELP) | awk -F ':' '{printf "%-28s%s\n", $$1, $$2}'
@@ -240,7 +270,6 @@ define get_extensions
 	$(shell test -d $(1) && find $(1) -type f -name "*.*" ! -name "*.gcda" | sed 's|.*\.||' | sort -u)
 endef
 clean:
-	rm -rf  $(LIBCUSMM_ABS_DIR)/libcusmm.cu $(LIBCUSMM_ABS_DIR)/libcusmm_part*.cu
 	@echo rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
 	@$(foreach v, $(VERSION), $(foreach ext, $(call get_extensions, $(MAINOBJDIR)/$(ARCH)/$(v)/), $(shell rm -rf $(MAINOBJDIR)/$(ARCH)/$(v)/*.$(ext))))
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
@@ -254,7 +283,7 @@ OTHER_HELP += "execlean : Remove the executables, for given ARCH and VERSION"
 # delete the intermediate files, the programs and libraries and anything that might be in the objdir or libdir directory
 # Use this if you want to fully rebuild an executable (for a given compiler and or VERSION)
 #
-realclean: clean execlean
+realclean: extclean clean execlean
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "realclean : Remove all files for given ARCH and VERSION"
@@ -271,7 +300,7 @@ OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH
 # Remove all files from previous builds
 #
 distclean: prettyclean doxifyclean testrealclean
-	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR) $(LIBCUSMM_ABS_DIR)/libcusmm.cu
+	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR)
 OTHER_HELP += "distclean : Remove all files from previous builds"
 
 # Prettyfier stuff ==========================================================
@@ -353,12 +382,6 @@ doxygen: doxygen/clean
 	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
-
-# Libcusmm stuff ============================================================
-$(LIBCUSMM_ABS_DIR)/libcusmm.cu: $(LIBCUSMM_ABS_DIR)/generate.py $(LIBCUSMM_ABS_DIR)/parameters_P100.txt $(wildcard $(LIBCUSMM_ABS_DIR)/kernels/*.py)
-	cd $(LIBCUSMM_ABS_DIR); ./generate.py $(LIBCUSMM_FLAGS)
-
-
 # automatic dependency generation ===========================================
 MAKEDEPMODE = "normal"
 ifeq ($(HACKDEP),yes)
@@ -376,7 +399,7 @@ ifeq ($(LD_SHARED),)
 	@$(TOOLSRC)/build_utils/check_archives.py $(firstword $(AR)) $(SRCDIR) $(LIBDIR)
 endif
 	@echo "Resolving dependencies for $(ONEVERSION) ... "
-	@$(TOOLSRC)/build_utils/makedep.py $(OBJDIR)/all.dep $(MODDEPS) $(MAKEDEPMODE) $(ARCHIVE_EXT) $(SRCDIR) $(OBJ_SRC_FILES)
+	@$(TOOLSRC)/build_utils/makedep.py $(OBJDIR)/all.dep cp2k $(MODDEPS) $(MAKEDEPMODE) $(ARCHIVE_EXT) $(SRCDIR) $(OBJ_SRC_FILES)
 
 # on stage 4, load the rules generated by makedep.py
 ifeq ($(INCLUDE_DEPS), true)
@@ -403,45 +426,33 @@ vpath %.cc    $(ALL_SRC_DIRS)
 # Add additional dependency of cp2k_info.F to git-HEAD.
 # Ensuring that cp2k prints the correct source code revision number in its banner.
 #
-GIT_HEAD := $(wildcard $(CP2KHOME)/../.git/HEAD*)
-ifneq ($(strip $(GIT_HEAD)),)
-cp2k_info.o: $(GIT_HEAD)
-endif
+GIT_REF := ${MAINOBJDIR}/git-ref
 
-# some practical variables for the build
-ifeq ($(CPPSHELL),)
-CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
-            -D__COMPILE_DATE="\"$(shell date)\""\
-            -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
-            -D__DATA_DIR="\"$(DATA_DIR)\""
-endif
+# use a force (fake) target to always rebuild this file but have Make consider this updated
+# iff it was actually rewritten (a .PHONY target is always considered new)
+$(GIT_REF): FORCE
+	@$(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR) > "$@.tmp"
+	@cmp "$@.tmp" "$@" || mv -f "$@.tmp" "$@"
 
-ifneq ($(CPP),)
-# always add the SRCDIR to the include path (-I here might not be portable)
-CPPFLAGS += $(CPPSHELL) -I$(SRCDIR)
-else
-FCFLAGS += $(CPPSHELL)
-endif
+FORCE: ;
 
-# the rule how to generate the .o from the .F
-# only if CPP is different from null we do a step over the C preprocessor (which is slower)
-# in the other case the fortran compiler takes care of this directly
-#
+cp2k_info.o: $(GIT_REF)
+
+# Add some practical metadata about the build.
+FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
+           -D__COMPILE_DATE="\"$(shell date)\""\
+           -D__COMPILE_HOST="\"$(shell hostname)\""\
+           -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
+           -D__DATA_DIR="\"$(DATA_DIR)\""
+
 # $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
 # This is used e.g. by the convention checker.
 
 FYPPFLAGS ?= -n
 
 %.o: %.F
-ifneq ($(CPP),)
-	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.fypped
-	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
-else
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 $(FCLOGPIPE)
-endif
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
@@ -453,7 +464,7 @@ ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
 ifneq ($(LD_SHARED),)
 	@echo "Creating shared library $@"
-	@$(LD_SHARED) -o $(@:.a=.so) $^
+	@$(LD_SHARED) $(LDFLAGS) -o $(@:.a=.so) $^ $(LIBS)
 else
 	@echo "Updating archive $@"
 	@$(AR) $@ $?

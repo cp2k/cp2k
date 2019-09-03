@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -24,12 +24,12 @@ MODULE atom_utils
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
                                               open_file
-   USE erf_fn,                          ONLY: erf
    USE input_constants,                 ONLY: do_rhf_atom,&
                                               do_rks_atom,&
                                               do_rohf_atom,&
                                               do_uhf_atom,&
                                               do_uks_atom
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lapack,                          ONLY: lapack_ssyev
@@ -87,11 +87,14 @@ MODULE atom_utils
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param ostring ...
+!> \brief Set occupation of atomic orbitals.
+!> \param ostring       list of electronic states
 !> \param occupation ...
 !> \param wfnocc ...
 !> \param multiplicity ...
+!> \par History
+!>    * 11.2009 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_set_occupation(ostring, occupation, wfnocc, multiplicity)
       CHARACTER(LEN=default_string_length), &
@@ -268,9 +271,11 @@ CONTAINS
    END SUBROUTINE atom_set_occupation
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Return the maximum orbital quantum number of occupied orbitals.
 !> \param occupation ...
 !> \return ...
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    FUNCTION get_maxl_occ(occupation) RESULT(maxl)
       REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation
@@ -286,9 +291,11 @@ CONTAINS
    END FUNCTION get_maxl_occ
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Return the maximum principal quantum number of occupied orbitals.
 !> \param occupation ...
 !> \return ...
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    FUNCTION get_maxn_occ(occupation) RESULT(maxn)
       REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation
@@ -306,13 +313,15 @@ CONTAINS
    END FUNCTION get_maxn_occ
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param pmat ...
-!> \param wfn ...
-!> \param nbas ...
-!> \param occ ...
-!> \param maxl ...
-!> \param maxn ...
+!> \brief Calculate a density matrix using atomic orbitals.
+!> \param pmat  electron density matrix
+!> \param wfn   atomic wavefunctions
+!> \param nbas  number of basis functions
+!> \param occ   occupation numbers
+!> \param maxl  maximum angular momentum to consider
+!> \param maxn  maximum principal quantum number for each angular momentum
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_denmat(pmat, wfn, nbas, occ, maxl, maxn)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: pmat
@@ -339,14 +348,21 @@ CONTAINS
       END DO
 
    END SUBROUTINE atom_denmat
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param density ...
-!> \param pmat ...
-!> \param basis ...
-!> \param maxl ...
-!> \param typ ...
-!> \param rr ...
+!> \brief Map the electron density on an atomic radial grid.
+!> \param density  computed electron density
+!> \param pmat     electron density matrix
+!> \param basis    atomic basis set
+!> \param maxl     maximum angular momentum to consider
+!> \param typ      type of the matrix to map:
+!>                 RHO -- density matrix;
+!>                 DER -- first derivatives of the electron density;
+!>                 KIN -- kinetic energy density;
+!>                 LAP -- second derivatives of the electron density.
+!> \param rr       abscissa on the radial grid (required for typ == 'KIN')
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_density(density, pmat, basis, maxl, typ, rr)
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density
@@ -399,10 +415,10 @@ CONTAINS
       density = density/fourpi
 
    END SUBROUTINE atom_density
+
 ! **************************************************************************************************
-!> \brief   ZMP subroutine to write external restart file
-!>
-!> \param atom ...
+!> \brief ZMP subroutine to write external restart file.
+!> \param atom  information about the atomic kind
 !> \date    07.10.2013
 !> \author  D. Varsano [daniele.varsano@nano.cnr.it]
 !> \version 1.0
@@ -435,11 +451,11 @@ CONTAINS
    END SUBROUTINE atom_write_zmp_restart
 
 ! **************************************************************************************************
-!> \brief   ZMP subroutine to read external restart file
-!>
-!> \param atom ...
-!> \param doguess ...
-!> \param iw ...
+!> \brief ZMP subroutine to read external restart file.
+!> \param atom     information about the atomic kind
+!> \param doguess  flag that indicates that the restart file has not been read,
+!>                 so the initial guess is required
+!> \param iw       output file unit
 !> \date    07.10.2013
 !> \author  D. Varsano [daniele.varsano@nano.cnr.it]
 !> \version 1.0
@@ -496,12 +512,12 @@ CONTAINS
          WRITE (iw, fmt="(' ZMP       | WARNING! Starting ZMP calculation form initial atomic guess')")
       ENDIF
    END SUBROUTINE atom_read_zmp_restart
+
 ! **************************************************************************************************
-!> \brief   ZMP subroutine to read external density from linear grid of
-!>          density matrix.
-!> \param density ...
-!> \param atom ...
-!> \param iw ...
+!> \brief ZMP subroutine to read external density from linear grid of density matrix.
+!> \param density  external density
+!> \param atom     information about the atomic kind
+!> \param iw       output file unit
 !> \date    07.10.2013
 !> \author  D. Varsano [daniele.varsano@nano.cnr.it]
 !> \version 1.0
@@ -594,11 +610,10 @@ CONTAINS
    END SUBROUTINE atom_read_external_density
 
 ! **************************************************************************************************
-!> \brief ZMP subroutine to read external v_xc in the atomic code
-!>
-!> \param vxc ...
-!> \param atom ...
-!> \param iw ...
+!> \brief ZMP subroutine to read external v_xc in the atomic code.
+!> \param vxc   external exchange-correlation potential
+!> \param atom  information about the atomic kind
+!> \param iw    output file unit
 !> \author D. Varsano [daniele.varsano@nano.cnr.it]
 ! **************************************************************************************************
    SUBROUTINE atom_read_external_vxc(vxc, atom, iw)
@@ -682,12 +697,16 @@ CONTAINS
       DEALLOCATE (den)
 
    END SUBROUTINE atom_orbital_charge
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param corden ...
 !> \param potential ...
 !> \param typ ...
 !> \param rr ...
+!> \par History
+!>    * 01.2017 rewritten [Juerg Hutter]
+!>    * 03.2010 extension of GTH pseudo-potential definition [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_core_density(corden, potential, typ, rr)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: corden
@@ -791,6 +810,7 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE atom_core_density
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param locpot ...
@@ -834,6 +854,7 @@ CONTAINS
       DEALLOCATE (fe, rc)
 
    END SUBROUTINE atom_local_potential
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rmax ...
@@ -875,6 +896,7 @@ CONTAINS
       DEALLOCATE (dorb)
 
    END SUBROUTINE atom_orbital_max
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param node ...
@@ -914,6 +936,7 @@ CONTAINS
       DEALLOCATE (orb)
 
    END SUBROUTINE atom_orbital_nodes
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param value ...
@@ -936,15 +959,18 @@ CONTAINS
          value = value+wfn(i)*basis%bf(m, i, 0)
       END DO
    END SUBROUTINE atom_wfnr0
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param hmat ...
-!> \param umat ...
-!> \param orb ...
-!> \param ener ...
-!> \param nb ...
-!> \param nv ...
-!> \param maxl ...
+!> \brief Solve the generalised eigenproblem for every angular momentum.
+!> \param hmat  Hamiltonian matrix
+!> \param umat  transformation matrix which reduces the overlap matrix to its unitary form
+!> \param orb   atomic wavefunctions
+!> \param ener  atomic orbital energies
+!> \param nb    number of contracted basis functions
+!> \param nv    number of linear-independent contracted basis functions
+!> \param maxl  maximum angular momentum to consider
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_solve(hmat, umat, orb, ener, nb, nv, maxl)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: hmat, umat
@@ -981,8 +1007,9 @@ CONTAINS
       END DO
 
    END SUBROUTINE atom_solve
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief THIS FUNCTION IS NO LONGER IN USE.
 !> \param fun ...
 !> \param deps ...
 !> \return ...
@@ -1008,11 +1035,14 @@ CONTAINS
       END DO
 
    END FUNCTION prune_grid
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param fun ...
-!> \param grid ...
-!> \return ...
+!> \brief Integrate a function on an atomic radial grid.
+!> \param fun   function to integrate
+!> \param grid  atomic radial grid
+!> \return      value of the integral
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    FUNCTION integrate_grid_function1(fun, grid) RESULT(integral)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fun
@@ -1027,11 +1057,13 @@ CONTAINS
    END FUNCTION integrate_grid_function1
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param fun1 ...
-!> \param fun2 ...
-!> \param grid ...
-!> \return ...
+!> \brief Integrate the product of two functions on an atomic radial grid.
+!> \param fun1  first function
+!> \param fun2  second function
+!> \param grid  atomic radial grid
+!> \return      value of the integral
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    FUNCTION integrate_grid_function2(fun1, fun2, grid) RESULT(integral)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fun1, fun2
@@ -1046,12 +1078,14 @@ CONTAINS
    END FUNCTION integrate_grid_function2
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param fun1 ...
-!> \param fun2 ...
-!> \param fun3 ...
-!> \param grid ...
-!> \return ...
+!> \brief Integrate the product of three functions on an atomic radial grid.
+!> \param fun1  first function
+!> \param fun2  second function
+!> \param fun3  third function
+!> \param grid  atomic radial grid
+!> \return      value of the integral
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    FUNCTION integrate_grid_function3(fun1, fun2, fun3, grid) RESULT(integral)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fun1, fun2, fun3
@@ -1064,11 +1098,14 @@ CONTAINS
       integral = SUM(fun1(1:nc)*fun2(1:nc)*fun3(1:nc)*grid%wr(1:nc))
 
    END FUNCTION integrate_grid_function3
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param cpot ...
-!> \param density ...
-!> \param grid ...
+!> \brief Numerically compute the Coulomb potential on an atomic radial grid.
+!> \param cpot     Coulomb potential on the radial grid
+!> \param density  electron density on the radial grid
+!> \param grid     atomic radial grid
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE coulomb_potential_numeric(cpot, density, grid)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: cpot
@@ -1101,14 +1138,14 @@ CONTAINS
    END SUBROUTINE coulomb_potential_numeric
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param cpot ...
-!> \param pmat ...
-!> \param basis ...
-!> \param grid ...
-!> \param maxl ...
+!> \brief Analytically compute the Coulomb potential on an atomic radial grid.
+!> \param cpot   Coulomb potential on the radial grid
+!> \param pmat   density matrix
+!> \param basis  atomic basis set
+!> \param grid   atomic radial grid
+!> \param maxl   maximum angular momentum to consider
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE coulomb_potential_analytic(cpot, pmat, basis, grid, maxl)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: cpot
@@ -1208,14 +1245,14 @@ CONTAINS
    END SUBROUTINE coulomb_potential_analytic
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param kmat ...
-!> \param state ...
-!> \param occ ...
-!> \param wfn ...
-!> \param basis ...
+!> \brief Calculate the exchange potential numerically.
+!> \param kmat   Kohn-Sham matrix
+!> \param state  electronic state
+!> \param occ    occupation numbers
+!> \param wfn    wavefunctions
+!> \param basis  atomic basis set
+!> \par History
+!>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE exchange_numeric(kmat, state, occ, wfn, basis)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: kmat
@@ -1282,14 +1319,14 @@ CONTAINS
    END SUBROUTINE exchange_numeric
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param kmat ...
-!> \param state ...
-!> \param occ ...
-!> \param wfn ...
-!> \param basis ...
+!> \brief Calculate the exchange potential semi-analytically.
+!> \param kmat   Kohn-Sham matrix
+!> \param state  electronic state
+!> \param occ    occupation numbers
+!> \param wfn    wavefunctions
+!> \param basis  atomic basis set
+!> \par History
+!>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE exchange_semi_analytic(kmat, state, occ, wfn, basis)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: kmat
@@ -1363,11 +1400,14 @@ CONTAINS
    END SUBROUTINE exchange_semi_analytic
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param cpot ...
-!> \param density ...
-!> \param nu ...
-!> \param grid ...
+!> \brief Calculate the electrostatic potential using numerical differentiation.
+!> \param cpot     computed potential
+!> \param density  electron density on the atomic radial grid
+!> \param nu       integer parameter [ABS(la-lb) .. la+lb];
+!>                 see potential_analytic() and exchange_numeric()
+!> \param grid     atomic radial grid
+!> \par History
+!>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE potential_numeric(cpot, density, nu, grid)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: cpot
@@ -1399,13 +1439,16 @@ CONTAINS
       END DO
 
    END SUBROUTINE potential_numeric
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param cpot ...
-!> \param la ...
-!> \param lb ...
-!> \param nu ...
-!> \param basis ...
+!> \brief Calculate the electrostatic potential using analytical expressions.
+!> \param cpot   computed potential
+!> \param la     angular momentum of the calculated state
+!> \param lb     angular momentum of the occupied state
+!> \param nu     integer parameter [ABS(la-lb) .. la+lb] with the parity of 'la+lb'
+!> \param basis  atomic basis set
+!> \par History
+!>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE potential_analytic(cpot, la, lb, nu, basis)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: cpot
@@ -1599,30 +1642,33 @@ CONTAINS
       DEALLOCATE (erfa, expa, z)
 
    END SUBROUTINE potential_analytic
-! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param opmat ...
-!> \param pmat ...
-!> \return ...
+!> \brief Compute Trace[opmat * pmat] == Trace[opmat * pmat^T] .
+!> \param opmat  operator matrix (e.g. Kohn-Sham matrix or overlap matrix)
+!> \param pmat   density matrix
+!> \return       value of trace
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION atom_trace(opmat, pmat) RESULT(trace)
+   PURE FUNCTION atom_trace(opmat, pmat) RESULT(trace)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: opmat, pmat
       REAL(KIND=dp)                                      :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', routineP = moduleN//':'//routineN
 
-      trace = SUM(opmat(:, :, :)*pmat(:, :, :))
+      trace = accurate_dot_product(opmat, pmat)
 
    END FUNCTION atom_trace
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param imat ...
-!> \param cpot ...
-!> \param basis ...
-!> \param derivatives ...
+!> \brief Calculate a potential matrix by integrating the potential on an atomic radial grid.
+!> \param imat         potential matrix
+!> \param cpot         potential on the atomic radial grid
+!> \param basis        atomic basis set
+!> \param derivatives  order of derivatives
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE numpot_matrix(imat, cpot, basis, derivatives)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: imat
@@ -1675,13 +1721,16 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE numpot_matrix
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Contract Coulomb Electron Repulsion Integrals.
 !> \param jmat ...
 !> \param erint ...
 !> \param pmat ...
 !> \param nsize ...
 !> \param all_nu ...
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE ceri_contract(jmat, erint, pmat, nsize, all_nu)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: jmat
@@ -1749,12 +1798,15 @@ CONTAINS
       END DO
 
    END SUBROUTINE ceri_contract
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Contract exchange Electron Repulsion Integrals.
 !> \param kmat ...
 !> \param erint ...
 !> \param pmat ...
 !> \param nsize ...
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE eeri_contract(kmat, erint, pmat, nsize)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: kmat
@@ -1821,16 +1873,19 @@ CONTAINS
       END DO
 
    END SUBROUTINE eeri_contract
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param emat ...
-!> \param demax ...
-!> \param kmat ...
-!> \param pmat ...
-!> \param umat ...
-!> \param upmat ...
-!> \param nval ...
-!> \param nbs ...
+!> \brief Calculate the error matrix for each angular momentum.
+!> \param emat   error matrix
+!> \param demax  the largest absolute value of error matrix elements
+!> \param kmat   Kohn-Sham matrix
+!> \param pmat   electron density matrix
+!> \param umat   transformation matrix which reduce overlap matrix to its unitary form
+!> \param upmat  transformation matrix which reduce density matrix to its unitary form
+!> \param nval   number of linear-independent contracted basis functions
+!> \param nbs    number of contracted basis functions
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE err_matrix(emat, demax, kmat, pmat, umat, upmat, nval, nbs)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(OUT)    :: emat
@@ -1863,13 +1918,19 @@ CONTAINS
       demax = MAXVAL(ABS(emat))
 
    END SUBROUTINE err_matrix
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param density1 ...
-!> \param density2 ...
-!> \param zcore ...
-!> \param state ...
-!> \param grid ...
+!> \brief Calculate Slater density on a radial grid.
+!> \param density1  alpha-spin electron density
+!> \param density2  beta-spin electron density
+!> \param zcore     nuclear charge
+!> \param state     electronic state
+!> \param grid      atomic radial grid
+!> \par History
+!>    * 06.2018 bugfix [Rustam Khaliullin]
+!>    * 02.2010 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 12.2008 created [Juerg Hutter]
+!> \note  An initial electron density to guess atomic orbitals.
 ! **************************************************************************************************
    SUBROUTINE slater_density(density1, density2, zcore, state, grid)
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density1, density2
@@ -1928,10 +1989,15 @@ CONTAINS
       END DO
 
    END SUBROUTINE slater_density
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param vxc ...
+!> \brief Calculate the functional derivative of the Wigner (correlation) - Slater (exchange)
+!>        density functional.
+!> \param rho  electron density on a radial grid
+!> \param vxc  (output) exchange-correlation potential
+!> \par History
+!>    * 12.2008 created [Juerg Hutter]
+!> \note  A model XC-potential to guess atomic orbitals.
 ! **************************************************************************************************
    SUBROUTINE wigner_slater_functional(rho, vxc)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rho
@@ -1946,6 +2012,7 @@ CONTAINS
       vxc = 0._dp
       DO i = 1, SIZE(rho)
          IF (rho(i) > 1.e-20_dp) THEN
+            ! 3/4 * (3/pi)^{1/3} == 0.7385588
             ex = -0.7385588_dp*rho(i)**0.333333333_dp
             vx = 1.333333333_dp*ex
             rs = (3._dp/fourpi/rho(i))**0.333333333_dp
@@ -1956,16 +2023,21 @@ CONTAINS
       END DO
 
    END SUBROUTINE wigner_slater_functional
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param method ...
-!> \param multiplicity ...
-!> \return ...
+!> \brief Check that the atomic multiplicity is consistent with the electronic structure method.
+!> \param method        electronic structure method
+!> \param multiplicity  multiplicity
+!> \return              consistency status
+!> \par History
+!>    * 11.2009 unrestricted KS and HF methods [Juerg Hutter]
 ! **************************************************************************************************
    FUNCTION atom_consistent_method(method, multiplicity) RESULT(consistent)
       INTEGER, INTENT(IN)                                :: method, multiplicity
       LOGICAL                                            :: consistent
 
+      ! multiplicity == -1 means it has not been specified explicitly;
+      ! see the source code of the subroutine atom_set_occupation() for further details.
       SELECT CASE (method)
       CASE DEFAULT
          consistent = .FALSE.
@@ -1982,11 +2054,13 @@ CONTAINS
       END SELECT
 
    END FUNCTION atom_consistent_method
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param rho0 ...
-!> \return ...
+!> \brief Calculate the total electron density at R=0.
+!> \param atom  information about the atomic kind
+!> \param rho0  (output) computed density
+!> \par History
+!>    * 05.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE get_rho0(atom, rho0)
       TYPE(atom_type), INTENT(IN)                        :: atom
@@ -2072,10 +2146,12 @@ CONTAINS
    END SUBROUTINE get_rho0
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param crad ...
-!> \param iw    ...
+!> \brief Print condition numbers of the given atomic basis set.
+!> \param basis  atomic basis set
+!> \param crad   atomic covalent radius
+!> \param iw     output file unit
+!> \par History
+!>    * 05.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_condnumber(basis, crad, iw)
       TYPE(atom_basis_type), POINTER                     :: basis
@@ -2105,11 +2181,12 @@ CONTAINS
       CALL deallocate_spherical_harmonics
 
    END SUBROUTINE atom_condnumber
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param zv ...
-!> \param iw    ...
+!> \brief Estimate completeness of the given atomic basis set.
+!> \param basis  atomic basis set
+!> \param zv     atomic number
+!> \param iw     output file unit
 ! **************************************************************************************************
    SUBROUTINE atom_completeness(basis, zv, iw)
       TYPE(atom_basis_type), POINTER                     :: basis
@@ -2241,10 +2318,10 @@ CONTAINS
    END SUBROUTINE atom_completeness
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param rad ...
-!> \param cnum ...
+!> \brief Calculate the condition number of the given atomic basis set.
+!> \param basis  atomic basis set
+!> \param rad    lattice constant (e.g. doubled atomic covalent radius)
+!> \param cnum   (output) condition number
 ! **************************************************************************************************
    SUBROUTINE atom_basis_condnum(basis, rad, cnum)
       TYPE(atom_basis_type)                              :: basis
@@ -2261,9 +2338,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: r1, r2, reps, rmax
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weig, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat
+      REAL(KIND=dp), DIMENSION(2*lmat+1, 2*lmat+1)       :: sab
       REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(7, 7)                     :: sab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zeta, zetb
+
+      ! Number of spherical Gaussian orbitals with angular momentum lmat: nso(lmat) = 2*lmat+1
 
       ! total number of basis functions
       nbas = 0
@@ -2372,11 +2451,12 @@ CONTAINS
       DEALLOCATE (smat, ibptr, weig, work)
 
    END SUBROUTINE atom_basis_condnum
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param int ...
-!> \param omat ...
-!> \param cm ...
+!> \brief Transform a matrix expressed in terms of a uncontracted basis set to a contracted one.
+!> \param int   (output) contracted matrix
+!> \param omat  uncontracted matrix
+!> \param cm    matrix of contraction coefficients
 ! **************************************************************************************************
    SUBROUTINE contract2(int, omat, cm)
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
@@ -2396,11 +2476,13 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract2
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param int ...
-!> \param omat ...
-!> \param cm ...
+!> \brief Same as contract2(), but add the new contracted matrix to the old one
+!>        instead of overwriting it.
+!> \param int   (input/output) contracted matrix to be updated
+!> \param omat  uncontracted matrix
+!> \param cm    matrix of contraction coefficients
 ! **************************************************************************************************
    SUBROUTINE contract2add(int, omat, cm)
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
@@ -2420,12 +2502,13 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract2add
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param eri ...
-!> \param omat ...
-!> \param cm1 ...
-!> \param cm2 ...
+!> \brief Contract a matrix of Electron Repulsion Integrals (ERI-s).
+!> \param eri   (output) contracted ERI-s
+!> \param omat  uncontracted ERI-s
+!> \param cm1   first matrix of contraction coefficients
+!> \param cm2   second matrix of contraction coefficients
 ! **************************************************************************************************
    SUBROUTINE contract4(eri, omat, cm1, cm2)
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: eri
@@ -2469,11 +2552,12 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract4
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param vec ...
-!> \param n ...
+!> \brief Pack an n x n square real matrix into a 1-D vector.
+!> \param mat  matrix to pack
+!> \param vec  resulting vector
+!> \param n    size of the matrix
 ! **************************************************************************************************
    SUBROUTINE ipack(mat, vec, n)
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: mat
@@ -2493,10 +2577,10 @@ CONTAINS
    END SUBROUTINE ipack
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param vec ...
-!> \param n ...
+!> \brief Unpack a 1-D real vector as a n x n square matrix.
+!> \param mat  resulting matrix
+!> \param vec  vector to unpack
+!> \param n    size of the matrix
 ! **************************************************************************************************
    SUBROUTINE iunpack(mat, vec, n)
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: mat
@@ -2515,6 +2599,5 @@ CONTAINS
       END DO
 
    END SUBROUTINE iunpack
-! **************************************************************************************************
 
 END MODULE atom_utils

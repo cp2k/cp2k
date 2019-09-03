@@ -7,5 +7,5 @@ H2O-meta-mindisp.inp                                   2    1.0E-14            -
 H2O-meta-mindisp2.inp                                  2    1.0E-14            -0.171500041399E+02
 # smearing and g-space mixing with LSD
 si8_broy_lsd.inp                                       1      7e-14             -31.14863007675815
-md-01.inp                                              2    1.0E-14            -0.116386167908E+01
+md-01.inp                                              2    1.0E-10            -0.116386167908E+01
 #EOF

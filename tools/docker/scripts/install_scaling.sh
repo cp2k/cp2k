@@ -3,8 +3,8 @@
 # author: Ole Schuett
 
 # install numpy
-apt-get update
-apt-get install -y --no-install-recommends python-numpy
+apt-get update -qq
+apt-get install -qq --no-install-recommends python-numpy
 rm -rf /var/lib/apt/lists/*
 
 # setup arch files
@@ -16,9 +16,15 @@ source /opt/cp2k-toolchain/install/setup
 
 # pre-build cp2k
 cd /workspace/cp2k
-make -j VERSION="popt" cp2k
-make -j VERSION="psmp" cp2k
-make -j VERSION="ssmp" cp2k
+for VERSION in 'popt' 'psmp' 'ssmp'; do
+   echo -n "Warming cache by trying to compile cp2k.${VERSION}... "
+   if make -j VERSION="${VERSION}" &> /dev/null ; then
+      echo 'done.'
+   else
+      echo 'failed.'
+   fi
+done
+
 rm -rf lib exe
 
 #EOF

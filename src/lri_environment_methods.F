@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -27,12 +27,12 @@ MODULE lri_environment_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_dot,&
                                               dbcsr_get_block_diag,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_replicate_all,&
-                                              dbcsr_trace,&
                                               dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_inv,&
@@ -478,7 +478,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculates overlap integrals (aabb) of the orbital basis set,
-!>        reguired for LRI basis set optimization
+!>        required for LRI basis set optimization
 !> \param lri_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -945,7 +945,7 @@ CONTAINS
                CALL dbcsr_create(pmat_diag, name="Block diagonal density", template=matrix_p(1, 1)%matrix)
                CALL dbcsr_get_block_diag(matrix_p(ispin, 1)%matrix, pmat_diag)
                str = 0.0_dp
-               CALL dbcsr_trace(matrix_s(1, 1)%matrix, pmat_diag, str)
+               CALL dbcsr_dot(matrix_s(1, 1)%matrix, pmat_diag, str)
                lri_env%stat%rho_1c = lri_env%stat%rho_1c+str
                CALL dbcsr_replicate_all(pmat_diag)
             END IF

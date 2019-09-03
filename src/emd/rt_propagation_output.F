@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -74,10 +74,10 @@ MODULE rt_propagation_output
    USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
    USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                               write_available_results,&
                                               write_mo_free_results
+   USE qs_scf_post_tb,                  ONLY: scf_post_calculation_tb
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE rt_propagation_types,            ONLY: get_rtp,&
@@ -526,20 +526,20 @@ CONTAINS
       INTEGER                                            :: handle, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (input, dft_control)
+      NULLIFY (dft_control)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
-      CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+      CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%dftb) THEN
-         CALL scf_post_calculation_dftb(dft_section, qs_env=qs_env)
+         CALL scf_post_calculation_tb(qs_env, "DFTB", .FALSE.)
+      ELSE IF (dft_control%qs_control%xtb) THEN
+         CALL scf_post_calculation_tb(qs_env, "xTB", .FALSE.)
       ELSE
-         CALL qs_scf_post_moments(input, logger, qs_env, output_unit)
+         CALL qs_scf_post_moments(qs_env%input, logger, qs_env, output_unit)
       END IF
       CALL timestop(handle)
 
@@ -623,7 +623,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

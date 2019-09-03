@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -106,7 +106,8 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, ls_scf_section, &
-                                                            md_section, motion_section
+                                                            md_section, motion_section, &
+                                                            print_moments_section
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
@@ -129,6 +130,7 @@ CONTAINS
       motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
       md_section => section_vals_get_subs_vals(motion_section, "MD")
       hfx_sections => section_vals_get_subs_vals(force_env%root_section, "FORCE_EVAL%DFT%XC%HF")
+      print_moments_section => section_vals_get_subs_vals(force_env%root_section, "FORCE_EVAL%DFT%PRINT%MOMENTS")
       CALL section_vals_val_get(md_section, "TIMESTEP", r_val=qs_env%rtp%dt)
       CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=qs_env%rtp%i_start)
       CALL section_vals_val_get(md_section, "STEPS", i_val=rtp%nsteps)
@@ -143,10 +145,11 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "MAX_ITER_LANCZOS", i_val=rtp%lanzcos_max_iter)
       CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=rtp%newton_schulz_order)
       CALL section_vals_get(hfx_sections, explicit=rtp%do_hfx)
+      CALL section_vals_val_get(print_moments_section, "MAGNETIC", l_val=rtp%magnetic)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
-      IF (rtp%do_hfx) &
+      IF (rtp%do_hfx .OR. rtp%magnetic) &
          CALL rtp_hfx_rebuild(qs_env)
 
       CALL init_propagation_run(qs_env)

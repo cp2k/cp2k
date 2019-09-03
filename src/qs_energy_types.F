@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -27,6 +27,7 @@ MODULE qs_energy_types
                        core_self, &
                        repulsive, &
                        dispersion, &
+                       gcp, &
                        ex, &
                        exc, &
                        exc_aux_fit, &
@@ -154,6 +155,7 @@ CONTAINS
          qs_energy%core_self = 0.0_dp
          qs_energy%repulsive = 0.0_dp
          qs_energy%dispersion = 0.0_dp
+         qs_energy%gcp = 0.0_dp
          qs_energy%qmmm_el = 0.0_dp
          qs_energy%qmmm_nu = 0.0_dp
          qs_energy%ex = 0.0_dp

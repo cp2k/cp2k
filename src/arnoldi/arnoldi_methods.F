@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -760,7 +760,7 @@ CONTAINS
   END SUBROUTINE compute_norms_${nametype1}$
 
 ! **************************************************************************************************
-!> \brief Computes the intial guess for the solution of the generalized eigenvalue
+!> \brief Computes the initial guess for the solution of the generalized eigenvalue
 !>        using the arnoldi method
 !> \param matrix ...
 !> \param matrix_arnoldi ...
@@ -857,7 +857,7 @@ CONTAINS
 !> \brief builds the basis rothogonal wrt. teh metric.
 !>        The structure looks similar to normal arnoldi but norms, vectors and
 !>        matrix_vector products are very differently defined. Therefore it is
-!>        cleaner to put it in a seperate subroutine to avoid confusion
+!>        cleaner to put it in a separate subroutine to avoid confusion
 !> \param matrix ...
 !> \param vectors ...
 !> \param arnoldi_data ...

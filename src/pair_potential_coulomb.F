@@ -1,12 +1,10 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 MODULE pair_potential_coulomb
 
-   USE erf_fn,                          ONLY: erf,&
-                                              erfc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
    USE pw_poisson_types,                ONLY: do_ewald_none

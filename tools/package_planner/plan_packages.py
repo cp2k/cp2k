@@ -88,7 +88,7 @@ def main():
         if(pp.has_key('requires-')):
             for i in  pp['requires-']:
                while i in packages[p]['requires']:
-	               packages[p]['requires'].remove(i)
+                   packages[p]['requires'].remove(i)
 
     # process the manifests
     for p in packages.keys():
@@ -268,9 +268,4 @@ def error(msg):
 
 
 #=============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-
-#EOF
+main()

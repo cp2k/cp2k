@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -43,8 +43,11 @@ MODULE qs_kind_types
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE external_potential_types,        ONLY: &
@@ -54,7 +57,7 @@ MODULE qs_kind_types
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
-        do_method_rm1, do_qs, do_sirius
+        do_method_rm1, do_method_xtb, do_qs, do_sirius
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -95,6 +98,11 @@ MODULE qs_kind_types
                                               se_param_set_default
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
+   USE xtb_parameters,                  ONLY: xtb_set_kab
+   USE xtb_types,                       ONLY: deallocate_xtb_atom_param,&
+                                              get_xtb_atom_param,&
+                                              write_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -154,6 +162,7 @@ MODULE qs_kind_types
       TYPE(sgp_potential_type), POINTER      :: sgp_potential => Null()
       TYPE(semi_empirical_type), POINTER     :: se_parameter => Null()
       TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter => Null()
+      TYPE(xtb_atom_type), POINTER           :: xtb_parameter => Null()
       !
       TYPE(atom_upfpot_type), POINTER        :: upf_potential => Null()
       !
@@ -268,6 +277,9 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%dftb_parameter)) THEN
                CALL deallocate_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter)
             END IF
+            IF (ASSOCIATED(qs_kind_set(ikind)%xtb_parameter)) THEN
+               CALL deallocate_xtb_atom_param(qs_kind_set(ikind)%xtb_parameter)
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%soft_basis_set) .AND. &
                 qs_kind_set(ikind)%paw_atom) THEN
                CALL deallocate_gto_basis_set(qs_kind_set(ikind)%soft_basis_set)
@@ -351,6 +363,7 @@ CONTAINS
 !> \param upf_potential ...
 !> \param se_parameter ...
 !> \param dftb_parameter ...
+!> \param xtb_parameter ...
 !> \param dftb3_param ...
 !> \param zeff ...
 !> \param elec_conf ...
@@ -407,7 +420,7 @@ CONTAINS
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
                           all_potential, tnadd_potential, gth_potential, sgp_potential, upf_potential, &
-                          se_parameter, dftb_parameter, &
+                          se_parameter, dftb_parameter, xtb_parameter, &
                           dftb3_param, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           soft_basis_set, hard_basis_set, paw_proj_set, softb, &
@@ -431,6 +444,7 @@ CONTAINS
       TYPE(atom_upfpot_type), OPTIONAL, POINTER          :: upf_potential
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
+      TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param, zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
       INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
@@ -532,6 +546,7 @@ CONTAINS
       IF (PRESENT(upf_potential)) upf_potential => qs_kind%upf_potential
       IF (PRESENT(se_parameter)) se_parameter => qs_kind%se_parameter
       IF (PRESENT(dftb_parameter)) dftb_parameter => qs_kind%dftb_parameter
+      IF (PRESENT(xtb_parameter)) xtb_parameter => qs_kind%xtb_parameter
 
       IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
       IF (PRESENT(name)) name = qs_kind%name
@@ -778,6 +793,7 @@ CONTAINS
 !> \param max_sph_harm ...
 !> \param maxg_iso_not0 ...
 !> \param lmax_rho0 ...
+!> \param basis_rcut ...
 !> \param basis_type ...
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
@@ -786,6 +802,7 @@ CONTAINS
                               maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, maxlprj, maxnset, maxsgf_set, &
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
+                              basis_rcut, &
                               basis_type)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -797,6 +814,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_ngrid_rad, max_sph_harm, &
                                                             maxg_iso_not0, lmax_rho0
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
       CHARACTER(len=*), OPTIONAL                         :: basis_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind_set', &
@@ -807,7 +825,7 @@ CONTAINS
                                                             max_iso_not0, max_s_harm, n, &
                                                             ngrid_rad, nkind, nrloc(10)
       LOGICAL                                            :: dft_plus_u_atom, paw_atom
-      REAL(KIND=dp)                                      :: zeff, zeff_correction
+      REAL(KIND=dp)                                      :: brcut, zeff, zeff_correction
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
@@ -853,6 +871,7 @@ CONTAINS
          IF (PRESENT(max_ngrid_rad)) max_ngrid_rad = 0
          IF (PRESENT(max_sph_harm)) max_sph_harm = 0
          IF (PRESENT(lmax_rho0)) lmax_rho0 = 0
+         IF (PRESENT(basis_rcut)) basis_rcut = 0.0_dp
 
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
@@ -1043,6 +1062,16 @@ CONTAINS
                   zeff_correction = 0.0_dp
                END IF
                nelectron = nelectron+qs_kind_set(ikind)%natom*NINT(zeff-zeff_correction)
+            END IF
+
+            IF (PRESENT(basis_rcut)) THEN
+               IF (ASSOCIATED(tmp_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, kind_radius=brcut)
+                  basis_rcut = MAX(basis_rcut, brcut)
+               ELSE IF (ASSOCIATED(qs_kind%dftb_parameter)) THEN
+                  CALL get_dftb_atom_param(dftb_parameter=dftb_parameter, cutoff=brcut)
+                  basis_rcut = MAX(basis_rcut, brcut)
+               END IF
             END IF
 
             IF (PRESENT(all_potential_present)) THEN
@@ -1376,8 +1405,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
                                                             basis_set_type
-      INTEGER :: handle, i, i_rep, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, nb_rep, &
-         nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
+      INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
+         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
@@ -1389,6 +1418,7 @@ CONTAINS
       TYPE(atom_ecppot_type)                             :: ecppot
       TYPE(atom_sgp_potential_type)                      :: sgppot
       TYPE(atom_upfpot_type)                             :: upfpot
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: sup_basis_set, tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
          dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
@@ -1396,6 +1426,10 @@ CONTAINS
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       NULLIFY (elec_conf)
 
@@ -1892,9 +1926,8 @@ CONTAINS
       END IF
 
       SELECT CASE (method_id)
-      CASE (do_method_dftb, do_method_rm1, do_method_am1, do_method_mndo, &
-            do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, &
-            do_method_pnnl)
+      CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6, &
+            do_method_pm6fm, do_method_mndod, do_method_pnnl)
          ! Allocate all_potential
          CALL allocate_potential(qs_kind%all_potential)
          CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
@@ -1903,7 +1936,8 @@ CONTAINS
             CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
             CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
          END IF
-         IF (qs_kind%ghost .OR. qs_kind%floating) THEN
+         CPASSERT(.NOT. qs_kind%floating)
+         IF (qs_kind%ghost) THEN
             CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
             elec_conf(:) = 0
             CALL get_potential(potential=qs_kind%all_potential, &
@@ -1915,38 +1949,95 @@ CONTAINS
          END IF
 
          ! Basis set (Parameters)
-         SELECT CASE (method_id)
-         CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
-               do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
-            ! Setup proper semiempirical parameters
-            check = .NOT. ASSOCIATED(qs_kind%se_parameter)
-            CPASSERT(check)
-            CALL semi_empirical_create(qs_kind%se_parameter)
-            ! Check if we allow p-orbitals on H
-            SELECT CASE (z)
-            CASE (1)
-               IF (k_rep > 0) THEN
-                  CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                            keyword_name="SE_P_ORBITALS_ON_H", l_val=qs_kind%se_parameter%p_orbitals_on_h)
-               END IF
-            CASE DEFAULT
-               ! No special cases for other elements..
-            END SELECT
-            ! Set default parameters
-            CALL section_vals_val_get(dft_section, "QS%SE%STO_NG", i_val=ngauss)
-            CALL se_param_set_default(qs_kind%se_parameter, z, method_id)
-            NULLIFY (tmp_basis_set)
-            CALL init_se_param(qs_kind%se_parameter, tmp_basis_set, ngauss)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
-            CALL init_potential(qs_kind%all_potential, itype="BARE", &
-                                zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
-            qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff-zeff_correction
-         CASE (do_method_dftb)
-            ! Do nothing at this stage.. The initialization of the parameters will be done
-            ! later
+         ! Setup proper semiempirical parameters
+         check = .NOT. ASSOCIATED(qs_kind%se_parameter)
+         CPASSERT(check)
+         CALL semi_empirical_create(qs_kind%se_parameter)
+         ! Check if we allow p-orbitals on H
+         SELECT CASE (z)
+         CASE (1)
+            IF (k_rep > 0) THEN
+               CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                         keyword_name="SE_P_ORBITALS_ON_H", l_val=qs_kind%se_parameter%p_orbitals_on_h)
+            END IF
          CASE DEFAULT
-            CPABORT("")
+            ! No special cases for other elements..
          END SELECT
+         ! Set default parameters
+         CALL section_vals_val_get(dft_section, "QS%SE%STO_NG", i_val=ngauss)
+         CALL se_param_set_default(qs_kind%se_parameter, z, method_id)
+         NULLIFY (tmp_basis_set)
+         CALL init_se_param(qs_kind%se_parameter, tmp_basis_set, ngauss)
+         CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
+         CALL init_potential(qs_kind%all_potential, itype="BARE", &
+                             zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
+         qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff-zeff_correction
+
+         check = ((potential_name /= '') .OR. explicit_potential)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding POTENTIAL for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding BASIS for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+      CASE (do_method_dftb)
+         ! Allocate all_potential
+         CALL allocate_potential(qs_kind%all_potential)
+         CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
+         CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+         IF (.NOT. ASSOCIATED(elec_conf)) THEN
+            CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
+            CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+         END IF
+         CPASSERT(.NOT. qs_kind%floating)
+         IF (qs_kind%ghost) THEN
+            CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL get_potential(potential=qs_kind%all_potential, &
+                               elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL set_potential(potential=qs_kind%all_potential, &
+                               zeff=0.0_dp, &
+                               zeff_correction=0.0_dp)
+         END IF
+
+         check = ((potential_name /= '') .OR. explicit_potential)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding POTENTIAL for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding BASIS for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+      CASE (do_method_xtb)
+         ! Allocate all_potential
+         CALL allocate_potential(qs_kind%all_potential)
+         CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
+         CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+         IF (.NOT. ASSOCIATED(elec_conf)) THEN
+            CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
+            CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+         END IF
+         CPASSERT(.NOT. qs_kind%floating)
+         IF (qs_kind%ghost) THEN
+            CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL get_potential(potential=qs_kind%all_potential, &
+                               elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL set_potential(potential=qs_kind%all_potential, &
+                               zeff=0.0_dp, &
+                               zeff_correction=0.0_dp)
+         END IF
 
          check = ((potential_name /= '') .OR. explicit_potential)
          IF (check) &
@@ -2008,7 +2099,7 @@ CONTAINS
 
       CASE DEFAULT
 
-         ! set nauss for STO expansion
+         ! set ngauss for STO expansion
          CALL section_vals_val_get(dft_section, "QS%STO_NG", i_val=ngauss)
          ! Allocate and initialise the basis set data set structure
          ! first external basis sets
@@ -2134,6 +2225,18 @@ CONTAINS
                                      has_nlcc=.FALSE.)
                   ! convert PP
                   CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, error=error)
+                  IF (iounit > 0) THEN
+                     WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
+                     IF (sgppot%has_local) THEN
+                        WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
+                     END IF
+                     IF (sgppot%has_nonlocal) THEN
+                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                     END IF
+                     IF (sgppot%has_nlcc) THEN
+                        WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
+                     END IF
+                  END IF
                   IF (sgppot%has_nonlocal) THEN
                      CALL set_potential(qs_kind%sgp_potential, n_nonlocal=sgppot%n_nonlocal, lmax=sgppot%lmax, &
                                         is_nonlocal=sgppot%is_nonlocal)
@@ -2179,6 +2282,18 @@ CONTAINS
                                      zeff=upfpot%zion, z=z, has_nlcc=upfpot%core_correction)
                   ! convert pp
                   CALL sgp_construction(sgp_pot=sgppot, upf_pot=upfpot, error=error)
+                  IF (iounit > 0) THEN
+                     WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(upfpot%pname)
+                     IF (sgppot%has_local) THEN
+                        WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
+                     END IF
+                     IF (sgppot%has_nonlocal) THEN
+                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                     END IF
+                     IF (sgppot%has_nlcc) THEN
+                        WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
+                     END IF
+                  END IF
                   IF (sgppot%has_nonlocal) THEN
                      CALL set_potential(qs_kind%sgp_potential, n_nonlocal=sgppot%n_nonlocal, lmax=sgppot%lmax, &
                                         is_nonlocal=sgppot%is_nonlocal)
@@ -2357,7 +2472,7 @@ CONTAINS
 
       no_fail = .FALSE.
 
-      ! Between all methods only SE and DFTB may not need a KIND section.
+      ! Between all methods only SE and DFTB/xTB may not need a KIND section.
       CALL section_vals_val_get(force_env_section, "METHOD", i_val=method)
       IF (method == do_qs) THEN
          CALL section_vals_val_get(force_env_section, "DFT%QS%METHOD", i_val=qs_method)
@@ -2366,6 +2481,8 @@ CONTAINS
                do_method_pdg, do_method_rm1, do_method_mndod, do_method_pnnl)
             no_fail = .TRUE.
          CASE (do_method_dftb)
+            no_fail = .TRUE.
+         CASE (do_method_xtb)
             no_fail = .TRUE.
          END SELECT
       ELSE IF (method == do_sirius) THEN
@@ -2406,6 +2523,7 @@ CONTAINS
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
+      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
       IF (dft_control%qs_control%semi_empirical) THEN
          CALL get_qs_kind(qs_kind, se_parameter=se_parameter)
@@ -2419,6 +2537,12 @@ CONTAINS
          CALL get_dftb_atom_param(dftb_parameter, defined=defined)
          CPASSERT(defined)
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
+      ELSE IF (dft_control%qs_control%xtb) THEN
+         CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
+         CPASSERT(ASSOCIATED(xtb_parameter))
+         CALL get_xtb_atom_param(xtb_parameter, defined=defined)
+         CPASSERT(defined)
+         CALL write_xtb_atom_param(xtb_parameter, subsys_section)
       END IF
 
    END SUBROUTINE check_qs_kind
@@ -2448,11 +2572,64 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             CALL check_qs_kind(qs_kind, dft_control, subsys_section)
          END DO
+         IF (dft_control%qs_control%xtb) THEN
+            CALL write_xtb_kab_param(qs_kind_set, subsys_section)
+         END IF
       ELSE
          CPABORT("The pointer qs_kind_set is not associated")
       END IF
       CALL timestop(handle)
    END SUBROUTINE check_qs_kind_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_kind_set ...
+!> \param subsys_section ...
+! **************************************************************************************************
+   SUBROUTINE write_xtb_kab_param(qs_kind_set, subsys_section)
+
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_string_length)               :: aname, bname
+      INTEGER                                            :: ikind, io_unit, jkind, nkind, za, zb
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_kind_type), POINTER                        :: qs_kinda, qs_kindb
+      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter_a, xtb_parameter_b
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, subsys_section, &
+                                           "PRINT%KINDS/POTENTIAL"), cp_p_file)) THEN
+
+         io_unit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%KINDS", extension=".Log")
+         IF (io_unit > 0) THEN
+
+            WRITE (io_unit, "(/,T2,A)") "xTB| Kab parameters"
+            nkind = SIZE(qs_kind_set)
+            DO ikind = 1, nkind
+               qs_kinda => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kinda, xtb_parameter=xtb_parameter_a)
+               CALL get_xtb_atom_param(xtb_parameter_a, aname=aname, z=za)
+               DO jkind = ikind, nkind
+                  qs_kindb => qs_kind_set(jkind)
+                  CALL get_qs_kind(qs_kindb, xtb_parameter=xtb_parameter_b)
+                  CALL get_xtb_atom_param(xtb_parameter_b, aname=bname, z=zb)
+                  WRITE (io_unit, "(A,T10,A15,T25,A15,T71,F10.3)") &
+                     "    Kab:", TRIM(aname), TRIM(bname), xtb_set_kab(za, zb)
+               END DO
+            END DO
+            WRITE (io_unit, *)
+
+         END IF
+
+         CALL cp_print_key_finished_output(io_unit, logger, subsys_section, "PRINT%KINDS")
+      END IF
+
+   END SUBROUTINE write_xtb_kab_param
 
 ! **************************************************************************************************
 !> \brief Set the components of an atomic kind data set.
@@ -2471,13 +2648,14 @@ CONTAINS
 !> \param u_minus_j ...
 !> \param reltmat ...
 !> \param dftb_parameter ...
+!> \param xtb_parameter ...
 !> \param elec_conf ...
 !> \param pao_basis_size ...
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
                           soft_basis_set, hard_basis_set, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
-                          dftb_parameter, &
+                          dftb_parameter, xtb_parameter, &
                           elec_conf, pao_basis_size)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
@@ -2491,12 +2669,14 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: u_minus_j
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
+      TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: elec_conf
       INTEGER, INTENT(IN), OPTIONAL                      :: pao_basis_size
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_kind', routineP = moduleN//':'//routineN
 
       IF (PRESENT(dftb_parameter)) qs_kind%dftb_parameter => dftb_parameter
+      IF (PRESENT(xtb_parameter)) qs_kind%xtb_parameter => xtb_parameter
       IF (PRESENT(elec_conf)) THEN
          IF (ASSOCIATED(qs_kind%elec_conf)) THEN
             DEALLOCATE (qs_kind%elec_conf)
@@ -2862,7 +3042,7 @@ CONTAINS
       END IF
 
       ! readjust the occupation number of the orbitals as requested by user
-      ! this is done to break symmetry (bs) and bias the intial guess
+      ! this is done to break symmetry (bs) and bias the initial guess
       ! to the pre-defined multiplicity/charge state of the atom
       IF (bs_occupation) THEN
          DO is = 1, 2

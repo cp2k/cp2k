@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -9,7 +9,7 @@
 !>            (in case of parallel tempering) several global tree node refer to a
 !>            single sub tree node (which is the changed one in the global tree)
 !>        - the references are used to update the global tree acceptance probability
-!>            for every global tree element seperately
+!>            for every global tree element separately
 !>        Hence a list of all global tree nodes, using the related subtree node,
 !>            is created.
 !> \par History

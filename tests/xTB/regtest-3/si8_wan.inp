@@ -1,0 +1,74 @@
+&GLOBAL
+  PROJECT  si8_lsd_broy_wc_list
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  FLUSH_SHOULD_FLUSH
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &PRINT
+    &FORCES ON
+    &END
+  &END
+  &DFT
+    LSD
+    &QS
+      METHOD xTB
+      &xTB
+        DO_EWALD T
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF   50
+      EPS_SCF 1.0e-7
+      &SMEAR
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE   300.
+        FIXED_MAGNETIC_MOMENT 0.0
+      &END
+      &MIXING
+      #    METHOD DIRECT_P_MIXING
+          METHOD BROYDEN_MIXING
+          ALPHA   0.02
+          NBUFFER  100
+      &END
+      ADDED_MOS   20 20
+    &END SCF
+    &POISSON
+      &EWALD
+       ALPHA 1.0
+       EWALD_TYPE SPME
+       GMAX 54
+      &END EWALD
+    &END POISSON
+    &LOCALIZE
+      METHOD L1SD
+      MAX_ITER 30
+      EPS_LOCALIZATION 1.0E-10
+      LIST  3 4 5 6 7 8 9
+      &PRINT
+        &WANNIER_CENTERS
+        &END
+        &LOC_RESTART
+        &END
+      &END
+    &END
+    &PRINT
+    &END
+  &END DFT
+
+  &SUBSYS
+    &CELL
+       ABC   5.42858871335 5.42858871335 15.42858871335
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ./SI_8.xyz
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+
+  &END SUBSYS
+&END FORCE_EVAL
+

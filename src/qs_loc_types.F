@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -136,7 +136,7 @@ MODULE qs_loc_types
       REAL(KIND=dp)                        :: eps_occ
       REAL(KIND=dp), DIMENSION(2)          :: lu_ene_bound
       LOGICAL                              :: crazy_use_diag
-      LOGICAL                              :: print_cubes, jacobi_fallback
+      LOGICAL                              :: print_cubes, jacobi_fallback, jacobi_refinement
       LOGICAL                              :: print_centers
       LOGICAL                              :: print_spreads
       LOGICAL                              :: do_homo

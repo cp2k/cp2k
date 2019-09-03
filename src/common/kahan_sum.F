@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -50,7 +50,7 @@ MODULE kahan_sum
       MODULE PROCEDURE &
          kahan_dot_product_d1, &
          kahan_dot_product_s2, kahan_dot_product_d2, kahan_dot_product_z2, &
-         kahan_dot_product_masked_d3
+         kahan_dot_product_d3, kahan_dot_product_masked_d3
    END INTERFACE accurate_dot_product
 CONTAINS
 ! **************************************************************************************************
@@ -59,7 +59,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s1(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s1(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:), INTENT(IN)            :: array
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: mask
       REAL(KIND=sp)                                      :: ks
@@ -94,7 +94,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d1(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d1(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: array
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: mask
       REAL(KIND=dp)                                      :: ks
@@ -129,7 +129,7 @@ CONTAINS
 !> \param array2 another array of real numbers
 !> \return dot product
 ! **************************************************************************************************
-   FUNCTION kahan_dot_product_d1(array1, array2) RESULT(ks)
+   PURE FUNCTION kahan_dot_product_d1(array1, array2) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: array1, array2
       REAL(KIND=dp)                                      :: ks
 
@@ -153,7 +153,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c1(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c1(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:), INTENT(IN)         :: array
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: mask
       COMPLEX(KIND=sp)                                   :: ks
@@ -188,7 +188,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z1(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z1(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: array
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: mask
       COMPLEX(KIND=dp)                                   :: ks
@@ -223,7 +223,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s2(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s2(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :), INTENT(IN)         :: array
       LOGICAL, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: mask
       REAL(KIND=sp)                                      :: ks
@@ -262,7 +262,7 @@ CONTAINS
 !> \param array2 another 2-D array of real numbers
 !> \return dot product
 ! **************************************************************************************************
-   FUNCTION kahan_dot_product_s2(array1, array2) RESULT(ks)
+   PURE FUNCTION kahan_dot_product_s2(array1, array2) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :), INTENT(in)         :: array1, array2
       REAL(KIND=dp)                                      :: ks
 
@@ -289,7 +289,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d2(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d2(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: array
       LOGICAL, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: mask
       REAL(KIND=dp)                                      :: ks
@@ -328,7 +328,7 @@ CONTAINS
 !> \param array2 another 2-D array of real numbers
 !> \return dot product
 ! **************************************************************************************************
-   FUNCTION kahan_dot_product_d2(array1, array2) RESULT(ks)
+   PURE FUNCTION kahan_dot_product_d2(array1, array2) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: array1, array2
       REAL(KIND=dp)                                      :: ks
 
@@ -355,7 +355,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c2(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c2(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:, :), INTENT(IN)      :: array
       LOGICAL, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: mask
       COMPLEX(KIND=sp)                                   :: ks
@@ -394,7 +394,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z2(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z2(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: array
       LOGICAL, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: mask
       COMPLEX(KIND=dp)                                   :: ks
@@ -433,7 +433,7 @@ CONTAINS
 !> \param array2 another 2-D array of complex numbers
 !> \return dot product
 ! **************************************************************************************************
-   FUNCTION kahan_dot_product_z2(array1, array2) RESULT(ks)
+   PURE FUNCTION kahan_dot_product_z2(array1, array2) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(in)      :: array1, array2
       COMPLEX(KIND=dp)                                   :: ks
 
@@ -460,7 +460,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s3(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s3(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :, :), INTENT(IN)      :: array
       LOGICAL, DIMENSION(:, :, :), INTENT(IN), OPTIONAL  :: mask
       REAL(KIND=sp)                                      :: ks
@@ -503,7 +503,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d3(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d3(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: array
       LOGICAL, DIMENSION(:, :, :), INTENT(IN), OPTIONAL  :: mask
       REAL(KIND=dp)                                      :: ks
@@ -542,6 +542,36 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
+!> \param array1 3-D array of real numbers
+!> \param array2 another 3-D array of real numbers
+!> \return dot product
+! **************************************************************************************************
+   PURE FUNCTION kahan_dot_product_d3(array1, array2) RESULT(ks)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(in)      :: array1, array2
+      REAL(KIND=dp)                                      :: ks
+
+      INTEGER                                            :: i1, i2, i3, n1, n2, n3
+      REAL(KIND=dp)                                      :: c, t, y
+
+      ks = dzero; t = dzero; y = dzero; c = dzero
+
+      n1 = SIZE(array1, 1)
+      n2 = SIZE(array1, 2)
+      n3 = SIZE(array1, 3)
+      DO i3 = 1, n3
+         DO i2 = 1, n2
+            DO i1 = 1, n1
+               y = array1(i1, i2, i3)*array2(i1, i2, i3)-c
+               t = ks+y
+               c = (t-ks)-y
+               ks = t
+            END DO
+         END DO
+      END DO
+   END FUNCTION kahan_dot_product_d3
+
+! **************************************************************************************************
+!> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
 !>        a mask array determines which product array points to include in the sum
 !> \param array1 the first input array to compute the product array
 !> \param array2 the second input array to compute the product array
@@ -550,7 +580,7 @@ CONTAINS
 !>           included in the sum
 !> \return the result of summation
 ! **************************************************************************************************
-   FUNCTION kahan_dot_product_masked_d3(array1, array2, mask, th) RESULT(ks)
+   PURE FUNCTION kahan_dot_product_masked_d3(array1, array2, mask, th) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: array1, array2, mask
       REAL(KIND=dp), INTENT(in)                          :: th
@@ -580,7 +610,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c3(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c3(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:, :, :), INTENT(IN)   :: array
       LOGICAL, DIMENSION(:, :, :), INTENT(IN), OPTIONAL  :: mask
       COMPLEX(KIND=sp)                                   :: ks
@@ -623,7 +653,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z3(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z3(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: array
       LOGICAL, DIMENSION(:, :, :), INTENT(IN), OPTIONAL  :: mask
       COMPLEX(KIND=dp)                                   :: ks
@@ -666,7 +696,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s4(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s4(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :, :, :), INTENT(IN)   :: array
       LOGICAL, DIMENSION(:, :, :, :), INTENT(IN), &
          OPTIONAL                                        :: mask
@@ -714,7 +744,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d4(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d4(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: array
       LOGICAL, DIMENSION(:, :, :, :), INTENT(IN), &
          OPTIONAL                                        :: mask
@@ -762,7 +792,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c4(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c4(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :), INTENT(IN), &
@@ -811,7 +841,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z4(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z4(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :), INTENT(IN), &
@@ -860,7 +890,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s5(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s5(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(IN), &
@@ -913,7 +943,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d5(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d5(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(IN), &
@@ -966,7 +996,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c5(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c5(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(IN), &
@@ -1019,7 +1049,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z5(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z5(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(IN), &
@@ -1072,7 +1102,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s6(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s6(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :), INTENT(IN), &
@@ -1129,7 +1159,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d6(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d6(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :), INTENT(IN), &
@@ -1186,7 +1216,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c6(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c6(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :), INTENT(IN), &
@@ -1243,7 +1273,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z6(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z6(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :), INTENT(IN), &
@@ -1300,7 +1330,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_s7(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_s7(array, mask) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :, :), &
@@ -1361,7 +1391,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_d7(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_d7(array, mask) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :, :), &
@@ -1422,7 +1452,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_c7(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_c7(array, mask) RESULT(ks)
       COMPLEX(KIND=sp), DIMENSION(:, :, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :, :), &
@@ -1483,7 +1513,7 @@ CONTAINS
 !> \param mask ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION kahan_sum_z7(array, mask) RESULT(ks)
+   PURE FUNCTION kahan_sum_z7(array, mask) RESULT(ks)
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :, :, :), &
          INTENT(IN)                                      :: array
       LOGICAL, DIMENSION(:, :, :, :, :, :, :), &

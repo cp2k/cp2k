@@ -12,6 +12,8 @@ ch2o_6.inp                                             1      3e-13             
 ch2o_7.inp                                             1      3e-13             -22.56644338703015
 ch2o_8.inp                                             1      3e-13             -22.56644338703015
 ch2o_9.inp                                             1      3e-13             -22.56644338703015
-# disable unstable test
-#H2_upf.inp                                             1      3e-13              -1.135018770048071
+# tests maybe unstable
+H2_upf.inp                                             1      1e-06              -1.13501864985782 
+H2O_upf.inp                                            1      5e-05             -17.11484046900296 
+CH2O_upf.inp                                           1      5e-05             -22.74205305294306
 #EOF

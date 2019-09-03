@@ -24,6 +24,7 @@
     &POISSON
       &EWALD
        EWALD_TYPE SPME
+       ALPHA 0.35
        GMAX 100
       &END EWALD
       POISSON_SOLVER ANALYTIC

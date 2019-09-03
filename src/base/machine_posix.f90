@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2018  CP2K developers group                          !
+!   Copyright (C) 2000 - 2019  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,8 +15,8 @@
   PRIVATE
 
   PUBLIC :: m_flush, m_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_mov, &
+            m_hostnm, m_getcwd, m_getlog, m_getpid, &
+            m_abort, m_chdir, m_mov, &
             m_memory_details, m_procrun
 
   INTEGER(KIND=int_8), PUBLIC, SAVE :: m_memory_max=0
@@ -36,18 +36,7 @@ CONTAINS
   END SUBROUTINE m_abort
 
 
-! *****************************************************************************
-!> \brief The number of arguments of the fortran program
-!> \return ...
 ! **************************************************************************************************
-  FUNCTION m_iargc() RESULT (ic)
-    INTEGER                                  :: ic
-
-    ic = COMMAND_ARGUMENT_COUNT ()
-  END FUNCTION m_iargc
-
-
-! *****************************************************************************
 !> \brief Flush a given unit
 !> \param lunit ...
 ! **************************************************************************************************
@@ -58,7 +47,7 @@ CONTAINS
   END SUBROUTINE m_flush
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns if a process is running on the local machine
 !>        1 if yes and 0 if not
 !> \param pid ...
@@ -67,6 +56,9 @@ CONTAINS
   FUNCTION m_procrun(pid) RESULT (run_on)
     INTEGER, INTENT(IN)       ::   pid
     INTEGER                   ::   run_on
+#if defined(__MINGW)
+    run_on = 0
+#else
     INTEGER                   ::   istat
 
     INTERFACE
@@ -87,11 +79,11 @@ CONTAINS
     ELSE
        run_on = 0 ! error, process probably does not exist
     ENDIF
-
+#endif
   END FUNCTION m_procrun
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the total amount of memory [bytes] in use, if known, zero otherwise
 !> \param mem ...
 ! **************************************************************************************************
@@ -153,15 +145,13 @@ CONTAINS
 
   END SUBROUTINE m_memory
 
-! *****************************************************************************
-! *** get more detailed memory info, all units are bytes.
-! *** the only 'useful' option is MemLikelyFree which is an estimate of remaining memory
-! *** assumed to give info like /proc/meminfo while MeMLikelyFree is the amount of
-! *** memory we're likely to be able to allocate, but not necessarily in one chunk
-! *** zero means not available
-! *****************************************************************************
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief get more detailed memory info, all units are bytes.
+!>         the only 'useful' option is MemLikelyFree which is an estimate of remaining memory
+!>         assumed to give info like /proc/meminfo while MeMLikelyFree is the amount of
+!>         memory we're likely to be able to allocate, but not necessarily in one chunk
+!>         zero means not available...
 !> \param MemTotal ...
 !> \param MemFree ...
 !> \param Buffers ...
@@ -212,6 +202,7 @@ CONTAINS
 
 
   CONTAINS
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param field ...
@@ -236,7 +227,6 @@ CONTAINS
   END SUBROUTINE m_memory_details
 
 
-! *****************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param source ...
@@ -284,14 +274,17 @@ CONTAINS
   END SUBROUTINE m_mov
 
 
-! *****************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param hname ...
 ! **************************************************************************************************
   SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
-
+#if defined(__MINGW)
+    ! While there is a gethostname in the Windows (POSIX) API, it requires that winsocks is
+    ! initialised prior to using it via WSAStartup(..), respectively cleaned up at the end via WSACleanup().
+    hname = "<unknown>"
+#else
     INTEGER                                  :: istat, i
     CHARACTER(len=default_path_length)       :: buf
 
@@ -311,10 +304,10 @@ CONTAINS
     ENDIF
     i = INDEX(buf, c_null_char) -1
     hname = buf(1:i)
+#endif
   END SUBROUTINE m_hostnm
 
 
-! *****************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param curdir ...
@@ -344,7 +337,6 @@ CONTAINS
   END SUBROUTINE m_getcwd
 
 
-! *****************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param dir ...
@@ -366,47 +358,29 @@ CONTAINS
   END SUBROUTINE m_chdir
 
 
-! *****************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param user ...
 ! **************************************************************************************************
   SUBROUTINE m_getlog(user)
-    CHARACTER(len=*), INTENT(OUT)            :: user
-    INTEGER :: status
+    CHARACTER(len=*), INTENT(OUT) :: user
+    INTEGER                       :: status
 
     ! on a posix system LOGNAME should be defined
     CALL get_environment_variable("LOGNAME", value=user, status=status)
     ! nope, check alternative
     IF (status/=0) &
        CALL get_environment_variable("USER", value=user, status=status)
+    ! nope, check alternative
+    IF (status/=0) &
+       CALL get_environment_variable("USERNAME", value=user, status=status)
     ! fall back
     IF (status/=0) &
-       user="root ;-)"
+       user="<unknown>"
 
   END SUBROUTINE m_getlog
 
 
-! *****************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param uid ...
-! **************************************************************************************************
-  SUBROUTINE m_getuid(uid)
-   INTEGER, INTENT(OUT)                     :: uid
-
-   INTERFACE
-     FUNCTION getuid() BIND(C,name="getuid") RESULT(uid)
-       IMPORT
-       INTEGER(KIND=C_INT)              :: uid
-     END FUNCTION
-   END INTERFACE
-
-   uid = getuid()
-  END SUBROUTINE m_getuid
-
-
-! *****************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param pid ...
@@ -423,25 +397,4 @@ CONTAINS
 
    pid = getpid()
   END SUBROUTINE m_getpid
-
-
-! *****************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param i ...
-!> \param arg ...
-! **************************************************************************************************
-  SUBROUTINE m_getarg(i,arg)
-    INTEGER, INTENT(IN)                      :: i
-    CHARACTER(len=*), INTENT(OUT)            :: arg
-    CHARACTER(len=1024)                      :: tmp
-    INTEGER                                  :: istat
-
-    CALL GET_COMMAND_ARGUMENT(i, tmp, status=istat)
-    IF(istat /= 0) THEN
-       WRITE (*,*) "m_getarg failed"
-       CALL m_abort()
-    ENDIF
-    arg = TRIM(tmp)
-  END SUBROUTINE m_getarg
 

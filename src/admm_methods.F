@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -45,9 +45,9 @@ MODULE admm_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_cauchy,&
@@ -1249,7 +1249,7 @@ CONTAINS
             CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
-            ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces seperately
+            ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces separately
             ! Scale matrix_K_tilde by gsi for ADMMQ and ADMMS (Eqs. (27), (37) in Merlot, 2014)
             IF (admm_env%charge_constrain) THEN
                CALL dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin))
@@ -1267,7 +1267,7 @@ CONTAINS
             ! Calculate LAMBDA according to Merlot, 1. IF: ADMMQ, 2. IF: ADMMP, 3. IF: ADMMS,
             IF (admm_env%charge_constrain .AND. &
                 (admm_env%scaling_model == do_admm_exch_scaling_none)) THEN
-               CALL dbcsr_trace(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
+               CALL dbcsr_dot(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
 
                ! Factor of 2 is missing compared to Eq. 28 in Merlot due to
                ! Tr(ds) = N in the code \neq 2N in Merlot
@@ -1288,8 +1288,8 @@ CONTAINS
 
             ELSE IF (admm_env%charge_constrain .AND. &
                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
-               CALL dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
-               CALL dbcsr_trace(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp_two)
+               CALL dbcsr_dot(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
+               CALL dbcsr_dot(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp_two)
                ! For ADMMS open-shell case we need k and x (Merlot) separately since gsi(a)\=gsi(b)
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
@@ -1474,8 +1474,8 @@ CONTAINS
       ener_k_ispin = 0.0_dp
 
       !! ** Calculate the exchange energy
-      CALL dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux_buffer(ispin)%matrix, &
-                       ener_k_ispin)
+      CALL dbcsr_dot(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux_buffer(ispin)%matrix, &
+                     ener_k_ispin)
 
       ! Divide exchange for indivivual spin by two, since the ener_k_ispin originally is total
       ! exchange of alpha and beta
@@ -2070,10 +2070,10 @@ CONTAINS
 
          ! Calculate number of electrons in the original density matrix, transposing doesn't matter
          ! since both matrices are symmetric
-         CALL dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin))
+         CALL dbcsr_dot(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin))
          admm_env%n_large_basis(3) = admm_env%n_large_basis(3)+admm_env%n_large_basis(ispin)
          ! Calculate number of electrons in the auxiliary density matrix
-         CALL dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux)
+         CALL dbcsr_dot(density_matrix, overlap_matrix, nel_tmp_aux)
          admm_env%gsi(ispin) = admm_env%n_large_basis(ispin)/nel_tmp_aux
 
          IF (admm_env%charge_constrain) THEN

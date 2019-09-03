@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -123,7 +123,7 @@ CONTAINS
          IF (tag .EQ. exit_tag) should_stop = .TRUE.
       END IF
 
-      IF (logger%para_env%source == logger%para_env%mepos) THEN
+      IF (logger%para_env%ionode) THEN
          ! files will only be checked every 20 seconds, or if the clock wraps/does not exist,
          ! otherwise 64 waters on 64 cores can spend up to 10% of time here, on lustre
          ! however, if should_stop has been true, we should always check

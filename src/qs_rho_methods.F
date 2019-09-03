@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -400,7 +400,7 @@ CONTAINS
       IF (dft_control%qs_control%semi_empirical) THEN
          !
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          !
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
       ELSEIF (dft_control%qs_control%lrigpw) THEN

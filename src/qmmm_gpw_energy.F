@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -54,15 +54,15 @@ MODULE qmmm_gpw_energy
    USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                               qmmm_gaussian_type
    USE qmmm_se_energy,                  ONLY: build_se_qmmm_matrix
+   USE qmmm_tb_methods,                 ONLY: build_tb_qmmm_matrix,&
+                                              build_tb_qmmm_matrix_pc,&
+                                              build_tb_qmmm_matrix_zero
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
                                               qmmm_per_pot_p_type,&
                                               qmmm_per_pot_type,&
                                               qmmm_pot_p_type,&
                                               qmmm_pot_type
    USE qmmm_util,                       ONLY: spherical_cutoff_factor
-   USE qs_dftb_matrices,                ONLY: build_dftb_qmmm_matrix,&
-                                              build_dftb_qmmm_matrix_pc,&
-                                              build_dftb_qmmm_matrix_zero
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
@@ -153,17 +153,17 @@ CONTAINS
             IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
             CPABORT("")
          END SELECT
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          ! DFTB
          SELECT CASE (qmmm_env%qmmm_coupl_type)
          CASE (do_qmmm_none)
             IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') &
                "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
-            CALL build_dftb_qmmm_matrix_zero(qs_env, para_env)
+            CALL build_tb_qmmm_matrix_zero(qs_env, para_env)
          CASE (do_qmmm_coulomb)
-            CALL build_dftb_qmmm_matrix(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
+            CALL build_tb_qmmm_matrix(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
          CASE (do_qmmm_pcharge)
-            CALL build_dftb_qmmm_matrix_pc(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
+            CALL build_tb_qmmm_matrix_pc(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
          CASE (do_qmmm_gauss, do_qmmm_swave)
             CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not implemented for DFTB.")
          CASE DEFAULT

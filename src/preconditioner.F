@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -322,16 +322,13 @@ CONTAINS
       my_convert_to_dbcsr = .TRUE.
       IF (PRESENT(convert_to_dbcsr)) my_convert_to_dbcsr = convert_to_dbcsr
 
-!dbg
-!    write(*,*) PRESENT(chol_type), "chol_type", chol_type
-!    stop
-!dbg
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       para_env=para_env, &
                       blacs_env=blacs_env)
 
-      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
+      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
+          dft_control%qs_control%xtb) THEN
          IF (prec_type == ot_precond_full_kinetic) THEN
             msg = "Full_kinetic not available for semi-empirical methods"
             CPABORT(TRIM(msg))

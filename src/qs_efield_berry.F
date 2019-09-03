@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -1064,12 +1064,14 @@ CONTAINS
          IF (cqi(idir) > pi) cqi(idir) = cqi(idir)-twopi
          IF (cqi(idir) < -pi) cqi(idir) = cqi(idir)+twopi
          ! now check for log branch
-         IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
-            di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
-            DO i = 1, 10
-               cqi(idir) = cqi(idir)+SIGN(1.0_dp, di(idir))*twopi
-               IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
-            END DO
+         IF (calculate_forces) THEN
+            IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
+               di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+               DO i = 1, 10
+                  cqi(idir) = cqi(idir)+SIGN(1.0_dp, di(idir))*twopi
+                  IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+               END DO
+            END IF
          END IF
       END DO
       DO idir = 1, 3

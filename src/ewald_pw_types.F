@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -341,6 +341,9 @@ CONTAINS
          ALLOCATE (pw_pools(1))
          pw_pools(1)%pool => ewald_pw%pw_big_pool
          CALL pw_poisson_read_parameters(poisson_section, poisson_params)
+         poisson_params%ewald_type = ewald_type
+         poisson_params%ewald_o_spline = o_spline
+         poisson_params%ewald_alpha = alpha
          CALL pw_poisson_set(ewald_pw%poisson_env, cell_hmat=cell%hmat, parameters=poisson_params, &
                              use_level=1, pw_pools=pw_pools)
          DEALLOCATE (pw_pools)

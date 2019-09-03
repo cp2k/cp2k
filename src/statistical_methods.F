@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -13,7 +13,6 @@
 ! **************************************************************************************************
 MODULE statistical_methods
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE erf_fn,                          ONLY: erf
    USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: dp
    USE parallel_rng_types,              ONLY: next_random_number

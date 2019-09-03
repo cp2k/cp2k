@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-gcc_ver=${gcc_ver:-8.2.0}
+gcc_ver="8.3.0"
+gcc_sha256="ea71adc1c3d86330874b8df19611424b143308f0d6612d542472600532c96d2d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_gcc=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gcc" ] && rm "${BUILDDIR}/setup_gcc"
 
@@ -16,12 +17,13 @@ GCC_CFLAGS=""
 TSANFLAGS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_gcc" in
     __INSTALL__)
         echo "==================== Installing GCC ===================="
         pkg_install_dir="${INSTALLDIR}/gcc-${gcc_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "gcc-${gcc_ver} is already installed, skipping it."
         else
             if [ "${gcc_ver}" == "master" ]; then
@@ -31,8 +33,8 @@ case "$with_gcc" in
                 if [ -f gcc-${gcc_ver}.tar.gz ] ; then
                     echo "gcc-${gcc_ver}.tar.gz is found"
                 else
-                    download_pkg ${DOWNLOADER_FLAGS} \
-                                 https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
+                    download_pkg ${DOWNLOADER_FLAGS} ${gcc_sha256} \
+                                 "https://www.cp2k.org/static/downloads/gcc-${gcc_ver}.tar.gz"
                 fi
                 [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
                 tar -xzf gcc-${gcc_ver}.tar.gz
@@ -50,7 +52,10 @@ case "$with_gcc" in
                                  --enable-lto \
                                  --enable-plugins \
                                  > configure.log 2>&1
-            make -j $NPROCS > make.log 2>&1
+            make -j $NPROCS \
+                 CFLAGS="-fPIC $CFLAGS"\
+                 CXXFLAGS="-fPIC $CXXFLAGS"\
+                 > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             # thread sanitizer
             if [ $ENABLE_TSAN = "__TRUE__" ] ; then
@@ -82,7 +87,7 @@ case "$with_gcc" in
                 cd $GCCROOT/obj/
             fi
             cd ../..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         GCC_CFLAGS="-I'${pkg_install_dir}/include'"
         GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib64' -Wl,-rpath='${pkg_install_dir}/lib64'"
@@ -174,3 +179,9 @@ cat <<EOF >> ${SETUPFILE}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_gcc"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "gcc"

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -256,7 +256,7 @@ CONTAINS
                       rho=rho_struct, &
                       para_env=para_env)
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -396,7 +396,7 @@ CONTAINS
       END DO
       CALL qs_rho_update_rho(rho, qs_env)
 
-      IF (rtp%do_hfx) THEN
+      IF (rtp%do_hfx .OR. rtp%magnetic) THEN
          CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
          CALL calculate_P_imaginary(qs_env, rtp, rho_ao_im, keep_sparsity=.TRUE.)
          CALL qs_rho_set(rho, rho_ao_im=rho_ao_im)
@@ -440,11 +440,11 @@ CONTAINS
       rtp_control => dft_control%rtp_control
       CALL get_rtp(rtp=rtp, rho_new=rho_new)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
-      IF (rtp%do_hfx) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
+      IF (rtp%do_hfx .OR. rtp%magnetic) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
       DO ispin = 1, SIZE(rho_ao)
          CALL dbcsr_set(rho_ao(ispin)%matrix, zero)
          CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2-1)%matrix)
-         IF (rtp%do_hfx) CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+         IF (rtp%do_hfx .OR. rtp%magnetic) CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
       END DO
 
       CALL qs_rho_update_rho(rho, qs_env)

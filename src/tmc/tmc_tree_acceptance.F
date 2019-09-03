@@ -1,11 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
 !> \brief tree nodes acceptance
-!>        code is seperated in 3 parts, first the acceptance criteria,
+!>        code is separated in 3 parts, first the acceptance criteria,
 !>        second the tree node acceptance handling, searching etc. and
 !>        than the acceptance probability handling
 !> \par History

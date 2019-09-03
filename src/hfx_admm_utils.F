@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -34,10 +34,11 @@ MODULE hfx_admm_utils
                                               dbcsr_type
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
-        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_hfx_potential_coulomb, &
-        do_hfx_potential_short, do_hfx_potential_truncated, xc_funct_no_shortcut
+        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
+        do_potential_short, do_potential_truncated, xc_funct_no_shortcut
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -155,9 +156,10 @@ CONTAINS
       IF (.NOT. do_hfx) &
          CPABORT("Wavefunction fitting requested without Hartree-Fock.")
 
-      ! ** Method only implemented for GPW
-      IF (dft_control%qs_control%gapw) THEN
-         CPABORT("ADMM only implemented for GPW")
+      ! ** Method runs with GAPW only if no DFT exchange correction
+      IF (dft_control%qs_control%gapw .AND. &
+          dft_control%admm_control%aux_exch_func .NE. do_admm_aux_exch_func_none) THEN
+         CPABORT("ADMM only works with GAPW without DFT exchange correction")
       END IF
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
@@ -227,6 +229,7 @@ CONTAINS
                                                             rho_ao_1d
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -255,7 +258,8 @@ CONTAINS
                       matrix_ks_aux_fit=matrix_ks_aux_fit, &
                       matrix_ks_aux_fit_im=matrix_ks_aux_fit_im, &
                       matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, &
-                      s_mstruct_changed=s_mstruct_changed)
+                      s_mstruct_changed=s_mstruct_changed, &
+                      x_data=x_data)
 
       nspins = dft_control%nspins
       nimages = dft_control%nimages
@@ -316,7 +320,7 @@ CONTAINS
          ! Finally the real hfx calulation
          ehfx = 0.0_dp
          DO ispin = 1, mspin
-            CALL integrate_four_center(qs_env, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
+            CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
                                        para_env, s_mstruct_changed, irep, distribute_fock_matrix, &
                                        ispin=ispin)
             ehfx = ehfx+eh1
@@ -365,7 +369,7 @@ CONTAINS
 
             ehfxrt = 0.0_dp
             DO ispin = 1, mspin
-               CALL integrate_four_center(qs_env, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
                                           para_env, .FALSE., irep, distribute_fock_matrix, &
                                           ispin=ispin)
                ehfxrt = ehfxrt+eh1
@@ -668,14 +672,14 @@ CONTAINS
 
          !! ** Add functionals evaluated with auxiliary basis
          SELECT CASE (hfx_potential_type)
-         CASE (do_hfx_potential_coulomb)
+         CASE (do_potential_coulomb)
             CALL section_vals_val_set(xc_fun_section, "PBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_X", &
                                       r_val=-hfx_fraction)
             CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_C", &
                                       r_val=0.0_dp)
-         CASE (do_hfx_potential_short)
+         CASE (do_potential_short)
             omega = qs_env%x_data(1, 1)%potential_parameter%omega
             CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
@@ -685,7 +689,7 @@ CONTAINS
                                       r_val=0.0_dp)
             CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                       r_val=omega)
-         CASE (do_hfx_potential_truncated)
+         CASE (do_potential_truncated)
             cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
@@ -710,7 +714,7 @@ CONTAINS
                                    i_val=xc_funct_no_shortcut)
 
          SELECT CASE (hfx_potential_type)
-         CASE (do_hfx_potential_coulomb)
+         CASE (do_potential_coulomb)
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -735,7 +739,7 @@ CONTAINS
                CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_X", &
                                          r_val=scale_x)
             END IF
-         CASE (do_hfx_potential_short)
+         CASE (do_potential_short)
             omega = qs_env%x_data(1, 1)%potential_parameter%omega
             ifun = 0
             funct_found = .FALSE.
@@ -763,7 +767,7 @@ CONTAINS
                CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
                                          r_val=scale_x)
             END IF
-         CASE (do_hfx_potential_truncated)
+         CASE (do_potential_truncated)
             cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
             ifun = 0
             funct_found = .FALSE.
@@ -977,6 +981,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
@@ -989,7 +994,8 @@ CONTAINS
                       energy=energy, &
                       input=input, &
                       para_env=para_env, &
-                      s_mstruct_changed=s_mstruct_changed)
+                      s_mstruct_changed=s_mstruct_changed, &
+                      x_data=x_data)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
@@ -1015,7 +1021,7 @@ CONTAINS
             ! the real hfx calulation
             ehfx = 0.0_dp
             DO ispin = 1, mspin
-               CALL integrate_four_center(qs_env, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
                                           s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
                ehfx = ehfx+eh1
             END DO

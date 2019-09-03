@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 ! **************************************************************************************************
 !> \brief General overlap type integrals containers
@@ -25,8 +25,8 @@ MODULE sap_kind_types
       INTEGER, DIMENSION(:), POINTER             :: sgf_list
       INTEGER, DIMENSION(3)                      :: cell
       LOGICAL                                    :: sgf_soft_only
-      REAL(KIND=dp)                            :: maxac, maxach
-      REAL(KIND=dp), DIMENSION(3)              :: rac
+      REAL(KIND=dp)                              :: maxac, maxach
+      REAL(KIND=dp), DIMENSION(3)                :: rac
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: acint
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: achint
    END TYPE clist_type

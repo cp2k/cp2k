@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -44,7 +44,7 @@ MODULE qs_linres_issc_utils
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+   USE dbcsr_api,                       ONLY: dbcsr_convert_offsets_to_sizes,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_distribution_type,&
@@ -213,7 +213,7 @@ CONTAINS
             linres_control%lr_triplet = .FALSE.
             linres_control%do_kernel = .FALSE.
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
             !
             !
             ! copy the response
@@ -271,7 +271,7 @@ CONTAINS
             linres_control%lr_triplet = .FALSE. ! we do singlet response
             linres_control%do_kernel = .FALSE. ! we do uncoupled response
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
             !
             !
             ! copy the response
@@ -327,7 +327,7 @@ CONTAINS
          linres_control%lr_triplet = .TRUE. ! we do triplet response
          linres_control%do_kernel = .TRUE. ! we do coupled response
          linres_control%converged = .FALSE.
-         CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+         CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
          !
          !
          ! copy the response
@@ -385,7 +385,7 @@ CONTAINS
             linres_control%lr_triplet = .FALSE. ! we do singlet response
             linres_control%do_kernel = .TRUE. ! we do uncoupled response
             linres_control%converged = .FALSE.
-            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+            CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
             !
             !
             ! copy the response
@@ -943,7 +943,7 @@ CONTAINS
                             first_sgf=first_sgf, &
                             last_sgf=last_sgf)
       ALLOCATE (row_blk_sizes(natom))
-      CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+      CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
       DEALLOCATE (first_sgf)
       DEALLOCATE (last_sgf)
 

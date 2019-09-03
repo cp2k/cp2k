@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 MODULE ai_os_rr
@@ -21,7 +21,7 @@ MODULE ai_os_rr
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief   Calculation of the basic Obara-Saika reccurence relation
+!> \brief   Calculation of the basic Obara-Saika recurrence relation
 !> \param rap ...
 !> \param la_max ...
 !> \param rbp ...
@@ -98,7 +98,7 @@ CONTAINS
    END SUBROUTINE os_rr_ovlp
 
 ! **************************************************************************************************
-!> \brief   Calculation of the Obara-Saika reccurence relation for 1/r_C
+!> \brief   Calculation of the Obara-Saika recurrence relation for 1/r_C
 !> \param rap ...
 !> \param la_max ...
 !> \param rbp ...

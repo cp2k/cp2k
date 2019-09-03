@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -79,24 +79,22 @@ MODULE qs_ks_types
    PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env
 
 ! **************************************************************************************************
-!> \brief calculation environement to calculate the ks matrix,
+!> \brief calculation environment to calculate the ks matrix,
 !>      holds all the needed vars.
 !>      assumes that the core hamiltonian and energy are up to date.
 !> \param s_mstruct_changed if the sparsity structure of s in qs_env where this
 !>        ks_env lives has changed
 !> \param rho_changed if the rho stored in the qs_env has changed
 !> \param forces_up_to_date if the forces are up to date
-!> \param potential_changed if some external potentian changed (such as due to the constraint)
+!> \param potential_changed if some external potential changed (such as due to the constraint)
 !>
 !> \param matrix_h core hamiltonian (matrix_h(1)), if needed by the calculation also
 !>        its derivatives wrt. x,y, and z (matrix_h(2:4))
-!> \param matrix_ks Khon-Sham matrix (filtred by the structure of S).
-!>        with LSD an array with the differents orbitals
+!> \param matrix_ks Khon-Sham matrix (filtered by the structure of S).
+!>        with LSD an array with the different orbitals
 !> \param matrix_s the overlap matrix (matrix_s(1)), if needed by the calculation also
 !>        its derivatives wrt. x,y, and z (matrix_s(2:4))
 !> \param kinetic kinetic part of h
-!> \param gamma_matrix gamma (Coulomb) matrix in DFTB, if needed by the calculation also
-!>        its derivatives wrt. x,y, and z
 !>
 !> \param rho the (old) density, in various representations (ao+grid)
 !> \param rho_xc the (old) soft density, used for the GAPW_XC method only
@@ -115,6 +113,7 @@ MODULE qs_ks_types
 !> \param sac_tbe: neighbor lists for the calculation of the tight binding
 !>        Ewald terms (DFTB)
 !> \param sab_core neighbor lists for the calculation of the core interactions
+!> \param sab_xb neighbor lists for the calculation of the XB interactions in xTB
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
 !> \param sab_vdw: neighbor lists for the calculation of dispersion interactions
@@ -146,7 +145,7 @@ MODULE qs_ks_types
                                                                id_nr = -1, &
                                                                ref_count = 1
 
-      ! hartree is supposed to contain the hartree potential (for cube ouput)
+      ! hartree is supposed to contain the hartree potential (for cube output)
       ! ugly to keep it always around only for a cube output...
       TYPE(pw_type), POINTER                                :: v_hartree_rspace => Null()
 
@@ -161,7 +160,6 @@ MODULE qs_ks_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(), &
                                                             matrix_w_mp2 => Null(), &
                                                             matrix_p_mp2 => Null(), &
-                                                            gamma_matrix => Null(), &
                                                             matrix_s_aux_fit => Null(), &
                                                             matrix_s_aux_fit_vs_orb => Null(), &
                                                             matrix_ks_aux_fit => Null(), &
@@ -193,6 +191,7 @@ MODULE qs_ks_types
                                                                sab_scp => Null(), &
                                                                sab_tbe => Null(), &
                                                                sab_core => Null(), &
+                                                               sab_xb => Null(), &
                                                                sab_all => Null(), &
                                                                sab_aux_fit => Null(), &
                                                                sab_aux_fit_vs_orb => Null(), &
@@ -273,7 +272,6 @@ CONTAINS
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
-!> \param gamma_matrix ...
 !> \param matrix_h_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
@@ -306,6 +304,7 @@ CONTAINS
 !> \param sab_se ...
 !> \param sab_tbe ...
 !> \param sab_core ...
+!> \param sab_xb ...
 !> \param sab_vdw ...
 !> \param sab_scp ...
 !> \param sab_almo ...
@@ -350,7 +349,7 @@ CONTAINS
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, &
                          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
                          kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-                         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix, &
+                         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, &
                          rho, rho_aux_fit, rho_aux_fit_buffer, &
@@ -359,7 +358,7 @@ CONTAINS
                          neighbor_list_id, &
                          sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
                          sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
-                         sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp, &
+                         sab_se, sab_tbe, sab_core, sab_xb, sab_vdw, sab_scp, sab_almo, sab_kp, &
                          task_list, task_list_aux_fit, task_list_soft, &
                          kpoints, do_kpoints, &
                          atomic_kind_set, qs_kind_set, cell, cell_ref, use_ref_cell, &
@@ -375,7 +374,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
+         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -387,7 +386,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
          sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, &
-         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
+         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, sab_vdw, sab_scp, sab_almo, sab_kp
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
                                                             task_list_soft
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
@@ -459,7 +458,6 @@ CONTAINS
       IF (PRESENT(matrix_s_aux_fit_vs_orb)) matrix_s_aux_fit_vs_orb => ks_env%matrix_s_aux_fit_vs_orb
       IF (PRESENT(matrix_w_mp2)) matrix_w_mp2 => ks_env%matrix_w_mp2
       IF (PRESENT(matrix_p_mp2)) matrix_p_mp2 => ks_env%matrix_p_mp2
-      IF (PRESENT(gamma_matrix)) gamma_matrix => ks_env%gamma_matrix
       IF (PRESENT(rho)) rho => ks_env%rho
       IF (PRESENT(rho_aux_fit)) rho_aux_fit => ks_env%rho_aux_fit
       IF (PRESENT(rho_aux_fit_buffer)) rho_aux_fit_buffer => ks_env%rho_aux_fit_buffer
@@ -488,6 +486,7 @@ CONTAINS
       IF (PRESENT(sab_lrc)) sab_lrc => ks_env%sab_lrc
       IF (PRESENT(sab_tbe)) sab_tbe => ks_env%sab_tbe
       IF (PRESENT(sab_core)) sab_core => ks_env%sab_core
+      IF (PRESENT(sab_xb)) sab_xb => ks_env%sab_xb
       IF (PRESENT(sab_almo)) sab_almo => ks_env%sab_almo
       IF (PRESENT(sab_kp)) sab_kp => ks_env%sab_kp
       IF (PRESENT(dft_control)) dft_control => ks_env%dft_control
@@ -556,7 +555,6 @@ CONTAINS
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
-!> \param gamma_matrix ...
 !> \param matrix_h_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
@@ -585,6 +583,7 @@ CONTAINS
 !> \param sab_se ...
 !> \param sab_tbe ...
 !> \param sab_core ...
+!> \param sab_xb ...
 !> \param sab_vdw ...
 !> \param sab_scp ...
 !> \param sab_almo ...
@@ -606,7 +605,7 @@ CONTAINS
                          potential_changed, forces_up_to_date, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
                          matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, &
-                         matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix, &
+                         matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
@@ -614,7 +613,7 @@ CONTAINS
                          kpoints, &
                          sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
                          sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
-                         sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp, &
+                         sab_se, sab_tbe, sab_core, sab_xb, sab_vdw, sab_scp, sab_almo, sab_kp, &
                          task_list, task_list_aux_fit, task_list_soft, &
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
                          para_env, blacs_env, admm_dm)
@@ -626,7 +625,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
+         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -637,7 +636,7 @@ CONTAINS
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
          sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, &
-         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
+         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, sab_vdw, sab_scp, sab_almo, sab_kp
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
                                                             task_list_soft
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
@@ -690,7 +689,6 @@ CONTAINS
       IF (PRESENT(matrix_s_aux_fit_vs_orb)) ks_env%matrix_s_aux_fit_vs_orb => matrix_s_aux_fit_vs_orb
       IF (PRESENT(matrix_w_mp2)) ks_env%matrix_w_mp2 => matrix_w_mp2
       IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
-      IF (PRESENT(gamma_matrix)) ks_env%gamma_matrix => gamma_matrix
       IF (PRESENT(rho_core)) ks_env%rho_core => rho_core
       IF (PRESENT(rho_nlcc)) ks_env%rho_nlcc => rho_nlcc
       IF (PRESENT(rho_nlcc_g)) ks_env%rho_nlcc_g => rho_nlcc_g
@@ -715,6 +713,7 @@ CONTAINS
       IF (PRESENT(sab_lrc)) ks_env%sab_lrc => sab_lrc
       IF (PRESENT(sab_tbe)) ks_env%sab_tbe => sab_tbe
       IF (PRESENT(sab_core)) ks_env%sab_core => sab_core
+      IF (PRESENT(sab_xb)) ks_env%sab_xb => sab_xb
       IF (PRESENT(sab_almo)) ks_env%sab_almo => sab_almo
       IF (PRESENT(sab_kp)) ks_env%sab_kp => sab_kp
       IF (PRESENT(admm_dm)) ks_env%admm_dm => admm_dm
@@ -808,8 +807,6 @@ CONTAINS
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2)
             IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
-            IF (ASSOCIATED(ks_env%gamma_matrix)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%gamma_matrix)
             IF (ASSOCIATED(ks_env%rho)) &
                CALL qs_rho_release(ks_env%rho)
             IF (ASSOCIATED(ks_env%rho_buffer)) &
@@ -865,6 +862,7 @@ CONTAINS
             CALL release_sab(ks_env%sab_scp)
             CALL release_sab(ks_env%sab_tbe)
             CALL release_sab(ks_env%sab_core)
+            CALL release_sab(ks_env%sab_xb)
             CALL release_sab(ks_env%sab_all)
             CALL release_sab(ks_env%sab_aux_fit)
             CALL release_sab(ks_env%sab_aux_fit_vs_orb)
@@ -926,7 +924,7 @@ CONTAINS
 !> \brief tells that some of the things relevant to the ks calculation
 !>      did change. has to be called when changes happen otherwise
 !>      the calculation will give wrong results.
-!> \param ks_env the environement that is informed about the changes
+!> \param ks_env the environment that is informed about the changes
 !> \param s_mstruct_changed if true it means that the structure of the
 !>        overlap matrix has changed
 !>        (atoms have moved)

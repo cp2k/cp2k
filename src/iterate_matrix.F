@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 ! **************************************************************************************************
 !> \brief Routines useful for iterative matrix calculations
@@ -11,6 +11,8 @@
 MODULE iterate_matrix
    USE arnoldi_api,                     ONLY: arnoldi_data_type,&
                                               arnoldi_extremal
+   USE bibliography,                    ONLY: Richters2018,&
+                                              cite_reference
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -39,6 +41,7 @@ MODULE iterate_matrix
    END INTERFACE
 
    PUBLIC :: invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz, &
+             matrix_sqrt_proot, matrix_sign_proot, &
              purify_mcweeny, invert_Taylor, determinant
 
 CONTAINS
@@ -69,7 +72,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, max_iter_lanczos, nsize, &
                                                             order_lanczos, sign_iter, unit_nr
-      INTEGER(KIND=int_8)                                :: flop1, flop2
+      INTEGER(KIND=int_8)                                :: flop1
       INTEGER, SAVE                                      :: recursion_depth = 0
       REAL(KIND=dp)                                      :: det0, eps_lanczos, frobnorm, maxnorm, &
                                                             occ_matrix, t1, t2, trace
@@ -81,7 +84,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -203,7 +206,7 @@ CONTAINS
                WRITE (unit_nr, '(T6,A,1X,I3,1X,F7.5,F16.10,F10.3,F11.3)') &
                   "Determinant iter", i, occ_matrix, &
                   det, t2-t1, &
-                  (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+                  flop1/(1.0E6_dp*MAX(0.001_dp, t2-t1))
                CALL m_flush(unit_nr)
             ENDIF
 
@@ -283,7 +286,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -474,7 +477,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -649,37 +652,54 @@ CONTAINS
 !> \param matrix_sign ...
 !> \param matrix ...
 !> \param threshold ...
+!> \param sign_order ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
-!> \author Joost VandeVondele
+!>       2019.05 extended to order byxond 2 [Robert Schade]
+!> \author Joost VandeVondele, Robert Schade
 ! **************************************************************************************************
-   SUBROUTINE matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold)
+   SUBROUTINE matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
+      INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_Newton_Schulz', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: count, handle, i, unit_nr
-      INTEGER(KIND=int_8)                                :: flop1, flop2
-      REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base, &
-                                                            gersh_matrix, occ_matrix, t1, t2
+      INTEGER                                            :: count, handle, i, order, unit_nr
+      INTEGER(KIND=int_8)                                :: flops
+      REAL(KIND=dp)                                      :: a0, a1, a2, a3, a4, a5, floptot, &
+                                                            frob_matrix, frob_matrix_base, &
+                                                            gersh_matrix, occ_matrix, prefactor, &
+                                                            t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: tmp1, tmp2
+      TYPE(dbcsr_type)                                   :: tmp1, tmp2, tmp3, tmp4
 
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
       ENDIF
 
+      IF (PRESENT(sign_order)) THEN
+         order = sign_order
+      ELSE
+         order = 2
+      ENDIF
+
       CALL dbcsr_create(tmp1, template=matrix_sign)
 
       CALL dbcsr_create(tmp2, template=matrix_sign)
+      IF (order .GE. 4) THEN
+         CALL dbcsr_create(tmp3, template=matrix_sign)
+      ENDIF
+      IF (order .GE. 7) THEN
+         CALL dbcsr_create(tmp4, template=matrix_sign)
+      ENDIF
 
       CALL dbcsr_copy(matrix_sign, matrix)
       CALL dbcsr_filter(matrix_sign, threshold)
@@ -693,34 +713,233 @@ CONTAINS
 
       count = 0
       DO i = 1, 100
-
+         floptot = 0_dp
          t1 = m_walltime()
          ! tmp1 = X * X
          CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_sign, matrix_sign, 0.0_dp, tmp1, &
-                             filter_eps=threshold, flop=flop1)
+                             filter_eps=threshold, flop=flops)
+         floptot = floptot+flops
 
          ! check convergence (frob norm of what should be the identity matrix minus identity matrix)
          frob_matrix_base = dbcsr_frobenius_norm(tmp1)
          CALL dbcsr_add_on_diag(tmp1, +1.0_dp)
          frob_matrix = dbcsr_frobenius_norm(tmp1)
 
-         ! update the above to 3*I-X*X
-         CALL dbcsr_add_on_diag(tmp1, +2.0_dp)
-         occ_matrix = dbcsr_get_occupation(matrix_sign)
+         ! f(y) approx 1/sqrt(1-y)
+         ! f(y)=1+y/2+3/8*y^2+5/16*y^3+35/128*y^4+63/256*y^5+231/1024*y^6
+         ! f2(y)=1+y/2=1/2*(2+y)
+         ! f3(y)=1+y/2+3/8*y^2=3/8*(8/3+4/3*y+y^2)
+         ! f4(y)=1+y/2+3/8*y^2+5/16*y^3=5/16*(16/5+8/5*y+6/5*y^2+y^3)
+         ! f5(y)=1+y/2+3/8*y^2+5/16*y^3+35/128*y^4=35/128*(128/35+128/70*y+48/35*y^2+8/7*y^3+y^4)
+         !      z(y)=(y+a_0)*y+a_1
+         ! f5(y)=35/128*((z(y)+y+a_2)*z(y)+a_3)
+         !      =35/128*((a_1^2+a_1a_2+a_3)+(2*a_0a_1+a_1+a_0a_2)y+(a_0^2+a_0+2a_1+a_2)y^2+(2a_0+1)y^3+y^4)
+         !    a_0=1/14
+         !    a_1=23819/13720
+         !    a_2=1269/980-2a_1=-3734/1715
+         !    a_3=832591127/188238400
+         ! f6(y)=1+y/2+3/8*y^2+5/16*y^3+35/128*y^4+63/256*y^5
+         !      =63/256*(256/63 + (128 y)/63 + (32 y^2)/21 + (80 y^3)/63 + (10 y^4)/9 + y^5)
+         ! f7(y)=1+y/2+3/8*y^2+5/16*y^3+35/128*y^4+63/256*y^5+231/1024*y^6
+         !      =231/1024*(1024/231+512/231*y+128/77*y^2+320/231*y^3+40/33*y^4+12/11*y^5+y^6)
+         ! z(y)=(y+a_0)*y+a_1
+         ! w(y)=(y+a_2)*z(y)+a_3
+         ! f7(y)=(w(y)+z(y)+a_4)*w(y)+a_5
+         ! a_0= 1.3686502058092053653287666647611728507211996691324048468010382350359929055186612505791532871573242422
+         ! a_1= 1.7089671854477436685850554669524985556296280184497503489303331821456795715195510972774979091893741568
+         ! a_2=-1.3231956603546599107833121193066273961757451236778593922555836895814474509732067051246078326118696968
+         ! a_3= 3.9876642330847931291749479958277754186675336169578593000744380254770411483327581042259415937710270453
+         ! a_4=-3.7273299006476825027065704937541279833880400042556351139273912137942678919776364526511485025132991667
+         ! a_5= 4.9369932474103023792021351907971943220607580694533770325967170245194362399287150565595441897740173578
+         !
+         ! y=1-X*X
 
-         ! tmp2 = 0.5 * X * (3*I-X*X)
-         CALL dbcsr_multiply("N", "N", 0.5_dp, matrix_sign, tmp1, 0.0_dp, tmp2, &
-                             filter_eps=threshold, flop=flop2)
+         ! tmp1 = I-x*x
+         IF (order .EQ. 2) THEN
+            prefactor = 0.5_dp
+
+            ! update the above to 3*I-X*X
+            CALL dbcsr_add_on_diag(tmp1, +2.0_dp)
+            occ_matrix = dbcsr_get_occupation(matrix_sign)
+         ELSE IF (order .EQ. 3) THEN
+            ! with one multiplication
+            ! tmp1=y
+            CALL dbcsr_copy(tmp2, tmp1)
+            CALL dbcsr_scale(tmp1, 4.0_dp/3.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 8.0_dp/3.0_dp)
+
+            ! tmp2=y^2
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp2, 1.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+            prefactor = 3.0_dp/8.0_dp
+
+         ELSE IF (order .EQ. 4) THEN
+            ! with two multiplications
+            ! tmp1=y
+            CALL dbcsr_copy(tmp3, tmp1)
+            CALL dbcsr_scale(tmp1, 8.0_dp/5.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 16.0_dp/5.0_dp)
+
+            !
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp3, 0.0_dp, tmp2, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 6.0_dp/5.0_dp)
+
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            prefactor = 5.0_dp/16.0_dp
+         ELSE IF (order .EQ. -5) THEN
+            ! with three multiplications
+            ! tmp1=y
+            CALL dbcsr_copy(tmp3, tmp1)
+            CALL dbcsr_scale(tmp1, 128.0_dp/70.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 128.0_dp/35.0_dp)
+
+            !
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp3, 0.0_dp, tmp2, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 48.0_dp/35.0_dp)
+
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 8.0_dp/7.0_dp)
+
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            prefactor = 35.0_dp/128.0_dp
+         ELSE IF (order .EQ. 5) THEN
+            ! with two multiplications
+            !      z(y)=(y+a_0)*y+a_1
+            ! f5(y)=35/128*((z(y)+y+a_2)*z(y)+a_3)
+            !      =35/128*((a_1^2+a_1a_2+a_3)+(2*a_0a_1+a_1+a_0a_2)y+(a_0^2+a_0+2a_1+a_2)y^2+(2a_0+1)y^3+y^4)
+            !    a_0=1/14
+            !    a_1=23819/13720
+            !    a_2=1269/980-2a_1=-3734/1715
+            !    a_3=832591127/188238400
+            a0 = 1.0_dp/14.0_dp
+            a1 = 23819.0_dp/13720.0_dp
+            a2 = -3734_dp/1715.0_dp
+            a3 = 832591127_dp/188238400.0_dp
+
+            ! tmp1=y
+            ! tmp3=z
+            CALL dbcsr_copy(tmp3, tmp1)
+            CALL dbcsr_add_on_diag(tmp3, a0)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp3, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+            CALL dbcsr_add_on_diag(tmp3, a1)
+
+            CALL dbcsr_add_on_diag(tmp1, a2)
+            CALL dbcsr_add(tmp1, tmp3, 1.0_dp, 1.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp3, 0.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+            CALL dbcsr_add_on_diag(tmp1, a3)
+
+            prefactor = 35.0_dp/128.0_dp
+         ELSE IF (order .EQ. 6) THEN
+            ! with four multiplications
+            ! f6(y)=63/256*(256/63 + (128 y)/63 + (32 y^2)/21 + (80 y^3)/63 + (10 y^4)/9 + y^5)
+            ! tmp1=y
+            CALL dbcsr_copy(tmp3, tmp1)
+            CALL dbcsr_scale(tmp1, 128.0_dp/63.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 256.0_dp/63.0_dp)
+
+            !
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp3, 0.0_dp, tmp2, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 32.0_dp/21.0_dp)
+
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 80.0_dp/63.0_dp)
+
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 10.0_dp/9.0_dp)
+
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+
+            prefactor = 63.0_dp/256.0_dp
+         ELSE IF (order .EQ. 7) THEN
+            ! with three multiplications
+
+            a0 = 1.3686502058092053653287666647611728507211996691324048468010382350359929055186612505791532871573242422_dp
+            a1 = 1.7089671854477436685850554669524985556296280184497503489303331821456795715195510972774979091893741568_dp
+            a2 = -1.3231956603546599107833121193066273961757451236778593922555836895814474509732067051246078326118696968_dp
+            a3 = 3.9876642330847931291749479958277754186675336169578593000744380254770411483327581042259415937710270453_dp
+            a4 = -3.7273299006476825027065704937541279833880400042556351139273912137942678919776364526511485025132991667_dp
+            a5 = 4.9369932474103023792021351907971943220607580694533770325967170245194362399287150565595441897740173578_dp
+            !      =231/1024*(1024/231+512/231*y+128/77*y^2+320/231*y^3+40/33*y^4+12/11*y^5+y^6)
+            ! z(y)=(y+a_0)*y+a_1
+            ! w(y)=(y+a_2)*z(y)+a_3
+            ! f7(y)=(w(y)+z(y)+a_4)*w(y)+a_5
+
+            ! tmp1=y
+            ! tmp3=z
+            CALL dbcsr_copy(tmp3, tmp1)
+            CALL dbcsr_add_on_diag(tmp3, a0)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp3, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+            CALL dbcsr_add_on_diag(tmp3, a1)
+
+            ! tmp4=w
+            CALL dbcsr_copy(tmp4, tmp1)
+            CALL dbcsr_add_on_diag(tmp4, a2)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp4, tmp3, 0.0_dp, tmp4, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+            CALL dbcsr_add_on_diag(tmp4, a3)
+
+            CALL dbcsr_add(tmp3, tmp4, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add_on_diag(tmp3, a4)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp4, 0.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flops)
+            floptot = floptot+flops
+            CALL dbcsr_add_on_diag(tmp1, a5)
+
+            prefactor = 231.0_dp/1024.0_dp
+         ELSE
+            CPABORT("requested order is not implemented.")
+         ENDIF
+
+         ! tmp2 = X * prefactor *
+         CALL dbcsr_multiply("N", "N", prefactor, matrix_sign, tmp1, 0.0_dp, tmp2, &
+                             filter_eps=threshold, flop=flops)
+         floptot = floptot+flops
 
          ! done iterating
          ! CALL dbcsr_filter(tmp2,threshold)
          CALL dbcsr_copy(matrix_sign, tmp2)
          t2 = m_walltime()
 
+         occ_matrix = dbcsr_get_occupation(matrix_sign)
+
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sign iter ", i, occ_matrix, &
                frob_matrix/frob_matrix_base, t2-t1, &
-               (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+               floptot/(1.0E6_dp*MAX(0.001_dp, t2-t1))
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -745,10 +964,110 @@ CONTAINS
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
+      IF (order .GE. 4) THEN
+         CALL dbcsr_release(tmp3)
+      ENDIF
+      IF (order .GE. 7) THEN
+         CALL dbcsr_release(tmp4)
+      ENDIF
 
       CALL timestop(handle)
 
    END SUBROUTINE matrix_sign_Newton_Schulz
+
+   ! **************************************************************************************************
+!> \brief compute the sign a matrix using the general algorithm for the p-th root of Richters et al.
+!>                   Commun. Comput. Phys., 25 (2019), pp. 564-585.
+!> \param matrix_sign ...
+!> \param matrix ...
+!> \param threshold ...
+!> \param sign_order ...
+!> \par History
+!>       2019.03 created [Robert Schade]
+!> \author Robert Schade
+! **************************************************************************************************
+   SUBROUTINE matrix_sign_proot(matrix_sign, matrix, threshold, sign_order)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
+      REAL(KIND=dp), INTENT(IN)                          :: threshold
+      INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, order, unit_nr
+      INTEGER(KIND=int_8)                                :: flop0, flop1, flop2
+      LOGICAL                                            :: converged, symmetrize
+      REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base, occ_matrix
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix2, matrix_sqrt, matrix_sqrt_inv, &
+                                                            tmp1, tmp2
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%ionode) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
+
+      IF (PRESENT(sign_order)) THEN
+         order = sign_order
+      ELSE
+         order = 2
+      ENDIF
+
+      CALL dbcsr_create(tmp1, template=matrix_sign)
+
+      CALL dbcsr_create(tmp2, template=matrix_sign)
+
+      CALL dbcsr_create(matrix2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix, 0.0_dp, matrix2, &
+                          filter_eps=threshold, flop=flop0)
+      !CALL dbcsr_filter(matrix2, threshold)
+
+      !CALL dbcsr_copy(matrix_sign, matrix)
+      !CALL dbcsr_filter(matrix_sign, threshold)
+
+      IF (unit_nr > 0) WRITE (unit_nr, *)
+
+      CALL dbcsr_create(matrix_sqrt, template=matrix2)
+      CALL dbcsr_create(matrix_sqrt_inv, template=matrix2)
+      IF (unit_nr > 0) WRITE (unit_nr, *) "Threshold=", threshold
+
+      symmetrize = .FALSE.
+      CALL matrix_sqrt_proot(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, order, &
+                             0.01_dp, 100, symmetrize, converged)
+!      call matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, order, &
+!                                        0.01_dp,100, symmetrize,converged)
+
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_sqrt_inv, 0.0_dp, matrix_sign, &
+                          filter_eps=threshold, flop=flop1)
+
+      ! this check is not really needed
+      CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sign, matrix_sign, 0.0_dp, tmp1, &
+                          filter_eps=threshold, flop=flop2)
+      frob_matrix_base = dbcsr_frobenius_norm(tmp1)
+      CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
+      frob_matrix = dbcsr_frobenius_norm(tmp1)
+      occ_matrix = dbcsr_get_occupation(matrix_sign)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T6,A,F10.8,E12.3)') "Final proot sign iter", occ_matrix, &
+            frob_matrix/frob_matrix_base
+         WRITE (unit_nr, '()')
+         CALL m_flush(unit_nr)
+      ENDIF
+
+      CALL dbcsr_release(tmp1)
+      CALL dbcsr_release(tmp2)
+      CALL dbcsr_release(matrix2)
+      CALL dbcsr_release(matrix_sqrt)
+      CALL dbcsr_release(matrix_sqrt_inv)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE matrix_sign_proot
 
 ! **************************************************************************************************
 !> \brief compute the sqrt of a matrix via the sign function and the corresponding Newton-Schulz iterations
@@ -760,26 +1079,27 @@ CONTAINS
 !> \param order ...
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
+!> \param symmetrize ...
 !> \param converged ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
-                                        eps_lanczos, max_iter_lanczos, converged)
+                                        eps_lanczos, max_iter_lanczos, symmetrize, converged)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sqrt, matrix_sqrt_inv, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
-      LOGICAL, OPTIONAL                                  :: converged
+      LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, unit_nr
       INTEGER(KIND=int_8)                                :: flop1, flop2, flop3, flop4, flop5
-      LOGICAL                                            :: arnoldi_converged
+      LOGICAL                                            :: arnoldi_converged, tsym
       REAL(KIND=dp)                                      :: a, b, c, conv, d, frob_matrix, &
                                                             frob_matrix_base, gershgorin_norm, &
                                                             max_ev, min_ev, oa, ob, oc, &
@@ -790,13 +1110,18 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
       ENDIF
 
       IF (PRESENT(converged)) converged = .FALSE.
+      IF (PRESENT(symmetrize)) THEN
+         tsym = symmetrize
+      ELSE
+         tsym = .TRUE.
+      ENDIF
 
       ! for stability symmetry can not be assumed
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -836,6 +1161,10 @@ CONTAINS
 
       CALL dbcsr_scale(matrix_sqrt, scaling)
       CALL dbcsr_filter(matrix_sqrt, threshold)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, *) "Order=", order
+      ENDIF
 
       DO i = 1, 100
 
@@ -950,10 +1279,15 @@ CONTAINS
       ENDDO
 
       ! symmetrize the matrices as this is not guaranteed by the algorithm
-      CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
-      CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
-      CALL dbcsr_transposed(tmp1, matrix_sqrt)
-      CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
+      IF (tsym) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A20)') "SYMMETRIZING RESULTS"
+         ENDIF
+         CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
+         CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
+         CALL dbcsr_transposed(tmp1, matrix_sqrt)
+         CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
+      ENDIF
 
       ! this check is not really needed
       CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1, &
@@ -984,6 +1318,241 @@ CONTAINS
    END SUBROUTINE matrix_sqrt_Newton_Schulz
 
 ! **************************************************************************************************
+!> \brief compute the sqrt of a matrix via the general algorithm for the p-th root of Richters et al.
+!>                   Commun. Comput. Phys., 25 (2019), pp. 564-585.
+!> \param matrix_sqrt ...
+!> \param matrix_sqrt_inv ...
+!> \param matrix ...
+!> \param threshold ...
+!> \param order ...
+!> \param eps_lanczos ...
+!> \param max_iter_lanczos ...
+!> \param symmetrize ...
+!> \param converged ...
+!> \par History
+!>       2019.04 created [Robert Schade]
+!> \author Robert Schade
+! **************************************************************************************************
+   SUBROUTINE matrix_sqrt_proot(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
+                                eps_lanczos, max_iter_lanczos, symmetrize, converged)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sqrt, matrix_sqrt_inv, matrix
+      REAL(KIND=dp), INTENT(IN)                          :: threshold
+      INTEGER, INTENT(IN)                                :: order
+      REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
+      INTEGER, INTENT(IN)                                :: max_iter_lanczos
+      LOGICAL, OPTIONAL                                  :: symmetrize, converged
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: choose, handle, i, ii, j, unit_nr
+      INTEGER(KIND=int_8)                                :: f, flop1, flop2, flop3, flop4, flop5
+      LOGICAL                                            :: arnoldi_converged, test, tsym
+      REAL(KIND=dp)                                      :: conv, frob_matrix, frob_matrix_base, &
+                                                            max_ev, min_ev, occ_matrix, scaling, &
+                                                            t1, t2
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: BK2A, matrixS, Rmat, tmp1, tmp2
+
+      CALL cite_reference(Richters2018)
+
+      test = .FALSE.
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%ionode) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
+
+      IF (PRESENT(converged)) converged = .FALSE.
+      IF (PRESENT(symmetrize)) THEN
+         tsym = symmetrize
+      ELSE
+         tsym = .TRUE.
+      ENDIF
+
+      ! for stability symmetry can not be assumed
+      CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(tmp2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(Rmat, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(matrixS, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+
+      CALL dbcsr_copy(matrixS, matrix)
+      IF (1 .EQ. 1) THEN
+         ! scale the matrix to get into the convergence range
+         CALL arnoldi_extremal(matrixS, max_ev, min_ev, threshold=eps_lanczos, &
+                               max_iter=max_iter_lanczos, converged=arnoldi_converged)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *)
+            WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", eps_lanczos
+            WRITE (unit_nr, '(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:", max_ev, min_ev
+            WRITE (unit_nr, '(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev, EPSILON(min_ev))
+         ENDIF
+         ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
+         ! and adjust the scaling to be on the safe side
+         scaling = 2.0_dp/(max_ev+min_ev+100*eps_lanczos)
+         CALL dbcsr_scale(matrixS, scaling)
+         CALL dbcsr_filter(matrixS, threshold)
+      ELSE
+         scaling = 1.0_dp
+      ENDIF
+
+      CALL dbcsr_set(matrix_sqrt_inv, 0.0_dp)
+      CALL dbcsr_add_on_diag(matrix_sqrt_inv, 1.0_dp)
+      !CALL dbcsr_filter(matrix_sqrt_inv, threshold)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, *) "Order=", order
+      ENDIF
+
+      DO i = 1, 100
+
+         t1 = m_walltime()
+         IF (1 .EQ. 1) THEN
+            !build R=1-A B_K^2
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix_sqrt_inv, 0.0_dp, tmp1, &
+                                filter_eps=threshold, flop=flop1)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrixS, tmp1, 0.0_dp, Rmat, &
+                                filter_eps=threshold, flop=flop2)
+            CALL dbcsr_scale(Rmat, -1.0_dp)
+            CALL dbcsr_add_on_diag(Rmat, 1.0_dp)
+
+            flop4 = 0; flop5 = 0
+            CALL dbcsr_set(tmp1, 0.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 2.0_dp)
+
+            flop3 = 0
+
+            DO j = 2, order
+               IF (j .EQ. 2) THEN
+                  CALL dbcsr_copy(tmp2, Rmat)
+               ELSE
+                  f = 0
+                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, Rmat, 0.0_dp, tmp2, &
+                                      filter_eps=threshold, flop=f)
+                  flop3 = flop3+f
+               ENDIF
+               CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 1.0_dp)
+            ENDDO
+         ELSE
+            CALL dbcsr_create(BK2A, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrixS, 0.0_dp, BK2A, &
+                                filter_eps=threshold, flop=flop1)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, BK2A, 0.0_dp, BK2A, &
+                                filter_eps=threshold, flop=flop2)
+            CALL dbcsr_copy(Rmat, BK2A)
+            CALL dbcsr_add_on_diag(Rmat, -1.0_dp)
+
+            CALL dbcsr_set(tmp1, 0.0_dp)
+            CALL dbcsr_add_on_diag(tmp1, 1.0_dp)
+
+            CALL dbcsr_set(tmp2, 0.0_dp)
+            CALL dbcsr_add_on_diag(tmp2, 1.0_dp)
+
+            flop3 = 0
+            DO j = 1, order
+               !choose=factorial(order)/(factorial(j)*factorial(order-j))
+               choose = PRODUCT((/(ii, ii=1, order)/))/(PRODUCT((/(ii, ii=1, j)/))*PRODUCT((/(ii, ii=1, order-j)/)))
+               CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose)
+               IF (j .LT. order) THEN
+                  f = 0
+                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, BK2A, 0.0_dp, tmp2, &
+                                      filter_eps=threshold, flop=f)
+                  flop3 = flop3+f
+               ENDIF
+            ENDDO
+            CALL dbcsr_release(BK2A)
+         ENDIF
+
+         CALL dbcsr_multiply("N", "N", 0.5_dp, matrix_sqrt_inv, tmp1, 0.0_dp, matrix_sqrt_inv, &
+                             filter_eps=threshold, flop=flop4)
+
+         occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
+
+         ! done iterating
+         t2 = m_walltime()
+
+         conv = dbcsr_frobenius_norm(Rmat)
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "PROOT sqrt iter ", i, occ_matrix, &
+               conv, t2-t1, &
+               (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+            CALL m_flush(unit_nr)
+         ENDIF
+
+         IF (abnormal_value(conv)) &
+            CPABORT("conv is an abnormal value (NaN/Inf).")
+
+         ! conv < SQRT(threshold)
+         IF ((conv*conv) < threshold) THEN
+            IF (PRESENT(converged)) converged = .TRUE.
+            EXIT
+         ENDIF
+
+      ENDDO
+
+      ! scale to proper end results
+      CALL dbcsr_scale(matrix_sqrt_inv, SQRT(scaling))
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix, 0.0_dp, matrix_sqrt, &
+                          filter_eps=threshold, flop=flop5)
+
+      ! symmetrize the matrices as this is not guaranteed by the algorithm
+      IF (tsym) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A20)') "SYMMETRIZING RESULTS"
+         ENDIF
+         CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
+         CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
+         CALL dbcsr_transposed(tmp1, matrix_sqrt)
+         CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
+      ENDIF
+
+      ! this check is not really needed
+      IF (test) THEN
+         CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1, &
+                             filter_eps=threshold)
+         frob_matrix_base = dbcsr_frobenius_norm(tmp1)
+         CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
+         frob_matrix = dbcsr_frobenius_norm(tmp1)
+         occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3)') "Final PROOT S^{-1/2} S^{1/2}-Eins error ", i, occ_matrix, &
+               frob_matrix/frob_matrix_base
+            WRITE (unit_nr, '()')
+            CALL m_flush(unit_nr)
+         ENDIF
+
+         ! this check is not really needed
+         CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt_inv, 0.0_dp, tmp2, &
+                             filter_eps=threshold)
+         CALL dbcsr_multiply("N", "N", +1.0_dp, tmp2, matrix, 0.0_dp, tmp1, &
+                             filter_eps=threshold)
+         frob_matrix_base = dbcsr_frobenius_norm(tmp1)
+         CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
+         frob_matrix = dbcsr_frobenius_norm(tmp1)
+         occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3)') "Final PROOT S^{-1/2} S^{-1/2} S-Eins error ", i, occ_matrix, &
+               frob_matrix/frob_matrix_base
+            WRITE (unit_nr, '()')
+            CALL m_flush(unit_nr)
+         ENDIF
+      ENDIF
+
+      CALL dbcsr_release(tmp1)
+      CALL dbcsr_release(tmp2)
+      CALL dbcsr_release(Rmat)
+      CALL dbcsr_release(matrixS)
+
+      CALL timestop(handle)
+   END SUBROUTINE matrix_sqrt_proot
+
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix_exp ...
 !> \param matrix ...
@@ -1009,7 +1578,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1114,7 +1683,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1180,7 +1749,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

@@ -3,10 +3,12 @@
 # author: Ole Schuett
 
 # install Ubuntu packages
-apt-get update
-apt-get install -y --no-install-recommends \
+apt-get update -qq
+apt-get install -qq --no-install-recommends \
     python                \
     python3               \
+    libpython-stdlib      \
+    libpython3-stdlib     \
     python-pip            \
     python3-pip           \
     python-wheel          \
@@ -19,18 +21,15 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip  install numpy matplotlib requests
-pip3 install numpy matplotlib requests
+pip  install --quiet numpy matplotlib requests
+pip3 install --quiet numpy matplotlib requests pre-commit
 
-# install python2.6
-cd /tmp
-wget -q https://www.python.org/ftp/python/2.6.9/Python-2.6.9.tgz
-tar -xzf Python-2.6.9.tgz
-pushd Python-2.6.9
-./configure
-make -j
-make install
-popd
-rm -rf Python-2.6.9*
+cd /workspace/cp2k
+echo -n "Warming cache by trying to run pre-commit hooks... "
+if pre-commit run --all-files --hook-stage manual check-ast &> /dev/null ; then
+    echo "done."
+else
+    echo "failed."
+fi
 
 #EOF

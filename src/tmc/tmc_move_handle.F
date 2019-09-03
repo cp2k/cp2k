@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -851,7 +851,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief clear the statistics of accepting/rejection moves
-!>        because worker statistics will be add seperatelly on masters counters
+!>        because worker statistics will be add separately on masters counters
 !> \param move_types counters for acceptance/rejection
 !> \author Mandes 02.2013
 ! **************************************************************************************************

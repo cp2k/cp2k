@@ -25,6 +25,6 @@ si7c_kerker_test4_nopmix.inp                           1      5e-13             
 si7c_pulay_gapw.inp                                    1      5e-13             -32.83710556023730
 si7c_broy_gapw.inp                                     1      5e-13             -32.76991775855248
 si7c_broy_gapw_a04_atomic.inp                          1      5e-13             -32.83664474205771
-si7c_broy_gapw_a04_restart.inp                         1      5e-13             -32.83833607502124
+si7c_broy_gapw_a04_restart.inp                         1      5e-13             -32.70494373736445
 si7c_broy_gapw_a04_nopmix.inp                          1      5e-13             -32.84202168871438
 #EOF

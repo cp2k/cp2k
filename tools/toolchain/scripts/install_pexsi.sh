@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-pexsi_ver=${pexsi_ver:-0.10.2}
+pexsi_ver="0.10.2"
+pexsi_sha256="8714c71b76542e096211b537a9cb1ffb2c28f53eea4f5a92f94cc1ca1e7b499f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_pexsi=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_pexsi" ] && rm "${BUILDDIR}/setup_pexsi"
 
@@ -16,6 +17,7 @@ PEXSI_LDFLAGS=''
 PEXSI_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_pexsi" in
     __INSTALL__)
         echo "==================== Installing PEXSI ===================="
@@ -30,13 +32,13 @@ case "$with_pexsi" in
         require_env MPI_LIBS
         pkg_install_dir="${INSTALLDIR}/pexsi-${pexsi_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "pexsi_dist-${pexsi_ver} is already installed, skipping it."
         else
             if [ -f pexsi_v${pexsi_ver}.tar.gz ] ; then
                 echo "pexsi_v${pexsi_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${pexsi_sha256} \
                              https://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -53,7 +55,7 @@ case "$with_pexsi" in
                     -e "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|g" \
                     -e "s|\(PEXSI_BUILD_DIR *=\).*|\1 ${pkg_install_dir}|g" \
                     -e "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${MPI_LDFLAGS} ${MPI_LIBS} |g" \
-                    -e "s|\(LAPACK_LIB *=\).*|\1 ${MATH_LDFLAGS} ${MATH_LIBS}|g" \
+                    -e "s|\(LAPACK_LIB *=\).*|\1 ${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}")|g" \
                     -e "s|\(BLAS_LIB *=\).*|\1|g" \
                     -e "s|\(\bMETIS_LIB *=\).*|\1 ${METIS_LDFLAGS} ${METIS_LIBS}|g" \
                     -e "s|\(PARMETIS_LIB *=\).*|\1 ${PARMETIS_LDFLAGS} ${PARMETIS_LIBS}|g" \
@@ -79,7 +81,7 @@ case "$with_pexsi" in
 
             cp -r ./include/* ${pkg_install_dir}/include/  # bug: make install neglects most header files
 
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         PEXSI_CFLAGS="-I'${pkg_install_dir}/include'"
 
@@ -121,4 +123,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PEXSI_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${PEXSI_LIBS}|) \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_pexsi"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "pexsi"

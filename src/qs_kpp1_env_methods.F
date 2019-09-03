@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -102,7 +102,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief allocates and initializes a kpp1_env
-!> \param kpp1_env the environement to initialize
+!> \param kpp1_env the environment to initialize
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -126,7 +126,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the pertubation theory
-!> \param kpp1_env the kpp1 environement in which perform the calculation
+!> \param kpp1_env the kpp1 environment in which perform the calculation
 !> \param p_env ...
 !> \param qs_env kpp1's qs_env
 !> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1
@@ -176,7 +176,7 @@ CONTAINS
                rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, &
                poisson_env, input, scf_section, rho1_g, rho_ao)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
+      ionode = logger%para_env%ionode
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(ASSOCIATED(k_p_p1))

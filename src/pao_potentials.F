@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -38,7 +38,7 @@ MODULE pao_potentials
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Makes an educated guess for the intial potential based on positions of neighboring atoms
+!> \brief Makes an educated guess for the initial potential based on positions of neighboring atoms
 !> \param qs_env ...
 !> \param iatom ...
 !> \param block_V ...

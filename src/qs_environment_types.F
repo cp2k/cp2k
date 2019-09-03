@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -94,6 +94,8 @@ MODULE qs_environment_types
                                               qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_gcp_types,                    ONLY: qs_gcp_release,&
+                                              qs_gcp_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                               qs_ks_qmmm_release,&
@@ -277,6 +279,8 @@ MODULE qs_environment_types
       TYPE(lri_density_type), POINTER                       :: lri_density
       ! Empirical dispersion
       TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
+      ! Empirical geometrical BSSE correction
+      TYPE(qs_gcp_type), POINTER                            :: gcp_env
       ! Semi-empirical and DFTB types
       TYPE(ewald_environment_type), POINTER                 :: ewald_env
       TYPE(ewald_pw_type), POINTER                          :: ewald_pw
@@ -300,6 +304,8 @@ MODULE qs_environment_types
       TYPE(pw_p_type), POINTER                              :: spin_embed_pot
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env
+      ! Resp charges
+      REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs => NULL()
    END TYPE qs_environment_type
 
 ! **************************************************************************************************
@@ -346,6 +352,7 @@ CONTAINS
 !> \param sab_se ...
 !> \param sab_tbe ...
 !> \param sab_core ...
+!> \param sab_xb ...
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param particle_set ...
@@ -375,7 +382,6 @@ CONTAINS
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
-!> \param gamma_matrix ...
 !> \param rho ...
 !> \param rho_aux_fit ...
 !> \param rho_aux_fit_buffer ...
@@ -454,6 +460,7 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param dispersion_env ...
+!> \param gcp_env ...
 !> \param vee ...
 !> \param rho_external ...
 !> \param external_vxc ...
@@ -477,6 +484,7 @@ CONTAINS
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 !> \param polar_env ...
+!> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -484,12 +492,12 @@ CONTAINS
    SUBROUTINE get_qs_env(qs_env, atomic_kind_set, qs_kind_set, cell, super_cell, cell_ref, use_ref_cell, kpoints, &
                          dft_control, mos, mos_aux_fit, sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, &
                          sab_all, qmmm, qmmm_periodic, sac_ae, sac_ppl, sac_lri, sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, &
-                         sab_se, sab_tbe, sab_core, sab_almo, sab_kp, particle_set, energy, force, &
+                         sab_se, sab_tbe, sab_core, sab_xb, sab_almo, sab_kp, particle_set, energy, force, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
                          matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
                          matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, &
-                         matrix_w_mp2, matrix_p_mp2, gamma_matrix, rho, rho_aux_fit, rho_aux_fit_buffer, &
+                         matrix_w_mp2, matrix_p_mp2, rho, rho_aux_fit, rho_aux_fit_buffer, &
                          rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, mpools_aux_fit, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles, &
@@ -504,10 +512,10 @@ CONTAINS
                          neighbor_list_id, linres_control, xas_env, virial, cp_ddapc_env, cp_ddapc_ewald, &
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, results, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, admm_dm, &
-                         lri_env, lri_density, dispersion_env, vee, rho_external, external_vxc, mask, &
+                         lri_env, lri_density, dispersion_env, gcp_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
-                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env)
+                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, rhs)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -523,11 +531,9 @@ CONTAINS
          OPTIONAL, POINTER                               :: sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
                                                             sab_aux_fit_vs_orb, sab_all
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: sac_ae, sac_ppl, sac_lri, sap_ppnl, &
-                                                            sab_vdw, sab_scp, sap_oce, sab_lrc, &
-                                                            sab_se, sab_tbe, sab_core, sab_almo, &
-                                                            sab_kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
+         sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, &
+         sab_almo, sab_kp
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
@@ -546,7 +552,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_ks_aux_fit, &
          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_s, &
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, &
-         matrix_p_mp2, gamma_matrix
+         matrix_p_mp2
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_aux_fit, rho_aux_fit_buffer, &
                                                             rho_buffer, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
@@ -620,6 +626,7 @@ CONTAINS
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: lri_density
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
+      TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
@@ -640,6 +647,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', routineP = moduleN//':'//routineN
 
@@ -692,6 +700,7 @@ CONTAINS
       IF (PRESENT(lri_env)) lri_env => qs_env%lri_env
       IF (PRESENT(lri_density)) lri_density => qs_env%lri_density
       IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
+      IF (PRESENT(gcp_env)) gcp_env => qs_env%gcp_env
       IF (PRESENT(run_rtp)) run_rtp = qs_env%run_rtp
       IF (PRESENT(rtp)) rtp => qs_env%rtp
       IF (PRESENT(ls_scf_env)) ls_scf_env => qs_env%ls_scf_env
@@ -707,6 +716,9 @@ CONTAINS
 
       ! Polarisability tensor
       IF (PRESENT(polar_env)) polar_env => qs_env%polar_env
+
+      ! Resp charges
+      IF (PRESENT(rhs)) rhs => qs_env%rhs
 
       IF (PRESENT(rho_atom_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -763,7 +775,6 @@ CONTAINS
                       matrix_w=matrix_w, &
                       matrix_w_mp2=matrix_w_mp2, &
                       matrix_p_mp2=matrix_p_mp2, &
-                      gamma_matrix=gamma_matrix, &
                       matrix_h_kp=matrix_h_kp, &
                       matrix_ks_kp=matrix_ks_kp, &
                       matrix_vxc_kp=matrix_vxc_kp, &
@@ -798,6 +809,7 @@ CONTAINS
                       sab_lrc=sab_lrc, &
                       sab_tbe=sab_tbe, &
                       sab_core=sab_core, &
+                      sab_xb=sab_xb, &
                       sab_almo=sab_almo, &
                       sab_kp=sab_kp, &
                       task_list=task_list, &
@@ -904,7 +916,7 @@ CONTAINS
       NULLIFY (qs_env%efield)
       NULLIFY (qs_env%lri_env)
       NULLIFY (qs_env%lri_density)
-      NULLIFY (qs_env%dispersion_env)
+      NULLIFY (qs_env%gcp_env)
       NULLIFY (qs_env%rtp)
       NULLIFY (qs_env%mp2_env)
       NULLIFY (qs_env%kg_env)
@@ -1007,6 +1019,7 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param dispersion_env ...
+!> \param gcp_env ...
 !> \param mp2_env ...
 !> \param kg_env ...
 !> \param kpoints ...
@@ -1017,6 +1030,7 @@ CONTAINS
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 !> \param polar_env ...
+!> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -1033,9 +1047,9 @@ CONTAINS
                          linres_control, xas_env, cp_ddapc_env, cp_ddapc_ewald, &
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
-                         do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
+                         do_transport, transport_env, lri_env, lri_density, dispersion_env, gcp_env, mp2_env, kg_env, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env)
+                         spin_embed_pot, polar_env, rhs)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1095,6 +1109,7 @@ CONTAINS
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: lri_density
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
+      TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
@@ -1104,6 +1119,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', routineP = moduleN//':'//routineN
 
@@ -1275,8 +1291,12 @@ CONTAINS
       IF (PRESENT(lri_env)) qs_env%lri_env => lri_env
       IF (PRESENT(lri_density)) qs_env%lri_density => lri_density
       IF (PRESENT(dispersion_env)) qs_env%dispersion_env => dispersion_env
+      IF (PRESENT(gcp_env)) qs_env%gcp_env => gcp_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
+
+      ! Resp charges
+      IF (PRESENT(rhs)) qs_env%rhs => rhs
 
    END SUBROUTINE set_qs_env
 
@@ -1500,6 +1520,10 @@ CONTAINS
 
             ! dispersion
             CALL qs_dispersion_release(qs_env%dispersion_env)
+            ! gCP
+            IF (ASSOCIATED(qs_env%gcp_env)) THEN
+               CALL qs_gcp_release(qs_env%gcp_env)
+            END IF
 
             IF (ASSOCIATED(qs_env%WannierCentres)) THEN
                DO i = 1, SIZE(qs_env%WannierCentres)
@@ -1508,6 +1532,8 @@ CONTAINS
                ENDDO
                DEALLOCATE (qs_env%WannierCentres)
             ENDIF
+            ! Resp charges
+            IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
             ! now we are ready to deallocate the full structure
             DEALLOCATE (qs_env)
          END IF

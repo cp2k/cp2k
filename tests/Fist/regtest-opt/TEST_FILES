@@ -6,7 +6,7 @@
 # Geometry optimisation
 geo_opt_bfgs.inp                                      11    1.0E-14            -35.282422070543703
 geo_opt_cg_2pnt.inp                                   11      2e-14            -35.282422123859703
-geo_opt_cg_fit.inp                                    11    1.0E-14              -35.2824221258401
+geo_opt_cg_fit.inp                                    11    1.0E-12              -35.2824221258401
 geo_opt_cg_gold.inp                                   11    1.0E-14            -35.282422125930793
 geo_opt_lbfgs.inp                                     11    1.0E-14            -35.282422125160856
 # Direct cell optimisation (combined geometry and cell optimiser)
@@ -23,7 +23,7 @@ cell_opt_lbfgs_geo_opt_lbfgs.inp                      11      4e-09            -
 # Geometry optimisation using core-shell models
 cs_geo_opt_bfgs.inp                                   11    1.0E-14            -34.165775691654950
 cs_geo_opt_cg_2pnt.inp                                11      2e-14            -34.165775860241943
-cs_geo_opt_cg_fit.inp                                 11    1.0E-14            -34.165775838192260
+cs_geo_opt_cg_fit.inp                                 11    1.0E-11            -34.165775838192260
 cs_geo_opt_cg_gold.inp                                11    1.0E-14            -34.165775835825670
 cs_geo_opt_lbfgs.inp                                  11    1.0E-14            -34.165775670048319
 # Direct cell optimisation using core-shell models

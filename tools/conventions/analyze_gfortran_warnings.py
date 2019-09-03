@@ -114,8 +114,4 @@ def may_call_implicit(loc, routine):
     return(re.match(manifest["implicit"], routine))
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

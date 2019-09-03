@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -38,7 +38,7 @@ MODULE hfx_derivatives
                                               hfx_get_single_cache_element,&
                                               hfx_reset_cache_and_container
    USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
-   USE hfx_libint_wrapper_types,        ONLY: lib_deriv
+   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                               hfx_load_balance,&
                                               hfx_update_load_balance
@@ -54,8 +54,8 @@ MODULE hfx_derivatives
         hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
         hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
         hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, pair_set_list_type
-   USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
-                                              do_hfx_potential_truncated,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
+                                              do_potential_truncated,&
                                               hfx_do_eval_forces
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
@@ -180,6 +180,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_libint_t)                                  :: private_deriv
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_mp2
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -208,7 +209,6 @@ CONTAINS
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_task_list_type), DIMENSION(:), POINTER    :: shm_task_list, tmp_task_list
       TYPE(hfx_type), POINTER                            :: actual_x_data
-      TYPE(lib_deriv)                                    :: private_deriv
       TYPE(pair_list_type)                               :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl
@@ -250,8 +250,8 @@ CONTAINS
       l_max = 4*l_max+1
       CALL init_md_ftable(l_max)
 
-      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-          qs_env%x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
+          qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          IF (l_max > init_t_c_g0_lmax) THEN
             CALL open_file(unit_number=unit_id, file_name=qs_env%x_data(1, 1)%potential_parameter%filename)
             CALL init(l_max, unit_id, para_env%mepos, para_env%group)
@@ -773,7 +773,7 @@ CONTAINS
 !$OMP BARRIER
 !$OMP MASTER
       IF (do_dynamic_load_balancing) THEN
-         ! ** Lets contstruct the task list
+         ! ** Lets construct the task list
          shm_total_bins = 0
          DO i = 1, n_threads
             shm_total_bins = shm_total_bins+SIZE(qs_env%x_data(irep, i)%distribution_forces)
@@ -866,7 +866,7 @@ CONTAINS
                distribution_forces => actual_x_data%distribution_forces(bin)
             END IF
          ELSE
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxderivatives_critical)
             shm_task_counter = shm_task_counter+1
             IF (shm_task_counter <= shm_total_bins) THEN
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
@@ -888,7 +888,7 @@ CONTAINS
                do_it = .FALSE.
                bins_left = .FALSE.
             END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxderivatives_critical)
          END IF
 
          IF (.NOT. do_it) CYCLE
@@ -1836,7 +1836,7 @@ CONTAINS
                       ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
-      TYPE(lib_deriv)                                    :: deriv
+      TYPE(cp_libint_t)                                  :: deriv
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &

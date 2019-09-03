@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -144,7 +144,7 @@ CONTAINS
             rcp = -(za*rac+zb*rbc)/zet
             f0 = 2.0_dp*SQRT(zet/pi)*(pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            ! *** Calculate the reccurence relation
+            ! *** Calculate the recurrence relation
 
             CALL os_rr_coul(rap, la_max+2, rbp, lb_max+2, rcp, zet, ldrr1, ldrr2, rr)
 

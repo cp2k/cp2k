@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -524,6 +524,9 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k, template=matrix_s, n=k, &
                                                 sym=dbcsr_type_no_symmetry)
          !
+         CALL dbcsr_init_p(qs_ot_env%matrix_buf1)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf1, template=matrix_s, m=k, n=k, &
+                                            sym=dbcsr_type_no_symmetry)
 
       END SELECT
 
@@ -977,12 +980,12 @@ CONTAINS
          ENDIF
          IF (settings%ot_algorithm .EQ. 'REF') THEN
             WRITE (output_unit, '(A,1X,A,T49,A,I14)') "  ortho_irac     :", settings%ortho_irac, &
-               "  irac_degree        :", settings%irac_degree
+               "  irac_degree    :", settings%irac_degree
             WRITE (output_unit, '(A,I14,T49,A,E14.5)') "  max_irac       :", settings%max_irac, &
-               "  eps_irac           :", settings%eps_irac
-            WRITE (output_unit, '(A,E14.5,T49,A,E14.5)') "  eps_irac_switch:", settings%eps_irac_switch, &
+               "  eps_irac       :", settings%eps_irac
+            WRITE (output_unit, '(A,E14.5,T49,A,E10.3)') "  eps_irac_switch:", settings%eps_irac_switch, &
                "  eps_irac_quick_exit:", settings%eps_irac_quick_exit
-            WRITE (output_unit, '(A,L2)') "  on_the_fly_loc     :", settings%on_the_fly_loc
+            WRITE (output_unit, '(A,L2)') "  on_the_fly_loc :", settings%on_the_fly_loc
          END IF
          WRITE (output_unit, '(A)') "  ----------------------------------- OT ---------------------------------------"
          WRITE (UNIT=output_unit, &

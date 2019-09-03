@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -152,6 +152,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a print_key section
 !> \param print_key_section the print key to create
+!> \param location from where in the source code cp_print_key_section_create() is called
 !> \param name the name of the print key
 !> \param description the description of the print key
 !> \param print_level print level starting at which the printing takes place
@@ -167,11 +168,11 @@ CONTAINS
 !>        (i.e. USERS have no possibility to change it)
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
+   SUBROUTINE cp_print_key_section_create(print_key_section, location, name, description, &
                                           print_level, each_iter_names, each_iter_values, add_last, filename, &
                                           common_iter_levels, citations, unit_str)
       TYPE(section_type), POINTER                        :: print_key_section
-      CHARACTER(len=*), INTENT(IN)                       :: name, description
+      CHARACTER(len=*), INTENT(IN)                       :: location, name, description
       INTEGER, INTENT(IN), OPTIONAL                      :: print_level
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: each_iter_names
@@ -197,12 +198,12 @@ CONTAINS
       my_print_level = debug_print_level
       IF (PRESENT(print_level)) my_print_level = print_level
 
-      CALL section_create(print_key_section, name=name, description=description, &
+      CALL section_create(print_key_section, location=location, name=name, description=description, &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
                           citations=citations)
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Level starting at which this property is printed", &
                           usage="silent", &
                           default_i_val=my_print_level, lone_keyword_i_val=silent_print_level, &
@@ -213,14 +214,14 @@ CONTAINS
       CALL section_add_keyword(print_key_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="__CONTROL_VAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="__CONTROL_VAL", &
                           description=' hidden parameter that controls storage, printing,...'// &
                           ' of the print_key', &
                           default_i_val=cp_out_default)
       CALL section_add_keyword(print_key_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="EACH", &
+      CALL section_create(subsection, __LOCATION__, name="EACH", &
                           description="This section specifies how often this proprety is printed."// &
                           "Each keyword inside this section is mapping to a specific iteration level and "// &
                           "the value of each of these keywords is matched with the iteration level during "// &
@@ -247,7 +248,7 @@ CONTAINS
                END IF
             END DO
          END IF
-         CALL keyword_create(keyword, name=TRIM(each_possible_labels(i_each)), &
+         CALL keyword_create(keyword, __LOCATION__, name=TRIM(each_possible_labels(i_each)), &
                              description=TRIM(each_desc_labels(i_each)), &
                              usage=TRIM(each_possible_labels(i_each))//" <INTEGER>", &
                              default_i_val=my_value)
@@ -261,7 +262,7 @@ CONTAINS
       IF (PRESENT(add_last)) THEN
          my_add_last = add_last
       END IF
-      CALL keyword_create(keyword, name="ADD_LAST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ADD_LAST", &
                           description="If the last iteration should be added, and if it "// &
                           "should be marked symbolically (with lowercase letter l) or with "// &
                           "the iteration number. "// &
@@ -280,7 +281,7 @@ CONTAINS
 
       my_comm_iter_levels = 0
       IF (PRESENT(common_iter_levels)) my_comm_iter_levels = common_iter_levels
-      CALL keyword_create(keyword, name="COMMON_ITERATION_LEVELS", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMMON_ITERATION_LEVELS", &
                           description="How many iterations levels should be written"// &
                           " in the same file (no extra information about the actual"// &
                           " iteration level is written to the file)", &
@@ -291,7 +292,7 @@ CONTAINS
 
       my_filename = ""
       IF (PRESENT(filename)) my_filename = filename
-      CALL keyword_create(keyword, name="FILENAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
                           description=' controls part of the filename for output. '// &
                           ' use __STD_OUT__ (exactly as written here) for the screen or standard logger. '// &
                           ' use filename to obtain projectname-filename. '// &
@@ -307,7 +308,7 @@ CONTAINS
       CALL section_add_keyword(print_key_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LOG_PRINT_KEY", &
+      CALL keyword_create(keyword, __LOCATION__, name="LOG_PRINT_KEY", &
                           description="This keywords enables the logger for the print_key (a message is printed on "// &
                           "screen everytime data, controlled by this print_key, are written)", &
                           usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -315,7 +316,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       IF (PRESENT(unit_str)) THEN
-         CALL keyword_create(keyword, name="UNIT", &
+         CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
                              description='Specify the unit of measurement for the quantity in output. '// &
                              "All available CP2K units can be used.", &
                              usage="UNIT angstrom", default_c_val=TRIM(unit_str))
@@ -889,7 +890,7 @@ CONTAINS
          IF (my_mpi_io) THEN
             CALL mp_file_get_amode(mpi_io, replace, mpi_amode, TRIM(my_file_form), &
                                    TRIM(my_file_action), TRIM(my_file_status), TRIM(my_file_position))
-            replace = replace .AND. (logger%para_env%source == logger%para_env%mepos)
+            replace = replace .AND. logger%para_env%ionode
          END IF
 #else
          my_mpi_io = .FALSE.
@@ -907,7 +908,7 @@ CONTAINS
       IF (PRESENT(ignore_should_output)) my_should_output = my_should_output .OR. ignore_should_output
       IF (.NOT. my_should_output) RETURN
       IF (my_local .OR. &
-          logger%para_env%mepos == logger%para_env%source .OR. &
+          logger%para_env%ionode .OR. &
           my_mpi_io) THEN
 
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
@@ -1070,7 +1071,7 @@ CONTAINS
                                                           print_key_path, used_print_key=print_key), cp_p_file)
       IF (PRESENT(ignore_should_output)) my_should_output = my_should_output .OR. ignore_should_output
       IF (my_should_output .AND. (my_local .OR. &
-                                  logger%para_env%source == logger%para_env%mepos .OR. &
+                                  logger%para_env%ionode .OR. &
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
          IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN

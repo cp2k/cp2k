@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -70,7 +70,7 @@ CONTAINS
       skip = .FALSE.
       IF (PRESENT(skip_recursive_colvar)) skip = skip_recursive_colvar
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="COLVAR", &
+      CALL section_create(section, __LOCATION__, name="COLVAR", &
                           description="This section specifies the nature of the collective variables.", &
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
       NULLIFY (subsection, print_key)
@@ -78,11 +78,11 @@ CONTAINS
       CALL create_colvar_var_section(subsection=subsection, &
                                      section=section, skip_recursive_colvar=skip)
 
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Controls the printing of the colvar specifications", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of basic information during colvar setup.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
@@ -113,12 +113,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
-      CALL section_create(section, name="COLVAR_FUNC_INFO", &
+      CALL section_create(section, __LOCATION__, name="COLVAR_FUNC_INFO", &
                           description="Specify further data possibly used by colvars, depending "// &
                           "on the starting geometry, for computing the functions value.", &
                           n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Colvar function data."// &
                           " The order is an internal order. So if you decide to edit/modify/add these values by hand"// &
                           " you should know very well what you are doing.!", repeats=.TRUE., &
@@ -268,13 +268,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="coordination", &
+      CALL section_create(section, __LOCATION__, name="coordination", &
                           description="Section to define the coordination number as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
                           variants=(/"POINTS_FROM"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
@@ -282,7 +282,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
                           variants=(/"POINTS_TO"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
@@ -290,7 +290,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_TO_B", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO_B", &
                           variants=(/"POINTS_TO_B"/), &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " here specify indexes of the third set of atoms/points. ", &
@@ -299,21 +299,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_FROM", &
                           description="Specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_FROM {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_TO", &
                           description="Specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_TO {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_TO_B", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_TO_B", &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " here specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_TO_B {CHAR} {CHAR} ..", repeats=.TRUE., &
@@ -326,7 +326,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="R0", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0", &
                           variants=(/"R_0"/), &
                           description="Specify the R0 parameter in the coordination function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
@@ -334,7 +334,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NN", &
                           variants=(/"EXPON_NUMERATOR"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
                           "in the coordination FUNCTION.", &
@@ -343,7 +343,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ND", &
+      CALL keyword_create(keyword, __LOCATION__, name="ND", &
                           variants=(/"EXPON_DENOMINATOR"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
                           "in the coordination FUNCTION.", &
@@ -352,7 +352,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R0_B", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0_B", &
                           variants=(/"R_0_B"/), &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " specify the R0 parameter in the second coordination function.", &
@@ -361,7 +361,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NN_B", &
+      CALL keyword_create(keyword, __LOCATION__, name="NN_B", &
                           variants=(/"EXPON_NUMERATOR_B"/), &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           "Sets the value of the numerator of the exponential factor"// &
@@ -371,7 +371,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ND_B", &
+      CALL keyword_create(keyword, __LOCATION__, name="ND_B", &
                           variants=(/"EXPON_DENOMINATOR_B"/), &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           "Sets the value of the denominator of the exponential factor"// &
@@ -397,20 +397,20 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONDITIONED_DISTANCE", &
+      CALL section_create(section, __LOCATION__, name="CONDITIONED_DISTANCE", &
                           description="Section to define the conditioned distance as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_DISTANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_DISTANCE", &
                           description="Specify indexes of atoms/points from which the distance is computed. ", &
                           usage="ATOMS_DISTANCE {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
                           variants=(/"POINTS_FROM"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
@@ -418,7 +418,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
                           variants=(/"POINTS_TO"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
@@ -426,14 +426,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_FROM", &
                           description="Specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_FROM {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_TO", &
                           description="Specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_TO {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
@@ -445,7 +445,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="R0", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0", &
                           variants=(/"R_0"/), &
                           description="Specify the R0 parameter in the coordination function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
@@ -453,7 +453,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NN", &
                           variants=(/"EXPON_NUMERATOR"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
                           "in the coordination FUNCTION.", &
@@ -462,7 +462,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ND", &
+      CALL keyword_create(keyword, __LOCATION__, name="ND", &
                           variants=(/"EXPON_DENOMINATOR"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
                           "in the coordination FUNCTION.", &
@@ -471,7 +471,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the lambda parameter at the exponent of the conditioned distance function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
                           unit_str="bohr", n_var=1)
@@ -496,13 +496,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="population", &
-                          description="Section to define the population of specie as a collective variable.", &
+      CALL section_create(section, __LOCATION__, name="population", &
+                          description="Section to define the population of specie as a collective variable. "// &
+                          "See also https://doi.org/10.1021/jp3019588", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
                           variants=(/"POINTS_FROM"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
@@ -510,7 +511,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
                           variants=(/"POINTS_TO"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
@@ -518,14 +519,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_FROM", &
                           description="Specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_FROM {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS_TO", &
                           description="Specify alternatively kinds of atoms building the coordination variable.", &
                           usage="KINDS_TO {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
@@ -537,7 +538,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="R0", &
+      CALL keyword_create(keyword, __LOCATION__, name="R0", &
                           variants=(/"R_0"/), &
                           description="Specify the R0 parameter in the coordination function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
@@ -545,7 +546,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NN", &
                           variants=(/"EXPON_NUMERATOR"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
                           "in the coordination FUNCTION.", &
@@ -554,7 +555,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ND", &
+      CALL keyword_create(keyword, __LOCATION__, name="ND", &
                           variants=(/"EXPON_DENOMINATOR"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
                           "in the coordination FUNCTION.", &
@@ -563,7 +564,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="n0", &
+      CALL keyword_create(keyword, __LOCATION__, name="n0", &
                           variants=(/"n_0"/), &
                           description="Specify the n0 parameter that sets the coordination of the species.", &
                           usage="n0 {integer}", default_i_val=4, &
@@ -571,7 +572,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIGMA", &
+      CALL keyword_create(keyword, __LOCATION__, name="SIGMA", &
                           description="Specify the gaussian width of used to build the population istogram.", &
                           usage="SIGMA {real}", default_r_val=0.5_dp, &
                           n_var=1)
@@ -594,13 +595,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="GYRATION_RADIUS", &
+      CALL section_create(section, __LOCATION__, name="GYRATION_RADIUS", &
                           description="Section to define the gyration radius as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specify indexes of atoms/points defyining the gyration radius variable. ", &
                           usage="ATOMS {integer} {integer} ..", repeats=.TRUE., &
@@ -608,7 +609,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KINDS", &
+      CALL keyword_create(keyword, __LOCATION__, name="KINDS", &
                           description="Specify alternatively kinds of atoms defining the gyration radius.", &
                           usage="KINDS {CHAR} {CHAR} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
@@ -637,14 +638,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DISTANCE_FUNCTION", &
+      CALL section_create(section, __LOCATION__, name="DISTANCE_FUNCTION", &
                           description="Section to define functions between two distances as collective variables."// &
                           " The function is defined as d1+coeff*d2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points for the two bonds d1=(1-2) d2=(3-4).", &
                           usage="ATOMS {integer} {integer} {integer} {integer}", &
@@ -652,7 +653,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COEFFICIENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="COEFFICIENT", &
                           description="Specifies the coefficient in the function for the constraint."// &
                           " -1.0 has to be used for distance difference, 1.0 for distance addition", &
                           usage="COEFFICIENT {real}", &
@@ -660,7 +661,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PBC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PBC", &
                           description="Whether periodic boundary conditions should be applied on the "// &
                           "atomic position before computing the colvar or not.", &
                           usage="PBC", &
@@ -690,13 +691,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="torsion", &
+      CALL section_create(section, __LOCATION__, name="torsion", &
                           description="Section to define the torsion as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points defining the torsion.", &
                           usage="ATOMS {integer} {integer} {integer} {integer}", &
@@ -726,14 +727,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="bond_rotation", &
+      CALL section_create(section, __LOCATION__, name="bond_rotation", &
                           description="Section to define the rotation of a bond/line with respect to"// &
                           "another bond/line", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="P1_BOND1", &
+      CALL keyword_create(keyword, __LOCATION__, name="P1_BOND1", &
                           description="Specifies the index of atom/point defining the first point"// &
                           "of the first bond/line.", &
                           usage="P1_BOND1 {integer}", &
@@ -741,7 +742,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="P2_BOND1", &
+      CALL keyword_create(keyword, __LOCATION__, name="P2_BOND1", &
                           description="Specifies the index of atom/point defining the second point"// &
                           "of the first bond/line.", &
                           usage="P2_BOND1 {integer}", &
@@ -749,7 +750,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="P1_BOND2", &
+      CALL keyword_create(keyword, __LOCATION__, name="P1_BOND2", &
                           description="Specifies the index of atom/point defining the first point"// &
                           "of the second bond/line.", &
                           usage="P1_BOND2 {integer}", &
@@ -757,7 +758,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="P2_BOND2", &
+      CALL keyword_create(keyword, __LOCATION__, name="P2_BOND2", &
                           description="Specifies the index of atom/point defining the second point"// &
                           "of the second bond/line.", &
                           usage="P2_BOND2 {integer}", &
@@ -787,12 +788,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="angle", &
+      CALL section_create(section, __LOCATION__, name="angle", &
                           description="Section to define the angle as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points defining the angle.", &
                           usage="ATOMS {integer} {integer} {integer}", &
@@ -822,19 +823,19 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="distance", &
+      CALL section_create(section, __LOCATION__, name="distance", &
                           description="Section to define the distance as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points defining the distance.", &
                           usage="ATOMS {integer} {integer}", &
                           n_var=2, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="AXIS", &
+      CALL keyword_create(keyword, __LOCATION__, name="AXIS", &
                           description="Define the axes along which the colvar should be evaluated", &
                           usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
@@ -865,7 +866,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="XYZ_DIAG", &
+      CALL section_create(section, __LOCATION__, name="XYZ_DIAG", &
                           description="Section to define the distance of an atom from its starting "// &
                           "position ((X-X(0))^2+(Y-Y(0))^2+(Z-Z(0))^2) or part of its components as a collective variable."// &
                           "If absolute_position is specified, instead the CV is represented by the "// &
@@ -873,7 +874,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
                           variants=(/"POINT"/), &
                           description="Specifies the index of the atom/point.", &
                           usage="ATOM {integer}", &
@@ -881,7 +882,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COMPONENT", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMPONENT", &
                           description="Define the component of the position vector which will be used "// &
                           "as a colvar.", &
                           usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
@@ -891,7 +892,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PBC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PBC", &
                           description="Whether periodic boundary conditions should be applied on the "// &
                           "atomic position before computing the colvar or not.", &
                           usage="PBC", &
@@ -899,7 +900,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ABSOLUTE_POSITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ABSOLUTE_POSITION", &
                           description="If enabled, the absolute position of the atoms will be used. ", &
                           usage="ABSOLUTE_POSITION", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -928,14 +929,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="XYZ_OUTERDIAG", &
+      CALL section_create(section, __LOCATION__, name="XYZ_OUTERDIAG", &
                           description="Section to define the cross term (XA-XA(0))*(XB-XB(0))+(XA-XA(0))*(YB-YB(0))"// &
                           " or part of its components as a collective variable. The final term is given by the product "// &
                           " of the components of A with the components of B.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the index of the atoms/points A and B.", &
                           usage="ATOMS {integer} {integer}", &
@@ -943,7 +944,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COMPONENT_A", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMPONENT_A", &
                           description="Define the component of the position vector which will be used "// &
                           "as a colvar for atom A.", &
                           usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
@@ -953,7 +954,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COMPONENT_B", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMPONENT_B", &
                           description="Define the component of the position vector which will be used "// &
                           "as a colvar for atom B.", &
                           usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
@@ -963,7 +964,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PBC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PBC", &
                           description="Whether periodic boundary conditions should be applied on the "// &
                           "atomic position before computing the colvar or not.", &
                           usage="PBC", &
@@ -993,24 +994,24 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="u", &
+      CALL section_create(section, __LOCATION__, name="u", &
                           description="Section to define the energy as a generalized collective variable.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
-      CALL section_create(subsection, name="MIXED", &
+      CALL section_create(subsection, __LOCATION__, name="MIXED", &
                           description="This section allows to use any function of the energy subsystems "// &
                           " in a mixed_env calculation as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="ENERGY_FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_FUNCTION", &
                           description="Specifies the functional form of the collective variable in mathematical notation.", &
                           usage="ENERGY_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t, &
                           n_var=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VARIABLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
                           description="Defines the variables of the functional form. To allow an efficient"// &
                           " mapping the order of the energy variables will be considered identical to the"// &
                           " order of the force_eval in the force_eval_order list.", &
@@ -1019,21 +1020,21 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
                           usage="PARAMETERS a b D", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
                           description="Defines the values of parameter of the functional form", &
                           usage="VALUES ", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNITS", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
                           "It is assumed that the corresponding parameter value is specified in this unit.", &
                           usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
@@ -1041,13 +1042,13 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Parameter used for computing the derivative with the Ridders' method.", &
                           usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERROR_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
                           description="Checks that the error in computing the derivative is not larger than "// &
                           "the value set; in case error is larger a warning message is printed.", &
                           usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
@@ -1075,13 +1076,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="distance_point_plane", &
+      CALL section_create(section, __LOCATION__, name="distance_point_plane", &
                           description="Section to define the distance of a point from a plane "// &
                           "as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="PBC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PBC", &
                           description="Whether periodic boundary conditions should be applied on the "// &
                           "atomic position before computing the colvar or not.", &
                           usage="PBC", &
@@ -1089,7 +1090,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_PLANE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_PLANE", &
                           variants=(/"POINTS_PLANE"/), &
                           description="Specifies the indexes of atoms/points defining the plane.", &
                           usage="ATOMS_PLANE <INTEGER> <INTEGER> <INTEGER>", &
@@ -1097,7 +1098,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_POINT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_POINT", &
                           variants=(/"POINT_POINT"/), &
                           description="Specifies the atom/point index defining the point.", &
                           usage="ATOM_POINT <INTEGER>", &
@@ -1128,18 +1129,18 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="angle_plane_plane", &
+      CALL section_create(section, __LOCATION__, name="angle_plane_plane", &
                           description="This section defines the angle between two planes "// &
                           "as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL section_create(subsection, name="PLANE", &
+      CALL section_create(subsection, __LOCATION__, name="PLANE", &
                           description="This section defines the plane. When using this colvar, "// &
                           "two plane section must be defined!", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="DEF_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="DEF_TYPE", &
                           description="Specify how the plane is defined: either by 3 atoms or by a fixed normal "// &
                           "vector. At least one plane must be defined through atoms.", &
                           usage="DEF_TYPE ATOMS", &
@@ -1151,14 +1152,14 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Specifies the indexes of 3 atoms/points defining the plane.", &
                           usage="ATOMS <INTEGER> <INTEGER> <INTEGER>", &
                           n_var=3, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NORMAL_VECTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="NORMAL_VECTOR", &
                           description="Alternatively to 3 atoms/points one can define one of the two, "// &
                           "planes by defining its NORMAL vector.", &
                           usage="NORMAL_VECTOR 0.0 1.0 0.0", &
@@ -1188,14 +1189,14 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="POINT", &
+      CALL section_create(section, __LOCATION__, name="POINT", &
                           description="Enables the possibility to use geometrical centers instead of single atoms"// &
                           " to define colvars", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Chooses the type of geometrical point", &
                           usage="type (GEO_CENTER|FIX_POINT)", &
                           enum_c_vals=s2a("GEO_CENTER", "FIX_POINT"), &
@@ -1206,7 +1207,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Specifies the indexes of atoms defining the geometrical center", &
                           usage="ATOMS {integer} {integer} {integer} {integer}", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -1214,14 +1215,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="WEIGHTS", &
+         keyword, __LOCATION__, name="WEIGHTS", &
          description="Specifies the weights for a weighted geometrical center. Default is 1/natoms for every atom", &
          usage="WEIGHTS {real} {real} {real} {real}", &
          n_var=-1, type_of_var=real_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="XYZ", &
+      CALL keyword_create(keyword, __LOCATION__, name="XYZ", &
                           description="Specifies the xyz of the fixed point (if the case)", &
                           usage="XYZ {real} {real} {real}", &
                           n_var=3, type_of_var=real_t, unit_str="bohr", &
@@ -1246,13 +1247,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="qparm", &
+      CALL section_create(section, __LOCATION__, name="qparm", &
                           description="Section to define the Q parameter (crystalline order parameter) as a collective variable.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS_FROM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
                           variants=(/"POINTS_FROM"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
@@ -1260,7 +1261,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_TO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
                           variants=(/"POINTS_TO"/), &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
@@ -1268,7 +1269,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Specifies the distance cutoff for neighbors. "// &
                           "Cutoff function is exactly zero for all neighbors beyond RCUT.", &
                           usage="RCUT {real}", &
@@ -1276,14 +1277,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INCLUDE_IMAGES", &
+      CALL keyword_create(keyword, __LOCATION__, name="INCLUDE_IMAGES", &
                           description="Whether to include periodic images of ATOMS_TO into the neighbor list.", &
                           usage="INCLUDE_IMAGES", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RSTART", &
+      CALL keyword_create(keyword, __LOCATION__, name="RSTART", &
                           description="Specifies the distance cutoff for neighbors. "// &
                           "Cutoff function is exactly 1 for all neighbors closer than RSTART.", &
                           usage="RSTART {real}", &
@@ -1291,14 +1292,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="L", &
+      CALL keyword_create(keyword, __LOCATION__, name="L", &
                           description="Specifies the L spherical harmonics from Ylm.", &
                           usage="L {integer}", &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      !CALL keyword_create(keyword, name="ALPHA", &
+      !CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
       !                    description="Specifies the width of the Fermi-Dirac style smearing around RCUT.", &
       !                    usage="ALPHA {real}", unit_str="angstrom^-1", default_r_val=0.0_dp)
       !CALL section_add_keyword(section, keyword)
@@ -1325,7 +1326,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="HYDRONIUM_SHELL", &
+      CALL section_create(section, __LOCATION__, name="HYDRONIUM_SHELL", &
                           description="Section to define the formation of a hydronium as a"// &
                           " collective variable. Number of oxygens in the 1st shell of the"// &
                           " hydronium. Adapted from Equation (3) in Supplementary Info of"// &
@@ -1335,7 +1336,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="OXYGENS", &
+      CALL keyword_create(keyword, __LOCATION__, name="OXYGENS", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the water molecules.", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1343,7 +1344,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HYDROGENS", &
+      CALL keyword_create(keyword, __LOCATION__, name="HYDROGENS", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Hydrogens of the water molecules.", &
                           usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1351,7 +1352,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ROO", &
                           description="Specifies the rc parameter in the coordination function:"// &
                           " number of oxygens per water oxygen.", &
                           usage="ROO {real}", default_r_val=cp_unit_to_cp2k(value=3.0_dp, &
@@ -1359,7 +1360,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pOO", &
+      CALL keyword_create(keyword, __LOCATION__, name="pOO", &
                           variants=(/"EXPON_NUMERATORA"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
@@ -1368,7 +1369,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qOO", &
+      CALL keyword_create(keyword, __LOCATION__, name="qOO", &
                           variants=(/"EXPON_DENOMINATORA"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
@@ -1377,7 +1378,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROH", &
+      CALL keyword_create(keyword, __LOCATION__, name="ROH", &
                           description="Specifies the rc parameter in the coordination function: "// &
                           " number of hydrogens per water molecule.", &
                           usage="ROH {real}", default_r_val=cp_unit_to_cp2k(value=3.0_dp, &
@@ -1385,7 +1386,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="pOH", &
                           variants=(/"EXPON_NUMERATORB"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
@@ -1394,7 +1395,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="qOH", &
                           variants=(/"EXPON_DENOMINATORB"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
@@ -1403,14 +1404,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NH", &
+      CALL keyword_create(keyword, __LOCATION__, name="NH", &
                           description="Specifies the NH parameter in the M function.", &
                           usage="NH {real}", default_r_val=3.0_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pM", &
+      CALL keyword_create(keyword, __LOCATION__, name="pM", &
                           variants=(/"EXPON_NUMERATOR"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the M function.", &
@@ -1419,7 +1420,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qM", &
+      CALL keyword_create(keyword, __LOCATION__, name="qM", &
                           variants=(/"EXPON_DENOMINATOR"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the M function.", &
@@ -1428,7 +1429,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the LAMBDA parameter in the hydronium function.", &
                           usage="LAMBDA {real}", default_r_val=10.0_dp, &
                           n_var=1)
@@ -1451,7 +1452,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="HYDRONIUM_DISTANCE", &
+      CALL section_create(section, __LOCATION__, name="HYDRONIUM_DISTANCE", &
                           description="Section to define the formation of a hydronium as a"// &
                           " collective variable. Distance between hydronium and hydroxide ion"// &
                           " Experimental at this point, i.e. not proved to be an effective "// &
@@ -1460,7 +1461,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="OXYGENS", &
+      CALL keyword_create(keyword, __LOCATION__, name="OXYGENS", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the water molecules.", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1468,7 +1469,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HYDROGENS", &
+      CALL keyword_create(keyword, __LOCATION__, name="HYDROGENS", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Hydrogens of the water molecules.", &
                           usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1476,7 +1477,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROH", &
+      CALL keyword_create(keyword, __LOCATION__, name="ROH", &
                           description="Specifies the rc parameter in the coordination function: "// &
                           " number of hydrogens per water molecule.", &
                           usage="ROH {real}", default_r_val=cp_unit_to_cp2k(value=2.4_dp, &
@@ -1484,7 +1485,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="pOH", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="pOH {integer}", default_i_val=6, &
@@ -1492,7 +1493,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="qOH", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="qOH {integer}", default_i_val=12, &
@@ -1500,14 +1501,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NH", &
+      CALL keyword_create(keyword, __LOCATION__, name="NH", &
                           description="Specifies the NH parameter in the M function.", &
                           usage="NH {real}", default_r_val=2.2_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pM", &
+      CALL keyword_create(keyword, __LOCATION__, name="pM", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the M function.", &
                           usage="pM {integer}", default_i_val=8, &
@@ -1515,7 +1516,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qM", &
+      CALL keyword_create(keyword, __LOCATION__, name="qM", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the M function.", &
                           usage="qM {integer}", default_i_val=16, &
@@ -1523,14 +1524,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NN", &
                           description="Specifies the NN parameter in the F function.", &
                           usage="NN {real}", default_r_val=1.5_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pF", &
+      CALL keyword_create(keyword, __LOCATION__, name="pF", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the F function.", &
                           usage="pF {integer}", default_i_val=8, &
@@ -1538,7 +1539,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qF", &
+      CALL keyword_create(keyword, __LOCATION__, name="qF", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the F function.", &
                           usage="qF {integer}", default_i_val=16, &
@@ -1546,7 +1547,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the LAMBDA parameter in the hydronium function.", &
                           usage="LAMBDA {real}", default_r_val=20.0_dp, &
                           n_var=1)
@@ -1571,7 +1572,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ACID_HYDRONIUM_DISTANCE", &
+      CALL section_create(section, __LOCATION__, name="ACID_HYDRONIUM_DISTANCE", &
                           description="Section to define the dissociation of a carboxylic acid in"// &
                           " water. Distance between hydronium ion and acetate ion. Equation (2)"// &
                           " in Supplementary Info of J. Am. Chem. Soc.,128,  2006, 11318.", &
@@ -1579,7 +1580,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="OXYGENS_WATER", &
+      CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_WATER", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the water molecules. ", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1587,7 +1588,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OXYGENS_ACID", &
+      CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_ACID", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the carboxyl groups.", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1595,7 +1596,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HYDROGENS", &
+      CALL keyword_create(keyword, __LOCATION__, name="HYDROGENS", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Hydrogens of the water molecules and of the carboxyl groups.", &
                           usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1603,7 +1604,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pWOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="pWOH", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="pWOH {integer}", default_i_val=8, &
@@ -1611,7 +1612,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qWOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="qWOH", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="qWOH {integer}", default_i_val=16, &
@@ -1619,7 +1620,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RWOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="RWOH", &
                           description="Specify the rc parameter in the coordination function:"// &
                           " number of hydrogens per water molecule.", &
                           usage="RWOH {real}", default_r_val=cp_unit_to_cp2k(value=2.4_dp, &
@@ -1627,7 +1628,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pAOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="pAOH", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per carboxyl group.", &
                           usage="pAOH {integer}", default_i_val=6, &
@@ -1635,7 +1636,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qAOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="qAOH", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per carboxyl group.", &
                           usage="qAOH {integer}", default_i_val=14, &
@@ -1643,7 +1644,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RAOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="RAOH", &
                           description="Specify the rc parameter in the coordination function: "// &
                           " number of hydrogens per carboxyl group.", &
                           usage="RAOH {real}", default_r_val=cp_unit_to_cp2k(value=2.4_dp, &
@@ -1651,7 +1652,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="pCUT", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the cutoff function.", &
                           usage="pCUT {integer}", default_i_val=6, &
@@ -1659,7 +1660,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="qCUT", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the cutoff function.", &
                           usage="qCUT {integer}", default_i_val=12, &
@@ -1667,14 +1668,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NC", &
+      CALL keyword_create(keyword, __LOCATION__, name="NC", &
                           description="Specifies the NC parameter in the cutoff function.", &
                           usage="NC {real}", default_r_val=0.56_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           variants=(/"LAMBDA"/), &
                           description="Specifies the LAMBDA parameter carboxylic acid function.", &
                           usage="LAMBDA {real}", default_r_val=20.0_dp, &
@@ -1700,7 +1701,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="ACID_HYDRONIUM_SHELL", &
+      CALL section_create(section, __LOCATION__, name="ACID_HYDRONIUM_SHELL", &
                           description="Section to define the dissociation of a carboxylic acid in"// &
                           " water. Number of oxygens in the 1st shell of the hydronium. Equation (3)"// &
                           " in Supplementary Info of J. Am. Chem. Soc.,128,  2006, 11318. Similar to"// &
@@ -1709,7 +1710,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="OXYGENS_WATER", &
+      CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_WATER", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the water molecules. ", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1717,7 +1718,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OXYGENS_ACID", &
+      CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_ACID", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the carboxyl groups.", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1725,7 +1726,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="HYDROGENS", &
+      CALL keyword_create(keyword, __LOCATION__, name="HYDROGENS", &
                           description="Specifies indexes of atoms building the coordination variable. "// &
                           " Hydrogens of the water molecules and of the carboxyl groups.", &
                           usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE., &
@@ -1733,7 +1734,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pWOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="pWOH", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="pWOH {integer}", default_i_val=8, &
@@ -1741,7 +1742,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qWOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="qWOH", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="qWOH {integer}", default_i_val=16, &
@@ -1749,7 +1750,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RWOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="RWOH", &
                           description="Specifies the rc parameter in the coordination function: "// &
                           " number of hydrogens per water molecule.", &
                           usage="RWOH {real}", default_r_val=cp_unit_to_cp2k(value=2.4_dp, &
@@ -1757,7 +1758,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pAOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="pAOH", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per carboxyl group.", &
                           usage="pAOH {integer}", default_i_val=6, &
@@ -1765,7 +1766,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qAOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="qAOH", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per carboxyl group.", &
                           usage="qAOH {integer}", default_i_val=14, &
@@ -1773,7 +1774,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RAOH", &
+      CALL keyword_create(keyword, __LOCATION__, name="RAOH", &
                           description="Specifies the rc parameter in the coordination function:"// &
                           " number of hydrogens per carboxyl group.", &
                           usage="RAOH {real}", default_r_val=cp_unit_to_cp2k(value=2.4_dp, &
@@ -1781,7 +1782,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pOO", &
+      CALL keyword_create(keyword, __LOCATION__, name="pOO", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
                           usage="pOO {integer}", default_i_val=6, &
@@ -1789,7 +1790,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qOO", &
+      CALL keyword_create(keyword, __LOCATION__, name="qOO", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
                           usage="qOO {integer}", default_i_val=12, &
@@ -1797,7 +1798,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ROO", &
                           description="Specifies the rc parameter in the coordination function:"// &
                           " number of oxygens per water oxygen.", &
                           usage="ROO {real}", default_r_val=cp_unit_to_cp2k(value=5.5_dp, &
@@ -1805,7 +1806,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pM", &
+      CALL keyword_create(keyword, __LOCATION__, name="pM", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the M function.", &
                           usage="pM {integer}", default_i_val=8, &
@@ -1813,7 +1814,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qM", &
+      CALL keyword_create(keyword, __LOCATION__, name="qM", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the M function.", &
                           usage="qM {integer}", default_i_val=16, &
@@ -1821,14 +1822,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NH", &
+      CALL keyword_create(keyword, __LOCATION__, name="NH", &
                           description="Specifies the NH parameter in the M function.", &
                           usage="NH {real}", default_r_val=2.2_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="pCUT", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           "in the cutoff function.", &
                           usage="pCUT {integer}", default_i_val=6, &
@@ -1836,7 +1837,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="qCUT", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           "in the cutoff function.", &
                           usage="qCUT {integer}", default_i_val=12, &
@@ -1844,14 +1845,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NC", &
+      CALL keyword_create(keyword, __LOCATION__, name="NC", &
                           description="Specifies the NC parameter in the cutoff function.", &
                           usage="NC {real}", default_r_val=0.9_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           variants=(/"LAMBDA"/), &
                           description="Specifies the LAMBDA parameter carboxylic acid function.", &
                           usage="LAMBDA {real}", default_r_val=10.0_dp, &
@@ -1875,7 +1876,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="rmsd", &
+      CALL section_create(section, __LOCATION__, name="rmsd", &
                           description="Section to define a CV as function of RMSD computed with respect to"// &
                           " given reference configurations. For 2 configurations the colvar is equal to:"// &
                           " ss = (RMSDA-RMSDB)/(RMSDA+RMSDB), while if only 1 configuration is given, then the"// &
@@ -1883,7 +1884,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, subsubsection)
-      CALL keyword_create(keyword, name="SUBSET_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SUBSET_TYPE", &
                           description="Define the subsytem used to compute the RMSD", &
                           usage="SUBSET_TYPE ALL", &
                           enum_c_vals=s2a("ALL", "LIST", "WEIGHT_LIST"), &
@@ -1892,32 +1893,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALIGN_FRAMES", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALIGN_FRAMES", &
                           description="Whether the reference frames should be aligned to minimize the RMSD", &
                           usage="ALIGN_FRAME", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Specify indexes of atoms building the subset. ", &
                           usage="ATOMS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHTS", &
                           description="Specify weights of atoms building the subset. ", &
                           usage="weightS {real} {real} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="FRAME", &
+      CALL section_create(subsection, __LOCATION__, name="FRAME", &
                           description="Specify coordinates of the frame (number of frames can be either 1 or 2)", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="COORD_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORD_FILE_NAME", &
                           description="Name of the xyz file with coordinates (alternative to &COORD section)", &
                           usage="COORD_FILE_NAME <CHAR>", &
                           default_lc_val="")
@@ -1946,7 +1947,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="REACTION_PATH", &
+      CALL section_create(section, __LOCATION__, name="REACTION_PATH", &
                           description="Section defining a one dimensional reaction path in an Q-dimensional space of colvars. "// &
                           "Constraining this colvar, allows to sample the space orthogonal to the reaction path, "// &
                           "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "// &
@@ -1969,7 +1970,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DISTANCE_FROM_PATH", &
+      CALL section_create(section, __LOCATION__, name="DISTANCE_FROM_PATH", &
                           description="Section defining the distance from a one dimensional reaction "// &
                           "path in an Q-dimensional space of colvars. "// &
                           "Constraining this colvar, allows to sample the space equidistant to the reaction path, "// &
@@ -2001,21 +2002,21 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="DISTANCES_RMSD", &
+      CALL keyword_create(keyword, __LOCATION__, name="DISTANCES_RMSD", &
                           description=" ", &
                           usage="DISTANCES_RMSD T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMSD", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMSD", &
                           description=" ", &
                           usage="RMSD T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SUBSET_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SUBSET_TYPE", &
                           description="Define the subsytem used to compute the RMSD", &
                           usage="SUBSET_TYPE ALL", &
                           enum_c_vals=s2a("ALL", "LIST"), &
@@ -2024,25 +2025,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALIGN_FRAMES", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALIGN_FRAMES", &
                           description="Whether the reference frames should be aligned to minimize the RMSD", &
                           usage="ALIGN_FRAME", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Specify indexes of atoms building the subset. ", &
                           usage="ATOMS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="FRAME", &
+      CALL section_create(subsection, __LOCATION__, name="FRAME", &
                           description="Specify coordinates of the frame", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="COORD_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORD_FILE_NAME", &
                           description="Name of the xyz file with coordinates (alternative to &COORD section)", &
                           usage="COORD_FILE_NAME <CHAR>", &
                           default_lc_val="")
@@ -2056,7 +2057,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the ith element of the vector valued function that defines the reaction path. "// &
                           "This keyword needs to repeat exactly Q times, and the order must match the order of the colvars. "// &
                           "The VARIABLE (e.g. T) which parametrises the curve can be used as the target of a constraint.", &
@@ -2065,7 +2066,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VARIABLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLE", &
                           description="Specifies the name of the variable that parametrises the FUNCTION "// &
                           "defining the reaction path.", &
                           usage="VARIABLE T", type_of_var=char_t, &
@@ -2074,7 +2075,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="LAMBDA", &
+         keyword, __LOCATION__, name="LAMBDA", &
          description="Specifies the exponent of the Gaussian used in the integral representation of the colvar."// &
          "The shape of the space orthogonal to the reaction path is defined by this choice. "// &
          "In the limit of large values, it is given by the plane orthogonal to the path."// &
@@ -2084,7 +2085,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_SIZE", &
                           description="Step size in the numerical integration, "// &
                           "a few thousand points are common, and the proper number also depends on LAMBDA.", &
                           usage="STEP_SIZE {real}", &
@@ -2092,7 +2093,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANGE", &
                           description="The range of VARIABLE used for the parametrisation.", &
                           usage="RANGE <REAL> <REAL>", &
                           n_var=2, type_of_var=real_t)
@@ -2100,20 +2101,20 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create( &
-         print_key, name="MAP", &
+         print_key, __LOCATION__, name="MAP", &
          description="Activating this print key will print once a file with the values of the FUNCTION on a grid "// &
          "of COLVAR values in a specified range. "// &
          "GRID_SPACING and RANGE for every COLVAR has to be specified again in the same order as they are in the input.", &
          print_level=high_print_level, filename="PATH")
 
-      CALL keyword_create(keyword, name="RANGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANGE", &
                           description="The range of of the grid of the COLVAR.", &
                           usage="RANGE <REAL> <REAL>", &
                           n_var=2, type_of_var=real_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GRID_SPACING", &
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_SPACING", &
                           description="Distance between two gridpoints for the grid on the COLVAR", &
                           usage="STEP_SIZE {real}", repeats=.TRUE., &
                           type_of_var=real_t, default_r_val=0.01_dp)
@@ -2140,7 +2141,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="COMBINE_COLVAR", &
+      CALL section_create(section, __LOCATION__, name="COMBINE_COLVAR", &
                           description="Allows the possibility to combine several COLVARs into one COLVAR "// &
                           "with a generic function.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -2150,7 +2151,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the function used to combine different COLVARs into one.", &
                           ! **************************************************************************************************
                           !> \brief ...
@@ -2166,7 +2167,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VARIABLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLES", &
                           description="Specifies the name of the variable that parametrises the FUNCTION "// &
                           "defining how COLVARS should be combined. The matching follows the same order of the "// &
                           "COLVARS definition in the input file.", &
@@ -2174,28 +2175,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
                           usage="PARAMETERS a b D", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
                           description="Defines the values of  parameter of the functional form", &
                           usage="VALUES ", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Parameter used for computing the derivative of the combination "// &
                           "of COLVARs with the Ridders' method.", &
                           usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERROR_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
                           description="Checks that the error in computing the derivative is not larger than "// &
                           "the value set; in case error is larger a warning message is printed.", &
                           usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
@@ -2220,12 +2221,12 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="coord", &
+      CALL section_create(section, __LOCATION__, name="coord", &
                           description="The positions for "//TRIM(name)//" used for restart", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify positions of the system", repeats=.TRUE., &
                           usage="{Real} ...", type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -2248,12 +2249,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="wc", &
+      CALL section_create(section, __LOCATION__, name="wc", &
                           description="Section to define the hbond wannier centre as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Parameter used for computing the cutoff radius for searching "// &
                           "the wannier centres around an atom", &
                           usage="RCUT <REAL>", default_r_val=0.529177208590000_dp, unit_str="angstrom", &
@@ -2261,7 +2262,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).", &
                           usage="ATOMS {integer} {integer} {integer}", &
@@ -2291,12 +2292,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="hbp", &
+      CALL section_create(section, __LOCATION__, name="hbp", &
                           description="Section to define the hbond wannier centre as a collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Parameter used for computing the cutoff radius for searching "// &
                           "the wannier centres around an atom", &
                           usage="RCUT <REAL>", default_r_val=0.529177208590000_dp, unit_str="angstrom", &
@@ -2304,21 +2305,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHIFT", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHIFT", &
                           description="Parameter used for shifting each term in the sum ", &
                           usage="SHIFT <REAL>", default_r_val=0.5_dp, &
                           type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NPOINTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NPOINTS", &
                           description="The number of points in the path", &
                           usage="NPOINTS {integer}", default_i_val=-1, &
                           n_var=1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).", &
                           usage="ATOMS {integer} {integer} {integer}", &
@@ -2349,13 +2350,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RING_PUCKERING", &
+      CALL section_create(section, __LOCATION__, name="RING_PUCKERING", &
                           description="Section to define general ring puckering collective variables.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="ATOMS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           variants=(/"POINTS"/), &
                           description="Specifies the indexes of atoms/points defining the ring."// &
                           "At least 4 Atoms are needed.", &
@@ -2364,7 +2365,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COORDINATE", &
+      CALL keyword_create(keyword, __LOCATION__, name="COORDINATE", &
                           description="Indicate the coordinate to be used. Follow the Cremer-Pople definition for a N ring."// &
                           "0 is the total puckering variable Q,"// &
                           "2..[N/2] are puckering coordinates."// &

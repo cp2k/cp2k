@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libxc_ver=${libxc_ver:-4.0.3}
+libxc_ver="4.3.4"
+libxc_sha256="a8ee37ddc5079339854bd313272856c9d41a27802472ee9ae44b58ee9a298337"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_libxc=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxc" ] && rm "${BUILDDIR}/setup_libxc"
 
@@ -16,34 +17,30 @@ LIBXC_LDFLAGS=''
 LIBXC_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libxc" in
     __INSTALL__)
         echo "==================== Installing LIBXC ===================="
         pkg_install_dir="${INSTALLDIR}/libxc-${libxc_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libxc-${libxc_ver} is already installed, skipping it."
         else
             if [ -f libxc-${libxc_ver}.tar.gz ] ; then
                 echo "libxc-${libxc_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${libxc_sha256} \
                              https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
             tar -xzf libxc-${libxc_ver}.tar.gz
             cd libxc-${libxc_ver}
-            # patch buggy configure macro (fails with gcc trunk)
-            sed -i 's/ax_cv_f90_modext=$(ls | sed/ax_cv_f90_modext=)ls -1 | grep -iv smod | sed/g' \
-                configure
-            # patch for libxc 3.0.0 + gcc 6.4.0 (undefined behavior in lda_x.c)
-            CFLAGS=`echo ${CFLAGS} |sed 's|-fno-omit-frame-pointer ||g'`
             ./configure  --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         LIBXC_CFLAGS="-I'${pkg_install_dir}/include'"
         LIBXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
@@ -85,6 +82,13 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__LIBXC"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBXC_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXC_LDFLAGS}"
 export CP_LIBS="${LIBXC_LIBS} \${CP_LIBS}"
+export LIBXCROOT="$pkg_install_dir"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libxc"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "libxc"

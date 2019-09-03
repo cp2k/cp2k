@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -2230,8 +2230,7 @@ CONTAINS
                natom_iforce = SIZE(particles(iforce_eval)%list%els)
 
                ! Only the rank 0 process collect info for each computation
-               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                   force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
                   glob_natoms(iforce_eval) = natom_iforce
                END IF
             END DO
@@ -2245,8 +2244,7 @@ CONTAINS
                ALLOCATE (global_forces(iforce_eval)%forces(3, glob_natoms(iforce_eval)))
                global_forces(iforce_eval)%forces = 0.0_dp
                IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-                  IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-                      force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+                  IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
                      ! Forces
                      DO iparticle = 1, glob_natoms(iforce_eval)
                         global_forces(iforce_eval)%forces(:, iparticle) = &

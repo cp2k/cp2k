@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -22,7 +22,7 @@ MODULE header
    PRIVATE
    PUBLIC :: cp2k_header, cp2k_footer, vib_header
    PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
-   PUBLIC :: qmmm_header, atom_header, atom_footer, band_header
+   PUBLIC :: qmmm_header, atom_header, atom_footer, band_header, xtb_header
    PUBLIC :: tmc_header, tmc_ana_header
    PUBLIC :: sirius_header
 
@@ -193,6 +193,28 @@ CONTAINS
 !> \brief ...
 !> \param iw ...
 ! **************************************************************************************************
+   SUBROUTINE xtb_header(iw)
+      INTEGER, INTENT(in)                                :: iw
+
+      IF (iw < 0) RETURN
+      WRITE (iw, '( / )')
+      WRITE (iw, '( 11(16x,a,/) )') &
+         '  #####   #####        #          ####### ######   ', &
+         ' #     # #     #      #              #    #     #  ', &
+         ' #     # #           #    ##   ##    #    #     #  ', &
+         ' #     #  #####     #      ## ##     #    ######   ', &
+         ' #   # #       #   #        ###      #    #     #  ', &
+         ' #    #  #     #  #        ## ##     #    #     #  ', &
+         '  #### #  #####  #        ##   ##    #    ######   ', &
+         '                                                   ', &
+         '                 Version 1.0                       ', &
+         '            J. Hutter and A. Hehn                  ', &
+         '                                                   '
+   END SUBROUTINE xtb_header
+! **************************************************************************************************
+!> \brief ...
+!> \param iw ...
+! **************************************************************************************************
    SUBROUTINE se_header(iw)
       INTEGER, INTENT(in)                                :: iw
 
@@ -237,7 +259,7 @@ CONTAINS
          "**                                                                           **", &
          "**                                                ... make the atoms dance   **", &
          "**                                                                           **", &
-         "**            Copyright (C) by CP2K developers group (2000 - 2018)           **", &
+         "**            Copyright (C) by CP2K developers group (2000 - 2019)           **", &
          "**                                                                           **", &
          "*******************************************************************************"
    END SUBROUTINE qs_header

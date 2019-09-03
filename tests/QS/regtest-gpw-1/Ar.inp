@@ -1,10 +1,10 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME "BASIS_SET" # Test parser: allow for comments using quotation marks
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF 200
+      "CUTOFF"  "200" # Test parser
       REL_CUTOFF 40
     &END MGRID
     &QS
@@ -37,12 +37,12 @@
     Ar     0.000000  0.000000  0.000000
     &END COORD
     &KIND Ar
-      BASIS_SET DZVP-GTH-PADE
-      POTENTIAL GTH-PADE-q8
+      BASIS_SET "DZVP-GTH-PADE" # Test parser
+      POTENTIAL "GTH-PADE-q8"
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT Ar
+  PROJECT "Ar"
   PRINT_LEVEL MEDIUM
 &END GLOBAL

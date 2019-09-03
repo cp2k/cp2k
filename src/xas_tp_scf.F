@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -64,8 +64,7 @@ MODULE xas_tp_scf
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
-                                              self_consistency_check
+   USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -74,6 +73,7 @@ MODULE xas_tp_scf
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
                                               qs_loc_env_new_type
+   USE qs_mixing_utils,                 ONLY: self_consistency_check
    USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                               calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation

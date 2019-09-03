@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -296,7 +296,7 @@ CONTAINS
 !> \brief ...
 !> \param wf_history ...
 !> \param interpolation_method_nr the tag of the method used for
-!>        the extrapolation of the intial density for the next md step
+!>        the extrapolation of the initial density for the next md step
 !>        (see qs_wf_history_types:wfi_*_method_nr)
 !> \param extrapolation_order ...
 !> \param has_unit_metric ...

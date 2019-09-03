@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
 !> \brief builds the global input section for cp2k
 !> \par History
 !>      06.2004 created [fawzi]
-!>      03.2014 moved to seperate file [Ole Schuett]
+!>      03.2014 moved to separate file [Ole Schuett]
 !>      10.2016 update seed input [Matthias Krack]
 !> \author fawzi
 ! **************************************************************************************************
@@ -20,8 +20,9 @@ MODULE input_cp2k_global
                                               BLACS_GRID_ROW,&
                                               BLACS_GRID_SQUARE
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
-   USE cp_fm_elpa,                      ONLY: get_elpa_kernel_descriptions,&
-                                              get_elpa_kernel_names,&
+   USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
+                                              elpa_kernel_names,&
+                                              get_elpa_kernel_index,&
                                               get_elpa_number_kernels
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -32,9 +33,9 @@ MODULE input_cp2k_global
                                               silent_print_level
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_diag_sl2, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
+        do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_farming, do_fft_fftw3, &
+        do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, do_tamc, do_test, &
+        do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
         energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
         fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
         negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
@@ -50,6 +51,7 @@ MODULE input_cp2k_global
                                               integer_t,&
                                               logical_t
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_cpuid
    USE string_utilities,                ONLY: s2a
    USE timings,                         ONLY: default_timings_level
 #include "./base/base_uses.f90"
@@ -75,19 +77,19 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i
+      INTEGER                                            :: default_i_val, i
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
       NULLIFY (print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="GLOBAL", &
+      CALL section_create(section, __LOCATION__, name="GLOBAL", &
                           description="Section with general information regarding which kind "// &
                           "of simulation to perform an parameters for the whole PROGRAM", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="BLACS_GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="BLACS_GRID", &
                           description="how to distribute the processors on the 2d grid needed "// &
                           "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE", &
                           default_i_val=BLACS_GRID_SQUARE, enum_c_vals=s2a("SQUARE", "ROW", "COLUMN"), &
@@ -97,37 +99,44 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BLACS_REPEATABLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BLACS_REPEATABLE", &
                           description="Use a topology for BLACS collectives that is guaranteed to be repeatable "// &
-                          "on homegeneous architectures", &
+                          "on homogeneous architectures", &
                           usage="BLACS_REPEATABLE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+#if defined(__ELPA)
+      default_i_val = do_diag_elpa
+#else
+      default_i_val = do_diag_sl
+#endif
       CALL keyword_create( &
-         keyword, name="PREFERRED_DIAG_LIBRARY", &
-         description="Specifies the DIAGONALIZATION library to be used. If not availabe, the standard scalapack is used", &
+         keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
+         description="Specifies the DIAGONALIZATION library to be used. If not available, the standard scalapack is used", &
          usage="PREFERRED_DIAG_LIBRARY ELPA", &
-         default_i_val=do_diag_sl, &
-         enum_i_vals=(/do_diag_sl, do_diag_sl2, do_diag_elpa/), &
-         enum_c_vals=s2a("SL", "SL2", "ELPA"), &
-         enum_desc=s2a("Standard scalapack: syevd", "Scalapack 2.0: syevr", "ELPA"), &
+         default_i_val=default_i_val, &
+         enum_i_vals=(/do_diag_sl, do_diag_elpa/), &
+         enum_c_vals=s2a("SL", "ELPA"), &
+         enum_desc=s2a("Standard (Sca)LAPACK: syevd", "ELPA"), &
          citations=(/Marek2014/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      default_i_val = get_elpa_kernel_index(m_cpuid())
+      CPASSERT(default_i_val .LE. get_elpa_number_kernels())
       CALL keyword_create( &
-         keyword, name="ELPA_KERNEL", &
+         keyword, __LOCATION__, name="ELPA_KERNEL", &
          description="Specifies the kernel to be used when ELPA is in use", &
-         default_i_val=1, &
-         enum_i_vals=(/(i, i=1, get_elpa_number_kernels())/), &
-         enum_c_vals=get_elpa_kernel_names(), &
-         enum_desc=get_elpa_kernel_descriptions())
+         default_i_val=default_i_val, &
+         enum_i_vals=[(i, i=1, get_elpa_number_kernels())], &
+         enum_c_vals=elpa_kernel_names, &
+         enum_desc=elpa_kernel_descriptions)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELPA_QR", &
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_QR", &
                           description="For ELPA, enable a blocked QR step when reducing the input matrix "// &
                           "to banded form in preparation for the actual diagonalization step. "// &
                           "See implementation paper for more details. Requires ELPA version 201505 or newer, "// &
@@ -140,7 +149,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELPA_QR_UNSAFE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_QR_UNSAFE", &
                           description="For ELPA, disable block size limitations when used together with ELPA_QR. "// &
                           "Keyword relevant only with ELPA versions 201605 or newer. Use keyword with caution, "// &
                           "as it might result in wrong eigenvalues with some matrix orders/block sizes "// &
@@ -152,7 +161,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "PRINT_ELPA", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT_ELPA", &
                                        description="Controls the printing of ELPA diagonalization information."// &
                                        "Useful for testing purposes, especially together with keyword ELPA_QR.", &
                                        filename="__STD_OUT__")
@@ -160,7 +169,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL keyword_create( &
-         keyword, name="PREFERRED_FFT_LIBRARY", &
+         keyword, __LOCATION__, name="PREFERRED_FFT_LIBRARY", &
          description="Specifies the FFT library which should be preferred. "// &
          "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "// &
          "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "// &
@@ -178,11 +187,11 @@ CONTAINS
                        "will be used in case a FFT library is specified and not available.", &
                        "a fast portable FFT library. Recommended."// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-                       "Same as FFTW3 (for compatability with CP2K 2.3)"))
+                       "Same as FFTW3 (for compatibility with CP2K 2.3)"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FFTW_WISDOM_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="FFTW_WISDOM_FILE_NAME", &
                           description="The name of the file that contains wisdom (pre-planned FFTs) for use with FFTW3. "// &
                           "Using wisdom can significantly speed up the FFTs (see the FFTW homepage for details). "// &
                           "Note that wisdom is not transferable between different computer (architectures). "// &
@@ -193,7 +202,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FFTW_PLAN_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="FFTW_PLAN_TYPE", &
                           description="FFTW can have improved performance if it is allowed to plan with "// &
                           "explicit measurements which strategy is best for a given FFT. "// &
                           "While a plan based on measurements is generally faster, "// &
@@ -215,7 +224,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXTENDED_FFT_LENGTHS", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXTENDED_FFT_LENGTHS", &
                           description="Use fft library specific values for the allows number of points in FFTs. "// &
                           "The default is to use the internal FFT lengths. For external fft libraries this may "// &
                           "create an error at the external library level, because the length provided by cp2k is "// &
@@ -230,20 +239,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FFT_POOL_SCRATCH_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="FFT_POOL_SCRATCH_LIMIT", &
                           description="Limits the memory usage of the FFT scratch pool, potentially reducing efficiency a bit", &
                           usage="FFT_POOL_SCRATCH_LIMIT {INTEGER}", default_i_val=15)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALLTOALL_SGL", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALLTOALL_SGL", &
                           description="All-to-all communication (FFT) should use single precision", &
                           usage="ALLTOALL_SGL YES", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRINT_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
                           variants=(/"IOLEVEL"/), &
                           description="How much output is written out.", &
                           usage="PRINT_LEVEL HIGH", &
@@ -258,7 +267,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="PROGRAM_NAME", &
+         keyword, __LOCATION__, name="PROGRAM_NAME", &
          variants=(/"PROGRAM"/), &
          description="Which program should be run", &
          usage="PROGRAM_NAME {STRING}", &
@@ -279,7 +288,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PROJECT_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="PROJECT_NAME", &
                           variants=(/"PROJECT"/), &
                           description="Name of the project (used to build the name of the "// &
                           "trajectory, and other files generated by the program)", &
@@ -288,7 +297,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OUTPUT_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_FILE_NAME", &
                           description="Name of the output file. "// &
                           "Relevant only if automatically started (through farming for example). "// &
                           "If empty uses the project name as basis for it.", &
@@ -297,7 +306,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="RUN_TYPE", &
+         keyword, __LOCATION__, name="RUN_TYPE", &
          description="Type of run that you want to perform Geometry "// &
          "optimization, md, montecarlo,...", &
          usage="RUN_TYPE MD", &
@@ -331,27 +340,27 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WALLTIME", &
+      CALL keyword_create(keyword, __LOCATION__, name="WALLTIME", &
                           variants=(/"WALLTI"/), &
                           description="Maximum execution time for this run. Time in seconds or in HH:MM:SS.", &
                           usage="WALLTIME {real} or {HH:MM:SS}", default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ECHO_INPUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ECHO_INPUT", &
                           description="If the input should be echoed to the output with all the "// &
                           "defaults made explicit", &
                           usage="ECHO_INPUT NO", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ECHO_ALL_HOSTS", &
+      CALL keyword_create(keyword, __LOCATION__, name="ECHO_ALL_HOSTS", &
                           description="Echo a list of hostname and pid for all MPI processes.", &
                           usage="ECHO_ALL_HOSTS NO", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENABLE_MPI_IO", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENABLE_MPI_IO", &
                           description="Enable MPI parallelization for all supported I/O routines "// &
                           "Currently, only cube file writer/reader routines use MPI I/O. Disabling "// &
                           "this flag might speed up calculations dominated by I/O.", &
@@ -359,14 +368,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRACE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRACE", &
                           description="If a debug trace of the execution of the program should be written ", &
                           usage="TRACE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRACE_MASTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="TRACE_MASTER", &
                           description="For parallel TRACEd runs: only the master node writes output.", &
                           usage="TRACE_MASTER", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
@@ -374,14 +383,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="TRACE_MAX", &
+         keyword, __LOCATION__, name="TRACE_MAX", &
          description="Limit the total number a given subroutine is printed in the trace. Accounting is not influenced.", &
          usage="TRACE_MAX 100", default_i_val=HUGE(0))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="TRACE_ROUTINES", &
+         keyword, __LOCATION__, name="TRACE_ROUTINES", &
          description="A list of routines to trace. If left empty all routines are traced. Accounting is not influenced.", &
          usage="TRACE_ROUTINES {routine_name1} {routine_name2} ...", type_of_var=char_t, &
          n_var=-1)
@@ -389,14 +398,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="FLUSH_SHOULD_FLUSH", &
+         keyword, __LOCATION__, name="FLUSH_SHOULD_FLUSH", &
          description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.", &
          usage="FLUSH_SHOULD_FLUSH", &
          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CALLGRAPH", &
+      CALL keyword_create(keyword, __LOCATION__, name="CALLGRAPH", &
                           description="At the end of the run write a callgraph to file, "// &
                           "which contains detailed timing informations. "// &
                           "This callgraph can be viewed e.g. with the open-source program kcachegrind.", &
@@ -410,14 +419,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CALLGRAPH_FILE_NAME", &
-                          description="Name of the callgraph file, which is writte a the end of the run. "// &
+      CALL keyword_create(keyword, __LOCATION__, name="CALLGRAPH_FILE_NAME", &
+                          description="Name of the callgraph file, which is written at the end of the run. "// &
                           "If not specified the project name will be used as filename.", &
                           usage="CALLGRAPH_FILE_NAME {filename}", default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SEED", &
+      CALL keyword_create(keyword, __LOCATION__, name="SEED", &
                           description="Initial seed for the global (pseudo)random number generator "// &
                           "to create a stream of normally Gaussian distributed random numbers. "// &
                           "Exactly 1 or 6 positive integer values are expected. A single value is "// &
@@ -429,7 +438,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SAVE_MEM", &
+      CALL keyword_create(keyword, __LOCATION__, name="SAVE_MEM", &
                           description="Some sections of the input structure are deallocated when not needed,"// &
                           " and reallocated only when used. This reduces the required maximum memory  ", &
                           usage="SAVE_MEM", &
@@ -437,11 +446,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "TIMINGS", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TIMINGS", description= &
                                        "Controls the printing of the timing report at the end of CP2K execution", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
 
-      CALL keyword_create(keyword, name="THRESHOLD", &
+      CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD", &
                           description="Specify % of CPUTIME above which the contribution will be inserted in the"// &
                           " final timing report (e.g. 0.02 = 2%)", &
                           usage="THRESHOLD {REAL}", &
@@ -449,7 +458,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SORT_BY_SELF_TIME", &
+      CALL keyword_create(keyword, __LOCATION__, name="SORT_BY_SELF_TIME", &
                           description="Sort the final timing report by the average self (exclusive) time instead of the "// &
                           "total (inclusive) time of a routine", &
                           usage="SORT_BY_SELF_TIME on", &
@@ -457,7 +466,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REPORT_MAXLOC", &
+      CALL keyword_create(keyword, __LOCATION__, name="REPORT_MAXLOC", &
                           description="Report the rank with the slowest maximum self timing."// &
                           " Can be used to debug hard- or software."// &
                           " Also enables ECHO_ALL_HOSTS to link rank to hostname.", &
@@ -466,14 +475,14 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TIME_MPI", &
+      CALL keyword_create(keyword, __LOCATION__, name="TIME_MPI", &
                           description="Include message_passing calls in the timing report (useful with CALLGRAPH).", &
                           usage="TIME_MPI .FALSE.", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TIMINGS_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="TIMINGS_LEVEL", &
                           description="Specify the level of timings report. "// &
                           "Possible values are: 0 (report only CP2K root timer), 1 (all timers).", &
                           usage="TIMINGS_LEVEL 1", &
@@ -484,52 +493,52 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "REFERENCES", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "REFERENCES", description= &
                                        "Controls the printing of the references relevant to the calculations performed", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="controls the printing of  initialization controlled by the global section", &
                                        print_level=silent_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PRINT", description= &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT", description= &
                                        "controls the printing of physical and mathematical constants", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
 
-      CALL keyword_create(keyword, "BASIC_DATA_TYPES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIC_DATA_TYPES", &
                           description="Controls the printing of the basic data types.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "physcon", &
+      CALL keyword_create(keyword, __LOCATION__, name="physcon", &
                           description="if the printkey is active prints the physical constants", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "SPHERICAL_HARMONICS", &
+      CALL keyword_create(keyword, __LOCATION__, name="SPHERICAL_HARMONICS", &
                           description="if the printkey is active prints the spherical harmonics", &
                           default_i_val=-1, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "RNG_MATRICES", &
+      CALL keyword_create(keyword, __LOCATION__, name="RNG_MATRICES", &
                           description="Prints the transformation matrices used by the "// &
                           " random number generator", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "RNG_CHECK", &
+      CALL keyword_create(keyword, __LOCATION__, name="RNG_CHECK", &
                           description="Performs a check of the global (pseudo)random "// &
                           "number generator (RNG) and prints the result", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "GLOBAL_GAUSSIAN_RNG", &
+      CALL keyword_create(keyword, __LOCATION__, name="GLOBAL_GAUSSIAN_RNG", &
                           description="Prints the initial status of the global Gaussian "// &
                           "(pseudo)random number stream which is mostly used for "// &
                           "the velocity initialization", &
@@ -571,27 +580,27 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FM", &
+      CALL section_create(section, __LOCATION__, name="FM", &
                           description="Configuration options for the full matrices.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="NROW_BLOCKS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NROW_BLOCKS", &
                           description="Defines the number of rows per scalapack block in "// &
                           "the creation of block cyclic dense matrices ", &
                           default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NCOL_BLOCKS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NCOL_BLOCKS", &
                           description="Defines the number of columns per scalapack block in "// &
                           "the creation of vlock cyclic dense matrices ", &
                           default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FORCE_BLOCK_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_BLOCK_SIZE", &
                           description="Ensure for small matrices that the layout is compatible "// &
                           "with bigger ones, i.e. no subdivision is performed (can break LAPACK!!!).", &
                           usage="FORCE_BLOCK_SIZE", &
@@ -599,11 +608,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TYPE_OF_MATRIX_MULTIPLICATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="TYPE_OF_MATRIX_MULTIPLICATION", &
                           description="Allows to switch between scalapack pdgemm and dbcsr_multiply. "// &
                           "On normal systems pdgemm is recommended on system with GPU "// &
                           "is optimized and can give better performance. NOTE: if DBCSR is employed "// &
-                          "FORCE_BLOCK_SIZE should be set. The perfomance on GPU's dependes "// &
+                          "FORCE_BLOCK_SIZE should be set. The performance on GPU's depends "// &
                           "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.", &
                           usage="TYPE_OF_MATRIX_MULTIPLICATION ELPA", &
                           default_i_val=do_pdgemm, &
@@ -631,7 +640,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FM_DIAG_SETTINGS", &
+      CALL section_create(section, __LOCATION__, name="FM_DIAG_SETTINGS", &
                           description="This section defines a set of heuristic rules which are "// &
                           "used to calculate the optimal number of CPUs, M, needed to diagonalize a "// &
                           "full matrix distributed on N processors (FM type). If M &lt N, the matrix "// &
@@ -644,7 +653,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="PARAMETER_A", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_A", &
                           description="Parameter used for defining the rule which determines the optimal "// &
                           "number of CPUs needed to diagonalize a full distributed matrix. The optimal "// &
                           "number of CPUs will be an integer multiple of this variable.", &
@@ -653,7 +662,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETER_X", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_X", &
                           description="Parameter used for defining the rule which determines the optimal "// &
                           "number of CPUs needed to diagonalize a full distributed matrix. The optimal "// &
                           "number of CPUs will be roughly proportional to this value.", &
@@ -662,7 +671,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRINT_FM_REDISTRIBUTE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_FM_REDISTRIBUTE", &
                           description="Controls printing of information related to this section. For each "// &
                           "diagonalized matrix, prints the size of the matrix, the optimal number of CPUs, "// &
                           "as well as notifies if the matrix was redistributed. Useful for testing.", &
@@ -671,7 +680,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELPA_FORCE_REDISTRIBUTE", &
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_FORCE_REDISTRIBUTE", &
                           description="Controls how to perform redistribution when ELPA is used for diagonalization. "// &
                           "By default, matrices are redistributed only to prevent crashes in the ELPA library "// &
                           "which happen when the original matrix is distributed on too many processors. "// &

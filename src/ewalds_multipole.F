@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -25,8 +25,6 @@ MODULE ewalds_multipole
    USE dg_types,                        ONLY: dg_get,&
                                               dg_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE erf_fn,                          ONLY: erf,&
-                                              erfc
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&

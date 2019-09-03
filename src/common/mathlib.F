@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -394,6 +394,7 @@ CONTAINS
 
       ! Diagonalize the matrix a
 
+      info = 0
       IF (divide_and_conquer) THEN
          CALL dsyevd("V", "U", n, a, n, eigval, work, lwork, iwork, liwork, info)
       ELSE
@@ -1553,75 +1554,83 @@ CONTAINS
 !> \brief  Diagonalize matrix a. The eigenvalues are returned in vector d
 !>         and the eigenvectors are returned in matrix v.
 !>
-!> \param n ...
-!> \param a ...
-!> \param d ...
-!> \param v ...
+!> \param n matrix/vector extent (problem size)
+!> \param a matrix to be diagonalised
+!> \param d vector of eigenvalues
+!> \param v matrix of eigenvectors
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
 ! **************************************************************************************************
    SUBROUTINE diag(n, a, d, v)
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(n, n), INTENT(INOUT)      :: a
-      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: d
-      REAL(KIND=dp), DIMENSION(n, n), INTENT(OUT)        :: v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: v
+
+      REAL(KIND=dp), PARAMETER                           :: a_eps = 1.0E-10_dp, d_eps = 1.0E-3_dp
 
       INTEGER                                            :: i, ip, iq
-      REAL(KIND=dp)                                      :: a_max, c, d_min, g, h, s, t, tau, theta, &
-                                                            tresh
+      REAL(KIND=dp)                                      :: a_max, apq, c, d_min, dip, diq, g, h, s, &
+                                                            t, tau, theta, tresh
       REAL(KIND=dp), DIMENSION(n)                        :: b, z
 
-      CALL unit_matrix(v(:, :))
+      a_max = 0.0_dp
+      DO ip = 1, n-1
+         a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
+         b(ip) = a(ip, ip) ! get_diag(a)
+      END DO
+      b(n) = a(n, n)
 
-      b(:) = get_diag(a(:, :))
-      d(:) = b(:)
-      z(:) = 0.0_dp
+      CALL unit_matrix(v)
 
       ! Go for 50 iterations
       DO i = 1, 50
-         d_min = MAX(1.0E-3_dp, MINVAL(ABS(d(:))))
-         a_max = 0.0_dp
-         DO ip = 1, n-1
-            a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
-         END DO
-         IF (a_max < 1.0E-10_dp*d_min) RETURN
+         d = b
+         d_min = MAX(d_eps, MINVAL(ABS(b)))
+         IF (a_max < a_eps*d_min) RETURN
          tresh = MERGE(a_max, 0.0_dp, (i < 4))
+         z = 0.0_dp
          DO ip = 1, n-1
             DO iq = ip+1, n
-               g = 100.0_dp*ABS(a(ip, iq))
-               IF ((i > 4) .AND. &
-                   ((ABS(d(ip))+g) == ABS(d(ip))) .AND. &
-                   ((ABS(d(iq))+g) == ABS(d(iq)))) THEN
-                  a(ip, iq) = 0.0_dp
-               ELSE IF (ABS(a(ip, iq)) > tresh) THEN
-                  h = d(iq)-d(ip)
-                  IF ((ABS(h)+g) == ABS(h)) THEN
-                     t = a(ip, iq)/h
-                  ELSE
-                     theta = 0.5_dp*h/a(ip, iq)
+               dip = d(ip)
+               diq = d(iq)
+               apq = a(ip, iq)
+               g = 100.0_dp*ABS(apq)
+               IF (tresh < ABS(apq)) THEN
+                  h = diq-dip
+                  IF ((ABS(h)+g) .NE. ABS(h)) THEN
+                     theta = 0.5_dp*h/apq
                      t = 1.0_dp/(ABS(theta)+SQRT(1.0_dp+theta**2))
                      IF (theta < 0.0_dp) t = -t
+                  ELSE
+                     t = apq/h
                   END IF
                   c = 1.0_dp/SQRT(1.0_dp+t**2)
                   s = t*c
                   tau = s/(1.0_dp+c)
-                  h = t*a(ip, iq)
+                  h = t*apq
                   z(ip) = z(ip)-h
                   z(iq) = z(iq)+h
-                  d(ip) = d(ip)-h
-                  d(iq) = d(iq)+h
+                  d(ip) = dip-h
+                  d(iq) = diq+h
                   a(ip, iq) = 0.0_dp
                   CALL jrotate(a(1:ip-1, ip), a(1:ip-1, iq), s, tau)
                   CALL jrotate(a(ip, ip+1:iq-1), a(ip+1:iq-1, iq), s, tau)
                   CALL jrotate(a(ip, iq+1:n), a(iq, iq+1:n), s, tau)
                   CALL jrotate(v(:, ip), v(:, iq), s, tau)
+               ELSE IF ((4 < i) .AND. &
+                        ((ABS(dip)+g) == ABS(dip)) .AND. &
+                        ((ABS(diq)+g) == ABS(diq))) THEN
+                  a(ip, iq) = 0.0_dp
                END IF
             END DO
          END DO
-         b(:) = b(:)+z(:)
-         d(:) = b(:)
-         z(:) = 0.0_dp
+         b = b+z
+         a_max = 0.0_dp
+         DO ip = 1, n-1
+            a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
+         END DO
       END DO
       WRITE (*, '(/,T2,A,/)') 'Too many iterations in jacobi'
 
@@ -1641,11 +1650,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: a, b
       REAL(KIND=dp), INTENT(IN)                          :: ss, tt
 
-      REAL(KIND=dp), DIMENSION(SIZE(a))                  :: c
+      REAL(KIND=dp)                                      :: u, v
 
-      c(:) = a(:)
-      a(:) = a(:)-ss*(b(:)+a(:)*tt)
-      b(:) = b(:)+ss*(c(:)-b(:)*tt)
+      u = 1.0_dp-ss*tt
+      v = ss/u
+
+      a = a*u-b*ss
+      b = b*(u+ss*v)+a*v
 
    END SUBROUTINE jrotate
 
@@ -1726,3 +1737,4 @@ CONTAINS
    END SUBROUTINE swap_vector
 
 END MODULE mathlib
+

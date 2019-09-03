@@ -36,6 +36,8 @@
           &END
         &END
       &END XC
+      TNADD_METHOD RI_EMBEDDING
+       INTEGRATION_GRID SMALL
       &LRIGPW
          RI_STATISTIC  T
          EPS_O3_INT   1.e-14

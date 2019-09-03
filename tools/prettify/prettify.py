@@ -15,7 +15,6 @@ except ImportError:
 from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import replacer
 from fprettify import reformat_ffile, fparse_utils, log_exception
-from prettify_cp2k import selftest
 
 
 OPERATORS_STR = r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
@@ -380,41 +379,6 @@ def main(argv=None):
                         "Processing file '" + fileName + "'\n")
         return(failure > 0)
 
-#=========================================================================
 
-
-def run_selftest():
-    # create temporary file with example code
-    fn = os.path.join(tempfile.gettempdir(), "prettify_selftest.F")
-    ref = selftest.content
-    f = open(fn, "w")
-    f.write(ref)
-    f.close()
-
-    # call prettify
-    rtn = main([sys.argv[0], fn])
-    assert(rtn == 0)
-
-    # check if file was altered
-    result = open(fn).read()
-    for i, (l1, l2) in enumerate(zip(result.split("\n"), ref.split("\n"))):
-        if(l1 != l2):
-            print("Error: Line %d is not invariant." % i)
-            print("before: " + l1)
-            print("after : " + l2)
-            os.remove(fn)
-            return(1)
-
-    os.remove(fn)
-    print("Prettify selftest passed.")
-    return(0)
-
-#=========================================================================
 if(__name__ == '__main__'):
-    if(len(sys.argv) == 2 and sys.argv[-1] == "--selftest"):
-        rtn = run_selftest()
-    else:
-        rtn = main()
-
-    sys.exit(rtn)
-# EOF
+    sys.exit(main())

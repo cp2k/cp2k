@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -52,14 +52,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: sub2section, sub3section, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EMBED", &
+      CALL section_create(section, __LOCATION__, name="EMBED", &
                           description="This section contains all information to run embedded "// &
                           "calculations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/Huang2011, Heaton_Burgess2007/))
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="EMBED_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="EMBED_METHOD", &
                           description="Select DFET or DMFET.", &
                           usage="EMBED_METHOD DFET", &
                           default_i_val=dfet, &
@@ -70,7 +70,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Group partitioning
-      CALL keyword_create(keyword, name="GROUP_PARTITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_PARTITION", &
                           description="gives the exact number of processors for each group."// &
                           " If not specified processors allocated will be equally distributed for"// &
                           " the specified subforce_eval, trying to build a number of groups equal to the"// &
@@ -79,7 +79,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
                           description="Gives the wanted number of groups. Currently must be set to 1", &
                           usage="ngroups 4", type_of_var=integer_t, default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -87,7 +87,7 @@ CONTAINS
 
       ! Mapping of atoms
       NULLIFY (sub2section, sub3section)
-      CALL section_create(subsection, name="MAPPING", &
+      CALL section_create(subsection, __LOCATION__, name="MAPPING", &
                           description="Defines the mapping of atoms for the different force_eval with the mixed force_eval."// &
                           " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"// &
                           " geometrical structure). The mapping is based on defining fragments and the mapping the "// &
@@ -95,21 +95,21 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       ! Mixed force_eval
-      CALL section_create(sub2section, name="FORCE_EVAL_EMBED", &
+      CALL section_create(sub2section, __LOCATION__, name="FORCE_EVAL_EMBED", &
                           description="Defines the fragments for the embedding force_eval (reference)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL section_create(sub3section, name="FRAGMENT", &
+      CALL section_create(sub3section, __LOCATION__, name="FRAGMENT", &
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Starting and ending atomic index defining one fragment must be provided", &
                           usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.TRUE.)
       CALL section_add_keyword(sub3section, keyword)
@@ -121,13 +121,13 @@ CONTAINS
       CALL section_release(sub2section)
 
       ! All other force_eval
-      CALL section_create(sub2section, name="FORCE_EVAL", &
+      CALL section_create(sub2section, __LOCATION__, name="FORCE_EVAL", &
                           description="Defines the fragments and the mapping for each force_eval (an integer index (ID) "// &
                           "needs to be provided as parameter)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create( &
-         keyword, name="DEFINE_FRAGMENTS", &
+         keyword, __LOCATION__, name="DEFINE_FRAGMENTS", &
          description="Specify the fragments definition of the force_eval through the fragments of the"// &
          " force_eval_embed. This avoids the pedantic definition of the fragments for the force_eval,"// &
          " assuming the order of the fragments for the specified force_eval is the same as the sequence "// &
@@ -136,29 +136,29 @@ CONTAINS
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the force_eval for which fragments and mappings are provided", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(sub3section, name="FRAGMENT", &
+      CALL section_create(sub3section, __LOCATION__, name="FRAGMENT", &
                           description="Fragment definition", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Starting and ending atomic index defining one fragment must be provided", &
                           usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.FALSE.)
       CALL section_add_keyword(sub3section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAP", &
                           description="Provides the index of the fragment of the MIXED force_eval mapped on the"// &
                           " locally defined fragment.", &
                           usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.)
@@ -192,13 +192,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options in EMBED env.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information during the evaluation of "// &
                                        "the embedding environment. ", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")

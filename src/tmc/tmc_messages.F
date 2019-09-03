@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -413,7 +413,7 @@ CONTAINS
 !! **************************************************************************************************
 !!> \brief the message for sending the atom mass
 !!>        (number of atoms is also tranfered)
-!!>        atom names have to be done seperately,
+!!>        atom names have to be done separately,
 !!>        because character send only with bcast possible
 !!> \param tmc_parms th send the cell properties
 !!> \param m_send the message structure
@@ -455,7 +455,7 @@ CONTAINS
 !! **************************************************************************************************
 !!> \brief the message for reading the atom mass
 !!>        (number of atoms is also tranfered)
-!!>        atom names have to be done seperately,
+!!>        atom names have to be done separately,
 !!>        because character send only with bcast possible
 !!> \param tmc_parms th send the cell properties
 !!> \param m_send the message structure
@@ -592,7 +592,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief the message for sending back the initial configuration
 !> \param msg_type the status tag
-!> \param elem the intial tree element with initial coordinates and energy
+!> \param elem the initial tree element with initial coordinates and energy
 !>        (using the approximated potential)
 !> \param result_count ...
 !> \param tmc_params to send the cell properties
@@ -675,7 +675,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief the message for sending back the initial configuration
 !> \param msg_type the status tag
-!> \param elem the intial tree element with initial coordinates and energy
+!> \param elem the initial tree element with initial coordinates and energy
 !>        (using the approximated potential)
 !> \param result_count ...
 !> \param m_send the message structure

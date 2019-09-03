@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -12,6 +12,7 @@
 MODULE input_cp2k_force_eval
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
+                                              debug_print_level,&
                                               high_print_level,&
                                               low_print_level,&
                                               medium_print_level
@@ -71,14 +72,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="force_eval", &
+      CALL section_create(section, __LOCATION__, name="force_eval", &
                           description="parameters needed to calculate energy and forces and"// &
                           " describe the system you want to analyze.", &
                           n_keywords=1, n_subsections=9, repeats=.TRUE.)
 
       NULLIFY (subsection)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Which method should be used to compute forces", &
                           usage="METHOD <STRING>", &
                           enum_c_vals=s2a("QS", &
@@ -102,7 +103,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STRESS_TENSOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="STRESS_TENSOR", &
                           description="Controls the calculation of the stress tensor. The combinations defined below"// &
                           " are not implemented for all methods.", &
                           usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
@@ -188,41 +189,41 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EXTERNAL_POTENTIAL", &
+      CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
                           description="Section controlling the presence of an external potential dependent "// &
                           " on the atomic positions (X,Y,Z)", &
                           n_keywords=7, n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOMS_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           description="Specifies the atoms on which the external potential will act", &
                           usage="ATOMS_LIST {INT} {INT} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FUNCTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the functional form in mathematical notation. Variables must be the atomic "// &
                           "coordinates (X,Y,Z).", usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
                           type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PARAMETERS", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
                           usage="PARAMETERS a b D", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VALUES", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
                           description="Defines the values of  parameter of the functional form", &
                           usage="VALUES ", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="UNITS", &
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
                           "It is assumed that the corresponding parameter value is specified in this unit.", &
                           usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
@@ -230,13 +231,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DX", &
+      CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Parameter used for computing the derivative with the Ridders' method.", &
                           usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ERROR_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
                           description="Checks that the error in computing the derivative is not larger than "// &
                           "the value set; in case error is larger a warning message is printed.", &
                           usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
@@ -259,13 +260,13 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESCALE_FORCES", &
+      CALL section_create(section, __LOCATION__, name="RESCALE_FORCES", &
                           description="Section controlling the rescaling of forces. Useful when"// &
                           " starting from quite bad geometries with unphysically large forces.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="MAX_FORCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FORCE", &
                           description="Specify the Maximum Values of the force. If the force"// &
                           " of one atom exceed this value it's rescaled to the MAX_FORCE"// &
                           " value.", &
@@ -296,20 +297,20 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Properties that you want to output and that are common to all methods", &
                           n_keywords=0, n_subsections=5, repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of basic information generated by force_eval", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FORCES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FORCES", &
                                        description="Controls the printing of the forces after each force evaluation", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword=keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="NDIGITS", &
                           description="Specifies the number of digits used "// &
                           "for the printing of the forces", &
@@ -322,40 +323,40 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
-         print_key, "GRID_INFORMATION", &
+         print_key, __LOCATION__, "GRID_INFORMATION", &
          description="Controls the printing of information regarding the PW and RS grid structures.", &
          print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "TOTAL_NUMBERS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TOTAL_NUMBERS", &
                                        description="Controls the printing of the total number of atoms, kinds,...", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DISTRIBUTION", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DISTRIBUTION", &
                                        description="Controls the printing of the distribution of molecules, atoms, ...", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DISTRIBUTION2D", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DISTRIBUTION2D", &
                                        description="Controls the printing of the distribution of matrix blocks,...", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DISTRIBUTION1D", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DISTRIBUTION1D", &
                                        description="Each node prints out its distribution info ...", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "STRESS_TENSOR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "STRESS_TENSOR", &
                                        description="Controls the printing of the stress tensor", &
                                        print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword=keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="NDIGITS", &
                           description="Specifies the number of digits used "// &
                           "for the printing of the stress tensor", &
@@ -364,6 +365,12 @@ CONTAINS
                           repeats=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "GRRM", &
+                                       description="Controls the printing of the GRRM interface file", &
+                                       print_level=debug_print_level, filename="CP2K_GRMM")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -133,7 +133,7 @@ CONTAINS
                                     group=embed_env%new_group, &
                                     owns_group=.TRUE.)
             ! Create sub_logger
-            IF (embed_env%sub_para_env(i)%para_env%mepos == embed_env%sub_para_env(i)%para_env%source) THEN
+            IF (embed_env%sub_para_env(i)%para_env%ionode) THEN
                ! Redirecting output of subforce_eval to file..
                CALL section_vals_val_get(root_section, "GLOBAL%PROJECT_NAME", &
                                          c_val=input_file_path)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -30,7 +30,7 @@ MODULE mp2_optimize_ri_basis
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
 !
-   USE hfx_libint_wrapper_types,        ONLY: build_eri_size
+   USE hfx_libint_wrapper,              ONLY: build_eri_size
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
@@ -55,7 +55,6 @@ MODULE mp2_optimize_ri_basis
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_rho_types,                    ONLY: qs_rho_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -85,7 +84,6 @@ CONTAINS
 !> \param Auto ...
 !> \param kind_of ...
 !> \param qs_env ...
-!> \param rho ...
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param homo_beta ...
@@ -95,7 +93,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE optimize_ri_basis_main(Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, dimen, natom, homo, &
                                      mp2_biel, mp2_env, C, Auto, kind_of, &
-                                     qs_env, rho, para_env, &
+                                     qs_env, para_env, &
                                      unit_nr, homo_beta, C_beta, Auto_beta)
 
       REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T
@@ -106,7 +104,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: unit_nr
       INTEGER, OPTIONAL                                  :: homo_beta
@@ -167,7 +164,7 @@ CONTAINS
          Emp2_AA_Cou = 0.0_dp
          Emp2_AA_ex = 0.0_dp
          CALL calc_elem_ij_proc(homo, homo, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2_AA)
@@ -181,7 +178,7 @@ CONTAINS
          Emp2_BB_Cou = 0.0_dp
          Emp2_BB_ex = 0.0_dp
          CALL calc_elem_ij_proc(homo_beta, homo_beta, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C_beta, Auto_beta, 0, homo_beta, homo_beta, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 Integ_MP2=Integ_MP2_BB)
@@ -195,7 +192,7 @@ CONTAINS
          Emp2_AB_Cou = 0.0_dp
          Emp2_AB_ex = 0.0_dp
          CALL calc_elem_ij_proc(homo, homo_beta, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 homo_beta, C_beta, Auto_beta, Integ_MP2=Integ_MP2_AB)
@@ -203,10 +200,6 @@ CONTAINS
          CALL mp_sum(Emp2_AB_Ex, para_env%group)
          CALL mp_sum(Emp2_AB, para_env%group)
          DEALLOCATE (ij_list_proc)
-
-         ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Alpha = ', Emp2_AA
-         ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Beta-Beta   = ', Emp2_BB
-         ! IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Beta  = ', Emp2_AB
 
          Emp2 = Emp2_AA+Emp2_BB+Emp2_AB*2.0_dp !+Emp2_BA
          Emp2_Cou = Emp2_AA_Cou+Emp2_BB_Cou+Emp2_AB_Cou*2.0_dp !+Emp2_BA
@@ -223,7 +216,7 @@ CONTAINS
       ELSE
          ! close shell case
          CALL calc_elem_ij_proc(homo, homo, para_env, elements_ij_proc, ij_list_proc)
-         CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, rho, para_env, &
+         CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2)
@@ -244,7 +237,7 @@ CONTAINS
       NULLIFY (para_env_sub)
       CALL cp_para_env_create(para_env_sub, comm_sub)
 
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit
@@ -1527,18 +1520,6 @@ CONTAINS
             DEALLOCATE (num_sgf_per_l)
             DEALLOCATE (max_min_exp_l)
             DEALLOCATE (RI_num_sgf_per_l)
-
-            ! IF(qs_env%para_env%mepos==0) THEN
-            !   WRITE(*,*) RI_nset, RI_max_am, geom_fact
-            !   iset=0
-            !   DO la=0, RI_max_am
-            !     DO iexpo=1, RI_num_sgf_per_l(la)
-            !       iset=iset+1
-            !       WRITE(*,*) RI_l_expo(iset), RI_exponents(iset)
-            !     END DO
-            !   END DO
-            !   WRITE(*,*) nsgfa, nsgfa_RI
-            ! END IF
 
          END IF ! RI basis not associated
 

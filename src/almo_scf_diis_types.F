@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -16,9 +16,9 @@ MODULE almo_scf_diis_types
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
+                                              dbcsr_dot,&
                                               dbcsr_release,&
                                               dbcsr_set,&
-                                              dbcsr_trace,&
                                               dbcsr_type
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               copy_submatrices,&
@@ -357,7 +357,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -503,7 +503,7 @@ CONTAINS
       SELECT CASE (diis_env%error_type)
       CASE (diis_error_orthogonal)
          IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
-            CALL dbcsr_trace(A, B, trace)
+            CALL dbcsr_dot(A, B, trace)
          ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
             CPASSERT(SIZE(d_A%mdata, 1) .EQ. SIZE(d_B%mdata, 1))
             CPASSERT(SIZE(d_A%mdata, 2) .EQ. SIZE(d_B%mdata, 2))

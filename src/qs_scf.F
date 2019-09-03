@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -283,7 +283,7 @@ CONTAINS
          END IF
 
          ! *** compute properties that depend on the converged wavefunction
-         IF (.NOT. (should_stop)) CALL qs_scf_compute_properties(qs_env, dft_section)
+         IF (.NOT. (should_stop)) CALL qs_scf_compute_properties(qs_env)
 
          ! *** cleanup
          CALL scf_env_cleanup(scf_env)
@@ -393,7 +393,7 @@ CONTAINS
       END IF
       CALL cp_add_iter_level(logger%iter_info, "QS_SCF")
 
-      ! check for external communicator and if the inermediate energy should be sended
+      ! check for external communicator and if the intermediate energy should be sent
       res_val_3(:) = -1.0_dp
       description = "[EXT_SCF_ENER_COMM]"
       IF (test_for_result(results, description=description)) THEN
@@ -541,6 +541,11 @@ CONTAINS
 
       IF (.NOT. converged) CPWARN("SCF run NOT converged")
 
+      IF (.NOT. converged .AND. scf_control%stop_higher_iter_level) THEN
+         logger%iter_info%last_iter(logger%iter_info%n_rlevel-1) = .TRUE.
+         CPWARN("MD iteration also stops")
+      END IF
+
       ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
       DO ispin = 1, SIZE(mos) !fm -> dbcsr
          IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
@@ -645,7 +650,9 @@ CONTAINS
          END IF
 
          ! disable DFTB and SE for now
-         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+         IF (dft_control%qs_control%dftb .OR. &
+             dft_control%qs_control%xtb .OR. &
+             dft_control%qs_control%semi_empirical) THEN
             CPABORT("DFTB and SE not available with OT/DIAG")
          END IF
 
@@ -886,7 +893,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief perform a CDFT scf procedure in the given qs_env
 !> \param qs_env the qs_environment where to perform the scf procedure
-!> \param should_stop flag determing if calculation should stop
+!> \param should_stop flag determining if calculation should stop
 !> \par History
 !>      12.2015 Created
 !> \author Nico Holmberg
@@ -1316,7 +1323,7 @@ CONTAINS
             CALL build_diagonal_jacobian(qs_env, used_history)
          END IF
       END IF
-      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%mepos == para_env%source) THEN
+      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%ionode) THEN
          ! Write restart file for inverse Jacobian
          CALL print_inverse_jacobian(logger, scf_env%outer_scf%inv_jacobian, iter_count)
       END IF

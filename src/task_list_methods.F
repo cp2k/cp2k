@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -21,7 +21,7 @@ MODULE task_list_methods
                                               cube_info_type,&
                                               return_cube,&
                                               return_cube_nonortho
-   USE dbcsr_api,                       ONLY: convert_sizes_to_offsets,&
+   USE dbcsr_api,                       ONLY: dbcsr_convert_sizes_to_offsets,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_get_info,&
@@ -684,7 +684,7 @@ CONTAINS
 !>        tasks(3,i) := compressed type (iatom, jatom, ....)
 !>        tasks(4,i) := type (0: replicated, 1: distributed local, 2: distributed generalised)
 !>        tasks(5,i) := cost
-!>        tasks(6,i) := alternate destination code (0 if none availabe)
+!>        tasks(6,i) := alternate destination code (0 if none available)
 !>
 !> \param tasks ...
 !> \param dist_ab ...
@@ -1139,7 +1139,8 @@ CONTAINS
 
       !figure out how much can be sent to other processes
       ALLOCATE (load_partial(maxdest, ncpu))
-      CALL mp_sum_partial(list(2, :, :), load_partial(:, :), group)
+      ! send 'load_all', which is a copy of 'list' (but without leading dimension/stride)
+      CALL mp_sum_partial(RESHAPE(load_all, (/maxdest, ncpu/)), load_partial(:, :), group)
 
       DO icpu = 1, ncpu
          DO idest = 1, maxdest
@@ -2260,8 +2261,8 @@ CONTAINS
                           nblkcols_total=nblkcols_total)
       ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total), &
                 first_col(nblkcols_total), last_col(nblkcols_total))
-      CALL convert_sizes_to_offsets(row_blk_size, first_row, last_row)
-      CALL convert_sizes_to_offsets(col_blk_size, first_col, last_col)
+      CALL dbcsr_convert_sizes_to_offsets(row_blk_size, first_row, last_row)
+      CALL dbcsr_convert_sizes_to_offsets(col_blk_size, first_col, last_col)
       ! set up send buffer sizes
       natom8 = natoms
       nim8 = nimages

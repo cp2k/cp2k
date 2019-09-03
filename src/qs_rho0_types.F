@@ -1,12 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 ! **************************************************************************************************
 MODULE qs_rho0_types
 
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE erf_fn,                          ONLY: erf
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi,&
@@ -139,7 +138,7 @@ CONTAINS
    SUBROUTINE allocate_rho0_atom(rho0_set, natom)
 
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_set
-      INTEGER                                            :: natom
+      INTEGER, INTENT(IN)                                :: natom
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom', &
          routineP = moduleN//':'//routineN
@@ -167,8 +166,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_rho0_atom_rad(rho0_atom, nr, nchannels)
 
-      TYPE(rho0_atom_type)                               :: rho0_atom
-      INTEGER                                            :: nr, nchannels
+      TYPE(rho0_atom_type), INTENT(OUT)                  :: rho0_atom
+      INTEGER, INTENT(IN)                                :: nr, nchannels
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad', &
          routineP = moduleN//':'//routineN
@@ -223,7 +222,7 @@ CONTAINS
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      INTEGER                                            :: ik
+      INTEGER, INTENT(IN)                                :: ik
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_g0', routineP = moduleN//':'//routineN
 

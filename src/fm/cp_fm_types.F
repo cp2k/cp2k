@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -2148,15 +2148,17 @@ CONTAINS
 !> \param fm the matrix to be outputted
 !> \param unit the unit number for I/O
 !> \param header optional header
+!> \param value_format ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_write_formatted(fm, unit, header)
+   SUBROUTINE cp_fm_write_formatted(fm, unit, header, value_format)
       TYPE(cp_fm_type), POINTER                :: fm
       INTEGER                                  :: unit
-      CHARACTER(LEN=*), OPTIONAL               :: header
+      CHARACTER(LEN=*), OPTIONAL               :: header, value_format
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write_formatted', &
                                      routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=21)                        :: my_value_format
       INTEGER                                  :: handle, i, j, max_block, &
                                                   ncol_global, nrow_global, &
                                                   nrow_block
@@ -2177,6 +2179,13 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm, nrow_global=nrow_global, ncol_global=ncol_global, ncol_block=max_block, &
                           nrow_block=nrow_block, para_env=para_env)
+
+      IF (PRESENT(value_format)) THEN
+         CPASSERT(LEN_TRIM(ADJUSTL(value_format)) < 11)
+         my_value_format = "(I10, I10, "//TRIM(ADJUSTL(value_format))//")"
+      ELSE
+         my_value_format = "(I10, I10, ES24.12)"
+      END IF
 
       IF (unit > 0) THEN
          IF (PRESENT(header)) WRITE (unit, *) header
@@ -2232,7 +2241,7 @@ CONTAINS
          IF (unit > 0) THEN
             DO j = 1, i_block
                DO k = (j-1)*nrow_global+1, nrow_global*j
-                  WRITE (unit, "(I10, I10, ES24.12)") irow, icol, vecbuf(k)
+                  WRITE (UNIT=unit, FMT=my_value_format) irow, icol, vecbuf(k)
                   irow = irow+1
                   IF (irow > nrow_global) THEN
                      irow = 1
@@ -2254,7 +2263,7 @@ CONTAINS
       IF (unit > 0) THEN
          DO j = 1, ncol_global
             DO i = 1, nrow_global
-               WRITE (unit, "(I10, I10, ES24.12)") i, j, fm%local_data(i, j)
+               WRITE (UNIT=unit, FMT=my_value_format) i, j, fm%local_data(i, j)
             END DO
          END DO
       END IF

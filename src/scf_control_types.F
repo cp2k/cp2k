@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -20,13 +20,12 @@ MODULE scf_control_types
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, &
-        ot_algo_taylor_or_diag, outer_scf_basis_center_opt, outer_scf_cdft_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_optimizer_secant, outer_scf_s2_constraint, smear_energy_window, &
-        smear_fermi_dirac, smear_list
+        atomic_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, ot_algo_taylor_or_diag, &
+        outer_scf_basis_center_opt, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, smear_energy_window, smear_fermi_dirac, smear_list
    USE input_cp2k_dft,                  ONLY: create_scf_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -135,7 +134,7 @@ MODULE scf_control_types
       INTEGER                               :: max_scf, max_scf_hist, &
                                                maxl, nkind
       LOGICAL                               :: do_diag_sub, &
-                                               use_cholesky, use_ot, use_diag, do_outer_scf_reortho
+                                               use_cholesky, use_ot, use_diag, do_outer_scf_reortho, stop_higher_iter_level
       INTEGER                               :: ref_count, id_nr
       INTEGER, DIMENSION(2)                 :: added_mos
       INTEGER                               :: roks_scheme
@@ -182,6 +181,7 @@ CONTAINS
       scf_control%use_diag = .TRUE.
       scf_control%do_diag_sub = .FALSE.
       scf_control%use_ot = .FALSE.
+      scf_control%stop_higher_iter_level = .FALSE.
       scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
@@ -379,6 +379,7 @@ CONTAINS
       IF (cholesky_flag > 0) THEN
          scf_control%use_cholesky = .TRUE.
       END IF
+      CALL section_vals_val_get(scf_section, "NOTCONV_STOPALL", l_val=scf_control%stop_higher_iter_level)
       CALL section_vals_val_get(scf_section, "eps_scf", r_val=scf_control%eps_scf)
       CALL section_vals_val_get(scf_section, "level_shift", r_val=scf_control%level_shift)
       CALL section_vals_val_get(scf_section, "max_diis", i_val=scf_control%max_diis)
@@ -473,9 +474,6 @@ CONTAINS
       CALL section_vals_val_get(scf_section, "eps_scf_history", r_val=scf_control%eps_scf_hist)
 
       IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
-      IF (scf_control%use_ot .AND. (scf_control%density_guess == core_guess)) THEN
-         CPABORT("SCF_GUESS CORE is not supported for OT")
-      END IF
 
       ! Outer SCF subsection
       outer_scf_section => section_vals_get_subs_vals(scf_section, "OUTER_SCF")

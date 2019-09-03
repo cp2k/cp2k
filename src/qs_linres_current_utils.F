@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -47,7 +47,7 @@ MODULE qs_linres_current_utils
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+   USE dbcsr_api,                       ONLY: dbcsr_convert_offsets_to_sizes,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_distribution_type,&
@@ -146,7 +146,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: list_cubes, row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: statetrueindex
-      LOGICAL                                            :: append_cube, ionode, should_stop
+      LOGICAL                                            :: append_cube, should_stop
       REAL(dp)                                           :: dk(3), dkl(3), dl(3)
       REAL(dp), DIMENSION(:), POINTER                    :: dkl_vec_ii, dkl_vec_iii
       REAL(dp), DIMENSION(:, :), POINTER                 :: vecbuf_dklxp0
@@ -181,7 +181,6 @@ CONTAINS
                p_psi0, rxp_psi0, psi0_order, op_p_ao, sab_orb, particle_set)
 
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       current_section => section_vals_get_subs_vals(qs_env%input, &
                                                     "PROPERTIES%LINRES%CURRENT")
@@ -242,7 +241,7 @@ CONTAINS
                                first_sgf=first_sgf, &
                                last_sgf=last_sgf)
          ALLOCATE (row_blk_sizes(natom))
-         CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+         CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
          DEALLOCATE (first_sgf, last_sgf)
          !
          ! rebuild the linear momentum matrices
@@ -316,7 +315,7 @@ CONTAINS
          !
          !
          linres_control%converged = .FALSE.
-         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, should_stop)
+         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, output_unit, should_stop)
          !
          !
          ! print response functions
@@ -355,7 +354,7 @@ CONTAINS
          !
          !
          linres_control%converged = .FALSE.
-         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, should_stop)
+         CALL linres_solver(p_env, qs_env, psi1_ptr, hpsi0_ptr, psi0_order, output_unit, should_stop)
          !
          ! print response functions
          IF (BTEST(cp_print_key_should_output(logger%iter_info, current_section,&
@@ -501,7 +500,7 @@ CONTAINS
 
                   !
                   ! Optimize the response wavefunctions
-                  CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
+                  CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, output_unit, should_stop)
                   !
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, "(T10,A,/)")&

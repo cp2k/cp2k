@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -53,13 +53,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZE_BASIS", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZE_BASIS", &
                           description="describes a basis optimization job, in which an ADMM like approach is used to"// &
                           " find the best exponents and/or coefficients to match a given training set.", &
                           repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="BASIS_TEMPLATE_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_TEMPLATE_FILE", &
                           description="Name of the basis set file, containing the structure of the new basis set", &
                           usage="BASIS_TEMPLATE_FILE <FILENAME>", &
                           type_of_var=char_t, repeats=.FALSE., &
@@ -67,7 +67,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIS_WORK_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_WORK_FILE", &
                           description="Name of the basis set file which is created to be read as initial guess", &
                           usage="BASIS_WORK_FILE <FILENAME>", &
                           type_of_var=char_t, repeats=.FALSE., &
@@ -75,7 +75,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIS_OUTPUT_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_OUTPUT_FILE", &
                           description="Name of the basis set file containing the optimized basis", &
                           usage="BASIS_OUTPUT_FILE <FILENAME>", &
                           type_of_var=char_t, repeats=.FALSE., &
@@ -83,14 +83,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WRITE_FREQUENCY", &
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_FREQUENCY", &
                           description="Frequency at which the intermediate results should be written", &
                           usage="WRITE_FREQUENCY 1000", &
                           default_i_val=5000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="USE_CONDITION_NUMBER", &
+      CALL keyword_create(keyword, __LOCATION__, name="USE_CONDITION_NUMBER", &
                           description="Determines whether condition number should be part of optimization or not", &
                           usage="USE_CONDITION_NUMBER", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -98,7 +98,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="BASIS_COMBINATIONS", &
+         keyword, __LOCATION__, name="BASIS_COMBINATIONS", &
          description="If multiple atomic kinds are fitted at the same time, this keyword "// &
          "allows to specify which basis sets should be used together in optimization (underived set ID=0). "// &
          "If skipped all combinations are used. The order is taken as the kinds and sets are specified in the input", &
@@ -108,7 +108,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="RESIDUUM_WEIGHT", &
+         keyword, __LOCATION__, name="RESIDUUM_WEIGHT", &
          description="This keyword allows to give different weight factors to the "// &
          "residuum of the different basis combinations. "// &
          "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
@@ -119,7 +119,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="CONDITION_WEIGHT", &
+         keyword, __LOCATION__, name="CONDITION_WEIGHT", &
          description="This keyword allows to give different weight factors to the "// &
          "condition number of different basis combinations (LOG(cond) is used). "// &
          "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
@@ -129,7 +129,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GROUP_PARTITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_PARTITION", &
                           description="Allows the specification of the group mpi group sizes in parallel "// &
                           "runs. If less Groups than tasks are speciefied, consecutive calculations "// &
                           " Will be assigned to one group (derived basis sets and then training sets)"// &
@@ -168,24 +168,24 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FIT_KIND", &
+      CALL section_create(section, __LOCATION__, name="FIT_KIND", &
                           description="specicifies the atomic kinds to be fitted and the basis"// &
                           " sets associated with the kind.", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="The name of the kind described in this section.", &
                           usage="H", default_c_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIS_SET", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_SET", &
                           description="The name of the basis set for the kind. Has to be specified in BASIS_TEMPLATE_FILE.", &
                           usage="H", default_c_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INITIAL_DEGREES_OF_FREEDOM", &
+      CALL keyword_create(keyword, __LOCATION__, name="INITIAL_DEGREES_OF_FREEDOM", &
                           description="Specifies the initial degrees of freedom in the basis optimization."// &
                           "This can be used to make further specifications easier", &
                           usage="INITIAL_DEGREES_OF_FREEDOM ALL", &
@@ -199,7 +199,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SWITCH_COEFF_STATE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SWITCH_COEFF_STATE", &
                           description="Allows to switch the state of a given coefficient from current state "// &
                           "(varibale/fixed)) to the opposite state. The three integers indicate "// &
                           "the set number, the angular momentum i'th contraction and i'th coefficient", repeats=.TRUE., &
@@ -207,7 +207,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SWITCH_CONTRACTION_STATE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SWITCH_CONTRACTION_STATE", &
                           description="Allows to switch the state of a given contraction from current state "// &
                           "(varibale/fixed)) to the opposite state. The three integers indicate "// &
                           "the set number, the angular momentum and i'th contraction ", repeats=.TRUE., &
@@ -215,7 +215,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SWITCH_EXP_STATE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SWITCH_EXP_STATE", &
                           description="Allows to switch the state of a given exponent from current state "// &
                           "(varibale/fixed)) to the opposite state. The two integers indicate "// &
                           "the set number and i'th exponent", repeats=.TRUE., &
@@ -223,7 +223,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SWITCH_SET_STATE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SWITCH_SET_STATE", &
                           description="Allows to switch the states of in a set from current state "// &
                           "(varibale/fixed)) to the opposite state. The two integers indicate "// &
                           "the affected part (0=ALL,1=EXPS,2=COEFF) and i'th set", repeats=.TRUE., &
@@ -255,13 +255,13 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DERIVED_BASIS_SETS", &
+      CALL section_create(section, __LOCATION__, name="DERIVED_BASIS_SETS", &
                           description="This section can be used to create subsets of a basis "// &
                           " which will be fitted at the same time. This is especially useful if connected"// &
                           " bsis sets e.g. TZVP, DZVP, SZV should be fitted. ", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="BASIS_SET_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIS_SET_NAME", &
                           description="Defines the name of the derived basis set, which will be "// &
                           "automatically generated otherwise.", &
                           usage="BASIS_SET_NAME {word}", &
@@ -271,7 +271,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REFERENCE_SET", &
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_SET", &
                           description="Specifies the reference basis ID which is used as template to create the new set. "// &
                           "The original basis has ID 0. All follwing sets are counted in order as specified in the Input."// &
                           " The decriptors always assume the structure of the input basis set.", &
@@ -279,7 +279,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REMOVE_CONTRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="REMOVE_CONTRACTION", &
                           description="Can be used to remove a contraction from the reference basis set. "// &
                           "The contraction is speciefied by set number, angular momentum and number of contraction."// &
                           " The decriptors always assume the structure of the input basis set.", &
@@ -287,7 +287,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REMOVE_SET", &
+      CALL keyword_create(keyword, __LOCATION__, name="REMOVE_SET", &
                           description="Can be used to remove a set from the reference basis set. ", &
                           repeats=.TRUE., usage="REMOVE_SET SET", type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -309,26 +309,26 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONSTRAIN_EXPONENTS", &
+      CALL section_create(section, __LOCATION__, name="CONSTRAIN_EXPONENTS", &
                           description="specicifies contraints for the exponents to be fitted."// &
                           " Only a single constraint can be applied to an exponent", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="USE_EXP", &
+      CALL keyword_create(keyword, __LOCATION__, name="USE_EXP", &
                           description="Defines the exponent to be constraint. The two integers indicate "// &
                           "the set number and i'th exponent. The value -1 can be used to mark all sets/expoenents in a set.", &
                           repeats=.FALSE., usage="USE_EXP SET IEXP", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BOUNDARIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BOUNDARIES", &
                           description="Defines the boundaries to which the optimization is restricted."// &
                           " First value is the lower bound, second value is the upper bound.", &
                           repeats=.FALSE., usage="BOUNDARIES LOWER UPPER", type_of_var=real_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_VAR_FRACTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_VAR_FRACTION", &
                           description="Defines the maximum fractionr by which the exponent is allowed to vary."// &
                           " e.g. 0.5 allows the exp to vary by 0.5*exp in both directions.", &
                           repeats=.FALSE., usage="MAX_VAR_FRACTION REAL", type_of_var=real_t, n_var=1)
@@ -351,19 +351,19 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TRAINING_FILES", &
+      CALL section_create(section, __LOCATION__, name="TRAINING_FILES", &
                           description="specicifies the location in which the files necessary for"// &
                           " fitting procedure are located. Each Training set needs a reptition of this section.", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="DIRECTORY", &
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTORY", &
                           description="the directory in which the files are placed", &
                           usage="DIRECTORY /my/path", &
                           default_lc_val=".")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INPUT_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="INPUT_FILE_NAME", &
                           description="the filename of the input file used to run the original calcuation", &
                           usage="INPUT_FILE_NAME my_input.inp", &
                           default_lc_val="input.inp")
@@ -386,25 +386,25 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZATION", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZATION", &
                           description="sets the parameters for optimizition, output frequency and restarts", &
                           repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="ACCURACY", &
                           description="Final accuracy requested in optimization (RHOEND)", &
                           usage="ACCURACY 0.00001", &
                           default_r_val=1.e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_SIZE", &
                           description="Initial step size for search algorithm (RHOBEG)", &
                           usage="STEP_SIZE 0.005", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_FUN", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FUN", &
                           description="Maximum number of function evaluations", &
                           usage="MAX_FUN 1000", &
                           default_i_val=5000)

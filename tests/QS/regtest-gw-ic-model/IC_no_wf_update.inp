@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O_minimax
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -12,7 +12,7 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
-      CUTOFF  300
+      CUTOFF  200
       REL_CUTOFF  30
     &END MGRID
     &POISSON
@@ -47,24 +47,24 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and 
+          ! normally, this EPS_FILTER controls the accuracy and
           ! the time for the cubic_scaling RPA calculation
           EPS_FILTER  1.0E-6
         &END
         ERI_METHOD OS
         RI OVERLAP
+        IM_TIME
+        &IM_TIME
+          DO_DBCSR_T .FALSE.
+        &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  20
-          IM_TIME
-          &IM_TIME
-            GW
-          &END
           MINIMAX
+          GW
           &RI_G0W0
             CORR_MOS_OCC 4
             CORR_MOS_VIRT 5
             PRINT_GW_DETAILS
-            RI OVERLAP
             IC
             &IC
               OPTIMIZE_HOMO_LUMO FALSE

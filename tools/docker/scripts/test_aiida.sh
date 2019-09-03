@@ -7,7 +7,15 @@ source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
-make -j VERSION=pdbg cp2k
+echo -n "Compiling cp2k... "
+if make -j VERSION=pdbg &> /dev/null ; then
+   echo "done."
+else
+   echo -e "failed.\n\n"
+   echo "Summary: Compilation failed."
+   echo "Status: FAILED"
+   exit
+fi
 
 echo -e "\n========== Installing CP2K =========="
 cat > /usr/bin/cp2k << EndOfMessage
@@ -19,8 +27,8 @@ chmod +x /usr/bin/cp2k
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/
-git clone https://github.com/cp2k/aiida-cp2k.git
-pip install ./aiida-cp2k/
+git clone --quiet https://github.com/cp2k/aiida-cp2k.git
+pip install --quiet ./aiida-cp2k/[pre-commit,test]
 
 echo -e "\n========== Configuring AiiDA =========="
 for i in $(dirname "$(which mpirun)")/* ; do ln -sf "$i" /usr/bin/; done

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -112,7 +112,6 @@ MODULE tamc_run
    USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
-   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE reference_manager,               ONLY: cite_reference
    USE reftraj_types,                   ONLY: create_reftraj,&
                                               reftraj_type,&
@@ -1161,15 +1160,13 @@ CONTAINS
       TYPE(mc_ekin_type), POINTER                        :: hmc_ekin
       TYPE(meta_env_type), POINTER                       :: meta_env_saved
       TYPE(particle_list_type), POINTER                  :: particles_set
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
 ! begin the timing of the subroutine
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (scf_env)
-      CALL get_qs_env(force_env%qs_env, scf_env=scf_env, input=input)
+      CALL get_qs_env(force_env%qs_env, input=input)
       dft_section => section_vals_get_subs_vals(input, "DFT")
 
 ! get a bunch of stuff from mc_par
@@ -1218,7 +1215,7 @@ CONTAINS
       CALL qs_mol_dyn(force_env, globenv, hmc_e_initial=hmc_ekin%initial_ekin, hmc_e_final=hmc_ekin%final_ekin)
       IF (.NOT. localise) THEN
          CALL section_vals_val_set(dft_section, "LOCALIZE%_SECTION_PARAMETERS_", l_val=.TRUE.)
-         CALL scf_post_calculation_gpw(dft_section, scf_env, force_env%qs_env)
+         CALL scf_post_calculation_gpw(force_env%qs_env)
       ENDIF
 
       CALL force_env_get(force_env, potential_energy=new_epx)

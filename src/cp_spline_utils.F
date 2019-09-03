@@ -1,12 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
 !> \brief utils to manipulate splines on the regular grid of a pw
 !> \par History
-!>      01.2014 move routines related to input_section_types to seperate file.
+!>      01.2014 move routines related to input_section_types to separate file.
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE cp_spline_utils

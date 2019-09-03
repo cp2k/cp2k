@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -49,7 +49,8 @@ CONTAINS
    SUBROUTINE whittaker_c0a(wc, r, expa, erfa, alpha, l1, l2, n)
       INTEGER, INTENT(IN)                                :: n, l2, l1
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      REAL(KIND=dp), DIMENSION(n)                        :: erfa, expa, r, wc
+      REAL(KIND=dp), DIMENSION(n), INTENT(IN)            :: erfa, expa, r
+      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: wc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'whittaker_c0a', routineP = moduleN//':'//routineN
 
@@ -65,6 +66,7 @@ CONTAINS
          CPABORT("l1 >= l2")
       END IF
 
+      wc(:) = 0.0_dp
       t1 = SQRT(alpha)
       y = REAL(l, dp)
       DO i = 1, n
@@ -109,7 +111,8 @@ CONTAINS
    SUBROUTINE whittaker_c0(wc, r, expa, erfa, alpha, l, n)
       INTEGER, INTENT(IN)                                :: n, l
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      REAL(KIND=dp), DIMENSION(n)                        :: erfa, expa, r, wc
+      REAL(KIND=dp), DIMENSION(n), INTENT(IN)            :: erfa, expa, r
+      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: wc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'whittaker_c0', routineP = moduleN//':'//routineN
 
@@ -121,6 +124,8 @@ CONTAINS
       IF (MOD(l, 2) /= 0) THEN
          CPABORT("Angular momentum has to be even")
       END IF
+
+      wc(:) = 0.0_dp
 
       SELECT CASE (l)
 
@@ -336,7 +341,8 @@ CONTAINS
    SUBROUTINE whittaker_ci(wc, r, expa, alpha, l, n)
       INTEGER, INTENT(IN)                                :: n, l
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      REAL(KIND=dp), DIMENSION(n)                        :: expa, r, wc
+      REAL(KIND=dp), DIMENSION(n), INTENT(IN)            :: expa, r
+      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: wc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'whittaker_ci', routineP = moduleN//':'//routineN
 
@@ -348,6 +354,8 @@ CONTAINS
       IF (MOD(l, 2) /= 0) THEN
          CPABORT("Angular momentum has to be even")
       END IF
+
+      wc(:) = 0.0_dp
 
       SELECT CASE (l)
 

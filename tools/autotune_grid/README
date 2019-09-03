@@ -59,7 +59,7 @@ call_collocate.f90
 
 make libgrid.a
 
-7) When compiliing CP2K, you can specify this libgrid.a file in the linking stage and define the macro -D__HAVE_LIBGRID to use the routines included in that file instead of the default ones
+7) When compiling CP2K, you can specify this libgrid.a file in the linking stage and define the macro -D__HAS_LIBGRID to use the routines included in that file instead of the default ones
 
 
 ADVANCED USAGE
@@ -70,7 +70,7 @@ ADVANCED USAGE
 make -j $NUM_PARALLEL_TASKS
 
 where $NUM_PARALLEL_TASKS is usually the number of available cores. 
-Be careful when running parallel executions. System noise might produce inacurrate results in some cases.
+Be careful when running parallel executions. System noise might produce inaccurate results in some cases.
 The safest way is to do the compilation stage in parallel but test each case separately.
 
 make -j $NUM_PARALLEL_TASKS all_gen

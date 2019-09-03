@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -44,15 +44,16 @@ MODULE atom_admm_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_admm_methods'
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom_info ...
-!> \param admm_section ...
-!> \param iw ...
+!> \brief Analysis of ADMM approximation to exact exchange.
+!> \param atom_info     information about the atomic kind. Two-dimensional array of size
+!>                      (electronic-configuration, electronic-structure-method)
+!> \param admm_section  ADMM print section
+!> \param iw            output file unit
+!> \par History
+!>    * 07.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_admm(atom_info, admm_section, iw)
 
@@ -464,6 +465,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE lowdin_matrix
-! **************************************************************************************************
 
 END MODULE atom_admm_methods

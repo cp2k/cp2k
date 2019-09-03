@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -104,7 +104,7 @@ MODULE cp_log_handling
 !> \param default_global_unit_nr default unit for global logging
 !>        (-1 if not yet initialized). This unit is valid only on the
 !>        processor with %para_env%mepos==%para_env%source.
-!> \param para_env the parallel environement for the output.
+!> \param para_env the parallel environment for the output.
 !>        this might be a super environment of your computation environment
 !>        i.e. be very careful not to do global operations like broadcast
 !>        with a subset of its processors (use your computation environment
@@ -390,7 +390,7 @@ CONTAINS
       END IF
 
       IF (logger%default_local_unit_nr == -1) THEN
-         IF (logger%para_env%mepos == logger%para_env%source) THEN
+         IF (logger%para_env%ionode) THEN
             logger%default_local_unit_nr = logger%default_global_unit_nr
             logger%close_local_unit_on_dealloc = .FALSE.
          ENDIF
@@ -605,7 +605,7 @@ CONTAINS
       IF (PRESENT(skip_not_ionode)) skip = skip_not_ionode
       IF (.NOT. loc) THEN
          IF (lggr%default_global_unit_nr <= 0) THEN
-            IF (lggr%para_env%mepos == lggr%para_env%source) THEN
+            IF (lggr%para_env%ionode) THEN
                CALL cp_logger_generate_filename(lggr, filename, lggr%global_filename, &
                                                 ".out", local=.FALSE.)
                CALL open_file(TRIM(filename), file_status="unknown", &

@@ -1,4 +1,0 @@
-{
-"description": "Generic Accelerator API",
-"requires": ["../base", "cuda", "opencl", "mic"]
-}

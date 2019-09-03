@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -23,10 +23,10 @@ MODULE qs_efield_local
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
+                                              dbcsr_dot,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_trace
+                                              dbcsr_set
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
@@ -191,10 +191,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, cell, particle_set)
-      CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, &
-                      particle_set=particle_set)
-      NULLIFY (qs_kind_set, efield, para_env, sab_orb)
+      CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, particle_set=particle_set)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       efield=efield, energy=energy, para_env=para_env, sab_orb=sab_orb)
 
@@ -233,7 +230,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=matrix_p)
       DO ispin = 1, SIZE(matrix_p)
          DO idir = 1, 3
-            CALL dbcsr_trace(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
+            CALL dbcsr_dot(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
             ener_field = ener_field+fieldpol(idir)*tmp
          END DO
       END DO

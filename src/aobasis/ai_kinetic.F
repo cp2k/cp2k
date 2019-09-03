@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -139,7 +139,7 @@ CONTAINS
             ! [s|s] integral
             f0 = 0.5_dp*(pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            ! Calculate the reccurence relation, overlap
+            ! Calculate the recurrence relation, overlap
             CALL os_rr_ovlp(rap, lma, rbp, lmb, zet, ldrr, rr)
 
             ! kinetic energy auxiliary integrals, overlap of [da/dx|db/dx]

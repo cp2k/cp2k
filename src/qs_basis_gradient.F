@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -34,13 +34,13 @@ MODULE qs_basis_gradient
                                               qs_force_type,&
                                               replicate_qs_force,&
                                               zero_qs_force
-   USE qs_gspace_mixing,                ONLY: mixing_allocate
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics,&
                                               qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
+   USE qs_mixing_utils,                 ONLY: mixing_allocate
    USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&

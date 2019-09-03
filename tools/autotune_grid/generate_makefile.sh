@@ -62,7 +62,7 @@ collocate_fast.o:
 integrate_fast.o:
 	\$(FC_tune) -I../ -c integrate_fast.F -o integrate_fast.o
 qs_collocate_density.o:
-	\$(FC_tune)  -I../ -c qs_collocate_density.F -o qs_collocate_density.o 
+	\$(FC_tune)  -I../ -c qs_collocate_density.F -o qs_collocate_density.o
 qs_integrate_potential.o:
 	\$(FC_tune)  -I../ -c qs_integrate_potential.F  -o qs_integrate_potential.o
 main.o: qs_collocate_density.o qs_integrate_potential.o integrate_fast.o collocate_fast.o
@@ -71,7 +71,7 @@ test.x: main.o qs_integrate_potential.o qs_collocate_density.o integrate_fast.o 
 	\$(FC_tune) qs_collocate_density.o qs_integrate_potential.o   collocate_fast.o integrate_fast.o  main.o ../libtest.a   -o test.x
 " > makefile_case
 
-#7  ! generate up to l = l_max_a + l_max_b 
+#7  ! generate up to l = l_max_a + l_max_b
 #1  ! use the best of three timings
 Ncomb=$(( 2**$Nopt ))
 TARGETS_EXE=""

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -12,7 +12,7 @@
 !>        and not atom pairs (triples etc)
 !>      Teo (11.2005) : Moved all information on force field  pair_potential to
 !>                      a much lighter memory structure
-!>      Teo 09.2006   : Splitted all routines force_field I/O in a separate file
+!>      Teo 09.2006   : Split all routines force_field I/O in a separate file
 !> \author CJM
 ! **************************************************************************************************
 MODULE force_fields_input

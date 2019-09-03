@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -56,14 +56,14 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="EIP", &
+      CALL section_create(section, __LOCATION__, name="EIP", &
                           description="This section contains all information to run an "// &
                           "Empirical Interatomic Potential (EIP) calculation.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="EIP_MODEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EIP_MODEL", &
                           description="Selects the empirical interaction potential model", &
                           usage="EIP_MODEL BAZANT", type_of_var=enum_t, &
                           n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
@@ -100,43 +100,43 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PRINT", &
+      CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Section of possible print options in EIP code.", &
                           n_keywords=0, n_subsections=6, repeats=.FALSE.)
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "ENERGIES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGIES", &
                                        description="Controls the printing of the EIP energies.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "ENERGIES_VAR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGIES_VAR", &
                                        description="Controls the printing of the variance of the EIP energies.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FORCES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FORCES", &
                                        description="Controls the printing of the EIP forces.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COORD_AVG", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COORD_AVG", &
                                        description="Controls the printing of the average coordination number.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COORD_VAR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COORD_VAR", &
                                        description="Controls the printing of the variance of the coordination number.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COUNT", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COUNT", &
                                        description="Controls the printing of the number of function calls.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -64,10 +64,12 @@ MODULE pwdft_environment_types
       TYPE(qs_subsys_type), POINTER                    :: qs_subsys => NULL()
       TYPE(section_vals_type), POINTER                 :: pwdft_input => NULL()
       TYPE(section_vals_type), POINTER                 :: force_env_input => NULL()
+      TYPE(section_vals_type), POINTER                 :: xc_input => NULL()
       TYPE(pwdft_energy_type), POINTER                 :: energy => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: forces => NULL()
       REAL(KIND=dp), DIMENSION(3, 3)                   :: stress
-      INTEGER, DIMENSION(3)                            :: kgrid, kshift
+!     16 different functionals should be enough
+      CHARACTER(len=80)                                :: xc_func(16)
       TYPE(C_PTR)                                      :: sctx = C_NULL_PTR
       TYPE(C_PTR)                                      :: gs_handler = C_NULL_PTR
       TYPE(C_PTR)                                      :: ks_handler = C_NULL_PTR
@@ -150,8 +152,7 @@ CONTAINS
 !> \param id_nr unique identifier
 !> \param pwdft_input ...
 !> \param force_env_input ...
-!> \param kgrid ...
-!> \param kshift ...
+!> \param xc_input ...
 !> \param cp_subsys ...
 !> \param qs_subsys ...
 !> \param para_env ...
@@ -165,15 +166,13 @@ CONTAINS
 !>      07.2018 initial create
 !> \author JHU
 ! **************************************************************************************************
-   SUBROUTINE pwdft_env_get(pwdft_env, id_nr, pwdft_input, force_env_input, &
-                            kgrid, kshift, &
+   SUBROUTINE pwdft_env_get(pwdft_env, id_nr, pwdft_input, force_env_input, xc_input, &
                             cp_subsys, qs_subsys, para_env, energy, forces, stress, &
                             sctx, gs_handler, ks_handler)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
       INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input
-      INTEGER, DIMENSION(3), OPTIONAL                    :: kgrid, kshift
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input, xc_input
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: qs_subsys
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
@@ -192,8 +191,7 @@ CONTAINS
       IF (PRESENT(id_nr)) id_nr = pwdft_env%id_nr
       IF (PRESENT(pwdft_input)) pwdft_input => pwdft_env%pwdft_input
       IF (PRESENT(force_env_input)) force_env_input => pwdft_env%force_env_input
-      IF (PRESENT(kgrid)) kgrid(1:3) = pwdft_env%kgrid(1:3)
-      IF (PRESENT(kshift)) kshift(1:3) = pwdft_env%kshift(1:3)
+      IF (PRESENT(xc_input)) xc_input => pwdft_env%xc_input
       IF (PRESENT(qs_subsys)) qs_subsys => pwdft_env%qs_subsys
       IF (PRESENT(cp_subsys)) THEN
          CALL qs_subsys_get(pwdft_env%qs_subsys, cp_subsys=cp_subsys)
@@ -214,8 +212,7 @@ CONTAINS
 !> \param id_nr unique identifier
 !> \param pwdft_input ...
 !> \param force_env_input ...
-!> \param kgrid ...
-!> \param kshift ...
+!> \param xc_input ...
 !> \param qs_subsys ...
 !> \param cp_subsys ...
 !> \param para_env ...
@@ -231,15 +228,13 @@ CONTAINS
 !> \note
 !>   For possible missing arguments see the attributes of pwdft_environment_type
 ! **************************************************************************************************
-   SUBROUTINE pwdft_env_set(pwdft_env, id_nr, pwdft_input, force_env_input, &
-                            kgrid, kshift, &
+   SUBROUTINE pwdft_env_set(pwdft_env, id_nr, pwdft_input, force_env_input, xc_input, &
                             qs_subsys, cp_subsys, para_env, energy, forces, stress, &
                             sctx, gs_handler, ks_handler)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
       INTEGER, INTENT(IN), OPTIONAL                      :: id_nr
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input
-      INTEGER, DIMENSION(3), OPTIONAL                    :: kgrid, kshift
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input, xc_input
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: qs_subsys
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
@@ -259,8 +254,8 @@ CONTAINS
       IF (PRESENT(para_env)) pwdft_env%para_env => para_env
       IF (PRESENT(pwdft_input)) pwdft_env%pwdft_input => pwdft_input
       IF (PRESENT(force_env_input)) pwdft_env%force_env_input => force_env_input
-      IF (PRESENT(kgrid)) pwdft_env%kgrid(1:3) = kgrid(1:3)
-      IF (PRESENT(kshift)) pwdft_env%kshift(1:3) = kshift(1:3)
+      IF (PRESENT(xc_input)) pwdft_env%xc_input => xc_input
+
       IF (PRESENT(qs_subsys)) THEN
          CALL qs_subsys_retain(qs_subsys)
          CALL qs_subsys_release(pwdft_env%qs_subsys)
@@ -308,8 +303,6 @@ CONTAINS
          DEALLOCATE (pwdft_env%forces)
          NULLIFY (pwdft_env%forces)
       END IF
-      pwdft_env%kgrid(1:3) = 0
-      pwdft_env%kshift(1:3) = 0
       pwdft_env%stress = 0.0_dp
       pwdft_env%sctx = C_NULL_PTR
       pwdft_env%gs_handler = C_NULL_PTR

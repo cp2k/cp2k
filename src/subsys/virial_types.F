@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -111,7 +111,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE zero_virial(virial, reset)
 
-      TYPE(virial_type), INTENT(OUT)                     :: virial
+      TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(IN), OPTIONAL                      :: reset
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial', routineP = moduleN//':'//routineN

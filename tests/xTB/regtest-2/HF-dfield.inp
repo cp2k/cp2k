@@ -1,0 +1,49 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &PRINT
+      &MOMENTS
+        PERIODIC T
+      &END
+    &END
+    &PERIODIC_EFIELD
+       POLARISATION 1 2 5 
+       INTENSITY 0.005
+       DISPLACEMENT_FIELD
+    &END    
+    &QS
+      METHOD xTB
+      &XTB
+          DO_EWALD T
+      &END
+    &END QS
+    &POISSON
+      &EWALD
+       ALPHA  1.0
+       EWALD_TYPE SPME
+       GMAX 75
+      &END EWALD
+    &END POISSON
+    &SCF
+      EPS_SCF 1.0E-8
+      SCF_GUESS ATOMIC 
+      MAX_SCF 100
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      A  6.0  0.0  0.0
+      B  0.0  6.0  0.0
+      C  0.0  0.0  6.0
+    &END CELL
+    &COORD
+    H   0.000000    0.000000    0.000000 
+    F   0.940000    0.000000    0.000000 
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT HF
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -41,7 +41,7 @@ MODULE bibliography
    PUBLIC :: add_all_references ! f77_interface only
 
    ! all reference keys
-   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, &
+   INTEGER, PUBLIC, SAVE :: Richters2018, VandeVondele2005a, VandeVondele2003, &
                             Laino2005, Laino2006, Goedecker1996, Hartwigsen1998, Krack2005, &
                             Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005, &
                             Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999, &
@@ -69,7 +69,7 @@ MODULE bibliography
                             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, &
                             Golze2015, Golze2017a, Golze2017b, Tuckerman1992, Zhao1994, &
                             Tozer1996, Goedecker2004, &
-                            Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008, &
+                            Khaliullin2013, Kruse2012, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
                             Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, &
@@ -83,7 +83,8 @@ MODULE bibliography
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
-                            Schuett2018, Holmberg2018
+                            Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007, &
+                            Ren2011, Ren2013
 
 CONTAINS
 
@@ -1805,6 +1806,25 @@ CONTAINS
                          "DI 10.1002/jcc.21759", &
                          "ER"), &
                          DOI="10.1002/jcc.21759")
+
+      CALL add_reference(key=Grimme2017, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Grimme, S", &
+                         "   Bannwarth, C", &
+                         "   Shushkov, P", &
+                         "AF Grimme, Stefan", &
+                         "   Bannwarth, Christoph", &
+                         "   Shushkov, Philip", &
+                         "TI A Robust and Accurate Tight-Binding Quantum Chemical Method for", &
+                         "   Structures, Vibrational Frequencies, and Noncovalent Interactions of", &
+                         "   Large Molecular Systems Parametrized for All spd-Block Elements (Z = 1-86) ", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "PY 2017", &
+                         "VL 13", &
+                         "BP 1989", &
+                         "DI 10.1021/acs.jctc.7b00118", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.7b00118")
 
       CALL add_reference(key=Branduardi2007, ISI_record=s2a( &
                          "PT J", &
@@ -3765,7 +3785,7 @@ CONTAINS
                          "   Auer, Alexander A.", &
                          "   Neese, Frank", &
                          "TI Automatic Generation of Auxiliary Basis Sets", &
-                         "SO J. Chem. Theory Comput.", &
+                         "SO Journal of Chemical Theory and Computation", &
                          "PY 2017", &
                          "VL 13", &
                          "IS 2", &
@@ -3774,13 +3794,30 @@ CONTAINS
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b01041")
 
+      CALL add_reference(key=Kondov2007, ISI_record=s2a( &
+                         "AU Kondov, Ivan", &
+                         "   Cizek, Martin", &
+                         "   Benesch, Claudia", &
+                         "   Wang, Haobin", &
+                         "   Thoss, Michael", &
+                         "TI Quantum dynamics of photoinduced electron-transfer reactions in", &
+                         "   dye-semiconductor systems: First-principles description and application to coumarin 343-TiO2", &
+                         "SO Journal of Physical Chemistry C", &
+                         "PY 2007", &
+                         "VL 111", &
+                         "IS 32", &
+                         "BP 11970", &
+                         "EP 11981", &
+                         "ER"), &
+                         DOI="10.1021/jp072217m")
+
       CALL add_reference(key=Futera2017, ISI_record=s2a( &
                          "AU Futera, Zdenek", &
                          "   Blumberger, Jochen", &
                          "TI Electronic Couplings for Charge Transfer across Molecule/Metal and", &
                          "   Molecule/Semiconductor Interfaces: Performance of the Projector ", &
                          "   Operator-Based Diabatization Approach", &
-                         "SO J. Phys. Chem. C", &
+                         "SO Journal Physical Chemistry C", &
                          "PY 2017", &
                          "VL 121", &
                          "IS 36", &
@@ -3911,6 +3948,105 @@ CONTAINS
                          "DI 10.1063/1.5038959", &
                          "ER"), &
                          DOI="10.1063/1.5038959")
+
+      CALL add_reference(key=Togo2018, ISI_record=s2a( &
+                         "AU Togo, Atsushi", &
+                         "   Tanaka, Isao", &
+                         "AF Togo, Atsushi", &
+                         "   Tanaka, Isao", &
+                         "TI Spglib : a software library for crystal symmetry search", &
+                         "SO arXiv", &
+                         "PY 2018", &
+                         "AR 1808.01590 ", &
+                         "ER"), &
+                         DOI="xxx")
+
+      CALL add_reference(key=Staub2019, ISI_record=s2a( &
+                         "AU Staub, R", &
+                         "   Iannuzzi, M", &
+                         "   Khaliullin, RZ", &
+                         "   Steinmann, SN", &
+                         "AF Staub, Ruben", &
+                         "   Iannuzzi, Marcella", &
+                         "   Khaliullin, Rustam Z.", &
+                         "   Steinmann, Stephan N.", &
+                         "TI Energy Decomposition Analysis for Metal Surface-Adsorbate Interactions", &
+                         "   by Block Localized Wave Functions", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "SN 1549-9618", &
+                         "PY 2019", &
+                         "VL 15", &
+                         "DI 10.1021/acs.jctc.8b00957", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.8b00957")
+
+      CALL add_reference(key=Richters2018, ISI_record=s2a( &
+                         "AU Richters, D", &
+                         "   Lass, M", &
+                         "   Walther, A", &
+                         "   Plessl, C", &
+                         "   Kuehne, T D", &
+                         "TI A General Algorithm to Calculate the Inverse Principal p-th Root of ", &
+                         "   Symmetric Positive Definite Matrices", &
+                         "SO Communications in Computational Physics", &
+                         "SN 1991-7120", &
+                         "J9 J COMPUT CHEM", &
+                         "JI Commun. Comput. Phys.", &
+                         "PD OCT", &
+                         "PY 2018", &
+                         "VL 25", &
+                         "IS 2", &
+                         "BP 564", &
+                         "EP 585", &
+                         "ER"), &
+                         DOI="10.4208/cicp.OA-2018-0053")
+
+      CALL add_reference(key=Kruse2012, ISI_record=s2a( &
+                         "AU Kruse,Holger", &
+                         "   Grimme,Stefan", &
+                         "AF Kruse,Holger", &
+                         "   Grimme,Stefan", &
+                         "TI A geometrical correction for the inter- and intra-molecular basis set superposition error", &
+                         "   in Hartree-Fock and density functional theory calculations for large systems", &
+                         "SO The Journal of Chemical Physics", &
+                         "SN 0021-9606", &
+                         "PY 2012", &
+                         "VL 136", &
+                         "IS 15", &
+                         "AR 154101", &
+                         "DI 10.1063/1.3700154", &
+                         "ER"), &
+                         DOI="10.1063/1.3700154")
+
+      CALL add_reference(key=Ren2011, ISI_record=s2a( &
+                         "AU Ren,Xinguo", &
+                         "   Tkatchenko,Aleksandre", &
+                         "   Rinke,Patrick", &
+                         "   Scheffler,Matthias", &
+                         "TI Beyond the Random-Phase Approximation for the Electron Correlation Energy: ", &
+                         "   The Importance of Single Excitations", &
+                         "SO PHYSICAL REVIEW LETTERS", &
+                         "PY 2011", &
+                         "VL 106", &
+                         "IS 15", &
+                         "BP 153003", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevLett.106.153003")
+
+      CALL add_reference(key=Ren2013, ISI_record=s2a( &
+                         "AU Ren,Xinguo", &
+                         "   Rinke,Patrick", &
+                         "   Scuseria,Gustavo", &
+                         "   Scheffler,Matthias", &
+                         "TI Renormalized second-order perturbation theory for the electron correlation energy: ", &
+                         "   Concept, implementation, and benchmarks", &
+                         "SO PHYSICAL REVIEW B", &
+                         "PY 2013", &
+                         "VL 88", &
+                         "IS 3", &
+                         "BP 035120", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.88.035120")
 
    END SUBROUTINE add_all_references
 

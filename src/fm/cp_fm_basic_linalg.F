@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -52,7 +52,9 @@ MODULE cp_fm_basic_linalg
              cp_fm_frobenius_norm, & ! frobenius norm
              cp_fm_triangular_invert, & ! compute the reciprocal of a triangular matrix
              cp_fm_qr_factorization, & ! compute the QR factorization of a rectangular matrix
-             cp_fm_solve ! solves the equation  A*B=C A and C are input
+             cp_fm_solve, & ! solves the equation  A*B=C A and C are input
+             cp_fm_pdgeqpf, & ! compute a QR factorization with column pivoting of a M-by-N distributed matrix
+             cp_fm_pdorgqr ! generates an M-by-N as first N columns of a product of K elementary reflectors
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
 #if defined (__ACCELERATE)
@@ -2088,5 +2090,137 @@ CONTAINS
       CALL timestop(handle)
 
    END FUNCTION cp_fm_latra
+
+! **************************************************************************************************
+!> \brief compute a QR factorization with column pivoting of a M-by-N distributed matrix
+!>        sub( A ) = A(IA:IA+M-1,JA:JA+N-1)
+!> \param matrix   : input M-by-N distributed matrix sub( A ) which is to be factored
+!> \param tau      :  scalar factors TAU of the elementary reflectors. TAU is tied to the distributed matrix A
+!> \param nrow ...
+!> \param ncol ...
+!> \param first_row ...
+!> \param first_col ...
+!> \author MI
+! **************************************************************************************************
+
+   SUBROUTINE cp_fm_pdgeqpf(matrix, tau, nrow, ncol, first_row, first_col)
+
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
+      INTEGER, INTENT(IN)                                :: nrow, ncol, first_row, first_col
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_pdgeqpf', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      INTEGER                                            :: info, lwork
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: work
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: descc
+#else
+      INTEGER :: ii
+#endif
+
+      CALL timeset(routineN, handle)
+
+      a => matrix%local_data
+      lwork = -1
+      ALLOCATE (work(2*nrow))
+      ALLOCATE (ipiv(ncol))
+      info = 0
+      tau = 0
+
+#if defined(__SCALAPACK)
+      descc(:) = matrix%matrix_struct%descriptor(:)
+      ! Call SCALAPACK routine to get optimal work dimension
+      CALL pdgeqpf(nrow, ncol, a, first_row, first_col, descc, ipiv, tau, work, lwork, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      tau = 0.0_dp
+      ipiv = 0
+
+      ! Call SCALAPACK routine to get QR decomposition of CTs
+      CALL pdgeqpf(nrow, ncol, a, first_row, first_col, descc, ipiv, tau, work, lwork, info)
+      CPASSERT(INFO == 0)
+#else
+      ! NIY
+      ii = 1
+      tau(first_row) = 0
+      tau(first_col) = 0
+#endif
+
+      DEALLOCATE (work)
+      DEALLOCATE (ipiv)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_pdgeqpf
+
+! **************************************************************************************************
+!> \brief generates an M-by-N real distributed matrix Q denoting A(IA:IA+M-1,JA:JA+N-1)
+!>         with orthonormal columns, which is defined as the first N columns of a product of K
+!>         elementary reflectors of order M
+!> \param matrix : On entry, the j-th column must contain the vector which defines the elementary reflector
+!>                  as returned from PDGEQRF
+!>                 On exit it contains  the M-by-N distributed matrix Q
+!> \param tau :   contains the scalar factors TAU of elementary reflectors  as returned by PDGEQRF
+!> \param nrow ...
+!> \param first_row ...
+!> \param first_col ...
+!> \author MI
+! **************************************************************************************************
+
+   SUBROUTINE cp_fm_pdorgqr(matrix, tau, nrow, first_row, first_col)
+
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
+      INTEGER, INTENT(IN)                                :: nrow, first_row, first_col
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_pdorgqr', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      INTEGER                                            :: info, lwork
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: work
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: descc
+#else
+      INTEGER :: ii
+#endif
+
+      CALL timeset(routineN, handle)
+
+      a => matrix%local_data
+      lwork = -1
+      ALLOCATE (work(2*nrow))
+      info = 0
+
+#if defined(__SCALAPACK)
+      descc(:) = matrix%matrix_struct%descriptor(:)
+
+      CALL pdorgqr(nrow, nrow, nrow, a, first_row, first_col, descc, tau, work, lwork, info)
+      CPASSERT(info == 0)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+
+      ! Call SCALAPACK routine to get Q
+      CALL pdorgqr(nrow, nrow, nrow, a, first_row, first_col, descc, tau, work, lwork, info)
+      CPASSERT(INFO == 0)
+#else
+      ! NIY
+      ii = 1
+      tau(first_row) = 0
+      tau(first_col) = 0
+#endif
+
+      DEALLOCATE (work)
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_pdorgqr
 
 END MODULE cp_fm_basic_linalg

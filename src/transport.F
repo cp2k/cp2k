@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -37,10 +37,11 @@ MODULE transport
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
-        csr_dbcsr_blkrow_dist, csr_print_sparsity, csr_type, dbcsr_copy, dbcsr_copy_into_existing, &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_print_sparsity, dbcsr_csr_type, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -308,7 +309,7 @@ CONTAINS
       CALL cite_reference(Bruck2014)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -338,19 +339,19 @@ CONTAINS
       CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity)
 
       IF (.NOT. transport_env%csr_screening) CALL dbcsr_set(transport_env%csr_sparsity, 1.0)
-      CALL csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
-                                 transport_env%s_matrix, &
-                                 csr_dbcsr_blkrow_dist, &
-                                 csr_sparsity=transport_env%csr_sparsity, &
-                                 numnodes=numnodes)
+      CALL dbcsr_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
+                                       transport_env%s_matrix, &
+                                       dbcsr_csr_dbcsr_blkrow_dist, &
+                                       csr_sparsity=transport_env%csr_sparsity, &
+                                       numnodes=numnodes)
 
-      CALL csr_print_sparsity(transport_env%s_matrix, unit_nr)
+      CALL dbcsr_csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
-      CALL convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix)
+      CALL dbcsr_convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix)
 
-      CALL csr_create(transport_env%ks_matrix, transport_env%s_matrix)
-      CALL csr_create(transport_env%p_matrix, transport_env%s_matrix)
-      CALL csr_create(transport_env%imagp_matrix, transport_env%s_matrix)
+      CALL dbcsr_csr_create(transport_env%ks_matrix, transport_env%s_matrix)
+      CALL dbcsr_csr_create(transport_env%p_matrix, transport_env%s_matrix)
+      CALL dbcsr_csr_create(transport_env%imagp_matrix, transport_env%s_matrix)
 
       CALL timestop(handle)
 
@@ -448,7 +449,7 @@ CONTAINS
    SUBROUTINE convert_dbcsr_to_csr_interop(dbcsr_mat, csr_mat, csr_interop_mat)
 
       TYPE(dbcsr_type), INTENT(IN)          :: dbcsr_mat
-      TYPE(csr_type), INTENT(INOUT)            :: csr_mat
+      TYPE(dbcsr_csr_type), INTENT(INOUT)            :: csr_mat
       TYPE(cp2k_csr_interop_type), INTENT(INOUT)      :: csr_interop_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_dbcsr_to_csr_interop', &
@@ -468,7 +469,7 @@ CONTAINS
       num_pe = logger%para_env%num_pe
 
 ! dbcsr to csr
-      CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
+      CALL dbcsr_convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
 
 ! csr to csr_interop
       rowptr_local => csr_mat%rowptr_local
@@ -551,7 +552,7 @@ CONTAINS
    SUBROUTINE convert_csr_interop_to_dbcsr(csr_interop_mat, csr_mat, dbcsr_mat)
 
       TYPE(cp2k_csr_interop_type), INTENT(IN)            :: csr_interop_mat
-      TYPE(csr_type), INTENT(INOUT)                      :: csr_mat
+      TYPE(dbcsr_csr_type), INTENT(INOUT)                      :: csr_mat
       TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_interop_to_dbcsr', &
@@ -585,7 +586,7 @@ CONTAINS
       csr_mat%nzval_local%r_dp = nzvals_local
 
 ! csr to dbcsr
-      CALL convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
+      CALL dbcsr_convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
 
       CALL timestop(handle)
 
@@ -700,6 +701,7 @@ CONTAINS
 
             ! calculate_jrho_resp uses sab_all which is not associated in DFTB environment
             IF (dft_control%qs_control%dftb) CPABORT("Current is not available for DFTB.")
+            IF (dft_control%qs_control%xtb) CPABORT("Current is not available for xTB.")
 
             ! now do the current
             IF (do_current_cube) THEN

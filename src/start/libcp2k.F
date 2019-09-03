@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 !--------------------------------------------------------------------------------------------------!
@@ -347,7 +347,6 @@ CONTAINS
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ierr
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
@@ -356,9 +355,8 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, ierr=ierr)
+      CALL run_input(input_declaration, ifp, ofp)
       CALL section_release(input_declaration)
-      CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_run_input
 
 ! **************************************************************************************************
@@ -372,7 +370,6 @@ CONTAINS
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ierr
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
@@ -381,9 +378,8 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, ierr, mpi_comm)
+      CALL run_input(input_declaration, ifp, ofp, mpi_comm)
       CALL section_release(input_declaration)
-      CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_run_input_comm
 
 ! **************************************************************************************************
@@ -430,16 +426,19 @@ CONTAINS
 
       nmo = -1
       NULLIFY (f_env)
+
       CALL f_env_add_defaults(f_env_id, f_env)
 
-      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
-      IF (.NOT. ASSOCIATED(active_space_env)) THEN
-         GOTO 999
-      END IF
+      try:BLOCK
+         CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=nmo)
+         IF (.NOT. ASSOCIATED(active_space_env)) &
+            EXIT try
 
-999   CALL f_env_rm_defaults(f_env, ierr)
+         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=nmo)
+      END BLOCK try
+
+      CALL f_env_rm_defaults(f_env, ierr)
       CPASSERT(ierr == 0)
    END FUNCTION cp2k_active_space_get_mo_count
 
@@ -469,30 +468,31 @@ CONTAINS
       NULLIFY (f_env)
 
       CALL f_env_add_defaults(f_env_id, f_env)
-      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      IF (.NOT. ASSOCIATED(active_space_env)) THEN
-         GOTO 999
-      END IF
+      try:BLOCK
+         CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
+         IF (.NOT. ASSOCIATED(active_space_env)) &
+            EXIT try
 
-      IF (buf_len < norb*norb) THEN
-         GOTO 999
-      END IF
+         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
 
-      DO i = 0, norb-1
-         DO j = 0, norb-1
-            CALL cp_fm_get_element(active_space_env%fock_sub(1)%matrix, i+1, j+1, mval)
-            buf(norb*i+j) = mval
-            buf(norb*j+i) = mval
+         IF (buf_len < norb*norb) &
+            EXIT try
+
+         DO i = 0, norb-1
+            DO j = 0, norb-1
+               CALL cp_fm_get_element(active_space_env%fock_sub(1)%matrix, i+1, j+1, mval)
+               buf(norb*i+j) = mval
+               buf(norb*j+i) = mval
+            END DO
          END DO
-      END DO
 
-      ! finished successfully, set number of written elements
-      nelem = norb**norb
+         ! finished successfully, set number of written elements
+         nelem = norb**norb
+      END BLOCK try
 
-999   CALL f_env_rm_defaults(f_env, ierr)
+      CALL f_env_rm_defaults(f_env, ierr)
       CPASSERT(ierr == 0)
    END FUNCTION cp2k_active_space_get_fock_sub
 
@@ -515,15 +515,17 @@ CONTAINS
       NULLIFY (f_env)
 
       CALL f_env_add_defaults(f_env_id, f_env)
-      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      IF (.NOT. ASSOCIATED(active_space_env)) THEN
-         GOTO 999
-      END IF
+      try:BLOCK
+         CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      nze_count = active_space_env%eri%eri(1)%csr_mat%nze_total
+         IF (.NOT. ASSOCIATED(active_space_env)) &
+            EXIT try
 
-999   CALL f_env_rm_defaults(f_env, ierr)
+         nze_count = active_space_env%eri%eri(1)%csr_mat%nze_total
+      END BLOCK try
+
+      CALL f_env_rm_defaults(f_env, ierr)
       CPASSERT(ierr == 0)
    END FUNCTION cp2k_active_space_get_eri_nze_count
 
@@ -557,23 +559,24 @@ CONTAINS
       NULLIFY (f_env)
 
       CALL f_env_add_defaults(f_env_id, f_env)
-      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      IF (.NOT. ASSOCIATED(active_space_env)) THEN
-         GOTO 999
-      END IF
+      try:BLOCK
+         CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-      ASSOCIATE (nze=>active_space_env%eri%eri(1)%csr_mat%nze_total)
-         IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) THEN
-            GOTO 999
-         END IF
+         IF (.NOT. ASSOCIATED(active_space_env)) &
+            EXIT try
 
-         CALL active_space_env%eri%eri_foreach(1, eri2array(buf_coords, buf_values))
+         ASSOCIATE (nze=>active_space_env%eri%eri(1)%csr_mat%nze_total)
+            IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) &
+               EXIT try
 
-         nelem = nze
-      END ASSOCIATE
+            CALL active_space_env%eri%eri_foreach(1, eri2array(buf_coords, buf_values))
 
-999   CALL f_env_rm_defaults(f_env, ierr)
+            nelem = nze
+         END ASSOCIATE
+      END BLOCK try
+
+      CALL f_env_rm_defaults(f_env, ierr)
       CPASSERT(ierr == 0)
    END FUNCTION cp2k_active_space_get_eri
 

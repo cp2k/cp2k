@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -50,12 +50,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: sub_section, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="OPTIMIZE_INPUT", &
+      CALL section_create(section, __LOCATION__, name="OPTIMIZE_INPUT", &
                           description="describes an input optimization job, in which parameters in input files get optimized.", &
                           repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="What kind of input optimization to perform.", &
                           usage="METHOD FORCE_MATCHING", &
                           enum_c_vals=s2a("FORCE_MATCHING"), &
@@ -65,35 +65,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="ACCURACY", &
                           description="Final accuracy requested in optimization (RHOEND)", &
                           usage="ACCURACY 0.00001", &
                           default_r_val=1.e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_SIZE", &
                           description="Initial step size for search algorithm (RHOBEG)", &
                           usage="STEP_SIZE 0.005", &
                           default_r_val=0.05_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_FUN", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FUN", &
                           description="Maximum number of function evaluations", &
                           usage="MAX_FUN 1000", &
                           default_i_val=5000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ITER_START_VAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="ITER_START_VAL", &
                           description="Used for restarting, starting value of the iteration", &
                           usage="ITER_START_VAL 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANDOMIZE_VARIABLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANDOMIZE_VARIABLES", &
                           description="Percentage randomization of the free variables applied initially", &
                           usage="RANDOMIZE_VARIABLES 20", &
                           default_r_val=0.00_dp)
@@ -105,25 +105,25 @@ CONTAINS
       !
 
       NULLIFY (sub_section)
-      CALL section_create(sub_section, name="VARIABLE", &
+      CALL section_create(sub_section, __LOCATION__, name="VARIABLE", &
                           description="Defines initial values for variables and their labels", &
                           n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="VALUE", &
+      CALL keyword_create(keyword, __LOCATION__, name="VALUE", &
                           description="Initial value of the variable", &
                           usage="VALUE 0.0", &
                           type_of_var=real_t, unit_str="internal_cp2k")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FIXED", &
+      CALL keyword_create(keyword, __LOCATION__, name="FIXED", &
                           description="Is this variable fixed or should it be optimized.", &
                           usage="FIXED", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LABEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="LABEL", &
                           description="The label used in the input file, i.e. ${LABEL} will be replaced by the VALUE specified.", &
                           usage="LABEL PRM01", &
                           type_of_var=char_t)
@@ -138,39 +138,39 @@ CONTAINS
       !
 
       NULLIFY (sub_section)
-      CALL section_create(sub_section, name="FORCE_MATCHING", &
+      CALL section_create(sub_section, __LOCATION__, name="FORCE_MATCHING", &
                           description="Specify the force matching input.", &
                           repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="OPTIMIZE_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE_FILE_NAME", &
                           description="the filename of the input file which contains the parameters to be optimized", &
                           usage="OPTIMIZE_FILE_NAME my_input.inp", &
                           default_lc_val="")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REF_TRAJ_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="REF_TRAJ_FILE_NAME", &
                           description="the filename of the reference coordinates.", &
                           usage="REF_TRAJ_FILE_NAME pos.xyz", &
                           default_lc_val="")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REF_FORCE_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="REF_FORCE_FILE_NAME", &
                           description="the filename of the reference forces, should also contain the energy", &
                           usage="REF_FORCE_FILE_NAME frc.xyz", &
                           default_lc_val="")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REF_CELL_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="REF_CELL_FILE_NAME", &
                           description="the filename of the reference cell", &
                           usage="REF_CELL_FILE_NAME project.cell", &
                           default_lc_val="")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GROUP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE", &
                           description="Gives the preferred size of a working group, "// &
                           "groups will always be equal or larger than this size."// &
                           "Usually this should take the number of cores per socket into account for good performance.", &
@@ -178,64 +178,64 @@ CONTAINS
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRAME_START", &
+      CALL keyword_create(keyword, __LOCATION__, name="FRAME_START", &
                           description="starting frame to be used from the reference trajectory", &
                           usage="FRAME_START 1", default_i_val=1)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRAME_STOP", &
+      CALL keyword_create(keyword, __LOCATION__, name="FRAME_STOP", &
                           description="final frame to be used from the reference trajectory (all=-1)", &
                           usage="FRAME_STOP -1", default_i_val=-1)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRAME_STRIDE", &
+      CALL keyword_create(keyword, __LOCATION__, name="FRAME_STRIDE", &
                           description="stride when using the reference trajectory", &
                           usage="FRAME_STRIDE 1", default_i_val=1)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRAME_COUNT", &
+      CALL keyword_create(keyword, __LOCATION__, name="FRAME_COUNT", &
                           description="Use at most FRAME_COUNT frames from the reference trajectory, "// &
                           "adjusting the stride to have them as fas apart as possible (all=-1).", &
                           usage="FRAME_COUNT 100", default_i_val=-1)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENERGY_WEIGHT", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WEIGHT", &
                           description="Relative weight of the energy RMSD vs the force RMSD", &
                           usage="ENERGY_WEIGHT 0.1", default_r_val=0.1_dp)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHIFT_AVERAGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHIFT_AVERAGE", &
                           description="Shift averages of the energies before computing energy RMSD.", &
                           usage="SHIFT_AVERAGE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHIFT_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHIFT_QM", &
                           description="Shift of the reference energies applied before computing energy RMSD.", &
                           usage="SHIFT_QM -17.0", default_r_val=0.0_dp)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SHIFT_MM", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHIFT_MM", &
                           description="Shift of the fit energies applied before computing energy RMSD.", &
                           usage="SHIFT_MM 0.0", default_r_val=0.0_dp)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
       NULLIFY (subsubsection)
-      CALL cp_print_key_section_create(subsubsection, "COMPARE_ENERGIES", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "COMPARE_ENERGIES", &
                                        description="A comparison of energies between fit and reference", &
                                        print_level=low_print_level, filename="compare_energies", common_iter_levels=1)
       CALL section_add_subsection(sub_section, subsubsection)
       CALL section_release(subsubsection)
 
       NULLIFY (subsubsection)
-      CALL cp_print_key_section_create(subsubsection, "COMPARE_FORCES", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "COMPARE_FORCES", &
                                        description="A comparison of forces between fit and reference", &
                                        print_level=low_print_level, filename="compare_forces", common_iter_levels=1)
       CALL section_add_subsection(sub_section, subsubsection)
@@ -245,16 +245,16 @@ CONTAINS
       CALL section_release(sub_section)
 
       NULLIFY (subsubsection)
-      CALL cp_print_key_section_create(subsubsection, "HISTORY", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "HISTORY", &
                                        description="writes a history of the function value and parameters", &
                                        print_level=low_print_level, filename="history", common_iter_levels=1)
       CALL section_add_subsection(section, subsubsection)
       CALL section_release(subsubsection)
 
-      CALL cp_print_key_section_create(subsubsection, "RESTART", &
+      CALL cp_print_key_section_create(subsubsection, __LOCATION__, "RESTART", &
                                        description="writes an input file that can be used to restart ", &
                                        print_level=low_print_level, filename="optimize", common_iter_levels=1)
-      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum index of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=3)

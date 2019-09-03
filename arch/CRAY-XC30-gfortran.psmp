@@ -3,14 +3,12 @@
 # - module load PrgEnv-gnu ; module load cray-libsci ; module load fftw
 
 CC       = cc
-CPP      = 
 FC       = ftn
 LD       = ftn
 AR       = ar -r
-CPPFLAGS =
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
+FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512 
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lfftw3 -lfftw3_threads 

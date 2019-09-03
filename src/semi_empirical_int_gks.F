@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -20,7 +20,6 @@ MODULE semi_empirical_int_gks
    USE dg_rho0_types,                   ONLY: dg_rho0_type
    USE dg_types,                        ONLY: dg_get,&
                                               dg_type
-   USE erf_fn,                          ONLY: erfc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi

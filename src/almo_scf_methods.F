@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -1153,7 +1153,7 @@ CONTAINS
 
       ! get a useful unit_nr
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1993,7 +1993,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -2216,9 +2216,8 @@ CONTAINS
                                                             index1_start, n_domain_mos, naos, &
                                                             nblkrows_tot, ndomains, neighbor, row
       INTEGER, DIMENSION(:), POINTER                     :: nmos
-      LOGICAL                                            :: matrix_r_required, &
-                                                            matrix_s_inv_required, &
-                                                            matrix_trimmer_required, my_use_trimmer
+      LOGICAL :: eps_zero_eigenvalues_required, matrix_r_required, matrix_s_half_required, &
+         matrix_s_inv_half_required, matrix_s_inv_required, matrix_trimmer_required, my_use_trimmer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Minv, proj_array
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_main, subm_tmp, subm_tmp2
@@ -2230,6 +2229,9 @@ CONTAINS
          my_use_trimmer = use_trimmer
       ENDIF
 
+      matrix_s_inv_half_required = .FALSE.
+      matrix_s_half_required = .FALSE.
+      eps_zero_eigenvalues_required = .FALSE.
       matrix_s_inv_required = .FALSE.
       matrix_trimmer_required = .FALSE.
       matrix_r_required = .FALSE.
@@ -2240,7 +2242,23 @@ CONTAINS
          matrix_trimmer_required = .TRUE.
          CPABORT("TRIMMED PRECONDITIONER DISABLED!")
       ENDIF
+      ! tie the following optional arguments together to prevent bad calls
+      IF (PRESENT(bad_modes_projector_down)) THEN
+         matrix_s_inv_half_required = .TRUE.
+         matrix_s_half_required = .TRUE.
+         eps_zero_eigenvalues_required = .TRUE.
+      ENDIF
 
+      ! check if all required optional arguments are provided
+      IF (.NOT. PRESENT(subm_s_inv_half) .AND. matrix_s_inv_half_required) THEN
+         CPABORT("S_inv_half SUBMATRICES ARE REQUIRED")
+      ENDIF
+      IF (.NOT. PRESENT(subm_s_half) .AND. matrix_s_half_required) THEN
+         CPABORT("S_half SUBMATRICES ARE REQUIRED")
+      ENDIF
+      IF (.NOT. PRESENT(eps_zero_eigenvalues) .AND. eps_zero_eigenvalues_required) THEN
+         CPABORT("EPS_ZERO_EIGENVALUES IS REQUIRED")
+      ENDIF
       IF (.NOT. PRESENT(subm_s_inv) .AND. matrix_s_inv_required) THEN
          CPABORT("S_inv SUBMATRICES ARE REQUIRED")
       ENDIF
@@ -2347,50 +2365,26 @@ CONTAINS
 
             IF (PRESENT(bad_modes_projector_down)) THEN
                ALLOCATE (proj_array(naos, naos))
-            ENDIF
-
-            IF (PRESENT(eps_zero_eigenvalues)) THEN
-               IF (PRESENT(subm_s_inv_half)) THEN
-                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                            range1=nmos(idomain), range2=n_domain_mos, &
-                                            range1_thr=eps_zero_eigenvalues, &
-                                            bad_modes_projector_down=proj_array, &
-                                            s_inv_half=subm_s_inv_half(idomain)%mdata, &
-                                            s_half=subm_s_half(idomain)%mdata &
-                                            !metric_inv=subm_s_inv(idomain)%mdata &
-                                            )
-               ELSE
-                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                            range1=nmos(idomain), range2=n_domain_mos, &
-                                            range1_thr=eps_zero_eigenvalues, &
-                                            bad_modes_projector_down=proj_array &
-                                            )
-               ENDIF
+               CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                         range1=nmos(idomain), range2=n_domain_mos, &
+                                         range1_thr=eps_zero_eigenvalues, &
+                                         bad_modes_projector_down=proj_array, &
+                                         s_inv_half=subm_s_inv_half(idomain)%mdata, &
+                                         s_half=subm_s_half(idomain)%mdata &
+                                         )
             ELSE
-               IF (PRESENT(subm_s_inv_half)) THEN
-                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                            range1=nmos(idomain), range2=n_domain_mos, &
-                                            bad_modes_projector_down=proj_array, &
-                                            s_inv_half=subm_s_inv_half(idomain)%mdata, &
-                                            s_half=subm_s_inv(idomain)%mdata)
-               ELSE
-                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                            range1=nmos(idomain), range2=n_domain_mos, &
-                                            bad_modes_projector_down=proj_array)
-               ENDIF
-            ENDIF ! eps_zero_eigenvalues
+               CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                         range1=nmos(idomain), range2=n_domain_mos)
+            ENDIF
             !!!TRIM ENDIF
 
             CALL copy_submatrices(subm_main(idomain), preconditioner(idomain), .FALSE.)
             CALL copy_submatrix_data(Minv, preconditioner(idomain))
+            DEALLOCATE (Minv)
 
             IF (PRESENT(bad_modes_projector_down)) THEN
                CALL copy_submatrices(subm_main(idomain), bad_modes_projector_down(idomain), .FALSE.)
                CALL copy_submatrix_data(proj_array, bad_modes_projector_down(idomain))
-            ENDIF
-
-            DEALLOCATE (Minv)
-            IF (PRESENT(bad_modes_projector_down)) THEN
                DEALLOCATE (proj_array)
             ENDIF
 
@@ -2408,8 +2402,6 @@ CONTAINS
       !   CALL dbcsr_release(m_tmp_no_2)
       !   CALL dbcsr_release(matrix_r)
       !ENDIF
-
-      !RZK-warning do we need a barrier here ?
 
       CALL timestop(handle)
 
@@ -2654,7 +2646,7 @@ CONTAINS
 
       ! get a useful unit_nr
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -2760,8 +2752,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: N, method
       INTEGER, INTENT(IN), OPTIONAL                      :: range1, range2
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: range1_thr, shift
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT), OPTIONAL                         :: bad_modes_projector_down
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         OPTIONAL                                        :: bad_modes_projector_down
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: s_inv_half, s_half
 
@@ -2770,7 +2762,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ii, INFO, jj, LWORK, range1_eiv, &
                                                             range2_eiv, range3_eiv, unit_nr
-      LOGICAL                                            :: use_both, use_ranges
+      LOGICAL                                            :: use_both, use_ranges_only, use_thr_only
       REAL(KIND=dp)                                      :: my_shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, WORK
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp1, temp2, temp3, temp4
@@ -2780,22 +2772,37 @@ CONTAINS
 
       ! get a useful unit_nr
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
       END IF
 
       IF (method .EQ. 1) THEN
+
+         IF ((PRESENT(range1) .AND. (.NOT. PRESENT(range2))) .OR. (PRESENT(range2) .AND. (.NOT. PRESENT(range1)))) THEN
+            CPABORT("range1 and range2 must be provided together")
+         ENDIF
+
          IF (PRESENT(range1) .AND. PRESENT(range1_thr)) THEN
             use_both = .TRUE.
+            use_thr_only = .FALSE.
+            use_ranges_only = .FALSE.
          ELSE
             use_both = .FALSE.
+
             IF (PRESENT(range1)) THEN
-               use_ranges = .TRUE.
+               use_ranges_only = .TRUE.
             ELSE
-               use_ranges = .FALSE.
+               use_ranges_only = .FALSE.
             ENDIF
+
+            IF (PRESENT(range1_thr)) THEN
+               use_thr_only = .TRUE.
+            ELSE
+               use_thr_only = .FALSE.
+            ENDIF
+
          ENDIF
 
          IF ((PRESENT(s_half) .AND. (.NOT. PRESENT(s_inv_half))) .OR. (PRESENT(s_inv_half) .AND. (.NOT. PRESENT(s_half)))) THEN
@@ -2812,7 +2819,7 @@ CONTAINS
       INFO = 0
 
       SELECT CASE (method)
-      CASE (0)
+      CASE (0) ! Inversion via cholesky factorization
 
          CALL DPOTRF('L', N, Ainv, N, INFO)
          IF (INFO .NE. 0) THEN
@@ -2863,9 +2870,7 @@ CONTAINS
          ! invert eigenvalues and use eigenvectors to compute pseudo Ainv
          ! project out near-zero eigenvalue modes
          ALLOCATE (temp2(N, N))
-         IF (PRESENT(bad_modes_projector_down)) THEN
-            IF (ALLOCATED(bad_modes_projector_down)) ALLOCATE (temp3(N, N))
-         ENDIF
+         IF (PRESENT(bad_modes_projector_down)) ALLOCATE (temp3(N, N))
          temp2(1:N, 1:N) = Ainv(1:N, 1:N)
 
          range1_eiv = 0
@@ -2876,70 +2881,55 @@ CONTAINS
             DO jj = 1, N
                IF ((jj .LE. range2) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
                   temp1(jj, :) = temp2(:, jj)*0.0_dp
-                  IF (PRESENT(bad_modes_projector_down)) THEN
-                     IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                  ENDIF
+                  IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                   range1_eiv = range1_eiv+1
                ELSE
                   temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
-                  IF (PRESENT(bad_modes_projector_down)) THEN
-                     IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
-                  ENDIF
+                  IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
                   range2_eiv = range2_eiv+1
                ENDIF
             ENDDO
          ELSE
-            IF (use_ranges) THEN
+            IF (use_ranges_only) THEN
                DO jj = 1, N
                   IF (jj .LE. range1) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
-                     IF (PRESENT(bad_modes_projector_down)) THEN
-                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                     ENDIF
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                      range1_eiv = range1_eiv+1
                   ELSE IF (jj .LE. range2) THEN
                      temp1(jj, :) = temp2(:, jj)*1.0_dp
-                     IF (PRESENT(bad_modes_projector_down)) THEN
-                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                     ENDIF
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                      range2_eiv = range2_eiv+1
                   ELSE
                      temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
-                     IF (PRESENT(bad_modes_projector_down)) THEN
-                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
-                     ENDIF
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
                      range3_eiv = range3_eiv+1
                   ENDIF
                ENDDO
-            ELSE
+            ELSE IF (use_thr_only) THEN
                DO jj = 1, N
                   IF (eigenvalues(jj) .LT. range1_thr) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
-                     IF (PRESENT(bad_modes_projector_down)) THEN
-                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                     ENDIF
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                      range1_eiv = range1_eiv+1
                   ELSE
                      temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
-                     IF (PRESENT(bad_modes_projector_down)) THEN
-                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
-                     ENDIF
-
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
                      range2_eiv = range2_eiv+1
                   ENDIF
                ENDDO
+            ELSE ! no ranges, no thresholds
+               CPABORT("Invert using Cholesky. It would be faster.")
             ENDIF
          ENDIF
          !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
          IF (PRESENT(bad_modes_projector_down)) THEN
-            IF (ALLOCATED(bad_modes_projector_down)) THEN
-               IF (PRESENT(s_half)) THEN
-                  CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
-                  CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
-                  CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
-               ELSE
-                  CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
-               ENDIF
+            IF (PRESENT(s_half)) THEN
+               CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
+               CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
+               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
+            ELSE
+               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
             ENDIF
          ENDIF
 
@@ -2951,9 +2941,7 @@ CONTAINS
             CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
          ENDIF
          DEALLOCATE (temp1, temp2, temp4)
-         IF (PRESENT(bad_modes_projector_down)) THEN
-            IF (ALLOCATED(bad_modes_projector_down)) DEALLOCATE (temp3)
-         ENDIF
+         IF (PRESENT(bad_modes_projector_down)) DEALLOCATE (temp3)
          DEALLOCATE (eigenvalues)
 
       CASE DEFAULT
@@ -3019,7 +3007,7 @@ CONTAINS
 
       ! get a useful unit_nr
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -3291,7 +3279,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

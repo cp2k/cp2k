@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -413,7 +413,7 @@ CONTAINS
 
       ! RDF related settings
       IF (helium%rdf_present) THEN
-         WRITE (stmp, '(I6)') helium%rdf_num_ctr
+         WRITE (stmp, '(I6)') helium%rdf_num
          CALL helium_write_line("RDF| number of centers: "//TRIM(stmp))
          rtmp = cp_unit_from_cp2k(helium%rdf_delr, "angstrom")
          WRITE (stmp, '(1X,F12.6)') rtmp
@@ -1378,12 +1378,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_print_rdf', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_string_length)               :: comment, stmp
+      CHARACTER(len=default_string_length)               :: stmp
       INTEGER                                            :: handle, ia, ic, id, itmp, iweight, k, &
                                                             nsteps, unit_nr
       LOGICAL                                            :: should_output
-      REAL(KIND=dp)                                      :: inv_norm, rtmp
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: message
+      REAL(KIND=dp)                                      :: inv_norm, rtmp, rtmp2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: message
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1404,38 +1404,46 @@ CONTAINS
       IF (should_output) THEN
          ! work on the temporary array so that accumulated data remains intact
          ! save accumulated data of different env on same core in first temp
-         helium_env(1)%helium%rdf_inst(:, :, :) = 0.0_dp
+         helium_env(1)%helium%rdf_inst(:, :) = 0.0_dp
          DO k = 1, SIZE(helium_env)
-            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)+ &
-                                                     helium_env(k)%helium%rdf_accu(:, :, :)
+            helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)+ &
+                                                  helium_env(k)%helium%rdf_accu(:, :)
          END DO
 
          ! average over processors
          NULLIFY (message)
-         message => helium_env(1)%helium%rdf_inst(:, :, :)
+         message => helium_env(1)%helium%rdf_inst(:, :)
          CALL mp_sum(message, helium_env(1)%comm)
          itmp = helium_env(1)%helium%num_env
          inv_norm = 1.0_dp/REAL(itmp, dp)
-         helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)*inv_norm
+         helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)*inv_norm
 
          ! average over steps performed so far in this run
          nsteps = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
          inv_norm = 1.0_dp/REAL(nsteps, dp)
-         helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)*inv_norm
+         helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)*inv_norm
 
          iweight = helium_env(1)%helium%rdf_iweight
          ! average over the old and the current density (observe the weights!)
-         helium_env(1)%helium%rdf_inst(:, :, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :, :)+ &
-                                                  iweight*helium_env(1)%helium%rdf_rstr(:, :, :)
-         helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)/REAL(nsteps+iweight, dp)
+         helium_env(1)%helium%rdf_inst(:, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :)+ &
+                                               iweight*helium_env(1)%helium%rdf_rstr(:, :)
+         helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)/REAL(nsteps+iweight, dp)
 
          IF (logger%para_env%ionode) THEN
 
-            DO id = 1, helium_env(1)%helium%rdf_num ! loop over estimators ---
+            ia = 0
+            rtmp = cp_unit_from_cp2k(1.0_dp, "angstrom")
+            rtmp2 = 1.0_dp
+            IF (.NOT. helium_env(1)%helium%periodic) THEN
+               ! RDF in non-periodic case has unit 1/bohr**3, convert to Angstrom:
+               rtmp2 = rtmp**(-3)
+            END IF
 
+            IF (helium_env(1)%helium%rdf_he_he) THEN
                ! overwrite RDF file each time it is written
+               ia = 1
                stmp = ""
-               WRITE (stmp, *) id
+               WRITE (stmp, *) "He-He"
                unit_nr = cp_print_key_unit_nr( &
                          logger, &
                          print_key, &
@@ -1444,22 +1452,39 @@ CONTAINS
                          file_position="REWIND", &
                          do_backup=.FALSE.)
 
-               comment = "Radial distribution function"
+               DO ic = 1, helium_env(1)%helium%rdf_nbin
+                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') (REAL(ic, dp)-0.5_dp)*helium_env(1)%helium%rdf_delr*rtmp
+                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%rdf_inst(ia, ic)*rtmp2
+                  WRITE (unit_nr, *)
+               END DO
+
+               CALL m_flush(unit_nr)
+               CALL cp_print_key_finished_output(unit_nr, logger, print_key)
+            END IF
+
+            IF (helium_env(1)%helium%rdf_sol_he) THEN
+               ! overwrite RDF file each time it is written
+               stmp = ""
+               WRITE (stmp, *) "Solute-He"
+               unit_nr = cp_print_key_unit_nr( &
+                         logger, &
+                         print_key, &
+                         middle_name="helium-rdf-"//TRIM(ADJUSTL(stmp)), &
+                         extension=".dat", &
+                         file_position="REWIND", &
+                         do_backup=.FALSE.)
 
                DO ic = 1, helium_env(1)%helium%rdf_nbin
-                  rtmp = (REAL(ic, dp)-0.5_dp)*helium_env(1)%helium%rdf_delr
-                  rtmp = cp_unit_from_cp2k(rtmp, "angstrom")
-                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') rtmp
-                  DO ia = 1, helium_env(1)%helium%rdf_num_ctr
-                     WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%rdf_inst(id, ic, ia)
+                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') (REAL(ic, dp)-0.5_dp)*helium_env(1)%helium%rdf_delr*rtmp
+                  DO id = 1+ia, helium_env(1)%helium%rdf_num
+                     WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%rdf_inst(id, ic)*rtmp2
                   END DO
                   WRITE (unit_nr, *)
                END DO
 
                CALL m_flush(unit_nr)
                CALL cp_print_key_finished_output(unit_nr, logger, print_key)
-
-            END DO ! loop over estimators ---
+            END IF
 
          END IF
       END IF

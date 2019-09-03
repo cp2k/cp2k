@@ -1,0 +1,52 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &PRINT
+      &MOMENTS
+        PERIODIC T
+      &END
+      &DERIVATIVES
+      &END
+    &END
+    &QS
+      METHOD xTB
+      &xTB
+         DO_EWALD T
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.e-8
+      MAX_SCF 90
+      &OT ON
+         MINIMIZER        DIIS
+         LINESEARCH       3PNT
+         PRECONDITIONER   FULL_S_INVERSE
+      &END OT
+    &END SCF
+    &POISSON
+      &EWALD
+       ALPHA  1.0
+       EWALD_TYPE SPME
+       GMAX 75
+      &END EWALD
+    &END POISSON
+    &PERIODIC_EFIELD
+       POLARISATION 0 0 1
+       INTENSITY 0.05
+    &END    
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+    F   0.000000    0.000000    0.000000 
+    H   0.000000    0.000000    0.970000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT HF-field
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL

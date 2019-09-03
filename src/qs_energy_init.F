@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -48,6 +48,8 @@ MODULE qs_energy_init
    USE qs_external_density,             ONLY: external_read_density
    USE qs_external_potential,           ONLY: external_c_potential,&
                                               external_e_potential
+   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
@@ -57,6 +59,7 @@ MODULE qs_energy_init
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
+   USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -260,6 +263,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
@@ -304,6 +308,12 @@ CONTAINS
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
+                                 calculate_forces=.FALSE.)
+         CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
+         CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
+         CALL qs_env_update_s_mstruct(qs_env)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
@@ -332,6 +342,12 @@ CONTAINS
          ! energy info at the end of the SCF
          CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
          CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
+         ! Add possible pair potential gCP energy - Evaluate first so we can print
+         ! energy info at the end of the SCF
+         CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env, energy=energy)
+         IF (ASSOCIATED(gcp_env)) THEN
+            CALL calculate_gcp_pairpot(qs_env, gcp_env, energy%gcp, calc_forces)
+         END IF
 
       END IF
       ! Embedding potential

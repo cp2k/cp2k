@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -28,8 +28,7 @@ MODULE helium_methods
    USE force_env_types,                 ONLY: force_env_get
    USE helium_common,                   ONLY: helium_com,&
                                               helium_pbc
-   USE helium_io,                       ONLY: helium_read_xyz,&
-                                              helium_write_line,&
+   USE helium_io,                       ONLY: helium_write_line,&
                                               helium_write_setup
    USE helium_sampling,                 ONLY: helium_sample
    USE helium_types,                    ONLY: &
@@ -634,11 +633,36 @@ CONTAINS
             ! fill in the solute-related data structures
             helium_env(k)%helium%e_corr = 0.0_dp
             IF (helium_env(k)%helium%solute_present) THEN
-               helium_env(k)%helium%bead_ratio = helium_env(k)%helium%beads/helium_env(k)%helium%solute_beads
-
-               ! check if bead numbers are commensurate:
-               i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%solute_beads-helium_env(k)%helium%beads
-               CPASSERT(i == 0)
+               IF (helium_env(k)%helium%solute_beads > helium_env(k)%helium%beads) THEN
+                  ! Imaginary time striding for solute:
+                  helium_env(k)%helium%bead_ratio = helium_env(k)%helium%solute_beads/ &
+                                                    helium_env(k)%helium%beads
+                  ! check if bead numbers are commensurate:
+                  i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%beads-helium_env(k)%helium%solute_beads
+                  IF (i /= 0) THEN
+                     msg_str = "Adjust number of solute beads to multiple of solvent beads."
+                     CPABORT(msg_str)
+                  END IF
+                  msg_str = "Using multiple-time stepping in imaginary time for solute to couple "// &
+                            "to fewer solvent beads, e.g. for factor 3: "// &
+                            "he_1 - 3*sol_1; he_2 - 3*sol_4... "// &
+                            "Avoid too large coupling factors."
+                  CPWARN(msg_str)
+               ELSE IF (helium_env(k)%helium%solute_beads < helium_env(k)%helium%beads) THEN
+                  ! Imaginary time striding for solvent:
+                  helium_env(k)%helium%bead_ratio = helium_env(k)%helium%beads/ &
+                                                    helium_env(k)%helium%solute_beads
+                  ! check if bead numbers are commensurate:
+                  i = helium_env(k)%helium%bead_ratio*helium_env(k)%helium%solute_beads-helium_env(k)%helium%beads
+                  IF (i /= 0) THEN
+                     msg_str = "Adjust number of solvent beads to multiple of solute beads."
+                     CPABORT(msg_str)
+                  END IF
+                  msg_str = "Coupling solvent beads to fewer solute beads via "// &
+                            "direct coupling, e.g. for factor 3: "// &
+                            "sol_1 - he_1,2,3; sol_2 - he_4,5,6..."
+                  CPWARN(msg_str)
+               END IF
 !TODO       Adjust helium bead number if not comm. and if coords not given expl.
 
                ! check if tau, temperature and bead number are consistent:
@@ -1035,7 +1059,7 @@ CONTAINS
                   helium_env(k)%helium%rho_accu(:, :, :, :) = 0.0_dp
                END IF
                IF (helium_env(k)%helium%rdf_present) THEN
-                  helium_env(k)%helium%rdf_accu(:, :, :) = 0.0_dp
+                  helium_env(k)%helium%rdf_accu(:, :) = 0.0_dp
                END IF
             END DO
             coords_presampled = .TRUE.
@@ -1344,7 +1368,8 @@ CONTAINS
 !> \par    History
 !>         2010-07-22 accomodate additional cpus in the runtime wrt the
 !>                    restart [lwalewski]
-!>         2016-07-14 Modified to work with independent helium_env [cschran]
+!>         2016-07-14 Modified to work with independent helium_env
+!>                    [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_coord_restore(helium_env)
@@ -1994,6 +2019,8 @@ CONTAINS
 !> \brief  Create the RDF related data structures and initialize
 !> \param helium ...
 !> \date   2014-02-25
+!> \par    History
+!>         2018-10-19 Changed to bead-wise RDFs of solute-He and He-He [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_rdf_init(helium)
@@ -2003,64 +2030,54 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_rdf_init', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_path_length)                 :: file_name
-      CHARACTER(len=default_string_length)               :: err_str, stmp
-      INTEGER                                            :: ifirst, ii, ij, ik
+      CHARACTER(len=2*default_string_length)             :: err_str, stmp
+      INTEGER                                            :: ii, ij
       LOGICAL                                            :: explicit
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: coords
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      IF (helium%solute_present) THEN
-         ! get number of centers from solute
-         helium%rdf_num_ctr = helium%solute_atoms
-      ELSE
-         ! use center of the unit cell or COM of the He droplet
-         helium%rdf_num_ctr = 1
-      END IF
-      ifirst = helium%rdf_num_ctr
-
-      ! read auxiliary centers from file
+      ! read parameters
       NULLIFY (logger)
       logger => cp_get_default_logger()
       CALL section_vals_val_get( &
          helium%input, &
-         "MOTION%PINT%HELIUM%RDF%CENTERS_FILE_NAME", &
-         c_val=file_name, &
-         explicit=explicit)
-      NULLIFY (coords)
-      IF (explicit) THEN
-         CALL section_vals_val_get( &
-            helium%input, &
-            "MOTION%PINT%HELIUM%RDF%CENTERS_FILE_NAME", &
-            c_val=file_name)
-         CALL helium_read_xyz(coords, file_name, logger%para_env)
+         "MOTION%PINT%HELIUM%RDF%SOLUTE_HE", &
+         l_val=helium%rdf_sol_he)
+      CALL section_vals_val_get( &
+         helium%input, &
+         "MOTION%PINT%HELIUM%RDF%HE_HE", &
+         l_val=helium%rdf_he_he)
+
+      ! Prevent He_He Rdfs for a single he atom:
+      IF (helium%atoms <= 1) THEN
+         helium%rdf_he_he = .FALSE.
       END IF
 
-      ! increment number of centers if necessary
-      IF (ASSOCIATED(coords)) THEN
-         helium%rdf_num_ctr = helium%rdf_num_ctr+SIZE(coords)/3
+      helium%rdf_num = 0
+      IF (helium%rdf_sol_he) THEN
+         IF (helium%solute_present) THEN
+            ! get number of centers from solute to store solute positions
+            ALLOCATE (helium%rdf_centers(helium%beads, helium%solute_atoms*3))
+            helium%rdf_centers(:, :) = 0.0_dp
+            helium%rdf_num = helium%solute_atoms
+         ELSE
+            helium%rdf_sol_he = .FALSE.
+         END IF
+      END IF
+
+      IF (helium%rdf_he_he) THEN
+         helium%rdf_num = helium%rdf_num+1
       END IF
 
       ! set the flag for RDF and either proceed or return
-      IF (helium%rdf_num_ctr > 0) THEN
+      IF (helium%rdf_num > 0) THEN
          helium%rdf_present = .TRUE.
       ELSE
          helium%rdf_present = .FALSE.
+         err_str = "HELIUM RDFs requested, but no valid choice of "// &
+                   "parameters specified. No RDF will be computed."
+         CPWARN(err_str)
          RETURN
       END IF
-
-      ! allocate & store auxiliary centers (align to the end of array)
-      ALLOCATE (helium%rdf_centers(3*helium%rdf_num_ctr))
-      helium%rdf_centers(:) = 0.0_dp
-      IF (ASSOCIATED(coords)) THEN
-         ii = 3*ifirst+1
-         ij = 3*helium%rdf_num_ctr
-         helium%rdf_centers(ii:ij) = coords(:)
-         DEALLOCATE (coords)
-         NULLIFY (coords)
-      END IF
-
-      helium%rdf_num = 4 ! see also helium%rho_num_def
 
       ! set the maximum RDF range
       CALL section_vals_val_get( &
@@ -2124,13 +2141,12 @@ CONTAINS
       ! allocate and initialize memory for RDF storage
       ii = helium%rdf_num
       ij = helium%rdf_nbin
-      ik = helium%rdf_num_ctr
-      ALLOCATE (helium%rdf_inst(ii, ij, ik))
-      ALLOCATE (helium%rdf_accu(ii, ij, ik))
-      ALLOCATE (helium%rdf_rstr(ii, ij, ik))
-      helium%rdf_inst(:, :, :) = 0.0_dp
-      helium%rdf_accu(:, :, :) = 0.0_dp
-      helium%rdf_rstr(:, :, :) = 0.0_dp
+      ALLOCATE (helium%rdf_inst(ii, ij))
+      ALLOCATE (helium%rdf_accu(ii, ij))
+      ALLOCATE (helium%rdf_rstr(ii, ij))
+      helium%rdf_inst(:, :) = 0.0_dp
+      helium%rdf_accu(:, :) = 0.0_dp
+      helium%rdf_rstr(:, :) = 0.0_dp
 
       RETURN
    END SUBROUTINE helium_rdf_init
@@ -2141,6 +2157,7 @@ CONTAINS
 !> \date   2011-06-22
 !> \par    History
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
+!>         2018-10-19 Changed to bead-wise RDFs of solute-He and He-He [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_rdf_restore(helium_env)
@@ -2152,11 +2169,11 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: stmp1, stmp2
       CHARACTER(len=max_line_length)                     :: err_str
-      INTEGER                                            :: ii, ij, ik, itmp, k, msglen
+      INTEGER                                            :: ii, ij, itmp, k, msglen
       LOGICAL                                            :: explicit, ltmp
-      LOGICAL, DIMENSION(:, :, :), POINTER               :: m
+      LOGICAL, DIMENSION(:, :), POINTER                  :: m
       REAL(KIND=dp), DIMENSION(:), POINTER               :: message
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: f
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: f
 
       CALL section_vals_val_get(helium_env(1)%helium%input, &
                                 "MOTION%PINT%HELIUM%AVERAGES%RDF", &
@@ -2186,15 +2203,14 @@ CONTAINS
 
       ii = helium_env(1)%helium%rdf_num
       ij = helium_env(1)%helium%rdf_nbin
-      ik = helium_env(1)%helium%rdf_num_ctr
       NULLIFY (m, f)
-      ALLOCATE (m(ii, ij, ik))
-      ALLOCATE (f(ii, ij, ik))
-      m(:, :, :) = .TRUE.
-      f(:, :, :) = 0.0_dp
+      ALLOCATE (m(ii, ij))
+      ALLOCATE (f(ii, ij))
+      m(:, :) = .TRUE.
+      f(:, :) = 0.0_dp
 
       DO k = 1, SIZE(helium_env)
-         helium_env(k)%helium%rdf_rstr(:, :, :) = UNPACK(message(1:msglen), MASK=m, FIELD=f)
+         helium_env(k)%helium%rdf_rstr(:, :) = UNPACK(message(1:msglen), MASK=m, FIELD=f)
          CALL section_vals_val_get(helium_env(k)%helium%input, &
                                    "MOTION%PINT%HELIUM%AVERAGES%IWEIGHT", &
                                    i_val=helium_env(k)%helium%rdf_iweight)
@@ -2222,16 +2238,19 @@ CONTAINS
       IF (helium%rdf_present) THEN
 
          DEALLOCATE ( &
-            helium%rdf_centers, &
             helium%rdf_rstr, &
             helium%rdf_accu, &
             helium%rdf_inst)
 
          NULLIFY ( &
-            helium%rdf_centers, &
             helium%rdf_rstr, &
             helium%rdf_accu, &
             helium%rdf_inst)
+
+         IF (helium%rdf_sol_he) THEN
+            DEALLOCATE (helium%rdf_centers)
+            NULLIFY (helium%rdf_centers)
+         END IF
 
       END IF
 

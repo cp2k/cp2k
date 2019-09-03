@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -56,7 +56,7 @@ MODULE lri_optimize_ri_basis_types
       REAL(KIND=dp)                                      :: rho_diff
       ! array holding the variables that are optimized
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
-      ! intial exponents
+      ! initial exponents
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet_init
       ! holds the original contraction coeff of the lri basis
       TYPE(lri_gcc_p_type), DIMENSION(:), POINTER        :: ri_gcc_orig

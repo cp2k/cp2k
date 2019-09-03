@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -1308,6 +1308,7 @@ CONTAINS
                          is_nonlocal=sgp_atompot%is_nonlocal, &
                          n_nonlocal=n, a_nonlocal=ap, h_nonlocal=hhp, c_nonlocal=ccp)
       ! nonlocal
+      sgp_atompot%has_nonlocal = ANY(sgp_atompot%is_nonlocal)
       sgp_atompot%lmax = lm
       CPASSERT(n <= SIZE(sgp_atompot%a_nonlocal))
       sgp_atompot%n_nonlocal = n

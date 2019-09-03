@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM links
-C4H10-qmmm-gauss-0.inp                                 1    1.0E-14            -27.995411661351529
+C4H10-qmmm-gauss-0.inp                                 1      2E-14            -27.995411661351529
 C4H10-qmmm-gauss-1.inp                                 1    1.0E-14             -27.99615935895865
 C4H10-qmmm-gauss-2.inp                                 7    1.0E-14            -14.564420375899999
 C4H10-qmmm-gauss-3.inp                                 1      6e-14            -16.286464662188639

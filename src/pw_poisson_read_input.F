@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -62,10 +62,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: periodic
-      TYPE(section_vals_type), POINTER                   :: ewald_section, mt_section, &
-                                                            wavelet_section
+      TYPE(section_vals_type), POINTER                   :: mt_section, wavelet_section
 
-      NULLIFY (ewald_section, mt_section, wavelet_section)
+      NULLIFY (mt_section, wavelet_section)
 
       CALL section_vals_val_get(poisson_section, "POISSON_SOLVER", i_val=params%solver)
 
@@ -83,14 +82,8 @@ CONTAINS
          CPABORT("")
       END SELECT
 
-      ! parsing EWALD subsection
+      ! Set Ewald default to NONE
       params%ewald_type = do_ewald_none
-      ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD", can_return_null=.TRUE.)
-      IF (ASSOCIATED(ewald_section)) THEN
-         CALL section_vals_val_get(ewald_section, "EWALD_TYPE", i_val=params%ewald_type)
-         CALL section_vals_val_get(ewald_section, "o_spline", i_val=params%ewald_o_spline)
-         CALL section_vals_val_get(ewald_section, "alpha", r_val=params%ewald_alpha)
-      ENDIF
 
       ! parsing MT subsection
       mt_section => section_vals_get_subs_vals(poisson_section, "MT")

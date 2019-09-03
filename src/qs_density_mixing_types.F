@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -57,30 +57,44 @@ MODULE qs_density_mixing_types
    END TYPE cp_1d_z_p_type
 
    TYPE mixing_storage_type
-      INTEGER :: ref_count, ig_max, ncall, nbuffer, n_simple_mix, nskip_mixing, p_metric_method
-      INTEGER, POINTER, DIMENSION(:) :: ig_global_index
-      LOGICAL :: gmix_p
-      LOGICAL, POINTER, DIMENSION(:) :: paw
-      CHARACTER(len=15) :: iter_method
-      REAL(dp) :: alpha, bconst, beta, broy_w0, max_g2, max_gvec_exp, pulay_alpha, pulay_beta, r_step, &
-                  reg_par, sigma_max, wc, wmax
-      REAL(dp), DIMENSION(:), POINTER :: p_metric
-      REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
-      REAL(KIND=dp), DIMENSION(:), POINTER :: special_metric
-      REAL(dp), DIMENSION(:, :), POINTER :: weight
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: norm_res_buffer, pulay_matrix
-      REAL(dp), DIMENSION(:, :, :), POINTER :: fmat, gmat, smat
-      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res, rhoin, rhoin_old
-      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER :: delta_res, u_vec, z_vec
-      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER ::drho_buffer, rhoin_buffer, &
-                                                        res_buffer
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_in_buffer
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_res_buffer
-      TYPE(dbcsr_type), POINTER :: rho_ao_mix, rho_ao_res
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_lastres, cpc_s_lastres
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_in, cpc_s_in
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_old, cpc_s_old
+      INTEGER                                           :: ref_count
+      INTEGER                                           :: ig_max, ncall, nbuffer, n_simple_mix, &
+                                                           nskip_mixing, p_metric_method
+      INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index
+      LOGICAL                                           :: gmix_p
+      LOGICAL, POINTER, DIMENSION(:)                    :: paw
+      CHARACTER(len=15)                                 :: iter_method
+      REAL(KIND=dp)                                     :: alpha, bconst, beta, broy_w0, &
+                                                           max_g2, max_gvec_exp, pulay_alpha, &
+                                                           pulay_beta, r_step, reg_par, &
+                                                           sigma_max, wc, wmax
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: p_metric
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: special_metric
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: weight
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer, pulay_matrix
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat, gmat, smat
+      !
+      INTEGER                                           :: nat_local, max_shell
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dacharge
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dfbroy
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: ubroy
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: abroy
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: wbroy
+      INTEGER, DIMENSION(:), POINTER                    :: atlist
+      !
+      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER       :: last_res, rhoin, rhoin_old
+      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: delta_res, u_vec, z_vec
+      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: drho_buffer, rhoin_buffer, res_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER   :: rho_ao_in_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER   :: rho_ao_res_buffer
+      TYPE(dbcsr_type), POINTER                         :: rho_ao_mix, rho_ao_res
+      !
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_lastres, cpc_s_lastres
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_in, cpc_s_in
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_old, cpc_s_old
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer, cpc_s_in_buffer
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer, cpc_s_res_buffer
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in, dcpc_s_in
@@ -131,6 +145,13 @@ CONTAINS
       NULLIFY (mixing_store%fmat)
       NULLIFY (mixing_store%gmat)
       NULLIFY (mixing_store%smat)
+      NULLIFY (mixing_store%acharge)
+      NULLIFY (mixing_store%dacharge)
+      NULLIFY (mixing_store%dfbroy)
+      NULLIFY (mixing_store%ubroy)
+      NULLIFY (mixing_store%abroy)
+      NULLIFY (mixing_store%wbroy)
+      NULLIFY (mixing_store%atlist)
       NULLIFY (mixing_store%last_res)
       NULLIFY (mixing_store%rhoin)
       NULLIFY (mixing_store%rhoin_old)
@@ -383,6 +404,28 @@ CONTAINS
                DEALLOCATE (mixing_store%fmat)
             END IF
 
+            IF (ASSOCIATED(mixing_store%acharge)) THEN
+               DEALLOCATE (mixing_store%acharge)
+            END IF
+            IF (ASSOCIATED(mixing_store%dacharge)) THEN
+               DEALLOCATE (mixing_store%dacharge)
+            END IF
+            IF (ASSOCIATED(mixing_store%dfbroy)) THEN
+               DEALLOCATE (mixing_store%dfbroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%ubroy)) THEN
+               DEALLOCATE (mixing_store%ubroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%abroy)) THEN
+               DEALLOCATE (mixing_store%abroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%wbroy)) THEN
+               DEALLOCATE (mixing_store%wbroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%atlist)) THEN
+               DEALLOCATE (mixing_store%atlist)
+            END IF
+
             IF (ASSOCIATED(mixing_store%delta_res)) THEN
                DO i = 1, SIZE(mixing_store%delta_res, 2)
                   DO j = 1, SIZE(mixing_store%delta_res, 1)
@@ -482,7 +525,7 @@ CONTAINS
          section_name = "MIXING"
       ENDIF
 
-      CALL section_create(section, &
+      CALL section_create(section, __LOCATION__, &
                           name=section_name, &
                           description="Define type and parameters for mixing "// &
                           "procedures to be applied to the density matrix. Normally, "// &
@@ -496,7 +539,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the mixing procedure", &
                           usage="&MIXING ON", &
@@ -511,7 +554,7 @@ CONTAINS
          default_mix = broy_mix
       ENDIF
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="METHOD", &
                           description="Mixing method to be applied", &
                           repeats=.FALSE., &
@@ -535,7 +578,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="ALPHA", &
                           description="Fraction of new density to be included", &
                           repeats=.FALSE., &
@@ -546,7 +589,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BETA", &
                           description="Denominator parameter in Kerker damping "// &
                           "introduced to suppress charge sloshing: rho_mix(g) ="// &
@@ -561,7 +604,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="PULAY_ALPHA", &
                           description="Fraction of new density to be added to the Pulay expansion", &
                           repeats=.FALSE., &
@@ -572,7 +615,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="PULAY_BETA", &
                           description="Fraction of residual contribution to be added to Pulay expansion", &
                           repeats=.FALSE., &
@@ -583,21 +626,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NMIXING", &
+      CALL keyword_create(keyword, __LOCATION__, name="NMIXING", &
                           description="Minimal number of density mixing (should be greater than 0),"// &
                           "before starting DIIS", &
                           usage="NMIXING 1", default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NBUFFER", &
+      CALL keyword_create(keyword, __LOCATION__, name="NBUFFER", &
                           variants=s2a("NPULAY", "NBROYDEN", "NMULTISECANT"), &
                           description="Number of previous steps stored for the actual mixing scheme", &
                           usage="NBUFFER 2", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_W0", &
                           description=" w0 parameter used in Broyden mixing", &
                           repeats=.FALSE., &
@@ -608,7 +651,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_WREF", &
                           description="", &
                           repeats=.FALSE., &
@@ -619,7 +662,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_WMAX", &
                           description="", &
                           repeats=.FALSE., &
@@ -630,7 +673,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="REGULARIZATION", &
                           description="Regularization parameter to stabilize "// &
                           "the inversion of the residual matrix {Yn^t Yn} in the "// &
@@ -643,7 +686,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="MAX_STEP", &
                           description="Upper bound for the magnitude of the "// &
                           "unpredicted step size in the update by the "// &
@@ -656,7 +699,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="R_FACTOR", &
                           description="Control factor for the magnitude of the "// &
                           "unpredicted step size in the update by the "// &
@@ -669,21 +712,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NSKIP", &
+      CALL keyword_create(keyword, __LOCATION__, name="NSKIP", &
                           variants=(/"NSKIP_MIXING"/), &
                           description="Number of initial iteration for which the mixing is skipped", &
                           usage="NSKIP 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_SIMPLE_MIX", &
+      CALL keyword_create(keyword, __LOCATION__, name="N_SIMPLE_MIX", &
                           variants=(/"NSIMPLEMIX"/), &
                           description="Number of kerker damping iterations before starting other mixing procedures", &
                           usage="NSIMPLEMIX", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_GVEC_EXP", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_GVEC_EXP", &
                           description="Restricts the G-space mixing to lower part of G-vector spectrum,"// &
                           " up to a G0, by assigning the exponent of the Gaussian that can be "// &
                           "represented by vectors smaller than G0 within a certain accuracy. ", &
@@ -695,7 +738,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GMIX_P", &
+      CALL keyword_create(keyword, __LOCATION__, name="GMIX_P", &
                           description="Activate the mixing of the denisty matrix, using the same"// &
                           " mixing coefficient applied for the g-space mixing.", &
                           repeats=.FALSE., &
@@ -706,4 +749,5 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_mixing_section
+
 END MODULE qs_density_mixing_types

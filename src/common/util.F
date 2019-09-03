@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -55,7 +55,7 @@ CONTAINS
 !>      Derived from the locate function described in
 !>      Numerical Recipes in Fortran 90 (09.01.2004,MK)
 ! **************************************************************************************************
-   FUNCTION locate(array, x) RESULT(x_index)
+   PURE FUNCTION locate(array, x) RESULT(x_index)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: array
       INTEGER, INTENT(IN)                                :: x
       INTEGER                                            :: x_index
@@ -205,7 +205,7 @@ CONTAINS
 !> \param me ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION get_limit(m, n, me) RESULT(nlim)
+   PURE FUNCTION get_limit(m, n, me) RESULT(nlim)
       INTEGER, INTENT(IN)                                :: m, n, me
       INTEGER                                            :: nlim(2)
 
@@ -233,9 +233,11 @@ CONTAINS
 !> \param last ...
 !> \param search ...
 ! **************************************************************************************************
-   SUBROUTINE find_boundary1(num_array, ntot, first, last, search)
+   PURE SUBROUTINE find_boundary1(num_array, ntot, first, last, search)
       INTEGER, POINTER                                   :: num_array(:)
-      INTEGER                                            :: ntot, first, last, search
+      INTEGER, INTENT(IN)                                :: ntot
+      INTEGER, INTENT(OUT)                               :: first, last
+      INTEGER, INTENT(IN)                                :: search
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_boundary1', routineP = moduleN//':'//routineN
 
@@ -278,9 +280,11 @@ CONTAINS
 !> \param search1 ...
 !> \param search2 ...
 ! **************************************************************************************************
-   SUBROUTINE find_boundary2(num_array1, num_array2, ntot, first, last, search1, search2)
+   PURE SUBROUTINE find_boundary2(num_array1, num_array2, ntot, first, last, search1, search2)
       INTEGER, POINTER                                   :: num_array1(:), num_array2(:)
-      INTEGER                                            :: ntot, first, last, search1, search2
+      INTEGER, INTENT(IN)                                :: ntot
+      INTEGER, INTENT(OUT)                               :: first, last
+      INTEGER, INTENT(IN)                                :: search1, search2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_boundary2', routineP = moduleN//':'//routineN
 

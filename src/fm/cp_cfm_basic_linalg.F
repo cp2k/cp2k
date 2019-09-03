@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -45,7 +45,8 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_trace, &
              cp_cfm_transpose, &
              cp_cfm_triangular_invert, &
-             cp_cfm_triangular_multiply
+             cp_cfm_triangular_multiply, &
+             cp_cfm_cholesky_invert
 
    REAL(kind=dp), EXTERNAL :: zlange, pzlange
 

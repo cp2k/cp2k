@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -23,8 +23,7 @@ MODULE qs_loc_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -47,8 +46,9 @@ MODULE qs_loc_methods
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: &
-        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, dump_dcd, &
-        dump_dcd_aligned_cell, dump_xmol, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_list
+        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, &
+        dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, op_loc_boys, op_loc_pipek, &
+        state_loc_list
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -91,7 +91,9 @@ MODULE qs_loc_methods
    USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
                                               crazy_rotations,&
                                               direct_mini,&
-                                              jacobi_rotations
+                                              jacobi_rotations,&
+                                              scdm_qrfact,&
+                                              zij_matrix
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -156,35 +158,26 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, max_iter, nao, nmoloc, &
-                                                            out_each, output_unit, sweeps
-      LOGICAL                                            :: converged, crazy_use_diag
+      INTEGER                                            :: handle, max_iter, nao, nmoloc, out_each, &
+                                                            output_unit, sweeps
+      LOGICAL                                            :: converged, crazy_use_diag, &
+                                                            do_jacobi_refinement
       REAL(dp)                                           :: crazy_scale, eps_localization, &
                                                             max_crazy_angle, start_time, &
                                                             target_time
-      TYPE(cp_fm_type), POINTER                          :: opvec
       TYPE(cp_logger_type), POINTER                      :: logger
+
+!      INTEGER :: i,j
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, print_loc_section, "PROGRAM_RUN_INFO", &
                                          extension=".locInfo")
 
-      NULLIFY (opvec)
       ! get rows and cols of the input
       CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
-      ! replicate the input kind of matrix
-      CALL cp_fm_create(opvec, vectors%matrix_struct)
 
-      ! Compute zij here
-      DO i = 1, SIZE(zij_fm_set, 2)
-         DO j = 1, SIZE(zij_fm_set, 1)
-            CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=nmoloc)
-            CALL cp_gemm("T", "N", nmoloc, nmoloc, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
-                         zij_fm_set(j, i)%matrix)
-         ENDDO
-      ENDDO
+      CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
 
       max_iter = qs_loc_env%localized_wfn_control%max_iter
       max_crazy_angle = qs_loc_env%localized_wfn_control%max_crazy_angle
@@ -194,6 +187,7 @@ CONTAINS
       out_each = qs_loc_env%localized_wfn_control%out_each
       target_time = qs_loc_env%target_time
       start_time = qs_loc_env%start_time
+      do_jacobi_refinement = qs_loc_env%localized_wfn_control%jacobi_refinement
       CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
                                  ispin, print_loc_section, only_initial_out=.TRUE.)
       SELECT CASE (method)
@@ -201,6 +195,19 @@ CONTAINS
          CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
                                eps_localization=eps_localization, sweeps=sweeps, &
                                out_each=out_each, target_time=target_time, start_time=start_time)
+      CASE (do_loc_scdm)
+         ! Decomposition
+         CALL scdm_qrfact(vectors)
+         ! Calculation of Zij
+         CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
+         IF (do_jacobi_refinement) THEN
+            ! Intermediate spread and centers
+            CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
+                                       ispin, print_loc_section, only_initial_out=.TRUE.)
+            CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
+                                  eps_localization=eps_localization, sweeps=sweeps, &
+                                  out_each=out_each, target_time=target_time, start_time=start_time)
+         END IF
       CASE (do_loc_crazy)
          CALL crazy_rotations(weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle=max_crazy_angle, &
                               crazy_scale=crazy_scale, crazy_use_diag=crazy_use_diag, &
@@ -229,14 +236,7 @@ CONTAINS
          ELSE
             CALL approx_l1_norm_sd(vectors, max_iter, eps_localization, converged, sweeps)
             ! here we need to set zij for the computation of the centers and spreads
-            DO i = 1, SIZE(zij_fm_set, 2)
-               DO j = 1, SIZE(zij_fm_set, 1)
-                  CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
-                  CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=nmoloc)
-                  CALL cp_gemm("T", "N", nmoloc, nmoloc, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
-                               zij_fm_set(j, i)%matrix)
-               ENDDO
-            ENDDO
+            CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
          END IF
       CASE (do_loc_none)
          IF (output_unit > 0) THEN
@@ -252,7 +252,6 @@ CONTAINS
 
       CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
                                  ispin, print_loc_section)
-      CALL cp_fm_release(opvec)
       CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
 
       CALL timestop(handle)

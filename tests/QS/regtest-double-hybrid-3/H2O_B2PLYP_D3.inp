@@ -70,7 +70,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000   10.000
+      ABC [angstrom]  6.000   6.000   6.000
       PERIODIC NONE
     &END CELL
     &KIND H

@@ -1,4 +1,5 @@
-FROM cp2k/toolchain:latest
+ARG TOOLCHAIN=cp2k/toolchain:latest
+FROM ${TOOLCHAIN}
 
 # author: Ole Schuett
 

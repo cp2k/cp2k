@@ -1,10 +1,10 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Routines to somehow generate an intial guess
+!> \brief Routines to somehow generate an initial guess
 !> \par History
 !>       2006.03 Moved here from qs_scf.F [Joost VandeVondele]
 ! **************************************************************************************************
@@ -20,9 +20,14 @@ MODULE qs_initial_guess
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               cp_fm_to_dbcsr_row_template
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_get,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -31,11 +36,11 @@ MODULE qs_initial_guess
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_filter, dbcsr_get_diag, &
+        dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
+        dbcsr_set, dbcsr_set_diag, dbcsr_type, dbcsr_verify_matrix
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type
@@ -86,6 +91,8 @@ MODULE qs_initial_guess
    USE qs_wf_history_methods,           ONLY: wfi_update
    USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: sort
+   USE xtb_types,                       ONLY: get_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -127,15 +134,15 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: file_name, filename
       INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, icol, id_nr, &
          ikind, irow, iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, &
-         nao, natom, natoms, natoms_tmp, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, &
-         ounit, qs_env_id, safe_density_guess, size_atomic_kind_set, z
+         nao, natom, natoms, natoms_tmp, nblocks, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, &
+         nvec, ounit, qs_env_id, safe_density_guess, size_atomic_kind_set, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
                                                             sort_kind
       LOGICAL                                            :: did_guess, do_kpoints, do_std_diag, &
                                                             exist, has_unit_metric, &
-                                                            natom_mismatch, ofgpw
+                                                            natom_mismatch, need_wm, ofgpw
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: buff, buff2
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: checksum, eps, length, maxocc, occ, &
@@ -145,6 +152,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: work1
+      TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, ao_mo_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, sv, work2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -224,20 +232,29 @@ CONTAINS
       safe_density_guess = atomic_guess
       IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
          IF (density_guess == atomic_guess) density_guess = mopac_guess
-         ! in case we need to bail to a safe restart type later on
          safe_density_guess = mopac_guess
+      END IF
+      IF (dft_control%qs_control%xtb) THEN
+         IF (do_kpoints) THEN
+            IF (density_guess == atomic_guess) density_guess = mopac_guess
+            safe_density_guess = mopac_guess
+         ELSE
+            IF (density_guess == atomic_guess) density_guess = core_guess
+            safe_density_guess = core_guess
+         END IF
       END IF
 
       IF (scf_control%use_ot .AND. &
           (.NOT. ((density_guess == random_guess) .OR. &
                   (density_guess == atomic_guess) .OR. &
+                  (density_guess == core_guess) .OR. &
                   (density_guess == mopac_guess) .OR. &
                   (density_guess == sparse_guess) .OR. &
                   (((density_guess == restart_guess) .OR. &
                     (density_guess == history_guess)) .AND. &
                    (scf_control%level_shift == 0.0_dp))))) THEN
          CALL cp_abort(__LOCATION__, &
-                       "OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
+                       "OT needs GUESS ATOMIC / CORE / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
       END IF
 
       ! if a restart was requested, check that the file exists,
@@ -464,6 +481,35 @@ CONTAINS
             CPABORT("calculate_first_density_matrix: core_guess not implemented for k-points")
          ENDIF
 
+         IF (.NOT. ASSOCIATED(work1)) THEN
+            need_wm = .TRUE.
+            CPASSERT(.NOT. ASSOCIATED(work2))
+            CPASSERT(.NOT. ASSOCIATED(ortho))
+         ELSE
+            need_wm = .FALSE.
+            CPASSERT(ASSOCIATED(work2))
+         END IF
+
+         IF (need_wm) THEN
+            CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=moa)
+            CALL cp_fm_get_info(moa, matrix_struct=ao_mo_struct)
+            CALL cp_fm_struct_get(ao_mo_struct, nrow_global=nao, nrow_block=nblocks)
+            CALL cp_fm_struct_create(fmstruct=ao_ao_struct, &
+                                     nrow_block=nblocks, &
+                                     ncol_block=nblocks, &
+                                     nrow_global=nao, &
+                                     ncol_global=nao, &
+                                     template_fmstruct=ao_mo_struct)
+            ALLOCATE (work1(1))
+            NULLIFY (work1(1)%matrix)
+            CALL cp_fm_create(work1(1)%matrix, ao_ao_struct)
+            CALL cp_fm_create(work2, ao_ao_struct)
+            CALL cp_fm_create(ortho, ao_ao_struct)
+            CALL copy_dbcsr_to_fm(matrix_s_kp(1, 1)%matrix, ortho)
+            CALL cp_fm_cholesky_decompose(ortho)
+            CALL cp_fm_struct_release(ao_ao_struct)
+         END IF
+
          ispin = 1
          ! Load core Hamiltonian into work matrix
          CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix, work1(ispin)%matrix)
@@ -502,6 +548,15 @@ CONTAINS
             CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, smear=scf_control%smear)
             CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix)
          END DO
+
+         ! release intermediate matrices
+         IF (need_wm) THEN
+            CALL cp_fm_release(ortho)
+            CALL cp_fm_release(work2)
+            CALL cp_fm_release(work1(1)%matrix)
+            DEALLOCATE (work1)
+            NULLIFY (work1, work2, ortho)
+         END IF
 
          did_guess = .TRUE.
       END IF
@@ -670,7 +725,7 @@ CONTAINS
             occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
             IF (ounit > 0) WRITE (ounit, *) 'P_init occ', occ, ' checksum', checksum
 
-            CALL dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
+            CALL dbcsr_dot(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
             rscale = REAL(nelectron, dp)/trps1
             CALL dbcsr_scale(p_rmpv(ispin)%matrix, rscale)
 
@@ -1011,7 +1066,7 @@ CONTAINS
          ENDDO
          CALL dbcsr_iterator_stop(iter)
 
-         CALL dbcsr_trace(matrix_p, matrix_s, trps1)
+         CALL dbcsr_dot(matrix_p, matrix_s, trps1)
          rds = 0.0_dp
          ! could be a ghost-atoms-only simulation
          IF (nelectron_spin(ispin) > 0) THEN
@@ -1164,13 +1219,15 @@ CONTAINS
 
       INTEGER                                            :: atom_a, group, handle, iatom, ikind, &
                                                             iset, isgf, isgfa, ishell, ispin, la, &
-                                                            maxl, maxll, nao, natom, ncount, nset, &
-                                                            nsgf, z
+                                                            maxl, maxll, na, nao, natom, ncount, &
+                                                            nset, nsgf, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
+      INTEGER, DIMENSION(25)                             :: laox, naox
+      INTEGER, DIMENSION(5)                              :: occupation
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, l, last_sgfa
       LOGICAL                                            :: has_pot
-      REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, paa, rscale, &
+      REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, occ, paa, rscale, &
                                                             trps1, trps2, yy, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: econf, pdiag, sdiag
       REAL(KIND=dp), DIMENSION(0:3)                      :: edftb
@@ -1179,6 +1236,7 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       CALL timeset(routineN, handle)
 
@@ -1236,6 +1294,9 @@ CONTAINS
                                         lmax=maxll, occupation=edftb)
                maxll = MIN(maxll, maxl)
                econf(0:maxl) = edftb(0:maxl)
+            ELSEIF (dft_control%qs_control%xtb) THEN
+               CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+               CALL get_xtb_atom_param(xtb_kind, natorb=nsgf, nao=naox, lao=laox, occupation=occupation)
             ELSEIF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
@@ -1276,6 +1337,17 @@ CONTAINS
                      CASE DEFAULT
                         CPABORT("")
                      END SELECT
+                  END DO
+               END DO
+            ELSEIF (dft_control%qs_control%xtb) THEN
+               DO iatom = 1, natom
+                  atom_a = atom_list(iatom)
+                  isgfa = first_sgf(atom_a)
+                  DO isgf = 1, nsgf
+                     na = naox(isgf)
+                     la = laox(isgf)
+                     occ = REAL(occupation(na), dp)/REAL(2*la+1, dp)
+                     pdiag(isgfa+isgf-1) = occ
                   END DO
                END DO
             ELSEIF (dft_control%qs_control%semi_empirical) THEN

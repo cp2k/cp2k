@@ -2,30 +2,32 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-hdf5_ver=${hdf5_ver:-1.10.4}
+hdf5_ver="1.10.4"
+hdf5_sha256="1267ff06aaedc04ca25f7c6026687ea2884b837043431195f153401d942b28df"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_hdf5=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_hdf5" ] && rm "${BUILDDIR}/setup_hdf5"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_hdf5" in
     __INSTALL__)
         echo "==================== Installing hdf5 ===================="
         pkg_install_dir="${INSTALLDIR}/hdf5-${hdf5_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "hdf5-${hdf5_ver} is already installed, skipping it."
         else
             if [ -f hdf5-${hdf5_ver}.tar.bz2 ] ; then
                 echo "hdf5-${hdf5_ver}.tar.bz2 is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${hdf5_sha256} \
                              https://www.cp2k.org/static/downloads/hdf5-${hdf5_ver}.tar.bz2
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -40,7 +42,7 @@ case "$with_hdf5" in
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
 
         HDF5_CFLAGS="-I${pkg_install_dir}/include"
@@ -58,7 +60,7 @@ case "$with_hdf5" in
         ;;
 esac
 if [ "$with_hdf5" != "__DONTUSE__" ] ; then
-    HDF5_LIBS="-lhdf5"
+    HDF5_LIBS="-lhdf5 -lhdf5_hl"
     if [ "$with_hdf5" != "__SYSTEM__" ] ; then
     cat <<EOF > "${BUILDDIR}/setup_hdf5"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -67,7 +69,7 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
     fi
-    cat <<EOF > "${BUILDDIR}/setup_hdf5"
+    cat <<EOF >> "${BUILDDIR}/setup_hdf5"
 export HDF5_CFLAGS="${HDF5_CFLAGS}"
 export HDF5_LDFLAGS="${HDF5_LDFLAGS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP(-D__HDF5|)|)"
@@ -81,7 +83,18 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${HDF5_LDFLAGS}"
 ####################################################
 
 export CP_LIBS="IF_MPI(IF_OMP(${HDF5_LIBS}|)|) \${CP_LIBS}"
+export HDF5_ROOT="$pkg_install_dir"
+export HDF5_LIBRARIES="$HDF5_LIBS"
+export HDF5_HL_LIBRARIES="$HDF5_LIBS"
+export HDF5_INCLUDE_DIRS="$pkg_install_dir/include"
+
 EOF
     cat "${BUILDDIR}/setup_hdf5" >> $SETUPFILE
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_hdf5"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "hdf5"

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -326,6 +326,9 @@ CONTAINS
    SUBROUTINE deallocate_lebedev_grids()
 
       INTEGER                                            :: ilg
+
+      CPASSERT(init_lebedev_grids_done)
+      init_lebedev_grids_done = .FALSE.
 
       DO ilg = 1, nlg
          DEALLOCATE (lebedev_grid(ilg)%r, lebedev_grid(ilg)%w)

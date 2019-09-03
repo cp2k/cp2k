@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -37,8 +37,8 @@ MODULE qs_diis
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_maxabs, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_transposed, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_maxabs, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -441,6 +441,7 @@ CONTAINS
 
          ! Solve the linear DIIS equation system
 
+         ev(1:nb1) = 0.0_dp
          CALL diamat_all(b(1:nb1, 1:nb1), ev(1:nb1))
 
          a(1:nb1, 1:nb1) = b(1:nb1, 1:nb1)
@@ -692,9 +693,9 @@ CONTAINS
             DO ispin = 1, nspin
                old_errors => diis_buffer%error(jb, ispin)%matrix
                new_errors => diis_buffer%error(ib, ispin)%matrix
-               CALL dbcsr_trace(old_errors, &
-                                new_errors, &
-                                tmp) ! out : < f_i | f_j >
+               CALL dbcsr_dot(old_errors, &
+                              new_errors, &
+                              tmp) ! out : < f_i | f_j >
                b(jb, ib) = b(jb, ib)+tmp
             END DO ! end-loop-ispin
             b(ib, jb) = b(jb, ib)

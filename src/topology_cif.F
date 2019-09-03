@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -9,14 +9,14 @@
 !> \date   12.2008
 ! **************************************************************************************************
 MODULE topology_cif
-   USE cell_methods,                    ONLY: write_cell
+   USE cell_methods,                    ONLY: read_cell_cif,&
+                                              write_cell
    USE cell_types,                      ONLY: cell_create,&
                                               cell_release,&
                                               cell_type,&
                                               pbc,&
                                               real_to_scaled,&
-                                              scaled_to_real,&
-                                              set_cell_param
+                                              scaled_to_real
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -29,7 +29,6 @@ MODULE topology_cif
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: evalf,&
                                               finalizef,&
                                               initf,&
@@ -93,16 +92,15 @@ CONTAINS
       INTEGER, PARAMETER                                 :: nblock = 1000
       REAL(KIND=dp), PARAMETER                           :: threshold = 1.0E-3_dp
 
+      CHARACTER(LEN=1)                                   :: sep
       CHARACTER(LEN=default_string_length)               :: s_tag, strtmp
       INTEGER                                            :: handle, ii, iln0, iln1, iln2, iln3, &
                                                             isym, itype, iw, jj, natom, &
                                                             natom_orig, newsize
       INTEGER, DIMENSION(20)                             :: ifield
-      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: check, found, my_end
       REAL(KIND=dp)                                      :: pfactor
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths, r, r1, r2, s, &
-                                                            s_tmp
+      REAL(KIND=dp), DIMENSION(3)                        :: r, r1, r2, s, s_tmp
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -130,7 +128,14 @@ CONTAINS
       CALL reallocate(atom_info%beta, 1, nblock)
       CALL reallocate(atom_info%id_element, 1, nblock)
 
-      IF (iw > 0) WRITE (iw, *) "    Reading in CIF file ", TRIM(topology%coord_file_name)
+      IF (iw > 0) WRITE (iw, "(/,A,A)") "    Reading in CIF file ", TRIM(topology%coord_file_name)
+
+      ! Create cell
+      NULLIFY (cell)
+      CALL cell_create(cell)
+      CALL read_cell_cif(topology%coord_file_name, cell, para_env)
+      CALL write_cell(cell, subsys_section, label="CELL_CIF|")
+
       CALL parser_create(parser, topology%coord_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)
 
@@ -147,63 +152,6 @@ CONTAINS
       IF (found) THEN
          IF (iw > 0) WRITE (iw, '(A)') " CIF_INFO| _chemical_formula_sum :: "//TRIM(parser%input_line(parser%icol:))
       END IF
-
-      ! Parsing cell infos
-      periodic = 1
-      ! Check for   _cell_length_a
-      CALL parser_search_string(parser, "_cell_length_a", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_length_a) was not found in CIF file! ")
-      CALL cif_get_real(parser, cell_lengths(1))
-      cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1), "angstrom")
-
-      ! Check for   _cell_length_b
-      CALL parser_search_string(parser, "_cell_length_b", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_length_b) was not found in CIF file! ")
-      CALL cif_get_real(parser, cell_lengths(2))
-      cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2), "angstrom")
-
-      ! Check for   _cell_length_c
-      CALL parser_search_string(parser, "_cell_length_c", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_length_c) was not found in CIF file! ")
-      CALL cif_get_real(parser, cell_lengths(3))
-      cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3), "angstrom")
-
-      ! Check for   _cell_angle_alpha
-      CALL parser_search_string(parser, "_cell_angle_alpha", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_angle_alpha) was not found in CIF file! ")
-      CALL cif_get_real(parser, cell_angles(1))
-      cell_angles(1) = cp_unit_to_cp2k(cell_angles(1), "deg")
-
-      ! Check for   _cell_angle_beta
-      CALL parser_search_string(parser, "_cell_angle_beta", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_angle_beta) was not found in CIF file! ")
-      CALL cif_get_real(parser, cell_angles(2))
-      cell_angles(2) = cp_unit_to_cp2k(cell_angles(2), "deg")
-
-      ! Check for   _cell_angle_gamma
-      CALL parser_search_string(parser, "_cell_angle_gamma", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_angle_gamma) was not found in CIF file! ")
-      CALL cif_get_real(parser, cell_angles(3))
-      cell_angles(3) = cp_unit_to_cp2k(cell_angles(3), "deg")
-
-      ! Create cell
-      NULLIFY (cell)
-      CALL cell_create(cell)
-      CALL set_cell_param(cell, cell_lengths, cell_angles, periodic=periodic, &
-                          do_init_cell=.TRUE.)
-      CALL write_cell(cell, subsys_section, label="CELL_CIF|")
 
       ! Parse atoms info and fractional coordinates
       ! Check for   _atom_site_label
@@ -320,13 +268,16 @@ CONTAINS
          natom_orig = natom
          DO WHILE ((INDEX(parser%input_line, "loop_") == 0) .AND. (parser%input_line(1:1) /= "_"))
             isym = isym+1
-            iln0 = INDEX(parser%input_line(1:), "'")
+            ! find seprator ' or "
+            sep = "'"
+            IF (INDEX(parser%input_line(1:), '"') > 0) sep = '"'
+            iln0 = INDEX(parser%input_line(1:), sep)
             iln1 = INDEX(parser%input_line(iln0+1:), ",")+iln0
             iln2 = INDEX(parser%input_line(iln1+1:), ",")+iln1
             IF (iln0 == 0) THEN
                iln3 = LEN_TRIM(parser%input_line)+1
             ELSE
-               iln3 = INDEX(parser%input_line(iln2+1:), "'")+iln2
+               iln3 = INDEX(parser%input_line(iln2+1:), sep)+iln2
             END IF
             CPASSERT(iln1 /= 0)
             CPASSERT(iln2 /= iln1)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -15,7 +15,6 @@ MODULE atom_xc
                                               opmat_type,&
                                               sgp_pseudo,&
                                               upf_pseudo
-! ZMP added coulomb_potential_numeric
    USE atom_utils,                      ONLY: atom_core_density,&
                                               atom_density,&
                                               coulomb_potential_numeric,&
@@ -53,25 +52,22 @@ MODULE atom_xc
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_xc'
 
+! ZMP added coulomb_potential_numeric
 ! ZMP added public subroutines calculate_atom_zmp, calculate_atom_ext_vxc
    PUBLIC :: calculate_atom_vxc_lda, calculate_atom_vxc_lsd, &
              calculate_atom_zmp, calculate_atom_ext_vxc
    PUBLIC :: atom_vxc_lda, atom_vxc_lsd, atom_dpot_lda
-
-! **************************************************************************************************
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief ZMP subroutine for the calculation of the effective constraint
 !>        potential in the atomic code.
-!>
-!> \param ext_density ...
-!> \param atom ...
-!> \param lprint ...
-!> \param xcmat ...
+!> \param ext_density  external electron density
+!> \param atom         information about the atomic kind
+!> \param lprint       save exchange-correlation potential to the file 'linear_potentials.dat'
+!> \param xcmat        exchange-correlation potential matrix
 !> \author D. Varsano [daniele.varsano@nano.cnr.it]
-!>
 ! **************************************************************************************************
    SUBROUTINE calculate_atom_zmp(ext_density, atom, lprint, xcmat)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: ext_density
@@ -135,15 +131,14 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_atom_zmp
+
 ! **************************************************************************************************
-!> \brief ZMP subroutine for the scf external density from the external v_xc
-!>
-!> \param vxc ...
-!> \param atom ...
-!> \param lprint ...
-!> \param xcmat ...
+!> \brief ZMP subroutine for the scf external density from the external v_xc.
+!> \param vxc     exchange-correlation potential
+!> \param atom    information about the atomic kind
+!> \param lprint  save exchange-correlation potential to the file 'linear_potentials.dat'
+!> \param xcmat   exchange-correlation potential matrix
 !> \author D. Varsano [daniele.varsano@nano.cnr.it]
-!>
 ! **************************************************************************************************
    SUBROUTINE calculate_atom_ext_vxc(vxc, atom, lprint, xcmat)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vxc
@@ -186,11 +181,16 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_atom_ext_vxc
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param xcmat ...
-!> \param atom ...
-!> \param xc_section ...
+!> \brief Calculate atomic exchange-correlation potential in spin-restricted case.
+!> \param xcmat       exchange-correlation potential expressed in the atomic basis set
+!> \param atom        information about the atomic kind
+!> \param xc_section  XC input section
+!> \par History
+!>    * 03.2010 extension of GTH pseudo-potential definition [Juerg Hutter]
+!>    * 02.2010 renamed to calculate_atom_vxc_lda() [Juerg Hutter]
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE calculate_atom_vxc_lda(xcmat, atom, xc_section)
       TYPE(opmat_type), POINTER                          :: xcmat
@@ -213,8 +213,6 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-
-! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
 
@@ -360,7 +358,7 @@ CONTAINS
                DEALLOCATE (taumat)
             END IF
 
-            ! assume lap is not reaaly needed
+            ! assume lap is not really needed
             IF (needs%laplace_rho) THEN
                DEALLOCATE (lap)
             END IF
@@ -395,11 +393,13 @@ CONTAINS
    END SUBROUTINE calculate_atom_vxc_lda
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param xcmata ...
-!> \param xcmatb ...
-!> \param atom ...
-!> \param xc_section ...
+!> \brief Calculate atomic exchange-correlation potential in spin-polarized case.
+!> \param xcmata      spin-alpha exchange-correlation potential matrix
+!> \param xcmatb      spin-beta exchange-correlation potential matrix
+!> \param atom        information about the atomic kind
+!> \param xc_section  XC input section
+!> \par History
+!>    * 02.2010 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE calculate_atom_vxc_lsd(xcmata, xcmatb, atom, xc_section)
       TYPE(opmat_type), POINTER                          :: xcmata, xcmatb
@@ -422,8 +422,6 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-
-! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
 
@@ -596,7 +594,7 @@ CONTAINS
                DEALLOCATE (taumat)
             END IF
 
-            ! assume lap is not reaaly needed
+            ! assume lap is not really needed
             IF (needs%laplace_rho_spin) THEN
                DEALLOCATE (lap)
             END IF
@@ -640,13 +638,16 @@ CONTAINS
    END SUBROUTINE calculate_atom_vxc_lsd
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param pmat ...
-!> \param maxl ...
-!> \param xc_section ...
-!> \param fexc ...
-!> \param xcmat ...
+!> \brief Alternative subroutine that calculates atomic exchange-correlation potential
+!>        in spin-restricted case.
+!> \param basis       atomic basis set
+!> \param pmat        density matrix
+!> \param maxl        maximum angular momentum
+!> \param xc_section  XC input section
+!> \param fexc        exchange-correlation energy
+!> \param xcmat       exchange-correlation potential matrix
+!> \par History
+!>    * 07.2016 ADMM analysis [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_vxc_lda(basis, pmat, maxl, xc_section, fexc, xcmat)
       TYPE(atom_basis_type), POINTER                     :: basis
@@ -670,8 +671,6 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-
-! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
 
@@ -775,7 +774,7 @@ CONTAINS
             DEALLOCATE (taumat)
          END IF
 
-         ! we assume lap is not reaaly needed
+         ! we assume lap is not really needed
          IF (needs%laplace_rho) THEN
             DEALLOCATE (lap)
          END IF
@@ -791,15 +790,18 @@ CONTAINS
    END SUBROUTINE atom_vxc_lda
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param pmata ...
-!> \param pmatb ...
-!> \param maxl ...
-!> \param xc_section ...
-!> \param fexc ...
-!> \param xcmata ...
-!> \param xcmatb ...
+!> \brief Alternative subroutine that calculates atomic exchange-correlation potential
+!>        in spin-polarized case.
+!> \param basis       atomic basis set
+!> \param pmata       spin-alpha density matrix
+!> \param pmatb       spin-beta density matrix
+!> \param maxl        maximum angular momentum
+!> \param xc_section  XC input section
+!> \param fexc        exchange-correlation energy
+!> \param xcmata      spin-alpha exchange-correlation potential matrix
+!> \param xcmatb      spin-beta exchange-correlation potential matrix
+!> \par History
+!>    * 07.2016 ADMM analysis [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_vxc_lsd(basis, pmata, pmatb, maxl, xc_section, fexc, xcmata, xcmatb)
       TYPE(atom_basis_type), POINTER                     :: basis
@@ -823,8 +825,6 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-
-! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
 
@@ -972,15 +972,18 @@ CONTAINS
    END SUBROUTINE atom_vxc_lsd
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param basis0 ...
-!> \param pmat0 ...
-!> \param basis1 ...
-!> \param pmat1 ...
-!> \param maxl ...
-!> \param functional ...
-!> \param dfexc ...
-!> \param linxpar ...
+!> \brief Estimate the ADMM exchange energy correction term using a model exchange functional.
+!> \param basis0      reference atomic basis set
+!> \param pmat0       reference density matrix
+!> \param basis1      ADMM basis set
+!> \param pmat1       ADMM density matrix
+!> \param maxl        maxumum angular momentum
+!> \param functional  name of the model exchange functional:
+!>                    "LINX" -- linear extrapolation of the Slater exchange potential [?]
+!> \param dfexc       exchange-correlation energy difference
+!> \param linxpar     LINX parameters
+!> \par History
+!>    * 07.2016 ADMM analysis [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_dpot_lda(basis0, pmat0, basis1, pmat1, maxl, functional, dfexc, linxpar)
       TYPE(atom_basis_type), POINTER                     :: basis0
@@ -1001,8 +1004,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta, drho0, drho1, pot0, pot1, rho0, &
                                                             rho1
 
-! -------------------------------------------------------------------------
-
       CALL timeset(routineN, handle)
 
       nr = basis0%grid%nr
@@ -1013,6 +1014,7 @@ CONTAINS
       !
       ALLOCATE (rho1(nr), drho1(nr))
       CALL atom_density(rho1, pmat1, basis1, maxl, typ="RHO")
+      ! CONSIDER TO REMOVE [?]: drho1 is calculated but it is not used.
       CALL atom_density(drho1, pmat1, basis1, maxl, typ="DER")
       !
       ALLOCATE (delta(nr))
@@ -1051,15 +1053,19 @@ CONTAINS
    END SUBROUTINE atom_dpot_lda
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param rho_set ...
-!> \param nspins ...
-!> \param needs ...
-!> \param rho ...
-!> \param drho ...
-!> \param tau ...
-!> \param lap ...
-!> \param na ...
+!> \brief Initialise object that holds components needed to compute the exchange-correlation
+!>        functional on the atomic radial grid.
+!> \param rho_set  electron density object to initialise
+!> \param nspins   number of spin components
+!> \param needs    components needed to compute the exchange-correlation functional
+!> \param rho      electron density on the grid
+!> \param drho     first derivative of the electron density on the grid
+!> \param tau      kinetic energy density on the grid
+!> \param lap      second derivative of the electron density on the grid
+!> \param na       number of points on the atomic radial grid
+!> \par History
+!>    * 02.2010 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 08.2008 created as calculate_atom_vxc_lda() [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE fill_rho_set(rho_set, nspins, needs, rho, drho, tau, lap, na)
 
@@ -1210,13 +1216,15 @@ CONTAINS
       END IF
 
    END SUBROUTINE fill_rho_set
-! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param exc ...
-!> \param vxc ...
+!> \brief Calculate PADE exchange-correlation (xc) energy functional and potential
+!>        in spin-restricted case.
+!> \param rho  electron density
+!> \param exc  XC energy functional
+!> \param vxc  XC potential
+!> \par History
+!>    * 12.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE lda_pade(rho, exc, vxc)
 
@@ -1253,15 +1261,17 @@ CONTAINS
       END DO
 
    END SUBROUTINE lda_pade
-! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param rhoa ...
-!> \param rhob ...
-!> \param exc ...
-!> \param vxca ...
-!> \param vxcb ...
+!> \brief Calculate PADE exchange-correlation (xc) energy functional and potential
+!>        in spin-polarized case.
+!> \param rhoa  spin-alpha electron density
+!> \param rhob  spin-beta electron density
+!> \param exc   XC energy functional
+!> \param vxca  spin-alpha XC potential
+!> \param vxcb  spin-beta XC potential
+!> \par History
+!>    * 02.2010 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE lsd_pade(rhoa, rhob, exc, vxca, vxcb)
 
@@ -1337,7 +1347,5 @@ CONTAINS
       END DO
 
    END SUBROUTINE lsd_pade
-
-! **************************************************************************************************
 
 END MODULE atom_xc

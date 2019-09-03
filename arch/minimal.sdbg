@@ -3,12 +3,10 @@
 # https://www.dropbox.com/s/18oi02srbot3h9p/cp2k_single_file.f90.gz
 CC          = gcc
 CXX         = g++
-CPP         = cpp
-CPPFLAGS    = -C -P -traditional -D__NO_IPI_DRIVER -nostdinc
 AR          = ar -r
 FC          = gfortran
 LD          = gfortran
 CFLAGS      = 
-FCFLAGS     = -ffree-form
+FCFLAGS     = -ffree-form -D__NO_IPI_DRIVER -nostdinc
 LDFLAGS     = 
 LIBS        = -llapack -lblas

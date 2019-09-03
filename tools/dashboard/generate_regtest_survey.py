@@ -31,24 +31,23 @@ def main():
     # parse ../../tests/TEST_TYPES
     test_types = parse_test_types()
 
-    # find eligible testers
+    # find eligible testers by parsing latest reports
     tester_names = list()
+    tester_values = dict()
+    inp_names = set()
     config = configparser.ConfigParser()
     config.read(config_fn)
     def get_sortkey(s): return config.getint(s, "sortkey")
-    for s in sorted(config.sections(), key=get_sortkey):
-        if(config.get(s,"report_type") == "regtest"):
-            tester_names.append(s)
-
-    # parse latest reports
-    tester_values = dict()
-    inp_names = set()
-    for tname in tester_names:
+    for tname in sorted(config.sections(), key=get_sortkey):
         list_recent = open(outdir+"archive/%s/list_recent.txt"%tname).readlines()
+        if not list_recent:
+            continue  # list_recent is empty
         latest_report_url = list_recent[0].strip()
         report = parse_report(latest_report_url)
-        inp_names.update(report.keys())
-        tester_values[tname] = report
+        if report:
+            inp_names.update(report.keys())
+            tester_values[tname] = report
+            tester_names.append(tname)
 
     # remove outdated inp-names
     inp_names = inp_names.intersection(test_defs.keys())
@@ -138,9 +137,16 @@ def main():
         ttype_re = test_types[int(test_defs[inp]["type"])].split("!")[0].strip()
         tbody += '<td title="%s" >%s</td>\n'%(ttype_re, ttype_num)
         tbody += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
+        tbody += '<td>%.1e</td>\n'%mad
+        tol_mad = test_defs[inp]["tolerance"] / max(1e-14, mad)
+        if tol_mad < 1.0:
+            tbody += '<td bgcolor="#FF9900">%.1e</td>\n'%tol_mad
+        elif tol_mad > 10.0:
+            tbody += '<td bgcolor="#99FF00">%.1e</td>\n'%tol_mad
+        else:
+            tbody += '<td>%.1e</td>\n'%tol_mad
         tbody += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
         tbody += '<td>%.17g</td>\n'%median
-        tbody += '<td>%g</td>\n'%mad
         tbody += '<td>%i</td>\n'%np.sum(outlier)
         for tname in tester_names:
             val = tester_values[tname].get(inp, None)
@@ -156,8 +162,10 @@ def main():
         tbody += '</tr>\n'
 
     # table-header
-    theader  ='<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
-    theader += '<th>Reference</th><th>Median</th><th>MAD</th><th>#failed</th>\n'
+    theader  = '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
+    theader += '<th><abbr title="Maximum Absolute Deviation">MAD</abbr></th>'
+    theader += '<th>Tol. / MAD</th><th>Reference</th><th>Median</th>'
+    theader += '<th><abbr title="Failures if reference were at median.">#failed</abbr></th>'
     for tname in tester_names:
         theader += '<th><span class="nowrap">%s</span>'%config.get(tname, "name")
         theader += '<br>#failed: %d'%tester_nfailed[tname]
@@ -238,14 +246,14 @@ def parse_report(report_url):
     data = urlopen(report_url, timeout=5).read()
     report_txt =  gzip.decompress(data).decode('utf-8', errors='replace')
 
-    values = dict()
     m = re.search("\n-+ ?regtesting cp2k ?-+\n(.*)\n-+ Summary -+\n", report_txt, re.DOTALL)
     if(not m):
-        print("Regtests not finished, skipping.")
-        return values
+        print("Not a complete regtests report - skipping.")
+        return None
 
     main_part = m.group(1)
     curr_dir = None
+    values = dict()
     for line in main_part.split("\n"):
         if("/UNIT/" in line):
             curr_dir = None # ignore unit-tests
@@ -279,8 +287,4 @@ def parse_report(report_url):
 
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

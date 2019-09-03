@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-reflapack_ver=${reflapack_ver:-3.8.0}
+reflapack_ver="3.8.0"
+reflapack_sha256="deb22cc4a6120bff72621155a9917f485f96ef8319ac074a7afbc68aab88bcf6"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_reflapack=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_reflapack" ] && rm "${BUILDDIR}/setup_reflapack"
 
@@ -16,18 +17,19 @@ REFLAPACK_LDFLAGS=''
 REFLAPACK_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_reflapack" in
     __INSTALL__)
         echo "==================== Installing LAPACK ===================="
         pkg_install_dir="${INSTALLDIR}/lapack-${reflapack_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "lapack-${reflapack_ver} is already installed, skipping it."
         else
             if [ -f lapack-${reflapack_ver}.tgz ] ; then
                 echo "reflapack-${reflapack_ver}.tgz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${reflapack_sha256} \
                              https://www.cp2k.org/static/downloads/lapack-${reflapack_ver}.tgz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -39,7 +41,7 @@ SHELL    = /bin/sh
 FORTRAN  = $FC
 OPTS     = $FFLAGS -frecursive
 DRVOPTS  = $FFLAGS -frecursive
-NOOPT    = $FFLAGS -O0 -frecursive -fno-fast-math
+NOOPT    = $FFLAGS -O0 -frecursive
 LOADER   = $FC
 LOADOPTS = $FFLAGS -Wl,--enable-new-dtags
 TIMER    = INT_ETIME
@@ -55,12 +57,15 @@ TMGLIB       = libtmglib.a
 LAPACKELIB   = liblapacke.a
 EOF
             # lapack/blas build is *not* parallel safe (updates to the archive race)
-            make -j 1 lib blaslib > make.log 2>&1
+            # Run first in parallel which will result most likely in an incomplete library
+            make -j $NPROCS lib blaslib > make.log 2>&1
+            # Complete library in non-parallel mode
+            make -j 1 lib blaslib > make1.log 2>&1
             # no make install, so have to do this manually
             ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
             cp libblas.a liblapack.a "${pkg_install_dir}/lib"
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         REFLAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
@@ -102,4 +107,10 @@ export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${REFLAPACK_LIBS}"
 EOF
     fi
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_reflapack"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "relapack"

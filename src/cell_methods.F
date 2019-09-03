@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -12,21 +12,24 @@
 ! **************************************************************************************************
 MODULE cell_methods
    USE cell_types,                      ONLY: &
-        cell_clone, cell_create, cell_sym_none, cell_type, get_cell, init_cell, set_cell_param, &
-        use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, &
-        use_perd_yz, use_perd_z
+        cell_clone, cell_create, cell_release, cell_sym_none, cell_type, get_cell, init_cell, &
+        set_cell_param, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
+        use_perd_y, use_perd_yz, use_perd_z
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_parser_methods,               ONLY: parser_get_next_line
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_get_object,&
+                                              parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
-   USE input_constants,                 ONLY: do_cell_cp2k,&
+   USE input_constants,                 ONLY: do_cell_cif,&
+                                              do_cell_cp2k,&
                                               do_cell_xsc
    USE input_cp2k_subsys,               ONLY: create_cell_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -51,7 +54,7 @@ MODULE cell_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_methods'
 
    ! Public subroutines
-   PUBLIC :: read_cell, write_cell
+   PUBLIC :: read_cell, read_cell_cif, write_cell
 
 CONTAINS
 
@@ -274,32 +277,48 @@ CONTAINS
       REAL(KIND=dp)                                      :: xdum
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_parser_type), POINTER                      :: parser
 
       NULLIFY (parser)
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", c_val=cell_file_name)
       CALL section_vals_val_get(cell_section, "CELL_FILE_FORMAT", i_val=my_format)
-      CALL parser_create(parser, cell_file_name, para_env=para_env)
-      CALL parser_get_next_line(parser, 1)
       SELECT CASE (my_format)
       CASE (do_cell_cp2k)
+         CALL parser_create(parser, cell_file_name, para_env=para_env)
+         CALL parser_get_next_line(parser, 1)
          my_end = .FALSE.
          DO WHILE (.NOT. my_end)
             READ (parser%input_line, *) idum, xdum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
             CALL parser_get_next_line(parser, 1, at_end=my_end)
          END DO
+         CALL parser_release(parser)
+         ! Conver to CP2K units
+         DO i = 1, 3
+            DO j = 1, 3
+               hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
+            END DO
+         END DO
       CASE (do_cell_xsc)
+         CALL parser_create(parser, cell_file_name, para_env=para_env)
+         CALL parser_get_next_line(parser, 1)
          READ (parser%input_line, *) idum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
+         CALL parser_release(parser)
+         ! Conver to CP2K units
+         DO i = 1, 3
+            DO j = 1, 3
+               hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
+            END DO
+         END DO
+      CASE (do_cell_cif)
+         NULLIFY (cell)
+         CALL cell_create(cell)
+         CALL read_cell_cif(cell_file_name, cell, para_env)
+         hmat = cell%hmat
+         CALL cell_release(cell)
       END SELECT
-      CALL parser_release(parser)
       CALL section_vals_val_unset(cell_section, "CELL_FILE_NAME")
       CALL section_vals_val_unset(cell_section, "CELL_FILE_FORMAT")
-      ! Conver to CP2K units
-      DO i = 1, 3
-         DO j = 1, 3
-            hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
-         END DO
-      END DO
       ! Check if the cell was already defined
       explicit = .FALSE.
       CALL section_vals_val_get(cell_section, "A", n_rep_val=n_rep)
@@ -331,6 +350,125 @@ CONTAINS
       CALL section_vals_val_unset(cell_section, "ALPHA_BETA_GAMMA")
 
    END SUBROUTINE read_cell_from_external_file
+
+! **************************************************************************************************
+!> \brief  Reads cell information from CIF file
+!> \param cif_file_name ...
+!> \param cell ...
+!> \param para_env ...
+!> \date   12.2008
+!> \par    Format Information implemented:
+!>            _cell_length_a
+!>            _cell_length_b
+!>            _cell_length_c
+!>            _cell_angle_alpha
+!>            _cell_angle_beta
+!>            _cell_angle_gamma
+!>
+!> \author Teodoro Laino [tlaino]
+!>         moved from topology_cif (1/2019 JHU)
+! **************************************************************************************************
+   SUBROUTINE read_cell_cif(cif_file_name, cell, para_env)
+      CHARACTER(len=*)                                   :: cif_file_name
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_cell_cif', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths
+      TYPE(cp_parser_type), POINTER                      :: parser
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (parser)
+      CALL parser_create(parser, cif_file_name, &
+                         para_env=para_env, apply_preprocessing=.FALSE.)
+
+      ! Parsing cell infos
+      periodic = 1
+      ! Check for   _cell_length_a
+      CALL parser_search_string(parser, "_cell_length_a", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (_cell_length_a) was not found in CIF file! ")
+      CALL cif_get_real(parser, cell_lengths(1))
+      cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1), "angstrom")
+
+      ! Check for   _cell_length_b
+      CALL parser_search_string(parser, "_cell_length_b", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (_cell_length_b) was not found in CIF file! ")
+      CALL cif_get_real(parser, cell_lengths(2))
+      cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2), "angstrom")
+
+      ! Check for   _cell_length_c
+      CALL parser_search_string(parser, "_cell_length_c", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (_cell_length_c) was not found in CIF file! ")
+      CALL cif_get_real(parser, cell_lengths(3))
+      cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3), "angstrom")
+
+      ! Check for   _cell_angle_alpha
+      CALL parser_search_string(parser, "_cell_angle_alpha", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (_cell_angle_alpha) was not found in CIF file! ")
+      CALL cif_get_real(parser, cell_angles(1))
+      cell_angles(1) = cp_unit_to_cp2k(cell_angles(1), "deg")
+
+      ! Check for   _cell_angle_beta
+      CALL parser_search_string(parser, "_cell_angle_beta", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (_cell_angle_beta) was not found in CIF file! ")
+      CALL cif_get_real(parser, cell_angles(2))
+      cell_angles(2) = cp_unit_to_cp2k(cell_angles(2), "deg")
+
+      ! Check for   _cell_angle_gamma
+      CALL parser_search_string(parser, "_cell_angle_gamma", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (_cell_angle_gamma) was not found in CIF file! ")
+      CALL cif_get_real(parser, cell_angles(3))
+      cell_angles(3) = cp_unit_to_cp2k(cell_angles(3), "deg")
+
+      ! Create cell
+      CALL set_cell_param(cell, cell_lengths, cell_angles, periodic=periodic, &
+                          do_init_cell=.TRUE.)
+
+      CALL parser_release(parser)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_cell_cif
+
+! **************************************************************************************************
+!> \brief  Reads REAL from the CIF file.. This wrapper is needed in order to
+!>         treat properly the accuracy specified in the CIF file, i.e. 3.45(6)
+!> \param parser ...
+!> \param r ...
+!> \date   12.2008
+!> \author Teodoro Laino [tlaino]
+! **************************************************************************************************
+   SUBROUTINE cif_get_real(parser, r)
+      TYPE(cp_parser_type), POINTER                      :: parser
+      REAL(KIND=dp), INTENT(OUT)                         :: r
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cif_get_real', routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_string_length)               :: s_tag
+      INTEGER                                            :: iln
+
+      CALL parser_get_object(parser, s_tag)
+      iln = LEN_TRIM(s_tag)
+      IF (INDEX(s_tag, "(") /= 0) iln = INDEX(s_tag, "(")-1
+      READ (s_tag(1:iln), *) r
+   END SUBROUTINE cif_get_real
 
 ! **************************************************************************************************
 !> \brief   Write the cell parameters to the output unit.

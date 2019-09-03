@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -55,7 +55,7 @@ MODULE md_environment_types
 
 ! **************************************************************************************************
    TYPE md_environment_type
-      ! para_env is the parallel enviroment of the MD,  i.e. the systems
+      ! para_env is the parallel environment of the MD,  i.e. the systems
       ! that are dealt with by the integrator e.g in the PIMD this could
       ! be parent of every bead.
       PRIVATE

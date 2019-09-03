@@ -1,9 +1,8 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-! **************************************************************************************************
 MODULE atom_electronic_structure
    USE atom_optimization,               ONLY: atom_history_init,&
                                               atom_history_release,&
@@ -22,7 +21,6 @@ MODULE atom_electronic_structure
         atom_read_zmp_restart, atom_solve, atom_trace, ceri_contract, coulomb_potential_analytic, &
         coulomb_potential_numeric, eeri_contract, err_matrix, exchange_numeric, &
         exchange_semi_analytic, numpot_matrix, slater_density, wigner_slater_functional
-! ZMP added calculate_atom_zmp, calculate_atom_ext_vxc
    USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
                                               calculate_atom_vxc_lda,&
                                               calculate_atom_vxc_lsd,&
@@ -44,16 +42,17 @@ MODULE atom_electronic_structure
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_electronic_structure'
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
-!> \param noguess ...
-!> \param converged ...
+!> \brief General routine to perform electronic structure atomic calculations.
+!> \param atom       information about the atomic kind
+!> \param iw         output file unit
+!> \param noguess    skip initial guess
+!> \param converged  whether SCF iterations have been converged
+!> \par History
+!>    * 06.2017 disable XC input options [Juerg Hutter]
+!>    * 11.2009 created from the subroutine calculate_atom() [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE calculate_atom(atom, iw, noguess, converged)
       TYPE(atom_type), POINTER                           :: atom
@@ -107,11 +106,20 @@ CONTAINS
    END SUBROUTINE calculate_atom
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
-!> \param noguess ...
-!> \param converged ...
+!> \brief Perform restricted (closed shell) electronic structure atomic calculations.
+!> \param atom       information about the atomic kind
+!> \param iw         output file unit
+!> \param noguess    skip initial guess
+!> \param converged  whether SCF iterations have been converged
+!> \par History
+!>    * 02.2016 support UPF files and ECP potentials [Juerg Hutter]
+!>    * 09.2015 Polarized Atomic Orbitals (PAO) method [Ole Schuett]
+!>    * 11.2013 Zhao, Morrison, and Parr (ZMP) potential [Daniele Varsano]
+!>    * 07.2013 scaled ZORA with model potential [Juerg Hutter]
+!>    * 11.2009 split into three subroutines calculate_atom(), calculate_atom_restricted(),
+!>              and calculate_atom_unrestricted() [Juerg Hutter]
+!>    * 12.2008 refactored and renamed to calculate_atom() [Juerg Hutter]
+!>    * 08.2008 created as atom_electronic_structure() [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE calculate_atom_restricted(atom, iw, noguess, converged)
       TYPE(atom_type), POINTER                           :: atom
@@ -434,11 +442,13 @@ CONTAINS
    END SUBROUTINE calculate_atom_restricted
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
-!> \param noguess ...
-!> \param converged ...
+!> \brief Perform unrestricted (spin-polarised) electronic structure atomic calculations.
+!> \param atom       information about the atomic kind
+!> \param iw         output file unit
+!> \param noguess    skip initial guess
+!> \param converged  whether SCF iterations have been converged
+!> \par History
+!>    * identical to the subroutine calculate_atom_restricted()
 ! **************************************************************************************************
    SUBROUTINE calculate_atom_unrestricted(atom, iw, noguess, converged)
       TYPE(atom_type), POINTER                           :: atom
@@ -802,7 +812,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_atom_unrestricted
-
-! **************************************************************************************************
 
 END MODULE atom_electronic_structure

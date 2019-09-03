@@ -2,12 +2,15 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libxsmm_ver=${libxsmm_ver:-1.9.0}
+#TODO: Remove valgrind suppressions below after upgrading to next release.
+# For details see: https://github.com/hfp/libxsmm/issues/298 .
+libxsmm_ver="1.13"
+libxsmm_sha256="47c034e169820a9633770eece0e0fdd8d4a744e09b81da2af8c2608a4625811e"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_libxsmm=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxsmm" ] && rm "${BUILDDIR}/setup_libxsmm"
 
@@ -16,11 +19,12 @@ LIBXSMM_LDFLAGS=''
 LIBXSMM_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libxsmm" in
     __INSTALL__)
         echo "==================== Installing Libxsmm ===================="
         if [ "$OPENBLAS_ARCH" != "x86_64" ] ; then
-            report_warning $LINENO "libxsmm not suported on arch ${OPENBLAS_ARCH}"
+            report_warning $LINENO "libxsmm is not supported on arch ${OPENBLAS_ARCH}"
             cat <<EOF > "${BUILDDIR}/setup_libxsmm"
 with_libxsmm="__DONTUSE__"
 EOF
@@ -28,7 +32,7 @@ EOF
         fi
         pkg_install_dir="${INSTALLDIR}/libxsmm-${libxsmm_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
         else
             if [ "$libxsmm_ver" = "master" ] ; then
@@ -41,7 +45,7 @@ EOF
                 if [ -f libxsmm-${libxsmm_ver}.tar.gz ] ; then
                     echo "libxsmm-${libxsmm_ver}.tar.gz is found"
                 else
-                    download_pkg ${DOWNLOADER_FLAGS} \
+                    download_pkg ${DOWNLOADER_FLAGS} ${libxsmm_sha256} \
                                  https://www.cp2k.org/static/downloads/libxsmm-${libxsmm_ver}.tar.gz
                 fi
                 [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
@@ -68,7 +72,7 @@ EOF
                  PREFIX=${pkg_install_dir} \
                  install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
         LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
@@ -115,3 +119,27 @@ export CP_LIBS="\${LIBXSMM_LIBS} \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
+
+# ----------------------------------------------------------------------
+# Suppress reporting of known problems
+# ----------------------------------------------------------------------
+cat <<EOF >> ${INSTALLDIR}/valgrind.supp
+{
+   <FalsePositiveLibxsmm1>
+   Memcheck:Cond
+   ...
+   fun:libxsmm_otrans
+}
+{
+   <FalsePositiveLibxsmm2>
+   Memcheck:Value8
+   ...
+   fun:libxsmm_otrans
+}
+EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libxsmm"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "libxsmm"

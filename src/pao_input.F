@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 MODULE pao_input
@@ -267,37 +267,37 @@ CONTAINS
       NULLIFY (keyword, subsection, subsubsection, printkey)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PAO", repeats=.FALSE., &
+      CALL section_create(section, __LOCATION__, name="PAO", repeats=.FALSE., &
                           description="Polarized Atomic Orbital Method", &
                           citations=(/Schuett2018, Berghold2011/))
 
       ! Convergence Criteria *****************************************************
-      CALL keyword_create(keyword, name="EPS_PAO", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_PAO", &
                           description="Convergence criteria for PAO optimization.", &
                           default_r_val=1.e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXING", &
+      CALL keyword_create(keyword, __LOCATION__, name="MIXING", &
                           description="Mixing fraction of new and old optimizied solutions.", &
                           default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_PAO", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_PAO", &
                           description="Maximum number of PAO basis optimization steps.", &
                           default_i_val=1000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_CYCLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_CYCLES", &
                           description="Maximum number of PAO line search cycles for a given hamiltonian.", &
                           default_i_val=1000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Parametrization **********************************************************
-      CALL keyword_create(keyword, name="PARAMETERIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERIZATION", &
                           description="Parametrization of the mapping between the primary and the PAO basis.", &
                           enum_c_vals=s2a("ROTINV", "FOCK", "GTH", "EXP"), &
                           enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_gth_param, pao_exp_param/), &
@@ -309,71 +309,71 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REGULARIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION", &
                           description="Strength of regularization term which ensures parameters remain small.", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PENALTY_DISTANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PENALTY_DISTANCE", &
                           description="Distance at which approaching eigenvalues are penalized to prevent degeneration.", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PENALTY_STRENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="PENALTY_STRENGTH", &
                           description="Strength of the penalty term which prevents degenerate eigenvalues.", &
                           default_r_val=0.005_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRECONDITION", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRECONDITION", &
                           description="Apply a preconditioner to the parametrization.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_PGF", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_PGF", &
                           description="Sets precision for potential and descriptor matrix elements. "// &
                           "Overrides DFT/QS/EPS_DEFAULT value.", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Preopt  ******************************************************************
-      CALL keyword_create(keyword, name="PREOPT_DM_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="PREOPT_DM_FILE", &
                           description="Read pre-optimized density matrix from given file.", &
                           repeats=.FALSE., default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Misc ********************************************************************
-      CALL keyword_create(keyword, name="RESTART_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE", &
                           description="Reads given files as restart for PAO basis", &
                           repeats=.FALSE., default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHECK_GRADIENT_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_GRADIENT_TOL", &
                           description="Tolerance for check of full analytic gradient against the numeric one."// &
                           " Negative values mean don't check at all.", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_GRADIENT_EPS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GRADIENT_EPS", &
                           description="Step length used for the numeric derivative when checking the gradient.", &
                           default_r_val=1e-8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NUM_GRADIENT_ORDER", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GRADIENT_ORDER", &
                           description="Order of the numeric derivative when checking the gradient. "// &
                           "Possible values are 2, 4, and 6.", &
                           default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHECK_UNITARY_TOL", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_UNITARY_TOL", &
                           description="Check if rotation matrix is unitary."// &
                           " Negative values mean don't check at all.", &
                           default_r_val=-1.0_dp)
@@ -381,34 +381,34 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Linpot settings  *********************************************************
-      CALL keyword_create(keyword, name="LINPOT_PRECONDITION_DELTA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LINPOT_PRECONDITION_DELTA", &
                           description="Eigenvalue threshold used for preconditioning.", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LINPOT_INITGUESS_DELTA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LINPOT_INITGUESS_DELTA", &
                           description="Eigenvalue threshold used for calculating initial guess.", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LINPOT_REGULARIZATION_DELTA", &
+      CALL keyword_create(keyword, __LOCATION__, name="LINPOT_REGULARIZATION_DELTA", &
                           description="Eigenvalue threshold used for regularization.", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LINPOT_REGULARIZATION_STRENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="LINPOT_REGULARIZATION_STRENGTH", &
                           description="Strength of regularization on linpot layer.", &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Machine Learning *********************************************************
-      CALL section_create(subsection, name="MACHINE_LEARNING", description="Machine learning section")
+      CALL section_create(subsection, __LOCATION__, name="MACHINE_LEARNING", description="Machine learning section")
 
-      CALL keyword_create(keyword, name="METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Machine learning scheme used to predict PAO basis sets.", &
                           enum_c_vals=s2a("GAUSSIAN_PROCESS", "NEURAL_NETWORK", "LAZY"), &
                           enum_i_vals=(/pao_ml_gp, pao_ml_nn, pao_ml_lazy/), &
@@ -417,7 +417,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRIOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="PRIOR", &
                           description="Prior used for predictions.", &
                           enum_c_vals=s2a("ZERO", "MEAN"), &
                           enum_i_vals=(/pao_ml_prior_zero, pao_ml_prior_mean/), &
@@ -426,7 +426,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DESCRIPTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="DESCRIPTOR", &
                           description="Descriptor used as input for machine learning.", &
                           enum_c_vals=s2a("POTENTIAL", "OVERLAP", "R12"), &
                           enum_i_vals=(/pao_ml_desc_pot, pao_ml_desc_overlap, pao_ml_desc_r12/), &
@@ -438,28 +438,28 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TOLERANCE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TOLERANCE", &
                           description="Maximum variance tolerated when making predictions.", &
                           default_r_val=1.0E-2_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GP_NOISE_VAR", &
+      CALL keyword_create(keyword, __LOCATION__, name="GP_NOISE_VAR", &
                           description="Variance of noise used for Gaussian Process machine learning.", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="GP_SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="GP_SCALE", &
                           description="Length scale used for Gaussian Process machine learning.", &
                           default_r_val=0.05_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! special free-text section similar to SUBSYS%COORD
-      CALL section_create(subsubsection, name="TRAINING_SET", &
+      CALL section_create(subsubsection, __LOCATION__, name="TRAINING_SET", &
                           description="Lists PAO-restart file used for training")
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="One file name per line.", &
                           repeats=.TRUE., type_of_var=lchar_t)
       CALL section_add_keyword(subsubsection, keyword)
@@ -471,64 +471,64 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Output *******************************************************************
-      CALL section_create(subsection, name="PRINT", &
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printkey section", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
-      CALL cp_print_key_section_create(printkey, "RUN_INFO", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "RUN_INFO", &
                                        description="Normal output by PAO", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "ATOM_INFO", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "ATOM_INFO", &
                                        description="One line summary for each atom", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "FOCK_GAP", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "FOCK_GAP", &
                                        description="Gap of the fock matrix for each atom", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "FOCK_EIGENVALUES", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "FOCK_EIGENVALUES", &
                                        description="Eigenvalues of the fock matrix for each atom", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "ML_VARIANCE", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "ML_VARIANCE", &
                                        description="Variances of machine learning predictions for each atom", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "ML_TRAINING_DATA", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "ML_TRAINING_DATA", &
                                        description="Dumps training data used for machine learning", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "OPT_INFO", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "OPT_INFO", &
                                        description="Output by the optimizer", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "RESTART", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "RESTART", &
                                        description="Restart file of PAO basis", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
 
-      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=1)
       CALL section_add_keyword(printkey, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WRITE_CYCLES", &
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_CYCLES", &
                           description="Maximum number of PAO line search cycles until a restart is written.", &
                           default_i_val=100)
       CALL section_add_keyword(printkey, keyword)
@@ -541,7 +541,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! OPT stuff ****************************************************************
-      CALL keyword_create(keyword, name="OPTIMIZER", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZER", &
                           description="Optimizer used to find PAO basis.", &
                           enum_c_vals=s2a("CG", "BFGS"), &
                           enum_i_vals=(/pao_opt_cg, pao_opt_bfgs/), &
@@ -551,14 +551,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CG_INIT_STEPS", &
+      CALL keyword_create(keyword, __LOCATION__, name="CG_INIT_STEPS", &
                           description="Number of steepest descent steps before starting the"// &
                           " conjugate gradients optimization.", &
                           default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CG_RESET_LIMIT", &
+      CALL keyword_create(keyword, __LOCATION__, name="CG_RESET_LIMIT", &
                           description="The CG is reseted if the cosine of the angle between the last "// &
                           "search direction and the new gradient is larger that the limit.", &
                           default_r_val=0.1_dp)

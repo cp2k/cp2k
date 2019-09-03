@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -73,6 +73,7 @@ MODULE qs_neighbor_lists
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -299,11 +300,11 @@ CONTAINS
                                                             numshells, zat
       LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, gth_potential_present, &
          lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, rigpw, &
-         sgp_potential_present
+         sgp_potential_present, xtb
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present, &
-         ri_present
-      REAL(dp)                                           :: almo_rcov, almo_rvdw, alpha, roperator, &
+         ri_present, xb1_atom, xb2_atom
+      REAL(dp)                                           :: almo_rcov, almo_rvdw, rcut, roperator, &
                                                             subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
          core_radius, oce_radius, orb_radius, ppl_radius, ppnl_radius, ri_radius, zeff
@@ -323,13 +324,14 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
-         sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
-         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_lri, sac_ppl, sap_oce, sap_ppnl, &
-         soa_list, soo_list
+         sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_gcp, sab_kp, &
+         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sac_ae, sac_lri, sac_ppl, &
+         sap_oce, sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections, neighbor_list_section
@@ -353,6 +355,7 @@ CONTAINS
       NULLIFY (sab_lrc)
       NULLIFY (sab_tbe)
       NULLIFY (sab_core)
+      NULLIFY (sab_xb)
       NULLIFY (sab_all)
       NULLIFY (sab_vdw)
       NULLIFY (sab_cn)
@@ -397,6 +400,7 @@ CONTAINS
                       sab_lrc=sab_lrc, &
                       sab_tbe=sab_tbe, &
                       sab_core=sab_core, &
+                      sab_xb=sab_xb, &
                       sab_scp=sab_scp, &
                       sab_all=sab_all, &
                       sab_almo=sab_almo, &
@@ -405,6 +409,7 @@ CONTAINS
       dokp = (kpoints%nkp > 0)
       nddo = dft_control%qs_control%semi_empirical
       dftb = dft_control%qs_control%dftb
+      xtb = dft_control%qs_control%xtb
       almo = dft_control%qs_control%do_almo_scf
       lrigpw = (dft_control%qs_control%method_id == do_method_lrigpw)
       rigpw = (dft_control%qs_control%method_id == do_method_rigpw)
@@ -418,9 +423,8 @@ CONTAINS
       IF (dokp) THEN
          ! no MIC for kpoints
          mic = .FALSE.
-!deb  ELSEIF (nddo .OR. dftb) THEN
       ELSEIF (nddo) THEN
-         ! enforce MIC for interaction lists in SE and DFTB
+         ! enforce MIC for interaction lists in SE
          mic = .TRUE.
       END IF
 
@@ -525,7 +529,7 @@ CONTAINS
          END IF
 
          ! Pseudopotentials
-         IF (gth_potential_present) THEN
+         IF (gth_potential_present .OR. sgp_potential_present) THEN
             IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
                                   ppl_present=ppl_present(ikind), &
@@ -581,15 +585,15 @@ CONTAINS
 
       ! Build orbital-orbital list containing all the pairs, to be used with
       ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
-      ! might be not optimal. It should be verified for each operator.
-      IF (.NOT. (nddo .OR. dftb)) THEN
+      ! might not be optimal. It should be verified for each operator.
+      IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
          CALL build_neighbor_lists(sab_all, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., subcells=subcells, molecular=molecule_only, nlname="sab_all")
          CALL set_ks_env(ks_env=ks_env, sab_all=sab_all)
       ENDIF
 
       ! Build the core-core overlap neighbor lists
-      IF (.NOT. (nddo .OR. dftb)) THEN
+      IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
          CALL pair_radius_setup(core_present, core_present, core_radius, core_radius, pair_radius)
          CALL build_neighbor_lists(sab_core, particle_set, atom2d, cell, pair_radius, subcells=subcells, &
                                    operator_type="PP", nlname="sab_core")
@@ -696,7 +700,7 @@ CONTAINS
       END IF
 
       ! Build orbital-ERFC potential list
-      IF (.NOT. (nddo .OR. dftb)) THEN
+      IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
          IF (all_potential_present .OR. sgp_potential_present) THEN
             CALL pair_radius_setup(orb_present, all_present, orb_radius, all_pot_rad, pair_radius)
             CALL build_neighbor_lists(sac_ae, particle_set, atom2d, cell, pair_radius, &
@@ -742,8 +746,8 @@ CONTAINS
          ! Build the neighbor lists for the DFTB Ewald methods
          IF (dft_control%qs_control%dftb_control%do_ewald) THEN
             CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)
-            CALL ewald_env_get(ewald_env, alpha=alpha)
-            c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+            CALL ewald_env_get(ewald_env, rcut=rcut)
+            c_radius = rcut
             CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
             CALL build_neighbor_lists(sab_tbe, particle_set, atom2d, cell, pair_radius, mic=mic, &
                                       subcells=subcells, nlname="sab_tbe")
@@ -764,6 +768,39 @@ CONTAINS
                CALL set_ks_env(ks_env=ks_env, sab_vdw=sab_vdw)
             END IF
          END IF
+      END IF
+
+      IF (xtb) THEN
+         ! Build the neighbor lists for the xTB Ewald method
+         IF (dft_control%qs_control%xtb_control%do_ewald) THEN
+            CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)
+            CALL ewald_env_get(ewald_env, rcut=rcut)
+            c_radius = rcut
+            CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
+            CALL build_neighbor_lists(sab_tbe, particle_set, atom2d, cell, pair_radius, mic=mic, &
+                                      subcells=subcells, nlname="sab_tbe")
+            CALL set_ks_env(ks_env=ks_env, sab_tbe=sab_tbe)
+         END IF
+         ! XB list
+         ALLOCATE (xb1_atom(nkind), xb2_atom(nkind))
+         c_radius = 0.5_dp*dft_control%qs_control%xtb_control%xb_radius
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)
+            IF (zat == 17 .OR. zat == 35 .OR. zat == 53 .OR. zat == 85) THEN
+               xb1_atom(ikind) = .TRUE.
+            ELSE
+               xb1_atom(ikind) = .FALSE.
+            END IF
+            IF (zat == 7 .OR. zat == 8 .OR. zat == 15 .OR. zat == 16) THEN
+               xb2_atom(ikind) = .TRUE.
+            ELSE
+               xb2_atom(ikind) = .FALSE.
+            END IF
+         END DO
+         CALL pair_radius_setup(xb1_atom, xb2_atom, c_radius, c_radius, pair_radius)
+         CALL build_neighbor_lists(sab_xb, particle_set, atom2d, cell, pair_radius, &
+                                   symmetric=.FALSE., subcells=subcells, operator_type="PP", nlname="sab_xb")
+         CALL set_ks_env(ks_env=ks_env, sab_xb=sab_xb)
       END IF
 
       ! Build the neighbor lists for the vdW pair potential
@@ -789,6 +826,24 @@ CONTAINS
             CALL build_neighbor_lists(sab_cn, particle_set, atom2d, cell, pair_radius, &
                                       subcells=subcells, operator_type="PP", nlname="sab_cn")
             dispersion_env%sab_cn => sab_cn
+         END IF
+      END IF
+
+      ! Build the neighbor lists for the gCP pair potential
+      NULLIFY (gcp_env)
+      CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env)
+      IF (ASSOCIATED(gcp_env)) THEN
+         IF (gcp_env%do_gcp) THEN
+            sab_gcp => gcp_env%sab_gcp
+            DO ikind = 1, nkind
+               c_radius(ikind) = gcp_env%gcp_kind(ikind)%rcsto
+            END DO
+            CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
+            CALL build_neighbor_lists(sab_gcp, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, operator_type="PP", nlname="sab_gcp")
+            gcp_env%sab_gcp => sab_gcp
+         ELSE
+            NULLIFY (gcp_env%sab_gcp)
          END IF
       END IF
 
@@ -1101,7 +1156,8 @@ CONTAINS
             ! It makes sense to have fewer subcells for larger systems
             subcell_scale = ((125.0_dp**3)/deth)**(1.0_dp/6.0_dp)
 
-            ! guess the number of subcells for optimal performance, guard against crazy stuff triggered by very small rabm
+            ! guess the number of subcells for optimal performance,
+            ! guard against crazy stuff triggered by very small rabm
             nsubcell(:) = INT(MAX(1.0_dp, MIN(0.5_dp*subcells*subcell_scale/sab_max(:), &
                                               0.5_dp*subcells*subcell_scale/sab_max_guard(:))))
 

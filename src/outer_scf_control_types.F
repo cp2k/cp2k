@@ -1,12 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
 !> \brief parameters that control the outer loop of an SCF iteration
 !> \par History
-!>      09.2018 created by moving outer SCF types to seperate module [Nico Holmberg]
+!>      09.2018 created by moving outer SCF types to separate module [Nico Holmberg]
 !> \author Nico Holmberg
 ! **************************************************************************************************
 MODULE outer_scf_control_types

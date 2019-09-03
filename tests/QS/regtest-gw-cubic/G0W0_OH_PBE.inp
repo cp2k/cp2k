@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -46,13 +46,11 @@
         METHOD  RI_RPA_GPW
         ERI_METHOD OS
         RI OVERLAP
+        IM_TIME
+        &IM_TIME
+          DO_DBCSR_T .FALSE.
+        &END IM_TIME
         &RI_RPA
-          MINIMAX
-          RPA_NUM_QUAD_POINTS 20
-          IM_TIME
-          &IM_TIME
-            GW
-          &END IM_TIME
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -60,20 +58,20 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
+          MINIMAX
+          RPA_NUM_QUAD_POINTS 20
+          GW
           &RI_G0W0
-            RI OVERLAP
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
-            SCALING               0.2000
             NUMB_POLES            2
-            STOP_CRIT             1.0E-7
             MAX_ITER_FIT          10000
-            CROSSING_SEARCH       Z_SHOT 
+            CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            1
             HF_LIKE_EV_START      FALSE
             PRINT_GW_DETAILS
-          &END RI_G0W0 
+          &END RI_G0W0
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
@@ -96,7 +94,7 @@
       POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  OH_radical_gas.xyz 
+      COORD_FILE_NAME  OH_radical_gas.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END

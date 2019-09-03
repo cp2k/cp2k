@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -14,8 +14,8 @@ MODULE kg_correction
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_p_type,&
-                                              dbcsr_trace
+                                              dbcsr_dot,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
@@ -182,7 +182,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -330,7 +330,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -485,7 +485,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
 !deb
 !     WRITE(6,*) " E KIN (full)       ",-ekin_mol
 !deb
@@ -586,7 +586,7 @@ CONTAINS
 
       ekin_mol = 0.0_dp
       DO ispin = 1, nspins
-         CALL dbcsr_trace(tnadd_matrix(1)%matrix, density_matrix(ispin)%matrix, ekin_mol)
+         CALL dbcsr_dot(tnadd_matrix(1)%matrix, density_matrix(ispin)%matrix, ekin_mol)
          CALL dbcsr_add(ks_matrix(ispin)%matrix, tnadd_matrix(1)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       END DO

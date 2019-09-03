@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -17,7 +17,6 @@ MODULE qmmm_elpot
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE erf_fn,                          ONLY: erf
    USE input_constants,                 ONLY: do_qmmm_coulomb,&
                                               do_qmmm_gauss,&
                                               do_qmmm_pcharge,&

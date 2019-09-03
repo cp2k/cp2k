@@ -1,0 +1,49 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    &PRINT
+      &MOMENTS
+        PERIODIC T
+      &END
+    &END
+    &PERIODIC_EFIELD
+       POLARISATION 1 0 0
+       INTENSITY 0.001
+    &END    
+    &QS
+      METHOD xTB
+      &XTB
+         DO_EWALD T
+      &END
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &POISSON
+      &EWALD
+       ALPHA  1.0
+       EWALD_TYPE SPME
+       GMAX 75
+      &END EWALD
+    &END POISSON
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MAX_SCF 60
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587 H2O
+    H   0.000000   -0.757136    0.520545 H2O
+    H   0.000000    0.757136    0.520545 H2O
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O-field-lsd
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+&END GLOBAL

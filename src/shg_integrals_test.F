@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -78,7 +78,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "SHG_INTEGRALS_TEST", &
+      CALL section_create(section, __LOCATION__, name="SHG_INTEGRALS_TEST", &
                           description="Parameters for testing the SHG 2-center integrals for "// &
                           "different r12 operators. Test w.r.t. performance and accurarcy.", &
                           n_keywords=4, n_subsections=1)
@@ -87,7 +87,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, &
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation the SHG integral test. ", &
                           default_l_val=.FALSE., &
@@ -95,101 +95,101 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ABC", &
+      CALL keyword_create(keyword, __LOCATION__, name="ABC", &
                           description="Specify the lengths of the cell vectors A, B, and C. ", &
                           usage="ABC 10.000 10.000 10.000", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NAB_MIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="NAB_MIN", &
                           description="Minimum number of atomic distances to consider. ", &
                           default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NREP", &
+      CALL keyword_create(keyword, __LOCATION__, name="NREP", &
                           description="Number of repeated calculation of each integral. ", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHECK_ACCURACY", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_ACCURACY", &
                           description="Causes abortion when SHG and OS integrals differ "// &
                           "more what's given by ACCURACY_LEVEL.", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ACCURACY_LEVEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="ACCURACY_LEVEL", &
                           description="Level of accuracy for comparison of SHG and OS "// &
                           "integrals.", &
                           default_r_val=1.0E-8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CALCULATE_DERIVATIVES", &
+      CALL keyword_create(keyword, __LOCATION__, name="CALCULATE_DERIVATIVES", &
                           description="Calculates also the derivatives of the integrals.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_OVERLAP", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_OVERLAP", &
                           description="Calculates the integrals (a|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="TEST_COULOMB", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_COULOMB", &
                           description="Calculates the integrals (a|1/r12|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_VERF", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_VERF", &
                           description="Calculates the integrals (a|erf(omega*r12)/r12|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_VERFC", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_VERFC", &
                           description="Calculates the integrals (a|erfc(omega*r12)/r12|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_VGAUSS", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_VGAUSS", &
                           description="Calculates the integrals (a|exp(omega*r12^2)/r12|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_GAUSS", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_GAUSS", &
                           description="Calculates the integrals (a|exp(omega*r12^2)|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_RA2M", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_RA2M", &
                           description="Calculates the integrals (a|(r-Ra)^(2m)|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="M", &
+      CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Exponent in integral (a|(r-Ra)^(2m)|b).", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_OVERLAP_ABA", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_OVERLAP_ABA", &
                           description="Calculates the integrals (a|b|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEST_OVERLAP_ABB", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEST_OVERLAP_ABB", &
                           description="Calculates the integrals (a|b|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

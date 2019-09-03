@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -32,21 +32,16 @@ MODULE hfx_types
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE erf_fn,                          ONLY: erfc
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
-   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
-                                              initialize_libint,&
-                                              terminate_libderiv,&
-                                              terminate_libint
-   USE hfx_libint_wrapper_types,        ONLY: lib_deriv,&
-                                              lib_int,&
-                                              prim_data_f_size
+   USE hfx_libint_wrapper,              ONLY: &
+        cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_init_eri, cp_libint_init_eri1, &
+        cp_libint_set_contrdepth, cp_libint_static_cleanup, cp_libint_static_init, cp_libint_t, &
+        prim_data_f_size
    USE input_constants,                 ONLY: &
-        do_hfx_auto_shells, do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
-        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
-        do_hfx_potential_mix_cl_trunc, do_hfx_potential_mix_lg, do_hfx_potential_short, &
-        do_hfx_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces
+        do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
+        do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
+        do_potential_short, do_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -414,7 +409,7 @@ MODULE hfx_types
                                                   b_first_load_balance_forces
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_alpha
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_beta
-      TYPE(lib_int)                            :: lib
+      TYPE(cp_libint_t)                        :: lib
       TYPE(hfx_basis_info_type)                :: basis_info
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :, :, :), POINTER     :: screen_funct_coeffs_pgf, &
@@ -436,8 +431,7 @@ MODULE hfx_types
       TYPE(hfx_task_list_type), DIMENSION(:), &
          POINTER        :: task_list
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_atom, pmax_atom_forces
-      TYPE(lib_int)                            :: lib_int
-      TYPE(lib_deriv)                          :: lib_deriv
+      TYPE(cp_libint_t)                         :: lib_deriv
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_block
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list_forces
@@ -552,8 +546,8 @@ CONTAINS
             actual_x_data%potential_parameter%scale_longrange = real_val
             CALL section_vals_val_get(hf_sub_section, "SCALE_GAUSSIAN", r_val=real_val)
             actual_x_data%potential_parameter%scale_gaussian = real_val
-            IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-                actual_x_data%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+            IF (actual_x_data%potential_parameter%potential_type == do_potential_truncated .OR. &
+                actual_x_data%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
                CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val)
                actual_x_data%potential_parameter%cutoff_radius = real_val
                CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val)
@@ -568,7 +562,7 @@ CONTAINS
                   actual_x_data%potential_parameter%filename = char_val
                END IF
             END IF
-            IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_short) THEN
+            IF (actual_x_data%potential_parameter%potential_type == do_potential_short) THEN
                CALL erfc_cutoff(actual_x_data%screening_parameter%eps_schwarz, &
                                 actual_x_data%potential_parameter%omega, &
                                 actual_x_data%potential_parameter%cutoff_radius)
@@ -793,8 +787,11 @@ CONTAINS
             END IF
 
             ! ** Initialize libint type
-            CALL initialize_libint(actual_x_data%lib, actual_x_data%basis_info%max_am)
-            CALL initialize_libderiv(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am)
+            CALL cp_libint_static_init()
+            CALL cp_libint_init_eri(actual_x_data%lib, actual_x_data%basis_info%max_am)
+            CALL cp_libint_init_eri1(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am)
+            CALL cp_libint_set_contrdepth(actual_x_data%lib, 1)
+            CALL cp_libint_set_contrdepth(actual_x_data%lib_deriv, 1)
 
             CALL alloc_containers(actual_x_data, 1, hfx_do_eval_energy)
             CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces)
@@ -1188,8 +1185,8 @@ CONTAINS
       n_threads = 1
 !$    n_threads = omp_get_max_threads()
 
-      IF (x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-          x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+      IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
+          x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          init_t_c_g0_lmax = -1
          CALL free_C0()
       END IF
@@ -1241,8 +1238,9 @@ CONTAINS
             CALL hfx_release_basis_types(actual_x_data%basis_parameter)
 
             !MK Release libint and libderiv data structure
-            CALL terminate_libint(actual_x_data%lib)
-            CALL terminate_libderiv(actual_x_data%lib_deriv)
+            CALL cp_libint_cleanup_eri(actual_x_data%lib)
+            CALL cp_libint_cleanup_eri1(actual_x_data%lib_deriv)
+            CALL cp_libint_static_cleanup()
 
             !! Deallocate containers
             CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
@@ -1327,9 +1325,9 @@ CONTAINS
 
       ! ** Check some settings
       IF (i_thread == 1) THEN
-         IF (x_data%potential_parameter%potential_type /= do_hfx_potential_truncated .AND. &
-             x_data%potential_parameter%potential_type /= do_hfx_potential_short .AND. &
-             x_data%potential_parameter%potential_type /= do_hfx_potential_mix_cl_trunc) THEN
+         IF (x_data%potential_parameter%potential_type /= do_potential_truncated .AND. &
+             x_data%potential_parameter%potential_type /= do_potential_short .AND. &
+             x_data%potential_parameter%potential_type /= do_potential_mix_cl_trunc) THEN
             CALL cp_warn(__LOCATION__, &
                          "Periodic Hartree Fock calculation requested without use "// &
                          "of a truncated or shortrange potential. This may lead to unphysical total energies. "// &
@@ -1351,7 +1349,7 @@ CONTAINS
       END IF
 
       SELECT CASE (x_data%potential_parameter%potential_type)
-      CASE (do_hfx_potential_truncated, do_hfx_potential_mix_cl_trunc, do_hfx_potential_short)
+      CASE (do_potential_truncated, do_potential_mix_cl_trunc, do_potential_short)
          R_max = 0.0_dp
          DO ikind = 1, SIZE(x_data%basis_parameter)
             la_max => x_data%basis_parameter(ikind)%lmax
@@ -1913,10 +1911,10 @@ CONTAINS
          WRITE (iw, '(T3,A,T61,F20.10)') &
             "HFX_INFO| FRACTION:     ", x_data%general_parameter%fraction
          SELECT CASE (x_data%potential_parameter%potential_type)
-         CASE (do_hfx_potential_coulomb)
+         CASE (do_potential_coulomb)
             WRITE (UNIT=iw, FMT="((T3,A,T74,A))") &
                "HFX_INFO| Interaction Potential:     ", "COULOMB"
-         CASE (do_hfx_potential_short)
+         CASE (do_potential_short)
             WRITE (UNIT=iw, FMT="((T3,A,T71,A))") &
                "HFX_INFO| Interaction Potential:    ", "SHORTRANGE"
             WRITE (iw, '(T3,A,T61,F20.10)') &
@@ -1924,12 +1922,12 @@ CONTAINS
             rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius, "angstrom")
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-         CASE (do_hfx_potential_long)
+         CASE (do_potential_long)
             WRITE (UNIT=iw, FMT="((T3,A,T72,A))") &
                "HFX_INFO| Interaction Potential:     ", "LONGRANGE"
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
-         CASE (do_hfx_potential_mix_cl)
+         CASE (do_potential_mix_cl)
             WRITE (UNIT=iw, FMT="((T3,A,T75,A))") &
                "HFX_INFO| Interaction Potential:     ", "MIX_CL"
             WRITE (iw, '(T3,A,T61,F20.10)') &
@@ -1938,12 +1936,12 @@ CONTAINS
                "HFX_INFO| SCALE_COULOMB:     ", x_data%potential_parameter%scale_coulomb
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| SCALE_LONGRANGE:     ", x_data%potential_parameter%scale_longrange
-         CASE (do_hfx_potential_gaussian)
+         CASE (do_potential_gaussian)
             WRITE (UNIT=iw, FMT="((T3,A,T73,A))") &
                "HFX_INFO| Interaction Potential:     ", "GAUSSIAN"
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
-         CASE (do_hfx_potential_mix_lg)
+         CASE (do_potential_mix_lg)
             WRITE (UNIT=iw, FMT="((T3,A,T75,A))") &
                "HFX_INFO| Interaction Potential:    ", "MIX_LG"
             WRITE (iw, '(T3,A,T61,F20.10)') &
@@ -1952,16 +1950,16 @@ CONTAINS
                "HFX_INFO| SCALE_LONGRANGE:     ", x_data%potential_parameter%scale_longrange
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| SCALE_GAUSSIAN:    ", x_data%potential_parameter%scale_gaussian
-         CASE (do_hfx_potential_id)
+         CASE (do_potential_id)
             WRITE (UNIT=iw, FMT="((T3,A,T73,A))") &
                "HFX_INFO| Interaction Potential:    ", "IDENTITY"
-         CASE (do_hfx_potential_truncated)
+         CASE (do_potential_truncated)
             WRITE (UNIT=iw, FMT="((T3,A,T72,A))") &
                "HFX_INFO| Interaction Potential:    ", "TRUNCATED"
             rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius, "angstrom")
             WRITE (iw, '(T3,A,T61,F20.10)') &
                "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-         CASE (do_hfx_potential_mix_cl_trunc)
+         CASE (do_potential_mix_cl_trunc)
             WRITE (UNIT=iw, FMT="((T3,A,T65,A))") &
                "HFX_INFO| Interaction Potential:    ", "TRUNCATED MIX_CL"
             rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius, "angstrom")

@@ -7,7 +7,7 @@ Nrun=3
 
 # #### Gfortran flags
 FC_comp="ftn -ffree-form -pipe"
-FCFLAGS_OPT=" -O3 -ffast-math -funroll-loops -ftree-vectorize -fno-omit-frame-pointer -g -march=ivybridge -fgcse-sm -fgcse-las -fmerge-all-constants "
+FCFLAGS_OPT=" -O3 -funroll-loops -ftree-vectorize -fno-omit-frame-pointer -g -march=ivybridge -fgcse-sm -fgcse-las -fmerge-all-constants "
 FCFLAGS_NATIVE="-march=native"
 
 # Cray flags

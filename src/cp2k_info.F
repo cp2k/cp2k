@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -111,11 +111,7 @@ CONTAINS
       flags = TRIM(flags)//" pexsi"
 #endif
 #if defined(__ELPA)
-      CALL integer_to_string(__ELPA, tmp_str)
-      flags = TRIM(flags)//" elpa="//TRIM(tmp_str)
-#if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511) || (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
-      flags = TRIM(flags)//" elpa_qr"
-#endif
+      flags = TRIM(flags)//" elpa"
 #endif
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"
@@ -128,9 +124,6 @@ CONTAINS
 #if defined(__SCALAPACK)
       flags = TRIM(flags)//" scalapack"
 #endif
-#if defined(__SCALAPACK2)
-      flags = TRIM(flags)//" scalapack2"
-#endif
 
 #if defined(__QUIP)
       flags = TRIM(flags)//" quip"
@@ -141,6 +134,12 @@ CONTAINS
 #endif
 #if defined(__PW_CUDA)
       flags = TRIM(flags)//" pw_cuda"
+#endif
+#if defined(__PW_FPGA)
+      flags = TRIM(flags)//" pw_fpga"
+#endif
+#if defined(__PW_FPGA_SP)
+      flags = TRIM(flags)//" pw_fpga_sp"
 #endif
 #if defined(__HAS_PATCHED_CUFFT_70)
       flags = TRIM(flags)//" patched_cufft_70"
@@ -229,14 +228,6 @@ CONTAINS
 #if defined __HAS_NO_MPI_MOD
       flags = TRIM(flags)//" has_no_mpi_mod"
 #endif
-#if defined __LIBDERIV_MAX_AM1
-      CALL integer_to_string(__LIBDERIV_MAX_AM1, tmp_str)
-      flags = TRIM(flags)//" libderiv_max_am1="//TRIM(tmp_str)
-#endif
-#if defined __LIBINT_MAX_AM
-      CALL integer_to_string(__LIBINT_MAX_AM, tmp_str)
-      flags = TRIM(flags)//" libint_max_am="//TRIM(tmp_str)
-#endif
 #if defined __MAX_CONTR
       CALL integer_to_string(__MAX_CONTR, tmp_str)
       flags = TRIM(flags)//" max_contr="//TRIM(tmp_str)
@@ -249,6 +240,9 @@ CONTAINS
 #endif
 #if defined __NO_STATM_ACCESS
       flags = TRIM(flags)//" no_statm_access"
+#endif
+#if defined __MINGW
+      flags = TRIM(flags)//" mingw"
 #endif
 #if defined __PW_CUDA_NO_HOSTALLOC
       flags = TRIM(flags)//" pw_cuda_no_hostalloc"
@@ -277,11 +271,11 @@ CONTAINS
 #if defined __MKL
       flags = TRIM(flags)//" mkl"
 #endif
-#if defined __JSON
-      flags = TRIM(flags)//" json"
-#endif
 #if defined __SIRIUS
       flags = TRIM(flags)//" sirius"
+#endif
+#if defined __CHECK_DIAG
+      flags = TRIM(flags)//" check_diag"
 #endif
 
    END FUNCTION cp2k_flags
@@ -349,7 +343,7 @@ CONTAINS
 !> \brief Writes the header for the restart file
 !> \param iunit ...
 !> \par History
-!>      01.2008 [created] - Splitted from write_restart
+!>      01.2008 [created] - Split from write_restart
 !> \author Teodoro Laino - University of Zurich - 01.2008
 ! **************************************************************************************************
    SUBROUTINE write_restart_header(iunit)

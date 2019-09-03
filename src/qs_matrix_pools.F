@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -204,7 +204,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief rebuilds the pools of the (ao x mo, ao x ao , mo x mo) full matrixes
-!> \param mpools the environement where the pools should be rebuilt
+!> \param mpools the environment where the pools should be rebuilt
 !> \param mos the molecular orbitals (qs_env%c), must contain up to
 !>        date nmo and nao
 !> \param blacs_env the blacs environment of the full matrixes

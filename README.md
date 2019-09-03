@@ -2,7 +2,27 @@
 
 CP2K is a quantum chemistry and solid state physics software package that can perform atomistic simulations of solid state, liquid, molecular, periodic, material, crystal, and biological systems. CP2K provides a general framework for different modeling methods such as DFT using the mixed Gaussian and plane waves approaches GPW and GAPW. Supported theory levels include DFTB, LDA, GGA, MP2, RPA, semi-empirical methods (AM1, PM3, PM6, RM1, MNDO, ...), and classical force fields (AMBER, CHARMM, ...). CP2K can do simulations of molecular dynamics, metadynamics, Monte Carlo, Ehrenfest dynamics, vibrational analysis, core level spectroscopy, energy minimization, and transition state optimization using NEB or dimer method.
 
-CP2K is written in Fortran 2003 and can be run efficiently in parallel using a combination of multi-threading, MPI, and CUDA.
+CP2K is written in Fortran 2008 and can be run efficiently in parallel using a combination of multi-threading, MPI, and CUDA.
+
+## Downloading CP2K source code
+
+To clone the current master (development version):
+```console
+$ git clone --recursive https://github.com/cp2k/cp2k.git cp2k
+```
+Note the ``--recursive`` flag that is needed because CP2K uses git submodules.
+
+To clone a release version v*x.y*:
+```console
+$ git clone -b support/vx.y https://github.com/cp2k/cp2k.git cp2k
+```
+
+For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download).
+For help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-&-Tricks).
+
+## Install CP2K
+
+See [installation instructions](./INSTALL.md)
 
 ## Links
 
@@ -13,12 +33,12 @@ CP2K is written in Fortran 2003 and can be run efficiently in parallel using a c
 
 ## Directory organization
 
-* `INSTALL.md`: How to build and setup CP2K
-* `arch`: Collection of definitions for different architectures and compilers
-* `src`: The source code
-* `tests`: Inputs for regression tests
-* `tools`: Mixed collection of useful scripts related to cp2k
-* `data`: Simulation parameters e.g. basis sets and pseudopotentials
+* [`arch`](./arch): Collection of definitions for different architectures and compilers
+* [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
+* [`exts`](./exts): Access to external libraries via GIT submodules
+* [`src`](./src): The source code
+* [`tests`](./tests): Inputs for regression tests
+* [`tools`](./tools): Mixed collection of useful scripts related to cp2k
 
 Additional directories created during build process:
 

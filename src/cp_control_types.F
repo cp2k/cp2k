@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -84,6 +84,42 @@ MODULE cp_control_types
       CHARACTER(LEN=default_path_length)   :: uff_force_field
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
    END TYPE dftb_control_type
+
+! **************************************************************************************************
+! \brief Control parameters for xTB calculations
+! **************************************************************************************************
+   TYPE xtb_control_type
+      !
+      LOGICAL                              :: do_ewald
+      !
+      INTEGER                              :: sto_ng
+      INTEGER                              :: h_sto_ng
+      !
+      CHARACTER(LEN=default_path_length)   :: parameter_file_path
+      CHARACTER(LEN=default_path_length)   :: parameter_file_name
+      !
+      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
+      REAL(KIND=dp)                        :: epscn
+      REAL(KIND=dp)                        :: rcdisp
+      REAL(KIND=dp)                        :: s6, s8
+      REAL(KIND=dp)                        :: a1, a2
+      !
+      REAL(KIND=dp)                        :: ks, kp, kd, ksp, k2sh
+      REAL(KIND=dp)                        :: kg, kf
+      REAL(KIND=dp)                        :: kcns, kcnp, kcnd
+      REAL(KIND=dp)                        :: ken
+      REAL(KIND=dp)                        :: kxr, kx2
+      !
+      LOGICAL                              :: xb_interaction
+      LOGICAL                              :: coulomb_interaction
+      LOGICAL                              :: tb3_interaction
+      LOGICAL                              :: check_atomic_charges
+      !
+      REAL(KIND=dp)                        :: xb_radius
+      !
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:, :), POINTER          :: kab_param
+   END TYPE xtb_control_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for semi empirical calculations
@@ -252,6 +288,7 @@ MODULE cp_control_types
       LOGICAL                              :: lri_optbas
       LOGICAL                              :: ofgpw
       LOGICAL                              :: dftb
+      LOGICAL                              :: xtb
       LOGICAL                              :: semi_empirical
       LOGICAL                              :: mulliken_restraint
       LOGICAL                              :: ddapc_restraint
@@ -272,6 +309,7 @@ MODULE cp_control_types
       TYPE(cdft_control_type), POINTER     :: cdft_control
       TYPE(s2_restraint_type), POINTER     :: s2_restraint_control
       TYPE(dftb_control_type), POINTER     :: dftb_control
+      TYPE(xtb_control_type), POINTER      :: xtb_control
       TYPE(semi_empirical_control_type), &
          POINTER                           :: se_control
       TYPE(gapw_control_type), POINTER     :: gapw_control
@@ -359,6 +397,8 @@ MODULE cp_control_types
       INTEGER                              :: niters
       !> maximal number of Krylov space vectors
       INTEGER                              :: nkvs
+      !> number of unoccupied (virtual) molecular orbitals to consider
+      INTEGER                              :: nlumo
       !> minimal number of MPI processes to be used per excited state
       INTEGER                              :: nprocs
       !> target accuracy
@@ -482,6 +522,7 @@ MODULE cp_control_types
              mulliken_restraint_type, &
              ddapc_restraint_type, &
              dftb_control_type, &
+             xtb_control_type, &
              semi_empirical_control_type, &
              s2_restraint_type, &
              admm_control_type, &
@@ -820,6 +861,7 @@ CONTAINS
       NULLIFY (qs_control%s2_restraint_control)
       NULLIFY (qs_control%se_control)
       NULLIFY (qs_control%dftb_control)
+      NULLIFY (qs_control%xtb_control)
       NULLIFY (qs_control%cdft_control)
       NULLIFY (qs_control%ddapc_restraint_control)
 
@@ -828,6 +870,7 @@ CONTAINS
       CALL gapw_control_create(qs_control%gapw_control)
       CALL se_control_create(qs_control%se_control)
       CALL dftb_control_create(qs_control%dftb_control)
+      CALL xtb_control_create(qs_control%xtb_control)
       CALL cdft_control_create(qs_control%cdft_control)
    END SUBROUTINE qs_control_create
 
@@ -848,6 +891,7 @@ CONTAINS
          CALL s2_control_release(qs_control%s2_restraint_control)
          CALL se_control_release(qs_control%se_control)
          CALL dftb_control_release(qs_control%dftb_control)
+         CALL xtb_control_release(qs_control%xtb_control)
          CALL cdft_control_release(qs_control%cdft_control)
 
          IF (ASSOCIATED(qs_control%e_cutoff)) THEN
@@ -1024,6 +1068,41 @@ CONTAINS
          DEALLOCATE (dftb_control)
       END IF
    END SUBROUTINE dftb_control_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xtb_control ...
+! **************************************************************************************************
+   SUBROUTINE xtb_control_create(xtb_control)
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'xtb_control_create', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(.NOT. ASSOCIATED(xtb_control))
+      ALLOCATE (xtb_control)
+
+      NULLIFY (xtb_control%kab_param)
+
+   END SUBROUTINE xtb_control_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xtb_control ...
+! **************************************************************************************************
+   SUBROUTINE xtb_control_release(xtb_control)
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'xtb_control_release', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(xtb_control)) THEN
+         IF (ASSOCIATED(xtb_control%kab_param)) THEN
+            DEALLOCATE (xtb_control%kab_param)
+         END IF
+         DEALLOCATE (xtb_control)
+      END IF
+   END SUBROUTINE xtb_control_release
 
 ! **************************************************************************************************
 !> \brief ...

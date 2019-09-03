@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -16,11 +16,10 @@ MODULE qs_core_energies
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_trace,&
+   USE dbcsr_api,                       ONLY: dbcsr_dot,&
+                                              dbcsr_p_type,&
                                               dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE erf_fn,                          ONLY: erfc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi
@@ -92,7 +91,7 @@ CONTAINS
       ecore = 0.0_dp
       DO ispin = 1, nspin
          etr = 0.0_dp
-         CALL dbcsr_trace(hmat(1)%matrix, pmat(ispin)%matrix, etr)
+         CALL dbcsr_dot(hmat(1)%matrix, pmat(ispin)%matrix, etr)
          ecore = ecore+etr
       END DO
 
@@ -132,7 +131,7 @@ CONTAINS
       DO ispin = 1, nspin
          DO ic = 1, nc
             etr = 0.0_dp
-            CALL dbcsr_trace(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            CALL dbcsr_dot(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
             ecore = ecore+etr
          END DO
       END DO
@@ -171,7 +170,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ecore = 0.0_dp
-      CALL dbcsr_trace(h, p, ecore)
+      CALL dbcsr_dot(h, p, ecore)
 
       CALL timestop(handle)
 

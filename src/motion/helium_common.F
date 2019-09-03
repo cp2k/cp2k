@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -26,12 +26,12 @@ MODULE helium_common
                                               helium_cell_shape_octahedron
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
    USE parallel_rng_types,              ONLY: next_random_number
    USE physcon,                         ONLY: angstrom,&
                                               bohr
-   USE pint_public,                     ONLY: pint_calc_centroid,&
-                                              pint_com_pos
+   USE pint_public,                     ONLY: pint_com_pos
    USE pint_types,                      ONLY: pint_env_type
    USE splines_methods,                 ONLY: spline_value
    USE splines_types,                   ONLY: spline_data_p_type,&
@@ -713,108 +713,130 @@ CONTAINS
 !> \brief  Calculate helium radial distribution functions wrt positions given
 !>         by <centers> using the atomic weights given by <weights>.
 !> \param helium ...
-!> \param centers ...
 !> \date   2009-07-22
+!> \par    History
+!>         2018-10-19 Changed to bead-wise RDFs of solute-He and He-He [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   SUBROUTINE helium_calc_rdf(helium, centers)
+   SUBROUTINE helium_calc_rdf(helium)
 
       TYPE(helium_solvent_type), POINTER                 :: helium
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: centers
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: msgstr
-      INTEGER                                            :: bin, handle, ia, ib, ic, id, &
+      INTEGER                                            :: bin, handle, ia, ib, ic, ind_hehe, &
                                                             n_out_of_range, nbin
-      REAL(KIND=dp)                                      :: const, invdr, invp, nideal, pi, ri, &
-                                                            rlower, rupper, sdens
+      REAL(KIND=dp)                                      :: invdr, nideal, ri, rlower, rupper
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pref
       REAL(KIND=dp), DIMENSION(3)                        :: r, r0
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: incr
 
       CALL timeset(routineN, handle)
 
-      pi = 4.0_dp*ATAN(1.0_dp)
       invdr = 1.0_dp/helium%rdf_delr
-      invp = 1.0_dp/helium%beads
       nbin = helium%rdf_nbin
-      sdens = helium%wpref*invp*helium%atoms
-      ALLOCATE (incr(helium%rdf_num))
-      incr(:) = 0.0d0
-
-      ! calculate the histogram of distances
       n_out_of_range = 0
-      helium%rdf_inst(:, :, :) = 0.0_dp
-      DO ic = 1, SIZE(centers)/3
+      helium%rdf_inst(:, :) = 0.0_dp
 
-         r0(1) = centers(3*(ic-1)+1)
-         r0(2) = centers(3*(ic-1)+2)
-         r0(3) = centers(3*(ic-1)+3)
-         DO ia = 1, helium%atoms
+      ind_hehe = 0
+      ! Calculate He-He RDF
+      IF (helium%rdf_he_he) THEN
+         ind_hehe = 1
+         DO ib = 1, helium%beads
+            DO ia = 1, helium%atoms
+               r0(:) = helium%pos(:, ia, ib)
 
-            ! set the increments for this atom
-            incr(1) = invp
-
-            DO ib = 1, helium%beads
-               r(:) = helium%pos(:, ia, ib)-r0(:)
-               CALL helium_pbc(helium, r)
-               ri = SQRT(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
-               bin = INT(ri*invdr)+1
-               IF ((0 .LT. bin) .AND. (bin .LE. nbin)) THEN
-                  ! increment the RDF value for He atoms inside the r_6 sphere
-                  DO id = 1, helium%rdf_num
-                     helium%rdf_inst(id, bin, ic) = helium%rdf_inst(id, bin, ic)+incr(id)
-                  END DO
-               ELSE
-                  !WRITE(msgstr,*) helium%center * angstrom
-                  !msgstr = "center = "//TRIM(ADJUSTL(msgstr))
-                  !CALL cp_error_message(cp_warning_level, routineP, msgstr, error)
-                  !WRITE(msgstr,*) r0 * angstrom
-                  !msgstr = "r0     = "//TRIM(ADJUSTL(msgstr))
-                  !CALL cp_error_message(cp_warning_level, routineP, msgstr, error)
-                  !WRITE(msgstr,*) helium%pos(:,ia,ib) * angstrom
-                  !msgstr = "pos    = "//TRIM(ADJUSTL(msgstr))
-                  !CALL cp_error_message(cp_warning_level, routineP, msgstr, error)
-                  !WRITE(msgstr,*) ri * angstrom
-                  !msgstr = "ri     = "//TRIM(ADJUSTL(msgstr))
-                  !CALL cp_error_message(cp_warning_level, routineP, msgstr, error)
-                  !WRITE(msgstr,*) ri * invdr
-                  !msgstr = "ri/dr  = "//TRIM(ADJUSTL(msgstr))
-                  !CALL cp_error_message(cp_warning_level, routineP, msgstr, error)
-                  !WRITE(msgstr,*) helium%current_step
-                  !msgstr = "step   = "//TRIM(ADJUSTL(msgstr))
-                  !CALL cp_error_message(cp_warning_level, routineP, msgstr, error)
-                  n_out_of_range = n_out_of_range+1
-               END IF
+               DO ic = 1, helium%atoms
+                  IF (ia == ic) CYCLE
+                  r(:) = helium%pos(:, ic, ib)-r0(:)
+                  CALL helium_pbc(helium, r)
+                  ri = SQRT(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
+                  bin = INT(ri*invdr)+1
+                  IF ((0 .LT. bin) .AND. (bin .LE. nbin)) THEN
+                     ! increment the RDF value for He atoms inside the r_6 sphere
+                     helium%rdf_inst(ind_hehe, bin) = helium%rdf_inst(ind_hehe, bin)+1.0_dp
+                  ELSE
+                     n_out_of_range = n_out_of_range+1
+                  END IF
+               END DO
             END DO
          END DO
-      END DO
+      END IF
 
+      ! Calculate Solute-He RDF
+      IF (helium%solute_present .AND. helium%rdf_sol_he) THEN
+         DO ib = 1, helium%beads
+            DO ia = 1, helium%solute_atoms
+               r0(:) = helium%rdf_centers(ib, 3*(ia-1)+1:3*(ia-1)+3)
+
+               DO ic = 1, helium%atoms
+                  r(:) = helium%pos(:, ic, ib)-r0(:)
+                  CALL helium_pbc(helium, r)
+                  ri = SQRT(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
+                  bin = INT(ri*invdr)+1
+                  IF ((0 .LT. bin) .AND. (bin .LE. nbin)) THEN
+                     ! increment the RDF value for He atoms inside the r_6 sphere
+                     helium%rdf_inst(ind_hehe+ia, bin) = helium%rdf_inst(ind_hehe+ia, bin)+1.0_dp
+                  ELSE
+                     n_out_of_range = n_out_of_range+1
+                  END IF
+               END DO
+            END DO
+         END DO
+
+      END IF
+
+      ! for periodic case we intentionally truncate RDFs to spherical volume
+      ! so we skip atoms in the corners
       IF (.NOT. helium%periodic) THEN
          IF (n_out_of_range .GT. 0) THEN
             WRITE (msgstr, *) n_out_of_range
             msgstr = "Number of bead positions out of range: "//TRIM(ADJUSTL(msgstr))
-            CPABORT(msgstr)
+            CPWARN(msgstr)
          END IF
       END IF
-      ! for periodic case we intentionally truncate RDFs to spherical volume
-      ! so we skip atoms in the corners
 
       ! normalize the histogram to get g(r)
-      ! note: helium%density refers to the number of atoms, not the beads
-      const = 4.0_dp*pi*helium%density/3.0_dp
+      ALLOCATE (pref(helium%rdf_num))
+      pref(:) = 0.0_dp
+      IF (helium%periodic) THEN
+         ! Use helium density for normalization
+         pref(:) = helium%density*helium%beads*helium%atoms
+         ! Correct for He-He-RDF
+         IF (helium%rdf_he_he) THEN
+            pref(1) = pref(1)/helium%atoms*(helium%atoms-1)
+         END IF
+      ELSE
+         ! Non-periodic case has density of 0, use integral for normalzation
+         ! This leads to a unit of 1/volume of the RDF
+         pref(:) = 0.5_dp*helium%rdf_inst(:, 1)
+         DO bin = 2, helium%rdf_nbin-1
+            pref(:) = pref(:)+helium%rdf_inst(:, bin)
+         END DO
+         pref(:) = pref(:)+0.5_dp*helium%rdf_inst(:, helium%rdf_nbin)
+
+         !set integral of histogram to number of atoms:
+         pref(:) = pref(:)/helium%atoms
+         ! Correct for He-He-RDF
+         IF (helium%rdf_he_he) THEN
+            pref(1) = pref(1)*helium%atoms/(helium%atoms-1)
+         END IF
+      END IF
+      ! Volume integral first:
       DO bin = 1, helium%rdf_nbin
          rlower = REAL(bin-1, dp)*helium%rdf_delr
          rupper = rlower+helium%rdf_delr
-         nideal = const*(rupper**3-rlower**3)
-         DO id = 1, helium%rdf_num
-            helium%rdf_inst(id, bin, :) = helium%rdf_inst(id, bin, :)/nideal
-         END DO
+         nideal = (rupper**3-rlower**3)*4.0_dp*pi/3.0_dp
+         helium%rdf_inst(:, bin) = helium%rdf_inst(:, bin)/nideal
+      END DO
+      ! No normalization for density
+      pref(:) = 1.0_dp/pref(:)
+      DO ia = 1, helium%rdf_num
+         helium%rdf_inst(ia, :) = helium%rdf_inst(ia, :)*pref(ia)
       END DO
 
-      DEALLOCATE (incr)
-      NULLIFY (incr)
+      DEALLOCATE (pref)
 
       CALL timestop(handle)
 
@@ -2349,6 +2371,8 @@ CONTAINS
 !> \param helium ...
 !> \param pint_env ...
 !> \date   2014-04-25
+!> \par    History
+!>         2018-10-19 Changed to bead-wise RDFs of solute-He and He-He [cschran]
 !> \author Lukasz Walewski
 !> \note   Sets the centers wrt which radial distribution functions are
 !>         calculated.
@@ -2361,14 +2385,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_rdf_coord_system', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, j
 
-      IF (helium%solute_present) THEN
-         CALL pint_calc_centroid(pint_env)
-         i = 3*helium%solute_atoms
-         helium%rdf_centers(1:i) = pint_env%centroid(:)
-      ELSE
-         helium%rdf_centers(:) = helium%center(:)
+      IF (helium%solute_present .AND. helium%rdf_sol_he) THEN
+         ! Account for unequal number of beads for solute and helium
+         DO i = 1, helium%beads
+            j = ((i-1)*helium%solute_beads)/helium%beads+1
+            helium%rdf_centers(i, :) = pint_env%x(j, :)
+         END DO
       END IF
 
       RETURN

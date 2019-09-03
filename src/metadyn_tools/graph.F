@@ -30,8 +30,6 @@ PROGRAM graph
                                               mep_input_data_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE machine,                         ONLY: m_getarg,&
-                                              m_iargc
    USE mathconstants,                   ONLY: pi
 #include "../base/base_uses.f90"
 
@@ -41,7 +39,7 @@ PROGRAM graph
                                               path_file, out3_stride
   CHARACTER(LEN=480)                       :: a, b
   CHARACTER(LEN=default_string_length)     :: active_label, per_label
-  INTEGER                                  :: argcount, coor, i, id, ip, &
+  INTEGER                                  :: istat, coor, i, id, ip, &
                                               it, iw, ix, j, ncount, ndim, &
                                               ndw, nf, nfes, ngauss, nh, &
                                               nprd, nt, nt_p, nwr, p, q, &
@@ -88,8 +86,7 @@ PROGRAM graph
   l_int   = .FALSE.
   iw      = 6
 
-  argcount = m_iargc()
-  IF(argcount==0)THEN
+  IF(COMMAND_ARGUMENT_COUNT()==0)THEN
      WRITE(iw,*)'USAGE:'
      WRITE(iw,*)'graf  '
      WRITE(iw,*)'[-ngrid  50 .. ..]   (Mesh dimension. Default :: 100)'
@@ -125,17 +122,20 @@ PROGRAM graph
      WRITE(iw,*)''
      CPABORT("Please provide arguments to run FES!")
   ENDIF
-  
-  DO i=1,argcount
-     CALL M_GETARG(i,wq_char)
- 
+
+  DO i=1,COMMAND_ARGUMENT_COUNT()
+     CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
+     CPASSERT(istat == 0)
+
      IF (INDEX(wq_char,'-file').NE.0)THEN
-        CALL M_GETARG(i+1,wq_char)
+        CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+        CPASSERT(istat == 0)
         READ(wq_char,*)file
      ENDIF
 
      IF (INDEX(wq_char,'-out').NE.0)THEN
-        CALL M_GETARG(i+1,wq_char)
+        CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+        CPASSERT(istat == 0)
         READ(wq_char,*)out1
         ! we read only 1 filename. If none is specified we differentiate between fes.dat and fes_int.dat
         ! otherwise we use the one provided by the user
@@ -143,18 +143,21 @@ PROGRAM graph
      ENDIF
 
      IF (INDEX(wq_char,'-ndim').NE.0)THEN
-        CALL M_GETARG(i+1,wq_char)
+        CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+        CPASSERT(istat == 0)
         READ(wq_char,*)ndim
      ENDIF
 
      IF (INDEX(wq_char,'-stride').NE.0)THEN
-        CALL M_GETARG(i+1,wq_char)
+        CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+        CPASSERT(istat == 0)
         READ(wq_char,*)nt_p
         lstride=.TRUE.
      ENDIF
 
      IF (INDEX(wq_char,'-cutoff').NE.0)THEN
-        CALL M_GETARG(i+1,wq_char)
+        CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+        CPASSERT(istat == 0)
         READ(wq_char,*)eps_cut
      ENDIF
 
@@ -192,7 +195,8 @@ PROGRAM graph
 
      IF (INDEX(wq_char,'-opt-path').NE.0)THEN
        l_popt=.TRUE.
-       CALL M_GETARG(i+1,wq_char)
+       CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+       CPASSERT(istat == 0)
        READ(wq_char,*)path_file
      ENDIF
 
@@ -226,15 +230,17 @@ PROGRAM graph
      iperd(i) = 0
   END DO
 
-  DO i=1,argcount
-     CALL M_GETARG(i,wq_char)
+  DO i=1,COMMAND_ARGUMENT_COUNT()
+     CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
+     CPASSERT(istat == 0)
 
      IF (INDEX(wq_char,'-ndw').NE.0)THEN
         DEALLOCATE(idw)
 
         ndw=0
-        ndw_loop: DO ix=i+1,argcount
-           CALL M_GETARG(ix,wq_char)
+        ndw_loop: DO ix=i+1,COMMAND_ARGUMENT_COUNT()
+           CALL GET_COMMAND_ARGUMENT(ix, wq_char, status=istat)
+           CPASSERT(istat == 0)
            IF(INDEX(wq_char,'-').EQ.0)THEN
               ndw=ndw+1
            ELSE
@@ -246,15 +252,17 @@ PROGRAM graph
         IF (stat/=0) CPABORT("Allocation Error")
 
         DO id=1,ndw
-           CALL M_GETARG(i+id,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+id, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)idw(id)
         ENDDO
      ENDIF
 
      IF (INDEX(wq_char,'-periodic').NE.0)THEN
         nprd=0
-        nprd_loop: DO ix=i+1,argcount
-           CALL M_GETARG(ix,wq_char)
+        nprd_loop: DO ix=i+1,COMMAND_ARGUMENT_COUNT()
+           CALL GET_COMMAND_ARGUMENT(ix, wq_char, status=istat)
+           CPASSERT(istat == 0)
            IF(INDEX(wq_char,'-').EQ.0)THEN
               nprd=nprd+1
            ELSE
@@ -267,14 +275,16 @@ PROGRAM graph
         IF (stat/=0) CPABORT("Allocation Error")
 
         DO id=1,nprd
-           CALL M_GETARG(i+id,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+id, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)iprd(id)
         ENDDO
      ENDIF
 
      IF (INDEX(wq_char,'-ngrid').NE.0)THEN
         DO ix=1,ndim
-           CALL M_GETARG(i+ix,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+ix, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)ngrid(ix)
            l_grid=.TRUE.
         END DO
@@ -284,17 +294,20 @@ PROGRAM graph
         l_dp  =.TRUE.
         l_grid=.FALSE.
         DO ix=1,ndim
-           CALL M_GETARG(i+ix,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+ix, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)dp_grid(ix)
         END DO
      END IF
-     
+
      IF (INDEX(wq_char,'-fix').NE.0)THEN
         fix=.TRUE.
         DO id=1,ndw
-           CALL M_GETARG(i+2*(id-1)+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+2*(id-1)+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)x0w(id)
-           CALL M_GETARG(i+2*(id-1)+2,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+2*(id-1)+2, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)xfw(id)
         ENDDO
      ENDIF
@@ -307,35 +320,41 @@ PROGRAM graph
      mep_input_data%kb=0.1_dp
      mep_input_data%nreplica=8
      ! Read for starting point (a) and (b)
-     DO i=1,argcount
-        CALL M_GETARG(i,wq_char)
-        
+     DO i=1,COMMAND_ARGUMENT_COUNT()
+        CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
+        CPASSERT(istat == 0)
+
         IF (INDEX(wq_char,'-point-a').NE.0)THEN
            DO id=1,ndw
-              CALL M_GETARG(i+id,wq_char)
+              CALL GET_COMMAND_ARGUMENT(i+id, wq_char, status=istat)
+              CPASSERT(istat == 0)
               READ(wq_char,*)mep_input_data%minima(id,1)
            ENDDO
         ENDIF
 
         IF (INDEX(wq_char,'-point-b').NE.0)THEN
            DO id=1,ndw
-              CALL M_GETARG(i+id,wq_char)
+              CALL GET_COMMAND_ARGUMENT(i+id, wq_char, status=istat)
+              CPASSERT(istat == 0)
               READ(wq_char,*)mep_input_data%minima(id,2)
            ENDDO
         ENDIF
 
         IF (INDEX(wq_char,'-mep-iter').NE.0)THEN
-           CALL M_GETARG(i+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)mep_input_data%max_iter
         ENDIF
 
         IF (INDEX(wq_char,'-mep-kb').NE.0)THEN
-           CALL M_GETARG(i+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)mep_input_data%kb
         ENDIF
 
         IF (INDEX(wq_char,'-mep-nreplica').NE.0)THEN
-           CALL M_GETARG(i+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)mep_input_data%nreplica
         ENDIF
 
@@ -352,21 +371,25 @@ PROGRAM graph
         mep_input_data%max_iter=10000
         mep_input_data%kb=0.1_dp
 
-     DO i=1,argcount
-        CALL M_GETARG(i,wq_char)
+     DO i=1,COMMAND_ARGUMENT_COUNT()
+        CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
+        CPASSERT(istat == 0)
 
         IF (INDEX(wq_char,'-mep-kb').NE.0)THEN
-           CALL M_GETARG(i+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)mep_input_data%kb
         ENDIF
 
         IF (INDEX(wq_char,'-mep-iter').NE.0)THEN
-           CALL M_GETARG(i+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)mep_input_data%max_iter
         ENDIF
 
         IF (INDEX(wq_char,'-mep-nreplica').NE.0)THEN
-           CALL M_GETARG(i+1,wq_char)
+           CALL GET_COMMAND_ARGUMENT(i+1, wq_char, status=istat)
+           CPASSERT(istat == 0)
            READ(wq_char,*)mep_input_data%nreplica
         ENDIF
      END DO
@@ -550,7 +573,7 @@ PROGRAM graph
   ELSE
      dp_grid=(xf-x0)/REAL(ngrid-1, KIND=dp)
   END IF
-  
+
   WRITE(iw,'(70("*"))')
   WRITE(iw,'("FES|",T7,A,/)')"Parameters for FES:"
   WRITE(iw,'("FES|",T7,A15,5x,i7)')"NDIM         ::",ndim
@@ -589,8 +612,8 @@ PROGRAM graph
 
   nh=1
   nf=MIN(nh+nt_p-1,nt)
-  
-  IF (lstride)THEN 
+
+  IF (lstride)THEN
      nwr=nt_p
   ELSE
      nwr=INT(nt/10)+1
@@ -603,7 +626,7 @@ PROGRAM graph
      Hills : DO it=nh,nf
         ind=INT((ss0(:,it)-x0)/dp_grid) + 1
         gauss=0.0_dp
-        
+
         DO i=1,ndim
            coor = ind(i) - nn(i,it) - 1
            ss  = x0(i) + coor * dp_grid(i) - dp_grid(i)
@@ -624,7 +647,7 @@ PROGRAM graph
         END DO
         inds = ind
         CALL fes_compute_low(ndim,nn(:,it),fes,gauss,ind,inds,nfes,ndim,ngauss,ngrid,iperd)
-        
+
         IF(.NOT. lstride .AND. MOD(it,nwr)==0)THEN
            WRITE(iw,'("FES|",T7,a,i4,a2)') "Mapping Gaussians ::",INT(10*ANINT(10.*it/nt))," %"
         ELSEIF(.NOT. lstride .AND. it==nt)THEN
@@ -664,7 +687,7 @@ PROGRAM graph
   ELSE
      out3=out1
   END IF
- 
+
   WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out3)//" >"
   CALL open_file(unit_number=unit_nr,file_name=out3,file_action="WRITE",file_status="UNKNOWN",file_form="FORMATTED")
   IF (l_cube) THEN
@@ -673,7 +696,7 @@ PROGRAM graph
   ELSE
      ix=0
      IF (l_math) WRITE(unit_nr,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
-     ind   = 1   
+     ind   = 1
      CALL fes_write(unit_nr, ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
   END IF
   CALL close_file(unit_nr)
@@ -687,7 +710,7 @@ PROGRAM graph
   IF (l_popt) l_int=.FALSE.
 
   IF ((l_pmin) .OR. (l_popt)) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data, l_int)
-  
+
   ! Free memory
   DEALLOCATE(ngrid)
   DEALLOCATE(dp_grid)

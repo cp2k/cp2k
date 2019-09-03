@@ -41,12 +41,12 @@
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ 1.0E-8
+          EPS_SCHWARZ 1.0E-4
           SCREEN_ON_INITIAL_P .TRUE.
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 2.4999999999
+          CUTOFF_RADIUS 1.5
           T_C_G_DATA t_c_g.dat
         &END
       &END HF
@@ -58,8 +58,8 @@
           FREE_HFX_BUFFER .TRUE.
         &END RI_MP2
         &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
+          CUTOFF  50
+          REL_CUTOFF 10
         &END
         MEMORY  500.0
         NUMBER_PROC  1

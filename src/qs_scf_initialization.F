@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -72,14 +72,15 @@ MODULE qs_scf_initialization
                                               fb_env_write_info
    USE qs_fb_env_types,                 ONLY: fb_env_create,&
                                               fb_env_has_data
-   USE qs_gspace_mixing,                ONLY: mixing_allocate,&
-                                              mixing_init
    USE qs_initial_guess,                ONLY: calculate_first_density_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type,&
                                               set_qs_kind
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_matrix_pools,                 ONLY: mpools_get
+   USE qs_mixing_utils,                 ONLY: charge_mixing_init,&
+                                              mixing_allocate,&
+                                              mixing_init
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
@@ -781,24 +782,25 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, nao, nmo
-      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_dftb
+      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
-      not_se_or_dftb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical)
+      not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
+                            dft_control%qs_control%semi_empirical)
       need_coeff_b = .FALSE.
       scf_env%needs_ortho = .FALSE.
 
       IF (scf_control%use_diag) THEN
-! sanity check whether combinations are allowed
+         ! sanity check whether combinations are allowed
          IF (dft_control%restricted) &
             CPABORT("OT only for restricted (ROKS)")
          SELECT CASE (scf_control%diagonalization%method)
          CASE (diag_ot, diag_block_krylov, diag_block_davidson)
-            IF (.NOT. not_se_or_dftb) &
-               CPABORT("DFTB and SE not possible with OT diagonalization")
+            IF (.NOT. not_se_or_tb) &
+               CPABORT("TB and SE not possible with OT diagonalization")
          END SELECT
          SELECT CASE (scf_control%diagonalization%method)
             ! Diagonalization: additional check whether we are in an orthonormal basis
@@ -923,7 +925,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho, xas_env)
-!
+
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(scf_env))
@@ -1152,10 +1154,13 @@ CONTAINS
       ! Some preparation for the mixing
       IF (scf_env%mixing_method > 1) THEN
          IF (dft_control%qs_control%gapw) THEN
-            CALL get_qs_env(qs_env=qs_env, &
-                            rho_atom_set=rho_atom)
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
                              para_env, rho_atom=rho_atom)
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CALL charge_mixing_init(scf_env%mixing_store)
+         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
                              para_env)

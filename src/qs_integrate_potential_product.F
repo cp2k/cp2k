@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -617,7 +617,7 @@ CONTAINS
             rab(1) = dist_ab(1, itask)
             rab(2) = dist_ab(2, itask)
             rab(3) = dist_ab(3, itask)
-            rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+            rab2 = DOT_PRODUCT(rab, rab)
             rb(1) = ra(1)+rab(1)
             rb(2) = ra(2)+rab(2)
             rb(3) = ra(3)+rab(3)

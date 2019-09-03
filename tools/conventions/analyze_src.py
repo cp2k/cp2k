@@ -9,9 +9,8 @@ import sys
 from os import path
 from datetime import datetime
 
-flag_exceptions_re = re.compile("__COMPILE_.*|__SHORT_FILE__|__INTEL_COMPILER|"
-                          +"__cplusplus|_OPENMP|_GNU_SOURCE|__CUDA_ARCH__|__CUDACC_VER_MAJOR__|"
-                          +"cl_.*|CL_VERSION_.*|__OPENCL_VERSION__|__OPENCL")
+flag_exceptions_re = re.compile(r"__COMPILE_REVISION|__COMPILE_DATE|__COMPILE_ARCH|__COMPILE_HOST|"
+                              + r"__INTEL_COMPILER|__cplusplus|\$\{.*\}\$|__.*__")
 
 year = datetime.utcnow().year
 
@@ -95,11 +94,15 @@ def main():
 
     # check linebreaks and encoding
     for root, _, files in os.walk(cp2k_dir):
+        if ("tools/toolchain/build" in root):
+            continue
         if any(x in root for x in (".git", "obj", "lib", "exe", "regtesting", "exts")):
             continue
         for fn in files:
             absfn = path.join(root, fn)
             shortfn = absfn[len(cp2k_dir):]
+            if(not path.exists(absfn)):
+                continue # skip broken symlinks
             content = open(absfn).read()
             if('\0' in content):
                 continue # skip binary files
@@ -118,8 +121,4 @@ def main():
 
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

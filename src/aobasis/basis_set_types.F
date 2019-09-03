@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -2402,27 +2402,35 @@ CONTAINS
 !> \param sto_basis_set ...
 !> \param gto_basis_set ...
 !> \param ngauss ...
+!> \param ortho ...
 ! **************************************************************************************************
-   SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss)
+   SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss, ortho)
 
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, OPTIONAL                                  :: ngauss
+      LOGICAL, OPTIONAL                                  :: ortho
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_gto_from_sto_basis', &
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: maxng = 6
 
       CHARACTER(LEN=default_string_length)               :: name, sng
-      INTEGER                                            :: ico, ipgf, iset, lshell, m, maxco, maxl, &
-                                                            ncgf, ng, np, nset, nsgf, nshell
+      INTEGER                                            :: i1, i2, ico, ipgf, iset, jset, l, &
+                                                            lshell, m, maxco, maxl, ncgf, ng, ngs, &
+                                                            np, nset, nsgf, nshell
+      INTEGER, DIMENSION(0:10)                           :: mxf
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
+      LOGICAL                                            :: do_ortho
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gal, zal, zll
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
       REAL(KIND=dp), DIMENSION(maxng)                    :: gcc, zetg
 
       ng = 6
       IF (PRESENT(ngauss)) ng = ngauss
       IF (ng > maxng) CPABORT("Too many Gaussian primitives requested")
+      do_ortho = .FALSE.
+      IF (PRESENT(ortho)) do_ortho = ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
 
@@ -2460,8 +2468,58 @@ CONTAINS
          END DO
       END DO
 
+      IF (do_ortho) THEN
+         mxf = 0
+         DO iset = 1, nset
+            l = gto_basis_set%l(1, iset)
+            mxf(l) = mxf(l)+1
+         END DO
+         m = MAXVAL(mxf)
+         IF (m > 1) THEN
+            ALLOCATE (gal(ng, nset), zal(ng, nset), zll(m*ng, 0:maxl))
+            DO iset = 1, nset
+               zal(1:ng, iset) = gto_basis_set%zet(1:ng, iset)
+               gal(1:ng, iset) = gto_basis_set%gcc(1:ng, 1, iset)
+            END DO
+            CALL reallocate(gto_basis_set%zet, 1, m*ng, 1, nset)
+            CALL reallocate(gto_basis_set%gcc, 1, m*ng, 1, 1, 1, nset)
+            DO iset = 1, nset
+               l = gto_basis_set%l(1, iset)
+               gto_basis_set%npgf(iset) = ng*mxf(l)
+            END DO
+            gto_basis_set%zet = 0.0_dp
+            gto_basis_set%gcc = 0.0_dp
+            zll = 0.0_dp
+            mxf = 0
+            DO iset = 1, nset
+               l = gto_basis_set%l(1, iset)
+               mxf(l) = mxf(l)+1
+               i1 = mxf(l)*ng-ng+1
+               i2 = mxf(l)*ng
+               zll(i1:i2, l) = zal(1:ng, iset)
+               gto_basis_set%gcc(i1:i2, 1, iset) = gal(1:ng, iset)
+            END DO
+            DO iset = 1, nset
+               l = gto_basis_set%l(1, iset)
+               gto_basis_set%zet(:, iset) = zll(:, l)
+            END DO
+            DO iset = 1, nset
+               l = gto_basis_set%l(1, iset)
+               DO jset = 1, iset-1
+                  IF (gto_basis_set%l(1, iset) == l) THEN
+                     m = mxf(l)*ng
+                     CALL orthofun(gto_basis_set%zet(1:m, iset), gto_basis_set%gcc(1:m, 1, iset), &
+                                   gto_basis_set%gcc(1:m, 1, jset), l)
+                  END IF
+               END DO
+            END DO
+            DEALLOCATE (gal, zal, zll)
+         END IF
+      END IF
+
+      ngs = MAXVAL(gto_basis_set%npgf(1:nset))
       CALL reallocate(gto_basis_set%set_radius, 1, nset)
-      CALL reallocate(gto_basis_set%pgf_radius, 1, ng, 1, nset)
+      CALL reallocate(gto_basis_set%pgf_radius, 1, ngs, 1, nset)
       CALL reallocate(gto_basis_set%first_cgf, 1, 1, 1, nset)
       CALL reallocate(gto_basis_set%first_sgf, 1, 1, 1, nset)
       CALL reallocate(gto_basis_set%last_cgf, 1, 1, 1, nset)
@@ -2487,7 +2545,8 @@ CONTAINS
          gto_basis_set%last_sgf(1, iset) = nsgf
          gto_basis_set%nsgf_set(iset) = &
             gto_basis_set%nsgf_set(iset)+nso(lshell)
-         maxco = MAX(maxco, ng*ncoset(lshell))
+         ngs = gto_basis_set%npgf(iset)
+         maxco = MAX(maxco, ngs*ncoset(lshell))
       END DO
 
       gto_basis_set%ncgf = ncgf
@@ -2530,6 +2589,69 @@ CONTAINS
       gto_basis_set%norm_type = -1
 
    END SUBROUTINE create_gto_from_sto_basis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param zet ...
+!> \param co ...
+!> \param cr ...
+!> \param l ...
+! **************************************************************************************************
+   SUBROUTINE orthofun(zet, co, cr, l)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: co, cr
+      INTEGER, INTENT(IN)                                :: l
+
+      REAL(KIND=dp)                                      :: ss
+
+      CALL aovlp(l, zet, cr, cr, ss)
+      cr(:) = cr(:)/SQRT(ss)
+      CALL aovlp(l, zet, co, cr, ss)
+      co(:) = co(:)-ss*cr(:)
+      CALL aovlp(l, zet, co, co, ss)
+      co(:) = co(:)/SQRT(ss)
+
+   END SUBROUTINE orthofun
+
+! **************************************************************************************************
+!> \brief ...
+!> \param l ...
+!> \param zet ...
+!> \param ca ...
+!> \param cb ...
+!> \param ss ...
+! **************************************************************************************************
+   SUBROUTINE aovlp(l, zet, ca, cb, ss)
+      INTEGER, INTENT(IN)                                :: l
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet, ca, cb
+      REAL(KIND=dp), INTENT(OUT)                         :: ss
+
+      INTEGER                                            :: i, j, m
+      REAL(KIND=dp)                                      :: ab, ai, aj, s00, sss
+
+!
+! use init_norm_cgf_orb
+!
+      m = SIZE(zet)
+      ss = 0.0_dp
+      DO i = 1, m
+         ai = (2.0_dp*zet(i)/pi)**0.75_dp
+         DO j = 1, m
+            aj = (2.0_dp*zet(j)/pi)**0.75_dp
+            ab = 1._dp/(zet(i)+zet(j))
+            s00 = ai*aj*(pi*ab)**1.50_dp
+            IF (l == 0) THEN
+               sss = s00
+            ELSEIF (l == 1) THEN
+               sss = s00*ab*0.5_dp
+            ELSE
+               CPABORT("aovlp lvalue")
+            END IF
+            ss = ss+sss*ca(i)*cb(j)
+         END DO
+      END DO
+
+   END SUBROUTINE aovlp
 
 ! **************************************************************************************************
 !> \brief ...

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -22,7 +22,7 @@ MODULE pw_grid_info
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: pw_find_cutoff, pw_grid_init_setup, pw_grid_bounds_from_n
+   PUBLIC :: pw_find_cutoff, pw_grid_init_setup, pw_grid_bounds_from_n, pw_grid_n_for_fft
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grid_info'
 

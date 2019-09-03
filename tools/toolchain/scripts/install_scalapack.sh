@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-scalapack_ver=${scalapack_ver:-2.0.2}
+scalapack_ver="2.0.2"
+scalapack_sha256="0c74aeae690fe5ee4db7926f49c5d0bb69ce09eea75beb915e00bba07530395c"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_scalapack=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_scalapack" ] && rm "${BUILDDIR}/setup_scalapack"
 
@@ -16,51 +17,35 @@ SCALAPACK_LDFLAGS=''
 SCALAPACK_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_scalapack" in
     __INSTALL__)
         echo "==================== Installing ScaLAPACK ===================="
         pkg_install_dir="${INSTALLDIR}/scalapack-${scalapack_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "scalapack-${scalapack_ver} is already installed, skipping it."
         else
             require_env MATH_LIBS
             if [ -f scalapack-${scalapack_ver}.tgz ] ; then
                 echo "scalapack-${scalapack_ver}.tgz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${scalapack_sha256} \
                              https://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
             tar -xzf scalapack-${scalapack_ver}.tgz
-            cd scalapack-${scalapack_ver}
-            cat << EOF > SLmake.inc
-CDEFS         = -DAdd_
-FC            = ${MPIFC}
-CC            = ${MPICC}
-NOOPT         = ${FFLAGS} -O0 -fno-fast-math
-FCFLAGS       = ${FFLAGS} ${MATH_CFLAGS}
-CCFLAGS       = ${CFLAGS} ${MATH_CFLAGS}
-FCLOADER      = \$(FC)
-CCLOADER      = \$(CC)
-FCLOADFLAGS   = \$(FCFLAGS) -Wl,--enable-new-dtags ${MATH_LDFLAGS}
-CCLOADFLAGS   = \$(CCFLAGS) -Wl,--enable-new-dtags ${MATH_LDFLAGS}
-ARCH          = ar
-ARCHFLAGS     = cr
-RANLIB        = ranlib
-SCALAPACKLIB  = libscalapack.a
-BLASLIB       =
-LAPACKLIB     = ${MATH_LIBS}
-LIBS          = \$(LAPACKLIB) \$(BLASLIB)
-EOF
-            # scalapack build not parallel safe (update to the archive race)
-            make -j 1 lib > make.log 2>&1
-            # does not have make install, so install manually
-            ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
-            cp libscalapack.a "${pkg_install_dir}/lib"
-            cd ..
-            touch "${install_lock_file}"
+
+            mkdir -p "scalapack-${scalapack_ver}/build"
+            pushd "scalapack-${scalapack_ver}/build" >/dev/null
+
+            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_LIBDIR="lib" -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
+            make -j $NPROCS > make.log 2>&1
+            make install >> make.log 2>&1
+
+            popd >/dev/null
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SCALAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
@@ -85,12 +70,14 @@ if [ "$with_scalapack" != "__DONTUSE__" ] ; then
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+export SCALAPACKROOT="${pkg_install_dir}"
 EOF
         cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
     fi
     cat <<EOF >> "${BUILDDIR}/setup_scalapack"
 export SCALAPACK_LDFLAGS="${SCALAPACK_LDFLAGS}"
 export SCALAPACK_LIBS="${SCALAPACK_LIBS}"
+export SCALAPACKROOT="${pkg_install_dir}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCALAPACK_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"
@@ -105,3 +92,9 @@ cat <<EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to SCALAPACK
 leak:pdpotrf_
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_scalapack"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "scalapack"

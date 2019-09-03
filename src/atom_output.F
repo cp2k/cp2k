@@ -1,11 +1,10 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief routines that build the integrals of the Vxc potential calculated
-!>      for the atomic code
+!> \brief Routines that print various information about an atomic kind.
 ! **************************************************************************************************
 MODULE atom_output
    USE atom_types,                      ONLY: &
@@ -49,15 +48,15 @@ MODULE atom_output
              atom_print_basis_file, atom_write_pseudo_param, atom_print_orbitals, &
              atom_print_zmp_iteration
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param zval ...
-!> \param info ...
-!> \param iw ...
+!> \brief Print an information string related to the atomic kind.
+!> \param zval  atomic number
+!> \param info  information string
+!> \param iw    output file unit
+!> \par History
+!>    * 09.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_info(zval, info, iw)
       INTEGER, INTENT(IN)                                :: zval
@@ -71,10 +70,15 @@ CONTAINS
          ADJUSTL(TRIM(info)), TRIM(ptable(zval)%name), TRIM(ptable(zval)%symbol), zval
 
    END SUBROUTINE atom_print_info
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param state ...
-!> \param iw ...
+!> \brief Print information about electronic state.
+!> \param state  electronic state
+!> \param iw     output file unit
+!> \par History
+!>    * 02.2010 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 11.2009 print multiplicity [Juerg Hutter]
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_state(state, iw)
       TYPE(atom_state)                                   :: state
@@ -159,10 +163,16 @@ CONTAINS
       WRITE (iw, *)
 
    END SUBROUTINE atom_print_state
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
+!> \brief Print energy components.
+!> \param atom  information about the atomic kind
+!> \param iw    output file unit
+!> \par History
+!>    * 05.2010 print virial coefficient [Juerg Hutter]
+!>    * 02.2010 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 09.2008 print orbital energies [Juerg Hutter]
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_energies(atom, iw)
       TYPE(atom_type)                                    :: atom
@@ -233,12 +243,11 @@ CONTAINS
    END SUBROUTINE atom_print_energies
 
 ! **************************************************************************************************
-!> \brief Printing of the atomic iterations when ZMP is active
-!>
-!> \param iter ...
-!> \param deps ...
-!> \param atom ...
-!> \param iw ...
+!> \brief Printing of the atomic iterations when ZMP is active.
+!> \param iter  current iteration number
+!> \param deps  convergence
+!> \param atom  intormation about the atomic kind
+!> \param iw    output file unit
 !> \author D. Varsano [daniele.varsano@nano.cnr.it]
 ! **************************************************************************************************
    SUBROUTINE atom_print_zmp_iteration(iter, deps, atom, iw)
@@ -260,11 +269,13 @@ CONTAINS
    END SUBROUTINE atom_print_zmp_iteration
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param iter ...
-!> \param deps ...
-!> \param etot ...
-!> \param iw ...
+!> \brief Print convergence information.
+!> \param iter  current iteration number
+!> \param deps  convergency
+!> \param etot  total energy
+!> \param iw    output file unit
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_iteration(iter, deps, etot, iw)
       INTEGER, INTENT(IN)                                :: iter
@@ -281,11 +292,14 @@ CONTAINS
       WRITE (iw, '(T20,i8,T34,G14.6,T61,F20.12)') iter, deps, etot
 
    END SUBROUTINE atom_print_iteration
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom_basis ...
-!> \param iw ...
-!> \param title ...
+!> \brief Print atomic basis set.
+!> \param atom_basis  atomic basis set
+!> \param iw          output file unit
+!> \param title       header to print on top of the basis set
+!> \par History
+!>    * 09.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_basis(atom_basis, iw, title)
       TYPE(atom_basis_type)                              :: atom_basis
@@ -371,9 +385,16 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE atom_print_basis
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom_basis ...
+!> \brief Print the optimized atomic basis set into a file.
+!> \param atom_basis  atomic basis set
+!> \par History
+!>    * 11.2016 revised output format [Matthias Krack]
+!>    * 11.2011 Slater basis functions [Juerg Hutter]
+!>    * 03.2011 created [Juerg Hutter]
+!> \note  The basis set is stored as the file 'OPT_BASIS' inside the current working directory.
+!>        It may be a good idea, however, to specify the name of this file via some input section.
 ! **************************************************************************************************
    SUBROUTINE atom_print_basis_file(atom_basis)
       TYPE(atom_basis_type)                              :: atom_basis
@@ -457,10 +478,18 @@ CONTAINS
       CALL close_file(unit_number=iw)
 
    END SUBROUTINE atom_print_basis_file
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
+!> \brief Print information about the electronic structure method in use.
+!> \param atom  information about the atomic kind
+!> \param iw    output file unit
+!> \par History
+!>    * 09.2015 direct use of the LibXC Fortran interface [Andreas Gloess]
+!>    * 10.2012 LibXC interface [Fabien Tran]
+!>    * 02.2010 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 04.2009 print geometrical Gaussian type orbitals [Juerg Hutter]
+!>    * 09.2008 new subroutine's prototype; print relativistic methods [Juerg Hutter]
+!>    * 09.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_method(atom, iw)
       TYPE(atom_type)                                    :: atom
@@ -604,10 +633,18 @@ CONTAINS
       END IF
 
    END SUBROUTINE atom_print_method
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param potential ...
-!> \param iw ...
+!> \brief Print information about the pseudo-potential.
+!> \param potential pseudo-potential
+!> \param iw        output file unit
+!> \par History
+!>    * 05.2017 SGP pseudo-potentials [Juerg Hutter]
+!>    * 02.2016 pseudo-potential in Quantum Espresso UPF format [Juerg Hutter]
+!>    * 01.2016 new confinement potential form [Juerg Hutter]
+!>    * 03.2010 extension of GTH pseudo-potential definition [Juerg Hutter]
+!>    * 05.2009 GTH pseudo-potential [Juerg Hutter]
+!>    * 09.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_potential(potential, iw)
       TYPE(atom_potential_type)                          :: potential
@@ -709,11 +746,13 @@ CONTAINS
    END SUBROUTINE atom_print_potential
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param gthpot ...
-!> \param iunit ...
+!> \brief Print GTH pseudo-potential parameters.
+!> \param gthpot  pseudo-potential
+!> \param iunit   output file unit
+!> \par History
+!>    * 09.2012 created [Juerg Hutter]
+!> \note  The pseudo-potential is written into the 'iunit' file unit or as the file 'GTH-PARAMETER'
+!>        inside the current working directory if the I/O unit is not given explicitly.
 ! **************************************************************************************************
    SUBROUTINE atom_write_pseudo_param(gthpot, iunit)
       TYPE(atom_gthpot_type), INTENT(INOUT)              :: gthpot
@@ -780,11 +819,11 @@ CONTAINS
    END SUBROUTINE atom_write_pseudo_param
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
+!> \brief Print atomic orbitals.
+!> \param atom  information about the atomic kind
+!> \param iw    output file unit
+!> \par History
+!>    * 04.2013 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_orbitals(atom, iw)
       TYPE(atom_type), POINTER                           :: atom
@@ -813,13 +852,13 @@ CONTAINS
    END SUBROUTINE atom_print_orbitals
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param wfn ...
-!> \param description ...
-!> \param iw ...
+!> \brief Print atomic orbitals of the given spin.
+!> \param atom         information about the atomic kind
+!> \param wfn          atomic orbitals
+!> \param description  description string
+!> \param iw           output file unit
+!> \par History
+!>    * 04.2013 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_print_orbitals_helper(atom, wfn, description, iw)
       TYPE(atom_type), POINTER                           :: atom
@@ -851,8 +890,4 @@ CONTAINS
       END DO
    END SUBROUTINE atom_print_orbitals_helper
 
-! **************************************************************************************************
-
 END MODULE atom_output
-
-! **************************************************************************************************

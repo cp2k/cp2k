@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -194,15 +194,17 @@ MODULE helium_types
       INTEGER                                :: rdf_nbin !< number of bins for RDF
       INTEGER                                :: rdf_iweight !< weight for restarted RDF
       INTEGER                                :: rho_iweight !< weight for restarted RHO
-      INTEGER                                :: rdf_num !< number of RDF estimators
+      INTEGER                                :: rdf_num !< number of X-He-RDFs
       INTEGER                                :: rdf_num_ctr !< number of centers for RDF calc
       REAL(KIND=dp)                          :: rdf_delr !< delta r for RDF
       REAL(KIND=dp)                          :: rdf_maxr !< maximum r for RDF
-      REAL(KIND=dp), DIMENSION(:), POINTER :: rdf_centers !< positions of RDF centers
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rdf_inst !< RDF (instantaneous/tmp array)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rdf_rstr !< RDF (restarted)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rdf_accu !< RDF (accumulated for one run)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rdf_centers !< positions of RDF solute  centers
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rdf_inst !< RDF (instantaneous/tmp array)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rdf_rstr !< RDF (restarted)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rdf_accu !< RDF (accumulated for one run)
       LOGICAL :: rdf_present
+      LOGICAL :: rdf_sol_he
+      LOGICAL :: rdf_he_he
       !
       INTEGER :: rho_nbin
       INTEGER :: rho_num_act !< actual number of density estimators

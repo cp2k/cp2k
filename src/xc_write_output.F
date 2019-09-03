@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -45,9 +45,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_write', routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=10*default_string_length)            :: reference
       CHARACTER(LEN=2*default_string_length)             :: shortform
       CHARACTER(LEN=20)                                  :: tmpStr
+      CHARACTER(LEN=20*default_string_length)            :: reference
       INTEGER                                            :: i_rep, ifun, il, myfun, n_rep
       TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun, xc_fun_section
 
@@ -82,7 +82,7 @@ CONTAINS
                      NULLIFY (libxc_fun)
                      CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
                      IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
-                     CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform)
+                     CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform, print_warn=.TRUE.)
                      CALL section_vals_release(libxc_fun)
                      CALL libxc_version_info(tmpStr)
                      WRITE (output_unit, fmt="(A,A,A)") ' FUNCTIONAL| LIBXC Vers. ', TRIM(tmpStr(1:5)), &

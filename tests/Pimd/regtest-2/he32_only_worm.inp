@@ -1,0 +1,70 @@
+&GLOBAL
+  PROJECT_NAME               he32_only_worm
+  RUN_TYPE                   PINT
+  PRINT_LEVEL                MEDIUM
+&END GLOBAL
+
+&MOTION
+  &PINT
+    NUM_STEPS                3
+    &HELIUM
+      HELIUM_ONLY
+      POTENTIAL_FILE_NAME    lj-test-pot.dat
+      NATOMS                32
+      NBEADS                25
+      NUM_ENV                2
+      INOROT                40
+      IROT                  20
+      PERIODIC               T
+      CELL_SHAPE             OCTAHEDRON
+      PRESAMPLE              T
+      SAMPLING_METHOD        WORM
+      &WORM
+         CENTROID_MOVE_FREQ   300
+         CENTROID_MOVE_DRMAX  0.15
+         STAGING_MOVE_REP     1
+         STAGING_MOVE_L       1
+         G-SECTOR_MOVE        T
+         G-SECTOR_MOVE_REP    10
+         OPEN_CLOSE_MOVE_C    0.0005
+         OPEN_CLOSE_MOVE_LMAX 5
+         HEAD_TAIL_MOVE_LMAX  5
+         SWAP_MOVE_LMAX       5
+         WRITE                T
+       &END WORM
+    &END HELIUM
+  &END PINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD  FIST
+  &MM
+    &POISSON
+      &EWALD
+        GMAX 25
+      &END EWALD
+    &END POISSON
+    &FORCEFIELD
+      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
+      PARMTYPE               CHM
+      &CHARGE
+        ATOM    OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM    HT
+        CHARGE  0.4238
+      &END CHARGE
+    &END FORCEFIELD
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  8.0 8.0 8.0
+      PERIODIC  NONE
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_FORMAT      PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

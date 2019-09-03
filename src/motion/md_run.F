@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -459,7 +459,12 @@ CONTAINS
          END IF
          IF (ehrenfest_md) force_env%qs_env%rtp%istep = istep
 
-         CALL cp_iterate(logger%iter_info, last=(istep == simpar%nsteps), iter_nr=itimes)
+         IF (.NOT. logger%iter_info%last_iter(logger%iter_info%n_rlevel)) THEN
+            CALL cp_iterate(logger%iter_info, last=(istep == simpar%nsteps), iter_nr=itimes)
+         ELSE
+            CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=itimes)
+         END IF
+
          ! Open possible Shake output units
          simpar%info_constraint = cp_print_key_unit_nr(logger, constraint_section, "CONSTRAINT_INFO", &
                                                        extension=".shakeLog", log_filename=.FALSE.)
@@ -495,6 +500,7 @@ CONTAINS
          CALL external_control(should_stop, "MD", globenv=globenv)
 
          !check if upper bound of total steps has been reached
+         IF (.NOT. (istep == simpar%nsteps) .AND. logger%iter_info%last_iter(logger%iter_info%n_rlevel)) should_stop = .TRUE.
          IF (itimes >= simpar%max_steps) should_stop = .TRUE.
 
          ! call external hook e.g. from global optimization

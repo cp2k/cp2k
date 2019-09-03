@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -11,14 +11,15 @@
 !> \author APSI & JGH
 ! **************************************************************************************************
 MODULE machine
+   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_INT
    USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
                                               output_unit
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE machine_internal,                ONLY: &
-        m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, m_getlog, m_getpid, &
-        m_hostnm, m_iargc, m_memory, m_memory_details, m_memory_max, m_mov, m_procrun
+        m_abort, m_chdir, m_flush_internal=>m_flush, m_getcwd, m_getlog, m_getpid, &
+        m_hostnm, m_memory, m_memory_details, m_memory_max, m_mov, m_procrun
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_GET_WTIME
 
@@ -33,12 +34,45 @@ MODULE machine
   INTEGER, PUBLIC, PARAMETER                   :: default_output_unit = output_unit, &
                                                   default_input_unit  = input_unit
 
+#include "machine_cpuid.h"
+  ! Enumerates the target architectures or instruction set extensions.
+  ! A feature is present if within range for the respective architecture.
+  ! For example, to check for MACHINE_X86_AVX the following is true:
+  ! MACHINE_X86_AVX <= m_cpuid() and MACHINE_X86 >= m_cpuid().
+  ! For example, to check for MACHINE_ARM_SOME the following is true:
+  ! MACHINE_ARM_SOME <= m_cpuid() and MACHINE_ARM >= m_cpuid().
+  INTEGER, PUBLIC, PARAMETER :: &
+    MACHINE_CPU_GENERIC = CP_MACHINE_CPU_GENERIC, &
+    MACHINE_X86_SSE4    = CP_MACHINE_X86_SSE4, &
+    MACHINE_X86_AVX     = CP_MACHINE_X86_AVX, &
+    MACHINE_X86_AVX2    = CP_MACHINE_X86_AVX2, &
+    MACHINE_X86_AVX512  = CP_MACHINE_X86_AVX512, &
+    MACHINE_X86 = MACHINE_X86_AVX512 ! marks end of range
+   ! other arch to be added as needed e.g.,
+   !MACHINE_ARM_SOME    = 2000
+   !MACHINE_ARM_ELSE    = 2001
+   !MACHINE_ARM = MACHINE_ARM_ELSE
+   !MACHINE_PWR_????    = 3000
+
   PRIVATE
 
-  PUBLIC :: m_walltime, m_datum, m_flush, m_flush_internal,&
-            m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
-            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details,&
-            m_energy, m_memory_max, m_cpuinfo
+  PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, m_flush_internal,&
+            m_getcwd, m_getlog, m_getpid, m_procrun, m_abort,&
+            m_chdir, m_mov, m_memory, m_memory_details, m_memory_max, m_energy,&
+            m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name
+
+  INTERFACE
+    ! **********************************************************************************************
+    !> \brief Target architecture or instruction set extension according to compiler target flags.
+    !> \return cpuid according to MACHINE_* integer-parameter.
+    !> \par History
+    !>      04.2019 created [Hans Pabst]
+    ! **********************************************************************************************
+    PURE FUNCTION m_cpuid_static() BIND(C)
+      IMPORT :: C_INT
+      INTEGER(C_INT) :: m_cpuid_static
+    END FUNCTION m_cpuid_static
+  END INTERFACE
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
@@ -146,6 +180,57 @@ SUBROUTINE m_cpuinfo(model_name)
         ENDIF
     ENDIF
 END SUBROUTINE m_cpuinfo
+
+! **************************************************************************************************
+!> \brief Target architecture or instruction set extension according to CPU-check at runtime.
+!> \return cpuid according to MACHINE_* integer-parameter.
+!> \par History
+!>      04.2019 created [Hans Pabst]
+! **************************************************************************************************
+PURE FUNCTION m_cpuid() RESULT (cpuid)
+#if defined(__LIBXSMM)
+    USE libxsmm, ONLY: libxsmm_get_target_archid, LIBXSMM_X86_SSE4
+#endif
+    INTEGER :: cpuid
+#if defined(__LIBXSMM)
+    cpuid = libxsmm_get_target_archid()
+    cpuid = MERGE(MIN(MACHINE_X86_SSE4 + cpuid - LIBXSMM_X86_SSE4, MACHINE_X86), &
+                  MACHINE_CPU_GENERIC, LIBXSMM_X86_SSE4 .LE. cpuid)
+#else
+    cpuid = m_cpuid_static()
+#endif
+END FUNCTION m_cpuid
+
+! **************************************************************************************************
+!> \brief Determine name of target architecture for a given CPUID.
+!> \param cpuid integer value (MACHINE_*)
+!> \return name or short name.
+!> \par History
+!>      06.2019 created [Hans Pabst]
+! **************************************************************************************************
+FUNCTION m_cpuid_name(cpuid)
+      INTEGER                                            :: cpuid
+      CHARACTER(len=default_string_length), POINTER      :: m_cpuid_name
+
+      CHARACTER(len=default_string_length), SAVE, TARGET :: name_generic = "generic", &
+         name_unknown = "unknown", name_x86_avx = "x86_avx", name_x86_avx2 = "x86_avx2", &
+         name_x86_avx512 = "x86_avx512", name_x86_sse4 = "x86_sse4"
+
+    SELECT CASE (cpuid)
+    CASE (MACHINE_CPU_GENERIC)
+       m_cpuid_name => name_generic
+    CASE (MACHINE_X86_SSE4)
+       m_cpuid_name => name_x86_sse4
+    CASE (MACHINE_X86_AVX)
+       m_cpuid_name => name_x86_avx
+    CASE (MACHINE_X86_AVX2)
+       m_cpuid_name => name_x86_avx2
+    CASE (MACHINE_X86_AVX512)
+       m_cpuid_name => name_x86_avx512
+    CASE DEFAULT
+       m_cpuid_name => name_unknown
+    END SELECT
+END FUNCTION m_cpuid_name
 
 ! **************************************************************************************************
 !> \brief returns the energy used since some time in the past.

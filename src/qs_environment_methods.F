@@ -1,10 +1,10 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief qs_environement methods that use many other modules
+!> \brief qs_environment methods that use many other modules
 !> \par History
 !>      09.2002 created [fawzi]
 !>      - local atom distribution (25.06.2003,MK)
@@ -299,6 +299,12 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
                CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
             END IF
+         ELSE IF (dft_control%qs_control%xtb) THEN
+            IF (dft_control%qs_control%xtb_control%do_ewald) THEN
+               ! rebuild Ewald environment
+               CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
+               CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
+            END IF
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
                CALL pw_release(rho_core%pw)
@@ -426,7 +432,7 @@ CONTAINS
          CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
       ENDIF
 
-      !update the time in the poisson environement, to update time dependant constraints
+      !update the time in the poisson environment, to update time dependant constraints
       new_pw_env%poisson_env%parameters%dbc_params%time = qs_env%sim_time
 
       CALL timestop(handle)

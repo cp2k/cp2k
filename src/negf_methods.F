@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -43,9 +43,9 @@ MODULE negf_methods
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
+                                              dbcsr_dot,&
                                               dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_trace
+                                              dbcsr_p_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
                                               force_env_type
@@ -108,10 +108,10 @@ MODULE negf_methods
                                               gspace_mixing_nr
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
-                                              mixing_allocate,&
-                                              mixing_init
+   USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+                                              mixing_init
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -155,7 +155,8 @@ CONTAINS
       INTEGER                                            :: handle, icontact, ispin, log_unit, &
                                                             ncontacts, npoints, nspins, print_unit
       LOGICAL                                            :: should_output
-      REAL(kind=dp)                                      :: current, energy_max, energy_min
+      REAL(kind=dp)                                      :: energy_max, energy_min
+      REAL(kind=dp), DIMENSION(2)                        :: current
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
@@ -198,7 +199,11 @@ CONTAINS
       ncontacts = SIZE(negf_control%contacts)
       DO icontact = 1, ncontacts
          NULLIFY (qs_env)
-         CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env)
+         IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
+            CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env)
+         ELSE
+            CALL force_env_get(force_env, qs_env=qs_env)
+         END IF
          CALL guess_fermi_level(icontact, negf_env, negf_control, sub_env, qs_env, log_unit)
 
          print_section => section_vals_get_subs_vals(negf_contact_section, "PRINT", i_rep_section=icontact)
@@ -211,7 +216,9 @@ CONTAINS
 
             CALL integer_to_string(icontact, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "DOS", &
-                                              middle_name=TRIM(ADJUSTL(contact_id_str)), extension=".dos")
+                                              extension=".dos", &
+                                              middle_name=TRIM(ADJUSTL(contact_id_str)), &
+                                              file_status="REPLACE")
 
             CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, &
                                 v_shift=0.0_dp, negf_env=negf_env, negf_control=negf_control, &
@@ -232,18 +239,29 @@ CONTAINS
          CALL get_qs_env(qs_env, dft_control=dft_control)
 
          nspins = dft_control%nspins
-         current = 0.0_dp
 
+         CPASSERT(nspins <= 2)
          DO ispin = 1, nspins
-            current = current+ &
-                      negf_compute_current(1, 2, v_shift=negf_control%v_shift, negf_env=negf_env, negf_control=negf_control, &
-                                           sub_env=sub_env, ispin=ispin, blacs_env_global=blacs_env)
+            ! compute the electric current flown through a pair of electrodes
+            ! contact_id1 -> extended molecule -> contact_id2.
+            ! Only extended systems with two electrodes are supported at the moment,
+            ! so for the time being the contacts' indices are hardcoded.
+            current(ispin) = negf_compute_current(contact_id1=1, contact_id2=2, &
+                                                  v_shift=negf_control%v_shift, &
+                                                  negf_env=negf_env, &
+                                                  negf_control=negf_control, &
+                                                  sub_env=sub_env, &
+                                                  ispin=ispin, &
+                                                  blacs_env_global=blacs_env)
          END DO
 
-         IF (nspins == 1) current = 2.0_dp*current
-
          IF (log_unit > 0) THEN
-            WRITE (log_unit, '(/,T2,A,T60,ES20.7E2)') "NEGF| Electric current (A)", current
+            IF (nspins > 1) THEN
+               WRITE (log_unit, '(/,T2,A,T60,ES20.7E2)') "NEGF| Alpha-spin electric current (A)", current(1)
+               WRITE (log_unit, '(T2,A,T60,ES20.7E2)') "NEGF|  Beta-spin electric current (A)", current(2)
+            ELSE
+               WRITE (log_unit, '(/,T2,A,T60,ES20.7E2)') "NEGF|  Electric current (A)", 2.0_dp*current(1)
+            END IF
          END IF
 
          ! density of states
@@ -257,7 +275,9 @@ CONTAINS
 
             CALL integer_to_string(0, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "DOS", &
-                                              middle_name=TRIM(ADJUSTL(contact_id_str)), extension=".dos")
+                                              extension=".dos", &
+                                              middle_name=TRIM(ADJUSTL(contact_id_str)), &
+                                              file_status="REPLACE")
 
             CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, negf_control%v_shift, &
                                 negf_env=negf_env, negf_control=negf_control, &
@@ -276,7 +296,9 @@ CONTAINS
 
             CALL integer_to_string(0, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "TRANSMISSION", &
-                                              middle_name=TRIM(ADJUSTL(contact_id_str)), extension=".transm")
+                                              extension=".transm", &
+                                              middle_name=TRIM(ADJUSTL(contact_id_str)), &
+                                              file_status="REPLACE")
 
             CALL negf_print_transmission(print_unit, energy_min, energy_max, npoints, negf_control%v_shift, &
                                          negf_env=negf_env, negf_control=negf_control, &
@@ -405,12 +427,12 @@ CONTAINS
          DO image = 1, nimages
             IF (index_to_cell(direction_axis_abs, image) == 0) THEN
                DO ispin = 1, nspins
-                  CALL dbcsr_trace(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
+                  CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
                   nelectrons_qs_cell0 = nelectrons_qs_cell0+trace
                END DO
             ELSE IF (ABS(index_to_cell(direction_axis_abs, image)) == 1) THEN
                DO ispin = 1, nspins
-                  CALL dbcsr_trace(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
+                  CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
                   nelectrons_qs_cell1 = nelectrons_qs_cell1+trace
                END DO
             END IF
@@ -775,7 +797,7 @@ CONTAINS
          END DO
 
          IF (nspins > 1) THEN
-            DO ispin = 1, nspins
+            DO ispin = 2, nspins
                CALL cp_fm_scale_and_add(1.0_dp, rho_ao_fm(1)%matrix, 1.0_dp, rho_ao_fm(ispin)%matrix)
             END DO
          ELSE
@@ -992,7 +1014,13 @@ CONTAINS
       ! mixing storage allocation
       IF (negf_env%mixing_method >= gspace_mixing_nr) THEN
          CALL mixing_allocate(qs_env, negf_env%mixing_method, nspins=nspins, mixing_store=negf_env%mixing_storage)
-         CALL mixing_init(negf_env%mixing_method, rho_struct, negf_env%mixing_storage, para_env)
+         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CPABORT('TB Code not available')
+         ELSE IF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
+         ELSE
+            CALL mixing_init(negf_env%mixing_method, rho_struct, negf_env%mixing_storage, para_env)
+         END IF
       END IF
 
       IF (log_unit > 0) THEN
@@ -1463,7 +1491,9 @@ CONTAINS
             DO ipoint = 1, npoints
                DO icontact = 1, ncontacts
                   gret_gamma_gadv_group(icontact, ipoint)%matrix => gret_gamma_gadv(icontact, ipoint)%matrix
-                  CALL cp_cfm_retain(gret_gamma_gadv_group(icontact, ipoint)%matrix)
+
+                  IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) &
+                     CALL cp_cfm_retain(gret_gamma_gadv_group(icontact, ipoint)%matrix)
                END DO
             END DO
          END IF
@@ -2616,7 +2646,7 @@ CONTAINS
 
       integr_lbound = CMPLX(MIN(mu_contact1+ln_conv_density*temperature_contact1, &
                                 mu_contact2+ln_conv_density*temperature_contact2), eta, kind=dp)
-      integr_lbound = CMPLX(MAX(mu_contact1-ln_conv_density*temperature_contact1, &
+      integr_ubound = CMPLX(MAX(mu_contact1-ln_conv_density*temperature_contact1, &
                                 mu_contact2-ln_conv_density*temperature_contact2), eta, kind=dp)
 
       npoints_total = 0
@@ -2687,8 +2717,7 @@ CONTAINS
 
       CALL cp_cfm_get_submatrix(sr_env%integral, transmission)
 
-      ! minus sign is due to negative charge of electrons
-      current = -0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
+      current = 0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
 
       CALL cp_fm_release(weights)
       CALL cp_fm_struct_release(fm_struct_single)
@@ -2729,11 +2758,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_dos', routineP = moduleN//':'//routineN
 
+      CHARACTER                                          :: uks_str
+      CHARACTER(len=15)                                  :: units_str
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes
       INTEGER                                            :: handle, icontact, ipoint, ispin, &
                                                             ncontacts, npoints_bundle, &
                                                             npoints_remain, nspins
-      REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: dos
       TYPE(green_functions_cache_type)                   :: g_surf_cache
 
@@ -2746,17 +2776,27 @@ CONTAINS
       END IF
 
       IF (log_unit > 0) THEN
-         IF (PRESENT(just_contact)) THEN
-            WRITE (log_unit, '(A,T70,I11)') "# Density of states for the contact No. ", just_contact
+         IF (PRESENT(volume)) THEN
+            units_str = ' (angstroms^-3)'
          ELSE
-            WRITE (log_unit, '(A)') "# Density of states for the scattering region"
+            units_str = ''
          END IF
 
-         IF (PRESENT(volume)) THEN
-            WRITE (log_unit, '(A,T10,A,T40,A)') "#", "Energy (a.u.)", "Number of states (angstroms^-3)"
+         IF (nspins > 1) THEN
+            ! [alpha , beta]
+            uks_str = ','
          ELSE
-            WRITE (log_unit, '(A,T10,A,T49,A)') "#", "Energy (a.u.)", "Number of states"
+            ! [alpha + beta]
+            uks_str = '+'
          END IF
+
+         IF (PRESENT(just_contact)) THEN
+            WRITE (log_unit, '(3A,T70,I11)') "# Density of states", TRIM(units_str), " for the contact No. ", just_contact
+         ELSE
+            WRITE (log_unit, '(3A)') "# Density of states", TRIM(units_str), " for the scattering region"
+         END IF
+
+         WRITE (log_unit, '(A,T10,A,T43,3A)') "#", "Energy (a.u.)", "Number of states [alpha ", uks_str, " beta]"
 
          WRITE (log_unit, '("#", T3,78("-"))')
       END IF
@@ -2766,12 +2806,6 @@ CONTAINS
       IF (PRESENT(just_contact)) THEN
          ncontacts = 2
          CPASSERT(just_contact == base_contact)
-      END IF
-
-      IF (nspins == 1) THEN
-         rscale = 2.0_dp
-      ELSE
-         rscale = 1.0_dp
       END IF
 
       npoints_bundle = 4*sub_env%ngroups
@@ -2834,17 +2868,17 @@ CONTAINS
             CALL green_functions_cache_release(g_surf_cache)
          END DO
 
-         DO ipoint = 1, npoints_bundle
-            DO ispin = 2, nspins
-               dos(ipoint, 1) = dos(ipoint, 1)+dos(ipoint, ispin)
+         IF (log_unit > 0) THEN
+            DO ipoint = 1, npoints_bundle
+               IF (nspins > 1) THEN
+                  ! spin-polarised calculations: print alpha- and beta-spin components separately
+                  WRITE (log_unit, '(T2,F20.8,T30,2ES25.11E3)') REAL(xnodes(ipoint), kind=dp), dos(ipoint, 1), dos(ipoint, 2)
+               ELSE
+                  ! spin-restricted calculations: print alpha- and beta-spin components together
+                  WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') REAL(xnodes(ipoint), kind=dp), 2.0_dp*dos(ipoint, 1)
+               END IF
             END DO
-
-            dos(ipoint, 1) = rscale*dos(ipoint, 1)
-
-            IF (log_unit > 0) THEN
-               WRITE (log_unit, '(T2,F20.8,T40,ES25.10E3)') REAL(xnodes(ipoint), kind=dp), dos(ipoint, 1)
-            END IF
-         END DO
+         END IF
 
          npoints_remain = npoints_remain-npoints_bundle
       END DO
@@ -2881,6 +2915,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_transmission', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER                                          :: uks_str
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: transm_coeff
       INTEGER                                            :: handle, icontact, ipoint, ispin, &
@@ -2893,10 +2928,18 @@ CONTAINS
 
       nspins = SIZE(negf_env%h_s)
 
-      IF (log_unit > 0) THEN
-         WRITE (log_unit, '(A)') "# Transmission coefficient for the scattering region"
-         WRITE (log_unit, '(A,T10,A,T40,A)') "#", "Energy (a.u.)", "Transmission coefficient (G0 = 2 e^2/h)"
+      IF (nspins > 1) THEN
+         ! [alpha , beta]
+         uks_str = ','
+      ELSE
+         ! [alpha + beta]
+         uks_str = '+'
+      END IF
 
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(A)') "# Transmission coefficient (G0 = 2 e^2/h) for the scattering region"
+
+         WRITE (log_unit, '(A,T10,A,T39,3A)') "#", "Energy (a.u.)", "Transmission coefficient [alpha ", uks_str, " beta]"
          WRITE (log_unit, '("#", T3,78("-"))')
       END IF
 
@@ -2962,18 +3005,19 @@ CONTAINS
             CALL green_functions_cache_release(g_surf_cache)
          END DO
 
-         DO ipoint = 1, npoints_bundle
-            DO ispin = 2, nspins
-               transm_coeff(ipoint, 1) = transm_coeff(ipoint, 1)+transm_coeff(ipoint, ispin)
+         IF (log_unit > 0) THEN
+            DO ipoint = 1, npoints_bundle
+               IF (nspins > 1) THEN
+                  ! spin-polarised calculations: print alpha- and beta-spin components separately
+                  WRITE (log_unit, '(T2,F20.8,T30,2ES25.11E3)') &
+                     REAL(xnodes(ipoint), kind=dp), rscale*REAL(transm_coeff(ipoint, 1:2), kind=dp)
+               ELSE
+                  ! spin-restricted calculations: print alpha- and beta-spin components together
+                  WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') &
+                     REAL(xnodes(ipoint), kind=dp), rscale*REAL(transm_coeff(ipoint, 1), kind=dp)
+               END IF
             END DO
-
-            transm_coeff(ipoint, 1) = rscale*transm_coeff(ipoint, 1)
-
-            IF (log_unit > 0) THEN
-               WRITE (log_unit, '(T2,F20.8,T40,ES25.10E3)') REAL(xnodes(ipoint), kind=dp), &
-                  REAL(transm_coeff(ipoint, 1), kind=dp)
-            END IF
-         END DO
+         END IF
 
          npoints_remain = npoints_remain-npoints_bundle
       END DO

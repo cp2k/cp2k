@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -28,9 +28,9 @@ MODULE hfx_energy_potential
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_dot,&
                                               dbcsr_get_matrix_type,&
                                               dbcsr_p_type,&
-                                              dbcsr_trace,&
                                               dbcsr_type_antisymmetric
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_communication,               ONLY: distribute_ks_matrix,&
@@ -45,7 +45,7 @@ MODULE hfx_energy_potential
                                               hfx_reset_cache_and_container
    USE hfx_contract_block,              ONLY: contract_block
    USE hfx_libint_interface,            ONLY: evaluate_eri
-   USE hfx_libint_wrapper_types,        ONLY: lib_int
+   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                               hfx_load_balance,&
                                               hfx_update_load_balance
@@ -64,8 +64,8 @@ MODULE hfx_energy_potential
         hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, hfx_reset_memory_usage_counter, &
         hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
         log_zero, pair_list_type, pair_set_list_type
-   USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
-                                              do_hfx_potential_truncated,&
+   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
+                                              do_potential_truncated,&
                                               hfx_do_eval_energy
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -110,6 +110,7 @@ CONTAINS
 !> \brief computes four center integrals for a full basis set and updates the
 !>      Kohn-Sham-Matrix and energy. Uses all 8 eri symmetries
 !> \param qs_env ...
+!> \param x_data ...
 !> \param ks_matrix ...
 !> \param ehfx energy calculated with the updated HFX matrix
 !> \param rho_ao density matrix in ao basis
@@ -120,8 +121,6 @@ CONTAINS
 !> \param distribute_fock_matrix Flag that indicates whether to communicate the
 !>        new fock matrix or not
 !> \param ispin ...
-!> \param do_exx ...
-!> \param axk_x_data ...
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -132,11 +131,12 @@ CONTAINS
 !>              [Tobias Binninger + Valery Weber]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE integrate_four_center(qs_env, ks_matrix, ehfx, rho_ao, hfx_section, para_env, &
+   SUBROUTINE integrate_four_center(qs_env, x_data, ks_matrix, ehfx, rho_ao, hfx_section, para_env, &
                                     geometry_did_change, irep, distribute_fock_matrix, &
-                                    ispin, do_exx, axk_x_data)
+                                    ispin)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       REAL(KIND=dp), INTENT(OUT)                         :: ehfx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
@@ -146,8 +146,6 @@ CONTAINS
       INTEGER                                            :: irep
       LOGICAL, INTENT(IN)                                :: distribute_fock_matrix
       INTEGER, INTENT(IN)                                :: ispin
-      LOGICAL, OPTIONAL                                  :: do_exx
-      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, POINTER :: axk_x_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
          routineP = moduleN//':'//routineN
@@ -190,7 +188,7 @@ CONTAINS
       INTEGER, SAVE                                      :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_disk_storage, do_dynamic_load_balancing, do_it, &
          do_kpoints, do_p_screening, do_periodic, do_print_load_balance_info, is_anti_symmetric, &
-         ks_fully_occ, my_do_exx, my_geo_change, treat_lsd_in_core, use_disk_storage
+         ks_fully_occ, my_geo_change, treat_lsd_in_core, use_disk_storage
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: afac, bintime_start, bintime_stop, cartesian_estimate, compression_factor, &
          compression_factor_disk, ene_x_aa, ene_x_aa_diag, ene_x_bb, ene_x_bb_diag, eps_schwarz, &
@@ -212,6 +210,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeffs_kind_max0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_libint_t)                                  :: private_lib
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -240,10 +239,8 @@ CONTAINS
          DIMENSION(:, :, :, :, :, :), POINTER            :: radii_pgf, screen_coeffs_pgf
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_task_list_type), DIMENSION(:), POINTER    :: shm_task_list, tmp_task_list
-      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(lib_int)                                      :: private_lib
       TYPE(pair_list_type)                               :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl
@@ -292,19 +289,6 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
 
-      my_do_exx = .FALSE.
-      IF (PRESENT(do_exx)) my_do_exx = do_exx
-      NULLIFY (x_data)
-      IF (PRESENT(axk_x_data)) THEN ! In case of AXK, x_data is a subroutine argument
-         x_data => axk_x_data
-      ELSE
-         IF (my_do_exx) THEN
-            x_data => qs_env%mp2_env%ri_rpa%x_data
-         ELSE
-            x_data => qs_env%x_data
-         END IF ! my_do_exx
-      END IF ! AXK_x_data
-
       !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
       nkind = SIZE(atomic_kind_set, 1)
       l_max = 0
@@ -314,14 +298,14 @@ CONTAINS
       l_max = 4*l_max
       CALL init_md_ftable(l_max)
 
-      IF (x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
-          x_data(1, 1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
+      IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
+          x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          IF (l_max > init_t_c_g0_lmax) THEN
-            IF (para_env%mepos == 0) THEN
+            IF (para_env%ionode) THEN
                CALL open_file(unit_number=unit_id, file_name=x_data(1, 1)%potential_parameter%filename)
             END IF
             CALL init(l_max, unit_id, para_env%mepos, para_env%group)
-            IF (para_env%mepos == 0) THEN
+            IF (para_env%ionode) THEN
                CALL close_file(unit_id)
             END IF
             init_t_c_g0_lmax = l_max
@@ -975,7 +959,7 @@ CONTAINS
       END IF
 
       !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxenergy_io_critical)
       !! If we do disk storage, we have to initialize the containers/caches
       IF (do_disk_storage) THEN
          !! IF new md step -> reinitialize containers
@@ -995,13 +979,13 @@ CONTAINS
             END DO
          END IF
       END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxenergy_io_critical)
 
 !$OMP BARRIER
 !$OMP MASTER
 
       IF (do_dynamic_load_balancing) THEN
-         ! ** Lets contstruct the task list
+         ! ** Lets construct the task list
          shm_total_bins = 0
          DO i = 1, n_threads
             shm_total_bins = shm_total_bins+SIZE(x_data(irep, i)%distribution_energy)
@@ -1113,7 +1097,7 @@ CONTAINS
                distribution_energy => actual_x_data%distribution_energy(bin)
             END IF
          ELSE
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxenergy_critical)
             shm_task_counter = shm_task_counter+1
             IF (shm_task_counter <= shm_total_bins) THEN
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
@@ -1135,7 +1119,7 @@ CONTAINS
                do_it = .FALSE.
                bins_left = .FALSE.
             END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxenergy_critical)
          END IF
 
          IF (.NOT. do_it) CYCLE
@@ -1944,8 +1928,8 @@ CONTAINS
          !! ** Calculate the exchange energy
          ene_x_aa = 0.0_dp
          DO img = 1, nkimages
-            CALL dbcsr_trace(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
-                             etmp)
+            CALL dbcsr_dot(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
+                           etmp)
             ene_x_aa = ene_x_aa+etmp
          END DO
          !for ADMMS, we need the exchange matrix k(d) for both spins
@@ -1958,8 +1942,8 @@ CONTAINS
          ene_x_bb = 0.0_dp
          IF (nspins == 2 .AND. .NOT. treat_lsd_in_core) THEN
             DO img = 1, nkimages
-               CALL dbcsr_trace(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
-                                etmp)
+               CALL dbcsr_dot(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
+                              etmp)
                ene_x_bb = ene_x_bb+etmp
             END DO
             !for ADMMS, we need the exchange matrix k(d) for both spins
@@ -2121,7 +2105,7 @@ CONTAINS
       END IF
 
       !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxenergy_out_critical)
       IF (do_disk_storage) THEN
          !! flush caches if the geometry changed
          IF (my_geo_change) THEN
@@ -2140,7 +2124,7 @@ CONTAINS
                                                memory_parameter%actual_memory_usage_disk, do_disk_storage)
          END DO
       END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxenergy_out_critical)
 !$OMP BARRIER
       !! Clean up
       DEALLOCATE (last_sgf_global)
@@ -2281,7 +2265,7 @@ CONTAINS
                        ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                        nimages, do_periodic, p_work)
 
-      TYPE(lib_int)                                      :: lib
+      TYPE(cp_libint_t)                                  :: lib
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &

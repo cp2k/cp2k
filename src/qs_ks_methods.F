@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -145,6 +145,7 @@ MODULE qs_ks_methods
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE virial_types,                    ONLY: virial_type
+   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -841,7 +842,7 @@ CONTAINS
       ! Sum all energy terms to obtain the total energy
       energy%total = energy%core_overlap+energy%core_self+energy%core+energy%hartree+ &
                      energy%hartree_1c+energy%exc+energy%exc1+energy%ex+ &
-                     energy%dispersion+energy%qmmm_el+energy%mulliken+ &
+                     energy%dispersion+energy%gcp+energy%qmmm_el+energy%mulliken+ &
                      SUM(energy%ddapc_restraint)+energy%s2_restraint+ &
                      energy%dft_plus_u+energy%kTS+ &
                      energy%efield+energy%efield_core+energy%ee+ &
@@ -1104,7 +1105,6 @@ CONTAINS
                                 print_active=print_active)
 
          IF (.NOT. energy_only) THEN
-
             CALL set_ks_env(ks_env, &
                             rho_changed=.FALSE., &
                             s_mstruct_changed=.FALSE., &
@@ -1187,6 +1187,11 @@ CONTAINS
          CALL build_dftb_ks_matrix(qs_env, &
                                    calculate_forces=calculate_forces, &
                                    just_energy=just_energy)
+
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL build_xtb_ks_matrix(qs_env, &
+                                  calculate_forces=calculate_forces, &
+                                  just_energy=just_energy)
 
       ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &

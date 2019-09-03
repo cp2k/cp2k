@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -559,6 +559,10 @@ CONTAINS
             CALL qmmm_ewald_potential_init(qmmm_env_qm%ewald_env, qmmm_env_qm%ewald_pw, &
                                            qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, mm_cell=mm_cell, &
                                            para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section)
+         ELSE IF (dft_control%qs_control%xtb) THEN
+            CALL qmmm_ewald_potential_init(qmmm_env_qm%ewald_env, qmmm_env_qm%ewald_pw, &
+                                           qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, mm_cell=mm_cell, &
+                                           para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section)
          ELSE
 
             ! setup for GPW/GPAW
@@ -839,9 +843,9 @@ CONTAINS
             CALL cp_eri_mme_init_read_input(eri_mme_section, qmmm_env%image_charge_pot%eri_mme_param)
             CALL cp_eri_mme_set_params(qmmm_env%image_charge_pot%eri_mme_param, &
                                        hmat=qm_cell_small%hmat, is_ortho=qm_cell_small%orthorhombic, &
-                                       zet_err_minimax=qmmm_env%image_charge_pot%eta, &
-                                       zet_err_cutoff=[qmmm_env%image_charge_pot%eta], &
-                                       l_err_cutoff=[0], &
+                                       zet_min=qmmm_env%image_charge_pot%eta, &
+                                       zet_max=qmmm_env%image_charge_pot%eta, &
+                                       l_max_zet=0, &
                                        l_max=0, &
                                        para_env=para_env)
 

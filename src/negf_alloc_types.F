@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -16,8 +16,16 @@ MODULE negf_alloc_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'negf_alloc_types'
 
-   PUBLIC :: negf_allocatable_rvector, &
+   PUBLIC :: negf_allocatable_ivector, negf_allocatable_rvector, &
              negf_allocatable_imatrix, negf_allocatable_rmatrix
+
+! **************************************************************************************************
+!> \brief Allocatable 1-D integer vector
+! **************************************************************************************************
+   TYPE negf_allocatable_ivector
+      !> allocatable 1-D real vector
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: vector
+   END TYPE negf_allocatable_ivector
 
 ! **************************************************************************************************
 !> \brief Allocatable 1-D real vector

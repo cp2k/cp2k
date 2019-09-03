@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -13,7 +13,6 @@ MODULE xc_xbecke88_long_range
    USE bibliography,                    ONLY: Becke1988,&
                                               cite_reference
    USE cp_array_utils,                  ONLY: cp_3d_r_p_type
-   USE erf_fn,                          ONLY: erf
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp

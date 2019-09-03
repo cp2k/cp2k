@@ -35,7 +35,7 @@
   &SUBSYS
     &CELL
       # this is the wrong cell but it's just to test the parse of the CIF
-      ABC 4.175 4.175 4.175
+      ABC 4.175  4.175  4.175 
     &END CELL
     &TOPOLOGY
       COORDINATE CIF

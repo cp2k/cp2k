@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -38,6 +38,7 @@ MODULE almo_scf
    USE bibliography,                    ONLY: Khaliullin2013,&
                                               Kolafa2004,&
                                               Scheiber2018,&
+                                              Staub2019,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_retain
@@ -66,8 +67,7 @@ MODULE almo_scf
         molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, restart_guess, &
         smear_fermi_dirac, virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, &
         xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_type
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: default_path_length,&
@@ -185,7 +185,7 @@ CONTAINS
 
       ! define the output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -222,6 +222,7 @@ CONTAINS
       !! retrieve smearing parameters, and check compatibility of methods requested
       almo_scf_env%smear = dft_control%smear
       IF (almo_scf_env%smear) THEN
+         CALL cite_reference(Staub2019)
          IF ((almo_scf_env%almo_update_algorithm .NE. almo_scf_diag) .OR. &
              ((almo_scf_env%deloc_method .NE. almo_deloc_none) .AND. &
               (almo_scf_env%xalmo_update_algorithm .NE. almo_scf_diag))) THEN
@@ -528,7 +529,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -582,7 +583,8 @@ CONTAINS
 
          CASE (atomic_guess)
 
-            IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+            IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical .OR. &
+                dft_control%qs_control%xtb) THEN
                CALL calculate_mopac_dm(rho_ao, &
                                        matrix_s(1)%matrix, has_unit_metric, &
                                        dft_control, particle_set, atomic_kind_set, qs_kind_set, &
@@ -766,7 +768,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1194,7 +1196,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1259,7 +1261,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1360,7 +1362,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -2173,7 +2175,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -2364,12 +2366,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_post_scf_compute_properties', &
          routineP = moduleN//':'//routineN
 
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
-
-      CALL get_qs_env(qs_env, scf_env=scf_env, input=input)
-      dft_section => section_vals_get_subs_vals(input, "DFT")
-      CALL qs_scf_compute_properties(qs_env, dft_section)
+      CALL qs_scf_compute_properties(qs_env)
 
    END SUBROUTINE almo_post_scf_compute_properties
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -128,11 +128,11 @@ CONTAINS
       NULLIFY (keyword, print_section, printkey)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "LINE_SEARCH", repeats=.FALSE., &
+      CALL section_create(section, __LOCATION__, name="LINE_SEARCH", repeats=.FALSE., &
                           description="Detail settings or linesearch method.")
 
       CALL keyword_create( &
-         keyword, name="METHOD", &
+         keyword, __LOCATION__, name="METHOD", &
          description="Linesearch method.", &
          default_i_val=linesearch_method_adapt, &
          enum_c_vals=s2a("ADAPT", "3PNT", "2PNT", "GOLD", "NONE"), &
@@ -146,35 +146,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INITIAL_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="INITIAL_STEP_SIZE", &
                           description="Initial step length", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_STEP_SIZE", &
                           description="Maximum step length", &
                           default_r_val=3.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TINY_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TINY_STEP_SIZE", &
                           description="Step length taken if negative step is suggested.", &
                           default_r_val=0.002_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_STEP_SIZE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_STEP_SIZE", &
                           description="Convergence criterion of GOLD method.", &
                           default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(print_section, name="PRINT", &
+      CALL section_create(print_section, __LOCATION__, name="PRINT", &
                           description="Print section", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
-      CALL cp_print_key_section_create(printkey, "RUN_INFO", &
+      CALL cp_print_key_section_create(printkey, __LOCATION__, "RUN_INFO", &
                                        description="General run information", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 

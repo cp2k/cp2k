@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -47,7 +47,7 @@ MODULE xas_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+   USE dbcsr_api,                       ONLY: dbcsr_convert_offsets_to_sizes,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_distribution_type,&
@@ -857,7 +857,7 @@ CONTAINS
                                first_sgf=first_sgf, &
                                last_sgf=last_sgf)
          ALLOCATE (row_blk_sizes(natom))
-         CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+         CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
          DEALLOCATE (first_sgf)
          DEALLOCATE (last_sgf)
          !

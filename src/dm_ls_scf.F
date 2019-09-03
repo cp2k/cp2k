@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -43,8 +43,8 @@ MODULE dm_ls_scf
                                               rho_mixing_ls_init
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                              ls_scf_ns,&
                                               ls_scf_pexsi,&
+                                              ls_scf_sign,&
                                               ls_scf_tc2,&
                                               ls_scf_trs4,&
                                               transport_transmission
@@ -76,6 +76,7 @@ MODULE dm_ls_scf
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                               write_mo_free_results
+   USE qs_scf_post_tb,                  ONLY: scf_post_calculation_tb
    USE transport,                       ONLY: external_scf_method,&
                                               transport_initialize
    USE transport_env_types,             ONLY: transport_env_type
@@ -154,7 +155,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -255,7 +256,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -377,7 +378,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -464,7 +465,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -634,10 +635,11 @@ CONTAINS
 
                ELSE
                   SELECT CASE (ls_scf_env%purification_method)
-                  CASE (ls_scf_ns)
+                  CASE (ls_scf_sign)
                      CALL density_matrix_sign(ls_scf_env%matrix_p(ispin), ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
-                                              matrix_mixing_old(ispin), ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
-                                              nelectron_spin_real, ls_scf_env%eps_filter)
+                                              ls_scf_env%sign_method, ls_scf_env%sign_order, matrix_mixing_old(ispin), &
+                                              ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, nelectron_spin_real, &
+                                              ls_scf_env%eps_filter)
                   CASE (ls_scf_tc2)
                      CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s_sqrt_inv, &
                                              nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin), &
@@ -760,12 +762,15 @@ CONTAINS
       REAL(KIND=dp)                                      :: occ
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -804,13 +809,23 @@ CONTAINS
 
       IF (ls_scf_env%report_all_sparsities) CALL post_scf_sparsities(ls_scf_env)
 
-      CALL write_mo_free_results(qs_env)
+      IF (dft_control%qs_control%dftb) THEN
+         CALL scf_post_calculation_tb(qs_env, "DFTB", .TRUE.)
+      ELSE IF (dft_control%qs_control%xtb) THEN
+         CALL scf_post_calculation_tb(qs_env, "xTB", .TRUE.)
+      ELSE
+         CALL write_mo_free_results(qs_env)
+      END IF
 
       IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(qs_env, ls_scf_env)
 
       IF (.TRUE.) CALL post_scf_experiment()
 
-      CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr)
+      IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+         !
+      ELSE
+         CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr)
+      END IF
 
       ! clean up used data
 
@@ -866,7 +881,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -938,7 +953,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -962,9 +977,10 @@ CONTAINS
             nelectron_spin_real = ls_scf_env%nelectron_spin(ispin)
             IF (ls_scf_env%nspins == 1) nelectron_spin_real = nelectron_spin_real/2
 
-            CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, &
-                                              ls_scf_env%matrix_ks(ispin), ls_scf_env%matrix_s, &
-                                              ls_scf_env%matrix_s_inv, ls_scf_env%eps_filter)
+            CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, ls_scf_env%sign_method, &
+                                              ls_scf_env%sign_order, ls_scf_env%matrix_ks(ispin), &
+                                              ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
+                                              ls_scf_env%eps_filter)
          ENDDO
 
          t2 = m_walltime()
@@ -1002,7 +1018,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -1211,7 +1227,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

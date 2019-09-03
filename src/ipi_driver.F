@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -351,7 +351,7 @@ CONTAINS
       CALL force_env_get(force_env, para_env=para_env)
 
       hasdata = .FALSE.
-      ionode = (para_env%source == para_env%mepos)
+      ionode = para_env%ionode
 
       output_unit = cp_logger_get_default_io_unit()
 

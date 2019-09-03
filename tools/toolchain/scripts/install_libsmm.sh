@@ -5,18 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-# helper to check if libsmm is available (uses https-redirect
-# to find latest version)
-libsmm_exists() {
-    query_url=https://www.cp2k.org/static/downloads/libsmm/$1-latest.a
-    reply_url="$(python -c "import urllib2; print(urllib2.urlopen('$query_url').geturl())" 2>&-)"
-    if [ "$query_url" != "$reply_url" ]; then
-        echo $reply_url | cut -d/ -f7
-    fi
-}
-
-with_libsmm=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libsmm" ] && rm "${BUILDDIR}/setup_libsmm"
 
@@ -25,39 +15,59 @@ LIBSMM_LDFLAGS=''
 LIBSMM_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libsmm" in
     __INSTALL__)
         echo "==================== Installing libsmm ===================="
         pkg_install_dir="${INSTALLDIR}/libsmm"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libsmm is already installed, skipping it."
         else
-            echo "Searching for an optimised libsmm binary from CP2K website"
             # Here we attempt to determine which precompiled libsmm binary
             # to download, and do that if such binary exists on CP2K web
             # repository.  The binary is determined by the arch and
             # libcore values obtained via OpenBLAS prebuild.
-            libsmm="$(libsmm_exists libsmm_dnn_${OPENBLAS_LIBCORE})"
-            if [ "x$libsmm" != "x" ] ; then
+            echo "Searching for an optimised libsmm binary from CP2K website"
+            case ${OPENBLAS_LIBCORE} in
+            haswell)
+               libsmm="libsmm_dnn_haswell-2015-11-10.a"
+               libsmm_sha256="a1cf9eb1bfb1bd3467024e47173a6e85881c3908961b7bb29f3348af9837018b"
+               echo "An optimized libsmm $libsmm is available"
+               ;;
+            ivybridge)
+                libsmm="libsmm_dnn_ivybridge-2015-07-02.a"
+                libsmm_sha256="ef74fb7339979545f9583d9ecab52c640c4f98f9dd49f98d2b4580304d5fcf60"
                 echo "An optimized libsmm $libsmm is available"
-            else
+                ;;
+            nehalem)
+                libsmm="libsmm_dnn_nehalem-2015-07-02.a"
+                libsmm_sha256="cc7e8c6623055fc6bc032dfda2d08b2201a8d86577ab72c3f66bee9b86cbebe9"
+                echo "An optimized libsmm $libsmm is available"
+                ;;
+            sandybridge)
+                libsmm="libsmm_dnn_sandybridge-2015-11-10.a"
+                libsmm_sha256="56ffdafa715554ec87f20ff1e0150450209a7635b47b8a5b81970e88ec67687c"
+                echo "An optimized libsmm $libsmm is available"
+                ;;
+            *)
                 echo "No optimised binary found ..."
                 echo "Searching for a generic libsmm binary from CP2K website"
-                libsmm="$(libsmm_exists libsmm_dnn_${OPENBLAS_ARCH})"
-                if [ "x$libsmm" != "x" ] ; then
+                if [ "${OPENBLAS_ARCH}" == "x86_64" ] ; then
+                    libsmm="libsmm_dnn_x86_64-latest.a"
+                    libsmm_sha256="dd58aee2bc5505e23b0761835bf2b9a90e5f050c6708ef68c5028373970673f8"
                     echo "A generic libsmm $libsmm is available."
                     echo "Consider building and contributing to CP2K an optimized"
                     echo "libsmm for your $OPENBLAS_ARCH $OPENBLAS_LIBCORE using"
                     echo "the toolkit in tools/build_libsmm provided in cp2k package"
                 fi
-            fi
+            esac
             # we know what to get, proceed with install
             if [ "x$libsmm" != "x" ]; then
                 if [ -f $libsmm ]; then
                     echo "$libsmm has already been downloaded."
                 else
-                    download_pkg ${DOWNLOADER_FLAGS} \
+                    download_pkg ${DOWNLOADER_FLAGS} $libsmm_sha256\
                                  https://www.cp2k.org/static/downloads/libsmm/$libsmm
                 fi
                 # install manually
@@ -73,7 +83,7 @@ with_libsmm="__DONTUSE__"
 EOF
                 exit 0
             fi
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         LIBSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
@@ -109,4 +119,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBSMM_LDFLAGS}"
 export CP_LIBS="IF_VALGRIND(|${LIBSMM_LIBS}) \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libsmm"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "libsmm"

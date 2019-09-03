@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -703,7 +703,7 @@ CONTAINS
                                                            cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))), handle)
 
       IF (rs%desc%grid_id /= pw%pw_grid%id_nr) &
-         CPABORT("Different rs and pw indentitfiers")
+         CPABORT("Different rs and pw indentifiers")
       IF ((pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
          CPABORT("Need REALDATA3D or COMPLEXDATA3D")
       IF ((dir .NE. rs2pw) .AND. (dir .NE. pw2rs)) &
@@ -1313,7 +1313,7 @@ CONTAINS
          ! find the processors that should hold our data
          ! should be part of the rs grid type
          ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
-         ! do the recv and send tasks in two seperate loops which will
+         ! do the recv and send tasks in two separate loops which will
          ! load balance better for OpenMP with large numbers of MPI tasks
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -1539,7 +1539,7 @@ CONTAINS
          ! find the processors that should hold our data
          ! should be part of the rs grid type
          ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
-         ! do the recv and send tasks in two seperate loops which will
+         ! do the recv and send tasks in two separate loops which will
          ! load balance better for OpenMP with large numbers of MPI tasks
 
          ! this is the reverse of rs2pw: what were the sends are now the recvs

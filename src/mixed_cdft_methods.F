@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -348,13 +348,13 @@ CONTAINS
                         "            CDFT state and subsequently copied to the other states"
                   ELSE
                      WRITE (iounit, FMT="(T2,A,T71)") &
-                        "MIXED_CDFT| The constraints are seperately built for all CDFT states"
+                        "MIXED_CDFT| The constraints are separately built for all CDFT states"
                   END IF
                CASE (mixed_cdft_parallel_nobuild)
                   WRITE (iounit, FMT="(T2,A,T71)") &
                      "MIXED_CDFT| CDFT states calculation mode: parallel without build"
                   WRITE (iounit, FMT="(T2,A,T71)") &
-                     "MIXED_CDFT| The constraints are seperately built for all CDFT states"
+                     "MIXED_CDFT| The constraints are separately built for all CDFT states"
                CASE DEFAULT
                   CPABORT("Unknown mixed CDFT run type.")
                END SELECT
@@ -2649,7 +2649,7 @@ CONTAINS
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
-            IF (force_env%para_env%mepos == force_env%para_env%source .AND. unit_nr .LT. 1) &
+            IF (force_env%para_env%ionode .AND. unit_nr .LT. 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL cp_pw_to_cube(cdft_control%becke_control%cavity%pw, &
@@ -3028,7 +3028,7 @@ CONTAINS
          DEALLOCATE (should_warn)
       END IF
       ! check that there is one-to-one mapping between over- and underloaded processors
-      IF (force_env%para_env%mepos == force_env%para_env%source) THEN
+      IF (force_env%para_env%ionode) THEN
          consistent = .TRUE.
          DO i = force_env%para_env%num_pe-1, force_env%para_env%num_pe-no_overloaded+1, -1
             IF (targets(1, i) .GT. no_underloaded) consistent = .FALSE.

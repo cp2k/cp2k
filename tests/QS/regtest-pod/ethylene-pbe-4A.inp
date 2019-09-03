@@ -75,7 +75,7 @@
         # Acceptor
         &BLOCK
           ATOMS  7  8  9 10 11 12
-          NELECTRON 12
+          NELECTRON 11
         &END BLOCK
       &END PROJECTION
     &END ET_COUPLING

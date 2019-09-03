@@ -1,0 +1,96 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      LS_SCF
+      METHOD xTB
+      &xTB
+        DO_EWALD           T
+      &END xTB
+      &DISTRIBUTION
+        BASIC_OPTIMIZATION .FALSE.
+        BASIC_SPATIAL_OPTIMIZATION .TRUE.
+      &END
+    &END QS
+    &PRINT
+      &MULLIKEN ON
+         FILENAME mulliken
+      &END
+    &END
+    &POISSON
+      &EWALD
+       EWALD_TYPE SPME
+       ALPHA 0.35
+       O_SPLINE 5
+      &END EWALD
+    &END POISSON
+    &LS_SCF
+      EPS_SCF  1E-7
+      EPS_FILTER 1E-7
+      MAX_SCF 30
+      PURIFICATION_METHOD TRS4
+      MIXING_FRACTION 0.10
+      REPORT_ALL_SPARSITIES .FALSE.
+      MAX_ITER_LANCZOS 128
+      EXTRAPOLATION_ORDER 1
+      MATRIX_CLUSTER_TYPE MOLECULAR
+      &CURVY_STEPS
+      &END
+      S_PRECONDITIONER NONE
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 216.832 216.832 216.832
+    &END CELL
+!
+! coord_mol is directly derived from online available stmv.psf/stmv.pdb 
+! it declares each water molecule a molecule, whereas each atom of the virus is an atom as well.
+!
+    &COORD
+@INCLUDE 'coord_mol'
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY USER
+      PARA_RES .FALSE.
+    &END TOPOLOGY
+   ! &TOPOLOGY
+   !   CONN_FILE ./stmv.psf
+   !   CONNECTIVITY PSF
+   !   COORD_FILE_NAME ./stmv.pdb
+   !   COORDINATE PDB
+   !   PARA_RES .FALSE.
+   ! &END TOPOLOGY
+    &PRINT
+      &ATOMIC_COORDINATES OFF
+      &END
+      &MOLECULES OFF
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT STMV
+  RUN_TYPE GEO_OPT
+  PRINT_LEVEL MEDIUM
+  EXTENDED_FFT_LENGTHS
+  SAVE_MEM
+#  TRACE
+#  TRACE_MASTER
+#  TRACE_MAX 2000
+  &TIMINGS
+    THRESHOLD 0.0000001
+    TIME_MPI
+  &END
+  CALLGRAPH MASTER
+&END GLOBAL
+&MOTION
+   &GEO_OPT
+      &LBFGS
+        TRUST_RADIUS 0.05
+      &END
+      OPTIMIZER LBFGS
+      ! use more iterations for added realism.
+      MAX_ITER  1
+   &END 
+&END

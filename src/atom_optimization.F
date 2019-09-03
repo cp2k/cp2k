@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -39,15 +39,17 @@ MODULE atom_optimization
    PUBLIC :: atom_opt_fmat, &
              atom_history_type, atom_history_init, atom_history_update, atom_history_release
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param history ...
-!> \param optimization ...
-!> \param matrix ...
+!> \brief Initialise a circular buffer to keep Kohn-Sham and density matrices from previous iteration.
+!> \param history       object to initialise
+!> \param optimization  optimisation parameters
+!> \param matrix        reference matrix. Historic matrices will have the same size as
+!>                      this reference matrix
+!> \par History
+!>    * 08.2016 new structure element: density matrix [Juerg Hutter]
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_history_init(history, optimization, matrix)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
@@ -86,14 +88,18 @@ CONTAINS
       END DO
 
    END SUBROUTINE atom_history_init
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param history ...
-!> \param pmat ...
-!> \param fmat ...
-!> \param emat ...
-!> \param energy ...
-!> \param error ...
+!> \brief Add matrices from the current iteration into the circular buffer.
+!> \param history  object to keep historic matrices
+!> \param pmat     density matrix
+!> \param fmat     Kohn-Sham matrix
+!> \param emat     error matrix
+!> \param energy   total energy
+!> \param error    convergence
+!> \par History
+!>    * 08.2016 new formal argument: density matrix [Juerg Hutter]
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_history_update(history, pmat, fmat, emat, energy, error)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
@@ -120,9 +126,12 @@ CONTAINS
       history%hpos = nnow
 
    END SUBROUTINE atom_history_update
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param history ...
+!> \brief Release circular buffer to keep historic matrices.
+!> \param history  object to release
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_history_release(history)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
@@ -156,11 +165,15 @@ CONTAINS
       END IF
 
    END SUBROUTINE atom_history_release
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param fmat ...
-!> \param history ...
-!> \param err ...
+!> \brief Construct a Kohn-Sham matrix for the next iteration based on the historic data.
+!> \param fmat     new Kohn-Sham matrix
+!> \param history  historic matrices
+!> \param err      convergence
+!> \par History
+!>    * 08.2016 renamed to atom_opt_fmat() [Juerg Hutter]
+!>    * 08.2008 created as atom_opt() [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_opt_fmat(fmat, history, err)
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: fmat
@@ -226,5 +239,4 @@ CONTAINS
 
    END SUBROUTINE atom_opt_fmat
 
-! **************************************************************************************************
 END MODULE atom_optimization

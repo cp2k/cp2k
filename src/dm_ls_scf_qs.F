@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -54,9 +54,7 @@ MODULE dm_ls_scf_qs
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
-                                              mixing_allocate,&
-                                              mixing_init
+   USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                               calculate_mopac_dm
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -64,6 +62,9 @@ MODULE dm_ls_scf_qs
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
+   USE qs_mixing_utils,                 ONLY: charge_mixing_init,&
+                                              mixing_allocate,&
+                                              mixing_init
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -107,10 +108,8 @@ CONTAINS
                                                             ls_data_type, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
-      INTEGER, DIMENSION(:), POINTER :: clustered_col_clusters, clustered_col_dist, &
-         clustered_row_clusters, clustered_row_dist, ls_blk_sizes, ls_col_cluster, ls_col_dist, &
-         ls_row_cluster, ls_row_dist
-      LOGICAL                                            :: ls_has_col_clusters, ls_has_row_clusters
+      INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
+                                                            ls_blk_sizes, ls_col_dist, ls_row_dist
       TYPE(dbcsr_distribution_type)                      :: ls_dist, ls_dist_clustered
 
       CALL timeset(routineN, handle)
@@ -118,13 +117,7 @@ CONTAINS
       ! Defaults -----------------------------------------------------------------------------------
       CALL dbcsr_get_info(matrix_qs, col_blk_size=ls_blk_sizes, distribution=ls_dist)
       CALL dbcsr_distribution_hold(ls_dist)
-      CALL dbcsr_distribution_get(ls_dist, &
-                                  row_dist=ls_row_dist, &
-                                  col_dist=ls_col_dist, &
-                                  row_cluster=ls_row_cluster, &
-                                  col_cluster=ls_col_cluster, &
-                                  has_col_clusters=ls_has_col_clusters, &
-                                  has_row_clusters=ls_has_row_clusters)
+      CALL dbcsr_distribution_get(ls_dist, row_dist=ls_row_dist, col_dist=ls_col_dist)
       ls_data_type = dbcsr_type_real_8
       IF (ls_mstruct%single_precision) ls_data_type = dbcsr_type_real_4
 
@@ -164,26 +157,12 @@ CONTAINS
          DO imol = 1, nmol
             clustered_row_dist(imol) = ls_row_dist(primus_of_mol(imol))
          ENDDO
-         NULLIFY (clustered_row_clusters)
-         IF (ls_has_row_clusters) THEN
-            ALLOCATE (clustered_row_clusters(nmol))
-            DO imol = 1, nmol
-               clustered_row_clusters(imol) = ls_row_cluster(primus_of_mol(imol))
-            ENDDO
-         ENDIF
 
          ! col
          ALLOCATE (clustered_col_dist(nmol))
          DO imol = 1, nmol
             clustered_col_dist(imol) = ls_col_dist(primus_of_mol(imol))
          ENDDO
-         NULLIFY (clustered_col_clusters)
-         IF (ls_has_col_clusters) THEN
-            ALLOCATE (clustered_col_clusters(nmol))
-            DO imol = 1, nmol
-               clustered_col_clusters(imol) = ls_col_cluster(primus_of_mol(imol))
-            ENDDO
-         ENDIF
 
          ALLOCATE (clustered_blk_sizes(nmol))
          clustered_blk_sizes = 0
@@ -198,8 +177,6 @@ CONTAINS
                                      template=ls_dist, &
                                      row_dist=clustered_row_dist, &
                                      col_dist=clustered_col_dist, &
-                                     row_cluster=clustered_row_clusters, &
-                                     col_cluster=clustered_col_clusters, &
                                      reuse_arrays=.TRUE.)
          CALL dbcsr_distribution_release(ls_dist)
          ls_dist = ls_dist_clustered
@@ -465,7 +442,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -530,7 +507,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -555,7 +532,8 @@ CONTAINS
       nspin = dft_control%nspins
 
       ! create an initial atomic guess
-      IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+      IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical .OR. &
+          dft_control%qs_control%xtb) THEN
          CALL calculate_mopac_dm(rho_ao, matrix_s(1)%matrix, has_unit_metric, &
                                  dft_control, particle_set, atomic_kind_set, qs_kind_set, &
                                  nspin, nelectron_spin, para_env)
@@ -606,7 +584,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -760,8 +738,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, &
-                      rho=rho)
+      CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho)
 
       CALL mixing_allocate(qs_env, ls_scf_env%density_mixing_method, nspins=ls_scf_env%nspins, &
                            mixing_store=ls_scf_env%mixing_store)
@@ -770,6 +747,10 @@ CONTAINS
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &
                              ls_scf_env%para_env, rho_atom=rho_atom)
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CALL charge_mixing_init(ls_scf_env%mixing_store)
+         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &
                              ls_scf_env%para_env)

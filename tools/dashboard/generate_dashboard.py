@@ -24,6 +24,7 @@ import pickle
 from pathlib import Path
 import requests
 import hashlib
+from collections import OrderedDict
 
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
@@ -48,17 +49,23 @@ class GitLog(list):
 
         # git-log outputs entries from new to old.
         self.index = { c['git-sha']: i for i, c in enumerate(self) }
-        print("done.")
 
 #===============================================================================
 def main():
-    if(len(sys.argv) != 4):
-        print("Usage update_dashboard.py <config-file> <status-file> <output-dir>")
+    if(len(sys.argv) < 4):
+        print("Usage update_dashboard.py <config-file> <status-file> <output-dir> [--send-emails]")
         sys.exit(1)
 
-    config_fn, status_fn, outdir = sys.argv[1:]
+    config_fn, status_fn, outdir = sys.argv[1:4]
     assert(outdir.endswith("/"))
     assert(path.exists(config_fn))
+
+    global send_emails
+    if (len(sys.argv) == 5):
+        assert sys.argv[4] == "--send-emails"
+        send_emails = True
+    else:
+        send_emails = False
 
     config = configparser.ConfigParser()
     config.read(config_fn)
@@ -82,20 +89,20 @@ def gen_frontpage(config, log, status_fn, outdir):
     output += '</div>\n'
     output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
-    output += '<th>Commit</th><th>Summary</th><th>Last OK</th></tr>\n\n'
+    output += '<th>Commit</th><th>Summary</th><th>Last OK</th><th>Issues</th></tr>\n\n'
 
     def get_sortkey(s):
         return config.getint(s, "sortkey")
 
     now = datetime.utcnow().replace(microsecond=0)
+    issues = requests.get("https://api.github.com/repos/cp2k/cp2k/issues").json()
 
     for s in sorted(config.sections(), key=get_sortkey):
         print("Working on summary entry of: "+s)
         name        = config.get(s,"name")
         host        = config.get(s,"host")
-        report_type = config.get(s,"report_type")
         report_url  = config.get(s,"report_url")
-        do_notify   = config.getboolean(s,"notify") if(config.has_option(s,"notify")) else False
+        do_notify   = config.getboolean(s,"notify") if(config.has_option(s,"notify")) else True
         timeout     = config.getint(s,"timeout") if(config.has_option(s,"timeout")) else 24
 
         # find latest commit that should have been tested by now
@@ -105,7 +112,7 @@ def gen_frontpage(config, log, status_fn, outdir):
 
         # get and parse report
         report_txt = retrieve_report(report_url)
-        report = parse_report(report_txt, report_type, log)
+        report = parse_report(report_txt, log)
 
         if(s not in status):
             status[s] = {'last_ok': None, 'notified': False}
@@ -143,6 +150,18 @@ def gen_frontpage(config, log, status_fn, outdir):
         else:
             output += '<td></td>'
 
+        #Issues
+        matching_issues = []
+        for issue in issues:
+            link_pattern = "dashboard.cp2k.org/archive/{}/".format(s)
+            matching_labels = [label for label in issue['labels'] if s in label['name']]
+            if "pull_request" in issue:
+                continue  # GitHub's REST API v3 considers every pull request an issue.
+            if link_pattern in issue['body'] or any(matching_labels):
+                issue_tmpl = '<a href="{}">#{}</a>'
+                matching_issues.append(issue_tmpl.format(issue['html_url'], issue['number']))
+        output += '<td>{}</td>'.format(', '.join(matching_issues))
+
         output += '</tr>\n\n'
 
     output += '</table>\n'
@@ -157,7 +176,6 @@ def gen_archive(config, log, outdir):
     for s in config.sections():
         print("Working on archive page of: "+s)
         name          = config.get(s,"name")
-        report_type   = config.get(s,"report_type")
         info_url      = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
         archive_files = glob(outdir+"archive/%s/rev_*.txt.gz"%s) + \
                         glob(outdir+"archive/%s/commit_*.txt.gz"%s)
@@ -179,7 +197,7 @@ def gen_archive(config, log, outdir):
                 report = reports_cache[fn]
             else:
                 report_txt = gzip.open(fn, 'rb').read().decode("utf-8", errors='replace')
-                report = parse_report(report_txt, report_type, log)
+                report = parse_report(report_txt, log)
                 report['url'] = path.basename(fn)[:-3]
                 reports_cache[fn] = report
             sha = report['git-sha']
@@ -264,23 +282,20 @@ def gen_plots(archive_reports, log, outdir, full_archive):
     ordered_reports = [archive_reports[sha] for sha in ordered_shas if sha in archive_reports]
 
     # collect plot data
-    plots = {}
+    plots = OrderedDict()
     for report in ordered_reports:
         for p in report['plots']:
             if(p['name'] not in plots.keys()):
-                plots[p['name']] = {'curves':{}}
-            plots[p['name']]['title'] = p['title'] # update title
-            plots[p['name']]['ylabel'] = p['ylabel'] # update label
+                plots[p['name']] = {'curves': OrderedDict(), 'title': p['title'], 'ylabel': p['ylabel']}
         for pp in report['plotpoints']:
             p = plots[pp['plot']]
             if(pp['name'] not in p['curves'].keys()):
-                p['curves'][pp['name']] = {'x':[], 'y':[], 'yerr':[]}
+                p['curves'][pp['name']] = {'x':[], 'y':[], 'yerr':[], 'label': pp['label']}
             c = p['curves'][pp['name']]
             age = log.index[report['git-sha']]
             c['x'].append(-age)
             c['y'].append(pp['y'])
             c['yerr'].append(pp['yerr'])
-            c['label'] = pp['label'] # update label
 
     # write raw data
     tags = sorted([(pname, cname) for pname, p in plots.items() for cname in p['curves'].keys()])
@@ -294,9 +309,10 @@ def gen_plots(archive_reports, log, outdir, full_archive):
             raw_output +=  "%8d    %40s"%(-age, report['git-sha'])
             for pname, cname in tags:
                 pp = [pp for pp in report['plotpoints'] if(pp['plot']==pname and pp['name']==cname)]
-                assert(len(pp)<=1)
+                if len(pp) > 1:
+                    print("Warning: Found redundant plot points.")
                 if(pp):
-                    raw_output += "   %18f   %22f"%(pp[0]['y'],pp[0]['yerr'])
+                    raw_output += "   %18f   %22f"%(pp[-1]['y'],pp[-1]['yerr'])
                 else:
                     raw_output += "   %18s   %22s"%("?","?")
             raw_output += "\n"
@@ -319,7 +335,7 @@ def gen_plots(archive_reports, log, outdir, full_archive):
         ax.set_xlabel('Commit Age')
         ax.set_ylabel(p['ylabel'])
         markers = itertools.cycle('os>^*')
-        for cname in sorted(p['curves'].keys()):
+        for cname in p['curves'].keys():
             c = p['curves'][cname]
             if(full_archive):
                 ax.plot(c['x'], c['y'], label=c['label'], linewidth=2) # less crowded
@@ -331,13 +347,17 @@ def gen_plots(archive_reports, log, outdir, full_archive):
         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left',
                   numpoints=1, fancybox=True, shadow=True, borderaxespad=0.0)
         visibles = [[y for x,y in zip(c['x'],c['y']) if x>=-max_age] for c in p['curves'].values()] # visible y-values
-        ymin = min([min(ys) for ys in visibles if ys]) # lowest point from lowest curve
-        ymax = max([max(ys) for ys in visibles if ys]) # highest point from highest curve
-        if(full_archive):
-            ax.set_ylim(0.98*ymin, 1.02*ymax)
+        visibles = [ys for ys in visibles if ys] # remove completely invisible curves
+        if not visibles:
+            print("Warning: Found no visible plot curve.")
         else:
-            ymax2 = max([min(ys) for ys in visibles if ys]) # lowest point from highest curve
-            ax.set_ylim(0.98*ymin, min(1.02*ymax, 1.3*ymax2))  # protect against outlayers
+            ymin = min([min(ys) for ys in visibles]) # lowest point from lowest curve
+            ymax = max([max(ys) for ys in visibles]) # highest point from highest curve
+            if(full_archive):
+                ax.set_ylim(0.98*ymin, 1.02*ymax)
+            else:
+                ymax2 = max([min(ys) for ys in visibles]) # lowest point from highest curve
+                ax.set_ylim(0.98*ymin, min(1.02*ymax, 1.3*ymax2))  # protect against outlayers
         fig.savefig(outdir+pname+fig_ext)
         plt.close(fig)
 
@@ -354,7 +374,18 @@ def send_notification(report, last_ok, log, name, s):
     idx_last_ok = log.index[last_ok]
     if(idx_end == idx_last_ok): return # probably a flapping tester
     emails = set([log[i]['author-email'] for i in range(idx_end, idx_last_ok)])
-    print("Sending email to: "+", ".join(emails))
+    emails = [e for e in emails if "noreply" not in e]
+    emails_str = ", ".join(emails)
+    if not emails:
+        return # no author emails found
+    if len(emails) > 3:
+        print("Spam protection, found more than three authors: " + emails_str)
+        return
+    if (not send_emails):
+        print("Email sending disabled, would otherwise send to: " + emails_str)
+        return
+
+    print("Sending email to: " + emails_str)
 
     msg_txt  = "Dear CP2K developer,\n\n"
     msg_txt += "the dashboard has detected a problem that one of your recent commits might have introduced.\n\n"
@@ -531,6 +562,10 @@ def retrieve_report(url):
         if r.status_code == 304:  # Not Modified - cache hit
             return data_file.read_text()
 
+        # check report size
+        report_size = int(r.headers['Content-Length'])
+        assert report_size < 3*1024*1024  # 3 MB
+
         # cache miss - store response
         if 'ETag' in r.headers:
             data_file.write_text(r.text)
@@ -547,86 +582,34 @@ def store_report(report, report_txt, section, outdir):
     write_file(fn, report_txt, gz=True)
 
 #===============================================================================
-def parse_report(report_txt, report_type, log):
+def parse_report(report_txt, log):
     if(report_txt is None):
         return( {'status':'UNKNOWN', 'summary':'Error while retrieving report.', 'git-sha':None} )
     try:
-        if(report_type == "regtest"):
-            report = parse_regtest_report(report_txt)
-        elif(report_type == "generic"):
-            report = parse_generic_report(report_txt)
-        else:
-            raise(Exception("Unknown report_type"))
+        report = dict()
+        report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
+        report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
+        report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
+        report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
+        report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
 
+        # Check that every plot has at least one PlotPoint
+        for plot in report['plots']:
+            points = [pp for pp in report['plotpoints'] if pp['plot'] == plot['name']]
+            if not points:
+                report['status'] = 'FAILED'
+                report['summary'] = 'Plot "%s" has no PlotPoints.'%plot['name']
+
+        # Check that CommitSHA belongs to the master branch.
         if report['git-sha'] not in log.index:
-            return( {'status':'UNKNOWN', 'summary':'Unknown CommitSHA.', 'git-sha':None} )
+            report['git-sha'] = None
+            report['status'] = 'FAILED'
+            report['summary'] = 'Unknown CommitSHA.'
 
-        report.update(parse_plots(report_txt))
         return(report)
     except:
         print(traceback.print_exc())
         return( {'status':'UNKNOWN', 'summary':'Error while parsing report.', 'git-sha':None} )
 
 #===============================================================================
-def parse_regtest_report(report_txt):
-    report = dict()
-    report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
-
-    if("LOCKFILE" in report_txt):
-        report['status'] = "UNKNOWN"
-        report['summary'] = "Test directory is locked."
-        return(report)
-
-    m = re.findall("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
-    if(not m and re.search("make: .* Error .*", report_txt)):
-        report['status'] = "FAILED"
-        report['summary'] = "Compilation failed."
-        return(report)
-
-    runtime_errors = int(m[-1][0])
-    wrong_results  = int(m[-1][1])
-    correct_tests  = int(m[-1][2])
-    new_inputs     = int(m[-1][3])
-    num_tests      = int(m[-1][4])
-    memory_leaks   = int(m[-1][5].replace("X", "0"))
-
-    report['summary'] = "correct: %d / %d"%(correct_tests, num_tests)
-    if(new_inputs > 0):
-        report['summary'] += "; new: %d"%new_inputs
-    if(wrong_results > 0):
-        report['summary'] += "; wrong: %d"%wrong_results
-    if(runtime_errors > 0):
-        report['summary'] += "; failed: %d"%runtime_errors
-    if(memory_leaks > 0):
-        report['summary'] += "; memleaks: %d"%memory_leaks
-
-    runtimes = [float(m) for m in re.findall("\nRegtest took (.+) seconds.\n", report_txt)]
-    report['summary'] += "; %.0fmin"%(sum(runtimes)/60.0)
-
-    if(wrong_results>0 or runtime_errors>0 or memory_leaks>0):
-        report['status'] = "FAILED"
-    else:
-        report['status'] = "OK"
-
-    return(report)
-
-#===============================================================================
-def parse_generic_report(report_txt):
-    report = dict()
-    report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
-    report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
-    report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
-    return(report)
-
-#===============================================================================
-def parse_plots(report_txt):
-    plots = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
-    plotpoints = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
-    return({'plots': plots, 'plotpoints': plotpoints})
-
-#===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-#EOF
+main()

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -77,7 +77,8 @@ MODULE input_constants
                                                do_constr_molec = 3
 
    INTEGER, PARAMETER, PUBLIC               :: do_cell_cp2k = 1, &
-                                               do_cell_xsc = 2
+                                               do_cell_cif = 2, &
+                                               do_cell_xsc = 3
 
    INTEGER, PARAMETER, PUBLIC               :: rmsd_all = 0, &
                                                rmsd_list = 1, &
@@ -257,7 +258,8 @@ MODULE input_constants
                                                do_method_pnnl = 16, &
                                                do_method_ofgpw = 17, &
                                                do_method_pm6fm = 18, &
-                                               do_method_pw = 19
+                                               do_method_pw = 19, &
+                                               do_method_xtb = 20
 
    INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on = 0, &
                                                do_multipole_section_off = 1
@@ -439,7 +441,8 @@ MODULE input_constants
                                                do_loc_jacobi = 1, &
                                                do_loc_crazy = 2, &
                                                do_loc_direct = 3, &
-                                               do_loc_l1_norm_sd = 4
+                                               do_loc_l1_norm_sd = 4, &
+                                               do_loc_scdm = 5
 
    INTEGER, PARAMETER, PUBLIC               :: do_loc_min = 0, &
                                                do_loc_max = 1, &
@@ -729,16 +732,16 @@ MODULE input_constants
                                                clustering_small_on_larger = 3
 
    ! HFX potential type
-   INTEGER, PARAMETER, PUBLIC               :: do_hfx_potential_coulomb = 1, &
-                                               do_hfx_potential_short = 2, &
-                                               do_hfx_potential_long = 3, &
-                                               do_hfx_potential_mix_cl = 4, &
-                                               do_hfx_potential_gaussian = 5, &
-                                               do_hfx_potential_mix_lg = 6, &
-                                               do_hfx_potential_id = 7, &
-                                               do_hfx_potential_truncated = 8, &
-                                               do_hfx_potential_mix_cl_trunc = 9, &
-                                               do_mp2_potential_TShPSC = 1009
+   INTEGER, PARAMETER, PUBLIC               :: do_potential_coulomb = 1, &
+                                               do_potential_short = 2, &
+                                               do_potential_long = 3, &
+                                               do_potential_mix_cl = 4, &
+                                               do_potential_gaussian = 5, &
+                                               do_potential_mix_lg = 6, &
+                                               do_potential_id = 7, &
+                                               do_potential_truncated = 8, &
+                                               do_potential_mix_cl_trunc = 9, &
+                                               do_potential_TShPSC = 1009
 
    ! HFX periodic number of shells
    INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
@@ -816,8 +819,7 @@ MODULE input_constants
 
    ! DIAGONALIZATION library
    INTEGER, PARAMETER, PUBLIC               :: do_diag_sl = 1, &
-                                               do_diag_sl2 = 2, &
-                                               do_diag_elpa = 3
+                                               do_diag_elpa = 2
    ! FFT library
    ! these might need sync with fft_lib.F
    INTEGER, PARAMETER, PUBLIC               :: do_fft_sg = 1, &
@@ -863,8 +865,13 @@ MODULE input_constants
                                                ls_s_inversion_sign_sqrt = 5, &
                                                ls_s_inversion_none = 6
 
-   INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns = 17, ls_scf_trs4 = 18, &
+   INTEGER, PARAMETER, PUBLIC               :: ls_s_sqrt_ns = 1, &
+                                               ls_s_sqrt_proot = 2
+
+   INTEGER, PARAMETER, PUBLIC               :: ls_scf_sign = 17, ls_scf_trs4 = 18, &
                                                ls_scf_tc2 = 19, ls_scf_pexsi = 20
+
+   INTEGER, PARAMETER, PUBLIC               :: ls_scf_sign_ns = 1, ls_scf_sign_proot = 2
 
    INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point = 3, &
                                                ls_scf_line_search_3point_2d = 6
@@ -939,7 +946,6 @@ MODULE input_constants
 
    ! some MP2 parameters
    INTEGER, PARAMETER, PUBLIC               :: mp2_method_none = 0, &
-                                               mp2_method_laplace = 2, &
                                                mp2_method_direct = 4, &
                                                mp2_method_gpw = 6, &
                                                ri_mp2_method_gpw = 7, &
@@ -947,15 +953,17 @@ MODULE input_constants
                                                ri_mp2_laplace = 9, &
                                                mp2_ri_optimize_basis = 10, &
                                                wfc_mm_style_gemm = 11, &
-                                               wfc_mm_style_syrk = 12, &
-                                               ri_coulomb = 13, &
-                                               ri_overlap = 14
+                                               wfc_mm_style_syrk = 12
 
    ! G0W0 parameter
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none = 0, &
                                                ri_rpa_g0w0_crossing_z_shot = 1, &
                                                ri_rpa_g0w0_crossing_newton = 2, &
-                                               ri_rpa_g0w0_crossing_bisection = 3
+                                               ri_rpa_g0w0_crossing_bisection = 3, &
+                                               gw_no_print_exx = 5, &
+                                               gw_print_exx = 6, &
+                                               gw_read_exx = 7, &
+                                               gw_skip_for_regtest = 8
 
    INTEGER, PARAMETER, PUBLIC               :: gw_pade_approx = 0, &
                                                gw_two_pole_model = 1
@@ -1105,5 +1113,9 @@ MODULE input_constants
                                                embed_level_shift = 2
    INTEGER, PARAMETER, PUBLIC               :: embed_grid_bohr = 0, &
                                                embed_grid_angstrom = 1
+   INTEGER, PARAMETER, PUBLIC               :: embed_none = 0, &
+                                               embed_diff = 1, &
+                                               embed_fa = 2, &
+                                               embed_resp = 3
 
 END MODULE input_constants

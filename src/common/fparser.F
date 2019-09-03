@@ -18,8 +18,6 @@ MODULE fparser
    !
    !------- -------- --------- --------- --------- --------- --------- --------- -------
 
-   USE erf_fn,                          ONLY: erf,&
-                                              erfc
    USE kinds,                           ONLY: default_string_length,&
                                               rn => dp
 #include "../base/base_uses.f90"

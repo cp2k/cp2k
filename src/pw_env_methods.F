@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -773,10 +773,10 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
 
-! a very small safety factor might be needed for roundoff issues
-! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
-! the latter can happen due to the lower precision in the computation of the radius in collocate
-! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
+      ! a very small safety factor might be needed for roundoff issues
+      ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
+      ! the latter can happen due to the lower precision in the computation of the radius in collocate
+      ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
 
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, qs_kind_set, rho0_mpole)
@@ -807,8 +807,6 @@ CONTAINS
       ! up to now, it is not yet very good
       radius = 0.0_dp
       DO igrid_level = 1, ngrid_level
-
-         IF (dft_control%qs_control%dftb) CYCLE
 
          maxradius = 0.0_dp
          ! Take into account the radius of the soft compensation charge rho0_soft1

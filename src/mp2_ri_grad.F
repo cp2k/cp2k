@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -50,6 +50,7 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
+   USE mp2_integrals,                   ONLY: calc_potential_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -152,21 +153,21 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      INTEGER                                            :: nmo, homo, dimen_RI
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: my_group_L_start, my_group_L_end, &
+      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
-      TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
-      TYPE(dbcsr_p_type)                                 :: mat_munu
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
-      INTEGER, OPTIONAL                                  :: homo_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep', &
@@ -462,10 +463,8 @@ CONTAINS
                                            external_vector=wf_vector)
                rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
             ENDIF
-            CALL pw_transfer(rho_r%pw, rho_g%pw)
-            CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-            CALL pw_transfer(pot_g%pw, rho_r%pw)
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g)
             CALL timestop(handle3)
 
             IF (use_virial) THEN
@@ -1203,12 +1202,12 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      INTEGER                                            :: homo, virtual, dimen
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L2_nu_a
-      REAL(KIND=dp)                                      :: factor
-      LOGICAL                                            :: alpha_beta
+      REAL(KIND=dp), INTENT(IN)                          :: factor
+      LOGICAL, INTENT(IN)                                :: alpha_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_W_P', routineP = moduleN//':'//routineN
 
@@ -1234,8 +1233,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_1i, &
                                                             col_indices_2a, row_indices, &
                                                             row_indices_1i, row_indices_2a
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ab_rec, ab_send, mat_deb, mat_rec, &
-                                                            mat_send
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ab_rec, ab_send, mat_rec, mat_send
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_P_ij, L_mu_q
@@ -2053,8 +2051,6 @@ CONTAINS
       ENDIF
       CALL timestop(handle2)
 
-      ! IF(para_env%mepos==0) CALL write_array(mp2_env%ri_grad%P_ij(1:homo,1:homo))
-
       ! Calculate occ-virt block of the lagrangian in MO
       CALL timeset(routineN//"_Ljb", handle2)
       IF (.NOT. alpha_beta) THEN
@@ -2116,176 +2112,11 @@ CONTAINS
 
       ! here we should be done next CPHF
 
-      IF (.FALSE.) THEN
-         ALLOCATE (ab_send(homo, virtual))
-         ab_send = 0.0_dp
-         IF (.NOT. alpha_beta) THEN
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ELSE
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb_beta, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ENDIF
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (.NOT. alpha_beta) THEN
-                  ab_send(i_global, j_global) = mp2_env%ri_grad%L_jb%local_data(iiB, jjB)
-               ELSE
-                  ab_send(i_global, j_global) = mp2_env%ri_grad%L_jb_beta%local_data(iiB, jjB)
-               ENDIF
-            END DO
-         END DO
-         CALL mp_sum(ab_send, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'Ljb'
-            CALL write_array(ab_send(1:homo, 1:virtual))
-         END IF
-         DEALLOCATE (ab_send)
-         ALLOCATE (ab_send(homo, homo))
-         ALLOCATE (ab_rec(virtual, virtual))
-         ALLOCATE (mat_deb(homo, virtual))
-         ab_send = 0.0_dp
-         ab_rec = 0.0_dp
-         mat_deb = 0.0_dp
-         IF (.NOT. alpha_beta) THEN
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ELSE
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo_beta, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ENDIF
-         IF (.NOT. alpha_beta) THEN
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (i_global <= homo .AND. j_global <= homo) THEN
-                     ab_send(i_global, j_global) = mp2_env%ri_grad%P_mo%local_data(iiB, jjB)
-                  ELSE
-                     IF (i_global > homo .AND. j_global > homo) THEN
-                        ab_rec(i_global-homo, j_global-homo) = mp2_env%ri_grad%P_mo%local_data(iiB, jjB)
-                     ELSE
-                        mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo) = &
-                           mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo)+ &
-                           mp2_env%ri_grad%P_mo%local_data(iiB, jjB)
-                     END IF
-                  END IF
-               END DO
-            END DO
-         ELSE
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (i_global <= homo .AND. j_global <= homo) THEN
-                     ab_send(i_global, j_global) = mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB)
-                  ELSE
-                     IF (i_global > homo .AND. j_global > homo) THEN
-                        ab_rec(i_global-homo, j_global-homo) = mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB)
-                     ELSE
-                        mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo) = &
-                           mat_deb(MIN(i_global, j_global), MAX(i_global, j_global)-homo)+ &
-                           mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB)
-                     END IF
-                  END IF
-               END DO
-            END DO
-         ENDIF
-
-         CALL mp_sum(ab_send, para_env%group)
-         CALL mp_sum(ab_rec, para_env%group)
-         CALL mp_sum(mat_deb, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'Pij'
-            CALL write_array(ab_send(1:homo, 1:homo))
-            WRITE (*, *) 'Pab'
-            CALL write_array(ab_rec(1:virtual, 1:virtual))
-            WRITE (*, *) 'Pia'
-            CALL write_array(mat_deb(1:homo, 1:virtual))
-         END IF
-         DEALLOCATE (ab_send, ab_rec, mat_deb)
-         ALLOCATE (ab_send(dimen, dimen))
-         ab_send = 0.0_dp
-         IF (.NOT. alpha_beta) THEN
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ELSE
-            CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo_beta, &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-         ENDIF
-
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (.NOT. alpha_beta) THEN
-                  ab_send(i_global, j_global) = &
-                     mp2_env%ri_grad%W_mo%local_data(iiB, jjB)
-               ELSE
-                  ab_send(i_global, j_global) = &
-                     mp2_env%ri_grad%W_mo_beta%local_data(iiB, jjB)
-               ENDIF
-            END DO
-         END DO
-         CALL mp_sum(ab_send, para_env%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) 'Wij'
-            CALL write_array(ab_send(1:dimen, 1:dimen))
-         END IF
-         DEALLOCATE (ab_send)
-      END IF
-
       DEALLOCATE (sub_proc_map)
       DEALLOCATE (pos_info)
 
       CALL timestop(handle)
 
    END SUBROUTINE create_W_P
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param unitout ...
-! **************************************************************************************************
-   SUBROUTINE write_array(mat, unitout)
-      REAL(KIND=dp), DIMENSION(:, :)                     :: mat
-      INTEGER, OPTIONAL                                  :: unitout
-
-      INTEGER                                            :: iii, jjj
-
-      WRITE (*, *)
-      DO iii = 1, SIZE(mat, 1)
-         WRITE (*, *) iii
-         DO jjj = 1, SIZE(mat, 2), 20
-            IF (PRESENT(unitout)) THEN
-               WRITE (1000+unitout, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-            ELSE
-               WRITE (*, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-            END IF
-         END DO
-         WRITE (*, *)
-      END DO
-      WRITE (*, *)
-   END SUBROUTINE
 
 END MODULE mp2_ri_grad

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -23,7 +23,8 @@ MODULE environment
    USE cp_files,                        ONLY: close_file,&
                                               get_data_dir,&
                                               open_file
-   USE cp_fm_diag,                      ONLY: diag_init
+   USE cp_fm_diag,                      ONLY: diag_finalize,&
+                                              diag_init
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_setup
@@ -49,8 +50,8 @@ MODULE environment
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
-        callgraph_all, callgraph_none, do_cp2k, do_diag_elpa, do_diag_sl, do_diag_sl2, do_eip, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_sirius, do_test, energy_run, &
+        callgraph_all, callgraph_none, do_cp2k, do_diag_elpa, do_diag_sl, do_eip, do_farming, &
+        do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_sirius, do_test, energy_run, &
         id_development_version, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -66,12 +67,9 @@ MODULE environment
                                               dp,&
                                               int_8,&
                                               print_kind_info
-   USE machine,                         ONLY: flush_should_flush,&
-                                              m_cpuinfo,&
-                                              m_energy,&
-                                              m_flush_internal,&
-                                              m_memory_details,&
-                                              m_procrun
+   USE machine,                         ONLY: &
+        flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
+        m_flush_internal, m_memory_details, m_procrun
    USE message_passing,                 ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               mp_collect_timings,&
@@ -159,7 +157,7 @@ CONTAINS
       IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
 
       ! Init the default logger
-      IF (para_env%source == para_env%mepos) THEN
+      IF (para_env%ionode) THEN
          my_output_unit = output_unit
       ELSE
          my_output_unit = -1
@@ -213,10 +211,22 @@ CONTAINS
          CALL m_flush_internal(my_output_unit)
       END IF
 
+#if defined(__FAST_MATH__)
+      CALL cp_warn(__LOCATION__, &
+                   "During compilation one of the following flags was active:"// &
+                   "   `-ffast-math` (GCC)"// &
+                   "   `-hfpN` (Cray, N > 0, default N=2)"// &
+                   " This can lead to wrong results and numerical instabilities"// &
+                   " and is therefore no longer supported.")
+
+#if !defined(__FORCE_USE_FAST_MATH)
+#error -ffast-math (GCC) or -hfpN (N>0, Cray) can lead to wrong results and numerical instabilities and are therefore no longer supported
+#endif
+#endif
    END SUBROUTINE cp2k_init
 
 ! **************************************************************************************************
-!> \brief echos the list of host names and pids
+!> \brief echoes the list of host names and pids
 !> \param para_env ...
 !> \param output_unit ...
 ! **************************************************************************************************
@@ -259,7 +269,7 @@ CONTAINS
    END SUBROUTINE echo_all_hosts
 
 ! **************************************************************************************************
-!> \brief echos the list the number of process per host
+!> \brief echoes the list the number of process per host
 !> \param para_env ...
 !> \param output_unit ...
 ! **************************************************************************************************
@@ -321,7 +331,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -380,8 +390,8 @@ CONTAINS
 !> \param globenv the global environment to initialize
 !> \author fawzi
 !> \note
-!>      if possible do the initializations here as the environement
-!>      (error,...) is setup, instaed of cp2k_init
+!>      if possible do the initializations here as the environment
+!>      (error,...) is setup, instead of cp2k_init
 ! **************************************************************************************************
    SUBROUTINE cp2k_setup(root_section, para_env, globenv)
 
@@ -460,7 +470,7 @@ CONTAINS
    END SUBROUTINE cp2k_setup
 
 ! **************************************************************************************************
-!> \brief read the global sectionof new input
+!> \brief read the global section of new input
 !> \param root_section ...
 !> \param para_env ...
 !> \param globenv ...
@@ -488,8 +498,8 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: env_num, model_name, project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
-      INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, num_threads, &
-         output_unit, print_level, trace_max, unit_nr
+      INTEGER :: cpuid, cpuid_static, i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
+         nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &
          MemLikelyFree_avr, MemLikelyFree_max, MemLikelyFree_min, MemTotal, MemTotal_avr, &
@@ -557,7 +567,7 @@ CONTAINS
 
       IF (trace .AND. (.NOT. trace_master .OR. para_env%mepos == 0)) THEN
          unit_nr = -1
-         IF (logger%para_env%mepos == logger%para_env%source .OR. .NOT. trace_master) &
+         IF (logger%para_env%ionode .OR. .NOT. trace_master) &
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          WRITE (tracing_string, "(I6.6,A1,I6.6)") para_env%mepos, ":", para_env%num_pe
          IF (ASSOCIATED(trace_routines)) THEN
@@ -572,8 +582,6 @@ CONTAINS
       SELECT CASE (i_diag)
       CASE (do_diag_sl)
          globenv%diag_library = "SL"
-      CASE (do_diag_sl2)
-         globenv%diag_library = "SL2"
       CASE (do_diag_elpa)
          globenv%diag_library = "ELPA"
          CALL cite_reference(Marek2014)
@@ -786,8 +794,29 @@ CONTAINS
             start_section_label//"| This output is from process", para_env%mepos
 
          CALL m_cpuinfo(model_name)
-         WRITE (UNIT=output_unit, FMT="(T2,A)") &
-            start_section_label//"| CPU model name : "//TRIM(model_name)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T30,A51)") &
+            start_section_label//"| CPU model name", ADJUSTR(TRIM(model_name))
+
+         cpuid = m_cpuid()
+         cpuid_static = m_cpuid_static()
+
+         IF ((cpuid > 0) .OR. (cpuid_static > 0)) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,I6)") &
+               start_section_label//"| CPUID", cpuid
+            IF (cpuid /= cpuid_static) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T75,I6)") &
+                  start_section_label//"| Compiled for CPUID", cpuid_static
+            END IF
+         END IF
+
+         IF (cpuid_static < cpuid) THEN
+            ! base/machine_cpuid.c relies on the (same) target flags as the Fortran code
+            CALL cp_hint(__LOCATION__, "The compiler target flags ("// &
+                         TRIM(m_cpuid_name(cpuid_static))//") used to build"//NEW_LINE("C")// &
+                         "   this binary cannot exploit all extensions of this CPU model ("// &
+                         TRIM(m_cpuid_name(cpuid))//")."//NEW_LINE("C")// &
+                         "   Consider compiler target flags as part of FCFLAGS and CFLAGS (ARCH file).")
+         END IF
 
          WRITE (UNIT=output_unit, FMT="()")
          WRITE (UNIT=output_unit, FMT="(T2,A)") "MEMORY| system memory details [Kb]"
@@ -887,7 +916,7 @@ CONTAINS
          try_fftw = .TRUE.
       ENDIF
 
-      !   *** Initialize FFT library with the user's prefered FFT library ***
+      !   *** Initialize FFT library with the user's preferred FFT library ***
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
                     alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                     fftsg_sizes=.NOT. section_get_lval(global_section, "EXTENDED_FFT_LENGTHS"), &
@@ -957,20 +986,19 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'diag_setup_library', &
          routineP = moduleN//':'//routineN
 
-      LOGICAL                                            :: switched
+      LOGICAL                                            :: fallback_applied
 
-      switched = .FALSE.
-
-      CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched, k_elpa=globenv%k_elpa, &
+      CALL diag_init(diag_lib=TRIM(globenv%diag_library), fallback_applied=fallback_applied, &
+                     elpa_kernel=globenv%k_elpa, &
                      elpa_qr=globenv%elpa_qr, elpa_print=globenv%elpa_print, &
                      elpa_qr_unsafe=globenv%elpa_qr_unsafe)
 
-      IF (switched) THEN
+      IF (fallback_applied) THEN
 
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(A,A,T55,A)') &
                " WARNING : DIAGONALIZATION library "//TRIM(globenv%diag_library)// &
-               " is not available ", " Trying SCALAPACK"
+               " is not available, fallback to SCALAPACK"
          ENDIF
 
       END IF
@@ -1080,7 +1108,7 @@ CONTAINS
 !> \author JGH,MK
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
-!>      of the default environments (logging, perormance,error):
+!>      of the default environments (logging, performance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
@@ -1119,6 +1147,7 @@ CONTAINS
          CALL deallocate_spherical_harmonics()
          CALL deallocate_orbital_pointers()
          CALL deallocate_md_ftable()
+         CALL diag_finalize()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 )
          CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
       ENDIF
@@ -1175,7 +1204,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="()")
             WRITE (UNIT=iw, FMT="(T2,A)") "-------------------------------------------------------------------------------"
          ENDIF
-         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%mepos == para_env%source) &
+         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%ionode) &
             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
       END IF
 
@@ -1211,7 +1240,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
          ENDIF
 
-         ! update the runtime enviroment variables
+         ! update the runtime environment variables
          CALL get_runtime_info()
 
          ! Just a choice, do not print the CP2K footer if there is a failure

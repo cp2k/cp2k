@@ -3,13 +3,23 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+QS/regtest-negf
+QS/regtest-negf-fft                                         fftw3
+QS/regtest-ri-rpa-axk                                       libint
+QS/regtest-ri-rpa-rse                                       libint
 QS/regtest-cdft-hirshfeld-2                                 parallel mpiranks>1
 QS/regtest-cdft-hirshfeld
-SIRIUS/regtest-1                                            libxc sirius elpa scalapack mpiranks=4
+SIRIUS/regtest-1                                            sirius
+xTB/regtest-1
+xTB/regtest-2
+xTB/regtest-3
+xTB/regtest-4
+xTB/regtest-5
 QS/regtest-almo-strong
 QS/regtest-elpa-2                                           elpa
 QS/regtest-cdft-5
-Pimd
+Pimd/regtest-1
+Pimd/regtest-2
 QS/regtest-mp2-grad                                         libint
 QS/regtest-kp-2
 QS/regtest-pao-2
@@ -36,6 +46,7 @@ QS/regtest-kp-3
 QS/regtest-slab
 ATOM/regtest-pseudo
 DFTB/regtest-scc
+DFTB/regtest-scc-2
 QS/regtest-gpw-3
 QS/regtest-ot
 QS/regtest-gpw-1                                            libint
@@ -169,6 +180,7 @@ QS/regtest-ot-refine-2
 QS/regtest-gpw-2-1
 QS/regtest-dft-vdw-corr-1
 QMMM/DFTB/regtest
+QMMM/xTB/regtest
 QS/regtest-gpw-9                                            libxc
 QMMM/QS/regtest-gapw                                        libint
 QS/regtest-cdft-4-1
@@ -193,7 +205,7 @@ Fist/regtest-gauss
 SE/regtest-3-3
 QS/regtest-epr-2
 QS/regtest-ot-1-vib                                         mpiranks==1||mpiranks==2||mpiranks==4
-QS/regtest-elpa-qr                                          elpa_qr mpiranks==1||mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==8
+QS/regtest-elpa-qr                                          elpa mpiranks==1||mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==8
 QS/regtest-all-electron
 QS/regtest-hybrid-1                                         libint
 FARMING/regtest-1
@@ -235,3 +247,5 @@ Fist/regtest-quip                                           quip
 ATOM/regtest-libxc                                          libxc
 Fist/regtest-plumed2                                        plumed2
 QS/regtest-sto
+QS/regtest-ri-laplace-mp2-cubic                             libint mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==16||mpiranks==24
+QS/regtest-dm-ls-scf-4

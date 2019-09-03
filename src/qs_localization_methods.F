@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -28,8 +28,11 @@ MODULE qs_localization_methods
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
+                                              cp_fm_pdgeqpf,&
+                                              cp_fm_pdorgqr,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace,&
@@ -42,11 +45,12 @@ MODULE qs_localization_methods
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsrownorm, &
         cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
-        cp_fm_to_fm, cp_fm_type
+        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
@@ -64,7 +68,7 @@ MODULE qs_localization_methods
 
    IMPLICIT NONE
    PUBLIC :: initialize_weights, crazy_rotations, &
-             direct_mini, rotate_orbitals, approx_l1_norm_sd, jacobi_rotations
+             direct_mini, rotate_orbitals, approx_l1_norm_sd, jacobi_rotations, scdm_qrfact, zij_matrix
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
 
@@ -1966,5 +1970,106 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE eberlein
+
+! **************************************************************************************************
+!> \brief ...
+!> \param vectors ...
+!> \param op_sm_set ...
+!> \param zij_fm_set ...
+! **************************************************************************************************
+   SUBROUTINE zij_matrix(vectors, op_sm_set, zij_fm_set)
+
+      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'zij_matrix', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, j, nao, nmoloc
+      TYPE(cp_fm_type), POINTER                          :: opvec
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (opvec)
+      ! get rows and cols of the input
+      CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
+      ! replicate the input kind of matrix
+      CALL cp_fm_create(opvec, vectors%matrix_struct)
+
+      ! Compute zij here
+      DO i = 1, SIZE(zij_fm_set, 2)
+         DO j = 1, SIZE(zij_fm_set, 1)
+            CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=nmoloc)
+            CALL cp_gemm("T", "N", nmoloc, nmoloc, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
+                         zij_fm_set(j, i)%matrix)
+         ENDDO
+      ENDDO
+
+      CALL cp_fm_release(opvec)
+      CALL timestop(handle)
+
+   END SUBROUTINE zij_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param vectors ...
+! **************************************************************************************************
+   SUBROUTINE scdm_qrfact(vectors)
+
+      TYPE(cp_fm_type), POINTER                          :: vectors
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ncolT, nrowT
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
+      TYPE(cp_fm_struct_type), POINTER                   :: cstruct
+      TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
+
+      CALL timeset(routineN, handle)
+
+      ! Create Transpose of Coefficient Matrix vectors
+      nrowT = vectors%matrix_struct%ncol_global
+      ncolT = vectors%matrix_struct%nrow_global
+
+      CALL cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
+                               vectors%matrix_struct%context, nrowT, ncolT, vectors%matrix_struct%ncol_block, &
+                               vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
+      CALL cp_fm_create(CTp, cstruct)
+      CALL cp_fm_struct_release(cstruct)
+
+      ALLOCATE (tau(nrowT))
+
+      CALL cp_fm_transpose(vectors, CTp)
+
+      ! Call SCALAPACK routine to get QR decomposition of CTs
+      CALL cp_fm_pdgeqpf(CTp, tau, nrowT, ncolT, 1, 1)
+
+      ! Construction of Q from the scalapack output
+      CALL cp_fm_struct_create(cstruct, para_env=CTp%matrix_struct%para_env, &
+                               context=CTp%matrix_struct%context, nrow_global=CTp%matrix_struct%nrow_global, &
+                               ncol_global=CTp%matrix_struct%nrow_global)
+      CALL cp_fm_create(Qf, cstruct)
+      CALL cp_fm_struct_release(cstruct)
+      CALL cp_fm_to_fm_submat(CTp, Qf, nrowT, nrowT, 1, 1, 1, 1)
+
+      ! Call SCALAPACK routine to get Q
+      CALL cp_fm_pdorgqr(Qf, tau, nrowT, 1, 1)
+
+      ! Transform original coefficient matrix vectors
+      CALL cp_fm_create(tmp, vectors%matrix_struct)
+      CALL cp_fm_set_all(tmp, 0.0_dp, 1.0_dp)
+      CALL cp_fm_to_fm(vectors, tmp)
+      CALL cp_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
+
+      ! Cleanup
+      CALL cp_fm_release(CTp)
+      CALL cp_fm_release(tmp)
+      CALL cp_fm_release(Qf)
+      DEALLOCATE (tau)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE scdm_qrfact
 
 END MODULE qs_localization_methods

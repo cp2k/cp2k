@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -462,7 +462,7 @@ CONTAINS
 !> \param molecule_set ...
 !> \param distribution_2d the distribution that will be created by this
 !>                         method
-!> \param blacs_env the parallel environement at the basis of the
+!> \param blacs_env the parallel environment at the basis of the
 !>                   distribution
 !> \param force_env_section ...
 !> \par History

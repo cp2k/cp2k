@@ -1,10 +1,10 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief used for collecting some of the diagonalization shemes available for
+!> \brief used for collecting some of the diagonalization schemes available for
 !>      cp_fm_type. cp_fm_power also moved here as it is very related
 !> \note
 !>      first version : most routines imported
@@ -31,7 +31,9 @@ MODULE cp_fm_diag
    USE cp_fm_elpa, ONLY: cp_fm_diag_elpa, &
       set_elpa_kernel, &
       set_elpa_qr, &
-      set_elpa_print
+      set_elpa_print, &
+      initialize_elpa_library, &
+      finalize_elpa_library
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
       cp_fm_struct_release, &
       cp_fm_struct_type
@@ -71,6 +73,11 @@ MODULE cp_fm_diag
    ! these saved variables are DIAGONALIZATION global
    INTEGER, SAVE :: diag_type = 0
 
+   ! constants for the diag_type above
+   INTEGER, PARAMETER :: &
+      DIAG_TYPE_SCALAPACK = 1, &
+      DIAG_TYPE_ELPA = 2
+
    ! Public subroutines
 
    PUBLIC :: choose_eigv_solver, &
@@ -80,17 +87,17 @@ MODULE cp_fm_diag
              cp_fm_syevx, &
              cp_fm_geeig, &
              cp_fm_geeig_canon, &
-             diag_init
+             diag_init, &
+             diag_finalize
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief Setup the diagonalization library to be used
-!>         Check of availability not yet fully implemented
-!>         It should change library to Scalapack if others are not available
 !> \param diag_lib diag_library flag from GLOBAL section in input
-!> \param switched ...
-!> \param k_elpa integer that determines which ELPA kernel to use for diagonalization
+!> \param fallback_applied .TRUE. if support for the requested library was not compiled-in and fallback
+!>                         to SCALAPACK was applied, .FALSE. otherwise.
+!> \param elpa_kernel integer that determines which ELPA kernel to use for diagonalization
 !> \param elpa_qr logical that determines if ELPA should try to use QR to accelerate the
 !>                diagonalization procedure of suitably sized matrices
 !> \param elpa_print logical that determines if information about the ELPA diagonalization should
@@ -98,59 +105,50 @@ CONTAINS
 !> \param elpa_qr_unsafe logical that enables potentially unsafe ELPA options
 !> \author  MI 11.2013
 ! **************************************************************************************************
-   SUBROUTINE diag_init(diag_lib, switched, k_elpa, elpa_qr, elpa_print, elpa_qr_unsafe)
+   SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_qr, elpa_print, elpa_qr_unsafe)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
-      LOGICAL, INTENT(INOUT)                             :: switched
-      INTEGER, INTENT(IN)                                :: k_elpa
+      LOGICAL, INTENT(OUT)                               :: fallback_applied
+      INTEGER, INTENT(IN)                                :: elpa_kernel
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
 
       CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', routineP = moduleN//':'//routineN
 
-      LOGICAL                                            :: try_library
+      fallback_applied = .FALSE.
 
-      ! scalapack is the default and always linked
       IF (diag_lib .EQ. "SL") THEN
-         try_library = .FALSE.
-         diag_type = 1
-      ELSE
-         try_library = .TRUE.
-      END IF
-
-      IF (try_library) THEN
-         IF (diag_lib .EQ. "ELPA") THEN
-
+         diag_type = DIAG_TYPE_SCALAPACK
+      ELSE IF (diag_lib .EQ. "ELPA") THEN
 #if defined (__ELPA)
-            diag_type = 3
-            MARK_USED(switched)
+         ! ELPA is requested and available
+         diag_type = DIAG_TYPE_ELPA
 #else
-            ! ELPA library not linked, switch to SL
-            diag_type = 1
-            switched = .TRUE.
+         ! ELPA library requested but not linked, switch back to SL
+         diag_type = DIAG_TYPE_SCALAPACK
+         fallback_applied = .TRUE.
 #endif
-         ELSE IF (diag_lib .EQ. "SL2") THEN
-
-#if defined (__SCALAPACK2)
-            diag_type = 2
-            MARK_USED(switched)
-#else
-            ! SL2 library not linked, switch to SL
-            diag_type = 1
-            switched = .TRUE.
-#endif
-         END IF
+      ELSE
+         CPABORT("Initialization of unknown diagonalization library requested")
       END IF
 
-      CALL set_elpa_kernel(k_elpa)
-      CALL set_elpa_qr(elpa_qr, elpa_qr_unsafe)
-      CALL set_elpa_print(elpa_print)
-
-      ! Check that one of the diagonalization type is set
-      IF (diag_type < 1) THEN
-         ! something wrong
-         CPABORT("Unknown DIAG type")
+      ! Initialization of requested diagonalization library:
+      IF (diag_type == DIAG_TYPE_ELPA) THEN
+         CALL initialize_elpa_library()
+         CALL set_elpa_kernel(elpa_kernel)
+         CALL set_elpa_qr(elpa_qr, elpa_qr_unsafe)
+         CALL set_elpa_print(elpa_print)
       END IF
-
    END SUBROUTINE diag_init
+
+! **************************************************************************************************
+!> \brief Finalize the diagonalization library
+! **************************************************************************************************
+   SUBROUTINE diag_finalize()
+      CHARACTER(len=*), PARAMETER :: routineN = 'diag_finalize', routineP = moduleN//':'//routineN
+#if defined (__ELPA)
+      IF (diag_type == DIAG_TYPE_ELPA) &
+         CALL finalize_elpa_library()
+#endif
+   END SUBROUTINE diag_finalize
 
 ! **************************************************************************************************
 !> \brief   Choose the Eigensolver depending on which library is available
@@ -170,9 +168,21 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: myinfo, nmo
+#if defined(__CHECK_DIAG)
+      CHARACTER(LEN=5), DIMENSION(2), PARAMETER          :: diag_driver = (/"SYEVD", &
+                                                                            "ELPA "/)
+      REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-12_dp
+      INTEGER                                            :: i, j, n
+#if defined(__SCALAPACK)
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      INTEGER                                            :: il, jl, ipcol, iprow, &
+                                                            mypcol, myprow, npcol, nprow
+      INTEGER, DIMENSION(9)                              :: desca
+#endif
+#endif
 
       myinfo = 0
 
@@ -181,17 +191,83 @@ CONTAINS
       !sample peak memory
       CALL m_memory()
 
-      IF (diag_type == 3) THEN
+      IF (diag_type == DIAG_TYPE_ELPA) THEN
          CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
-      ELSE IF (diag_type == 2) THEN
-         CALL cp_fm_syevr(matrix, eigenvectors, eigenvalues, 1, nmo)
-      ELSE IF (diag_type == 1) THEN
-         CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
+      ELSE IF (diag_type == DIAG_TYPE_SCALAPACK) THEN
+         IF (PRESENT(info)) THEN
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
+         ELSE
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues)
+         END IF
       ELSE
-         CPABORT("Unknown DIAG type")
+         CPABORT("Invalid diagonalization type encountered")
       END IF
 
       IF (PRESENT(info)) info = myinfo
+
+#if defined(__CHECK_DIAG)
+#if defined(__SCALAPACK)
+      n = eigenvectors%matrix_struct%nrow_global
+      CALL cp_fm_gemm("T", "N", nmo, nmo, n, 1.0_dp, eigenvectors, eigenvectors, 0.0_dp, matrix)
+      context => matrix%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = matrix%matrix_struct%descriptor(:)
+      DO i = 1, nmo
+         DO j = 1, nmo
+            CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
+            IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+               IF (i == j) THEN
+                  IF (ABS(matrix%local_data(il, jl)-1.0_dp) > eps) THEN
+                     WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                        "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                        "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
+                        "The expected value is 1"
+                     CPABORT("Matrix diagonalization failed")
+                  END IF
+               ELSE
+                  IF (ABS(matrix%local_data(il, jl)) > eps) THEN
+                     WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                        "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                        "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
+                        "The expected value is 0"
+                     CPABORT("Matrix diagonalization failed")
+                  END IF
+               END IF
+            END IF
+         END DO
+      END DO
+#else
+      n = SIZE(eigenvectors%local_data, 1)
+      CALL dgemm("T", "N", nmo, nmo, n, 1.0_dp, &
+                 eigenvectors%local_data(1, 1), n, &
+                 eigenvectors%local_data(1, 1), n, &
+                 0.0_dp, matrix%local_data(1, 1), n)
+      DO i = 1, nmo
+         DO j = 1, nmo
+            IF (i == j) THEN
+               IF (ABS(matrix%local_data(i, j)-1.0_dp) > eps) THEN
+                  WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                     "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                     "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
+                     "The expected value is 1"
+                  CPABORT("Matrix diagonalization failed")
+               END IF
+            ELSE
+               IF (ABS(matrix%local_data(i, j)) > eps) THEN
+                  WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                     "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                     "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
+                     "The expected value is 0"
+                  CPABORT("Matrix diagonalization failed")
+               END IF
+            END IF
+         END DO
+      END DO
+#endif
+#endif
 
    END SUBROUTINE choose_eigv_solver
 
@@ -222,7 +298,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
 #else
-      INTEGER                                  :: liwork, lwork
+      INTEGER                                  :: liwork, lwork, nl
       INTEGER, DIMENSION(:), POINTER           :: iwork
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m
       REAL(KIND=dp), DIMENSION(:), POINTER     :: work
@@ -252,7 +328,6 @@ CONTAINS
 #else
 
       !MK Retrieve the optimal work array sizes first
-      myinfo = 0
       lwork = -1
       liwork = -1
       m => matrix%local_data
@@ -262,8 +337,9 @@ CONTAINS
       work(:) = 0.0_dp
       ALLOCATE (iwork(1))
       iwork(:) = 0
+      nl = SIZE(m, 1)
 
-      CALL dsyevd('V', 'U', n, m(1, 1), n, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
+      CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
          CPABORT("ERROR in DSYEVD: Could not retrieve work array sizes")
@@ -273,13 +349,14 @@ CONTAINS
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
+      work(:) = 0.0_dp
 
       liwork = iwork(1)
       DEALLOCATE (iwork)
       ALLOCATE (iwork(liwork))
       iwork(:) = 0
 
-      CALL dsyevd('V', 'U', n, m(1, 1), n, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
+      CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
          CPABORT("Matrix diagonalization failed")
@@ -291,7 +368,7 @@ CONTAINS
       DEALLOCATE (work)
 #endif
 
-      IF (PRESENT(info)) myinfo = 0
+      IF (PRESENT(info)) info = myinfo
 
       nmo = SIZE(eigenvalues, 1)
       IF (nmo > n) THEN
@@ -460,6 +537,7 @@ CONTAINS
       LOGICAL, DIMENSION(5)                        :: halt
 #endif
 #else
+      INTEGER                                               :: nla, nlz
       INTEGER, EXTERNAL                            :: ilaenv
 #endif
 
@@ -474,7 +552,7 @@ CONTAINS
       needs_evecs = PRESENT(eigenvectors)
 
       logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
+      ionode = logger%para_env%ionode
       n = matrix%matrix_struct%nrow_global
 
       ! by default allocate all needed space
@@ -609,9 +687,11 @@ CONTAINS
       ALLOCATE (iwork(liwork))
       ALLOCATE (work(lwork))
       info = 0
+      nla = SIZE(a, 1)
+      nlz = SIZE(z, 1)
 
-      CALL dsyevx(job_type, "I", "U", n, a(1, 1), n, vl, vu, 1, neig_local, abstol, m, w, z(1, 1), n, work(1), lwork, &
-                  iwork(1), ifail(1), info)
+      CALL dsyevx(job_type, "I", "U", n, a(1, 1), nla, vl, vu, 1, neig_local, &
+                  abstol, m, w, z(1, 1), nlz, work(1), lwork, iwork(1), ifail(1), info)
 
       ! Error handling
 
@@ -639,197 +719,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_syevx
-
-! **************************************************************************************************
-!> \brief  computes selected eigenvalues and, optionally, eigenvectors of
-!>        a real symmetric matrix A distributed in 2D blockcyclic format by
-!>       calling the recommended sequence of ScaLAPACK routines.
-!>
-!> \param matrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-!> \param ilow ...
-!> \param iup ...
-!> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
-!>          subsets of eigenvalues/vectors can be selected by
-!>          specifying a range of values or a range of indices for the desired eigenvalues.
-! **************************************************************************************************
-   SUBROUTINE cp_fm_syevr(matrix, eigenvectors, eigenvalues, ilow, iup)
-
-      TYPE(cp_fm_type), POINTER                    :: matrix
-      TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
-      INTEGER, INTENT(IN), OPTIONAL                :: ilow, iup
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr", &
-                                     routineP = moduleN//":"//routineN
-#if (!defined(__SCALAPACK) || defined(__SCALAPACK2))
-      REAL(KIND=dp), PARAMETER  :: vl = 0.0_dp, &
-                                   vu = 0.0_dp
-#endif
-
-      CHARACTER(LEN=1)                           :: job_type
-      INTEGER                                    :: handle, ilow_local, &
-                                                    info, iup_local, &
-                                                    lwork, liwork, mypcol, &
-                                                    myprow, n, neig
-      INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
-      LOGICAL                                    :: ionode, needs_evecs
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: w, work
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: a, z
-
-      TYPE(cp_blacs_env_type), POINTER           :: context
-      TYPE(cp_logger_type), POINTER              :: logger
-
-      REAL(KIND=dp), EXTERNAL :: dlamch
-
-#if defined(__SCALAPACK)
-      INTEGER, DIMENSION(9)               :: desca, descz
-#if defined(__SCALAPACK2)
-      INTEGER                             :: m, nz
-#endif
-#else
-      INTEGER                             :: m, nb
-      REAL(dp)                            :: abstol
-      INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail
-      INTEGER, EXTERNAL                   :: ilaenv
-#endif
-
-      ! by default all
-      n = matrix%matrix_struct%nrow_global
-      neig = n
-      iup_local = n
-      ilow_local = 1
-      IF (PRESENT(ilow) .AND. PRESENT(iup)) THEN
-         neig = iup-ilow+1
-         iup_local = iup
-         ilow_local = ilow
-      END IF
-      IF (neig <= 0) RETURN
-
-      CALL timeset(routineN, handle)
-
-      needs_evecs = PRESENT(eigenvectors)
-
-      logger => cp_get_default_logger()
-      ionode = logger%para_env%mepos == logger%para_env%source
-      n = matrix%matrix_struct%nrow_global
-
-      ! set scalapack job type
-      IF (needs_evecs) THEN
-         job_type = "V"
-      ELSE
-         job_type = "N"
-      ENDIF
-
-      context => matrix%matrix_struct%context
-      myprow = context%mepos(1)
-      mypcol = context%mepos(2)
-
-      ALLOCATE (w(n))
-
-      eigenvalues(:) = 0.0_dp
-
-#if defined(__SCALAPACK)
-
-      IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
-         CPABORT("")
-      END IF
-
-      a => matrix%local_data
-      desca(:) = matrix%matrix_struct%descriptor(:)
-
-      IF (needs_evecs) THEN
-         z => eigenvectors%local_data
-         descz(:) = eigenvectors%matrix_struct%descriptor(:)
-      ELSE
-         ! z will not be referenced
-         z => matrix%local_data
-         descz = desca
-      ENDIF
-
-      ! First Call: Determine the needed work_space
-      lwork = -1
-      ALLOCATE (work(5*n))
-      ALLOCATE (iwork(6*n))
-#if defined (__SCALAPACK2)
-      CALL pdsyevr(job_type, 'I', 'U', n, a, 1, 1, desca, vl, vu, ilow_local, iup_local, m, nz, w(1), &
-                   z, 1, 1, descz, work, lwork, iwork, liwork, info)
-#endif
-      lwork = INT(work(1))
-      lwork = NINT(work(1)+300000)
-      liwork = iwork(1)
-      IF (lwork > SIZE(work, 1)) THEN
-         DEALLOCATE (work)
-         ALLOCATE (work(lwork))
-      END IF
-      IF (liwork > SIZE(iwork, 1)) THEN
-         DEALLOCATE (iwork)
-         ALLOCATE (iwork(liwork))
-      END IF
-
-      !Second call: solve the eigenvalue problem
-      info = 0
-#if defined (__SCALAPACK2)
-      CALL pdsyevr(job_type, 'I', 'U', n, a, 1, 1, desca, vl, vu, ilow_local, iup_local, m, nz, w(1), &
-                   z, 1, 1, descz, work, lwork, iwork, liwork, info)
-#endif
-
-      IF (info > 0) THEN
-         WRITE (*, *) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO
-      END IF
-      CPASSERT(info == 0)
-
-      ! Release work storage
-      DEALLOCATE (iwork)
-      DEALLOCATE (work)
-
-#else
-
-      a => matrix%local_data
-      IF (needs_evecs) THEN
-         z => eigenvectors%local_data
-      ELSE
-         ! z will not be referenced
-         z => matrix%local_data
-      ENDIF
-
-      ! Get the optimal work storage size
-
-      nb = MAX(ilaenv(1, "DSYTRD", "U", n, -1, -1, -1), &
-               ilaenv(1, "DORMTR", "U", n, -1, -1, -1))
-
-      lwork = MAX((nb+3)*n, 8*n)+n ! sun bug fix
-      liwork = 5*n
-
-      ALLOCATE (ifail(n))
-      ifail = 0
-
-      ALLOCATE (iwork(liwork))
-      ALLOCATE (work(lwork))
-
-      ! target the most accurate calculation of the eigenvalues
-      abstol = 2.0_dp*dlamch("S")
-
-      info = 0
-      CALL dsyevx(job_type, "I", "U", n, a(1, 1), n, vl, vu, ilow_local, iup_local, abstol, m, w, z(1, 1), n, work(1), lwork, &
-                  iwork(1), ifail(1), info)
-
-      ! Error handling
-      CPASSERT(info == 0)
-
-      ! Release work storage
-      DEALLOCATE (iwork)
-      DEALLOCATE (work)
-
-#endif
-
-      eigenvalues(ilow_local:iup_local) = w(ilow_local:iup_local)
-      DEALLOCATE (w)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_fm_syevr
 
 ! **************************************************************************************************
 !> \brief ...
@@ -991,7 +880,7 @@ CONTAINS
 
       ! Print some warnings/notes
 
-      IF (matrix%matrix_struct%para_env%mepos == 0 .AND. my_verbose) THEN
+      IF (matrix%matrix_struct%para_env%ionode .AND. my_verbose) THEN
          condition_number = ABS(eigenvalues(ncol_global)/eigenvalues(1))
          WRITE (UNIT=cp_logger_get_default_unit_nr(), FMT="(/,(T2,A,ES15.6))") &
             "CP_FM_POWER: smallest eigenvalue:", eigenvalues(1), &

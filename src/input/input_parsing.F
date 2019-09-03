@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -100,7 +100,7 @@ CONTAINS
                        //TRIM(parser_location(parser)))
       section => section_vals%section
       IF (root_sect) THEN
-         token = parser%input_line(parser%icol1:parser%icol2)
+         token = TRIM(ADJUSTL(parser%input_line(parser%icol1:parser%icol2))) ! Ignore leading or trailing blanks
          CALL uppercase(token)
          IF (token /= parser%section_character//section%name) &
             CALL cp_abort(__LOCATION__, &
@@ -130,6 +130,7 @@ CONTAINS
       DO WHILE (.TRUE.)
          CALL parser_get_object(parser, token, newline=.TRUE., &
                                 lower_to_upper=.TRUE., at_end=at_end)
+         token = TRIM(ADJUSTL(token)) ! Ignore leading or trailing blanks
          IF (at_end) THEN
             IF (root_sect) &
                CALL cp_abort(__LOCATION__, &
@@ -319,7 +320,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: c_val_p
       INTEGER                                            :: handle, i, i_val
       INTEGER, DIMENSION(:), POINTER                     :: i_val_p
-      LOGICAL                                            :: check, l_val
+      LOGICAL                                            :: check, eol, l_val, quoted
       LOGICAL, DIMENSION(:), POINTER                     :: l_val_p
       REAL(kind=dp)                                      :: r_val
       REAL(kind=dp), DIMENSION(:), POINTER               :: r_val_p
@@ -516,10 +517,38 @@ CONTAINS
          ELSE
             NULLIFY (c_last, c_first)
             CALL parser_get_object(parser, c_val, string_length=LEN(c_val))
+            IF (c_val(1:1) == parser%quote_character) THEN
+               quoted = .TRUE.
+               c_val(1:) = c_val(2:) ! Drop first quotation mark
+               i = INDEX(c_val, parser%quote_character) ! Check for second quotation mark
+               IF (i > 0) THEN
+                  c_val(i:) = "" ! Discard stuff after second quotation mark
+                  eol = .TRUE. ! Enforce end of line
+               ELSE
+                  eol = .FALSE.
+               END IF
+            ELSE
+               quoted = .FALSE.
+               eol = .FALSE.
+            END IF
             CALL cp_create(c_first, c_val)
             c_last => c_first
-            DO WHILE (parser_test_next_token(parser) /= "EOL")
+            DO WHILE ((.NOT. eol) .AND. (parser_test_next_token(parser) /= "EOL"))
                CALL parser_get_object(parser, c_val, string_length=LEN(c_val))
+               i = INDEX(c_val, parser%quote_character) ! Check for quotation mark
+               IF (i > 0) THEN
+                  IF (quoted) THEN
+                     c_val(i:) = "" ! Discard stuff after second quotation mark
+                     eol = .TRUE. ! Enforce end of line
+                  ELSE
+                     CALL cp_abort(__LOCATION__, &
+                                   "Quotation mark found which is not the first non-blank character. "// &
+                                   "Possibly the first quotation mark is missing?"// &
+                                   TRIM(parser_location(parser)))
+                  END IF
+               ELSE
+                  eol = .FALSE.
+               END IF
                CALL cp_create(c_new, c_val)
                c_last%rest => c_new
                c_last => c_new

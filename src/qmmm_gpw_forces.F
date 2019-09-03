@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -67,8 +67,8 @@ MODULE qmmm_gpw_forces
                                               qmmm_pot_p_type,&
                                               qmmm_pot_type
    USE qmmm_util,                       ONLY: spherical_cutoff_factor
-   USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix,&
-                                              deriv_dftb_qmmm_matrix_pc
+   USE qmmm_tb_methods,                 ONLY: deriv_tb_qmmm_matrix,&
+                                              deriv_tb_qmmm_matrix_pc
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -180,17 +180,17 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPABORT("")
        END SELECT
-    ELSEIF (dft_control%qs_control%dftb) THEN
+    ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
        ! DFTB
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_none)
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE(do_qmmm_coulomb)
-          CALL deriv_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+          CALL deriv_tb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges)
        CASE(do_qmmm_pcharge)
-          CALL deriv_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+          CALL deriv_tb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.")
@@ -286,8 +286,8 @@ CONTAINS
        IF(qmmm_env%added_shells%num_mm_atoms/=0) CALL mp_sum(Forces_added_shells,para_env%group)
        ! Debug Forces
        IF (debug_this_module) THEN
-          IF ( (dft_control%qs_control%semi_empirical).OR.&
-               (dft_control%qs_control%dftb))THEN
+          IF ( dft_control%qs_control%semi_empirical.OR.&
+               dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb)THEN
              WRITE(iw,*)"NO DEBUG AVAILABLE in module"//TRIM(routineN)
           ELSE
              ! Print Out Forces
@@ -312,9 +312,8 @@ CONTAINS
     END IF
     ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
     IF  ((.NOT.dft_control%qs_control%semi_empirical).AND.&
-         (.NOT.dft_control%qs_control%dftb)) THEN
-       CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
-            accept_non_compatible=.TRUE.)
+         (.NOT.dft_control%qs_control%dftb).AND.(.NOT.dft_control%qs_control%xtb)) THEN
+       CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r, accept_non_compatible=.TRUE.)
     END IF
     IF (iw>0) THEN
        IF(.NOT. gapw) WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -47,13 +47,13 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="DISTRIBUTION", &
+      CALL section_create(section, __LOCATION__, name="DISTRIBUTION", &
                           description="can be used used to tune the parallel distribution of the data", &
                           n_keywords=2, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="COST_MODEL", &
+      CALL keyword_create(keyword, __LOCATION__, name="COST_MODEL", &
                           description="The cost model that needs to be minimized ", &
                           usage="COST_MODEL BLOCK_COUNT", &
                           enum_c_vals=s2a("BLOCK_COUNT", "BLOCK_SURFACE", "BLOCK_LMAX"), &
@@ -65,7 +65,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="2D_MOLECULAR_DISTRIBUTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="2D_MOLECULAR_DISTRIBUTION", &
                           description="Distribute the atoms so that atoms belonging to a given molecule"// &
                           " are on the same CPU for the 2D distribution. This might give rise to a"// &
                           " worse distribution but reduces memory needs of finding the optimal distribution.", &
@@ -74,7 +74,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SKIP_OPTIMIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="SKIP_OPTIMIZATION", &
                           description="Do not optimize the distribution, go for something very simple."// &
                           " Might be useful if the optimization, which scales quadratically in system size, is too expensive.", &
                           usage="SKIP_OPTIMIZATION TRUE", &
@@ -82,7 +82,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIC_OPTIMIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIC_OPTIMIZATION", &
                           description="Creates a distribution based on a few heuristics using only minimal memory "// &
                           "and CPU time.", &
                           usage="BASIC_OPTIMIZATION TRUE", &
@@ -90,7 +90,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIC_SPATIAL_OPTIMIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIC_SPATIAL_OPTIMIZATION", &
                           description="Creates a distribution with spatial info, using only minimal memory "// &
                           "and CPU time.", &
                           usage="BASIC_SPATIAL_OPTIMIZATION TRUE", &
@@ -98,14 +98,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIC_CLUSTER_OPTIMIZATION", &
+      CALL keyword_create(keyword, __LOCATION__, name="BASIC_CLUSTER_OPTIMIZATION", &
                           description="Creates a distribution with spatial info, using recursively KMEANS clustering. ", &
                           usage="BASIC_CLUSTER_OPTIMIZATION TRUE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SYMMETRIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRIC", &
                           description="Take the symmetry of the distribution_2d into account.", &
                           usage="SYMMETRIC TRUE", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -381,7 +381,7 @@ CONTAINS
 
       INTEGER                                            :: lp
 
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%ionode) THEN
          lp = LEN_TRIM(project_name)
          project_name(lp+1:LEN(project_name)) = suffix
          CALL open_file(file_name=project_name, file_status="UNKNOWN", &

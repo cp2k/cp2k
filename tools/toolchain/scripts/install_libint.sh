@@ -2,12 +2,33 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libint_ver=${libint_ver:-1.1.6}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
-with_libint=${1:-__INSTALL__}
+libint_ver="2.6.0"
+libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz"
+
+case "$LIBINT_LMAX" in
+    4)
+        libint_sha256="7c8d28bfb03920936231228b79686ba0fd87ea922c267199789bc131cf21ac08"
+        ;;
+    5)
+        libint_sha256="1cd72206afddb232bcf2179c6229fbf6e42e4ba8440e701e6aa57ff1e871e9db"
+        ;;
+    6)
+        libint_sha256="bea76a433cd32bde280879f73b5fc8228c78b62e3ea57ace4c6d74b65910b8af"
+        ;;
+    7)
+        libint_sha256="3bcdcc55e1dbafe38a785d4af171df8e300bb8b7775894b57186cdf35807c334"
+        ;;
+    *)
+       report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
+       exit 1
+       ;;
+esac
 
 [ -f "${BUILDDIR}/setup_libint" ] && rm "${BUILDDIR}/setup_libint"
 
@@ -16,49 +37,63 @@ LIBINT_LDFLAGS=''
 LIBINT_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libint" in
     __INSTALL__)
         echo "==================== Installing LIBINT ===================="
-        pkg_install_dir="${INSTALLDIR}/libint-${libint_ver}"
+        pkg_install_dir="${INSTALLDIR}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libint-${libint_ver} is already installed, skipping it."
         else
-            if [ -f libint-${libint_ver}.tar.gz ] ; then
-                echo "libint-${libint_ver}.tar.gz is found"
+            if [ -f ${libint_pkg} ] ; then
+                echo "${libint_pkg} is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
+                download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
+                             https://github.com/cp2k/libint-cp2k/releases/download/v${libint_ver}/${libint_pkg}
             fi
+
+            [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
+            tar -xzf ${libint_pkg}
+
             echo "Installing from scratch into ${pkg_install_dir}"
-            [ -d libint-${libint_ver} ] && rm -rf libint-${libint_ver}
-            tar -xzf libint-${libint_ver}.tar.gz
-            cd libint-${libint_ver}
-            # hack for -with-cc, needed for -fsanitize=thread that also
-            # needs to be passed to the linker, but seemingly ldflags is
-            # ignored by libint configure
+            cd libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
+
+            # reduce debug information to level 1 since
+            # level 2 (default for -g flag) leads to very large binary size
+            LIBINT_CXXFLAGS="$CXXFLAGS -g1"
+
+            # cmake build broken with libint 2.6, uncomment for libint 2.7 and above
+            #cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+            #        -DCMAKE_CXX_COMPILER="$CXX" \
+            #        -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
+            #        -DENABLE_FORTRAN=ON \
+            #        -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
+            #cmake --build . > cmake.log 2>&1
+            #cmake --build . --target install > install.log 2>&1
+
             ./configure --prefix=${pkg_install_dir} \
+                        --with-cxx="$CXX $LIBINT_CXXFLAGS" \
+                        --with-cxx-optflags="$LIBINT_CXXFLAGS" \
+                        --enable-fortran \
                         --libdir="${pkg_install_dir}/lib" \
-                        --with-libint-max-am=5 \
-                        --with-libderiv-max-am1=4 \
-                        --with-cc="$CC $CFLAGS" \
-                        --with-cc-optflags="$CFLAGS" \
-                        --with-cxx-optflags="$CXXFLAGS" \
                         > configure.log 2>&1
-            make -j $NPROCS >  make.log 2>&1
+
+            make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
+
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
+
         LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
         ;;
     __SYSTEM__)
         echo "==================== Finding LIBINT from system paths ===================="
-        check_lib -lderiv "libint"
-        check_lib -lint "libint"
+        check_lib -lint2 "libint"
         add_include_from_paths -p LIBINT_CFLAGS "libint" $INCLUDE_PATHS
-        add_lib_from_paths LIBINT_LDFLAGS "libint.*" $LIB_PATHS
+        add_lib_from_paths LIBINT_LDFLAGS "libint2.*" $LIB_PATHS
         ;;
     __DONTUSE__)
         ;;
@@ -68,11 +103,11 @@ case "$with_libint" in
         check_dir "${pkg_install_dir}/lib"
         check_dir "${pkg_install_dir}/include"
         LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
         ;;
 esac
 if [ "$with_libint" != "__DONTUSE__" ] ; then
-    LIBINT_LIBS="-lderiv -lint"
+    LIBINT_LIBS="-lint2"
     if [ "$with_libint" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_libint"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -86,11 +121,16 @@ EOF
 export LIBINT_CFLAGS="${LIBINT_CFLAGS}"
 export LIBINT_LDFLAGS="${LIBINT_LDFLAGS}"
 export LIBINT_LIBS="${LIBINT_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
+export CP_DFLAGS="\${CP_DFLAGS} -D__LIBINT"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBINT_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBINT_LDFLAGS}"
-# Libint doesn't always work with dynamic linking.
-export CP_LIBS="-Wl,-Bstatic ${LIBINT_LIBS} -Wl,-Bdynamic \${CP_LIBS}"
+export CP_LIBS="${LIBINT_LIBS} \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libint"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "libint"

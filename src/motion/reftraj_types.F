@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -37,6 +37,7 @@ MODULE reftraj_types
       INTEGER                                  :: last_snapshot
       INTEGER                                  :: stride
       LOGICAL                                  :: eval_ef
+      LOGICAL                                  :: eval_forces
       LOGICAL                                  :: variable_volume
       LOGICAL                                  :: msd
       TYPE(cp_parser_type), POINTER            :: traj_parser
@@ -116,6 +117,8 @@ CONTAINS
       CALL section_vals_val_get(reftraj_section, "LAST_SNAPSHOT", i_val=reftraj%info%last_snapshot)
       CALL section_vals_val_get(reftraj_section, "STRIDE", i_val=reftraj%info%stride)
       CALL section_vals_val_get(reftraj_section, "EVAL_ENERGY_FORCES", l_val=reftraj%info%eval_ef)
+      CALL section_vals_val_get(reftraj_section, "EVAL_FORCES", l_val=reftraj%info%eval_forces)
+      IF (reftraj%info%eval_forces) reftraj%info%eval_ef = .TRUE.
 
       CALL section_vals_val_get(reftraj_section, "MSD%_SECTION_PARAMETERS_", &
                                 l_val=reftraj%info%msd)

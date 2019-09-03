@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -10,50 +10,40 @@
 !> \author Mauro Del Ben
 ! **************************************************************************************************
 MODULE mp2_direct_method
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
-   USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
-   USE hfx_libint_wrapper_types,        ONLY: lib_int
+   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: cost_model,&
                                               p1_energy,&
                                               p2_energy,&
                                               p3_energy
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
-   USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
-                                              calc_screening_functions
-   USE hfx_types,                       ONLY: &
-        hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, hfx_general_type, &
-        hfx_load_balance_type, hfx_memory_type, hfx_pgf_list, hfx_pgf_product_list, &
-        hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_type, log_zero, &
-        pair_set_list_type
-   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
+   USE hfx_types,                       ONLY: hfx_basis_type,&
+                                              hfx_pgf_list,&
+                                              hfx_pgf_product_list,&
+                                              hfx_potential_type,&
+                                              hfx_screen_coeff_type,&
+                                              hfx_type,&
+                                              pair_set_list_type
+   USE input_constants,                 ONLY: do_potential_TShPSC
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: zero
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sendrecv,&
                                               mp_sum
+   USE mp2_ri_libint,                   ONLY: prepare_integral_calc
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
                                               mp2_type,&
                                               pair_list_type_mp2
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
-   USE t_sh_p_s_c,                      ONLY: free_C0,&
-                                              init
+   USE qs_environment_types,            ONLY: qs_environment_type
+   USE t_sh_p_s_c,                      ONLY: free_C0
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,7 +64,6 @@ CONTAINS
 !> \param Emp2_ex ...
 !> \param mp2_env ...
 !> \param qs_env ...
-!> \param rho density matrix
 !> \param para_env ...
 !> \param mp2_biel ...
 !> \param dimen ...
@@ -95,104 +84,90 @@ CONTAINS
 !>      06.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! **************************************************************************************************
-   SUBROUTINE mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, rho, para_env, &
+   SUBROUTINE mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env, &
                                                 mp2_biel, dimen, C, Auto, i_batch_start, Ni_occupied, &
                                                 occupied, elements_ij_proc, ij_list_proc, Nj_occupied, j_batch_start, &
                                                 occupied_beta, C_beta, Auto_beta, Integ_MP2)
 
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
+      REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mp2_biel_type)                                :: mp2_biel
-      INTEGER                                            :: dimen
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto
-      INTEGER                                            :: i_batch_start, Ni_occupied, occupied, &
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
+      INTEGER, INTENT(IN)                                :: dimen
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto
+      INTEGER, INTENT(IN)                                :: i_batch_start, Ni_occupied, occupied, &
                                                             elements_ij_proc
-      INTEGER, DIMENSION(elements_ij_proc, 2)            :: ij_list_proc
-      INTEGER                                            :: Nj_occupied, j_batch_start
-      INTEGER, OPTIONAL                                  :: occupied_beta
-      REAL(KIND=dp), DIMENSION(dimen, dimen), OPTIONAL   :: C_beta
-      REAL(KIND=dp), DIMENSION(dimen), OPTIONAL          :: Auto_beta
+      INTEGER, DIMENSION(elements_ij_proc, 2), &
+         INTENT(IN)                                      :: ij_list_proc
+      INTEGER, INTENT(IN)                                :: Nj_occupied, j_batch_start
+      INTEGER, INTENT(IN), OPTIONAL                      :: occupied_beta
+      REAL(KIND=dp), DIMENSION(dimen, dimen), &
+         INTENT(IN), OPTIONAL                            :: C_beta
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN), &
+         OPTIONAL                                        :: Auto_beta
       REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :), OPTIONAL                 :: Integ_MP2
+         DIMENSION(:, :, :, :), INTENT(OUT), OPTIONAL    :: Integ_MP2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_canonical_direct_single_batch', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: bits_max_val, cache_size, case_index, case_send_receive, counter_proc, &
-         elements_ij_proc_rec, elements_kl_proc, global_counter, handle, i, i_list_ij, i_list_kl, &
-         i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
-         i_set_list_kl_start, i_set_list_kl_stop, i_start, i_thread, iatom, iatom_end, &
+      INTEGER :: case_index, counter_proc, elements_ij_proc_rec, elements_kl_proc, global_counter, &
+         handle, i, i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, &
+         i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop, i_start, iatom, iatom_end, &
          iatom_start, iiB, ij_elem_max, ikind, index_ij_rec, index_ij_send, index_kl, &
-         index_proc_ij, index_proc_shift, irep, iset, jatom, jatom_end, jatom_start, jjB, jkind, &
-         jset, katom, katom_end, katom_start, kkB, kkind, kset, l_max, latom, latom_end, &
-         latom_start, lkind, llB, lset
-      INTEGER :: max_am, max_num_call_sec_transf, max_pgf, max_set, multiple, &
-         my_num_call_sec_transf, n_threads, natom, ncob, ncos_max, nints, nkind, nneighbors, &
-         nseta, nsetb, nsgf_max, nspins, primitive_counter, proc_num, proc_receive, proc_send, &
-         R_offset_rec, Rsize_rec, S_offset_rec, same_size_kl_index, sgfb, sphi_a_u1, sphi_a_u2, &
-         sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, &
-         sphi_d_u2, sphi_d_u3, Ssize_rec, step_size, total_num_RS_task, unit_id
-      INTEGER(int_8) :: estimate_to_store_int, max_val_memory, mem_eris, mem_eris_disk, &
-         mem_max_val, n_processes, ncpu, neris_disk, neris_incore, neris_onthefly, neris_tmp, &
-         neris_total, nprim_ints, shm_neris_disk, shm_neris_incore, shm_neris_onthefly, &
-         shm_neris_total, shm_nprim_ints, shm_stor_count_int_disk, shm_stor_count_max_val, &
-         shm_storage_counter_integrals
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, last_sgf_global, nimages, &
-                                                            proc_map, proc_num_task, &
+         index_proc_ij, index_proc_shift, iset, jatom, jatom_end, jatom_start, jjB, jkind, jset, &
+         katom, katom_end, katom_start, kkB, kkind, kset, latom, latom_end, latom_start, lkind, &
+         llB, lset, max_num_call_sec_transf, max_pgf, max_set, multiple
+      INTEGER :: my_num_call_sec_transf, natom, ncob, nints, nseta, nsetb, nsgf_max, nspins, &
+         primitive_counter, proc_num, proc_receive, proc_send, R_offset_rec, Rsize_rec, &
+         S_offset_rec, same_size_kl_index, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
+         sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, Ssize_rec, &
+         step_size, total_num_RS_task
+      INTEGER(int_8)                                     :: estimate_to_store_int, neris_tmp, &
+                                                            neris_total, nprim_ints
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nimages, proc_map, &
+                                                            proc_num_task, &
                                                             same_size_kl_elements_counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: kl_list_proc, task_counter_RS, &
                                                             task_counter_RS_temp
       INTEGER, DIMENSION(4)                              :: RS_counter_temp
       INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
-      INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, lc_min, ld_max, &
-         ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd, shm_block_offset
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfb, nsgfl_a, nsgfl_b, nsgfl_c, &
-                                                            nsgfl_d, shm_atomic_block_offset
-      INTEGER, DIMENSION(:, :), POINTER, SAVE            :: shm_is_assoc_atomic_block
-      INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
-      INTEGER, SAVE                                      :: shm_number_of_p_entries
-      LOGICAL                                            :: alpha_beta_case, copy_integrals, &
-                                                            do_periodic, treat_lsd_in_core
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
+                                                            lc_min, ld_max, ld_min, npgfa, npgfb, &
+                                                            npgfc, npgfd, nsgfa, nsgfb, nsgfc, &
+                                                            nsgfd
+      INTEGER, DIMENSION(:, :), POINTER                  :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
+      LOGICAL                                            :: alpha_beta_case, case_send_receive, &
+                                                            copy_integrals, do_periodic
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
-      REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, compression_factor, &
-         compression_factor_disk, cost_tmp, eps_schwarz, eps_storage, hf_fraction, ln_10, &
+      REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, cost_tmp, eps_schwarz, ln_10, &
          log10_eps_schwarz, log10_pmax, max_contraction_val, max_val1, max_val2, max_val2_set, &
          pmax_atom, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), screen_kind_ij, &
          screen_kind_kl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cost_RS, cost_RS_temp, ee_buffer1, &
                                                             ee_buffer2, ee_primitives_tmp, &
                                                             ee_work, ee_work2, primitive_integrals
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec, C_beta_T
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec, C_beta_T, max_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb, BIb_RS_mat_rec_big, zero_mat_big
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: BI1, MNRS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: p_work
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: max_contraction, shm_pmax_block, sphi_b, &
-                                                            zeta, zetb, zetc, zetd
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: shm_pmax_block, zeta, zetb, zetc, zetd
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: sphi_a_ext_set, sphi_b_ext_set, &
                                                             sphi_c_ext_set, sphi_d_ext_set
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: sphi_a_ext, sphi_b_ext, sphi_c_ext, &
                                                             sphi_d_ext
       REAL(KIND=dp), DIMENSION(dimen, 2)                 :: zero_mat
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_libint_t)                                  :: private_lib
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(hfx_basis_info_type), POINTER                 :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(hfx_general_type)                             :: general_parameter
-      TYPE(hfx_load_balance_type), POINTER               :: load_balance_parameter
-      TYPE(hfx_memory_type), POINTER                     :: memory_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
          DIMENSION(:)                                    :: pgf_product_list
-      TYPE(hfx_potential_type)                           :: mp2_potential_parameter, &
-                                                            potential_parameter
+      TYPE(hfx_potential_type)                           :: mp2_potential_parameter
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
          POINTER                                         :: screen_coeffs_kind, tmp_R_1, tmp_R_2, &
                                                             tmp_screen_pgf1, tmp_screen_pgf2
@@ -200,16 +175,13 @@ CONTAINS
          DIMENSION(:, :, :, :), POINTER                  :: screen_coeffs_set
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :, :, :), POINTER            :: radii_pgf, screen_coeffs_pgf
-      TYPE(hfx_screening_type)                           :: screening_parameter
-      TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
-      TYPE(lib_int)                                      :: private_lib
+      TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(pair_list_type_mp2)                           :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (dft_control)
 
       ! The Integ_MP2 will contain the (ia|jb) integrals, necessary for example
       ! for the RI-MP2 basis optimization. In this case the number of ij batches
@@ -220,240 +192,19 @@ CONTAINS
 
       alpha_beta_case = .FALSE.
 
-      irep = 1
-
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-      logger => cp_get_default_logger()
-
-      CALL get_qs_env(qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      cell=cell, &
-                      dft_control=dft_control)
-
-      !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
-      nkind = SIZE(atomic_kind_set, 1)
-      l_max = 0
-      DO ikind = 1, nkind
-         l_max = MAX(l_max, MAXVAL(qs_env%x_data(1, 1)%basis_parameter(ikind)%lmax))
-      ENDDO
-      l_max = 4*l_max
-      CALL init_md_ftable(l_max)
-
-      IF (mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
-         IF (l_max > init_TShPSC_lmax) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=mp2_env%potential_parameter%filename)
-            END IF
-            CALL init(l_max, unit_id, para_env%mepos, para_env%group)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-            init_TShPSC_lmax = l_max
-         END IF
-         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%truncation_radius/2.0_dp
-      END IF
-
-      mp2_potential_parameter%potential_type = mp2_env%potential_parameter%potential_type
-
-      n_threads = 1
-
-      shm_neris_total = 0
-      shm_nprim_ints = 0
-      shm_neris_onthefly = 0
-      shm_storage_counter_integrals = 0
-      shm_stor_count_int_disk = 0
-      shm_neris_incore = 0
-      shm_neris_disk = 0
-      shm_stor_count_max_val = 0
+      CALL prepare_integral_calc(cell, qs_env, mp2_env, para_env, mp2_potential_parameter, actual_x_data, &
+                                 do_periodic, basis_parameter, max_set, particle_set, natom, kind_of, &
+                                 nsgf_max, primitive_integrals, ee_work, ee_work2, ee_buffer1, ee_buffer2, &
+                                 ee_primitives_tmp, nspins, max_contraction, max_pgf, pgf_list_ij, &
+                                 pgf_list_kl, pgf_product_list, nimages, eps_schwarz, log10_eps_schwarz, &
+                                 private_lib, p_work, screen_coeffs_set, screen_coeffs_kind, screen_coeffs_pgf, &
+                                 radii_pgf)
 
       ln_10 = LOG(10.0_dp)
-      i_thread = 0
 
-      actual_x_data => qs_env%x_data(irep, i_thread+1)
-
-      shm_master_x_data => qs_env%x_data(irep, 1)
-
-      do_periodic = actual_x_data%periodic_parameter%do_periodic
-
-      IF (do_periodic) THEN
-         ! ** Rebuild neighbor lists in case the cell has changed (i.e. NPT MD)
-         actual_x_data%periodic_parameter%number_of_shells = actual_x_data%periodic_parameter%mode
-         CALL hfx_create_neighbor_cells(actual_x_data, actual_x_data%periodic_parameter%number_of_shells_from_input, &
-                                        cell, i_thread)
-      END IF
-
-      screening_parameter = actual_x_data%screening_parameter
-      potential_parameter = actual_x_data%potential_parameter
-
-      general_parameter = actual_x_data%general_parameter
-      load_balance_parameter => actual_x_data%load_balance_parameter
-      memory_parameter => actual_x_data%memory_parameter
-
-      cache_size = memory_parameter%cache_size
-      bits_max_val = memory_parameter%bits_max_val
-
-      basis_parameter => actual_x_data%basis_parameter
-      basis_info => actual_x_data%basis_info
-
-      treat_lsd_in_core = general_parameter%treat_lsd_in_core
-
-      ncpu = para_env%num_pe
-      n_processes = ncpu*n_threads
-
-      !! initalize some counters
-      neris_total = 0_int_8
-      neris_incore = 0_int_8
-      neris_disk = 0_int_8
-      neris_onthefly = 0_int_8
-      mem_eris = 0_int_8
-      mem_eris_disk = 0_int_8
-      mem_max_val = 0_int_8
-      compression_factor = 0.0_dp
-      compression_factor_disk = 0.0_dp
-      nprim_ints = 0_int_8
       neris_tmp = 0_int_8
-      max_val_memory = 1_int_8
-
-      max_am = basis_info%max_am
-
-      max_set = basis_info%max_set
-      CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set)
-
-      natom = SIZE(particle_set, 1)
-
-      ALLOCATE (kind_of(natom))
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               kind_of=kind_of)
-
-      !! precompute maximum nco and allocate scratch
-      ncos_max = 0
-      nsgf_max = 0
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         nseta = basis_parameter(ikind)%nset
-         npgfa => basis_parameter(ikind)%npgf
-         la_max => basis_parameter(ikind)%lmax
-         nsgfa => basis_parameter(ikind)%nsgf
-         DO iset = 1, nseta
-            ncos_max = MAX(ncos_max, ncoset(la_max(iset)))
-            nsgf_max = MAX(nsgf_max, nsgfa(iset))
-         ENDDO
-      ENDDO
-      !! Allocate the arrays for the integrals.
-      ALLOCATE (primitive_integrals(nsgf_max**4))
-      primitive_integrals = 0.0_dp
-
-      ALLOCATE (ee_work(ncos_max**4))
-      ALLOCATE (ee_work2(ncos_max**4))
-      ALLOCATE (ee_buffer1(ncos_max**4))
-      ALLOCATE (ee_buffer2(ncos_max**4))
-      ALLOCATE (ee_primitives_tmp(nsgf_max**4))
-
-      nspins = dft_control%nspins
-
-      ALLOCATE (max_contraction(max_set, natom))
-
-      max_contraction = 0.0_dp
-      max_pgf = 0
-      DO jatom = 1, natom
-         jkind = kind_of(jatom)
-         lb_max => basis_parameter(jkind)%lmax
-         nsetb = basis_parameter(jkind)%nset
-         npgfb => basis_parameter(jkind)%npgf
-         first_sgfb => basis_parameter(jkind)%first_sgf
-         sphi_b => basis_parameter(jkind)%sphi
-         nsgfb => basis_parameter(jkind)%nsgf
-         DO jset = 1, nsetb
-            ! takes the primitive to contracted transformation into account
-            ncob = npgfb(jset)*ncoset(lb_max(jset))
-            sgfb = first_sgfb(1, jset)
-            ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
-            ! the maximum value after multiplication with sphi_b
-            max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb+nsgfb(jset)-1)/))
-            max_pgf = MAX(max_pgf, npgfb(jset))
-         ENDDO
-      ENDDO
-
-      ! ** Allocate buffers for pgf_lists
-      nneighbors = SIZE(actual_x_data%neighbor_cells)
-      ALLOCATE (pgf_list_ij(max_pgf**2))
-      ALLOCATE (pgf_list_kl(max_pgf**2))
-      ALLOCATE (pgf_product_list(nneighbors**3))
-      ALLOCATE (nimages(max_pgf**2))
-
-      DO i = 1, max_pgf**2
-         ALLOCATE (pgf_list_ij(i)%image_list(nneighbors))
-         ALLOCATE (pgf_list_kl(i)%image_list(nneighbors))
-      END DO
-
-      ! ** Set pointers
-      shm_number_of_p_entries = shm_master_x_data%number_of_p_entries
-      shm_is_assoc_atomic_block => shm_master_x_data%is_assoc_atomic_block
-      shm_atomic_block_offset => shm_master_x_data%atomic_block_offset
-      shm_set_offset => shm_master_x_data%set_offset
-      shm_block_offset => shm_master_x_data%block_offset
-
-      !!! Skipped part
-
-      !! Get screening parameter
-      eps_schwarz = screening_parameter%eps_schwarz
-      IF (eps_schwarz <= 0.0_dp) THEN
-         log10_eps_schwarz = log_zero
-      ELSE
-         log10_eps_schwarz = LOG10(eps_schwarz)
-      END IF
-      !! get storage epsilon
-      eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
-
-      !! If we have a hybrid functional, we may need only a fraction of exact exchange
-      hf_fraction = general_parameter%fraction
-
-      !! The number of integrals that fit into the given MAX_MEMORY
-
-      !! Parameters related to the potential 1/r, erf(wr)/r, erfc(wr/r)
-      potential_parameter = actual_x_data%potential_parameter
-
-      logger => cp_get_default_logger()
-
-      private_lib = actual_x_data%lib
-
-      !! Helper array to map local basis function indeces to global ones
-      ALLOCATE (last_sgf_global(0:natom))
-      last_sgf_global(0) = 0
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         last_sgf_global(iatom) = last_sgf_global(iatom-1)+basis_parameter(ikind)%nsgf_total
-      END DO
-
-      !!!!!!!! Missing part on the density matrix
-
-      !! Initialize schwarz screening matrices for near field estimates and boxing screening matrices
-      !! for far field estimates. The update is only performed if the geomtry of the system changed.
-      !! If the system is periodic, then the corresponding routines are called and some variables
-      !! are initialized
-
-      IF (.NOT. shm_master_x_data%screen_funct_is_initialized) THEN
-         CALL calc_pair_dist_radii(qs_env, basis_parameter, &
-                                   shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, &
-                                   n_threads, i_thread)
-         CALL calc_screening_functions(qs_env, basis_parameter, private_lib, shm_master_x_data%potential_parameter, &
-                                       shm_master_x_data%screen_funct_coeffs_set, &
-                                       shm_master_x_data%screen_funct_coeffs_kind, &
-                                       shm_master_x_data%screen_funct_coeffs_pgf, &
-                                       shm_master_x_data%pair_dist_radii_pgf, &
-                                       max_set, max_pgf, n_threads, i_thread, p_work)
-
-         shm_master_x_data%screen_funct_is_initialized = .TRUE.
-      END IF
-
-      screen_coeffs_set => shm_master_x_data%screen_funct_coeffs_set
-      screen_coeffs_kind => shm_master_x_data%screen_funct_coeffs_kind
-      screen_coeffs_pgf => shm_master_x_data%screen_funct_coeffs_pgf
-      radii_pgf => shm_master_x_data%pair_dist_radii_pgf
+      neris_total = 0_int_8
+      nprim_ints = 0_int_8
 
 !!!!!!!!!
       ALLOCATE (list_ij%elements(natom**2))
@@ -532,10 +283,7 @@ CONTAINS
 
       proc_num_task = 0
 
-      ! step_size=nsgf_max
-
       counter_proc = 0
-      !!!! DO iiB=nsgf_max**2+1, 0, -step_size
       DO i_list_ij = 1, list_ij%n_element
          iatom = list_ij%elements(i_list_ij)%pair(1)
          jatom = list_ij%elements(i_list_ij)%pair(2)
@@ -547,23 +295,18 @@ CONTAINS
          nsgfb => basis_parameter(jkind)%nsgf
          nsgfa => basis_parameter(ikind)%nsgf
 
-         ! proc_num=MOD(i_list_ij,para_env%num_pe)
-
          DO i_set_list_ij = i_set_list_ij_start, i_set_list_ij_stop
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
             IF (iatom == jatom .AND. jset < iset) CYCLE
 
-            !!!! IF(nsgfa(iset)*nsgfb(jset)>iiB-step_size .AND. nsgfa(iset)*nsgfb(jset)<=iiB) THEN
             counter_proc = counter_proc+1
             proc_num = MOD(counter_proc, para_env%num_pe)
 
             proc_num_task(proc_num) = proc_num_task(proc_num)+1
-            !!!! END IF
 
          END DO
       END DO
-      !!!! END DO
       ! calculate the exact maximum  number of call to the second occupied
       ! orbital transformation
       ! max_num_call_sec_transf=MAXVAL(proc_num_task)
@@ -573,13 +316,8 @@ CONTAINS
 
       kl_list_proc = 0
 
-      !!!! ALLOCATE(same_size_kl_elements_counter((nsgf_max**2+1)/step_size+1))
-      !!!! same_size_kl_elements_counter=0
-
-      !!!! same_size_kl_index=0
       counter_proc = 0
       elements_kl_proc = 0
-      !!!! DO iiB=nsgf_max**2+1, 0, -step_size
       DO i_list_ij = 1, list_ij%n_element
          iatom = list_ij%elements(i_list_ij)%pair(1)
          jatom = list_ij%elements(i_list_ij)%pair(2)
@@ -591,14 +329,11 @@ CONTAINS
          nsgfb => basis_parameter(jkind)%nsgf
          nsgfa => basis_parameter(ikind)%nsgf
 
-         ! proc_num=MOD(i_list_ij,para_env%num_pe)
-
          DO i_set_list_ij = i_set_list_ij_start, i_set_list_ij_stop
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
             IF (iatom == jatom .AND. jset < iset) CYCLE
 
-            !!!! IF(nsgfa(iset)*nsgfb(jset)>iiB-step_size .AND. nsgfa(iset)*nsgfb(jset)<=iiB) THEN
             counter_proc = counter_proc+1
             proc_num = MOD(counter_proc, para_env%num_pe)
 
@@ -608,13 +343,9 @@ CONTAINS
                kl_list_proc(elements_kl_proc, 2) = i_set_list_ij
                kl_list_proc(elements_kl_proc, 3) = counter_proc
             END IF
-            !!!! END IF
 
          END DO
       END DO
-      !!!! same_size_kl_index=same_size_kl_index+1
-      !!!! same_size_kl_elements_counter(same_size_kl_index)=elements_kl_proc
-      !!!! END DO
 
       total_num_RS_task = SUM(proc_num_task)
       ALLOCATE (task_counter_RS(total_num_RS_task, 4))
@@ -666,11 +397,8 @@ CONTAINS
             sphi_b_u2 = UBOUND(sphi_b_ext, 2)
             sphi_b_u3 = UBOUND(sphi_b_ext, 3)
 
-            !!!!!     DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
             iset = set_list_ij(i_set_list_ij)%pair(1)
             jset = set_list_ij(i_set_list_ij)%pair(2)
-
-            !!!!!         IF(iatom==jatom .AND. jset<iset) CYCLE
 
             ncob = npgfb(jset)*ncoset(lb_max(jset))
             max_val1 = screen_coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2+ &
@@ -691,10 +419,7 @@ CONTAINS
 
             BI1 = 0.D+00
 
-            !!!t1=m_walltime()
-
             DO i_list_kl = 1, list_kl%n_element
-               !!!!!DO i_list_kl=1+para_env%mepos,list_kl%n_element,para_env%num_pe
 
                katom = list_kl%elements(i_list_kl)%pair(1)
                latom = list_kl%elements(i_list_kl)%pair(2)
@@ -804,7 +529,6 @@ CONTAINS
                                    sphi_d_ext_set, &
                                    ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                                    nimages, do_periodic, p_work)
-                     !END IF
 
                      nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                      neris_total = neris_total+nints
@@ -816,7 +540,6 @@ CONTAINS
 
                      IF (cartesian_estimate < eps_schwarz) CYCLE
 
-                     !IF(case_index==2) THEN
                      primitive_counter = 0
                      DO llB = 1, nsgfd(lset)
                         DO kkB = 1, nsgfc(kset)
@@ -879,7 +602,6 @@ CONTAINS
                END IF
             END IF
 
-            !!!!!!! END DO !i_set_list_ij
          END DO !i_list_ij
 
          IF (case_index == 1) THEN
@@ -975,11 +697,9 @@ CONTAINS
             proc_send = proc_map(para_env%mepos+index_proc_shift)
             proc_receive = proc_map(para_env%mepos-index_proc_shift)
 
-            !DO index_proc_shift=0, para_env%num_pe-1
-            !  proc_send=proc_map(0-para_env%mepos+index_proc_shift)
-            !  proc_receive=proc_send
+            case_send_receive = (proc_send /= para_env%mepos)
 
-            IF (proc_send /= para_env%mepos) THEN
+            IF (case_send_receive) THEN
                ! the processor starts to send (and receive?)
 
                CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
@@ -1004,17 +724,8 @@ CONTAINS
                DO index_proc_ij = proc_send+1, multiple, para_env%num_pe
 
                   zero_mat = 0.D+00
-                  case_send_receive = -1
-                  IF (proc_send == para_env%mepos) THEN
-                     case_send_receive = 0
-                  ELSE
-                     case_send_receive = 1
-                  END IF
 
-                  SELECT CASE (case_send_receive)
-                  CASE (0)
-                     ! do nothing
-                  CASE (1)
+                  IF (case_send_receive) THEN
 
                      CALL mp_sendrecv(zero_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
 
@@ -1030,24 +741,13 @@ CONTAINS
                            BIb_RS_mat_rec(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec)
 
                      END IF
-                  CASE DEFAULT
-                     CPABORT("")
-                  END SELECT
+                  END IF
 
                END DO
             ELSE
                zero_mat_big = 0.D+00
-               case_send_receive = -1
-               IF (proc_send == para_env%mepos) THEN
-                  case_send_receive = 0
-               ELSE
-                  case_send_receive = 1
-               END IF
 
-               SELECT CASE (case_send_receive)
-               CASE (0)
-                  ! do nothing
-               CASE (1)
+               IF (case_send_receive) THEN
 
                   CALL mp_sendrecv(zero_mat_big, proc_send, BIb_RS_mat_rec_big, proc_receive, para_env%group)
 
@@ -1059,12 +759,10 @@ CONTAINS
                      BIb(1:dimen, S_offset_rec+1:S_offset_rec+Ssize_rec, 1:elements_ij_proc)+ &
                      BIb_RS_mat_rec_big(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec, 1:elements_ij_proc)
 
-               CASE DEFAULT
-                  CPABORT("")
-               END SELECT
+               END IF
             END IF
 
-            IF (proc_send /= para_env%mepos) THEN
+            IF (case_send_receive) THEN
                IF (.NOT. mp2_env%direct_canonical%big_send) THEN
                   DEALLOCATE (BIb_RS_mat_rec)
                ELSE
@@ -1134,7 +832,7 @@ CONTAINS
 
       DEALLOCATE (nimages)
 
-      IF (mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
+      IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          init_TShPSC_lmax = -1
          CALL free_C0()
       END IF
@@ -1171,15 +869,17 @@ CONTAINS
                                                 i_batch_start, Ni_occupied, &
                                                 MNRS, C_T, mp2_biel, BI1)
 
-      INTEGER                                            :: dimen, latom, katom, jatom, iatom, lset, &
+      INTEGER, INTENT(IN)                                :: dimen, latom, katom, jatom, iatom, lset, &
                                                             kset, jset, iset, Ssize, Rsize, Nsize, &
                                                             Msize, i_batch_start, Ni_occupied
       REAL(KIND=dp), &
-         DIMENSION(Msize, Nsize, Rsize, Ssize)           :: MNRS
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(mp2_biel_type)                                :: mp2_biel
+         DIMENSION(Msize, Nsize, Rsize, Ssize), &
+         INTENT(IN)                                      :: MNRS
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       REAL(KIND=dp), &
-         DIMENSION(dimen, Ni_occupied, Rsize, Ssize)     :: BI1
+         DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
+         INTENT(INOUT)                                   :: BI1
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_first', &
          routineP = moduleN//':'//routineN
@@ -1257,29 +957,32 @@ CONTAINS
                                                  elements_ij_proc, &
                                                  multiple, proc_map, BIb)
 
-      INTEGER                                            :: dimen, latom, katom, lset, kset, Ssize, &
+      INTEGER, INTENT(IN)                                :: dimen, latom, katom, lset, kset, Ssize, &
                                                             Rsize, Ni_occupied, Nj_occupied, &
                                                             j_batch_start
       REAL(KIND=dp), &
-         DIMENSION(dimen, Ni_occupied, Rsize, Ssize)     :: BI1
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(mp2_biel_type)                                :: mp2_biel
+         DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
+         INTENT(IN)                                      :: BI1
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: elements_ij_proc, multiple
+      INTEGER, INTENT(IN)                                :: elements_ij_proc, multiple
       INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
-         num_pe-1))                                      :: proc_map
+         num_pe-1)), INTENT(IN)                          :: proc_map
       REAL(KIND=dp), &
-         DIMENSION(dimen, dimen, elements_ij_proc)       :: BIb
+         DIMENSION(dimen, dimen, elements_ij_proc), &
+         INTENT(INOUT)                                   :: BIb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: case_send_receive, elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
-         index_proc_ij, index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, &
-         R_offset_rec, R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
-      REAL(KIND=dp), DIMENSION(dimen, Rsize+Ssize)       :: BIb_RS_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec
+      INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, index_proc_ij, &
+         index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, R_offset_rec, &
+         R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      LOGICAL                                            :: case_send_receive
       REAL(KIND=dp)                                      :: C_T_R, C_T_S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec
+      REAL(KIND=dp), DIMENSION(dimen, Rsize+Ssize)       :: BIb_RS_mat
       INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
 
       CALL timeset(routineN, handle)
@@ -1298,7 +1001,9 @@ CONTAINS
          proc_send = proc_map(para_env%mepos+index_proc_shift)
          proc_receive = proc_map(para_env%mepos-index_proc_shift)
 
-         IF (proc_send /= para_env%mepos) THEN
+         case_send_receive = (proc_send /= para_env%mepos)
+
+         IF (case_send_receive) THEN
             ! the processor starts to send (and receive?)
 
             CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
@@ -1312,13 +1017,6 @@ CONTAINS
 
          ELSE
             elements_ij_proc_rec = elements_ij_proc
-         END IF
-
-         case_send_receive = -1
-         IF (proc_send == para_env%mepos) THEN
-            case_send_receive = 0
-         ELSE
-            case_send_receive = 1
          END IF
 
          index_ij_send = 0
@@ -1361,19 +1059,7 @@ CONTAINS
 
             END IF
 
-            SELECT CASE (case_send_receive)
-            CASE (0)
-               ! the processor is the sender and receiver itself
-               IF (index_ij_send <= elements_ij_proc .AND. elements_ij_proc > 0) THEN
-
-                  BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send) = &
-                     BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send)+BIb_RS_mat(1:dimen, 1:Rsize)
-
-                  BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send) = &
-                     BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send)+BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize)
-
-               END IF
-            CASE (1)
+            IF (case_send_receive) THEN
 
                CALL mp_sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
 
@@ -1389,13 +1075,22 @@ CONTAINS
                      BIb_RS_mat_rec(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec)
 
                END IF
-            CASE DEFAULT
-               CPABORT("")
-            END SELECT
+            ELSE
+               ! the processor is the sender and receiver itself
+               IF (index_ij_send <= elements_ij_proc .AND. elements_ij_proc > 0) THEN
+
+                  BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send) = &
+                     BIb(1:dimen, R_offset+1:R_offset+Rsize, index_ij_send)+BIb_RS_mat(1:dimen, 1:Rsize)
+
+                  BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send) = &
+                     BIb(1:dimen, S_offset+1:S_offset+Ssize, index_ij_send)+BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize)
+
+               END IF
+            END IF
 
          END DO ! loop over the ij of the processor
 
-         IF (proc_send /= para_env%mepos) THEN
+         IF (case_send_receive) THEN
             DEALLOCATE (BIb_RS_mat_rec)
          END IF
 
@@ -1432,30 +1127,33 @@ CONTAINS
                                                      elements_ij_proc, &
                                                      proc_map, BIb)
 
-      INTEGER                                            :: dimen, latom, katom, lset, kset, Ssize, &
+      INTEGER, INTENT(IN)                                :: dimen, latom, katom, lset, kset, Ssize, &
                                                             Rsize, Ni_occupied, Nj_occupied, &
                                                             j_batch_start, ij_elem_max
       REAL(KIND=dp), &
-         DIMENSION(dimen, Ni_occupied, Rsize, Ssize)     :: BI1
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(mp2_biel_type)                                :: mp2_biel
+         DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
+         INTENT(IN)                                      :: BI1
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: elements_ij_proc
+      INTEGER, INTENT(IN)                                :: elements_ij_proc
       INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
-         num_pe-1))                                      :: proc_map
+         num_pe-1)), INTENT(IN)                          :: proc_map
       REAL(KIND=dp), &
-         DIMENSION(dimen, dimen, elements_ij_proc)       :: BIb
+         DIMENSION(dimen, dimen, elements_ij_proc), &
+         INTENT(INOUT)                                   :: BIb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second_big', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: case_send_receive, elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
-         index_proc_ij, index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, &
-         R_offset_rec, R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, index_proc_ij, &
+         index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, R_offset_rec, &
+         R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      LOGICAL                                            :: case_send_receive
+      REAL(KIND=dp)                                      :: C_T_R, C_T_S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_RS_mat_rec
       REAL(KIND=dp), &
          DIMENSION(dimen, Rsize+Ssize, ij_elem_max)      :: BIb_RS_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_RS_mat_rec
-      REAL(KIND=dp)                                      :: C_T_R, C_T_S
       INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
 
       CALL timeset(routineN, handle)
@@ -1474,7 +1172,9 @@ CONTAINS
          proc_send = proc_map(para_env%mepos+index_proc_shift)
          proc_receive = proc_map(para_env%mepos-index_proc_shift)
 
-         IF (proc_send /= para_env%mepos) THEN
+         case_send_receive = (proc_send /= para_env%mepos)
+
+         IF (case_send_receive) THEN
             ! the processor starts to send (and receive?)
 
             CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
@@ -1492,13 +1192,6 @@ CONTAINS
          index_ij_send = 0
          index_ij_rec = 0
          BIb_RS_mat = zero
-
-         case_send_receive = -1
-         IF (proc_send == para_env%mepos) THEN
-            case_send_receive = 0
-         ELSE
-            case_send_receive = 1
-         END IF
 
          DO index_proc_ij = proc_send+1, Ni_occupied*Nj_occupied, para_env%num_pe
 
@@ -1535,18 +1228,7 @@ CONTAINS
 
          END DO
 
-         SELECT CASE (case_send_receive)
-         CASE (0)
-            ! the processor is the sender and receiver itself
-            BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc) = &
-               BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc)+ &
-               BIb_RS_mat(1:dimen, 1:Rsize, 1:elements_ij_proc)
-
-            BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc) = &
-               BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc)+ &
-               BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize, 1:elements_ij_proc)
-
-         CASE (1)
+         IF (case_send_receive) THEN
 
             CALL mp_sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
 
@@ -1558,12 +1240,17 @@ CONTAINS
                BIb(1:dimen, S_offset_rec+1:S_offset_rec+Ssize_rec, 1:elements_ij_proc)+ &
                BIb_RS_mat_rec(1:dimen, Rsize_rec+1:Rsize_rec+Ssize_rec, 1:elements_ij_proc)
 
-         CASE DEFAULT
-            CPABORT("")
-         END SELECT
-
-         IF (proc_send /= para_env%mepos) THEN
             DEALLOCATE (BIb_RS_mat_rec)
+         ELSE
+            ! the processor is the sender and receiver itself
+            BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc) = &
+               BIb(1:dimen, R_offset+1:R_offset+Rsize, 1:elements_ij_proc)+ &
+               BIb_RS_mat(1:dimen, 1:Rsize, 1:elements_ij_proc)
+
+            BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc) = &
+               BIb(1:dimen, S_offset+1:S_offset+Ssize, 1:elements_ij_proc)+ &
+               BIb_RS_mat(1:dimen, Rsize+1:Rsize+Ssize, 1:elements_ij_proc)
+
          END IF
 
       END DO ! loop over the processor starting from itself
@@ -1593,15 +1280,17 @@ CONTAINS
                                                         j_batch_start, BIb, C, Auto, elements_ij_proc, &
                                                         ij_list_proc, nspins, Emp2, Emp2_Cou, Emp2_ex)
 
-      INTEGER                                            :: dimen, occupied, virtual, i_batch_start, &
+      INTEGER, INTENT(IN)                                :: dimen, occupied, virtual, i_batch_start, &
                                                             j_batch_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto
-      INTEGER                                            :: elements_ij_proc
-      INTEGER, DIMENSION(elements_ij_proc, 2)            :: ij_list_proc
-      INTEGER                                            :: nspins
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: BIb
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto
+      INTEGER, INTENT(IN)                                :: elements_ij_proc
+      INTEGER, DIMENSION(elements_ij_proc, 2), &
+         INTENT(IN)                                      :: ij_list_proc
+      INTEGER, INTENT(IN)                                :: nspins
+      REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_virtual_orbitals_and_accumulate', &
          routineP = moduleN//':'//routineN
@@ -1690,14 +1379,16 @@ CONTAINS
                                                                j_batch_start, BIb, C_i, C_j, Auto_i, Auto_j, elements_ij_proc, &
                                                                ij_list_proc, Emp2, Emp2_Cou)
 
-      INTEGER                                            :: dimen, occ_i, occ_j, virt_i, virt_j, &
+      INTEGER, INTENT(IN)                                :: dimen, occ_i, occ_j, virt_i, virt_j, &
                                                             i_batch_start, j_batch_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_i, C_j
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto_i, Auto_j
-      INTEGER                                            :: elements_ij_proc
-      INTEGER, DIMENSION(elements_ij_proc, 2)            :: ij_list_proc
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: BIb
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_i, C_j
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto_i, Auto_j
+      INTEGER, INTENT(IN)                                :: elements_ij_proc
+      INTEGER, DIMENSION(elements_ij_proc, 2), &
+         INTENT(IN)                                      :: ij_list_proc
+      REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou
 
       CHARACTER(LEN=*), PARAMETER :: &
          routineN = 'transform_virtual_orbitals_and_accumulate_ABcase', &
@@ -1761,7 +1452,6 @@ CONTAINS
                b_global = b+occ_j
                iajb = BIb(a, b, index_ij)
                parz = iajb*iajb/(Auto_i(i_global)+Auto_j(j_global)-Auto_i(a_global)-Auto_j(b_global))
-               ! Emp2=Emp2+parz/two
                Emp2_Cou = Emp2_Cou+parz/two
                Emp2 = Emp2+parz/two
             END DO

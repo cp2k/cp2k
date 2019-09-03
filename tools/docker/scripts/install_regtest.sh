@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 
 # author: Ole Schuett
 
@@ -17,14 +17,33 @@ ln -vs /opt/cp2k-toolchain/install/arch/local* .
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
+# Make OpenMPI happy.
+if which ompi_info &> /dev/null ; then
+    TESTOPTS="-mpiexec 'mpiexec --bind-to none --allow-run-as-root' ${TESTOPTS}"
+    export OMPI_MCA_plm_rsh_agent=/bin/false
+fi
+
 # pre-build cp2k
 cd /workspace/cp2k
-make -j ARCH="${ARCH}" VERSION="${VERSION}"
+echo -n "Warming cache by trying to compile... "
+if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> /dev/null ; then
+    echo "done."
+else
+    echo "failed."
+fi
 
 # run regtests which lack fixed reference value
 # Disable LeakSanitizer during docker build as it requires ptrace capabilities.
 export LSAN_OPTIONS="detect_leaks=0"
-make test ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="-restrictdir QS/regtest-almo-md -restrictdir QS/regtest-almo-1 -restrictdir SE/regtest-3-4 -restrictdir QS/regtest-ot-1-vib -restrictdir Fist/regtest-5-vib -restrictdir QS/regtest-optbas -restrictdir TMC/regtest_ana_post_proc"
+
+echo -n "Trying to run regtests which lack reference values... "
+if make test ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS} -restrictdir QS/regtest-almo-md -restrictdir QS/regtest-almo-1 -restrictdir SE/regtest-3-4 -restrictdir QS/regtest-ot-1-vib -restrictdir Fist/regtest-5-vib -restrictdir QS/regtest-optbas -restrictdir TMC/regtest_ana_post_proc" &> /dev/null ; then
+   echo "done."
+else
+   echo "failed."
+fi
+
+# remove binaries to reduce image size
 rm -rf lib exe "regtesting/${ARCH}/${VERSION}"/TEST-*
 
 #EOF

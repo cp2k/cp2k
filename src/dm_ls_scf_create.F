@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -29,7 +29,8 @@ MODULE dm_ls_scf_create
    USE input_constants,                 ONLY: &
         ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
-        ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
+        ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_pexsi, ls_scf_sign, &
+        ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_tc2, ls_scf_trs4
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
@@ -94,7 +95,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -208,9 +209,12 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "REPORT_ALL_SPARSITIES", l_val=ls_scf_env%report_all_sparsities)
       CALL section_vals_val_get(ls_scf_section, "PERFORM_MU_SCAN", l_val=ls_scf_env%perform_mu_scan)
       CALL section_vals_val_get(ls_scf_section, "PURIFICATION_METHOD", i_val=ls_scf_env%purification_method)
+      CALL section_vals_val_get(ls_scf_section, "SIGN_METHOD", i_val=ls_scf_env%sign_method)
+      CALL section_vals_val_get(ls_scf_section, "SIGN_ORDER", i_val=ls_scf_env%sign_order)
       CALL section_vals_val_get(ls_scf_section, "DYNAMIC_THRESHOLD", l_val=ls_scf_env%dynamic_threshold)
       CALL section_vals_val_get(ls_scf_section, "NON_MONOTONIC", l_val=ls_scf_env%non_monotonic)
-      CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=ls_scf_env%sign_sqrt_order)
+      CALL section_vals_val_get(ls_scf_section, "S_SQRT_METHOD", i_val=ls_scf_env%s_sqrt_method)
+      CALL section_vals_val_get(ls_scf_section, "S_SQRT_ORDER", i_val=ls_scf_env%s_sqrt_order)
       CALL section_vals_val_get(ls_scf_section, "EXTRAPOLATION_ORDER", i_val=ls_scf_env%extrapolation_order)
       CALL section_vals_val_get(ls_scf_section, "RESTART_READ", l_val=ls_scf_env%restart_read)
       CALL section_vals_val_get(ls_scf_section, "RESTART_WRITE", l_val=ls_scf_env%restart_write)
@@ -319,89 +323,108 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '()')
          WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 30), " Linear scaling SCF ", REPEAT("-", 29)
-         WRITE (unit_nr, '(T2,A,T38,E20.3)') "eps_scf:", ls_scf_env%eps_scf
-         WRITE (unit_nr, '(T2,A,T38,E20.3)') "eps_filter:", ls_scf_env%eps_filter
+         WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_scf:", ls_scf_env%eps_scf
+         WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_filter:", ls_scf_env%eps_filter
          IF (ls_scf_env%do_rho_mixing) THEN
             IF (ls_scf_env%density_mixing_method > 0) THEN
                NULLIFY (section)
                CALL create_mixing_section(section, ls_scf=.TRUE.)
                keyword => section_get_keyword(section, "METHOD")
                CALL keyword_get(keyword, enum=enum)
-               WRITE (unit_nr, "(T2,A,T38,A20)") &
+               WRITE (unit_nr, "(T2,A,T61,A20)") &
                   "Density mixing in g-space:", ADJUSTR(TRIM(enum_i2c(enum, &
                                                                       ls_scf_env%density_mixing_method)))
                CALL section_release(section)
             END IF
          ELSE
-            WRITE (unit_nr, '(T2,A,T38,E20.3)') "mixing_fraction:", ls_scf_env%mixing_fraction
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "mixing_fraction:", ls_scf_env%mixing_fraction
          ENDIF
-         WRITE (unit_nr, '(T2,A,T38,I20)') "max_scf:", ls_scf_env%max_scf
+         WRITE (unit_nr, '(T2,A,T61,I20)') "max_scf:", ls_scf_env%max_scf
          IF (ls_scf_env%ls_diis) THEN
-            WRITE (unit_nr, '(T2,A,T38,I20)') "DIIS: max_diis:", ls_scf_env%max_diis
-            WRITE (unit_nr, '(T2,A,T38,E20.3)') "DIIS: eps_diis:", ls_scf_env%eps_diis
-            WRITE (unit_nr, '(T2,A,T38,I20)') "DIIS: ini_diis:", ls_scf_env%iter_ini_diis
-            WRITE (unit_nr, '(T2,A,T38,I20)') "DIIS: nmixing:", ls_scf_env%nmixing
+            WRITE (unit_nr, '(T2,A,T61,I20)') "DIIS: max_diis:", ls_scf_env%max_diis
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "DIIS: eps_diis:", ls_scf_env%eps_diis
+            WRITE (unit_nr, '(T2,A,T61,I20)') "DIIS: ini_diis:", ls_scf_env%iter_ini_diis
+            WRITE (unit_nr, '(T2,A,T61,I20)') "DIIS: nmixing:", ls_scf_env%nmixing
          ENDIF
-         WRITE (unit_nr, '(T2,A,T38,L20)') "fixed chemical potential (mu)", ls_scf_env%fixed_mu
-         WRITE (unit_nr, '(T2,A,T38,L20)') "has unit metric:", ls_scf_env%has_unit_metric
-         WRITE (unit_nr, '(T2,A,T38,L20)') "Computing inv(S):", ls_scf_env%needs_s_inv
-         WRITE (unit_nr, '(T2,A,T38,L20)') "Computing sqrt(S):", ls_scf_env%use_s_sqrt
-         WRITE (unit_nr, '(T2,A,T38,L20)') "Computing s preconditioner ", ls_scf_env%has_s_preconditioner
-         WRITE (unit_nr, '(T2,A,T38,I20)') "sign sqrt order:", ls_scf_env%sign_sqrt_order
-         WRITE (unit_nr, '(T2,A,T38,I20)') "Extrapolation order:", ls_scf_env%extrapolation_order
-         WRITE (unit_nr, '(T2,A,T38,L20)') "Use single precision matrices", ls_scf_env%ls_mstruct%single_precision
+         WRITE (unit_nr, '(T2,A,T61,L20)') "fixed chemical potential (mu)", ls_scf_env%fixed_mu
+         WRITE (unit_nr, '(T2,A,T61,L20)') "has unit metric:", ls_scf_env%has_unit_metric
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing inv(S):", ls_scf_env%needs_s_inv
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing sqrt(S):", ls_scf_env%use_s_sqrt
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing S preconditioner ", ls_scf_env%has_s_preconditioner
+
+         SELECT CASE (ls_scf_env%s_sqrt_method)
+         CASE (ls_s_sqrt_ns)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
+         CASE (ls_s_sqrt_proot)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
+         CASE DEFAULT
+            CPABORT("Unkown sqrt method.")
+         END SELECT
+
+         WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_scf_env%s_sqrt_order
+         WRITE (unit_nr, '(T2,A,T61,I20)') "Extrapolation order:", ls_scf_env%extrapolation_order
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Use single precision matrices", ls_scf_env%ls_mstruct%single_precision
 
          SELECT CASE (ls_scf_env%s_preconditioner_type)
          CASE (ls_s_preconditioner_none)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "S preconditioner type ", "NONE"
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "NONE"
          CASE (ls_s_preconditioner_atomic)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "S preconditioner type ", "ATOMIC"
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "ATOMIC"
          CASE (ls_s_preconditioner_molecular)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "S preconditioner type ", "MOLECULAR"
+            WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "MOLECULAR"
          END SELECT
 
-         WRITE (unit_nr, '(T2,A,T38,L20)') "Polarized Atomic Orbitals (PAO) ", ls_scf_env%do_pao
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Polarized Atomic Orbitals (PAO) ", ls_scf_env%do_pao
 
          IF (ls_scf_env%curvy_steps) THEN
-            WRITE (unit_nr, '(T2,A,T38,A30)') "Using curvy steps to optimize the density matrix"
+            WRITE (unit_nr, '(T2,A,T61,A30)') "Using curvy steps to optimize the density matrix"
             CALL cite_reference(Shao2003)
          ENDIF
 
          SELECT CASE (ls_scf_env%purification_method)
-         CASE (ls_scf_ns)
-            WRITE (unit_nr, '(T2,A,T38,A30)') "Purification method", "Newton-Schulz sign iter"
+         CASE (ls_scf_sign)
+            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("sign iteration")
+            SELECT CASE (ls_scf_env%sign_method)
+            CASE (ls_scf_sign_ns)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("newton schulz")
+            CASE (ls_scf_sign_proot)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("p-th root method")
+            CASE DEFAULT
+               CPABORT("Unkown sign method.")
+            END SELECT
+            WRITE (unit_nr, '(T2,A,T61,I20)') "Sign order:", ls_scf_env%sign_order
          CASE (ls_scf_tc2)
             CALL cite_reference(Niklasson2014)
-            WRITE (unit_nr, '(T2,A,T38,A30)') "Purification method", "Trace conserving 2nd  order"
+            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace conserving 2nd order")
          CASE (ls_scf_trs4)
             CALL cite_reference(Niklasson2003)
-            WRITE (unit_nr, '(T2,A,T38,A30)') "Purification method", "Trace resetting 4th order"
+            WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace resetting 4th order")
          CASE (ls_scf_pexsi)
             CALL cite_reference(Lin2009)
             CALL cite_reference(Lin2013)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "Purification method", "PEXSI"
+            WRITE (unit_nr, '(T2,A,T51,A20)') "Purification method", ADJUSTR("PEXSI")
          CASE DEFAULT
             CPABORT("")
          END SELECT
 
          SELECT CASE (ls_scf_env%ls_mstruct%cluster_type)
          CASE (ls_cluster_atomic)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "Cluster type", "ATOMIC"
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("ATOMIC")
          CASE (ls_cluster_molecular)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "Cluster type", "MOLECULAR"
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("MOLECULAR")
          CASE DEFAULT
             CPABORT("Unkown cluster type")
          END SELECT
 
          IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
-            WRITE (unit_nr, '(T2,A,T38,A20)') "Computing Chebyshev", "TRUE"
-            WRITE (unit_nr, '(T2,A,T38,I20)') "N_CHEBYSHEV:", ls_scf_env%chebyshev%n_chebyshev
-            WRITE (unit_nr, '(T2,A,T38,I20)') "N_GRIDPOINT_DOS:", ls_scf_env%chebyshev%n_gridpoint_dos
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Computing Chebyshev", ADJUSTR("TRUE")
+            WRITE (unit_nr, '(T2,A,T61,I20)') "N_CHEBYSHEV:", ls_scf_env%chebyshev%n_chebyshev
+            WRITE (unit_nr, '(T2,A,T61,I20)') "N_GRIDPOINT_DOS:", ls_scf_env%chebyshev%n_gridpoint_dos
          ELSE
-            WRITE (unit_nr, '(T2,A,T38,A20)') "Computing Chebyshev", "FALSE"
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Computing Chebyshev", ADJUSTR("FALSE")
          ENDIF
 
-         WRITE (unit_nr, '(T2,A,T38,L20)') "Using PAO", ls_scf_env%do_pao
+         WRITE (unit_nr, '(T2,A,T61,L20)') "Using PAO", ls_scf_env%do_pao
 
          WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
          WRITE (unit_nr, '()')

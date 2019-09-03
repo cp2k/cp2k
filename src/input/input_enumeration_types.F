@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -210,7 +210,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(enum))
       CPASSERT(enum%ref_count > 0)
-      upc = c
+      upc = TRIM(ADJUSTL(c)) !MK Ignore leading and trailing blanks
       CALL uppercase(upc)
       found = .FALSE.
       DO j = 1, SIZE(enum%c_vals)

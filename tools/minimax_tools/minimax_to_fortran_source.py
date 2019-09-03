@@ -4,9 +4,6 @@ import re
 import sys
 import os.path
 
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    sys.exit(0)
-
 # 1) parse data #
 #################
 
@@ -135,7 +132,7 @@ k_p.append(len(k) + 1)
 out = open('../../src/minimax/minimax_exp_k53.F', 'w')
 out.write('!--------------------------------------------------------------------------------------------------!\n\
 !   CP2K: A general program to perform molecular dynamics simulations                              !\n\
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !\n\
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !\n\
 !--------------------------------------------------------------------------------------------------!\n\n')
 
 out.write('! **************************************************************************************************\n\

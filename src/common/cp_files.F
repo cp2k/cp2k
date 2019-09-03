@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -83,7 +83,7 @@ CONTAINS
                CALL print_preconnection_list()
                CALL cp_abort(__LOCATION__, &
                              "Attempt to connect the already connected file <"// &
-                             TRIM(ADJUSTL(file_name))//"> to another unit")
+                             TRIM(file_name)//"> to another unit")
             END IF
          END IF
       END DO
@@ -102,7 +102,7 @@ CONTAINS
          CPABORT("No free slot found in the list of preconnected units")
       END IF
 
-      preconnected(islot)%file_name = TRIM(ADJUSTL(file_name))
+      preconnected(islot)%file_name = TRIM(file_name)
       preconnected(islot)%unit_number = unit_number
 
    END SUBROUTINE assign_preconnection
@@ -162,7 +162,7 @@ CONTAINS
          END IF
          ! Define status after closing the file
          IF (PRESENT(file_status)) THEN
-            status_string = TRIM(ADJUSTL(file_status))
+            status_string = TRIM(file_status)
          ELSE
             status_string = "KEEP"
          END IF
@@ -222,7 +222,7 @@ CONTAINS
                CALL print_preconnection_list()
                CALL cp_abort(__LOCATION__, &
                              "Attempt to disconnect the file <"// &
-                             TRIM(ADJUSTL(file_name))// &
+                             TRIM(file_name)// &
                              "> from an unlisted unit")
             END IF
          END IF
@@ -378,9 +378,14 @@ CONTAINS
          debug_unit = 0 ! use default_output_unit for debugging
       END IF
 
-      real_file_name = file_name
-      IF (status_string == "OLD") &
-         real_file_name = discover_file(file_name)
+      IF (file_name(1:1) == " ") THEN
+         WRITE (UNIT=message, FMT="(A)") &
+            "The file name <"//TRIM(file_name)//"> has leading blanks."
+         CPWARN(TRIM(message))
+      END IF
+
+      real_file_name = ADJUSTL(file_name)
+      IF (status_string == "OLD") real_file_name = discover_file(file_name)
 
       ! Check the specified input file name
       INQUIRE (FILE=TRIM(real_file_name), EXIST=exists, OPENED=is_open, IOSTAT=istat)
@@ -393,7 +398,7 @@ CONTAINS
       ELSE IF (status_string == "OLD") THEN
          IF (.NOT. exists) THEN
             WRITE (UNIT=message, FMT="(A)") &
-               "The specified OLD file <"//TRIM(ADJUSTL(real_file_name))// &
+               "The specified OLD file <"//TRIM(real_file_name)// &
                "> cannot be opened. It does not exist. "// &
                "Data directory path: "//TRIM(get_data_dir())
             CPABORT(TRIM(message))
@@ -432,7 +437,7 @@ CONTAINS
          IF (get_a_new_unit) unit_number = get_unit_number(TRIM(real_file_name))
          IF (unit_number < 1) THEN
             WRITE (UNIT=message, FMT="(A)") &
-               "Cannot open the file <"//TRIM(ADJUSTL(real_file_name))// &
+               "Cannot open the file <"//TRIM(real_file_name)// &
                ">, because no unused logical unit number could be obtained."
             CPABORT(TRIM(message))
          END IF
@@ -461,7 +466,7 @@ CONTAINS
          IF (istat /= 0) THEN
             CALL m_getcwd(cwd)
             WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
-               "An error occurred opening the file '"//TRIM(ADJUSTL(real_file_name))// &
+               "An error occurred opening the file '"//TRIM(real_file_name)// &
                "' (UNIT = ", unit_number, ", IOSTAT = ", istat, "). "//TRIM(iomsgstr)//". "// &
                "Current working directory: "//TRIM(cwd)
 
@@ -473,15 +478,15 @@ CONTAINS
          INQUIRE (FILE=TRIM(real_file_name), OPENED=is_open, NUMBER=unit_number, &
                   POSITION=position_string, NAME=message, ACCESS=access_string, &
                   FORM=form_string, ACTION=action_string)
-         WRITE (UNIT=debug_unit, FMT="(T2,A)") "BEGIN DEBUG "//TRIM(ADJUSTL(routineN))
+         WRITE (UNIT=debug_unit, FMT="(T2,A)") "BEGIN DEBUG "//TRIM(routineN)
          WRITE (UNIT=debug_unit, FMT="(T3,A,I0)") "NUMBER  : ", unit_number
          WRITE (UNIT=debug_unit, FMT="(T3,A,L1)") "OPENED  : ", is_open
-         WRITE (UNIT=debug_unit, FMT="(T3,A)") "NAME    : "//TRIM(ADJUSTL(message))
-         WRITE (UNIT=debug_unit, FMT="(T3,A)") "POSITION: "//TRIM(ADJUSTL(position_string))
-         WRITE (UNIT=debug_unit, FMT="(T3,A)") "ACCESS  : "//TRIM(ADJUSTL(access_string))
-         WRITE (UNIT=debug_unit, FMT="(T3,A)") "FORM    : "//TRIM(ADJUSTL(form_string))
-         WRITE (UNIT=debug_unit, FMT="(T3,A)") "ACTION  : "//TRIM(ADJUSTL(action_string))
-         WRITE (UNIT=debug_unit, FMT="(T2,A)") "END DEBUG "//TRIM(ADJUSTL(routineN))
+         WRITE (UNIT=debug_unit, FMT="(T3,A)") "NAME    : "//TRIM(message)
+         WRITE (UNIT=debug_unit, FMT="(T3,A)") "POSITION: "//TRIM(position_string)
+         WRITE (UNIT=debug_unit, FMT="(T3,A)") "ACCESS  : "//TRIM(access_string)
+         WRITE (UNIT=debug_unit, FMT="(T3,A)") "FORM    : "//TRIM(form_string)
+         WRITE (UNIT=debug_unit, FMT="(T3,A)") "ACTION  : "//TRIM(action_string)
+         WRITE (UNIT=debug_unit, FMT="(T2,A)") "END DEBUG "//TRIM(routineN)
          CALL print_preconnection_list(debug_unit)
       END IF
 
@@ -517,28 +522,22 @@ CONTAINS
       INTEGER                                            :: stat
       LOGICAL                                            :: exists
 
-      real_file_name = TRIM(file_name)
+      real_file_name = TRIM(ADJUSTL(file_name))
 
       ! first try file-name directly
-      INQUIRE (file=TRIM(file_name), exist=exists, iostat=stat)
-      IF (stat == 0 .AND. exists) THEN
-         real_file_name = file_name
-         RETURN
-      ENDIF
+      INQUIRE (file=TRIM(real_file_name), exist=exists, iostat=stat)
+      IF (stat == 0 .AND. exists) RETURN
 
       ! then try the data-dir
       data_dir = get_data_dir()
       IF (LEN_TRIM(data_dir) > 0) THEN
-         candidate = join_paths(data_dir, file_name)
+         candidate = join_paths(data_dir, real_file_name)
          INQUIRE (file=TRIM(candidate), exist=exists, iostat=stat)
          IF (stat == 0 .AND. exists) THEN
             real_file_name = candidate
             RETURN
-         ENDIF
-      ENDIF
-
-      ! fall back in case file not found
-      real_file_name = file_name
+         END IF
+      END IF
 
    END FUNCTION discover_file
 
@@ -618,7 +617,7 @@ CONTAINS
             IF (preconnected(ic)%unit_number > 0) THEN
                WRITE (UNIT=output_unit, FMT="(I6,3X,I6,8X,A)") &
                   ic, preconnected(ic)%unit_number, &
-                  TRIM(ADJUSTL(preconnected(ic)%file_name))
+                  TRIM(preconnected(ic)%file_name)
             ELSE
                WRITE (UNIT=output_unit, FMT="(I6,17X,A)") &
                   ic, "UNUSED"

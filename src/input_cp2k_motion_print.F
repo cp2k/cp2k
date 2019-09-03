@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -58,11 +58,11 @@ CONTAINS
 
       NULLIFY (keyword, section, print_key)
 
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Controls the printing properties during an MD run", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
-      CALL cp_print_key_section_create(print_key, "TRAJECTORY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TRAJECTORY", &
                                        description="Controls the output of the trajectory", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="", unit_str="angstrom")
@@ -72,7 +72,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
-         print_key, "SHELL_TRAJECTORY", &
+         print_key, __LOCATION__, "SHELL_TRAJECTORY", &
          description="Controls the output of the trajectory of shells when the shell-model is used ", &
          print_level=high_print_level, common_iter_levels=1, &
          filename="", unit_str="angstrom")
@@ -81,7 +81,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CORE_TRAJECTORY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CORE_TRAJECTORY", &
                                        description="Controls the output of the trajectory of cores when the shell-model is used ", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="angstrom")
@@ -90,7 +90,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CELL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CELL", &
                                        description="Controls the output of the simulation cell. "// &
                                        "For later analysis of the trajectory it is recommendable that the "// &
                                        "frequency of printing is the same as the one used for the trajectory file.", &
@@ -99,7 +99,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "VELOCITIES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "VELOCITIES", &
                                        description="Controls the output of the velocities."//newline// &
                                        "The default unit for velocities is bohr/au_time. The au_time is derived from the "// &
                                        "hbar value (1.054e-34 J*sec) and the value of the hartree unit of energy "// &
@@ -113,7 +113,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SHELL_VELOCITIES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SHELL_VELOCITIES", &
                                        description="Controls the output of the velocities of shells when the shell model is used", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="bohr*au_t^-1")
@@ -122,7 +122,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CORE_VELOCITIES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CORE_VELOCITIES", &
                                        description="controls the output of the velocities of cores when the shell model is used", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="bohr*au_t^-1")
@@ -136,7 +136,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
-         print_key, "FORCE_MIXING_LABELS", &
+         print_key, __LOCATION__, "FORCE_MIXING_LABELS", &
          description="Controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels", &
          print_level=high_print_level, common_iter_levels=1, &
          filename="")
@@ -145,7 +145,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FORCES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FORCES", &
                                        description="Controls the output of the forces", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="hartree*bohr^-1")
@@ -154,7 +154,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SHELL_FORCES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SHELL_FORCES", &
                                        description="Controls the output of the forces on shells when shell-model is used", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="hartree*bohr^-1")
@@ -163,7 +163,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "CORE_FORCES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CORE_FORCES", &
                                        description="Controls the output of the forces on cores when shell-model is used", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="hartree*bohr^-1")
@@ -172,7 +172,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "MIXED_ENERGIES", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MIXED_ENERGIES", &
                                        description="Controls the output of the energies of the two"// &
                                        "regular FORCE_EVALS in the MIXED method"// &
                                        "printed is step,time,Etot,E_F1,E_F2,CONS_QNT", &
@@ -181,35 +181,35 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "STRESS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "STRESS", &
                                        description="Controls the output of the stress tensor", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "POLAR_MATRIX", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POLAR_MATRIX", &
                                        description="Controls the output of the polarisability tensor during an MD run", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of the restart file during runs. "// &
                                        "By default keeps a short history of three restarts. See also RESTART_HISTORY", &
                                        each_iter_names=s2a("MD"), each_iter_values=(/20/), &
                                        print_level=silent_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric, filename="")
 
-      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=3)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SPLIT_RESTART_FILE", &
+      CALL keyword_create(keyword, __LOCATION__, name="SPLIT_RESTART_FILE", &
                           description="If specified selected input sections, which are growing with the "// &
                           "number of atoms in the system, are written to another restart file "// &
                           "in binary format instead of the default restart file in human "// &
@@ -225,7 +225,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESTART_HISTORY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART_HISTORY", &
                                        description="Dumps unique restart files during the run keeping all of them."// &
                                        "Most useful if recovery is needed at a later point.", &
                                        print_level=low_print_level, common_iter_levels=0, &
@@ -234,7 +234,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "TRANSLATION_VECTOR", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "TRANSLATION_VECTOR", &
                                        description="Dumps the translation vector applied along an MD (if any). Useful"// &
                                        " for postprocessing of QMMM trajectories in which the QM fragment is continuously"// &
                                        " centered in the QM box", &
@@ -268,7 +268,7 @@ CONTAINS
       IF (pos) THEN
 
          CALL keyword_create( &
-            keyword, name="FORMAT", &
+            keyword, __LOCATION__, name="FORMAT", &
             description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)", &
             default_i_val=dump_xmol, &
             enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ"), &
@@ -284,7 +284,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="CHARGE_OCCUP", &
+         CALL keyword_create(keyword, __LOCATION__, name="CHARGE_OCCUP", &
                              variants=(/"CHARGE_O"/), &
                              description="Write the MM charges to the OCCUP field of the PDB file", &
                              usage="CHARGE_OCCUP logical", &
@@ -292,7 +292,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="CHARGE_BETA", &
+         CALL keyword_create(keyword, __LOCATION__, name="CHARGE_BETA", &
                              variants=(/"CHARGE_B"/), &
                              description="Write the MM charges to the BETA field of the PDB file", &
                              usage="CHARGE_BETA logical", &
@@ -300,7 +300,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, name="CHARGE_EXTENDED", &
+         CALL keyword_create(keyword, __LOCATION__, name="CHARGE_EXTENDED", &
                              description="Write the MM charges to the very last field of the PDB file (starting from column 81)", &
                              usage="CHARGE_EXTENDED logical", &
                              default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -309,7 +309,7 @@ CONTAINS
 
       ELSE
 
-         CALL keyword_create(keyword, name="FORMAT", &
+         CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
                              description=description, usage="FORMAT (ATOMIC|DCD|XMOL|XYZ)", &
                              default_i_val=dump_xmol, &
                              enum_c_vals=s2a("ATOMIC", "DCD", "XMOL", "XYZ"), &

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -296,6 +296,8 @@ CONTAINS
 !> \param helium_r_opt       explicit helium bead coordinates (optional)
 !> \param energy             calculated energy
 !> \param force              calculated force (if requested)
+!> \par History
+!>         2019-09 Added multiple-time striding in imag. time [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_bead_solute_e_f(pint_env, helium, helium_part_index, &
@@ -312,7 +314,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_bead_solute_e_f', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: hbeads, hi, qi
+      INTEGER                                            :: hbeads, hi, qi, stride
       REAL(KIND=dp), DIMENSION(3)                        :: helium_r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_force
 
@@ -360,6 +362,14 @@ CONTAINS
       CASE DEFAULT
 
       END SELECT
+
+      ! Account for Imaginary time striding in forces:
+      IF (PRESENT(force)) THEN
+         IF (hbeads < pint_env%p) THEN
+            stride = pint_env%p/hbeads
+            force = force*REAL(stride, dp)
+         END IF
+      END IF
 
       RETURN
    END SUBROUTINE helium_bead_solute_e_f

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -95,13 +95,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="qmmm", &
+      CALL section_create(section, __LOCATION__, name="qmmm", &
                           description="Input for QM/MM calculations.", &
                           n_keywords=6, n_subsections=3, repeats=.FALSE., &
                           citations=(/Laino2005, Laino2006/))
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="E_COUPL", &
+      CALL keyword_create(keyword, __LOCATION__, name="E_COUPL", &
                           variants=s2a("QMMM_COUPLING", "ECOUPL"), &
                           description="Specifies the type of the QM - MM electrostatic coupling.", &
                           usage="E_COUPL GAUSS", &
@@ -117,7 +117,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="MM_POTENTIAL_FILE_NAME", &
                           description="Name of the file containing the potential expansion in gaussians. See the "// &
                           "USE_GEEP_LIB keyword.", &
                           usage="MM_POTENTIAL_FILE_NAME {filename}", &
@@ -125,7 +125,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="use_geep_lib", &
+      CALL keyword_create(keyword, __LOCATION__, name="use_geep_lib", &
                           description=" This keyword enables the use of the internal GEEP library to generate the "// &
                           "gaussian expansion of the MM potential. Using this keyword there's no need to provide "// &
                           "the MM_POTENTIAL_FILENAME. It expects a number from 2 to 15 (the number of gaussian funtions"// &
@@ -135,7 +135,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="nocompatibility", &
+      CALL keyword_create(keyword, __LOCATION__, name="nocompatibility", &
                           description="This keyword disables the compatibility of QM/MM "// &
                           "potential between CPMD and CP2K implementations. The compatibility"// &
                           " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] ."// &
@@ -145,7 +145,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="eps_mm_rspace", &
+      CALL keyword_create(keyword, __LOCATION__, name="eps_mm_rspace", &
                           description="Set the threshold for the collocation of the GEEP gaussian functions."// &
                           "this keyword affects only the GAUSS E_COUPLING.", &
                           usage="eps_mm_rspace real", &
@@ -153,7 +153,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SPHERICAL_CUTOFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="SPHERICAL_CUTOFF", &
                           description="Set the spherical cutoff for the QMMM electrostatic interaction. "// &
                           "This acts like a charge multiplicative factor dependent on cutoff. For MM atoms "// &
                           "farther than the SPHERICAL_CUTOFF(1) their charge is zero. The switch is performed "// &
@@ -165,7 +165,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="parallel_scheme", &
+      CALL keyword_create(keyword, __LOCATION__, name="parallel_scheme", &
                           description="Chooses the parallel_scheme for the long range Potential ", &
                           usage="parallel_scheme (ATOM|GRID)", &
                           enum_c_vals=s2a("ATOM", "GRID"), &
@@ -179,7 +179,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Centering keywords
-      CALL keyword_create(keyword, name="CENTER", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTER", &
                           description="This keyword sets when the QM system is automatically "// &
                           "centered.  Default is EVERY_STEP.", &
                           usage="center (EVERY_STEP|SETUP_ONLY|NEVER)", &
@@ -192,7 +192,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CENTER_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTER_TYPE", &
                           description="This keyword specifies how to do the QM system centering.", &
                           usage="center_type (MAX_MINUS_MIN|PBC_AWARE_MAX_MINUS_MIN)", &
                           enum_c_vals=s2a("MAX_MINUS_MIN", "PBC_AWARE_MAX_MINUS_MIN"), &
@@ -203,14 +203,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CENTER_GRID", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTER_GRID", &
                           description="This keyword specifies whether the QM system is centered in units of the grid spacing.", &
                           usage="grid_center LOGICAL", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="initial_translation_vector", &
+      CALL keyword_create(keyword, __LOCATION__, name="initial_translation_vector", &
                           description="This keyword specify the initial translation vector to be applied to the system.", &
                           usage="initial_translation_vector <REAL> <REAL> <REAL>", &
                           n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
@@ -218,7 +218,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="DELTA_CHARGE", &
+         keyword, __LOCATION__, name="DELTA_CHARGE", &
          description="Additional net charge relative to that specified in DFT section.  Used automatically by force mixing", &
          usage="DELTA_CHARGE q", default_i_val=0, &
          n_var=1, type_of_var=integer_t, repeats=.FALSE.)
@@ -287,23 +287,23 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="MM_KIND", &
+      CALL section_create(section, __LOCATION__, name="MM_KIND", &
                           description="Information about the MM kind in the QM/MM scheme", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="The MM  kind", usage="O", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RADIUS", &
                           description="Specifies the radius of the atomic kinds", &
                           usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT, "angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORR_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="CORR_RADIUS", &
                           description="Specifies the correction radius of the atomic kinds"// &
                           " The correction radius is connected to the use of the compatibility keyword.", &
                           usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
@@ -329,7 +329,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FORCE_MIXING", &
+      CALL section_create(section, __LOCATION__, name="FORCE_MIXING", &
                           description="This section enables and defines parameters for force-mixing based QM/MM,"// &
                           " which actually does two conventional QM/MM calculations, on a small "// &
                           " and a large QM region, and combines the MM forces from one and QM "// &
@@ -348,13 +348,13 @@ CONTAINS
                           n_keywords=5, n_subsections=3, repeats=.FALSE., &
                           citations=(/Bernstein2009, Bernstein2012/))
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enables force-mixing", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOMENTUM_CONSERVATION_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOMENTUM_CONSERVATION_TYPE", &
                           description="How to apply force to get momentum conservation", &
                           usage="MOMENTUM_CONSERVATION_TYPE <type>", &
                           enum_c_vals=s2a("NONE", "EQUAL_F", "EQUAL_A"), &
@@ -366,7 +366,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MOMENTUM_CONSERVATION_REGION", &
+      CALL keyword_create(keyword, __LOCATION__, name="MOMENTUM_CONSERVATION_REGION", &
                           description="Region to apply correction force to for momentum conservation", &
                           usage="MOMENTUM_CONSERVATION_REGION <label>", &
                           enum_c_vals=s2a("CORE", "QM", "BUFFER"), &
@@ -378,7 +378,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R_CORE", &
+      CALL keyword_create(keyword, __LOCATION__, name="R_CORE", &
                           description="Specify the inner and outer radii of core QM region. "// &
                           " All molecules with any atoms within this distance (hysteretically) of any atoms "// &
                           " specified as QM in enclosing QM/MM section  will be core QM atoms in the force-mixing calculation.", &
@@ -389,7 +389,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="R_QM", &
                           description="Specify the inner and outer radii of QM dynamics region. "// &
                           " All molecules with atoms within this distance (hysteretically) of any atoms in "// &
                           " core will follow QM dynamics in the force-mixing calculation.", &
@@ -400,7 +400,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST", &
                           description="Makes the extended QM zone be defined hysterestically "// &
                           " by distance from QM core list (i.e. atoms specified explicitly by "// &
                           " user) instead of from full QM core region (specified by user + hysteretic "// &
@@ -410,7 +410,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="R_BUF", &
+      CALL keyword_create(keyword, __LOCATION__, name="R_BUF", &
                           description="Specify the inner and outer radii of buffer region. "// &
                           " All atoms within this distance (hysteretically) of any QM atoms "// &
                           " will be buffer atoms in the force-mixing calculation.", &
@@ -421,28 +421,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QM_KIND_ELEMENT_MAPPING", &
+      CALL keyword_create(keyword, __LOCATION__, name="QM_KIND_ELEMENT_MAPPING", &
                           description="Mapping from elements to QM_KINDs for adaptively included atoms.", &
                           usage="QM_KIND_ELEMENT_MAPPING {El} {QM_KIND}", &
                           n_var=2, type_of_var=char_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_N_QM", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_N_QM", &
                           description="Maximum number of QM atoms, for detection of runaway adaptive selection.", &
                           usage="MAX_N_QM int", default_i_val=300, &
                           n_var=1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ADAPTIVE_EXCLUDE_MOLECULES", &
+      CALL keyword_create(keyword, __LOCATION__, name="ADAPTIVE_EXCLUDE_MOLECULES", &
                           description="List of molecule names to exclude from adaptive regions (e.g. big things like proteins)", &
                           usage="ADAPTIVE_EXCLUDE_MOLECULES molec1 molec2 ...", &
                           n_var=-1, type_of_var=char_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXTENDED_DELTA_CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXTENDED_DELTA_CHARGE", &
                           description="Additional net charge in extended region relative to core (core charge is "// &
                           " specified in DFT section, as usual for a convetional QM/MM calculation)", &
                           usage="EXTENDED_DELTA_CHARGE q", default_i_val=0, &
@@ -452,7 +452,7 @@ CONTAINS
 
       ! QM_NON_ADAPTIVE subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="QM_NON_ADAPTIVE", &
+      CALL section_create(subsection, __LOCATION__, name="QM_NON_ADAPTIVE", &
                           description="List of atoms always in QM region, non-adaptively", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -466,7 +466,7 @@ CONTAINS
 
       ! BUFFER_NON_ADAPTIVE subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="BUFFER_NON_ADAPTIVE", &
+      CALL section_create(subsection, __LOCATION__, name="BUFFER_NON_ADAPTIVE", &
                           description="List of atoms always in buffer region, non-adaptively, and any needed LINK sections", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -488,7 +488,7 @@ CONTAINS
       ! BUFFER_LINKS subsection
       NULLIFY (subsection)
       CALL section_create( &
-         subsection, name="BUFFER_LINKS", &
+         subsection, __LOCATION__, name="BUFFER_LINKS", &
          description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."// &
          "Ignored - need to implement buffer selection by atom and walking of connectivity data.", &
          n_keywords=0, n_subsections=1, repeats=.TRUE.)
@@ -503,19 +503,19 @@ CONTAINS
 
       ! RESTART_INFO subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="RESTART_INFO", &
+      CALL section_create(subsection, __LOCATION__, name="RESTART_INFO", &
                           description="This section provides information about old force-mixing indices and labels, "// &
                           "for restarts.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="INDICES", &
+      CALL keyword_create(keyword, __LOCATION__, name="INDICES", &
                           description="Indices of atoms in previous step QM regions.", &
                           usage="INDICES 1 2 ...", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LABELS", &
+      CALL keyword_create(keyword, __LOCATION__, name="LABELS", &
                           description="Labels of atoms in previous step QM regions.", &
                           usage="LABELS 1 1 ...", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -526,18 +526,18 @@ CONTAINS
       CALL section_release(subsection)
 
       ! PRINT subsection, with keys for neighbor list
-      CALL section_create(subsection, name="print", &
+      CALL section_create(subsection, __LOCATION__, name="print", &
                           description="Section of possible print options in FORCE_MIXING.", &
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "SUBCELL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
                                        description="Activates the printing of the subcells used for the"// &
                                        "generation of neighbor lists.", unit_str="angstrom", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "NEIGHBOR_LISTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "NEIGHBOR_LISTS", &
                                        description="Activates the printing of the neighbor lists used"// &
                                        " for the hysteretic region calculations.", &
                                        print_level=high_print_level, filename="", unit_str="angstrom")
@@ -564,16 +564,16 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="QM_KIND", &
+      CALL section_create(section, __LOCATION__, name="QM_KIND", &
                           description="Information about the QM kind in the QM/MM scheme", &
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="The QM kind", usage="O", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MM_INDEX", &
+      CALL keyword_create(keyword, __LOCATION__, name="MM_INDEX", &
                           description="The indexes of the MM atoms that have this kind. This keyword can be"// &
                           " repeated several times (useful if you have to specify many indexes).", &
                           usage="MM_INDEX 1 2", &
@@ -598,12 +598,12 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="WALLS", &
+      CALL section_create(section, __LOCATION__, name="WALLS", &
                           description="Enables Walls for the QM box. This can be used to avoid that QM "// &
                           " atoms move out of the QM box.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="WALL_SKIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="WALL_SKIN", &
                           description="Specify the value of the skin of the Wall in each dimension. "// &
                           "The wall's effect is felt when atoms fall within the skin of the Wall.", &
                           usage="WALL_SKIN <real> <real> <real>", n_var=3, type_of_var=real_t, &
@@ -614,7 +614,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Specifies the type of wall", &
                           usage="TYPE REFLECTIVE", &
                           enum_c_vals=s2a("NONE", "REFLECTIVE", "QUADRATIC"), &
@@ -626,7 +626,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="K", &
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Specify the value of the the force constant for the quadratic wall", &
                           usage="K <real>", unit_str='internal_cp2k', &
                           type_of_var=real_t)
@@ -651,7 +651,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="IMAGE_CHARGE", &
+      CALL section_create(section, __LOCATION__, name="IMAGE_CHARGE", &
                           description="Inclusion of polarization effects within the image charge "// &
                           "approach for systems where QM molecules are physisorbed on e.g. metal "// &
                           "surfaces described by MM. This correction introduces only a very small overhead. "// &
@@ -659,7 +659,7 @@ CONTAINS
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/Golze2013/))
 
-      CALL keyword_create(keyword, name="MM_ATOM_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="MM_ATOM_LIST", &
                           description="List of MM atoms carrying an induced Gaussian charge. "// &
                           "If this keyword is not given, all MM atoms will carry an image charge.", &
                           usage="MM_ATOM_LIST 1 2 3 or 1..3 ", n_var=-1, type_of_var=integer_t, &
@@ -667,7 +667,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WIDTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="WIDTH", &
                           description="Specifies the value of the width of the (induced) Gaussian "// &
                           "charge distribution carried by each MM atom.", &
                           usage="WIDTH <real> ", n_var=1, type_of_var=real_t, &
@@ -676,7 +676,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXT_POTENTIAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="EXT_POTENTIAL", &
                           description="External potential applied to the metal electrode ", &
                           usage="EXT_POTENTIAL <real> ", n_var=1, type_of_var=real_t, &
                           default_r_val=0.0_dp, &
@@ -684,7 +684,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DETERM_COEFF", &
+      CALL keyword_create(keyword, __LOCATION__, name="DETERM_COEFF", &
                           description="Specifies how the coefficients are determined.", &
                           usage="DETERM_COEFF ITERATIVE", &
                           enum_c_vals=s2a("CALC_MATRIX", "ITERATIVE"), &
@@ -695,7 +695,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_IMAGE_MATRIX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_IMAGE_MATRIX", &
                           description="Restart the image matrix. Useful when "// &
                           "calculating coefficients iteratively (the image matrix "// &
                           "is used as preconditioner in that case)", &
@@ -704,7 +704,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IMAGE_RESTART_FILE_NAME", &
+      CALL keyword_create(keyword, __LOCATION__, name="IMAGE_RESTART_FILE_NAME", &
                           description="File name where to read the image matrix used "// &
                           "as preconditioner in the iterative scheme", &
                           usage="IMAGE_RESTART_FILE_NAME <FILENAME>", &
@@ -712,7 +712,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="IMAGE_MATRIX_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="IMAGE_MATRIX_METHOD", &
                           description="Method for calculating the image matrix.", &
                           usage="IMAGE_MATRIX_METHOD MME", &
                           enum_c_vals=s2a("GPW", "MME"), &
@@ -746,26 +746,26 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PERIODIC", &
+      CALL section_create(section, __LOCATION__, name="PERIODIC", &
                           description="Specify parameters for QM/MM periodic boundary conditions calculations", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Laino2006/))
 
       CALL keyword_create( &
-         keyword, name="GMAX", &
+         keyword, __LOCATION__, name="GMAX", &
          description="Specifies the maximum value of G in the reciprocal space over which perform the Ewald sum.", &
          usage="GMAX <real>", n_var=1, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="REPLICA", &
+      CALL keyword_create(keyword, __LOCATION__, name="REPLICA", &
                           description="Specifies the number of replica to take into consideration for the real part of the "// &
                           "calculation. Default is letting the qmmm module decide how many replica you really need.", &
                           usage="REPLICA <integer>", n_var=1, default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGRIDS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
                           usage="NGRIDS <integer> <iteger> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
       CALL section_add_keyword(section, keyword)
@@ -783,7 +783,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "check_spline", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "check_spline", &
                                        description="Controls the checking of the G-space term Spline Interpolation.", &
                                        print_level=medium_print_level, filename="GSpace-SplInterp")
       CALL section_add_subsection(section, subsection)
@@ -810,14 +810,14 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, name="MULTIPOLE", &
+      CALL section_create(section, __LOCATION__, name="MULTIPOLE", &
                           description="This section is used to set up the decoupling of QM periodic images with "// &
                           "the use of density derived atomic point charges. Switched on by default even if not "// &
                           "explicitly given. Can be switched off if e.g. QM and MM box are of the same size.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Defines the usage of the multipole section", &
                           usage="ON", &
                           enum_c_vals=s2a("ON", "OFF"), &
@@ -828,28 +828,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RCUT", &
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Real space cutoff for the Ewald sum.", &
                           usage="RCUT {real}", n_var=1, type_of_var=real_t, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EWALD_PRECISION", &
+      CALL keyword_create(keyword, __LOCATION__, name="EWALD_PRECISION", &
                           description="Precision achieved in the Ewald sum.", &
                           usage="EWALD_PRECISION {real}", n_var=1, type_of_var=real_t, &
                           unit_str="hartree", default_r_val=1.0E-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ANALYTICAL_GTERM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ANALYTICAL_GTERM", &
                           description="Evaluates the Gterm in the Ewald Scheme analytically instead of using Splines.", &
                           usage="ANALYTICAL_GTERM <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGRIDS", &
+      CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
                           usage="NGRIDS <integer> <iteger> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
       CALL section_add_keyword(section, keyword)
@@ -859,13 +859,13 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "check_spline", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "check_spline", &
                                        description="Controls the checking of the G-space term Spline Interpolation.", &
                                        print_level=medium_print_level, filename="GSpace-SplInterp")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL cp_print_key_section_create(subsection, "program_run_info", &
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "program_run_info", &
                                        description="Controls the printing of basic information during the run", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, subsection)
@@ -890,11 +890,11 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="FORCEFIELD", &
+      CALL section_create(section, __LOCATION__, name="FORCEFIELD", &
                           description="Specify information on the QM/MM forcefield", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL", &
+      CALL keyword_create(keyword, __LOCATION__, name="MULTIPLE_POTENTIAL", &
                           description="Enables the possibility to define NONBONDED and NONBONDED14 as a"// &
                           " sum of different kinds of potential. Useful for piecewise defined potentials.", &
                           usage="MULTIPLE_POTENTIAL T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -927,7 +927,7 @@ CONTAINS
 
       NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="NONBONDED", &
+      CALL section_create(section, __LOCATION__, name="NONBONDED", &
                           description="Specify information on the QM/MM non-bonded forcefield", &
                           n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
@@ -965,32 +965,32 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="LINK", &
+      CALL section_create(section, __LOCATION__, name="LINK", &
                           description="Specify information on the QM/MM link treatment", &
                           n_keywords=7, n_subsections=2, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="QM_INDEX", &
+      CALL keyword_create(keyword, __LOCATION__, name="QM_INDEX", &
                           variants=(/"QM"/), &
                           description="Specifies the index of the QM atom involved in the QM/MM link", &
                           usage="QM_INDEX integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QM_KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="QM_KIND", &
                           description="Specifies the element of the QM capping atom involved in the QM/MM link", &
                           usage="QM_KIND char", n_var=1, type_of_var=char_t, &
                           default_c_val="H")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MM_INDEX", &
+      CALL keyword_create(keyword, __LOCATION__, name="MM_INDEX", &
                           variants=(/"MM"/), &
                           description="Specifies the index of the MM atom involved in the QM/MM link, Default hydrogen.", &
                           usage="MM_INDEX integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RADIUS", &
                           description="Overwrite the specification of the radius only for the MM atom involved in the link."// &
                           "Default is to use the same radius as for the specified type.", &
                           usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
@@ -998,14 +998,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="CORR_RADIUS", &
+         keyword, __LOCATION__, name="CORR_RADIUS", &
          description="Overwrite the specification of the correction radius only for the MM atom involved in the link."// &
          "Default is to use the same correction radius as for the specified type.", &
          usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LINK_TYPE", &
+      CALL keyword_create(keyword, __LOCATION__, name="LINK_TYPE", &
                           variants=(/"LINK ", "TYPE ", "LTYPE"/), &
                           description="Specifies the method to use to treat the defined QM/MM link", &
                           usage="LINK_TYPE char", &
@@ -1018,7 +1018,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALPHA_IMOMM", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA_IMOMM", &
                           variants=s2a("ALPHA"), &
                           description="Specifies the scaling factor to be used for projecting the forces "// &
                           "on the capping hydrogen in the IMOMM QM/MM link scheme to the MM atom of the link. "// &
@@ -1029,7 +1029,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QMMM_SCALE_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="QMMM_SCALE_FACTOR", &
                           variants=(/"QMMM_CHARGE_SCALE ", &
                                      "QMMM_CHARGE_FACTOR", &
                                      "QMMM_SCALE_CHARGE "/), &
@@ -1042,7 +1042,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FIST_SCALE_FACTOR", &
+      CALL keyword_create(keyword, __LOCATION__, name="FIST_SCALE_FACTOR", &
                           variants=(/"FIST_CHARGE_SCALE ", &
                                      "FIST_CHARGE_FACTOR", &
                                      "FIST_SCALE_CHARGE "/), &
@@ -1055,19 +1055,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_create(subsection, name="MOVE_MM_CHARGE", &
+      CALL section_create(subsection, __LOCATION__, name="MOVE_MM_CHARGE", &
                           description="Specify information to move a classical charge before the"// &
                           " QM/MM energies and forces evaluation", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="ATOM_INDEX_1", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_1", &
                           variants=(/"MM1"/), &
                           description="Specifies the index of the MM atom involved in the QM/MM link to be moved", &
                           usage="ATOM_INDEX_1 integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_INDEX_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_2", &
                           variants=(/"MM2"/), &
                           description="Specifies the index of the second atom defining the direction along which "// &
                           " the atom will be moved", &
@@ -1075,19 +1075,19 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALPHA", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Specifies the scaling factor that defines the movement along the defined direction", &
                           usage="ALPHA real", n_var=1, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RADIUS", &
                           description="Specifies the radius used for the QM/MM electrostatic coupling after movement", &
                           usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom", default_r_val=0.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORR_RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="CORR_RADIUS", &
                           description="Specifies the correction radius used for the QM/MM electrostatic coupling after movement", &
                           usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom", default_r_val=0.0_dp)
       CALL section_add_keyword(subsection, keyword)
@@ -1096,12 +1096,12 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, name="ADD_MM_CHARGE", &
+      CALL section_create(subsection, __LOCATION__, name="ADD_MM_CHARGE", &
                           description="Specify information to add a classical charge before the"// &
                           " QM/MM energies and forces evaluation", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="ATOM_INDEX_1", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_1", &
                           variants=(/"MM1"/), &
                           description="Specifies the index of the first atom defining the direction along which"// &
                           " the atom will be added", &
@@ -1109,7 +1109,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_INDEX_2", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_2", &
                           variants=(/"MM2"/), &
                           description="Specifies the index of the second atom defining the direction along which "// &
                           " the atom will be added", &
@@ -1117,13 +1117,13 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALPHA", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Specifies the scaling factor that defines the movement along the defined direction", &
                           usage="ALPHA real", n_var=1, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RADIUS", &
+      CALL keyword_create(keyword, __LOCATION__, name="RADIUS", &
                           description="Specifies the radius used for the QM/MM electrostatic coupling for the added source", &
                           usage="RADIUS real", n_var=1, unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT, "angstrom"))
@@ -1131,14 +1131,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, name="CORR_RADIUS", &
+         keyword, __LOCATION__, name="CORR_RADIUS", &
          description="Specifies the correction radius used for the QM/MM electrostatic coupling for the added source", &
          usage="RADIUS real", n_var=1, unit_str="angstrom", &
          default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT, "angstrom"))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHARGE", &
                           description="Specifies the charge for the added source of QM/MM potential", &
                           usage="CHARGE real", default_r_val=0.0_dp, n_var=1, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
@@ -1163,13 +1163,13 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="interpolator", &
+      CALL section_create(section, __LOCATION__, name="interpolator", &
                           description="kind of interpolation used between the multigrids", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key)
 
-      CALL keyword_create(keyword, name="kind", &
+      CALL keyword_create(keyword, __LOCATION__, name="kind", &
                           description="the interpolator to use", &
                           usage="kind spline3", &
                           default_i_val=spline3_nopbc_interp, &
@@ -1178,7 +1178,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="safe_computation", &
+      CALL keyword_create(keyword, __LOCATION__, name="safe_computation", &
                           description="if a non unrolled calculation is to be performed in parallel", &
                           usage="safe_computation OFF", &
                           default_l_val=.FALSE., &
@@ -1186,7 +1186,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="aint_precond", &
+      CALL keyword_create(keyword, __LOCATION__, name="aint_precond", &
                           description="the approximate inverse to use to get the starting point"// &
                           " for the linear solver of the spline3 methods", &
                           usage="kind spline3", &
@@ -1198,7 +1198,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="precond", &
+      CALL keyword_create(keyword, __LOCATION__, name="precond", &
                           description="The preconditioner used"// &
                           " for the linear solver of the spline3 methods", &
                           usage="kind spline3", &
@@ -1210,19 +1210,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="eps_x", &
+      CALL keyword_create(keyword, __LOCATION__, name="eps_x", &
                           description="accuracy on the solution for spline3 the interpolators", &
                           usage="eps_x 1.e-15", default_r_val=1.e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="eps_r", &
+      CALL keyword_create(keyword, __LOCATION__, name="eps_r", &
                           description="accuracy on the residual for spline3 the interpolators", &
                           usage="eps_r 1.e-15", default_r_val=1.e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="max_iter", &
+      CALL keyword_create(keyword, __LOCATION__, name="max_iter", &
                           variants=(/'maxiter'/), &
                           description="the maximum number of iterations", &
                           usage="max_iter 200", default_i_val=100)
@@ -1230,7 +1230,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, "conv_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "conv_info", &
                                        description="if convergence information about the linear solver"// &
                                        " of the spline methods should be printed", &
                                        print_level=medium_print_level, each_iter_names=s2a("SPLINE_FIND_COEFFS"), &
@@ -1239,7 +1239,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "spl_coeffs", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "spl_coeffs", &
                                        description="outputs a cube with the coefficents calculated for "// &
                                        "the spline interpolation", &
                                        print_level=debug_print_level)
@@ -1263,13 +1263,13 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword, print_key)
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options specific of the QMMM code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (print_key)
 
-      CALL cp_print_key_section_create(print_key, "DIPOLE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DIPOLE", &
                                        description="Controls the printing of the DIPOLE in a QM/MM calculations."// &
                                        " It requires that the DIPOLE calculations is "// &
                                        " requested both for the QS  and for the MM  part.", &
@@ -1277,19 +1277,19 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PGF", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PGF", &
                                        description="Controls the printing of the gaussian expansion basis set of the"// &
                                        " electrostatic potential", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "POTENTIAL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POTENTIAL", &
                                        description="Controls the printing of the QMMM  potential", &
                                        print_level=high_print_level, filename="MM_ELPOT_QMMM", &
                                        common_iter_levels=1)
 
-      CALL keyword_create(keyword, name="stride", &
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
@@ -1300,14 +1300,14 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "MM_POTENTIAL", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MM_POTENTIAL", &
                                        description="Controls the printing of the MM unidimensional potential on file", &
                                        print_level=high_print_level, filename="MM_ELPOT", &
                                        common_iter_levels=1)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "QMMM_MATRIX", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "QMMM_MATRIX", &
                                        description="Controls the printing of the QMMM 1 electron Hamiltonian Matrix"// &
                                        " for methods like semiempirical and DFTB", &
                                        print_level=high_print_level, filename="__STD_OUT__", &
@@ -1315,63 +1315,63 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_BANNER", &
                                        description="Controls the printing of the banner of the MM program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information regarding the run.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
-         print_key, "PERIODIC_INFO", &
+         print_key, __LOCATION__, "PERIODIC_INFO", &
          description="Controls the printing of information regarding the periodic boundary condition.", &
          print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "GRID_INFORMATION", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "GRID_INFORMATION", &
                                        description="Controls the printing of information regarding the PW grid structures"// &
                                        " for PERIODIC QM/MM calculations.", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "derivatives", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "derivatives", &
                                        description="Print all derivatives after QM/MM calculation", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "qmmm_charges", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "qmmm_charges", &
                                        description="Print all charges generating the QM/MM potential", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "qmmm_link_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "qmmm_link_info", &
                                        description="Print all information on QM/MM links", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "qs_derivatives", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "qs_derivatives", &
                                        description="Print QM derivatives after QS calculation", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "image_charge_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "image_charge_info", &
                                        description="Prints image charge coefficients and detailed energy info", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "image_charge_restart", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "image_charge_restart", &
                                        description="Controls the printing of the restart file for "// &
                                        "the image matrix when using the iterative scheme", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="RESTART", &

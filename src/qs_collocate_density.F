@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -1489,7 +1489,7 @@ CONTAINS
       IF (PRESENT(soft_valid)) my_soft = soft_valid
 
       ! by default, do not compute the kinetic energy density (tau)
-      ! if compute_tau, all grids referening to rho are actually tau
+      ! if compute_tau, all grids referencing to rho are actually tau
       IF (PRESENT(compute_tau)) THEN
          my_compute_tau = compute_tau
       ELSE
@@ -3642,7 +3642,7 @@ CONTAINS
 
       INTEGER                                            :: i, index_max(3), index_min(3), &
                                                             ipoint(3), j, k
-      REAL(KIND=dp)                                      :: point(3)
+      REAL(KIND=dp)                                      :: inv_ng(3), point(3), primpt
 
 ! still hard-wired (see MODULO)
 
@@ -3650,12 +3650,16 @@ CONTAINS
 
          CALL return_cube_nonortho(cube_info, radius, index_min, index_max, rp)
 
+         inv_ng = 1.0_dp/ng
+
          ! go over the grid, but cycle if the point is not within the radius
          DO k = index_min(3), index_max(3)
          DO j = index_min(2), index_max(2)
          DO i = index_min(1), index_max(1)
             ! point in real space
-            point = MATMUL(cell%hmat, REAL((/i, j, k/), KIND=dp)/ng)
+            point = MATMUL(cell%hmat, REAL((/i, j, k/), KIND=dp)*inv_ng)
+            ! primitive_value of point
+            primpt = primitive_value(point)
             ! skip if outside of the sphere
             IF (SUM((point-rp)**2) > radius**2) CYCLE
             ! point on the grid (including pbc)
@@ -3663,9 +3667,9 @@ CONTAINS
             ! add to grid
             IF (PRESENT(lgrid)) THEN
                ig = ipoint(3)*ng(2)*ng(1)+ipoint(2)*ng(1)+ipoint(1)+1
-               lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l)+primitive_value(point)
+               lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l)+primpt
             ELSE
-               grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3))+primitive_value(point)
+               grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3))+primpt
             ENDIF
          ENDDO
          ENDDO
@@ -3681,7 +3685,8 @@ CONTAINS
       FUNCTION primitive_value(point) RESULT(res)
       REAL(KIND=dp)                                      :: point(3), res
 
-      REAL(KIND=dp)                                      :: dra(3), drap(3), drb(3), drbp(3), myexp
+      REAL(KIND=dp)                                      :: dra(3), drap(3), drb(3), drbp(3), myexp, &
+                                                            pdrap
 
          res = 0.0_dp
          myexp = EXP(-zetp*SUM((point-rp)**2))*prefactor
@@ -3704,10 +3709,11 @@ CONTAINS
                         DO lzb = 1, MAX(lb_min_local-lxb-lyb, 0)
                            drbp(3) = drbp(3)*drb(3)
                         ENDDO
+                        ico = coset(lxa, lya, lza)
+                        pdrap = PRODUCT(drap)
                         DO lzb = MAX(lb_min_local-lxb-lyb, 0), lb_max_local-lxb-lyb
-                           ico = coset(lxa, lya, lza)
                            jco = coset(lxb, lyb, lzb)
-                           res = res+pab_local(ico+o1_local, jco+o2_local)*myexp*PRODUCT(drap)*PRODUCT(drbp)
+                           res = res+pab_local(ico+o1_local, jco+o2_local)*myexp*pdrap*PRODUCT(drbp)
                            drbp(3) = drbp(3)*drb(3)
                         ENDDO
                         drap(3) = drap(3)*dra(3)
@@ -3726,7 +3732,7 @@ CONTAINS
    END SUBROUTINE collocate_pgf_product_rspace
 
 ! **************************************************************************************************
-!> \brief low level collcation of primitive gaussian functions in g-space
+!> \brief low level collocation of primitive gaussian functions in g-space
 !> \param la_max ...
 !> \param zeta ...
 !> \param la_min ...

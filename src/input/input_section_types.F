@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -11,15 +11,12 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_section_types
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_linked_list_input,            ONLY: &
         cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, cp_sll_val_get_length, &
         cp_sll_val_get_rest, cp_sll_val_insert_el_at, cp_sll_val_next, cp_sll_val_p_type, &
         cp_sll_val_rm_el_at, cp_sll_val_set_el_at, cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE input_keyword_types,             ONLY: keyword_describe,&
-                                              keyword_describe_html,&
                                               keyword_p_type,&
                                               keyword_release,&
                                               keyword_retain,&
@@ -38,9 +35,7 @@ MODULE input_section_types
                                               default_string_length,&
                                               dp
    USE print_messages,                  ONLY: print_message
-   USE reference_manager,               ONLY: get_citation_key,&
-                                              print_format_journal,&
-                                              print_reference
+   USE reference_manager,               ONLY: get_citation_key
    USE string_utilities,                ONLY: a2s,&
                                               compress,&
                                               substitute_special_xml_tokens,&
@@ -58,8 +53,7 @@ MODULE input_section_types
    PUBLIC :: section_type
    PUBLIC :: section_create, section_release, section_describe, &
              section_get_subsection, section_get_keyword, &
-             section_add_keyword, section_add_subsection, section_describe_html, &
-             section_describe_index_html
+             section_add_keyword, section_add_subsection
    PUBLIC :: section_get_subsection_index, section_get_keyword_index
 
    PUBLIC :: section_vals_type
@@ -96,6 +90,7 @@ MODULE input_section_types
 !>      - ref_count: reference count (see doc/ReferenceCounting.html)
 !>      - n_keywords: the number of keywords in this section
 !>      - name: name of the section
+!>      - location where in the source code (file and line) the section is created
 !>      - description: description of the section
 !>      - citations: references to literature associated to this section
 !>      - keywords: array with the keywords of this section (might be
@@ -107,6 +102,7 @@ MODULE input_section_types
       LOGICAL :: frozen, repeats
       INTEGER :: id_nr, ref_count, n_keywords, n_subsections
       CHARACTER(len=default_string_length)        :: name
+      CHARACTER(len=default_string_length)        :: location
       CHARACTER, DIMENSION(:), POINTER              :: description => Null()
       INTEGER, POINTER, DIMENSION(:)              :: citations
       TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
@@ -144,6 +140,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates a list of keywords
 !> \param section the list to be created
+!> \param location from where in the source code section_create() is called
 !> \param name ...
 !> \param description ...
 !> \param n_keywords hint about the number of keywords, defaults to 10
@@ -153,10 +150,10 @@ CONTAINS
 !> \param citations ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE section_create(section, name, description, n_keywords, &
+   SUBROUTINE section_create(section, location, name, description, n_keywords, &
                              n_subsections, repeats, citations)
       TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: name, description
+      CHARACTER(len=*), INTENT(in)                       :: location, name, description
       INTEGER, INTENT(in), OPTIONAL                      :: n_keywords, n_subsections
       LOGICAL, INTENT(in), OPTIONAL                      :: repeats
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: citations
@@ -178,6 +175,7 @@ CONTAINS
 
       section%n_keywords = 0
       section%n_subsections = 0
+      section%location = location
       section%name = name
       CALL uppercase(section%name)
 
@@ -364,143 +362,6 @@ CONTAINS
          END IF
       END IF
    END SUBROUTINE section_describe
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-!> \param prefix ...
-!> \param depth ...
-!> \param unit_number ...
-! **************************************************************************************************
-   RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_number)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(LEN=*), INTENT(IN)                       :: prefix
-      INTEGER, INTENT(in)                                :: depth, unit_number
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(LEN=1000)                                :: local_prefix
-      CHARACTER(LEN=256), DIMENSION(50), SAVE            :: location, name
-      CHARACTER(LEN=default_path_length)                 :: message
-      INTEGER                                            :: idepth, ikeyword, iref, isub, unit_nr
-      LOGICAL                                            :: has_keywords
-
-      IF (ASSOCIATED(section)) THEN
-         local_prefix = TRIM(prefix//"~"//TRIM(section%name))
-         CPASSERT(section%ref_count > 0)
-         CALL open_file(unit_number=unit_nr, file_name=TRIM(local_prefix)//".html", &
-                        file_status="UNKNOWN", file_action="WRITE")
-         WRITE (unit_nr, FMT='(A)') "<HTML><BODY>"
-         WRITE (unit_nr, FMT='(A)') "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
-         WRITE (unit_nr, FMT='(A)') '<META NAME="description" content="CP2K">'
-         WRITE (unit_nr, FMT='(A)') &
-            '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'// &
-            'documentation,help,manual,Fortran,parallel">'
-         WRITE (unit_nr, FMT='(A)') "<H1> Section "//section%name//" </H1>"
-         WRITE (unit_nr, FMT='(A)') ' <A HREF="index.html">Index of all sections</A>. This section is located at '
-         DO idepth = 1, depth
-            WRITE (unit_nr, FMT='(A)', ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
-         ENDDO
-         location(depth+1) = TRIM(local_prefix)//".html"
-         name(depth+1) = TRIM(section%name)
-         WRITE (unit_nr, FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
-
-         message = get_section_info(section)
-         WRITE (unit_nr, FMT='(A)') '<BR><BR>'//TRIM(a2s(section%description))//TRIM(message)
-
-         IF (ASSOCIATED(section%citations)) THEN
-            IF (SIZE(section%citations, 1) > 1) THEN
-               WRITE (unit_nr, FMT='(A)') '<BR><BR> This section cites following references: '
-            ELSE
-               WRITE (unit_nr, FMT='(A)') '<BR><BR> This section cites following reference: '
-            ENDIF
-            DO iref = 1, SIZE(section%citations, 1)
-               WRITE (unit_nr, FMT='(A,I0,A)') '<A HREF="references.html#reference_', section%citations(iref), '" TITLE="'
-               CALL print_reference(section%citations(iref), FORMAT=print_format_journal, unit=unit_nr)
-               WRITE (unit_nr, FMT='(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
-            ENDDO
-         ENDIF
-
-         WRITE (unit_nr, FMT='(A)') "<H2> Subsections</H2>"
-         IF (section%n_subsections > 0) THEN
-            WRITE (unit_nr, FMT='(A)') "<UL>"
-            DO isub = 1, section%n_subsections
-               WRITE (unit_nr, FMT='(A)') &
-                  '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
-                  TRIM(section%subsections(isub)%section%name)//' </A>'
-            END DO
-            WRITE (unit_nr, FMT='(A)') "</UL>"
-         ELSE
-            WRITE (unit_nr, FMT='(A)') "None"
-         ENDIF
-         WRITE (unit_nr, FMT='(A)') "<H2> Section keywords </H2>"
-         has_keywords = ASSOCIATED(section%keywords(-1)%keyword) .OR. &
-                        ASSOCIATED(section%keywords(0)%keyword) .OR. &
-                        section%n_keywords >= 1
-         IF (has_keywords) THEN
-            WRITE (unit_nr, FMT='(A)') "<UL>"
-            DO ikeyword = -1, section%n_keywords
-               IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
-                  WRITE (unit_nr, FMT='(A)') &
-                     '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'// &
-                     TRIM(section%keywords(ikeyword)%keyword%names(1))//" </A>"
-               END IF
-            END DO
-            WRITE (unit_nr, FMT='(A)') "</UL>"
-            WRITE (unit_nr, FMT='(A)') "<H2> Keyword descriptions </H2>"
-            WRITE (unit_nr, FMT='(A)') "<TABLE>"
-            DO ikeyword = -1, section%n_keywords
-               IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
-                  CALL keyword_describe_html(section%keywords(ikeyword)%keyword, unit_nr)
-               END IF
-            END DO
-            WRITE (unit_nr, FMT='(A)') "</TABLE>"
-         ELSE
-            WRITE (unit_nr, FMT='(A)') "None"
-         ENDIF
-         WRITE (unit_nr, FMT='(A)') &
-            '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A> or '// &
-            'the latest version of <A HREF="https://manual.cp2k.org/trunk/">this manual</A>'
-         WRITE (unit_nr, FMT='(A)') "</BODY></HTML>"
-         CALL close_file(unit_nr)
-         DO isub = 1, section%n_subsections
-            CALL section_describe_html(section%subsections(isub)%section, TRIM(local_prefix), depth+1, unit_number)
-         END DO
-      END IF
-   END SUBROUTINE section_describe_html
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-!> \param prefix ...
-!> \param unit_nr ...
-! **************************************************************************************************
-   RECURSIVE SUBROUTINE section_describe_index_html(section, prefix, unit_nr)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(LEN=*), INTENT(IN)                       :: prefix
-      INTEGER, INTENT(in)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_index_html', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(LEN=1000)                                :: local_prefix
-      INTEGER                                            :: isub
-
-      IF (ASSOCIATED(section)) THEN
-         CPASSERT(section%ref_count > 0)
-         local_prefix = TRIM(prefix//"~"//TRIM(section%name))
-         WRITE (unit_nr, FMT='(A)') &
-            '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(section%name)//"</A>"
-         IF (section%n_subsections > 0) THEN
-            WRITE (unit_nr, FMT='(A)') "<UL>"
-            DO isub = 1, section%n_subsections
-               CALL section_describe_index_html(section%subsections(isub)%section, TRIM(local_prefix), unit_nr)
-            END DO
-            WRITE (unit_nr, FMT='(A)') "</UL>"
-         ENDIF
-      ENDIF
-   END SUBROUTINE section_describe_index_html
 
 ! **************************************************************************************************
 !> \brief returns the index of requested subsection (-1 if not found)
@@ -1769,6 +1630,9 @@ CONTAINS
                   REPEAT(" ", l1)//"</REFERENCE>"
             END DO
          END IF
+
+         WRITE (UNIT=unit_number, FMT="(A)") &
+            REPEAT(" ", l1)//"<LOCATION>"//TRIM(section%location)//"</LOCATION>"
 
          DO i = -1, section%n_keywords
             IF (ASSOCIATED(section%keywords(i)%keyword)) THEN

@@ -11,13 +11,11 @@
 HWLOC    = yes
 
 CC       = gcc
-CPP      =
 FC       = gfortran
 LD       = $(FC)
 AR       = ar -r
-CPPFLAGS =
 DFLAGS   = -D__LIBINT -D__HWLOC
-GFLAGS   = -g -O3 -ffast-math $(DFLAGS)
+GFLAGS   = -g -O3 $(DFLAGS)
 FCFLAGS  = -ffree-form -fcray-pointer $(GFLAGS)
 CFLAGS   = $(GFLAGS) -I$(HWLOC_BASE)/include
 LDFLAGS  = $(FCFLAGS) -mkl=sequential

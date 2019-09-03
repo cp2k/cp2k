@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -61,7 +61,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESP", &
+      CALL section_create(section, __LOCATION__, name="RESP", &
                           description="Requests a RESP fit of charges. When using a periodic "// &
                           "Poisson solver and a periodic cell, the periodic RESP routines are "// &
                           "used. If the Hartree potential matches with the one of an isolated "// &
@@ -72,7 +72,7 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="stride", &
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide "// &
                           "3 numbers (for X,Y,Z) or 1 number valid for all components.", &
@@ -80,21 +80,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INTEGER_TOTAL_CHARGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="INTEGER_TOTAL_CHARGE", &
                           description="Forces the total charge to be integer", &
                           usage="INTEGER_TOTAL_CHARGE TRUE", &
                           default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_TO_ZERO", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTRAIN_HEAVIES_TO_ZERO", &
                           description="Restrain non-hydrogen atoms to zero.", &
                           usage="RESTRAIN_HEAVIES_TO_ZERO FALSE", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_STRENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTRAIN_HEAVIES_STRENGTH", &
                           description="If defined, enforce the restraint of non-hydrogen "// &
                           "atoms to zero. Its value is the strength of the restraint on "// &
                           "the heavy atoms.", &
@@ -103,7 +103,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WIDTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="WIDTH", &
                           description="Specifies the value of the width of the Gaussian "// &
                           "charge distribution carried by each atom. Needs only "// &
                           "to be specified when using a periodic Poisson solver.", &
@@ -113,7 +113,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="USE_REPEAT_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="USE_REPEAT_METHOD", &
                           description="Fits the variance of the potential, i.e. the deviation "// &
                           "from the mean value of the potential within the selected "// &
                           "range. The evaluation of the potentials is still treated "// &
@@ -167,7 +167,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="CONSTRAINT", &
+      CALL section_create(section, __LOCATION__, name="CONSTRAINT", &
                           description="specifies a linear constraint on the fitted charges."// &
                           "This can be used to give equal values to equivalent atoms."// &
                           "sum over atom_list c_i * q_i = t", &
@@ -175,14 +175,14 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="TARGET", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET", &
                           description="the target value for the constraint", &
                           usage="TARGET 0.0", &
                           n_var=1, default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EQUAL_CHARGES", &
+      CALL keyword_create(keyword, __LOCATION__, name="EQUAL_CHARGES", &
                           description="All atoms in ATOM_LIST are constrained to have the "// &
                           "same charges. When using this keyword, TARGET and ATOM_COEF do "// &
                           "not need to be set and will be ignored. Instead of using this "// &
@@ -192,14 +192,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
                           description="Defines the list of atoms involved in this constraint", &
                           usage="ATOM_LIST 3 4", &
                           type_of_var=integer_t, n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_COEF", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_COEF", &
                           description="Defines the coefficient of the atom in this "// &
                           "linear constraint", &
                           usage="ATOM_COEF 1.0 -1.0", &
@@ -223,7 +223,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RESTRAINT", &
+      CALL section_create(section, __LOCATION__, name="RESTRAINT", &
                           description="specifies a restraint on the fitted charges."// &
                           "This can be used to restrain values to zero."// &
                           "s*(sum over atom_list q_i - t)**2", &
@@ -231,28 +231,28 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="TARGET", &
+      CALL keyword_create(keyword, __LOCATION__, name="TARGET", &
                           description="the target value for the restraint", &
                           usage="TARGET 0.0", &
                           n_var=1, default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STRENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="STRENGTH", &
                           description="the target value for the constraint", &
                           usage="STRENGTH 0.001", &
                           n_var=1, default_r_val=0.001_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
                           description="Defines the list of atoms involved in this restraint", &
                           usage="ATOM_LIST 3 4", &
                           type_of_var=integer_t, n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOM_COEF", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_COEF", &
                           description="Defines the coefficient of the atom in this "// &
                           "linear restraint. If given, the restraint will be: "// &
                           "s*(sum over atom_list c_i * q_i - t)**2 ", &
@@ -278,7 +278,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SPHERE_SAMPLING", &
+      CALL section_create(section, __LOCATION__, name="SPHERE_SAMPLING", &
                           description="Specifies the parameter for sampling the RESP fitting points "// &
                           "for molecular structures, i.e. systems that do not involve "// &
                           "surfaces. Fitting points are sampled in spheres around the "// &
@@ -290,49 +290,49 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="X_LOW", &
+      CALL keyword_create(keyword, __LOCATION__, name="X_LOW", &
                           description="Specifies the lower boundary of the box along X used to "// &
                           "sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="X_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="X_HI", &
+      CALL keyword_create(keyword, __LOCATION__, name="X_HI", &
                           description="Specifies the upper boundary of the box along X used to "// &
                           " sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Y_LOW", &
+      CALL keyword_create(keyword, __LOCATION__, name="Y_LOW", &
                           description="Specifies the lower boundary of the box along Y used to "// &
                           "sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="Y_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Y_HI", &
+      CALL keyword_create(keyword, __LOCATION__, name="Y_HI", &
                           description="Specifies the upper boundary of the box along Y used to "// &
                           "sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="Y_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Z_LOW", &
+      CALL keyword_create(keyword, __LOCATION__, name="Z_LOW", &
                           description="Specifies the lower boundary of the box along Z used to "// &
                           "sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="Z_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="Z_HI", &
+      CALL keyword_create(keyword, __LOCATION__, name="Z_HI", &
                           description="Specifies the upper boundary of the box along Z used to "// &
                           "sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="Z_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AUTO_VDW_RADII_TABLE", &
+      CALL keyword_create(keyword, __LOCATION__, name="AUTO_VDW_RADII_TABLE", &
                           description="Select which vdW radii table to use for automatic "// &
                           "determination of RMIN_KIND and RMAX_KIND if those "// &
                           "are not declared explicitly", &
@@ -349,7 +349,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AUTO_RMAX_SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="AUTO_RMAX_SCALE", &
                           description="IF RMAX or RMAX_KIND keywords are not present, defines the "// &
                           "maximumn distance a fit point is away from an atom based on "// &
                           "the formula: rmax(kind) = AUTO_RMAX_SCALE * vdW_radius(kind). "// &
@@ -360,7 +360,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AUTO_RMIN_SCALE", &
+      CALL keyword_create(keyword, __LOCATION__, name="AUTO_RMIN_SCALE", &
                           description="IF RMIN or RMIN_KIND keywords are not present, defines the "// &
                           "minimum distance a fit point is away from an atom based on "// &
                           "the formula: rmin(kind) = AUTO_RMIN_SCALE * vdW_radius(kind). "// &
@@ -371,7 +371,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX", &
                           description="Specifies the maximum distance a fit point is away from an atom. "// &
                           "Valid for all atomic kinds for which no RMAX_KIND are specified.", &
                           usage="RMAX 2.5", &
@@ -380,7 +380,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN", &
                           description="Specifies the minimum distance a fit point is away from an atom. "// &
                           "Valid for all atomic kinds for which no RMIN_KIND are specified.", &
                           usage="RMIN 2.1", &
@@ -389,7 +389,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMAX_KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMAX_KIND", &
                           description="Specifies the maximum distance a fit point is away from an atom "// &
                           "of a given kind", &
                           usage="RMAX 2.5 Br", repeats=.TRUE., &
@@ -397,7 +397,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RMIN_KIND", &
+      CALL keyword_create(keyword, __LOCATION__, name="RMIN_KIND", &
                           description="Specifies the minimum distance a fit point is away from an atom "// &
                           "of a given kind", &
                           usage="RMIN 2.1 Br", repeats=.TRUE., &
@@ -422,7 +422,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="SLAB_SAMPLING", &
+      CALL section_create(section, __LOCATION__, name="SLAB_SAMPLING", &
                           description="Specifies the parameter for sampling the RESP fitting "// &
                           "points for slab-like periodic systems, i.e. systems that "// &
                           "involve surfaces. This section can only be used with periodic  "// &
@@ -432,7 +432,7 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="ATOM_LIST", &
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
                           description="Specifies the list of indexes of atoms used to define "// &
                           "the region for the RESP fitting. The list should "// &
                           "contain indexes of atoms of the first surface layer.", &
@@ -441,7 +441,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RANGE", &
+      CALL keyword_create(keyword, __LOCATION__, name="RANGE", &
                           description="Range where the fitting points are sampled. A range of "// &
                           "3 to 5 Angstroms means that the fitting points are sampled in the region "// &
                           "of 3 to 5 Angstroms above the surface which is defined by atom indexes given "// &
@@ -450,7 +450,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LENGTH", &
+      CALL keyword_create(keyword, __LOCATION__, name="LENGTH", &
                           description="Length of the sampling box, i.e. a box of this length and "// &
                           "the height specified by RANGE is defined above each surface atom given "// &
                           "in ATOM_LIST. The grid points in the boxes are accepted as fitting point. "// &
@@ -462,7 +462,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SURF_DIRECTION", &
+      CALL keyword_create(keyword, __LOCATION__, name="SURF_DIRECTION", &
                           description="Specifies what above the surface means. Defines the direction.", &
                           usage="SURF_DIRECTION Z", &
                           enum_c_vals=s2a("X", "Y", "Z", "-X", "-Y", "-Z"), &
@@ -496,17 +496,17 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (print_key, keyword)
-      CALL section_create(section, name="print", &
+      CALL section_create(section, __LOCATION__, name="print", &
                           description="Section of possible print options specific for the RESP code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of information regarding the run.", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "COORD_FIT_POINTS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "COORD_FIT_POINTS", &
                                        description="Controls the printing of the coordinates of the "// &
                                        "grid points used for periodic RESP fitting. This section "// &
                                        "is intended to be only used for testing (you can get large files).", &
@@ -516,7 +516,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESP_CHARGES_TO_FILE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESP_CHARGES_TO_FILE", &
                                        description="Controls the printing of the RESP charges "// &
                                        "to a file.", &
                                        print_level=high_print_level, add_last=add_last_numeric, &
@@ -525,21 +525,21 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "V_RESP_CUBE", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "V_RESP_CUBE", &
                                        description="Controls the printing of the potential generated "// &
                                        "by the RESP CHARGES to a cube file. Prints the relative "// &
                                        "root-mean-square (RRMS) and root-mean-square (RMS) errors.", &
                                        print_level=high_print_level, add_last=add_last_numeric, &
                                        filename="RESP_POTENTIAL", &
                                        common_iter_levels=3)
-      CALL keyword_create(keyword, name="stride", &
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="APPEND", &
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)

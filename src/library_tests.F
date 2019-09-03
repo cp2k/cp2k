@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -77,6 +77,7 @@ MODULE library_tests
                                               mp_sync,&
                                               mpi_perf_test
    USE minimax_exp,                     ONLY: validate_exp_minimax
+   USE mp2_weights,                     ONLY: test_least_square_ft
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
                                               check_rng,&
@@ -105,7 +106,6 @@ MODULE library_tests
         pw2rs, realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
         rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
-   USE rpa_ri_gpw,                      ONLY: test_least_square_ft
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
 #include "./base/base_uses.f90"
 
@@ -1260,7 +1260,7 @@ CONTAINS
          ALLOCATE (buffer(1, n))
 
          ! generate initial matrix, either by reading a file, or using random numbers
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             SELECT CASE (init_method)
             CASE (do_mat_random)
                NULLIFY (rng_stream)
@@ -1278,7 +1278,7 @@ CONTAINS
          END IF
 
          DO i = 1, n
-            IF (para_env%mepos == para_env%source) THEN
+            IF (para_env%ionode) THEN
                SELECT CASE (init_method)
                CASE (do_mat_random)
                   DO j = i, n
@@ -1326,7 +1326,7 @@ CONTAINS
 
          DEALLOCATE (buffer)
 
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%ionode) THEN
             SELECT CASE (init_method)
             CASE (do_mat_random)
                CALL delete_rng_stream(rng_stream=rng_stream)

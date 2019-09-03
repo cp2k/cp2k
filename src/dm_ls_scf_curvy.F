@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -17,8 +17,8 @@ MODULE dm_ls_scf_curvy
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, &
-        dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_transposed, &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, &
+        dbcsr_multiply, dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry
    USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                               ls_scf_env_type
@@ -230,7 +230,7 @@ CONTAINS
          tmp_e = energies(2); energies(2) = energies(3); energies(3) = tmp_e
          step_size = step_size*2.0_dp
       END IF
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -287,7 +287,7 @@ CONTAINS
          tmp_e = energies(2); energies(2) = energies(3); energies(3) = tmp_e
          step_size = step_size*2.0_dp
       END IF
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -351,7 +351,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -439,7 +439,7 @@ CONTAINS
          CALL dbcsr_copy(matrix_cg, matrix_b)
          CALL dbcsr_add(matrix_cg, matrix_PKs, 1.0_dp, -1.0_dp)
          cg_denom(ispin) = cg_numer(ispin)
-         CALL dbcsr_trace(matrix_cg, matrix_dp(ispin), cg_numer(ispin))
+         CALL dbcsr_dot(matrix_cg, matrix_dp(ispin), cg_numer(ispin))
          beta = cg_numer(ispin)/MAX(cg_denom(ispin), 1.0E-6_dp)
          IF (beta .LT. 1.0_dp) THEN
             beta = MAX(0.0_dp, beta)
@@ -491,8 +491,8 @@ CONTAINS
                                                             norm_rr, vec(3)
 
       at_limit = .FALSE.
-      CALL dbcsr_trace(res, res, norm_rr)
-      CALL dbcsr_trace(cg, Ax, norm_cA)
+      CALL dbcsr_dot(res, res, norm_rr)
+      CALL dbcsr_dot(cg, Ax, norm_cA)
       lin_eq = 0.0_dp
       fac = norm_rr/norm_cA
       fac1 = fac
@@ -516,7 +516,7 @@ CONTAINS
 ! USe CG to get the new matrices
       alpha = norm_rr/norm_cA
       CALL dbcsr_add(res, Ax, 1.0_dp, -alpha)
-      CALL dbcsr_trace(res, res, new_norm)
+      CALL dbcsr_dot(res, res, new_norm)
       IF (norm_rr .LT. eps_filter*0.001_dp .OR. new_norm .LT. eps_filter*0.001_dp) THEN
          beta = 0.0_dp
          at_limit = .TRUE.
@@ -644,7 +644,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
+      IF (logger%para_env%ionode) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

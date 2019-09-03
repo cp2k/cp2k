@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_scf_output
@@ -311,7 +311,9 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          CALL qs_rho_get(rho, tot_rho_r=tot_rho_r)
-         IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
+         IF (.NOT. (dft_control%qs_control%semi_empirical .OR. &
+                    dft_control%qs_control%xtb .OR. &
+                    dft_control%qs_control%dftb)) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T41,2F20.10))") &
                "Electronic density on regular grids: ", &
                accurate_sum(tot_rho_r), &
@@ -365,6 +367,19 @@ CONTAINS
             IF (energy%dftb3 /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "DFTB3 3rd order energy:                     ", energy%dftb3
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
+         ELSEIF (dft_control%qs_control%xtb) THEN
+            WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+               "Core Hamiltonian energy:                       ", energy%core, &
+               "Repulsive potential energy:                    ", energy%repulsive, &
+               "Electronic energy:                             ", energy%hartree, &
+               "DFTB3 3rd order energy:                        ", energy%dftb3, &
+               "Dispersion energy:                             ", energy%dispersion
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
          ELSE
             IF (dft_control%do_admm) THEN
                exc_energy = energy%exc+energy%exc_aux_fit
@@ -410,6 +425,9 @@ CONTAINS
             IF (energy%dispersion /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "Dispersion energy:                             ", energy%dispersion
+            IF (energy%gcp /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "gCP energy:                                    ", energy%gcp
             IF (gapw) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1, &
