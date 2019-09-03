@@ -28,3 +28,8 @@ repos:
             src/base/base_uses.f90|
             src/common/util.F|
           )$
+    -   id: analyze_src
+        name: Run analyze_src
+        entry: ./tools/conventions/analyze_src.py --fail
+        language: script
+        files: '.*\.(F|fypp|c|cu|cpp|h|hpp)$'
