@@ -36,9 +36,9 @@ MODULE helium_methods
         rho_moment_of_inertia, rho_num, rho_projected_area, rho_winding_cycle, rho_winding_number
    USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                               helium_cell_shape_octahedron,&
-                                              helium_solute_intpot_none, &
-                                              helium_sampling_ceperley, &
-                                              helium_sampling_worm
+                                              helium_sampling_ceperley,&
+                                              helium_sampling_worm,&
+                                              helium_solute_intpot_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -109,7 +109,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_create', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_path_length)                 :: msg_str, msg_str2, potential_file_name
+      CHARACTER(len=default_path_length)                 :: msg_str, potential_file_name
       INTEGER                                            :: color_sub, handle, i, input_unit, isize, &
                                                             itmp, j, k, mepos, new_comm, nlines, &
                                                             ntab, num_env, pdx
@@ -193,9 +193,6 @@ CONTAINS
                      helium_env(k)%helium%ltmp_atoms_1d, &
                      helium_env(k)%helium%itmp_atoms_np_1d, &
                      helium_env(k)%helium%pos, helium_env(k)%helium%work, &
-#ifdef __FU_DEBUGWORM
-helium_env(k)%helium%tmppos,&
-#endif
                      helium_env(k)%helium%force_avrg, &
                      helium_env(k)%helium%force_inst, &
                      helium_env(k)%helium%rtmp_3_np_1d, &
@@ -395,7 +392,7 @@ helium_env(k)%helium%tmppos,&
             CALL section_vals_val_get(helium_section, "SAMPLING_METHOD", &
                                       i_val=helium_env(k)%helium%sampling_method)
 
-            SELECT CASE (helium_env(k)%helium%sampling_method)
+            SELECT CASE (helium_env (k)%helium%sampling_method)
             CASE (helium_sampling_ceperley)
                ! check value of maxcycle
                CALL section_vals_val_get(helium_section, "CEPERLEY%MAX_PERM_CYCLE", &
@@ -455,7 +452,7 @@ helium_env(k)%helium%tmppos,&
                CALL section_vals_val_get(helium_section, "WORM%ALLOW_OPEN", &
                                          l_val=helium_env(k)%helium%worm_allow_open)
 
-               IF (helium_env(k)%helium%worm_staging_l + 1 >= helium_env(k)%helium%beads) THEN
+               IF (helium_env(k)%helium%worm_staging_l+1 >= helium_env(k)%helium%beads) THEN
                   msg_str = "STAGING_L for worm sampling is to large"
                   CPABORT(msg_str)
                ELSE IF (helium_env(k)%helium%worm_staging_l < 1) THEN
@@ -475,8 +472,8 @@ helium_env(k)%helium%tmppos,&
                IF (helium_env(k)%helium%periodic) THEN
                   rtmp = rtmp*helium_env(k)%helium%density
                ELSE
-                  rtmp = rtmp*helium_env(k)%helium%atoms/&
-                     (4.0_dp/3.0_dp*pi*helium_env(k)%helium%droplet_radius**3)
+                  rtmp = rtmp*helium_env(k)%helium%atoms/ &
+                         (4.0_dp/3.0_dp*pi*helium_env(k)%helium%droplet_radius**3)
                END IF
                helium_env(k)%helium%worm_ln_openclose_scale = LOG(rtmp)
 
@@ -586,9 +583,6 @@ helium_env(k)%helium%tmppos,&
             i = helium_env(k)%helium%atoms
             j = helium_env(k)%helium%beads
             ALLOCATE (helium_env(k)%helium%pos(3, i, j))
-#ifdef __FU_DEBUGWORM
-ALLOCATE (helium_env(k)%helium%tmppos(3, i, j))
-#endif
             helium_env(k)%helium%pos = 0.0_dp
             ALLOCATE (helium_env(k)%helium%work(3, i, j))
             ALLOCATE (helium_env(k)%helium%ptable(helium_env(k)%helium%maxcycle+1))
@@ -934,7 +928,7 @@ ALLOCATE (helium_env(k)%helium%tmppos(3, i, j))
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, k
+      INTEGER                                            :: handle, k
       LOGICAL                                            :: coords_presampled, explicit, presample
       REAL(KIND=dp)                                      :: initkT, solute_radius
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1011,7 +1005,7 @@ ALLOCATE (helium_env(k)%helium%tmppos(3, i, j))
             helium_env(k)%helium%worm_atom_idx = 0
             helium_env(k)%helium%worm_bead_idx = 0
 
-            helium_env(k)%helium%work(:,:,:) = helium_env(k)%helium%pos(:,:,:)
+            helium_env(k)%helium%work(:, :, :) = helium_env(k)%helium%pos(:, :, :)
 
             ! init center of mass
             IF (helium_env(k)%helium%solute_present) THEN

@@ -4,20 +4,11 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE helium_worm
 
-   USE helium_common,                   ONLY: helium_calc_plength,&
-                                              helium_com,&
-                                              helium_cycle_number,&
-                                              helium_eval_expansion,&
-                                              helium_update_coord_system,&
+   USE helium_common,                   ONLY: helium_eval_expansion,&
                                               helium_pbc,&
-                                              helium_total_moment_of_inertia,&
-                                              helium_total_projected_area,&
-                                              helium_total_winding_number
+                                              helium_update_coord_system
    USE helium_interactions,             ONLY: helium_bead_solute_e_f,&
-                                              helium_calc_energy,&
-                                              helium_solute_e_f, &
-   helium_total_pair_action, helium_total_pair_actionw,&
-   helium_total_inter_action, helium_total_inter_actionw
+                                              helium_solute_e_f
    USE helium_io,                       ONLY: helium_write_line
    USE helium_types,                    ONLY: he_mass,&
                                               helium_solvent_type
@@ -41,38 +32,28 @@ MODULE helium_worm
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+! **************************************************************************************************
    SUBROUTINE helium_sample_worm(helium, pint_env)
 
-      IMPLICIT NONE
-
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)                 :: helium
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      INTEGER                                :: nMC
-      INTEGER                                            :: nstat
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample_worm', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: stmp
-      INTEGER :: iMC, icrawl, staging_l
-      INTEGER :: ncentratt, ncentracc
-      INTEGER :: ncloseatt, ncloseacc
-      INTEGER :: nmoveheadatt, nmoveheadacc
-      INTEGER :: nmovetailatt, nmovetailacc
-      INTEGER :: ncrawlfwdatt, ncrawlfwdacc
-      INTEGER :: ncrawlbwdatt, ncrawlbwdacc
-      INTEGER :: nopenatt, nopenacc
-      INTEGER :: nstagatt, nstagacc
-      INTEGER :: nswapatt, nswapacc
-      INTEGER :: ntot
-      INTEGER :: iatom, ibead
-      INTEGER :: jatom, jbead
-      INTEGER :: npswapacc
-      INTEGER :: imove
-      INTEGER :: ac
+      INTEGER :: ac, iatom, ibead, icrawl, iMC, imove, ncentracc, ncentratt, ncloseacc, ncloseatt, &
+         ncrawlbwdacc, ncrawlbwdatt, ncrawlfwdacc, ncrawlfwdatt, nMC, nmoveheadacc, nmoveheadatt, &
+         nmovetailacc, nmovetailatt, nopenacc, nopenatt, npswapacc, nstagacc, nstagatt, nstat, &
+         nswapacc, nswapatt, ntot, staging_l
+      REAL(KIND=dp)                                      :: rtmp
+
 !INTEGEr :: ia, ib, l
 !REAL(KIND=dp), DIMENSION(3) :: r
-      REAL(KIND=dp) :: rtmp
 
       CALL helium_update_coord_system(helium, pint_env)
 
@@ -112,102 +93,102 @@ CONTAINS
             DO iMC = 1, nMC
                IF (helium%worm_is_closed) THEN
                   imove = next_random_number(helium%rng_stream_uniform, 1, 100)
-                  SELECT CASE(imove)
+                  SELECT CASE (imove)
                   CASE (1:10)
                      ! centroid move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      CALL worm_centroid_move(pint_env, helium, &
-                        iatom, helium%worm_centroid_drmax, ac)
-                     ncentratt = ncentratt + 1
-                     ncentracc = ncentracc + ac
+                                             iatom, helium%worm_centroid_drmax, ac)
+                     ncentratt = ncentratt+1
+                     ncentracc = ncentracc+ac
                   CASE (11:90)
                      ! staging move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_staging_move(pint_env, helium, &
-                        iatom, ibead, staging_l, ac)
-                     nstagatt = nstagatt + 1
-                     nstagacc = nstagacc + ac
+                                            iatom, ibead, staging_l, ac)
+                     nstagatt = nstagatt+1
+                     nstagacc = nstagacc+ac
                   CASE (91:100)
                      ! attempt opening of worm
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_open_move(pint_env, helium, &
-                        iatom, ibead, staging_l, ac)
-                     nopenatt = nopenatt + 1
-                     nopenacc = nopenacc + ac
+                                         iatom, ibead, staging_l, ac)
+                     nopenatt = nopenatt+1
+                     nopenacc = nopenacc+ac
                   CASE DEFAULT
                      ! this must not occour
                      CPABORT("Undefined move selected in helium worm sampling!")
                   END SELECT
                ELSE ! worm is open
                   imove = next_random_number(helium%rng_stream_uniform, 1, 100)
-                  SELECT CASE(imove)
+                  SELECT CASE (imove)
                   CASE (1:10)
                      ! centroid move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      CALL worm_centroid_move(pint_env, helium, &
-                        iatom, helium%worm_centroid_drmax, ac)
-                     ncentratt = ncentratt + 1
-                     ncentracc = ncentracc + ac
-                  !CASE (11:60)
+                                             iatom, helium%worm_centroid_drmax, ac)
+                     ncentratt = ncentratt+1
+                     ncentracc = ncentracc+ac
+                     !CASE (11:60)
                   CASE (11:40)
                      ! staging move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_staging_move(pint_env, helium, &
-                        iatom, ibead, staging_l, ac)
-                     nstagatt = nstagatt + 1
-                     nstagacc = nstagacc + ac
+                                            iatom, ibead, staging_l, ac)
+                     nstagatt = nstagatt+1
+                     nstagacc = nstagacc+ac
                   CASE (41:50)
                      ! crawl forward
-                     DO icrawl =1, 5
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
-                     CALL worm_crawl_move_forward(pint_env, helium, &
-                        staging_l, ac)
-                     ncrawlfwdatt = ncrawlfwdatt + 1
-                     ncrawlfwdacc = ncrawlfwdacc + ac
+                     DO icrawl = 1, 5
+                        staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                        CALL worm_crawl_move_forward(pint_env, helium, &
+                                                     staging_l, ac)
+                        ncrawlfwdatt = ncrawlfwdatt+1
+                        ncrawlfwdacc = ncrawlfwdacc+ac
                      END DO
                   CASE (51:60)
                      ! crawl backward
-                     DO icrawl =1, 5
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
-                     CALL worm_crawl_move_backward(pint_env, helium, &
-                        staging_l, ac)
-                     ncrawlbwdatt = ncrawlbwdatt + 1
-                     ncrawlbwdacc = ncrawlbwdacc + ac
+                     DO icrawl = 1, 5
+                        staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                        CALL worm_crawl_move_backward(pint_env, helium, &
+                                                      staging_l, ac)
+                        ncrawlbwdatt = ncrawlbwdatt+1
+                        ncrawlbwdacc = ncrawlbwdacc+ac
                      END DO
                   CASE (61:70)
                      ! move head
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_head_move(pint_env, helium, &
-                        staging_l, ac)
-                     nmoveheadatt = nmoveheadatt + 1
-                     nmoveheadacc = nmoveheadacc + ac
+                                         staging_l, ac)
+                     nmoveheadatt = nmoveheadatt+1
+                     nmoveheadacc = nmoveheadacc+ac
                   CASE (71:80)
                      ! move tail
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_tail_move(pint_env, helium, &
-                        staging_l, ac)
-                     nmovetailatt = nmovetailatt + 1
-                     nmovetailacc = nmovetailacc + ac
+                                         staging_l, ac)
+                     nmovetailatt = nmovetailatt+1
+                     nmovetailacc = nmovetailacc+ac
                   CASE (81:90)
                      ! attempt closing of worm
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_close_move(pint_env, helium, &
-                        staging_l, ac)
-                     ncloseatt = ncloseatt + 1
-                     ncloseacc = ncloseacc + ac
+                                          staging_l, ac)
+                     ncloseatt = ncloseatt+1
+                     ncloseacc = ncloseacc+ac
                   CASE (91:100)
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_swap_move(pint_env, helium, &
-                        helium%atoms, staging_l, ac)
-                     npswapacc = npswapacc + ac
-                     nswapacc = nswapacc + ac
-                     nswapatt = nswapatt + 1
+                                         helium%atoms, staging_l, ac)
+                     npswapacc = npswapacc+ac
+                     nswapacc = nswapacc+ac
+                     nswapatt = nswapatt+1
                   CASE DEFAULT
                      ! this must not occour
                      CPABORT("Undefined move selected in helium worm sampling!")
@@ -230,43 +211,43 @@ CONTAINS
                      END IF
                   END IF
                END IF
-               ntot = ntot + 1
+               ntot = ntot+1
             END DO ! MC loop
 
             IF (helium%worm_is_closed) THEN
                EXIT
             ELSE
-               nMC = MAX(helium%iter_rot / 10, 10)
+               nMC = MAX(helium%iter_rot/10, 10)
             END IF
          END DO !attempts loop
       ELSE ! only closed configurations allowed
          DO iMC = 1, nMC
             imove = next_random_number(helium%rng_stream_uniform, 1, 2)
 
-            SELECT CASE(imove)
+            SELECT CASE (imove)
             CASE (1)
                ! centroid move
                iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                CALL worm_centroid_move(pint_env, helium, &
-                  iatom, helium%worm_centroid_drmax, ac)
-               ncentratt = ncentratt + 1
-               ncentracc = ncentracc + ac
+                                       iatom, helium%worm_centroid_drmax, ac)
+               ncentratt = ncentratt+1
+               ncentracc = ncentracc+ac
             CASE (2)
                ! staging move
                iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
                CALL worm_staging_move(pint_env, helium, &
-                  iatom, ibead, helium%worm_staging_l, ac)
-               nstagatt = nstagatt + 1
-               nstagacc = nstagacc + ac
+                                      iatom, ibead, helium%worm_staging_l, ac)
+               nstagatt = nstagatt+1
+               nstagacc = nstagacc+ac
             CASE DEFAULT
                ! this must not occour
                CPABORT("Undefined move selected in helium worm sampling!")
             END SELECT
 
             ! Accumulate statistics if we are in closed configurations (which we always are)
-            nstat = nstat + 1
-            ntot = ntot + 1
+            nstat = nstat+1
+            ntot = ntot+1
 
             ! Only done at end of MC sampling before switching to MD
             !CALL helium_calc_energy(helium, pint_env)
@@ -283,8 +264,8 @@ CONTAINS
       END IF
 
       ! Save naccepted and ntot
-      helium%num_accepted(1, 1) = ncentracc + nstagacc + nopenacc + ncloseacc + nswapacc + &
-                                  nmoveheadacc + nmovetailacc + ncrawlfwdacc + ncrawlbwdacc
+      helium%num_accepted(1, 1) = ncentracc+nstagacc+nopenacc+ncloseacc+nswapacc+ &
+                                  nmoveheadacc+nmovetailacc+ncrawlfwdacc+ncrawlbwdacc
       helium%num_accepted(2, 1) = ntot
 
       ! Calculate last_force
@@ -299,48 +280,48 @@ CONTAINS
          WRITE (stmp, *) '--------------------------------------------------'
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Opening: ', &
-                                          REAL(nopenacc, dp)/REAL(MAX(1,nopenatt), dp), &
-                                          nopenacc, nopenatt
+            REAL(nopenacc, dp)/REAL(MAX(1, nopenatt), dp), &
+            nopenacc, nopenatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Closing: ', &
-                                          REAL(ncloseacc, dp)/REAL(MAX(1,ncloseatt), dp), &
-                                          ncloseacc, ncloseatt
+            REAL(ncloseacc, dp)/REAL(MAX(1, ncloseatt), dp), &
+            ncloseacc, ncloseatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Move Head: ', &
-                                          REAL(nmoveheadacc, dp)/REAL(MAX(1,nmoveheadatt), dp), &
-                                          nmoveheadacc, nmoveheadatt
+            REAL(nmoveheadacc, dp)/REAL(MAX(1, nmoveheadatt), dp), &
+            nmoveheadacc, nmoveheadatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Move Tail: ', &
-                                          REAL(nmovetailacc, dp)/REAL(MAX(1,nmovetailatt), dp), &
-                                          nmovetailacc, nmovetailatt
+            REAL(nmovetailacc, dp)/REAL(MAX(1, nmovetailatt), dp), &
+            nmovetailacc, nmovetailatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Crawl FWD: ', &
-                                          REAL(ncrawlfwdacc, dp)/REAL(MAX(1,ncrawlfwdatt), dp), &
-                                          ncrawlfwdacc, ncrawlfwdatt
+            REAL(ncrawlfwdacc, dp)/REAL(MAX(1, ncrawlfwdatt), dp), &
+            ncrawlfwdacc, ncrawlfwdatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Crawl BWD: ', &
-                                          REAL(ncrawlbwdacc, dp)/REAL(MAX(1,ncrawlbwdatt), dp), &
-                                          ncrawlbwdacc, ncrawlbwdatt
+            REAL(ncrawlbwdacc, dp)/REAL(MAX(1, ncrawlbwdatt), dp), &
+            ncrawlbwdacc, ncrawlbwdatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Staging: ', &
-                                          REAL(nstagacc, dp)/REAL(MAX(1,nstagatt), dp), &
-                                          nstagacc, nstagatt
+            REAL(nstagacc, dp)/REAL(MAX(1, nstagatt), dp), &
+            nstagacc, nstagatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Centroid: ', &
-                                          REAL(ncentracc, dp)/REAL(MAX(1,ncentratt), dp), &
-                                          ncentracc, ncentratt
+            REAL(ncentracc, dp)/REAL(MAX(1, ncentratt), dp), &
+            ncentracc, ncentratt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Select: ', &
-                                          REAL(npswapacc, dp)/REAL(MAX(1,nswapatt), dp), &
-                                          npswapacc, nswapatt
+            REAL(npswapacc, dp)/REAL(MAX(1, nswapatt), dp), &
+            npswapacc, nswapatt
          CALL helium_write_line(stmp)
          WRITE (stmp, '(A10,F15.5,2I10)') 'Swapping: ', &
-                                          REAL(nswapacc, dp)/REAL(MAX(1,nswapatt), dp), &
-                                          nswapacc, nswapatt
+            REAL(nswapacc, dp)/REAL(MAX(1, nswapatt), dp), &
+            nswapacc, nswapatt
          CALL helium_write_line(stmp)
-         WRITE(stmp, *) "Open State Probability:   ", REAL(ntot - nstat, dp) / REAL(MAX(1,ntot),dp), ntot - nstat, ntot
+         WRITE (stmp, *) "Open State Probability:   ", REAL(ntot-nstat, dp)/REAL(MAX(1, ntot), dp), ntot-nstat, ntot
          CALL helium_write_line(stmp)
-         WRITE(stmp, *) "Closed State Probability: ", REAL(nstat, dp) / REAL(MAX(1,ntot),dp), nstat, ntot
+         WRITE (stmp, *) "Closed State Probability: ", REAL(nstat, dp)/REAL(MAX(1, ntot), dp), nstat, ntot
          CALL helium_write_line(stmp)
       END IF
 
@@ -349,26 +330,30 @@ CONTAINS
       RETURN
    END SUBROUTINE helium_sample_worm
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param iatom ...
+!> \param drmax ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_centroid_move(pint_env, helium, iatom, drmax, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
       INTEGER, INTENT(IN)                                :: iatom
       REAL(KIND=dp), INTENT(IN)                          :: drmax
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER                                            :: ia, ib, ic
-      REAL(KIND=dp)                                      :: rtmp, rtmpo
-      REAL(KIND=dp) :: snew, sold, tsnew, tsold, sdiff, psold, psnew
-      REAL(KIND=dp), DIMENSION(3) :: dr, dro, new_com, old_com
-      INTEGER :: jatom
-      LOGICAL :: should_reject, worm_in_moved_cycle
+      INTEGER                                            :: ia, ib, ic, jatom
+      LOGICAL                                            :: should_reject, worm_in_moved_cycle
+      REAL(KIND=dp)                                      :: rtmp, rtmpo, sdiff, snew, sold
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
 
       DO ic = 1, 3
          rtmp = next_random_number(helium%rng_stream_uniform)
-         dr(ic) = (2.0_dp*rtmp - 1.0_dp)*drmax
+         dr(ic) = (2.0_dp*rtmp-1.0_dp)*drmax
       END DO
 
       IF (helium%worm_is_closed) THEN
@@ -387,7 +372,7 @@ CONTAINS
             jatom = helium%permutation(jatom)
          END DO
       ELSE ! worm is open
-         worm_in_moved_cycle = (helium%worm_atom_idx==iatom)
+         worm_in_moved_cycle = (helium%worm_atom_idx == iatom)
          ! while moving, check if worm is in moved cycle
          ! Perform move for first atom
          DO ib = 1, helium%beads
@@ -399,31 +384,31 @@ CONTAINS
             DO ib = 1, helium%beads
                helium%work(:, jatom, ib) = helium%work(:, jatom, ib)+dr(:)
             END DO
-            worm_in_moved_cycle = worm_in_moved_cycle .OR. (helium%worm_atom_idx==jatom)
+            worm_in_moved_cycle = worm_in_moved_cycle .OR. (helium%worm_atom_idx == jatom)
             ! next atom in chain
             jatom = helium%permutation(jatom)
          END DO
          ! if atom contains had bead move that as well
          IF (worm_in_moved_cycle) THEN
-            helium%worm_xtra_bead_work(:) = helium%worm_xtra_bead(:) + dr(:)
+            helium%worm_xtra_bead_work(:) = helium%worm_xtra_bead(:)+dr(:)
          END IF
       END IF
 
       sold = worm_centroid_move_action(pint_env, helium, helium%pos, iatom, &
-                helium%worm_xtra_bead, worm_in_moved_cycle)
+                                       helium%worm_xtra_bead, worm_in_moved_cycle)
 
       snew = worm_centroid_move_action(pint_env, helium, helium%work, iatom, &
-                helium%worm_xtra_bead_work, worm_in_moved_cycle)
+                                       helium%worm_xtra_bead_work, worm_in_moved_cycle)
 
       IF (helium%solute_present) THEN
-         sold = sold + worm_centroid_move_inter_action(pint_env, helium, helium%pos, iatom, &
-                          helium%worm_xtra_bead, worm_in_moved_cycle)
-         snew = snew + worm_centroid_move_inter_action(pint_env, helium, helium%work, iatom, &
-                          helium%worm_xtra_bead_work, worm_in_moved_cycle)
+         sold = sold+worm_centroid_move_inter_action(pint_env, helium, helium%pos, iatom, &
+                                                     helium%worm_xtra_bead, worm_in_moved_cycle)
+         snew = snew+worm_centroid_move_inter_action(pint_env, helium, helium%work, iatom, &
+                                                     helium%worm_xtra_bead_work, worm_in_moved_cycle)
       END IF
 
       ! Metropolis:
-      sdiff = sold - snew
+      sdiff = sold-snew
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
@@ -484,17 +469,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -545,23 +530,33 @@ CONTAINS
 
    END SUBROUTINE worm_centroid_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param iatom ...
+!> \param xtrapos ...
+!> \param winc ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_centroid_move_action(pint_env, helium, pos, iatom, xtrapos, winc) &
       RESULT(partaction)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)                        :: xtrapos
-      LOGICAL, INTENT(IN) :: winc ! is worm in cycle
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xtrapos
+      LOGICAL, INTENT(IN)                                :: winc
 
-      INTEGER                                            :: ia, ib, ic, icycle, id,nbeads, wbead
-      REAL(KIND=dp)                                      :: ds, expds, rtmp, rtmpo
-      REAL(KIND=dp), DIMENSION(3) :: dr, dro, new_com, old_com, r, rp
-      INTEGER :: jatom, katom, patom, opatom
-      LOGICAL :: incycle, worm_in_moved_cycle
+      INTEGER                                            :: ia, ib, jatom, katom, opatom, patom, &
+                                                            wbead
+      LOGICAL                                            :: incycle
+      REAL(KIND=dp), DIMENSION(3)                        :: r, rp
+
+! is worm in cycle
 
       ! compute action difference
       ! action before the move from pos array
@@ -583,17 +578,17 @@ CONTAINS
          IF (incycle) CYCLE
          ! if not in cycle, compute pair action
          DO ib = 1, helium%beads-1
-            r(:)  = pos(:, ia, ib)-pos(:, jatom, ib)
+            r(:) = pos(:, ia, ib)-pos(:, jatom, ib)
             rp(:) = pos(:, ia, ib+1)-pos(:, jatom, ib+1)
-            partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
          END DO
          r(:) = pos(:, ia, helium%beads)-pos(:, jatom, helium%beads)
          rp(:) = pos(:, helium%permutation(ia), 1)-pos(:, helium%permutation(jatom), 1)
-         partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+         partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
       END DO
       ! all other cycle atoms with non-in-cycle atoms
       jatom = helium%permutation(iatom)
-      DO WHILE(jatom /= iatom)
+      DO WHILE (jatom /= iatom)
          DO ia = 1, helium%atoms
             IF (ia == jatom) CYCLE
             incycle = .FALSE.
@@ -608,18 +603,18 @@ CONTAINS
             IF (incycle) CYCLE
             ! if not in cycle, compute pair action
             DO ib = 1, helium%beads-1
-               r(:)  = pos(:, ia, ib)-pos(:, jatom, ib)
+               r(:) = pos(:, ia, ib)-pos(:, jatom, ib)
                rp(:) = pos(:, ia, ib+1)-pos(:, jatom, ib+1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
             r(:) = pos(:, ia, helium%beads)-pos(:, jatom, helium%beads)
             rp(:) = pos(:, helium%permutation(ia), 1)-pos(:, helium%permutation(jatom), 1)
-            partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
          END DO
          jatom = helium%permutation(jatom)
       END DO
       ! correct pair action for open worm configurations
-      IF (.NOT.helium%worm_is_closed) THEN
+      IF (.NOT. helium%worm_is_closed) THEN
          wbead = helium%worm_bead_idx
          IF (winc) THEN
             IF (helium%worm_bead_idx == 1) THEN
@@ -643,13 +638,13 @@ CONTAINS
                   opatom = helium%iperm(ia)
                   ! if not in cycle, compute pair action
                   ! substract pair action for closed link
-                  r(:) = pos(:, helium%worm_atom_idx, 1) - pos(:, ia, 1)
+                  r(:) = pos(:, helium%worm_atom_idx, 1)-pos(:, ia, 1)
                   rp(:) = pos(:, patom, helium%beads)-pos(:, opatom, helium%beads)
-                  partaction = partaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  partaction = partaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   ! and add corrected extra link
                   ! rp stays the same
-                  r(:) = xtrapos(:) - pos(:, ia, 1)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = xtrapos(:)-pos(:, ia, 1)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
             ELSE ! bead index /= 1
                ! atom index is constant
@@ -668,13 +663,13 @@ CONTAINS
                   IF (incycle) CYCLE
                   ! if not in cycle, compute pair action
                   ! substract pair action for closed link
-                  r(:) = pos(:, helium%worm_atom_idx, wbead) - pos(:, ia, wbead)
+                  r(:) = pos(:, helium%worm_atom_idx, wbead)-pos(:, ia, wbead)
                   rp(:) = pos(:, helium%worm_atom_idx, wbead-1)-pos(:, ia, wbead-1)
-                  partaction = partaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  partaction = partaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   ! and add corrected extra link
                   ! rp stays the same
-                  r(:) = xtrapos(:) - pos(:, ia, wbead)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = xtrapos(:)-pos(:, ia, wbead)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
             END IF
          ELSE ! worm is not the moved cycle
@@ -683,48 +678,48 @@ CONTAINS
                patom = helium%iperm(helium%worm_atom_idx)
                opatom = helium%iperm(iatom)
                !correct action contribution for first atom in moved cycle
-               r(:) = pos(:, helium%worm_atom_idx, 1) - pos(:, iatom, 1)
+               r(:) = pos(:, helium%worm_atom_idx, 1)-pos(:, iatom, 1)
                rp(:) = pos(:, patom, helium%beads)-pos(:, opatom, helium%beads)
-               partaction = partaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               partaction = partaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! and add corrected extra link
                ! rp stays the same
-               r(:) = xtrapos(:) - pos(:, iatom, 1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = xtrapos(:)-pos(:, iatom, 1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! go through all other atoms, not in the exchange cycle, and correct pair action
                ia = helium%permutation(iatom)
                DO WHILE (ia /= iatom)
                   opatom = helium%iperm(ia)
                   ! substract pair action for closed link
-                  r(:) = pos(:, helium%worm_atom_idx, 1) - pos(:, ia, 1)
+                  r(:) = pos(:, helium%worm_atom_idx, 1)-pos(:, ia, 1)
                   rp(:) = pos(:, patom, helium%beads)-pos(:, opatom, helium%beads)
-                  partaction = partaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  partaction = partaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   ! and add corrected extra link
                   ! rp stays the same
-                  r(:) = xtrapos(:) - pos(:, ia, 1)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = xtrapos(:)-pos(:, ia, 1)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   ia = helium%permutation(ia)
                END DO
             ELSE ! bead index /= 1
                ! patom is the atom in front of the lone head bead
                !correct action contribution for first atom in moved cycle
-               r(:) = pos(:, helium%worm_atom_idx, wbead) - pos(:, iatom, wbead)
+               r(:) = pos(:, helium%worm_atom_idx, wbead)-pos(:, iatom, wbead)
                rp(:) = pos(:, helium%worm_atom_idx, wbead-1)-pos(:, iatom, wbead-1)
-               partaction = partaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               partaction = partaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! and add corrected extra link
                ! rp stays the same
-               r(:) = xtrapos(:) - pos(:, iatom, wbead)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = xtrapos(:)-pos(:, iatom, wbead)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ! go through all other atoms, not in the exchange cycle, and correct pair action
                ia = helium%permutation(iatom)
                DO WHILE (ia /= iatom)
                   ! substract pair action for closed link
-                  r(:) = pos(:, helium%worm_atom_idx, wbead) - pos(:, ia, wbead)
+                  r(:) = pos(:, helium%worm_atom_idx, wbead)-pos(:, ia, wbead)
                   rp(:) = pos(:, helium%worm_atom_idx, wbead-1)-pos(:, ia, wbead-1)
-                  partaction = partaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  partaction = partaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   ! and add corrected extra link
                   ! rp stays the same
-                  r(:) = xtrapos(:) - pos(:, ia, wbead)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = xtrapos(:)-pos(:, ia, wbead)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   ia = helium%permutation(ia)
                END DO
             END IF
@@ -733,20 +728,31 @@ CONTAINS
 
    END FUNCTION worm_centroid_move_action
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param iatom ...
+!> \param xtrapos ...
+!> \param winc ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_centroid_move_inter_action(pint_env, helium, pos, iatom, xtrapos, winc) &
       RESULT(partaction)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)                        :: xtrapos
-      LOGICAL, INTENT(IN) :: winc ! is worm in cycle
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xtrapos
+      LOGICAL, INTENT(IN)                                :: winc
 
-      REAL(KIND=dp) :: energy
-      INTEGER :: jatom, jbead
+      INTEGER                                            :: jatom, jbead
+      REAL(KIND=dp)                                      :: energy
+
+! is worm in cycle
 
       partaction = 0.0_dp
       ! spcial treatment if worm is in moved cycle
@@ -756,64 +762,64 @@ CONTAINS
          ! if it is worm atom it gets special treatment
          IF (jatom == helium%worm_atom_idx) THEN
             ! up to worm intersection
-            DO jbead = 1, helium%worm_bead_idx - 1
+            DO jbead = 1, helium%worm_bead_idx-1
                CALL helium_bead_solute_e_f(pint_env, helium, &
-                  jatom, jbead, pos(:,jatom, jbead),energy=energy)
-               partaction = partaction + energy
+                                           jatom, jbead, pos(:, jatom, jbead), energy=energy)
+               partaction = partaction+energy
             END DO
             ! head and tail each with 1/2 weight
             jbead = helium%worm_bead_idx
             ! tail
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               jatom, jbead, pos(:,jatom, jbead),energy=energy)
-            partaction = partaction + 0.5_dp*energy
+                                        jatom, jbead, pos(:, jatom, jbead), energy=energy)
+            partaction = partaction+0.5_dp*energy
             ! head
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               jatom, jbead, xtrapos,energy=energy)
-            partaction = partaction + 0.5_dp*energy
+                                        jatom, jbead, xtrapos, energy=energy)
+            partaction = partaction+0.5_dp*energy
             ! rest of ring polymer
-            DO jbead = helium%worm_bead_idx + 1, helium%beads
+            DO jbead = helium%worm_bead_idx+1, helium%beads
                CALL helium_bead_solute_e_f(pint_env, helium, &
-                  jatom, jbead, pos(:,jatom, jbead),energy=energy)
-               partaction = partaction + energy
+                                           jatom, jbead, pos(:, jatom, jbead), energy=energy)
+               partaction = partaction+energy
             END DO
          ELSE
             DO jbead = 1, helium%beads
                CALL helium_bead_solute_e_f(pint_env, helium, &
-                  jatom, jbead, pos(:,jatom, jbead),energy=energy)
-               partaction = partaction + energy
+                                           jatom, jbead, pos(:, jatom, jbead), energy=energy)
+               partaction = partaction+energy
             END DO
          END IF
          jatom = helium%permutation(iatom)
          DO WHILE (jatom /= iatom)
             IF (jatom == helium%worm_atom_idx) THEN
                ! up to worm intersection
-               DO jbead = 1, helium%worm_bead_idx - 1
+               DO jbead = 1, helium%worm_bead_idx-1
                   CALL helium_bead_solute_e_f(pint_env, helium, &
-                     jatom, jbead, pos(:,jatom, jbead),energy=energy)
-                  partaction = partaction + energy
+                                              jatom, jbead, pos(:, jatom, jbead), energy=energy)
+                  partaction = partaction+energy
                END DO
                ! head and tail each with 1/2 weight
                jbead = helium%worm_bead_idx
                ! tail
                CALL helium_bead_solute_e_f(pint_env, helium, &
-                  jatom, jbead, pos(:,jatom, jbead),energy=energy)
-               partaction = partaction + 0.5_dp*energy
+                                           jatom, jbead, pos(:, jatom, jbead), energy=energy)
+               partaction = partaction+0.5_dp*energy
                ! head
                CALL helium_bead_solute_e_f(pint_env, helium, &
-                  jatom, jbead, xtrapos,energy=energy)
-               partaction = partaction + 0.5_dp*energy
+                                           jatom, jbead, xtrapos, energy=energy)
+               partaction = partaction+0.5_dp*energy
                ! rest of ring polymer
-               DO jbead = helium%worm_bead_idx + 1, helium%beads
+               DO jbead = helium%worm_bead_idx+1, helium%beads
                   CALL helium_bead_solute_e_f(pint_env, helium, &
-                     jatom, jbead, pos(:,jatom, jbead),energy=energy)
-                  partaction = partaction + energy
+                                              jatom, jbead, pos(:, jatom, jbead), energy=energy)
+                  partaction = partaction+energy
                END DO
             ELSE
                DO jbead = 1, helium%beads
                   CALL helium_bead_solute_e_f(pint_env, helium, &
-                     jatom, jbead, pos(:,jatom, jbead),energy=energy)
-                  partaction = partaction + energy
+                                              jatom, jbead, pos(:, jatom, jbead), energy=energy)
+                  partaction = partaction+energy
                END DO
             END IF
             jatom = helium%permutation(jatom)
@@ -824,105 +830,112 @@ CONTAINS
          ! if it is worm atom it gets special treatment
          DO jbead = 1, helium%beads
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               jatom, jbead, pos(:,jatom, jbead),energy=energy)
-            partaction = partaction + energy
+                                        jatom, jbead, pos(:, jatom, jbead), energy=energy)
+            partaction = partaction+energy
          END DO
          jatom = helium%permutation(iatom)
          DO WHILE (jatom /= iatom)
             DO jbead = 1, helium%beads
                CALL helium_bead_solute_e_f(pint_env, helium, &
-                  jatom, jbead, pos(:,jatom, jbead),energy=energy)
-               partaction = partaction + energy
+                                           jatom, jbead, pos(:, jatom, jbead), energy=energy)
+               partaction = partaction+energy
             END DO
             jatom = helium%permutation(jatom)
          END DO
       END IF
 
-      partaction = partaction * helium%tau
+      partaction = partaction*helium%tau
 
       RETURN
 
    END FUNCTION worm_centroid_move_inter_action
 
+! **************************************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param ri ...
+!> \param rj ...
+!> \param l ...
+!> \param new_path ...
+! **************************************************************************************************
    SUBROUTINE path_construct(helium, ri, rj, l, new_path)
 
-      IMPLICIT NONE
-
       !constructs a path of length l between the positions ri and rj
-      TYPE(helium_solvent_type), INTENT(INOUT), POINTER     :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: ri, rj
-      INTEGER :: l
-      REAL(KIND=dp), DIMENSION(3,l), INTENT(OUT) :: new_path
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ri, rj
+      INTEGER                                            :: l
+      REAL(KIND=dp), DIMENSION(3, l), INTENT(OUT)        :: new_path
 
-      REAL(KIND=dp), DIMENSION(3) :: rtmp, rs, re
-      INTEGER :: ibead, istage, idim
-      REAL(KIND=dp) :: invstagemass, imass, weight, rk
+      INTEGER                                            :: idim, istage
+      REAL(KIND=dp)                                      :: imass, invstagemass, rk, weight
+      REAL(KIND=dp), DIMENSION(3)                        :: re, rs
 
       imass = 1.0_dp/(he_mass*massunit)
       ! dealing with periodicity
       rs(:) = ri(:)
-      re(:) = rj(:) - rs(:)
+      re(:) = rj(:)-rs(:)
       CALL helium_pbc(helium, re)
-      re(:) = re(:) + rs(:)
+      re(:) = re(:)+rs(:)
 
       ! first construction by hand
       ! reusable weight factor 1/(l+1)
-      rk = REAL(l,dp)
+      rk = REAL(l, dp)
       weight = 1.0_dp/(rk+1.0_dp)
       ! staging mass needed for modified variance
-      invstagemass = rk*weight * imass
+      invstagemass = rk*weight*imass
       ! proposing new positions
       DO idim = 1, 3
-         new_path(idim,l) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                               variance=helium%tau*invstagemass)
+         new_path(idim, l) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
+                                                variance=helium%tau*invstagemass)
       END DO
-      new_path(:,l) = new_path(:,l) + weight * (rk*re(:)+rs(:))
+      new_path(:, l) = new_path(:, l)+weight*(rk*re(:)+rs(:))
 
       DO istage = l-1, 1, -1
          ! reusable weight factor 1/(k+1)
-         rk = REAL(istage,dp)
+         rk = REAL(istage, dp)
          weight = 1.0_dp/(rk+1.0_dp)
          ! staging mass needed for modified variance
-         invstagemass = rk*weight * imass
+         invstagemass = rk*weight*imass
          ! proposing new positions
          DO idim = 1, 3
-            new_path(idim,istage) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
-                                                       variance=helium%tau*invstagemass)
+            new_path(idim, istage) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
+                                                        variance=helium%tau*invstagemass)
          END DO
-         new_path(:,istage) = new_path(:,istage) + weight * (rk*new_path(:,istage+1) + rs(:))
+         new_path(:, istage) = new_path(:, istage)+weight*(rk*new_path(:, istage+1)+rs(:))
       END DO
 
       RETURN
 
    END SUBROUTINE path_construct
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param startatom ...
+!> \param startbead ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_staging_move(pint_env, helium, startatom, startbead, l, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
-      INTEGER, INTENT(IN)  :: startbead
-      INTEGER, INTENT(IN)                                :: startatom, l
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      INTEGER, INTENT(IN)                                :: startatom, startbead, l
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER                                            :: ibb, ibf, nbeads, id
-      INTEGER :: ibead, jbead, ia, ib
-      INTEGER :: jatom, endatom
-      INTEGER :: endbead
-      REAL(KIND=dp) :: snew, sold, tsold, tsnew, sdiff, psnew, psold
-      REAL(KIND=dp) :: rtmp, rtmpo
-      REAL(KIND=dp)                                      :: det, dU, mass, U, U1, U2, xrr
-      REAL(KIND=dp), DIMENSION(3) :: r, rp, new_com, old_com, dr, dro
-      REAL(KIND=dp), DIMENSION(3,l) :: newsection
-      LOGICAL :: worm_overlap, should_reject
+      INTEGER                                            :: endatom, endbead, ia, ib, ibead, jbead
+      LOGICAL                                            :: should_reject, worm_overlap
+      REAL(KIND=dp)                                      :: rtmp, rtmpo, sdiff, snew, sold
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
+      REAL(KIND=dp), DIMENSION(3, l)                     :: newsection
 
       ac = 0
       endbead = startbead+l+1
       ! Check if the imaginary time section belongs to two atoms
       IF (endbead > helium%beads) THEN
          endatom = helium%permutation(startatom)
-         endbead = endbead - helium%beads
+         endbead = endbead-helium%beads
       ELSE
          endatom = startatom
       END IF
@@ -937,74 +950,74 @@ CONTAINS
                          (helium%worm_bead_idx <= endbead)) &
                         .OR. &
                         ((startbead > endbead) .AND. &
-                         ((helium%worm_bead_idx > startbead).OR. &
+                         ((helium%worm_bead_idx > startbead) .OR. &
                           (helium%worm_bead_idx <= endbead)))
          IF (worm_overlap) THEN
             ! if in addition the worm end is IN the reconstructed section reject imediately
-            IF (((helium%worm_atom_idx == startatom) .AND. (helium%worm_bead_idx >= startbead)).OR. &
-                ((helium%worm_atom_idx == endatom)   .AND. (helium%worm_bead_idx <= endbead))) THEN
+            IF (((helium%worm_atom_idx == startatom) .AND. (helium%worm_bead_idx >= startbead)) .OR. &
+                ((helium%worm_atom_idx == endatom) .AND. (helium%worm_bead_idx <= endbead))) THEN
                ac = 0
                RETURN
             END IF
          END IF
       END IF
-     ! action before the move
+      ! action before the move
       IF (worm_overlap) THEN
          sold = worm_path_action_worm_corrected(pint_env, helium, helium%pos, &
-                  startatom, startbead, endatom, endbead, &
-                  helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
+                                                startatom, startbead, endatom, endbead, &
+                                                helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
       ELSE
          sold = worm_path_action(pint_env, helium, helium%pos, &
-                  startatom, startbead, endatom, endbead)
+                                 startatom, startbead, endatom, endbead)
       END IF
 
       IF (helium%solute_present) THEN
          ! no special head treatment needed, because a swap can't go over
          ! the worm gap and due to primitive coupling no cross bead terms are considered
-         sold = sold + worm_path_inter_action(pint_env, helium, helium%pos,&
-                          startatom, startbead, endatom, endbead)
+         sold = sold+worm_path_inter_action(pint_env, helium, helium%pos, &
+                                            startatom, startbead, endatom, endbead)
       END IF
 
       ! construct a new path connecting the start and endbead
       CALL path_construct(helium, &
-                          helium%pos(:,startatom,startbead), &
-                          helium%pos(:,endatom,endbead),l, &
+                          helium%pos(:, startatom, startbead), &
+                          helium%pos(:, endatom, endbead), l, &
                           newsection)
 
       ! write new path segment to work array
       ! first the part that is guaranteed to fit on the coorinates of startatom
       jbead = 1
       DO ibead = startbead+1, MIN(helium%beads, startbead+l)
-         helium%work(:,startatom,ibead) = newsection(:,jbead)
-         jbead = jbead + 1
+         helium%work(:, startatom, ibead) = newsection(:, jbead)
+         jbead = jbead+1
       END DO
       ! transfer the rest of the beads to coordinates of endatom if neccessary
       IF (helium%beads < startbead+l) THEN
          DO ibead = 1, endbead-1
-            helium%work(:,endatom,ibead) = newsection(:,jbead)
-            jbead = jbead + 1
+            helium%work(:, endatom, ibead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
       END IF
 
-     ! action after the move
+      ! action after the move
       IF (worm_overlap) THEN
          snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
-                  startatom, startbead, endatom, endbead, &
-                  helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+                                                startatom, startbead, endatom, endbead, &
+                                                helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       ELSE
          snew = worm_path_action(pint_env, helium, helium%work, &
-                  startatom, startbead, endatom, endbead)
+                                 startatom, startbead, endatom, endbead)
       END IF
 
       IF (helium%solute_present) THEN
          ! no special head treatment needed, because a swap can't go over
          ! the worm gap and due to primitive coupling no cross bead terms are considered
-         snew = snew + worm_path_inter_action(pint_env, helium, helium%work,&
-                          startatom, startbead, endatom, endbead)
+         snew = snew+worm_path_inter_action(pint_env, helium, helium%work, &
+                                            startatom, startbead, endatom, endbead)
       END IF
 
       ! Metropolis:
-      sdiff = sold - snew
+      sdiff = sold-snew
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
@@ -1020,14 +1033,14 @@ CONTAINS
             ! write back only changed atoms
             jbead = 1
             DO ibead = startbead+1, MIN(helium%beads, startbead+l)
-               helium%work(:,startatom,ibead) = helium%pos(:,startatom,ibead)
-               jbead = jbead + 1
+               helium%work(:, startatom, ibead) = helium%pos(:, startatom, ibead)
+               jbead = jbead+1
             END DO
             ! transfer the rest of the beads to coordinates of endatom if neccessary
             IF (helium%beads < startbead+l) THEN
                DO ibead = 1, endbead-1
-                  helium%work(:,endatom,ibead) =  helium%pos(:,endatom,ibead)
-                  jbead = jbead + 1
+                  helium%work(:, endatom, ibead) = helium%pos(:, endatom, ibead)
+                  jbead = jbead+1
                END DO
             END IF
             ac = 0
@@ -1064,17 +1077,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -1088,14 +1101,14 @@ CONTAINS
             ! write back only changed atoms
             jbead = 1
             DO ibead = startbead+1, MIN(helium%beads, startbead+l)
-               helium%work(:,startatom,ibead) = helium%pos(:,startatom,ibead)
-               jbead = jbead + 1
+               helium%work(:, startatom, ibead) = helium%pos(:, startatom, ibead)
+               jbead = jbead+1
             END DO
             ! transfer the rest of the beads to coordinates of endatom if neccessary
             IF (helium%beads < startbead+l) THEN
                DO ibead = 1, endbead-1
-                  helium%work(:,endatom,ibead) =  helium%pos(:,endatom,ibead)
-                  jbead = jbead + 1
+                  helium%work(:, endatom, ibead) = helium%pos(:, endatom, ibead)
+                  jbead = jbead+1
                END DO
             END IF
             ac = 0
@@ -1108,14 +1121,14 @@ CONTAINS
       ! write changed coordinates to position array
       jbead = 1
       DO ibead = startbead+1, MIN(helium%beads, startbead+l)
-         helium%pos(:,startatom,ibead) = helium%work(:,startatom,ibead)
-         jbead = jbead + 1
+         helium%pos(:, startatom, ibead) = helium%work(:, startatom, ibead)
+         jbead = jbead+1
       END DO
       ! transfer the rest of the beads to coordinates of endatom if neccessary
       IF (helium%beads < startbead+l) THEN
          DO ibead = 1, endbead-1
-            helium%pos(:,endatom,ibead) =  helium%work(:,endatom,ibead)
-            jbead = jbead + 1
+            helium%pos(:, endatom, ibead) = helium%work(:, endatom, ibead)
+            jbead = jbead+1
          END DO
       END IF
 
@@ -1123,33 +1136,27 @@ CONTAINS
 
    END SUBROUTINE worm_staging_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param endatom ...
+!> \param endbead ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_open_move(pint_env, helium, endatom, endbead, l, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
-      INTEGER, INTENT(IN) :: endatom, endbead, l
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      INTEGER, INTENT(IN)                                :: endatom, endbead, l
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER :: lsec
-      INTEGER                                            :: ib, idim, prevatom, prevbead
-      INTEGER :: startatom, startbead
-      INTEGER :: endatompone, endbeadpone
-
-      INTEGER, DIMENSION(:), POINTER                     :: perm
-      REAL(KIND=dp), DIMENSION(3,l-1) :: newsection
-      REAL(KIND=dp)                                      :: dU, expdU, head(3), mass, Popen, rho, &
-                                                            rnew(3), tail(3), U, U1, U2, xr, xrr
-      REAL(KIND=dp) :: sold, snew, sdiff, esdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-      REAL(KIND=dp) :: lnrho, rtmp, rtmpo
-      REAL(KIND=dp), DIMENSION(3) :: distvec, new_com, old_com, dr, dro
-      REAL(KIND=dp) :: distsq, prefac
-
-      INTEGER :: iatom, ia
-      INTEGER :: ibead, jbead, kbead
-      LOGICAL :: should_reject
+      INTEGER                                            :: ia, ib, idim, kbead, startatom, startbead
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: distsq, mass, rtmp, rtmpo, sdiff, snew, &
+                                                            sold, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: distvec, dr, dro, new_com, old_com
 
       mass = he_mass*massunit
 
@@ -1157,23 +1164,23 @@ CONTAINS
       IF (l < endbead) THEN
          ! startbead belongs to the same atom
          startatom = endatom
-         startbead = endbead - l
+         startbead = endbead-l
       ELSE
          ! startbead belongs to a different atom
          ! find previous atom (assuming l < nbeads)
          startatom = helium%iperm(endatom)
-         startbead = endbead + helium%beads - l
+         startbead = endbead+helium%beads-l
       END IF
       sold = worm_path_action(pint_env, helium, helium%pos, &
-               startatom, startbead, endatom, endbead)
+                              startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
          ! yes this is correct, as the bead, that splits into tail and head only changes half
          ! therefore only half of its action needs to be considred
          ! and is cheated in here by passing it as head bead
-         sold = sold + worm_path_inter_action_head(pint_env, helium, helium%pos,&
-                          startatom, startbead, &
-                          helium%pos(:,endatom, endbead), endatom, endbead)
+         sold = sold+worm_path_inter_action_head(pint_env, helium, helium%pos, &
+                                                 startatom, startbead, &
+                                                 helium%pos(:, endatom, endbead), endatom, endbead)
       END IF
 
       helium%worm_is_closed = .FALSE.
@@ -1184,87 +1191,87 @@ CONTAINS
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
          ! gro head from startbead
-         DO kbead = startbead + 1, endbead - 1
+         DO kbead = startbead+1, endbead-1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead - 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead-1)+xr
             END DO
          END DO
          ! last grow head bead
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, endbead - 1) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, endbead-1)+xr
          END DO
       ELSE IF (endbead /= 1) THEN
          ! is distributed among two atoms
          ! grow from startbead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead - 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead-1)+xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%work(idim,endatom,1) = helium%work(idim, startatom, helium%beads) + xr
+            helium%work(idim, endatom, 1) = helium%work(idim, startatom, helium%beads)+xr
          END DO
          ! everything on endatom
-         DO kbead = 2, endbead - 1
+         DO kbead = 2, endbead-1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,endatom,kbead) = helium%work(idim, endatom, kbead - 1) + xr
+               helium%work(idim, endatom, kbead) = helium%work(idim, endatom, kbead-1)+xr
             END DO
          END DO
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, endatom, endbead - 1) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, endatom, endbead-1)+xr
          END DO
       ELSE ! imagtimewrap and headbead = 1
          ! is distributed among two atoms
          ! grow from startbead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead - 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead-1)+xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, helium%beads) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, helium%beads)+xr
          END DO
       END IF
 
       snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
-               startatom, startbead, endatom, endbead, &
-               helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+                                             startatom, startbead, endatom, endbead, &
+                                             helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
       IF (helium%solute_present) THEN
-         snew = snew + worm_path_inter_action_head(pint_env, helium, helium%work, &
-                          startatom, startbead, &
-                          helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+         snew = snew+worm_path_inter_action_head(pint_env, helium, helium%work, &
+                                                 startatom, startbead, &
+                                                 helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       END IF
 
       ! Metropolis:
       ! first compute ln of free density matrix
-      distvec(:) = helium%pos(:,startatom, startbead) - helium%pos(:,endatom, endbead)
+      distvec(:) = helium%pos(:, startatom, startbead)-helium%pos(:, endatom, endbead)
       CALL helium_pbc(helium, distvec)
       distsq = DOT_PRODUCT(distvec, distvec)
       ! action difference
-      sdiff = sold - snew
+      sdiff = sold-snew
       ! modify action difference due to extra bead
-      sdiff = sdiff + distsq/(2.0_dp*helium%hb2m*REAL(l,dp)*helium%tau)
-      sdiff = sdiff + 1.5_dp*LOG(REAL(l,dp)*helium%tau)
-      sdiff = sdiff + helium%worm_ln_openclose_scale
+      sdiff = sdiff+distsq/(2.0_dp*helium%hb2m*REAL(l, dp)*helium%tau)
+      sdiff = sdiff+1.5_dp*LOG(REAL(l, dp)*helium%tau)
+      sdiff = sdiff+helium%worm_ln_openclose_scale
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
@@ -1281,17 +1288,17 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead + 1, endbead - 1
+               DO kbead = startbead+1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
                ! is distributed among two atoms
                ! transfer to atom not containing the head bead
-               DO kbead = startbead + 1, helium%beads
+               DO kbead = startbead+1, helium%beads
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -1330,17 +1337,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -1354,17 +1361,17 @@ CONTAINS
             ! write back only changed atoms
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead + 1, endbead - 1
+               DO kbead = startbead+1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
                ! is distributed among two atoms
                ! transfer to atom not containing the head bead
-               DO kbead = startbead + 1, helium%beads
+               DO kbead = startbead+1, helium%beads
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -1381,17 +1388,17 @@ CONTAINS
       ! write changed coordinates to position array
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
-         DO kbead = startbead + 1, endbead - 1
+         DO kbead = startbead+1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       ELSE
          ! is distributed among two atoms
          ! transfer to atom not containing the head bead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             helium%pos(:, startatom, kbead) = helium%work(:, startatom, kbead)
          END DO
          ! transfer to atom containing the head bead
-         DO kbead = 1, endbead - 1
+         DO kbead = 1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       END IF
@@ -1403,33 +1410,27 @@ CONTAINS
 
    END SUBROUTINE worm_open_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_close_move(pint_env, helium, l, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
-      INTEGER, INTENT(IN) :: l
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      INTEGER, INTENT(IN)                                :: l
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER :: lsec
-      INTEGER                                            :: ib, idim, prevatom, prevbead
-      INTEGER :: endatom, endbead
-      INTEGER :: startatom, startbead
-
-      INTEGER, DIMENSION(:), POINTER                     :: perm
-      REAL(KIND=dp), DIMENSION(3,l-1) :: newsection
-      REAL(KIND=dp)                                      :: dU, expdU, head(3), mass, Popen, rho, &
-                                                            rnew(3), tail(3), U, U1, U2, xr, xrr
-      REAL(KIND=dp) :: sold, snew, sdiff, esdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-      REAL(KIND=dp) :: lnrho, rtmp, rtmpo
-      REAL(KIND=dp), DIMENSION(3) :: distvec, new_com, old_com, dr, dro
-      REAL(KIND=dp) :: distsq, prefac
-
-      INTEGER :: iatom, ia
-      INTEGER :: ibead, jbead, kbead
-      LOGICAL :: should_reject
+      INTEGER                                            :: endatom, endbead, ia, ib, jbead, kbead, &
+                                                            startatom, startbead
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: distsq, mass, rtmp, rtmpo, sdiff, snew, &
+                                                            sold
+      REAL(KIND=dp), DIMENSION(3)                        :: distvec, dr, dro, new_com, old_com
+      REAL(KIND=dp), DIMENSION(3, l-1)                   :: newsection
 
       mass = he_mass*massunit
 
@@ -1439,78 +1440,77 @@ CONTAINS
       IF (l < endbead) THEN
          ! startbead belongs to the same atom
          startatom = endatom
-         startbead = endbead - l
+         startbead = endbead-l
       ELSE
          ! startbead belongs to a different atom
          ! find previous atom (assuming l < nbeads)
          startatom = helium%iperm(endatom)
-         startbead = endbead + helium%beads - l
+         startbead = endbead+helium%beads-l
       END IF
       sold = worm_path_action_worm_corrected(pint_env, helium, helium%pos, &
-                startatom, startbead, endatom, endbead, &
-                helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
+                                             startatom, startbead, endatom, endbead, &
+                                             helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
 
       IF (helium%solute_present) THEN
-         sold = sold + worm_path_inter_action_head(pint_env, helium, helium%pos, &
-                          startatom, startbead, &
-                          helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
+         sold = sold+worm_path_inter_action_head(pint_env, helium, helium%pos, &
+                                                 startatom, startbead, &
+                                                 helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
       END IF
-
 
       ! close between head and tail
       ! only l-1 beads need to be reconstructed
       CALL path_construct(helium, &
-                          helium%pos(:,startatom,startbead), &
-                          helium%pos(:,endatom, endbead),l-1, &
+                          helium%pos(:, startatom, startbead), &
+                          helium%pos(:, endatom, endbead), l-1, &
                           newsection)
 
       ! transfer the new coordinates to work array
       jbead = 1
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
-         DO kbead = startbead + 1, endbead - 1
-            helium%work(:, endatom, kbead) = newsection(:,jbead)
-            jbead = jbead + 1
+         DO kbead = startbead+1, endbead-1
+            helium%work(:, endatom, kbead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
       ELSE
          ! is distributed among two atoms
          ! transfer to atom not containing the head bead
-         DO kbead = startbead + 1, helium%beads
-            helium%work(:, startatom, kbead) = newsection(:,jbead)
-            jbead = jbead + 1
+         DO kbead = startbead+1, helium%beads
+            helium%work(:, startatom, kbead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
          ! transfer to atom containing the head bead
-         DO kbead = 1, endbead - 1
-            helium%work(:, endatom, kbead) = newsection(:,jbead)
-            jbead = jbead + 1
+         DO kbead = 1, endbead-1
+            helium%work(:, endatom, kbead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
       END IF
 
       helium%worm_is_closed = .TRUE.
 
       snew = worm_path_action(pint_env, helium, helium%work, &
-                startatom, startbead, endatom, endbead)
+                              startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
          ! yes this is correct, as the bead, that was split into tail and head only changes half
          ! therefore only half of its action needs to be considred
          ! and is cheated in here by passing it as head bead
-         snew = snew + worm_path_inter_action_head(pint_env, helium, helium%work,&
-                          startatom, startbead, &
-                          helium%work(:,endatom, endbead), endatom, endbead)
+         snew = snew+worm_path_inter_action_head(pint_env, helium, helium%work, &
+                                                 startatom, startbead, &
+                                                 helium%work(:, endatom, endbead), endatom, endbead)
       END IF
 
       ! Metropolis:
       ! first compute ln of free density matrix
-      distvec(:) = helium%pos(:,startatom, startbead) - helium%pos(:,endatom, endbead)
+      distvec(:) = helium%pos(:, startatom, startbead)-helium%pos(:, endatom, endbead)
       CALL helium_pbc(helium, distvec)
       distsq = DOT_PRODUCT(distvec, distvec)
       ! action difference
-      sdiff = sold - snew
+      sdiff = sold-snew
       ! modify action difference due to extra bead
-      sdiff = sdiff - distsq/(2.0_dp*helium%hb2m*REAL(l,dp)*helium%tau)
-      sdiff = sdiff - 1.5_dp*LOG(REAL(l,dp)*helium%tau)
-      sdiff = sdiff - helium%worm_ln_openclose_scale
+      sdiff = sdiff-distsq/(2.0_dp*helium%hb2m*REAL(l, dp)*helium%tau)
+      sdiff = sdiff-1.5_dp*LOG(REAL(l, dp)*helium%tau)
+      sdiff = sdiff-helium%worm_ln_openclose_scale
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
@@ -1527,17 +1527,17 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead + 1, endbead - 1
+               DO kbead = startbead+1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
                ! is distributed among two atoms
                ! transfer to atom not containing the head bead
-               DO kbead = startbead + 1, helium%beads
+               DO kbead = startbead+1, helium%beads
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -1576,17 +1576,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -1600,17 +1600,17 @@ CONTAINS
             ! write back only changed atoms
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead + 1, endbead - 1
+               DO kbead = startbead+1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
                ! is distributed among two atoms
                ! transfer to atom not containing the head bead
-               DO kbead = startbead + 1, helium%beads
+               DO kbead = startbead+1, helium%beads
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -1625,17 +1625,17 @@ CONTAINS
       ! write changed coordinates to position array
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
-         DO kbead = startbead + 1, endbead - 1
+         DO kbead = startbead+1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       ELSE
          ! is distributed among two atoms
          ! transfer to atom not containing the head bead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             helium%pos(:, startatom, kbead) = helium%work(:, startatom, kbead)
          END DO
          ! transfer to atom containing the head bead
-         DO kbead = 1, endbead - 1
+         DO kbead = 1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       END IF
@@ -1644,33 +1644,25 @@ CONTAINS
 
    END SUBROUTINE worm_close_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_head_move(pint_env, helium, l, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
-      INTEGER, INTENT(IN) :: l
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      INTEGER, INTENT(IN)                                :: l
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER :: lsec
-      INTEGER                                            :: ib, idim, prevatom, prevbead
-      INTEGER :: endatom, endbead
-      INTEGER :: startatom, startbead
-
-      INTEGER, DIMENSION(:), POINTER                     :: perm
-      REAL(KIND=dp), DIMENSION(3,l-1) :: newsection
-      REAL(KIND=dp)                                      :: dU, expdU, head(3), mass, Popen, rho, &
-                                                            rnew(3), tail(3), U, U1, U2, xr, xrr
-      REAL(KIND=dp) :: sold, snew, sdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-      REAL(KIND=dp) :: lnrho, rtmp, rtmpo
-      REAL(KIND=dp), DIMENSION(3) :: distvec, new_com, old_com, dr, dro
-      REAL(KIND=dp) :: distsq, prefac
-
-      INTEGER :: iatom, ia
-      INTEGER :: ibead, jbead, kbead
-      LOGICAL :: should_reject
+      INTEGER                                            :: endatom, endbead, ia, ib, idim, kbead, &
+                                                            startatom, startbead
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: mass, rtmp, rtmpo, sdiff, snew, sold, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
 
       mass = he_mass*massunit
 
@@ -1680,101 +1672,101 @@ CONTAINS
       IF (l < endbead) THEN
          ! startbead belongs to the same atom
          startatom = endatom
-         startbead = endbead - l
+         startbead = endbead-l
       ELSE
          ! startbead belongs to a different atom
          ! find previous atom (assuming l < nbeads)
          startatom = helium%iperm(endatom)
-         startbead = endbead + helium%beads - l
+         startbead = endbead+helium%beads-l
       END IF
 
       sold = worm_path_action_worm_corrected(pint_env, helium, helium%pos, &
-               startatom, startbead, endatom, endbead, &
-               helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
+                                             startatom, startbead, endatom, endbead, &
+                                             helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
 
       IF (helium%solute_present) THEN
-         sold = sold + worm_path_inter_action_head(pint_env, helium, helium%pos,&
-                          startatom, startbead, &
-                          helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
+         sold = sold+worm_path_inter_action_head(pint_env, helium, helium%pos, &
+                                                 startatom, startbead, &
+                                                 helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
       END IF
 
       ! alternative grow with consecutive gaussians
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
          ! gro head from startbead
-         DO kbead = startbead + 1, endbead - 1
+         DO kbead = startbead+1, endbead-1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead - 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead-1)+xr
             END DO
          END DO
          ! last grow head bead
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, endbead - 1) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, endbead-1)+xr
          END DO
       ELSE IF (endbead /= 1) THEN
          ! is distributed among two atoms
          ! grow from startbead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead - 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead-1)+xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%work(idim,endatom,1) = helium%work(idim, startatom, helium%beads) + xr
+            helium%work(idim, endatom, 1) = helium%work(idim, startatom, helium%beads)+xr
          END DO
          ! everything on endatom
-         DO kbead = 2, endbead - 1
+         DO kbead = 2, endbead-1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,endatom,kbead) = helium%work(idim, endatom, kbead - 1) + xr
+               helium%work(idim, endatom, kbead) = helium%work(idim, endatom, kbead-1)+xr
             END DO
          END DO
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, endatom, endbead - 1) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, endatom, endbead-1)+xr
          END DO
       ELSE ! imagtimewrap and headbead = 1
          ! is distributed among two atoms
          ! grow from startbead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead - 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead-1)+xr
             END DO
          END DO
          ! bead one of endatom relative to last on startatom
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, helium%beads) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, startatom, helium%beads)+xr
          END DO
       END IF
 
       snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
-               startatom, startbead, endatom, endbead, &
-               helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+                                             startatom, startbead, endatom, endbead, &
+                                             helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
       IF (helium%solute_present) THEN
-         snew = snew + worm_path_inter_action_head(pint_env, helium, helium%work, &
-                          startatom, startbead, &
-                          helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+         snew = snew+worm_path_inter_action_head(pint_env, helium, helium%work, &
+                                                 startatom, startbead, &
+                                                 helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       END IF
 
       ! Metropolis:
       ! action difference
-      sdiff = sold - snew
+      sdiff = sold-snew
       ! modify action difference due to extra bead
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
@@ -1792,17 +1784,17 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead + 1, endbead - 1
+               DO kbead = startbead+1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
                ! is distributed among two atoms
                ! transfer to atom not containing the head bead
-               DO kbead = startbead + 1, helium%beads
+               DO kbead = startbead+1, helium%beads
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -1841,17 +1833,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -1865,17 +1857,17 @@ CONTAINS
             ! write back only changed atoms
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead + 1, endbead - 1
+               DO kbead = startbead+1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
                ! is distributed among two atoms
                ! transfer to atom not containing the head bead
-               DO kbead = startbead + 1, helium%beads
+               DO kbead = startbead+1, helium%beads
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -1890,17 +1882,17 @@ CONTAINS
       ! write changed coordinates to position array
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
-         DO kbead = startbead + 1, endbead - 1
+         DO kbead = startbead+1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       ELSE
          ! is distributed among two atoms
          ! transfer to atom not containing the head bead
-         DO kbead = startbead + 1, helium%beads
+         DO kbead = startbead+1, helium%beads
             helium%pos(:, startatom, kbead) = helium%work(:, startatom, kbead)
          END DO
          ! transfer to atom containing the head bead
-         DO kbead = 1, endbead - 1
+         DO kbead = 1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       END IF
@@ -1910,40 +1902,32 @@ CONTAINS
 
    END SUBROUTINE worm_head_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_tail_move(pint_env, helium, l, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
-      INTEGER, INTENT(IN) :: l
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      INTEGER, INTENT(IN)                                :: l
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER :: lsec
-      INTEGER                                            :: ib, idim, prevatom, prevbead
-      INTEGER :: endatom, endbead
-      INTEGER :: startatom, startbead
-
-      INTEGER, DIMENSION(:), POINTER                     :: perm
-      REAL(KIND=dp), DIMENSION(3,l-1) :: newsection
-      REAL(KIND=dp)                                      :: dU, expdU, head(3), mass, Popen, rho, &
-                                                            rnew(3), tail(3), U, U1, U2, xr, xrr
-      REAL(KIND=dp) :: sold, snew, sdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-      REAL(KIND=dp) :: lnrho, rtmp, rtmpo
-      REAL(KIND=dp), DIMENSION(3) :: distvec, new_com, old_com, dr, dro
-      REAL(KIND=dp) :: distsq, prefac
-
-      INTEGER :: iatom, ia
-      INTEGER :: ibead, jbead, kbead
-      LOGICAL :: should_reject
+      INTEGER                                            :: endatom, endbead, ia, ib, idim, kbead, &
+                                                            startatom, startbead
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: mass, rtmp, rtmpo, sdiff, snew, sold, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
 
       mass = he_mass*massunit
 
       ! get index of the atom and bead, where the resampling of the tail ends
       startatom = helium%worm_atom_idx
       startbead = helium%worm_bead_idx
-      endbead = startbead + l
+      endbead = startbead+l
 
       IF (endbead <= helium%beads) THEN
          ! endbead belongs to the same atom
@@ -1952,38 +1936,38 @@ CONTAINS
          ! endbead belongs to a different atom
          ! find next atom (assuming l < nbeads)
          endatom = helium%permutation(startatom)
-         endbead = endbead - helium%beads
+         endbead = endbead-helium%beads
       END IF
 
       !yes this is correct, as the head does not play any role here
       sold = worm_path_action(pint_env, helium, helium%pos, &
-               startatom, startbead, endatom, endbead)
+                              startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
-         sold = sold + worm_path_inter_action_tail(pint_env, helium, helium%pos,&
-                          endatom, endbead, &
-                          helium%worm_atom_idx, helium%worm_bead_idx)
+         sold = sold+worm_path_inter_action_tail(pint_env, helium, helium%pos, &
+                                                 endatom, endbead, &
+                                                 helium%worm_atom_idx, helium%worm_bead_idx)
       END IF
 
       ! alternative grow with consecutive gaussians
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
          ! gro tail from endbead to startbead (confusing eh?)
-         DO kbead = endbead - 1, startbead, - 1
+         DO kbead = endbead-1, startbead, -1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead + 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead+1)+xr
             END DO
          END DO
       ELSE
          ! is distributed among two atoms
          ! grow from endbead
-         DO kbead = endbead - 1, 1, - 1
+         DO kbead = endbead-1, 1, -1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,endatom,kbead) = helium%work(idim, endatom, kbead + 1) + xr
+               helium%work(idim, endatom, kbead) = helium%work(idim, endatom, kbead+1)+xr
             END DO
          END DO
 
@@ -1991,32 +1975,32 @@ CONTAINS
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%work(idim,startatom,helium%beads) = helium%work(idim, endatom, 1) + xr
+            helium%work(idim, startatom, helium%beads) = helium%work(idim, endatom, 1)+xr
          END DO
 
          ! rest on startatom
-         DO kbead = helium%beads - 1, startbead, - 1
+         DO kbead = helium%beads-1, startbead, -1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,startatom,kbead) = helium%work(idim, startatom, kbead + 1) + xr
+               helium%work(idim, startatom, kbead) = helium%work(idim, startatom, kbead+1)+xr
             END DO
          END DO
       END IF
 
       !yes this is correct, as the head does not play any role here
       snew = worm_path_action(pint_env, helium, helium%work, &
-               startatom, startbead, endatom, endbead)
+                              startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
-         snew = snew + worm_path_inter_action_tail(pint_env, helium, helium%work,&
-                          endatom, endbead, &
-                          helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+         snew = snew+worm_path_inter_action_tail(pint_env, helium, helium%work, &
+                                                 endatom, endbead, &
+                                                 helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       END IF
 
       ! Metropolis:
       ! action difference
-      sdiff = sold - snew
+      sdiff = sold-snew
       ! modify action difference due to extra bead
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
@@ -2034,7 +2018,7 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead, endbead - 1
+               DO kbead = startbead, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
@@ -2044,7 +2028,7 @@ CONTAINS
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the tail bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -2083,17 +2067,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -2107,7 +2091,7 @@ CONTAINS
             ! write back only changed atoms
             IF (startbead < endbead) THEN
                ! everything belongs to the same atom
-               DO kbead = startbead, endbead - 1
+               DO kbead = startbead, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             ELSE
@@ -2117,7 +2101,7 @@ CONTAINS
                   helium%work(:, startatom, kbead) = helium%pos(:, startatom, kbead)
                END DO
                ! transfer to atom containing the tail bead
-               DO kbead = 1, endbead - 1
+               DO kbead = 1, endbead-1
                   helium%work(:, endatom, kbead) = helium%pos(:, endatom, kbead)
                END DO
             END IF
@@ -2132,7 +2116,7 @@ CONTAINS
       ! write changed coordinates to position array
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
-         DO kbead = startbead, endbead - 1
+         DO kbead = startbead, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       ELSE
@@ -2142,7 +2126,7 @@ CONTAINS
             helium%pos(:, startatom, kbead) = helium%work(:, startatom, kbead)
          END DO
          ! transfer to atom containing the tail bead
-         DO kbead = 1, endbead - 1
+         DO kbead = 1, endbead-1
             helium%pos(:, endatom, kbead) = helium%work(:, endatom, kbead)
          END DO
       END IF
@@ -2151,39 +2135,33 @@ CONTAINS
 
    END SUBROUTINE worm_tail_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_crawl_move_forward(pint_env, helium, l, ac)
 
-      IMPLICIT NONE
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      INTEGER, INTENT(IN)                                :: l
+      INTEGER, INTENT(OUT)                               :: ac
 
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      INTEGER, INTENT(IN) :: l
-      INTEGER, INTENT(OUT) :: ac
-
-      REAL(KIND=dp) :: oldheadpot, oldtailpot
-      REAL(KIND=dp) :: newheadpot, newtailpot
-
-      REAL(KIND=dp) :: sold, snew, sdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-
-      REAL(KIND=dp) :: xr, mass
-      REAL(KIND=dp) :: rtmp, rtmpo
-
-      LOGICAL :: should_reject
-
-      REAL(KIND=dp), DIMENSION(3) :: distvec, new_com, old_com, dr, dro
-
-      INTEGER :: idim
-      INTEGER :: iatom, ia, ib
-      INTEGER :: kbead
+      INTEGER                                            :: ia, ib, idim, kbead
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: mass, newtailpot, oldheadpot, &
+                                                            oldtailpot, rtmp, rtmpo, sdiff, snew, &
+                                                            sold, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
 
       mass = he_mass*massunit
 
-
       ! determine position of new head in imaginary time
-      helium%worm_bead_idx_work = helium%worm_bead_idx + l
+      helium%worm_bead_idx_work = helium%worm_bead_idx+l
       IF (helium%worm_bead_idx_work > helium%beads) THEN
-         helium%worm_bead_idx_work = helium%worm_bead_idx_work - helium%beads
+         helium%worm_bead_idx_work = helium%worm_bead_idx_work-helium%beads
          helium%worm_atom_idx_work = helium%permutation(helium%worm_atom_idx)
       ELSE
          helium%worm_atom_idx_work = helium%worm_atom_idx
@@ -2192,124 +2170,124 @@ CONTAINS
       ! compute action before move
       ! head is not involved in pair action
       sold = worm_path_action(pint_env, helium, helium%pos, &
-               helium%worm_atom_idx, helium%worm_bead_idx, &
-               helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+                              helium%worm_atom_idx, helium%worm_bead_idx, &
+                              helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       IF (helium%solute_present) THEN
          !this will leave out the old and new tail bead
          ! due to efficiency reasons they are treated separately
-         sold = sold + worm_path_inter_action(pint_env, helium, helium%pos, &
-               helium%worm_atom_idx, helium%worm_bead_idx, &
-               helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+         sold = sold+worm_path_inter_action(pint_env, helium, helium%pos, &
+                                            helium%worm_atom_idx, helium%worm_bead_idx, &
+                                            helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
          ! compute old/new head/tail interactions
          ! old tail
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            helium%worm_atom_idx, helium%worm_bead_idx, &
-            helium%pos(:,helium%worm_atom_idx, helium%worm_bead_idx),&
-            energy=oldtailpot)
-         oldtailpot = oldtailpot * helium%tau
+                                     helium%worm_atom_idx, helium%worm_bead_idx, &
+                                     helium%pos(:, helium%worm_atom_idx, helium%worm_bead_idx), &
+                                     energy=oldtailpot)
+         oldtailpot = oldtailpot*helium%tau
 
          ! new tail
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-            helium%pos(:,helium%worm_atom_idx_work, helium%worm_bead_idx_work),&
-            energy=newtailpot)
-         newtailpot = newtailpot * helium%tau
+                                     helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
+                                     helium%pos(:, helium%worm_atom_idx_work, helium%worm_bead_idx_work), &
+                                     energy=newtailpot)
+         newtailpot = newtailpot*helium%tau
 
          ! old head
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            helium%worm_atom_idx, helium%worm_bead_idx, &
-            helium%worm_xtra_bead,&
-            energy=oldheadpot)
-         oldheadpot = oldheadpot * helium%tau
+                                     helium%worm_atom_idx, helium%worm_bead_idx, &
+                                     helium%worm_xtra_bead, &
+                                     energy=oldheadpot)
+         oldheadpot = oldheadpot*helium%tau
 
          ! new head is not known yet
 
-         sold = sold + 0.5_dp * (oldtailpot + oldheadpot) + newtailpot
+         sold = sold+0.5_dp*(oldtailpot+oldheadpot)+newtailpot
       END IF
 
       ! copy over old head position to working array and grow from there
-      helium%work(:,helium%worm_atom_idx, helium%worm_bead_idx) = helium%worm_xtra_bead
+      helium%work(:, helium%worm_atom_idx, helium%worm_bead_idx) = helium%worm_xtra_bead
 
       ! grow head part with consecutive gaussians
       IF (helium%worm_bead_idx < helium%worm_bead_idx_work) THEN
          ! everything belongs to the same atom
          ! gro head from startbead
-         DO kbead = helium%worm_bead_idx + 1, helium%worm_bead_idx_work - 1
+         DO kbead = helium%worm_bead_idx+1, helium%worm_bead_idx_work-1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx,kbead) = helium%work(idim, helium%worm_atom_idx, kbead - 1) + xr
+               helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead-1)+xr
             END DO
          END DO
          ! last grow head bead
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx, helium%worm_bead_idx_work - 1) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx, helium%worm_bead_idx_work-1)+xr
          END DO
       ELSE IF (helium%worm_bead_idx_work /= 1) THEN
          ! is distributed among two atoms
          ! grow from startbead
-         DO kbead = helium%worm_bead_idx + 1, helium%beads
+         DO kbead = helium%worm_bead_idx+1, helium%beads
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx,kbead) = helium%work(idim, helium%worm_atom_idx, kbead - 1) + xr
+               helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead-1)+xr
             END DO
          END DO
          ! bead one of endatom relative to last on helium%worm_atom_idx
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%work(idim,helium%worm_atom_idx_work,1) = helium%work(idim, helium%worm_atom_idx, helium%beads) + xr
+            helium%work(idim, helium%worm_atom_idx_work, 1) = helium%work(idim, helium%worm_atom_idx, helium%beads)+xr
          END DO
          ! everything on endatom
-         DO kbead = 2, helium%worm_bead_idx_work - 1
+         DO kbead = 2, helium%worm_bead_idx_work-1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx_work,kbead) = helium%work(idim, helium%worm_atom_idx_work, kbead - 1) + xr
+               helium%work(idim, helium%worm_atom_idx_work, kbead) = helium%work(idim, helium%worm_atom_idx_work, kbead-1)+xr
             END DO
          END DO
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx_work, helium%worm_bead_idx_work - 1) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx_work, helium%worm_bead_idx_work-1)+xr
          END DO
       ELSE ! imagtimewrap and headbead = 1
          ! is distributed among two atoms
          ! grow from startbead
-         DO kbead = helium%worm_bead_idx + 1, helium%beads
+         DO kbead = helium%worm_bead_idx+1, helium%beads
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx,kbead) = helium%work(idim, helium%worm_atom_idx, kbead - 1) + xr
+               helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead-1)+xr
             END DO
          END DO
          ! bead one of endatom relative to last on helium%worm_atom_idx
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx, helium%beads) + xr
+            helium%worm_xtra_bead_work(idim) = helium%work(idim, helium%worm_atom_idx, helium%beads)+xr
          END DO
       END IF
 
       snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
-               helium%worm_atom_idx, helium%worm_bead_idx, &
-               helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-               helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+                                             helium%worm_atom_idx, helium%worm_bead_idx, &
+                                             helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
+                                             helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
       IF (helium%solute_present) THEN
-         snew = snew + worm_path_inter_action_head(pint_env, helium, helium%work, &
-               helium%worm_atom_idx, helium%worm_bead_idx, &
-               helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
-         snew = snew + 0.5_dp * newtailpot + oldheadpot
+         snew = snew+worm_path_inter_action_head(pint_env, helium, helium%work, &
+                                                 helium%worm_atom_idx, helium%worm_bead_idx, &
+                                                 helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+         snew = snew+0.5_dp*newtailpot+oldheadpot
       END IF
 
       ! Metropolis:
       ! action difference
-      sdiff = sold - snew
+      sdiff = sold-snew
       ! modify action difference due to extra bead
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
@@ -2327,7 +2305,7 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (helium%worm_bead_idx < helium%worm_bead_idx_work) THEN
                ! everything belongs to the same atom
-               DO kbead = helium%worm_bead_idx, helium%worm_bead_idx_work - 1
+               DO kbead = helium%worm_bead_idx, helium%worm_bead_idx_work-1
                   helium%work(:, helium%worm_atom_idx_work, kbead) = helium%pos(:, helium%worm_atom_idx_work, kbead)
                END DO
             ELSE
@@ -2337,7 +2315,7 @@ CONTAINS
                   helium%work(:, helium%worm_atom_idx, kbead) = helium%pos(:, helium%worm_atom_idx, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, helium%worm_bead_idx_work - 1
+               DO kbead = 1, helium%worm_bead_idx_work-1
                   helium%work(:, helium%worm_atom_idx_work, kbead) = helium%pos(:, helium%worm_atom_idx_work, kbead)
                END DO
             END IF
@@ -2378,17 +2356,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -2402,7 +2380,7 @@ CONTAINS
             ! write back only changed atoms
             IF (helium%worm_bead_idx < helium%worm_bead_idx_work) THEN
                ! everything belongs to the same atom
-               DO kbead = helium%worm_bead_idx, helium%worm_bead_idx_work - 1
+               DO kbead = helium%worm_bead_idx, helium%worm_bead_idx_work-1
                   helium%work(:, helium%worm_atom_idx_work, kbead) = helium%pos(:, helium%worm_atom_idx_work, kbead)
                END DO
             ELSE
@@ -2412,7 +2390,7 @@ CONTAINS
                   helium%work(:, helium%worm_atom_idx, kbead) = helium%pos(:, helium%worm_atom_idx, kbead)
                END DO
                ! transfer to atom containing the head bead
-               DO kbead = 1, helium%worm_bead_idx_work - 1
+               DO kbead = 1, helium%worm_bead_idx_work-1
                   helium%work(:, helium%worm_atom_idx_work, kbead) = helium%pos(:, helium%worm_atom_idx_work, kbead)
                END DO
             END IF
@@ -2429,7 +2407,7 @@ CONTAINS
       ! write changed coordinates to position array
       IF (helium%worm_bead_idx < helium%worm_bead_idx_work) THEN
          ! everything belongs to the same atom
-         DO kbead = helium%worm_bead_idx, helium%worm_bead_idx_work - 1
+         DO kbead = helium%worm_bead_idx, helium%worm_bead_idx_work-1
             helium%pos(:, helium%worm_atom_idx_work, kbead) = helium%work(:, helium%worm_atom_idx_work, kbead)
          END DO
       ELSE
@@ -2439,7 +2417,7 @@ CONTAINS
             helium%pos(:, helium%worm_atom_idx, kbead) = helium%work(:, helium%worm_atom_idx, kbead)
          END DO
          ! transfer to atom containing the head bead
-         DO kbead = 1, helium%worm_bead_idx_work - 1
+         DO kbead = 1, helium%worm_bead_idx_work-1
             helium%pos(:, helium%worm_atom_idx_work, kbead) = helium%work(:, helium%worm_atom_idx_work, kbead)
          END DO
       END IF
@@ -2447,43 +2425,37 @@ CONTAINS
       helium%worm_bead_idx = helium%worm_bead_idx_work
       helium%worm_atom_idx = helium%worm_atom_idx_work
 
-
-   RETURN
+      RETURN
 
    END SUBROUTINE worm_crawl_move_forward
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_crawl_move_backward(pint_env, helium, l, ac)
 
-      IMPLICIT NONE
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      INTEGER, INTENT(IN)                                :: l
+      INTEGER, INTENT(OUT)                               :: ac
 
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      INTEGER, INTENT(IN) :: l
-      INTEGER, INTENT(OUT) :: ac
-
-      REAL(KIND=dp) :: oldheadpot, oldtailpot
-      REAL(KIND=dp) :: newheadpot, newtailpot
-
-      REAL(KIND=dp) :: sold, snew, sdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-
-      REAL(KIND=dp) :: xr, mass
-      REAL(KIND=dp) :: rtmp, rtmpo
-
-      LOGICAL :: should_reject
-
-      REAL(KIND=dp), DIMENSION(3) :: distvec, new_com, old_com, dr, dro
-
-      INTEGER :: idim
-      INTEGER :: iatom, ia, ib
-      INTEGER :: kbead
+      INTEGER                                            :: ia, ib, idim, kbead
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: mass, newheadpot, oldheadpot, &
+                                                            oldtailpot, rtmp, rtmpo, sdiff, snew, &
+                                                            sold, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
 
       mass = he_mass*massunit
 
       ! determine position of new head in imaginary time
-      helium%worm_bead_idx_work = helium%worm_bead_idx - l
+      helium%worm_bead_idx_work = helium%worm_bead_idx-l
       IF (helium%worm_bead_idx_work < 1) THEN
-         helium%worm_bead_idx_work = helium%worm_bead_idx_work + helium%beads
+         helium%worm_bead_idx_work = helium%worm_bead_idx_work+helium%beads
          helium%worm_atom_idx_work = helium%iperm(helium%worm_atom_idx)
       ELSE
          helium%worm_atom_idx_work = helium%worm_atom_idx
@@ -2492,67 +2464,67 @@ CONTAINS
       ! compute action before move
       ! head is not involved in pair action
       sold = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
-         helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-         helium%worm_atom_idx, helium%worm_bead_idx, &
-         helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
+                                             helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
+                                             helium%worm_atom_idx, helium%worm_bead_idx, &
+                                             helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
 
       IF (helium%solute_present) THEN
          !this will leave out the old and new tail bead
          ! due to efficiency reasons they are treated separately
-         sold = sold + worm_path_inter_action(pint_env, helium, helium%pos, &
-               helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-               helium%worm_atom_idx, helium%worm_bead_idx)
+         sold = sold+worm_path_inter_action(pint_env, helium, helium%pos, &
+                                            helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
+                                            helium%worm_atom_idx, helium%worm_bead_idx)
 
          ! compute old/new head/tail interactions
          ! old tail
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            helium%worm_atom_idx, helium%worm_bead_idx, &
-            helium%pos(:,helium%worm_atom_idx, helium%worm_bead_idx),&
-            energy=oldtailpot)
-         oldtailpot = oldtailpot * helium%tau
+                                     helium%worm_atom_idx, helium%worm_bead_idx, &
+                                     helium%pos(:, helium%worm_atom_idx, helium%worm_bead_idx), &
+                                     energy=oldtailpot)
+         oldtailpot = oldtailpot*helium%tau
 
          ! old head
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            helium%worm_atom_idx, helium%worm_bead_idx, &
-            helium%worm_xtra_bead,&
-            energy=oldheadpot)
-         oldheadpot = oldheadpot * helium%tau
+                                     helium%worm_atom_idx, helium%worm_bead_idx, &
+                                     helium%worm_xtra_bead, &
+                                     energy=oldheadpot)
+         oldheadpot = oldheadpot*helium%tau
 
          ! new head
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-            helium%pos(:,helium%worm_atom_idx_work, helium%worm_bead_idx_work),&
-            energy=newheadpot)
-         newheadpot = newheadpot * helium%tau
+                                     helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
+                                     helium%pos(:, helium%worm_atom_idx_work, helium%worm_bead_idx_work), &
+                                     energy=newheadpot)
+         newheadpot = newheadpot*helium%tau
 
          ! new tail not known yet
 
-         sold = sold + 0.5_dp * (oldtailpot + oldheadpot) + newheadpot
+         sold = sold+0.5_dp*(oldtailpot+oldheadpot)+newheadpot
       END IF
 
       ! copy position to the head bead
-      helium%worm_xtra_bead_work = helium%pos(:,helium%worm_atom_idx_work,helium%worm_bead_idx_work)
+      helium%worm_xtra_bead_work = helium%pos(:, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
       ! alternative grow with consecutive gaussians
       IF (helium%worm_bead_idx_work < helium%worm_bead_idx) THEN
          ! everything belongs to the same atom
          ! gro tail from endbead to startbead (confusing eh?)
-         DO kbead = helium%worm_bead_idx - 1, helium%worm_bead_idx_work, - 1
+         DO kbead = helium%worm_bead_idx-1, helium%worm_bead_idx_work, -1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx,kbead) = helium%work(idim, helium%worm_atom_idx, kbead + 1) + xr
+               helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead+1)+xr
             END DO
 
          END DO
       ELSE
          ! is distributed among two atoms
          ! grow from endbead
-         DO kbead = helium%worm_bead_idx - 1, 1, - 1
+         DO kbead = helium%worm_bead_idx-1, 1, -1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx,kbead) = helium%work(idim, helium%worm_atom_idx, kbead + 1) + xr
+               helium%work(idim, helium%worm_atom_idx, kbead) = helium%work(idim, helium%worm_atom_idx, kbead+1)+xr
             END DO
          END DO
 
@@ -2560,33 +2532,33 @@ CONTAINS
          DO idim = 1, 3
             xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                     variance=helium%hb2m*helium%tau)
-            helium%work(idim,helium%worm_atom_idx_work,helium%beads) = helium%work(idim, helium%worm_atom_idx, 1) + xr
+            helium%work(idim, helium%worm_atom_idx_work, helium%beads) = helium%work(idim, helium%worm_atom_idx, 1)+xr
          END DO
 
          ! rest on startatom
-         DO kbead = helium%beads - 1, helium%worm_bead_idx_work, - 1
+         DO kbead = helium%beads-1, helium%worm_bead_idx_work, -1
             DO idim = 1, 3
                xr = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                        variance=helium%hb2m*helium%tau)
-               helium%work(idim,helium%worm_atom_idx_work,kbead) = helium%work(idim, helium%worm_atom_idx_work, kbead + 1) + xr
+               helium%work(idim, helium%worm_atom_idx_work, kbead) = helium%work(idim, helium%worm_atom_idx_work, kbead+1)+xr
             END DO
          END DO
       END IF
 
       snew = worm_path_action(pint_env, helium, helium%work, &
-               helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-               helium%worm_atom_idx, helium%worm_bead_idx)
+                              helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
+                              helium%worm_atom_idx, helium%worm_bead_idx)
 
       IF (helium%solute_present) THEN
-         snew = snew + worm_path_inter_action_tail(pint_env, helium, helium%work, &
-               helium%worm_atom_idx, helium%worm_bead_idx, &
-               helium%worm_atom_idx_work, helium%worm_bead_idx_work)
-         snew = snew + 0.5_dp * newheadpot + oldtailpot
+         snew = snew+worm_path_inter_action_tail(pint_env, helium, helium%work, &
+                                                 helium%worm_atom_idx, helium%worm_bead_idx, &
+                                                 helium%worm_atom_idx_work, helium%worm_bead_idx_work)
+         snew = snew+0.5_dp*newheadpot+oldtailpot
       END IF
 
       ! Metropolis:
       ! action difference
-      sdiff = sold - snew
+      sdiff = sold-snew
       ! modify action difference due to extra bead
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
@@ -2604,7 +2576,7 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (helium%worm_bead_idx_work < helium%worm_bead_idx) THEN
                ! everything belongs to the same atom
-               DO kbead = helium%worm_bead_idx_work, helium%worm_bead_idx - 1
+               DO kbead = helium%worm_bead_idx_work, helium%worm_bead_idx-1
                   helium%work(:, helium%worm_atom_idx, kbead) = helium%pos(:, helium%worm_atom_idx, kbead)
                END DO
             ELSE
@@ -2614,7 +2586,7 @@ CONTAINS
                   helium%work(:, helium%worm_atom_idx_work, kbead) = helium%pos(:, helium%worm_atom_idx_work, kbead)
                END DO
                ! transfer to atom containing the tail bead
-               DO kbead = 1, helium%worm_bead_idx - 1
+               DO kbead = 1, helium%worm_bead_idx-1
                   helium%work(:, helium%worm_atom_idx, kbead) = helium%pos(:, helium%worm_atom_idx, kbead)
                END DO
             END IF
@@ -2655,17 +2627,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -2681,7 +2653,7 @@ CONTAINS
             ! transfer the new coordinates to work array
             IF (helium%worm_bead_idx_work < helium%worm_bead_idx) THEN
                ! everything belongs to the same atom
-               DO kbead = helium%worm_bead_idx_work, helium%worm_bead_idx - 1
+               DO kbead = helium%worm_bead_idx_work, helium%worm_bead_idx-1
                   helium%work(:, helium%worm_atom_idx, kbead) = helium%pos(:, helium%worm_atom_idx, kbead)
                END DO
             ELSE
@@ -2691,7 +2663,7 @@ CONTAINS
                   helium%work(:, helium%worm_atom_idx_work, kbead) = helium%pos(:, helium%worm_atom_idx_work, kbead)
                END DO
                ! transfer to atom containing the tail bead
-               DO kbead = 1, helium%worm_bead_idx - 1
+               DO kbead = 1, helium%worm_bead_idx-1
                   helium%work(:, helium%worm_atom_idx, kbead) = helium%pos(:, helium%worm_atom_idx, kbead)
                END DO
             END IF
@@ -2709,7 +2681,7 @@ CONTAINS
       ! write back only changed atoms
       IF (helium%worm_bead_idx_work < helium%worm_bead_idx) THEN
          ! everything belongs to the same atom
-         DO kbead = helium%worm_bead_idx_work, helium%worm_bead_idx - 1
+         DO kbead = helium%worm_bead_idx_work, helium%worm_bead_idx-1
             helium%pos(:, helium%worm_atom_idx, kbead) = helium%work(:, helium%worm_atom_idx, kbead)
          END DO
       ELSE
@@ -2719,7 +2691,7 @@ CONTAINS
             helium%pos(:, helium%worm_atom_idx_work, kbead) = helium%work(:, helium%worm_atom_idx_work, kbead)
          END DO
          ! transfer to atom containing the tail bead
-         DO kbead = 1, helium%worm_bead_idx - 1
+         DO kbead = 1, helium%worm_bead_idx-1
             helium%pos(:, helium%worm_atom_idx, kbead) = helium%work(:, helium%worm_atom_idx, kbead)
          END DO
       END IF
@@ -2727,186 +2699,67 @@ CONTAINS
       helium%worm_bead_idx = helium%worm_bead_idx_work
       helium%worm_atom_idx = helium%worm_atom_idx_work
 
-   RETURN
+      RETURN
 
    END SUBROUTINE worm_crawl_move_backward
 
+! **************************************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param startpos ...
+!> \param endpos ...
+!> \param l ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION free_density_matrix(helium, startpos, endpos, l) RESULT(rho)
 
-      IMPLICIT NONE
-
       TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: startpos, endpos
-      INTEGER, INTENT(IN) :: l
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: startpos, endpos
+      INTEGER, INTENT(IN)                                :: l
 
-      REAL(KIND=dp) :: prefac
-      REAL(KIND=dp), DIMENSION(3) :: dvec
-      REAL(KIND=dp) :: distsq
+      REAL(KIND=dp)                                      :: distsq, prefac
+      REAL(KIND=dp), DIMENSION(3)                        :: dvec
 
-      dvec(:) = startpos(:) - endpos(:)
+      dvec(:) = startpos(:)-endpos(:)
       CALL helium_pbc(helium, dvec)
-      distsq = DOT_PRODUCT(dvec,dvec)
+      distsq = DOT_PRODUCT(dvec, dvec)
 
-      prefac = 0.5_dp/(helium%hb2m*REAL(l,dp)*helium%tau)
-      rho = -prefac * distsq
+      prefac = 0.5_dp/(helium%hb2m*REAL(l, dp)*helium%tau)
+      rho = -prefac*distsq
       rho = EXP(rho)
-      rho = rho * (SQRT(prefac/pi))**3
+      rho = rho*(SQRT(prefac/pi))**3
 
       RETURN
 
    END FUNCTION free_density_matrix
 
-!   INTEGER FUNCTION select_swap_atom(helium, natoms, worm_xtra_bead, worm_atom_idx, worm_bead_idx, l) &
-!      RESULT(selatom)
-!
-!      IMPLICIT NONE
-!
-!      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
-!      INTEGER, INTENT(IN) :: natoms
-!      REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: worm_xtra_bead
-!      INTEGER, INTENT(IN) :: worm_atom_idx, worm_bead_idx
-!      INTEGER, INTENT(IN) :: l
-!
-!      REAL(KIND=dp), DIMENSION(natoms) :: atomwiseprob
-!      REAL(KIND=dp) :: sumprob
-!      REAL(KIND=dp) :: dbsumprob
-!
-!      REAL(KIND=dp) :: rtmp
-!
-!      INTEGER :: endbead
-!      INTEGER :: startatom, endatom
-!      INTEGER :: iatom, jatom
-!
-!      ! first the endbead of the reconstruction is needed
-!      endbead = worm_bead_idx+l+1
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU endbead:", endbead
-!#endif
-!      ! compute the atomwise probabilities to be the worms swap partner
-!      ! Check if the imaginary time section belongs to two atoms
-!      IF (endbead > helium%beads) THEN
-!         endbead = endbead - helium%beads
-!      END IF
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU endbead:", endbead
-!#endif
-!      DO iatom = 1, natoms
-!         atomwiseprob(iatom) = free_density_matrix(helium, worm_xtra_bead(:), &
-!                                  helium%pos(:,iatom,endbead),l)
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU, w --, ", iatom, endbead
-!WRITE(*,*) "@FU awprob:", atomwiseprob(iatom)
-!#endif
-!      END DO
-!
-!      ! sum of the probabilities
-!      sumprob = SUM(atomwiseprob)
-!
-!      ! Select an atom with its corresponding probability
-!      rtmp = next_random_number(helium%rng_stream_uniform) * sumprob
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU sp: ", sumprob, rtmp
-!#endif
-!      selatom = 1
-!      DO WHILE (rtmp >= atomwiseprob(selatom))
-!         rtmp = rtmp - atomwiseprob(selatom)
-!         selatom = selatom + 1
-!      END DO
-!      ! just for numerical safety
-!      selatom = MIN(selatom, helium%atoms)
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU selected ", selatom, atomwiseprob(selatom)
-!#endif
-!
-!      ! Reject if the selected path goes over the tail bead
-!      ! as this would create a closed configuration
-!      IF (endbead > worm_bead_idx) THEN
-!         IF (selatom == worm_atom_idx) THEN
-!            selatom = 0
-!            RETURN
-!         END IF
-!      ELSE ! (endbead < worm_bead_idx)
-!         IF (helium%permutation(worm_atom_idx) == selatom) THEN
-!            selatom = 0
-!            RETURN
-!         END IF
-!      END IF
-!
-!      ! ensure detailed balance
-!      dbsumprob = 0.0_dp
-!      IF (endbead > worm_bead_idx) THEN
-!         jatom = selatom
-!      ELSE
-!         jatom = helium%iperm(selatom)
-!      END IF
-!
-!      DO iatom = 1, natoms
-!         dbsumprob = dbsumprob + free_density_matrix(helium, &
-!                                    helium%pos(:,jatom,worm_bead_idx), &
-!                                    helium%pos(:,iatom,endbead),l)
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU, ", selatom,worm_bead_idx ,"--", iatom, endbead
-!#endif
-!      END DO
-!
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU dbsp, sp: ", dbsumprob, sumprob
-!#endif
-!
-!      ! perform test
-!      IF (dbsumprob > sumprob) THEN
-!         rtmp = next_random_number(helium%rng_stream_uniform)
-!#ifdef __FU_DEBUGWORM
-!WRITE(*,*) "@FU maybe reject"
-!WRITE(*,*) "@FU rng: ", rtmp
-!WRITE(*,*) "@FU sp/dbsp: ", sumprob/dbsumprob
-!#endif
-!         ! reject with probability (1-sumprob/dbsumprob)
-!         IF (rtmp > sumprob/dbsumprob) selatom = 0
-!      END IF
-!
-!      RETURN
-!
-!   END FUNCTION select_swap_atom
-
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param natoms ...
+!> \param l ...
+!> \param ac ...
+! **************************************************************************************************
    SUBROUTINE worm_swap_move(pint_env, helium, natoms, l, ac)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(INOUT)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(INOUT)     :: helium
-      INTEGER, INTENT(IN) :: natoms
-      INTEGER :: selatom
-      INTEGER, INTENT(IN) :: l
+      TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
+      TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
+      INTEGER, INTENT(IN)                                :: natoms, l
       INTEGER, INTENT(OUT)                               :: ac
 
-      INTEGER :: lsec
-      INTEGER                                            :: tmpi, ib, idim, prevatom, prevbead, ia, jatom
-      INTEGER :: iatom
-      INTEGER :: endbead
-      INTEGER :: startbead
-
-      INTEGER, DIMENSION(:), POINTER                     :: perm
-      REAL(KIND=dp), DIMENSION(3,l) :: newsection
-      REAL(KIND=dp), DIMENSION(natoms) :: forwarddensmat, backwarddensmat
-      REAL(KIND=dp)                                      :: dU, expdU, head(3), mass, Popen, rho, &
-                                                            rnew(3), tail(3), U, U1, U2, xr, xrr
-      REAL(KIND=dp) :: sold, snew, sdiff
-      REAL(KIND=dp) :: tsold, tsnew, psold, psnew
-      REAL(KIND=dp) :: lnrho, rtmp, rtmpo
-      REAL(KIND=dp), DIMENSION(3) :: new_com, old_com, dr, dro, r, rp
-      REAL(KIND=dp) :: prefac
-      REAL(KIND=dp) :: forwarddensmatsum, backwarddensmatsum
-
-      REAL(KIND=dp) :: oldheadpotential, newheadpotential
-
-      INTEGER :: fstartatom, fendatom
-      INTEGER :: bstartatom, bendatom
-      INTEGER :: excludeatom
-
-      INTEGER :: ibead, jbead, kbead
-      INTEGER :: watom
-      LOGICAL :: should_reject
+      INTEGER                                            :: bendatom, bstartatom, endbead, &
+                                                            excludeatom, fendatom, fstartatom, ia, &
+                                                            iatom, ib, ibead, jbead, kbead, &
+                                                            startbead, tmpi
+      LOGICAL                                            :: should_reject
+      REAL(KIND=dp)                                      :: backwarddensmatsum, forwarddensmatsum, &
+                                                            mass, newheadpotential, &
+                                                            oldheadpotential, rtmp, rtmpo, sdiff, &
+                                                            snew, sold
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, dro, new_com, old_com
+      REAL(KIND=dp), DIMENSION(3, l)                     :: newsection
+      REAL(KIND=dp), DIMENSION(natoms)                   :: backwarddensmat, forwarddensmat
 
       ! first the endbead of the reconstruction is needed
       startbead = helium%worm_bead_idx
@@ -2916,27 +2769,27 @@ CONTAINS
       ! compute the atomwise probabilities to be the worms swap partner
       ! Check if the imaginary time section belongs to two atoms
       IF (endbead > helium%beads) THEN
-         endbead = endbead - helium%beads
+         endbead = endbead-helium%beads
          ! exclude atom is the one not to connect to because it will result in an unnatural state
          excludeatom = helium%permutation(excludeatom)
       END IF
-      DO iatom = 1, excludeatom - 1
+      DO iatom = 1, excludeatom-1
          forwarddensmat(iatom) = free_density_matrix(helium, helium%worm_xtra_bead(:), &
-                                  helium%pos(:,iatom,endbead),l+1)
+                                                     helium%pos(:, iatom, endbead), l+1)
       END DO
       forwarddensmat(excludeatom) = 0.0_dp
-      DO iatom = excludeatom + 1, natoms
+      DO iatom = excludeatom+1, natoms
          forwarddensmat(iatom) = free_density_matrix(helium, helium%worm_xtra_bead(:), &
-                                  helium%pos(:,iatom,endbead),l+1)
+                                                     helium%pos(:, iatom, endbead), l+1)
       END DO
       forwarddensmatsum = SUM(forwarddensmat)
 
       ! Select an atom with its corresponding probability
-      rtmp = next_random_number(helium%rng_stream_uniform) * forwarddensmatsum
+      rtmp = next_random_number(helium%rng_stream_uniform)*forwarddensmatsum
       fendatom = 1
       DO WHILE (rtmp >= forwarddensmat(fendatom))
-         rtmp = rtmp - forwarddensmat(fendatom)
-         fendatom = fendatom + 1
+         rtmp = rtmp-forwarddensmat(fendatom)
+         fendatom = fendatom+1
       END DO
       ! just for numerical safety
       fendatom = MIN(fendatom, natoms)
@@ -2949,16 +2802,16 @@ CONTAINS
       END IF
       bendatom = fendatom
 
-      DO iatom = 1, excludeatom - 1
+      DO iatom = 1, excludeatom-1
          backwarddensmat(iatom) = free_density_matrix(helium, &
-                                     helium%pos(:,bstartatom,startbead), &
-                                     helium%pos(:,iatom,endbead),l+1)
+                                                      helium%pos(:, bstartatom, startbead), &
+                                                      helium%pos(:, iatom, endbead), l+1)
       END DO
       backwarddensmat(excludeatom) = 0.0_dp
-      DO iatom = excludeatom + 1, natoms
+      DO iatom = excludeatom+1, natoms
          backwarddensmat(iatom) = free_density_matrix(helium, &
-                                     helium%pos(:,bstartatom,startbead), &
-                                     helium%pos(:,iatom,endbead),l+1)
+                                                      helium%pos(:, bstartatom, startbead), &
+                                                      helium%pos(:, iatom, endbead), l+1)
       END DO
 
       backwarddensmatsum = SUM(backwarddensmat)
@@ -2967,32 +2820,32 @@ CONTAINS
 
       !compute action before the move
       sold = worm_path_action(pint_env, helium, helium%pos, &
-                bstartatom, startbead, fendatom, endbead)
+                              bstartatom, startbead, fendatom, endbead)
 
       IF (helium%solute_present) THEN
          ! no special head treatment needed, as it will change due to swapping
          ! the worm gap and due to primitive coupling no cross bead terms are considered
-         sold = sold + worm_path_inter_action(pint_env, helium, helium%pos,&
-                          bstartatom, startbead, fendatom, endbead)
+         sold = sold+worm_path_inter_action(pint_env, helium, helium%pos, &
+                                            bstartatom, startbead, fendatom, endbead)
          ! compute potential of old and new head here (only once, as later only a rescaling is neccessary)
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            fstartatom, startbead, helium%worm_xtra_bead,&
-            energy=oldheadpotential)
-         oldheadpotential = oldheadpotential * helium%tau
+                                     fstartatom, startbead, helium%worm_xtra_bead, &
+                                     energy=oldheadpotential)
+         oldheadpotential = oldheadpotential*helium%tau
 
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            bstartatom, startbead, helium%pos(:,bstartatom, startbead), &
-            energy=newheadpotential)
-         newheadpotential = newheadpotential * helium%tau
+                                     bstartatom, startbead, helium%pos(:, bstartatom, startbead), &
+                                     energy=newheadpotential)
+         newheadpotential = newheadpotential*helium%tau
 
-         sold = sold + 0.5_dp*oldheadpotential + newheadpotential
+         sold = sold+0.5_dp*oldheadpotential+newheadpotential
       END IF
 
       ! construct a new path connecting the start and endbead
       ! need to be the old coordinates due to reordering of the work coordinates
       CALL path_construct(helium, &
                           helium%worm_xtra_bead(:), &
-                          helium%pos(:,fendatom,endbead), l, &
+                          helium%pos(:, fendatom, endbead), l, &
                           newsection)
 
       !write new path segment to work array
@@ -3000,27 +2853,27 @@ CONTAINS
       jbead = 1
       IF (startbead < endbead) THEN
          ! everything belongs to the same atom
-         DO kbead = startbead + 1, endbead - 1
-            helium%work(:,fstartatom, kbead) = newsection(:,jbead)
-            jbead = jbead + 1
+         DO kbead = startbead+1, endbead-1
+            helium%work(:, fstartatom, kbead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
       ELSE
          ! is distributed among two atoms
          ! transfer to atom not containing the head bead
-         DO kbead = startbead + 1, helium%beads
-            helium%work(:,fstartatom, kbead) = newsection(:,jbead)
-            jbead = jbead + 1
+         DO kbead = startbead+1, helium%beads
+            helium%work(:, fstartatom, kbead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
          ! rest to the second atom
-         DO ibead = 1, endbead - 1
-            helium%work(:,fendatom,ibead) = newsection(:,jbead)
-            jbead = jbead + 1
+         DO ibead = 1, endbead-1
+            helium%work(:, fendatom, ibead) = newsection(:, jbead)
+            jbead = jbead+1
          END DO
       END IF
 
       !exchange coordinates head coordinate first
-      helium%work(:,helium%worm_atom_idx, helium%worm_bead_idx) = helium%worm_xtra_bead(:)
-      helium%worm_xtra_bead_work(:) = helium%pos(:,bstartatom, startbead)
+      helium%work(:, helium%worm_atom_idx, helium%worm_bead_idx) = helium%worm_xtra_bead(:)
+      helium%worm_xtra_bead_work(:) = helium%pos(:, bstartatom, startbead)
 
       ! move coordinates from former worm atom tail to new worm atom tail
       DO ib = startbead, helium%beads
@@ -3029,7 +2882,7 @@ CONTAINS
       ! need to copy the rest of pselatom to former worm atom
       IF (endbead > startbead) THEN
          DO ib = endbead, helium%beads
-            helium%work(:,fstartatom, ib) = helium%pos(:, bstartatom, ib)
+            helium%work(:, fstartatom, ib) = helium%pos(:, bstartatom, ib)
          END DO
       END IF
 
@@ -3046,33 +2899,33 @@ CONTAINS
 
       IF (endbead > startbead) THEN
          snew = worm_path_action(pint_env, helium, helium%work, &
-                   fstartatom, startbead, fstartatom, endbead)
+                                 fstartatom, startbead, fstartatom, endbead)
          IF (helium%solute_present) THEN
             ! no special head treatment needed, because a swap can't go over
             ! the worm gap and due to primitive coupling no cross bead terms are considered
-            snew = snew + worm_path_inter_action(pint_env, helium, helium%work,&
-                             fstartatom, startbead, fstartatom, endbead)
+            snew = snew+worm_path_inter_action(pint_env, helium, helium%work, &
+                                               fstartatom, startbead, fstartatom, endbead)
 
             ! add the previously computed old and new head actions
-            snew = snew + oldheadpotential + 0.5_dp*newheadpotential
+            snew = snew+oldheadpotential+0.5_dp*newheadpotential
          END IF
       ELSE
          snew = worm_path_action(pint_env, helium, helium%work, &
-                   fstartatom, startbead, helium%permutation(fstartatom), endbead)
+                                 fstartatom, startbead, helium%permutation(fstartatom), endbead)
          IF (helium%solute_present) THEN
             ! no special head treatment needed, because a swap can't go over
             ! the worm gap and due to primitive coupling no cross bead terms are considered
-            snew = snew + worm_path_inter_action(pint_env, helium, helium%work,&
-                             fstartatom, startbead, helium%permutation(fstartatom), endbead)
+            snew = snew+worm_path_inter_action(pint_env, helium, helium%work, &
+                                               fstartatom, startbead, helium%permutation(fstartatom), endbead)
 
             ! add the previously computed old and new head actions
-            snew = snew + oldheadpotential + 0.5_dp*newheadpotential
+            snew = snew+oldheadpotential+0.5_dp*newheadpotential
          END IF
       END IF
 
       ! Metropolis:
-      sdiff = sold - snew
-      sdiff = sdiff + LOG(forwarddensmatsum / backwarddensmatsum)
+      sdiff = sold-snew
+      sdiff = sdiff+LOG(forwarddensmatsum/backwarddensmatsum)
       IF (sdiff < 0) THEN
          should_reject = .FALSE.
          IF (sdiff < -100.0_dp) THEN ! To protect from exponential underflow
@@ -3087,16 +2940,16 @@ CONTAINS
             ! rejected !
             ! write back only changed atoms
             DO kbead = startbead, helium%beads
-               helium%work(:,bstartatom,kbead) = helium%pos(:,bstartatom,kbead)
+               helium%work(:, bstartatom, kbead) = helium%pos(:, bstartatom, kbead)
             END DO
             DO kbead = startbead, helium%beads
-               helium%work(:,fstartatom,kbead) = helium%pos(:,fstartatom,kbead)
+               helium%work(:, fstartatom, kbead) = helium%pos(:, fstartatom, kbead)
             END DO
             helium%worm_xtra_bead_work(:) = helium%worm_xtra_bead(:)
             helium%worm_atom_idx_work = helium%worm_atom_idx
             IF (startbead > endbead) THEN
                DO kbead = 1, endbead
-                  helium%work(:,fendatom,kbead) = helium%pos(:,fendatom,kbead)
+                  helium%work(:, fendatom, kbead) = helium%pos(:, fendatom, kbead)
                END DO
             END IF
             ! reset permtable
@@ -3141,17 +2994,17 @@ CONTAINS
          atom: DO ia = 1, helium%atoms
             dr(:) = 0.0_dp
             DO ib = 1, helium%beads
-               dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+               dr(:) = dr(:)+helium%work(:, ia, ib)-new_com(:)
             END DO
-            dr(:) = dr(:) / REAL(helium%beads, dp)
-            rtmp = DOT_PRODUCT(dr,dr)
+            dr(:) = dr(:)/REAL(helium%beads, dp)
+            rtmp = DOT_PRODUCT(dr, dr)
             IF (rtmp >= helium%droplet_radius**2) THEN
                dro(:) = 0.0_dp
                DO ib = 1, helium%beads
-                  dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+                  dro(:) = dro(:)+helium%pos(:, ia, ib)-old_com(:)
                END DO
-               dro(:) = dro(:) / REAL(helium%beads, dp)
-               rtmpo = DOT_PRODUCT(dro,dro)
+               dro(:) = dro(:)/REAL(helium%beads, dp)
+               rtmpo = DOT_PRODUCT(dro, dro)
                ! only reject if it moves away from COM outside the droplet radius
                IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
@@ -3163,16 +3016,16 @@ CONTAINS
          IF (should_reject) THEN
             ! write back only changed atoms
             DO kbead = startbead, helium%beads
-               helium%work(:,bstartatom,kbead) = helium%pos(:,bstartatom,kbead)
+               helium%work(:, bstartatom, kbead) = helium%pos(:, bstartatom, kbead)
             END DO
             DO kbead = startbead, helium%beads
-               helium%work(:,fstartatom,kbead) = helium%pos(:,fstartatom,kbead)
+               helium%work(:, fstartatom, kbead) = helium%pos(:, fstartatom, kbead)
             END DO
             helium%worm_xtra_bead_work(:) = helium%worm_xtra_bead(:)
             helium%worm_atom_idx_work = helium%worm_atom_idx
             IF (startbead > endbead) THEN
                DO kbead = 1, endbead
-                  helium%work(:,fendatom,kbead) = helium%pos(:,fendatom,kbead)
+                  helium%work(:, fendatom, kbead) = helium%pos(:, fendatom, kbead)
                END DO
             END IF
 
@@ -3192,16 +3045,16 @@ CONTAINS
       ! finally accepted
       ac = 1
       DO kbead = startbead, helium%beads
-         helium%pos(:,bstartatom,kbead) = helium%work(:,bstartatom,kbead)
+         helium%pos(:, bstartatom, kbead) = helium%work(:, bstartatom, kbead)
       END DO
       DO kbead = startbead, helium%beads
-         helium%pos(:,fstartatom,kbead) = helium%work(:,fstartatom,kbead)
+         helium%pos(:, fstartatom, kbead) = helium%work(:, fstartatom, kbead)
       END DO
       helium%worm_xtra_bead(:) = helium%worm_xtra_bead_work(:)
       helium%worm_atom_idx = helium%worm_atom_idx_work
       IF (startbead > endbead) THEN
          DO kbead = 1, endbead
-            helium%pos(:,fendatom,kbead) = helium%work(:,fendatom,kbead)
+            helium%pos(:, fendatom, kbead) = helium%work(:, fendatom, kbead)
          END DO
       END IF
 
@@ -3209,18 +3062,28 @@ CONTAINS
 
    END SUBROUTINE worm_swap_move
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param startatom ...
+!> \param startbead ...
+!> \param endatom ...
+!> \param endbead ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_action(pint_env, helium, pos, &
-      startatom, startbead, endatom, endbead) RESULT(partaction)
+                                           startatom, startbead, endatom, endbead) RESULT(partaction)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
       INTEGER, INTENT(IN)                                :: startatom, startbead, endatom, endbead
 
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
       INTEGER                                            :: iatom, ibead
+      REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
       partaction = 0.0_dp
       ! do action in two ways, depending
@@ -3233,10 +3096,10 @@ CONTAINS
             IF (iatom == startatom) CYCLE
             ! first the section up to the worm gap
             ! two less, because we need to work on the worm intersection separately
-            DO ibead = startbead, endbead - 1
-               r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-               rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            DO ibead = startbead, endbead-1
+               r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+               rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END DO
       ELSE !(startbead > endbead)
@@ -3247,27 +3110,27 @@ CONTAINS
             IF (iatom == startatom) CYCLE
             ! first the section up to the worm gap
             ! two less, because we need to work on the worm intersection separately
-            DO ibead = startbead, helium%beads - 1
-               r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-               rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            DO ibead = startbead, helium%beads-1
+               r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+               rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
 
             ! wrapping bond
-            r(:)  = pos(:, iatom, helium%beads)          - pos(:, startatom, helium%beads)
-            rp(:) = pos(:, helium%permutation(iatom), 1) - pos(:, endatom, 1)
-            partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            r(:) = pos(:, iatom, helium%beads)-pos(:, startatom, helium%beads)
+            rp(:) = pos(:, helium%permutation(iatom), 1)-pos(:, endatom, 1)
+            partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
          END DO
 
-            ! ending atom
+         ! ending atom
          DO iatom = 1, helium%atoms
             ! avoid self interaction
             IF (iatom == endatom) CYCLE
             !from first to endbead
-            DO ibead = 1, endbead - 1
-               r(:)  = pos(:, iatom, ibead)   - pos(:, endatom, ibead)
-               rp(:) = pos(:, iatom, ibead+1) - pos(:, endatom, ibead+1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            DO ibead = 1, endbead-1
+               r(:) = pos(:, iatom, ibead)-pos(:, endatom, ibead)
+               rp(:) = pos(:, iatom, ibead+1)-pos(:, endatom, ibead+1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END DO
 
@@ -3277,20 +3140,33 @@ CONTAINS
 
    END FUNCTION worm_path_action
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param startatom ...
+!> \param startbead ...
+!> \param endatom ...
+!> \param endbead ...
+!> \param xtrapos ...
+!> \param worm_atom_idx ...
+!> \param worm_bead_idx ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_action_worm_corrected(pint_env, helium, pos, &
-      startatom, startbead, endatom, endbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
+                                   startatom, startbead, endatom, endbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
       INTEGER, INTENT(IN)                                :: startatom, startbead, endatom, endbead
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: xtrapos
-      INTEGER, INTENT(IN) :: worm_atom_idx, worm_bead_idx
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xtrapos
+      INTEGER, INTENT(IN)                                :: worm_atom_idx, worm_bead_idx
 
       INTEGER                                            :: iatom, ibead
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
+      REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
       partaction = 0.0_dp
       ! do action in two ways, depending
@@ -3303,16 +3179,16 @@ CONTAINS
             IF (iatom == startatom) CYCLE
             ! first the section up to the worm gap
             ! two less, because we need to work on the worm intersection separately
-            DO ibead = startbead, worm_bead_idx - 2
-               r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-               rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            DO ibead = startbead, worm_bead_idx-2
+               r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+               rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
 
-            DO ibead = worm_bead_idx, endbead -1
-               r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-               rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            DO ibead = worm_bead_idx, endbead-1
+               r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+               rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END DO
 
@@ -3320,21 +3196,21 @@ CONTAINS
             DO iatom = 1, helium%atoms
                IF (iatom == startatom) CYCLE
                IF (iatom == worm_atom_idx) CYCLE
-               r(:)  = pos(:, iatom, worm_bead_idx-1) - pos(:, startatom, worm_bead_idx-1)
-               rp(:) = pos(:, iatom, worm_bead_idx)   - pos(:, startatom, worm_bead_idx)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = pos(:, iatom, worm_bead_idx-1)-pos(:, startatom, worm_bead_idx-1)
+               rp(:) = pos(:, iatom, worm_bead_idx)-pos(:, startatom, worm_bead_idx)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
             ! add pair action with worm
-            r(:)  = pos(:, startatom, worm_bead_idx-1) - pos(:, worm_atom_idx, worm_bead_idx-1)
-            rp(:) = pos(:, startatom, worm_bead_idx)   - xtrapos(:)
-            partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            r(:) = pos(:, startatom, worm_bead_idx-1)-pos(:, worm_atom_idx, worm_bead_idx-1)
+            rp(:) = pos(:, startatom, worm_bead_idx)-xtrapos(:)
+            partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
          ELSE
-               ! worm intersection
+            ! worm intersection
             DO iatom = 1, helium%atoms
                IF (iatom == startatom) CYCLE
-               r(:)  = pos(:, iatom, worm_bead_idx-1) - pos(:, startatom, worm_bead_idx-1)
-               rp(:) = pos(:, iatom, worm_bead_idx)   - xtrapos(:)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = pos(:, iatom, worm_bead_idx-1)-pos(:, startatom, worm_bead_idx-1)
+               rp(:) = pos(:, iatom, worm_bead_idx)-xtrapos(:)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             END DO
          END IF
       ELSE !(startbead > endbead)
@@ -3347,23 +3223,23 @@ CONTAINS
                IF (iatom == startatom) CYCLE
                ! first the section up to the worm gap
                ! two less, because we need to work on the worm intersection separately
-               DO ibead = startbead, worm_bead_idx - 2
-                  r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-                  rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               DO ibead = startbead, worm_bead_idx-2
+                  r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+                  rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
 
                ! up to the wrapping border
-               DO ibead = worm_bead_idx, helium%beads - 1
-                  r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-                  rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               DO ibead = worm_bead_idx, helium%beads-1
+                  r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+                  rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
 
                ! wrapping bond
-               r(:)  = pos(:, iatom, helium%beads)          - pos(:, startatom, helium%beads)
-               rp(:) = pos(:, helium%permutation(iatom), 1) - pos(:, helium%permutation(startatom), 1)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = pos(:, iatom, helium%beads)-pos(:, startatom, helium%beads)
+               rp(:) = pos(:, helium%permutation(iatom), 1)-pos(:, helium%permutation(startatom), 1)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
 
             END DO
 
@@ -3372,10 +3248,10 @@ CONTAINS
                ! avoid self interaction
                IF (iatom == endatom) CYCLE
                !from first to endbead
-               DO ibead = 1, endbead - 1
-                  r(:)  = pos(:, iatom, ibead)   - pos(:, endatom, ibead)
-                  rp(:) = pos(:, iatom, ibead+1) - pos(:, endatom, ibead+1)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               DO ibead = 1, endbead-1
+                  r(:) = pos(:, iatom, ibead)-pos(:, endatom, ibead)
+                  rp(:) = pos(:, iatom, ibead+1)-pos(:, endatom, ibead+1)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
             END DO
 
@@ -3383,21 +3259,21 @@ CONTAINS
                DO iatom = 1, helium%atoms
                   IF (iatom == startatom) CYCLE
                   IF (iatom == worm_atom_idx) CYCLE
-                  r(:)  = pos(:, iatom, worm_bead_idx-1) - pos(:, startatom, worm_bead_idx-1)
-                  rp(:) = pos(:, iatom, worm_bead_idx)   - pos(:, startatom, worm_bead_idx)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = pos(:, iatom, worm_bead_idx-1)-pos(:, startatom, worm_bead_idx-1)
+                  rp(:) = pos(:, iatom, worm_bead_idx)-pos(:, startatom, worm_bead_idx)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
                ! add pair action with worm
-               r(:)  = pos(:, startatom, worm_bead_idx-1) - pos(:, worm_atom_idx, worm_bead_idx-1)
-               rp(:) = pos(:, startatom, worm_bead_idx)   - xtrapos(:)
-               partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               r(:) = pos(:, startatom, worm_bead_idx-1)-pos(:, worm_atom_idx, worm_bead_idx-1)
+               rp(:) = pos(:, startatom, worm_bead_idx)-xtrapos(:)
+               partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
             ELSE
                ! worm intersection
                DO iatom = 1, helium%atoms
                   IF (iatom == startatom) CYCLE
-                  r(:)  = pos(:, iatom, worm_bead_idx-1) - pos(:, startatom, worm_bead_idx-1)
-                  rp(:) = pos(:, iatom, worm_bead_idx)   - xtrapos(:)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = pos(:, iatom, worm_bead_idx-1)-pos(:, startatom, worm_bead_idx-1)
+                  rp(:) = pos(:, iatom, worm_bead_idx)-xtrapos(:)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
             END IF
          ELSE !(worm_bead_idx < endbead)
@@ -3407,16 +3283,16 @@ CONTAINS
                   IF (iatom == startatom) CYCLE
                   ! first the section up to the end of the atom
                   ! one less, because we need to work on the wrapping separately
-                  DO ibead = startbead, helium%beads - 1
-                     r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-                     rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  DO ibead = startbead, helium%beads-1
+                     r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+                     rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
 
                   ! wrapping bond
-                  r(:)  = pos(:, iatom, helium%beads)          - pos(:, startatom, helium%beads)
-                  rp(:) = pos(:, helium%permutation(iatom), 1) - pos(:, helium%permutation(startatom), 1)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = pos(:, iatom, helium%beads)-pos(:, startatom, helium%beads)
+                  rp(:) = pos(:, helium%permutation(iatom), 1)-pos(:, helium%permutation(startatom), 1)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                END DO
 
                ! ending atom
@@ -3424,16 +3300,16 @@ CONTAINS
                   ! avoid self interaction
                   IF (iatom == endatom) CYCLE
                   !from first to two before the worm gap
-                  DO ibead = 1, worm_bead_idx - 2
-                     r(:)  = pos(:, iatom, ibead)   - pos(:, endatom, ibead)
-                     rp(:) = pos(:, iatom, ibead+1) - pos(:, endatom, ibead+1)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  DO ibead = 1, worm_bead_idx-2
+                     r(:) = pos(:, iatom, ibead)-pos(:, endatom, ibead)
+                     rp(:) = pos(:, iatom, ibead+1)-pos(:, endatom, ibead+1)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
 
-                  DO ibead = worm_bead_idx, endbead -1
-                     r(:)  = pos(:, iatom, ibead)   - pos(:, endatom, ibead)
-                     rp(:) = pos(:, iatom, ibead+1) - pos(:, endatom, ibead+1)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  DO ibead = worm_bead_idx, endbead-1
+                     r(:) = pos(:, iatom, ibead)-pos(:, endatom, ibead)
+                     rp(:) = pos(:, iatom, ibead+1)-pos(:, endatom, ibead+1)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                END DO
 
@@ -3441,21 +3317,21 @@ CONTAINS
                   DO iatom = 1, helium%atoms
                      IF (iatom == endatom) CYCLE
                      IF (iatom == worm_atom_idx) CYCLE
-                     r(:)  = pos(:, iatom, worm_bead_idx-1) - pos(:, endatom, worm_bead_idx-1)
-                     rp(:) = pos(:, iatom, worm_bead_idx)   - pos(:, endatom, worm_bead_idx)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                     r(:) = pos(:, iatom, worm_bead_idx-1)-pos(:, endatom, worm_bead_idx-1)
+                     rp(:) = pos(:, iatom, worm_bead_idx)-pos(:, endatom, worm_bead_idx)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                   ! add pair action with worm
-                  r(:)  = pos(:, endatom, worm_bead_idx-1) - pos(:, worm_atom_idx, worm_bead_idx-1)
-                  rp(:) = pos(:, endatom, worm_bead_idx)   - xtrapos(:)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = pos(:, endatom, worm_bead_idx-1)-pos(:, worm_atom_idx, worm_bead_idx-1)
+                  rp(:) = pos(:, endatom, worm_bead_idx)-xtrapos(:)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ELSE
                   ! worm intersection
                   DO iatom = 1, helium%atoms
                      IF (iatom == endatom) CYCLE
-                     r(:)  = pos(:, iatom, worm_bead_idx-1) - pos(:, endatom, worm_bead_idx-1)
-                     rp(:) = pos(:, iatom, worm_bead_idx)   - xtrapos(:)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                     r(:) = pos(:, iatom, worm_bead_idx-1)-pos(:, endatom, worm_bead_idx-1)
+                     rp(:) = pos(:, iatom, worm_bead_idx)-xtrapos(:)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                END IF
             ELSE !(worm_bead_idx == 1)
@@ -3465,19 +3341,19 @@ CONTAINS
                   IF (iatom == startatom) CYCLE
                   ! first the section up to the end of the atom
                   ! one less, because we need to work on the wrapping separately
-                  DO ibead = startbead, helium%beads - 1
-                     r(:)  = pos(:, iatom, ibead)   - pos(:, startatom, ibead)
-                     rp(:) = pos(:, iatom, ibead+1) - pos(:, startatom, ibead+1)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  DO ibead = startbead, helium%beads-1
+                     r(:) = pos(:, iatom, ibead)-pos(:, startatom, ibead)
+                     rp(:) = pos(:, iatom, ibead+1)-pos(:, startatom, ibead+1)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                END DO
 
                ! ending atom
                DO iatom = 1, helium%atoms
-                  DO ibead = 1, endbead -1
-                     r(:)  = pos(:, iatom, ibead)   - pos(:, endatom, ibead)
-                     rp(:) = pos(:, iatom, ibead+1) - pos(:, endatom, ibead+1)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  DO ibead = 1, endbead-1
+                     r(:) = pos(:, iatom, ibead)-pos(:, endatom, ibead)
+                     rp(:) = pos(:, iatom, ibead+1)-pos(:, endatom, ibead+1)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                END DO
 
@@ -3485,21 +3361,21 @@ CONTAINS
                   DO iatom = 1, helium%atoms
                      IF (iatom == endatom) CYCLE
                      IF (iatom == worm_atom_idx) CYCLE
-                     r(:)  = pos(:, helium%iperm(iatom), helium%beads ) - pos(:, startatom, helium%beads)
-                     rp(:) = pos(:, iatom, 1)             - pos(:, endatom, 1)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                     r(:) = pos(:, helium%iperm(iatom), helium%beads)-pos(:, startatom, helium%beads)
+                     rp(:) = pos(:, iatom, 1)-pos(:, endatom, 1)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                   ! add pair action with worm
-                  r(:)  = pos(:, startatom, helium%beads) - pos(:, helium%iperm(worm_atom_idx), helium%beads)
-                  rp(:) = pos(:, endatom, 1)   - xtrapos(:)
-                  partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                  r(:) = pos(:, startatom, helium%beads)-pos(:, helium%iperm(worm_atom_idx), helium%beads)
+                  rp(:) = pos(:, endatom, 1)-xtrapos(:)
+                  partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                ELSE
                   ! worm intersection
                   DO iatom = 1, helium%atoms
                      IF (iatom == endatom) CYCLE
-                     r(:)  = pos(:, helium%iperm(iatom), helium%beads) - pos(:, startatom, helium%beads)
-                     rp(:) = pos(:, iatom, 1)   - xtrapos(:)
-                     partaction = partaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+                     r(:) = pos(:, helium%iperm(iatom), helium%beads)-pos(:, startatom, helium%beads)
+                     rp(:) = pos(:, iatom, 1)-xtrapos(:)
+                     partaction = partaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
                   END DO
                END IF
             END IF
@@ -3510,19 +3386,28 @@ CONTAINS
 
    END FUNCTION worm_path_action_worm_corrected
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param startatom ...
+!> \param startbead ...
+!> \param endatom ...
+!> \param endbead ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_inter_action(pint_env, helium, pos, &
-      startatom, startbead, endatom, endbead) RESULT(partaction)
+                                                 startatom, startbead, endatom, endbead) RESULT(partaction)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
       INTEGER, INTENT(IN)                                :: startatom, startbead, endatom, endbead
 
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
-      REAL(KIND=dp) :: energy
-      INTEGER                                            :: iatom, ibead
+      INTEGER                                            :: ibead
+      REAL(KIND=dp)                                      :: energy
 
       partaction = 0.0_dp
 
@@ -3533,100 +3418,119 @@ CONTAINS
 
          ! interaction is only beadwise due to primitive coupling
          ! startatom and endatom are the same
-         DO ibead = startbead + 1, endbead - 1
+         DO ibead = startbead+1, endbead-1
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               startatom, ibead, pos(:,startatom, ibead),energy=energy)
-            partaction = partaction + energy
+                                        startatom, ibead, pos(:, startatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
 
       ELSE !(startbead > endbead)
 
          ! interaction is only beadwise due to primitive coupling
          ! startatom and endatom are different
-         DO ibead = startbead + 1, helium%beads
+         DO ibead = startbead+1, helium%beads
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               startatom, ibead, pos(:,startatom, ibead),energy=energy)
-            partaction = partaction + energy
+                                        startatom, ibead, pos(:, startatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
          ! second atom after imaginary time wrap
-         DO ibead = 1, endbead - 1
+         DO ibead = 1, endbead-1
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               endatom, ibead, pos(:,endatom, ibead),energy=energy)
-            partaction = partaction + energy
+                                        endatom, ibead, pos(:, endatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
       END IF
 
-      partaction = partaction * helium%tau
+      partaction = partaction*helium%tau
 
       RETURN
 
    END FUNCTION worm_path_inter_action
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param startatom ...
+!> \param startbead ...
+!> \param xtrapos ...
+!> \param worm_atom_idx ...
+!> \param worm_bead_idx ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_inter_action_head(pint_env, helium, pos, &
-      startatom, startbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
+                                                     startatom, startbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
 
-      IMPLICIT NONE
-
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
       INTEGER, INTENT(IN)                                :: startatom, startbead
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: xtrapos
-      INTEGER, INTENT(IN) :: worm_atom_idx, worm_bead_idx
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xtrapos
+      INTEGER, INTENT(IN)                                :: worm_atom_idx, worm_bead_idx
 
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
-      REAL(KIND=dp) :: energy
-      INTEGER                                            :: iatom, ibead
+      INTEGER                                            :: ibead
+      REAL(KIND=dp)                                      :: energy
 
       partaction = 0.0_dp
 
       ! helium interaction with the solute
       ! if coordinates are not wrapping
       IF (startbead < worm_bead_idx) THEN
-         DO ibead = startbead + 1, worm_bead_idx - 1
+         DO ibead = startbead+1, worm_bead_idx-1
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               startatom, ibead, pos(:,startatom, ibead), energy=energy)
-            partaction = partaction + energy
+                                        startatom, ibead, pos(:, startatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            startatom, ibead, xtrapos, energy=energy)
-         partaction = partaction + 0.5_dp*energy
+                                     startatom, ibead, xtrapos, energy=energy)
+         partaction = partaction+0.5_dp*energy
       ELSE !(startbead > worm_bead_idx)
-         DO ibead = startbead + 1, helium%beads
+         DO ibead = startbead+1, helium%beads
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               startatom, ibead, pos(:,startatom, ibead), energy=energy)
-            partaction = partaction + energy
+                                        startatom, ibead, pos(:, startatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
-         DO ibead = 1, worm_bead_idx - 1
+         DO ibead = 1, worm_bead_idx-1
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               worm_atom_idx, ibead, pos(:,worm_atom_idx, ibead), energy=energy)
-            partaction = partaction + energy
+                                        worm_atom_idx, ibead, pos(:, worm_atom_idx, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            worm_atom_idx, ibead, xtrapos, energy=energy)
-         partaction = partaction + 0.5_dp*energy
+                                     worm_atom_idx, ibead, xtrapos, energy=energy)
+         partaction = partaction+0.5_dp*energy
       END IF
 
-      partaction = partaction * helium%tau
+      partaction = partaction*helium%tau
 
       RETURN
 
    END FUNCTION worm_path_inter_action_head
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param helium ...
+!> \param pos ...
+!> \param endatom ...
+!> \param endbead ...
+!> \param worm_atom_idx ...
+!> \param worm_bead_idx ...
+!> \return ...
+! **************************************************************************************************
    REAL(KIND=dp) FUNCTION worm_path_inter_action_tail(pint_env, helium, pos, &
-      endatom, endbead, worm_atom_idx, worm_bead_idx) RESULT(partaction)
+                                                      endatom, endbead, worm_atom_idx, worm_bead_idx) RESULT(partaction)
 
-      IMPLICIT NONE
+      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
+      TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pos
+      INTEGER, INTENT(IN)                                :: endatom, endbead, worm_atom_idx, &
+                                                            worm_bead_idx
 
-      TYPE(pint_env_type), POINTER, INTENT(IN)                       :: pint_env
-      TYPE(helium_solvent_type), POINTER, INTENT(IN)     :: helium
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, INTENT(IN)           :: pos
-      INTEGER, INTENT(IN)                                :: endatom, endbead
-      INTEGER, INTENT(IN) :: worm_atom_idx, worm_bead_idx
-
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
-      REAL(KIND=dp) :: energy
-      INTEGER                                            :: iatom, ibead
+      INTEGER                                            :: ibead
+      REAL(KIND=dp)                                      :: energy
 
       partaction = 0.0_dp
 
@@ -3634,265 +3538,33 @@ CONTAINS
       ! if coordinates are not wrapping
       IF (worm_bead_idx < endbead) THEN
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            worm_atom_idx, worm_bead_idx, pos(:,worm_atom_idx, worm_bead_idx), energy=energy)
-         partaction = partaction + 0.5_dp*energy
-         DO ibead = worm_bead_idx + 1, endbead - 1
+                                     worm_atom_idx, worm_bead_idx, pos(:, worm_atom_idx, worm_bead_idx), energy=energy)
+         partaction = partaction+0.5_dp*energy
+         DO ibead = worm_bead_idx+1, endbead-1
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               endatom, ibead, pos(:,endatom, ibead), energy=energy)
-            partaction = partaction + energy
+                                        endatom, ibead, pos(:, endatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
       ELSE !(worm_bead_idx > endbead)
          CALL helium_bead_solute_e_f(pint_env, helium, &
-            worm_atom_idx, worm_bead_idx, pos(:,worm_atom_idx, worm_bead_idx), energy=energy)
-         partaction = partaction + 0.5_dp*energy
-         DO ibead = worm_bead_idx + 1, helium%beads
+                                     worm_atom_idx, worm_bead_idx, pos(:, worm_atom_idx, worm_bead_idx), energy=energy)
+         partaction = partaction+0.5_dp*energy
+         DO ibead = worm_bead_idx+1, helium%beads
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               worm_atom_idx, ibead, pos(:,worm_atom_idx, ibead), energy=energy)
-            partaction = partaction + energy
+                                        worm_atom_idx, ibead, pos(:, worm_atom_idx, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
-         DO ibead = 1, endbead - 1
+         DO ibead = 1, endbead-1
             CALL helium_bead_solute_e_f(pint_env, helium, &
-               endatom, ibead, pos(:,endatom, ibead), energy=energy)
-            partaction = partaction + energy
+                                        endatom, ibead, pos(:, endatom, ibead), energy=energy)
+            partaction = partaction+energy
          END DO
       END IF
 
-      partaction = partaction * helium%tau
+      partaction = partaction*helium%tau
 
       RETURN
 
    END FUNCTION worm_path_inter_action_tail
-
-   !FUNCTION worm_droplet_reject(helium,) RESULT(should_reject)
-   !   IMPLICIT NONE
-
-   !   TYPE(helium_solvent_type), POINTER, INTENT(IN)   :: helium
-   !   LOGICAL, INTENT(OUT)                             :: should, reject
-
-   !   INTEGER                     :: ia, ib
-   !   REAL(KIND=dp)               :: rtmp, rtmpo
-   !   REAL(KIND=dp), DIMENSION(3) :: dr, dro, new_com, old_com
-
-   !   IF (helium%solute_present) THEN
-   !      new_com(:) = helium%center(:)
-   !      old_com(:) = new_com(:)
-   !   ELSE
-   !      new_com(:) = 0.0_dp
-   !      DO ia = 1, helium%atoms
-   !         DO ib = 1, helium%beads
-   !            new_com(:) = new_com(:)+helium%work(:, ia, ib)
-   !         END DO
-   !      END DO
-   !      new_com(:) = new_com(:)/(REAL(helium%atoms*helium%beads, dp))
-   !      ! also compute the old center of mass (optimization potential)
-   !      old_com(:) = 0.0_dp
-   !      DO ia = 1, helium%atoms
-   !         DO ib = 1, helium%beads
-   !            old_com(:) = old_com(:)+helium%pos(:, ia, ib)
-   !         END DO
-   !      END DO
-   !      old_com(:) = old_com(:)/(REAL(helium%atoms*helium%beads, dp))
-   !   END IF
-   !   should_reject = .FALSE.
-   !   atom: DO ia = 1, helium%atoms
-   !      dr(:) = 0.0_dp
-   !      DO ib = 1, helium%beads
-   !         dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
-   !      END DO
-   !      dr(:) = dr(:) / REAL(helium%beads, dp)
-   !      rtmp = DOT_PRODUCT(dr,dr)
-   !      IF (rtmp >= helium%droplet_radius**2) THEN
-   !         dro(:) = 0.0_dp
-   !         DO ib = 1, helium%beads
-   !            dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
-   !         END DO
-   !         dro(:) = dro(:) / REAL(helium%beads, dp)
-   !         rtmpo = DOT_PRODUCT(dro,dro)
-   !         ! only reject if it moves away from COM outside the droplet radius
-   !         IF (rtmpo < rtmp) THEN
-   !            ! found - this one does not fit within R from the center
-   !            should_reject = .TRUE.
-   !            EXIT atom
-   !         END IF
-   !      END IF
-   !   END DO atom
-
-   !END FUNCTION worm_droplet_reject
-
-#ifdef __FU_DEBUGWORM
-   SUBROUTINE worm_write_open_state_pdb(helium, working)
-
-      IMPLICIT NONE
-
-      TYPE(helium_solvent_type), POINTER, INTENT(IN) :: helium
-      LOGICAL, INTENT(IN) :: working
-
-      INTEGER :: iatom, ibead, idim
-      INTEGER :: satom
-      INTEGER, PARAMETER :: iounit=137
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: pos
-      REAL(KIND=dp), DIMENSION(3) :: xtrapos
-      INTEGER :: wbead, watom, pwatom
-      INTEGER :: j, k, l
-      LOGICAL :: fileexists
-      CHARACTER(LEN=1) :: st
-
-      IF (working) THEN
-         pos => helium%work
-         IF (helium%worm_is_closed) THEN
-            watom = 1
-            wbead = 1
-            xtrapos(:) = helium%work(:,watom, wbead)
-         ELSE
-            watom = helium%worm_atom_idx_work
-            wbead = helium%worm_bead_idx_work
-            xtrapos(:) = helium%worm_xtra_bead_work(:)
-         END IF
-         st = "w"
-      ELSE
-         pos => helium%pos
-         IF (helium%worm_is_closed) THEN
-            watom = 1
-            wbead = 1
-            xtrapos(:) = helium%pos(:,watom, wbead)
-         ELSE
-            watom = helium%worm_atom_idx
-            wbead = helium%worm_bead_idx
-            xtrapos(:) = helium%worm_xtra_bead(:)
-         END IF
-         st = "p"
-      END IF
-WRITE(*,*) "@FU perm : ", helium%permutation
-WRITE(*,*) "@FU iperm: ", helium%iperm
-      pwatom = helium%iperm(watom)
-
-      INQUIRE(FILE="worm_coord"//st//".pdb", EXIST=fileexists)
-      IF (fileexists) THEN
-         OPEN(UNIT=iounit, FILE="worm_coord"//st//".pdb", STATUS="old", POSITION="append")
-         WRITE(*,*) "@FU appending to file"
-      ELSE
-         OPEN(UNIT=iounit, FILE="worm_coord"//st//".pdb", STATUS="new")
-         WRITE(*,*) "@FU creating new file"
-      END IF
-         WRITE(UNIT=iounit,FMT='(A6,3F9.3,3F7.2,1X,A11,I4)') &
-            "CRYST1",  &
-            [(11.354, idim=1,3)],  &
-            [(90.0, idim=1,3)],  &
-            "O",  &
-            helium%atoms
-         DO iatom = 1, helium%atoms
-            DO ibead = 1, helium%beads
-               satom = ibead + (iatom-1)*helium%beads
-               WRITE(UNIT=iounit, &
-                  FMT='(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3x,3F8.3,2F6.2,6X,2A4,A2)') &
-                  "ATOM  ", &
-                  satom, &
-                  "He  ", &
-                  " ", &
-                  "NRM", &
-                  "X", &
-                  iatom, &
-                  " ", &
-                  pos(1,iatom, ibead), &
-                  pos(2,iatom, ibead), &
-                  pos(3,iatom, ibead), &
-                  1.0, &
-                  0.0, &
-                  "    ", &
-                  "He  ", &
-                  "  "
-            END DO
-         END DO
-         ! write extra bead
-         satom = helium%beads * helium%atoms + 1
-         WRITE(UNIT=iounit, &
-            FMT='(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3x,3F8.3,2F6.2,6X,2A4,A2)') &
-            "ATOM  ", &
-            satom, &
-            "He  ", &
-            " ", &
-            "WRM", &
-            "X", &
-            iatom, &
-            " ", &
-            xtrapos(1), &
-            xtrapos(2), &
-            xtrapos(3), &
-            1.0, &
-            0.0, &
-            "    ", &
-            "He  ", &
-            "  "
-         ! write connectivity
-         IF (helium%worm_is_closed) THEN
-            DO iatom = 1, helium%atoms
-               ! interatom connect
-               j = 1 + (iatom-1)*helium%beads
-               k = j + 1
-               l = helium%beads + (helium%permutation(iatom)-1)*helium%beads
-               WRITE(UNIT=iounit,FMT='(A6,3I5)') "CONECT", j, k, l
-               DO ibead = 2, helium%beads-1
-                  j = ibead + (iatom-1)*helium%beads
-                  k = j + 1
-                  WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-               END DO
-            END DO
-         ELSE
-            DO iatom = 1, helium%atoms
-               IF (iatom == watom) CYCLE
-               ! interatom connect
-               j = 1 + (iatom-1)*helium%beads
-               k = j + 1
-               l = helium%beads + (helium%permutation(iatom)-1)*helium%beads
-               WRITE(UNIT=iounit,FMT='(A6,3I5)') "CONECT", j, k, l
-               DO ibead = 2, helium%beads-1
-                  j = ibead + (iatom-1)*helium%beads
-                  k = j + 1
-                  WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-               END DO
-            END DO
-            ! special treatment for worm containing atoms
-            iatom = watom
-            IF (wbead == 1) THEN
-               ! connect extra bead
-               j = helium%beads + (helium%iperm(iatom)-1)*helium%beads
-               k = helium%beads * helium%atoms + 1
-
-               WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-               j = 1 + (iatom-1)*helium%beads
-               k = j + 1
-               WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-            ELSE IF (wbead == 2) THEN
-               ! interatom connect
-               j = 1 + (iatom-1)*helium%beads
-               k = helium%beads + (helium%iperm(iatom)-1)*helium%beads
-               l = helium%beads * helium%atoms + 1
-               WRITE(UNIT=iounit,FMT='(A6,3I5)') "CONECT", j, k, l
-            ELSE
-               ! interatom connect
-               j = 1 + (iatom-1)*helium%beads
-               k = j + 1
-               l = helium%beads + (helium%iperm(iatom)-1)*helium%beads
-               WRITE(UNIT=iounit,FMT='(A6,3I5)') "CONECT", j, k, l
-               DO ibead = 2, wbead - 2
-                  j = ibead + (iatom-1)*helium%beads
-                  k = j + 1
-                  WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-               END DO
-               j = wbead + (iatom-1)*helium%beads - 1
-               k = helium%beads * helium%atoms + 1
-               WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-            END IF
-            DO ibead = wbead, helium%beads-1
-               j = ibead + (iatom-1)*helium%beads
-               k = j + 1
-               WRITE(UNIT=iounit,FMT='(A6,2I5)') "CONECT", j, k
-            END DO
-         END IF
-         WRITE(UNIT=iounit, FMT='(A6)') "END   "
-      CLOSE(iounit)
-
-   END SUBROUTINE worm_write_open_state_pdb
-#endif
 
 END MODULE helium_worm
