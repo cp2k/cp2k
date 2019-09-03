@@ -41,9 +41,7 @@ MODULE helium_interactions
    PUBLIC :: helium_calc_energy
    PUBLIC :: helium_total_link_action
    PUBLIC :: helium_total_pair_action
-   PUBLIC :: helium_total_pair_actionw
    PUBLIC :: helium_total_inter_action
-   PUBLIC :: helium_total_inter_actionw
    PUBLIC :: helium_solute_e_f
    PUBLIC :: helium_bead_solute_e_f
    PUBLIC :: helium_intpot_scan
@@ -294,87 +292,6 @@ CONTAINS
    END FUNCTION helium_total_pair_action
 
 ! ***************************************************************************
-!> \brief  Computes the total pair action of the helium
-!> \param helium ...
-!> \return ...
-!> \date   2016-05-03
-!> \author Felix Uhl
-! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION helium_total_pair_actionw(helium) RESULT(pairaction)
-
-      TYPE(helium_solvent_type), POINTER                 :: helium
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_actionw', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: iatom, ibead, jatom, opatom, patom
-      INTEGER, DIMENSION(:), POINTER                     :: perm
-      REAL(KIND=dp), DIMENSION(3)                        :: r, rp
-
-      perm => helium%permutation
-      pairaction = 0.0_dp
-
-      ! He-He pair action
-      DO ibead = 1, helium%beads-1
-         DO iatom = 1, helium%atoms-1
-            DO jatom = iatom+1, helium%atoms
-               r(:) = helium%work(:, iatom, ibead)-helium%work(:, jatom, ibead)
-               rp(:) = helium%work(:, iatom, ibead+1)-helium%work(:, jatom, ibead+1)
-               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
-            END DO
-         END DO
-      END DO
-      !Ensure right permutation for pair action of last and first beads.
-      DO iatom = 1, helium%atoms-1
-         DO jatom = iatom+1, helium%atoms
-            r(:) = helium%work(:, iatom, helium%beads)-helium%work(:, jatom, helium%beads)
-            rp(:) = helium%work(:, perm(iatom), 1)-helium%work(:, perm(jatom), 1)
-            pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
-         END DO
-      END DO
-
-      ! correct for open worm configurations
-      IF (.NOT. helium%worm_is_closed) THEN
-         ! special treatment if double bead is first bead
-         iatom = helium%worm_atom_idx_work
-         IF (helium%worm_bead_idx_work == 1) THEN
-            ! patom is the atom in front of the lone head bead
-            patom = helium%iperm(iatom)
-            ! go through all atoms
-            DO jatom = 1, helium%atoms
-               IF (jatom == helium%worm_atom_idx_work) CYCLE
-               opatom = helium%iperm(jatom)
-               ! substract pair action for closed link
-               r(:) = helium%work(:, iatom, 1)-helium%work(:, jatom, 1)
-               rp(:) = helium%work(:, patom, helium%beads)-helium%work(:, opatom, helium%beads)
-               pairaction = pairaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
-               ! and add corrected extra link
-               ! rp stays the same
-               r(:) = helium%worm_xtra_bead_work(:)-helium%work(:, jatom, 1)
-               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
-            END DO
-         ELSE
-            ! bead stays constant
-            ibead = helium%worm_bead_idx_work
-            ! go through all atoms
-            DO jatom = 1, helium%atoms
-               IF (jatom == helium%worm_atom_idx_work) CYCLE
-               ! substract pair action for closed link
-               r(:) = helium%work(:, iatom, ibead)-helium%work(:, jatom, ibead)
-               rp(:) = helium%work(:, iatom, ibead-1)-helium%work(:, jatom, ibead-1)
-               pairaction = pairaction-helium_eval_expansion(helium, r, rp, helium%uij, 1)
-               ! and add corrected extra link
-               ! rp stays the same
-               r(:) = helium%worm_xtra_bead_work(:)-helium%work(:, jatom, ibead)
-               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
-            END DO
-         END IF
-      END IF
-
-      RETURN
-   END FUNCTION helium_total_pair_actionw
-
-! ***************************************************************************
 !> \brief  Computes the total interaction of the helium with the solute
 !> \param pint_env ...
 !> \param helium ...
@@ -425,55 +342,6 @@ CONTAINS
 
       RETURN
    END FUNCTION helium_total_inter_action
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param helium ...
-!> \return ...
-! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION helium_total_inter_actionw(pint_env, helium) RESULT(interaction)
-
-      TYPE(pint_env_type), POINTER                       :: pint_env
-      TYPE(helium_solvent_type), POINTER                 :: helium
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_inter_actionw', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: iatom, ibead
-      REAL(KIND=dp)                                      :: e
-
-      interaction = 0.0_dp
-
-      ! InterAction with solute
-      IF (helium%solute_present) THEN
-         DO ibead = 1, helium%beads
-            DO iatom = 1, helium%atoms
-               CALL helium_bead_solute_e_f(pint_env, helium, &
-                                           iatom, ibead, helium%work(:, iatom, ibead), e)
-               interaction = interaction+e
-            END DO
-         END DO
-         IF (helium%sampling_method == helium_sampling_worm) THEN
-            IF (.NOT. helium%worm_is_closed) THEN
-               ! subtract half of tail bead interaction again
-               CALL helium_bead_solute_e_f(pint_env, helium, &
-                                           helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-                                           helium%work(:, helium%worm_atom_idx_work, helium%worm_bead_idx_work), e)
-               interaction = interaction-0.5_dp*e
-               ! add half of head bead interaction
-               CALL helium_bead_solute_e_f(pint_env, helium, &
-                                           helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
-                                           helium%worm_xtra_bead_work, e)
-               interaction = interaction+0.5_dp*e
-            END IF
-         END IF
-      END IF
-
-      interaction = interaction*helium%tau
-
-      RETURN
-   END FUNCTION helium_total_inter_actionw
 
 ! ***************************************************************************
 !> \brief Calculate general helium-solute interaction energy (and forces)
