@@ -68,9 +68,6 @@ call_collocate_omp.f90: Routine COLLOCATE_CORE_8 called with an implicit interfa
 call_collocate_omp.f90: Routine COLLOCATE_CORE_9 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit interface.
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test"
-cp2k_shell.F: Found GOTO statement in procedure "cp2k_shell"
-cp2k_shell.F: Found OPEN statement in procedure "get_eof_stat"
-cp2k_shell.F: Found READ with unchecked STAT in "cp2k_shell"
 cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
@@ -155,14 +152,12 @@ library_tests.F: Routine PILAENV called with an implicit interface.
 machine_cpuid.c: Copyright banner malformed
 machine_cpuid.h: Copyright banner malformed
 machine.F: Found OPEN statement in procedure "m_cpuinfo"
-machine_internal.F: Found CALL m_abort in procedure "m_getarg"
 machine_internal.F: Found CALL m_abort in procedure "m_getcwd"
 machine_internal.F: Found CALL m_abort in procedure "m_hostnm"
 machine_internal.F: Found CALL m_abort in procedure "m_mov"
 machine_internal.F: Found CLOSE statement in procedure "m_memory_details"
 machine_internal.F: Found OPEN statement in procedure "m_memory"
 machine_internal.F: Found OPEN statement in procedure "m_memory_details"
-machine_internal.F: Found WRITE statement with hardcoded unit in "m_getarg"
 machine_internal.F: Found WRITE statement with hardcoded unit in "m_getcwd"
 machine_internal.F: Found WRITE statement with hardcoded unit in "m_hostnm"
 machine_internal.F: Found WRITE statement with hardcoded unit in "m_mov"
