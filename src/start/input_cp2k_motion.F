@@ -33,9 +33,8 @@ MODULE input_cp2k_motion
         helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
         helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
         helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
-        helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_ch5, &
-        helium_solute_intpot_cubetable, helium_solute_intpot_mwater, helium_solute_intpot_none, &
-        helium_solute_intpot_seltable, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, &
+        helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
+        helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, &
         ls_fit, ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, &
         perm_cycle, perm_plain, propagator_pimd, propagator_rpmd, transformation_normal, &
         transformation_stage
