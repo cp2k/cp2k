@@ -1,54 +1,75 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # author: Ole Schuett
 
+from __future__ import print_function
 
-import sys
-from os import path
+import argparse
 
-#===============================================================================
-def main():
-    if(len(sys.argv) < 2):
-        print("Usage: summarize_issues.py [--suppressions=<supp-file>] <issue-file-1> ... <issue-file-N>")
-        print("       This combines multiple files with issues into a dashboard-report.\n")
-        sys.exit(1)
+
+def summarize(issue_files, suppressions):
 
     suppress = []
-    issue_files = sys.argv[1:]
-    if sys.argv[1].startswith("--suppressions="):
-        content = open(sys.argv[1].split("=")[1]).read()
-        lines = [l.strip() for l in content.split("\n") if len(l.strip())>0 ]
-        suppress = [l for l in lines if not l.startswith("#")]
-        issue_files = sys.argv[2:]
+
+    if suppressions:
+        with open(suppressions) as fhandle:
+            suppress = (line.rstrip() for line in fhandle)
+            # ignore empty and commented out lines
+            suppress = [line for line in suppress if line and not line.startswith("#")]
 
     issues = []
+
     for fn in issue_files:
-        issues += open(fn).read().split("\n")
+        with open(fn) as fhandle:
+            lines = (line.strip() for line in fhandle)
+            # only add non-empty lines
+            issues += [line for line in lines if line]
 
-    issues = [i for i in issues if len(i.strip())>0]
     issues = sorted(set(issues))
-    issues_shown = [i for i in issues   if(i not in suppress)]
-    issues_supp  = [i for i in issues   if(i     in suppress)]
-    unused_supp  = [i for i in suppress if(i not in issues)]
+    issues_shown = [i for i in issues if i not in suppress]
+    issues_supp = [i for i in issues if i in suppress]
+    unused_supp = [i for i in suppress if i not in issues]
 
+    print("Suppressed entries:\n")
     for i in issues_supp:
-        print(i+" (suppressed)")
+        print("  {}".format(i))
+    print()
 
-    #for i in unused_supp:
-    #    print(i+" (unused suppression)")
-    print("There are %d unused suppressions.\n"%len(unused_supp))
+    print("There are %d unused suppressions:\n" % len(unused_supp))
+    for i in unused_supp:
+        print("  {}".format(i))
+    print()
 
+    print("Found {} unsuppressed issues:\n".format(len(issues_shown)))
     for i in issues_shown:
-        print(i)
+        print("  {}".format(i))
 
-    n = len(issues_shown)
-    m = len(issues_supp)
-    print('\nPlot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"')
-    print('PlotPoint: name="coding", plot="supps", label="Coding Conventions", y=%d, yerr=0'%m)
-    print("Summary: Found %d issues (%d suppressed)"%(n, m))
-    print("Status: " + ("OK" if n==0 else "FAILED"))
+    print(
+        """
+Plot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"
+PlotPoint: name="coding", plot="supps", label="Coding Conventions", y={suppressed}, yerr=0
+Summary: Found {issues} issues ({suppressed} suppressed)
+Status: {status}""".format(
+            issues=len(issues_shown),
+            suppressed=len(issues_supp),
+            status="FAILED" if issues_shown else "OK",
+        )
+    )
 
 
-#===============================================================================
-main()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Combines multiple files with issues into a dashboard-report"
+    )
+    parser.add_argument(
+        "files",
+        metavar="<issue-file>",
+        type=str,
+        nargs="+",
+        help="files containing the logs of detected issues",
+    )
+    parser.add_argument("--suppressions", type=str)
+    args = parser.parse_args()
+
+    summarize(args.files, args.suppressions)
