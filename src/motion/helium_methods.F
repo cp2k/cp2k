@@ -477,9 +477,52 @@ CONTAINS
                END IF
                helium_env(k)%helium%worm_ln_openclose_scale = LOG(rtmp)
 
-               ! deal with accptance statistics without changing the ceperley stuff
+               ! deal with acceptance statistics without changing the ceperley stuff
                helium_env(k)%helium%maxcycle = 1
                helium_env(k)%helium%bisctlog2 = 0
+
+               ! get the absolute weights of the individual moves
+               helium_env(k)%helium%worm_all_limit = 0
+               CALL section_vals_val_get(helium_section, "WORM%CENTROID_WEIGHT", &
+                                         i_val=itmp)
+               helium_env(k)%helium%worm_centroid_min = 1
+               helium_env(k)%helium%worm_centroid_max = itmp
+               helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+               CALL section_vals_val_get(helium_section, "WORM%STAGING_WEIGHT", &
+                                         i_val=itmp)
+               helium_env(k)%helium%worm_staging_min = helium_env(k)%helium%worm_centroid_max+1
+               helium_env(k)%helium%worm_staging_max = helium_env(k)%helium%worm_centroid_max+itmp
+               helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+               IF (helium_env(k)%helium%worm_allow_open) THEN
+                  CALL section_vals_val_get(helium_section, "WORM%CRAWL_WEIGHT", &
+                                            i_val=itmp)
+                  helium_env(k)%helium%worm_fcrawl_min = helium_env(k)%helium%worm_staging_max+1
+                  helium_env(k)%helium%worm_fcrawl_max = helium_env(k)%helium%worm_staging_max+itmp
+                  helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+                  helium_env(k)%helium%worm_bcrawl_min = helium_env(k)%helium%worm_fcrawl_max+1
+                  helium_env(k)%helium%worm_bcrawl_max = helium_env(k)%helium%worm_fcrawl_max+itmp
+                  helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+                  CALL section_vals_val_get(helium_section, "WORM%HEAD_TAIL_WEIGHT", &
+                                            i_val=itmp)
+                  helium_env(k)%helium%worm_head_min = helium_env(k)%helium%worm_bcrawl_max+1
+                  helium_env(k)%helium%worm_head_max = helium_env(k)%helium%worm_bcrawl_max+itmp
+                  helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+                  helium_env(k)%helium%worm_tail_min = helium_env(k)%helium%worm_head_max+1
+                  helium_env(k)%helium%worm_tail_max = helium_env(k)%helium%worm_head_max+itmp
+                  helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+                  CALL section_vals_val_get(helium_section, "WORM%SWAP_WEIGHT", &
+                                            i_val=itmp)
+                  helium_env(k)%helium%worm_swap_min = helium_env(k)%helium%worm_tail_max+1
+                  helium_env(k)%helium%worm_swap_max = helium_env(k)%helium%worm_tail_max+itmp
+                  helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+                  CALL section_vals_val_get(helium_section, "WORM%OPEN_CLOSE_WEIGHT", &
+                                            i_val=itmp)
+                  helium_env(k)%helium%worm_open_close_min = helium_env(k)%helium%worm_swap_max+1
+                  helium_env(k)%helium%worm_open_close_max = helium_env(k)%helium%worm_swap_max+itmp
+                  helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
+                  CALL section_vals_val_get(helium_section, "WORM%CRAWL_REPETION", &
+                                            i_val=helium_env(k)%helium%worm_repeat_crawl)
+               END IF
 
                !CPPostcondition(i<helium_env(k)%helium%beads,cp_failure_level,routineP,failure)
                ! end of worm

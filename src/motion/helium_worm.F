@@ -91,17 +91,18 @@ CONTAINS
       IF (helium%worm_allow_open) THEN
          DO ! Exit criterion at the end of the loop
             DO iMC = 1, nMC
+               imove = next_random_number(helium%rng_stream_uniform, 1, helium%worm_all_limit)
                IF (helium%worm_is_closed) THEN
-                  imove = next_random_number(helium%rng_stream_uniform, 1, 100)
-                  SELECT CASE (imove)
-                  CASE (1:10)
+                  IF ((imove >= helium%worm_centroid_min) .AND. (imove <= helium%worm_centroid_max)) THEN
                      ! centroid move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      CALL worm_centroid_move(pint_env, helium, &
                                              iatom, helium%worm_centroid_drmax, ac)
                      ncentratt = ncentratt+1
                      ncentracc = ncentracc+ac
-                  CASE (11:90)
+                     ! Note: weights for open and centroid move are taken from open sampling
+                     ! staging is adjusted to conserve these weights
+                  ELSE IF ((imove >= helium%worm_centroid_max+1) .AND. (imove <= helium%worm_open_close_min-1)) THEN
                      ! staging move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
@@ -110,7 +111,7 @@ CONTAINS
                                             iatom, ibead, staging_l, ac)
                      nstagatt = nstagatt+1
                      nstagacc = nstagacc+ac
-                  CASE (91:100)
+                  ELSE IF ((imove >= helium%worm_open_close_min) .AND. (imove <= helium%worm_open_close_max)) THEN
                      ! attempt opening of worm
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
@@ -119,22 +120,19 @@ CONTAINS
                                          iatom, ibead, staging_l, ac)
                      nopenatt = nopenatt+1
                      nopenacc = nopenacc+ac
-                  CASE DEFAULT
-                     ! this must not occour
+                  ELSE
+                     ! this must not occur
                      CPABORT("Undefined move selected in helium worm sampling!")
-                  END SELECT
+                  END IF
                ELSE ! worm is open
-                  imove = next_random_number(helium%rng_stream_uniform, 1, 100)
-                  SELECT CASE (imove)
-                  CASE (1:10)
+                  IF ((imove >= helium%worm_centroid_min) .AND. (imove <= helium%worm_centroid_max)) THEN
                      ! centroid move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      CALL worm_centroid_move(pint_env, helium, &
                                              iatom, helium%worm_centroid_drmax, ac)
                      ncentratt = ncentratt+1
                      ncentracc = ncentracc+ac
-                     !CASE (11:60)
-                  CASE (11:40)
+                  ELSE IF ((imove >= helium%worm_staging_min) .AND. (imove <= helium%worm_staging_max)) THEN
                      ! staging move
                      iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                      ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
@@ -143,56 +141,56 @@ CONTAINS
                                             iatom, ibead, staging_l, ac)
                      nstagatt = nstagatt+1
                      nstagacc = nstagacc+ac
-                  CASE (41:50)
+                  ELSE IF ((imove >= helium%worm_fcrawl_min) .AND. (imove <= helium%worm_fcrawl_max)) THEN
                      ! crawl forward
-                     DO icrawl = 1, 5
+                     DO icrawl = 1, helium%worm_repeat_crawl
                         staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                         CALL worm_crawl_move_forward(pint_env, helium, &
                                                      staging_l, ac)
                         ncrawlfwdatt = ncrawlfwdatt+1
                         ncrawlfwdacc = ncrawlfwdacc+ac
                      END DO
-                  CASE (51:60)
+                  ELSE IF ((imove >= helium%worm_bcrawl_min) .AND. (imove <= helium%worm_bcrawl_max)) THEN
                      ! crawl backward
-                     DO icrawl = 1, 5
+                     DO icrawl = 1, helium%worm_repeat_crawl
                         staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                         CALL worm_crawl_move_backward(pint_env, helium, &
                                                       staging_l, ac)
                         ncrawlbwdatt = ncrawlbwdatt+1
                         ncrawlbwdacc = ncrawlbwdacc+ac
                      END DO
-                  CASE (61:70)
+                  ELSE IF ((imove >= helium%worm_head_min) .AND. (imove <= helium%worm_head_max)) THEN
                      ! move head
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_head_move(pint_env, helium, &
                                          staging_l, ac)
                      nmoveheadatt = nmoveheadatt+1
                      nmoveheadacc = nmoveheadacc+ac
-                  CASE (71:80)
+                  ELSE IF ((imove >= helium%worm_tail_min) .AND. (imove <= helium%worm_tail_max)) THEN
                      ! move tail
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_tail_move(pint_env, helium, &
                                          staging_l, ac)
                      nmovetailatt = nmovetailatt+1
                      nmovetailacc = nmovetailacc+ac
-                  CASE (81:90)
-                     ! attempt closing of worm
-                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
-                     CALL worm_close_move(pint_env, helium, &
-                                          staging_l, ac)
-                     ncloseatt = ncloseatt+1
-                     ncloseacc = ncloseacc+ac
-                  CASE (91:100)
+                  ELSE IF ((imove >= helium%worm_swap_min) .AND. (imove <= helium%worm_swap_max)) THEN
                      staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
                      CALL worm_swap_move(pint_env, helium, &
                                          helium%atoms, staging_l, ac)
                      npswapacc = npswapacc+ac
                      nswapacc = nswapacc+ac
                      nswapatt = nswapatt+1
-                  CASE DEFAULT
-                     ! this must not occour
+                  ELSE IF ((imove >= helium%worm_open_close_min) .AND. (imove <= helium%worm_open_close_max)) THEN
+                     ! attempt closing of worm
+                     staging_l = next_random_number(helium%rng_stream_uniform, 2, helium%worm_staging_l)
+                     CALL worm_close_move(pint_env, helium, &
+                                          staging_l, ac)
+                     ncloseatt = ncloseatt+1
+                     ncloseacc = ncloseacc+ac
+                  ELSE
+                     ! this must not occur
                      CPABORT("Undefined move selected in helium worm sampling!")
-                  END SELECT
+                  END IF
                END IF
 
                ! Accumulate statistics if we are in the Z-sector:
@@ -222,17 +220,16 @@ CONTAINS
          END DO !attempts loop
       ELSE ! only closed configurations allowed
          DO iMC = 1, nMC
-            imove = next_random_number(helium%rng_stream_uniform, 1, 2)
+            imove = next_random_number(helium%rng_stream_uniform, 1, helium%worm_all_limit)
 
-            SELECT CASE (imove)
-            CASE (1)
+            IF ((imove >= helium%worm_centroid_min) .AND. (imove <= helium%worm_centroid_max)) THEN
                ! centroid move
                iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                CALL worm_centroid_move(pint_env, helium, &
                                        iatom, helium%worm_centroid_drmax, ac)
                ncentratt = ncentratt+1
                ncentracc = ncentracc+ac
-            CASE (2)
+            ELSE IF ((imove >= helium%worm_staging_min) .AND. (imove <= helium%worm_staging_max)) THEN
                ! staging move
                iatom = next_random_number(helium%rng_stream_uniform, 1, helium%atoms)
                ibead = next_random_number(helium%rng_stream_uniform, 1, helium%beads)
@@ -240,10 +237,10 @@ CONTAINS
                                       iatom, ibead, helium%worm_staging_l, ac)
                nstagatt = nstagatt+1
                nstagacc = nstagacc+ac
-            CASE DEFAULT
+            ELSE
                ! this must not occour
                CPABORT("Undefined move selected in helium worm sampling!")
-            END SELECT
+            END IF
 
             ! Accumulate statistics if we are in closed configurations (which we always are)
             nstat = nstat+1
