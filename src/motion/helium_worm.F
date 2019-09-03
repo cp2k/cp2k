@@ -885,14 +885,14 @@ CONTAINS
       invstagemass = rk*weight*imass
       ! proposing new positions
       DO idim = 1, 3
-         new_path(idim, l) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
+         new_path(idim, 1) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                                 variance=helium%tau*invstagemass)
       END DO
-      new_path(:, l) = new_path(:, l)+weight*(rk*re(:)+rs(:))
+      new_path(:, 1) = new_path(:, 1)+weight*(re(:)+rk*rs(:))
 
-      DO istage = l-1, 1, -1
+      DO istage = 2, l
          ! reusable weight factor 1/(k+1)
-         rk = REAL(istage, dp)
+         rk = REAL(l-istage+1, dp)
          weight = 1.0_dp/(rk+1.0_dp)
          ! staging mass needed for modified variance
          invstagemass = rk*weight*imass
@@ -901,7 +901,7 @@ CONTAINS
             new_path(idim, istage) = next_random_number(rng_stream=helium%rng_stream_gaussian, &
                                                         variance=helium%tau*invstagemass)
          END DO
-         new_path(:, istage) = new_path(:, istage)+weight*(rk*new_path(:, istage+1)+rs(:))
+         new_path(:, istage) = new_path(:, istage)+weight*(rk*new_path(:, istage-1)+re(:))
       END DO
 
       RETURN
