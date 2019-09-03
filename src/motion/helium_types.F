@@ -125,10 +125,20 @@ MODULE helium_types
       INTEGER :: sampling_method
       ! worm sampling parameters
       REAL(KIND=dp) :: worm_centroid_drmax
-      INTEGER :: worm_staging_l
+      INTEGER       :: worm_staging_l
+      INTEGER       :: worm_repeat_crawl
+      INTEGER       :: worm_all_limit
+      INTEGER       :: worm_centroid_min, worm_centroid_max
+      INTEGER       :: worm_staging_min, worm_staging_max
+      INTEGER       :: worm_fcrawl_min, worm_fcrawl_max
+      INTEGER       :: worm_bcrawl_min, worm_bcrawl_max
+      INTEGER       :: worm_head_min, worm_head_max
+      INTEGER       :: worm_tail_min, worm_tail_max
+      INTEGER       :: worm_swap_min, worm_swap_max
+      INTEGER       :: worm_open_close_min, worm_open_close_max
       REAL(KIND=dp) :: worm_open_close_scale
       REAL(KIND=dp) :: worm_ln_openclose_scale
-      LOGICAL :: worm_allow_open, worm_show_statistics
+      LOGICAL       :: worm_allow_open, worm_show_statistics
 
       ! worm specific variables
       REAL(KIND=dp), DIMENSION(3) :: worm_xtra_bead, worm_xtra_bead_work

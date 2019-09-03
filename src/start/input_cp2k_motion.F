@@ -2279,8 +2279,8 @@ CONTAINS
 ! worm algorithm parameters:
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="WORM", &
-                          description="Enables sampling with the worm algorithm by Bonisegni", &
-                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+                          description="Enables sampling via the canonical worm algorithm adapted from Bonisegni", &
+                          n_keywords=11, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="CENTROID_DRMAX", &
                           description="Maximum displacement allowed for the centroid moves", &
@@ -2289,7 +2289,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STAGING_L", &
-                          description="L-1 beads will be moved", &
+                          description="From 2 up to max. L-1 beads will be moved", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2301,7 +2301,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ALLOW_OPEN", &
-                          description="Enable boltzmanonic sampling", &
+                          description="Enable bosonic exchange sampling", &
                           repeats=.FALSE., default_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2309,6 +2309,48 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SHOW_STATISTICS", &
                           description="Show sampling statistics in output", &
                           repeats=.FALSE., default_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_WEIGHT", &
+                          description="Absolute weight of the centroid move", &
+                          repeats=.FALSE., default_i_val=10)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STAGING_WEIGHT", &
+                          description="Absolute weight of the staging move", &
+                          repeats=.FALSE., default_i_val=30)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPEN_CLOSE_WEIGHT", &
+                          description="Absolute weight of the open/close move", &
+                          repeats=.FALSE., default_i_val=10)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="HEAD_TAIL_WEIGHT", &
+                          description="Absolute weight of the head/tail moves (both)", &
+                          repeats=.FALSE., default_i_val=10)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CRAWL_WEIGHT", &
+                          description="Absolute weight of the crawl bwd/fwd moves (both)", &
+                          repeats=.FALSE., default_i_val=10)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CRAWL_REPETION", &
+                          description="Number of repeated crawl moves", &
+                          repeats=.FALSE., default_i_val=4)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SWAP_WEIGHT", &
+                          description="Absolute weight of the crawl move", &
+                          repeats=.FALSE., default_i_val=10)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
