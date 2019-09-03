@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import argparse
 import re
+import sys
 import os
 from os import path
 from datetime import datetime
@@ -42,6 +43,7 @@ def validate(cp2k_dir, filelist):
     # check flags and banners
     flags = set()
     year = datetime.utcnow().year
+    nwarnings = 0
 
     if filelist:
         fileiter = [(cp2k_dir, [], filelist)]
@@ -69,6 +71,7 @@ def validate(cp2k_dir, filelist):
                     and not content.startswith(BANNER_C.format(year))
                 )
             ):
+                nwarnings += 1
                 print("%s: Copyright banner malformed" % fn)
 
             # find all flags
@@ -102,8 +105,10 @@ def validate(cp2k_dir, filelist):
 
     for f in sorted(flags):
         if f not in install_txt:
+            nwarnings += 1
             print("Flag %s not mentioned in INSTALL.md" % f)
         if f not in flags_src:
+            nwarnings += 1
             print("Flag %s not mentioned in cp2k_flags()" % f)
 
     if not filelist:
@@ -115,6 +120,7 @@ def validate(cp2k_dir, filelist):
         for root, _, files in os.walk(path.join(cp2k_dir, "tests")):
             d = path.relpath(root, cp2k_dir)
             for c in data_files.intersection(files):
+                nwarnings += 1
                 print("Data file %s copied to %s" % (c, d))
 
     if filelist:
@@ -148,6 +154,7 @@ def validate(cp2k_dir, filelist):
             if b"\0" in content:
                 continue  # skip binary files
             if b"\r\n" in content:
+                nwarnings += 1
                 print("Text file %s contains DOS linebreaks" % shortfn)
 
             # check for non-ascii chars
@@ -160,24 +167,36 @@ def validate(cp2k_dir, filelist):
             for lineno, line in enumerate(content.splitlines()):
                 m = re.search(b"[\x80-\xFF]", line)
                 if m:
+                    nwarnings += 1
                     print(
                         "Found non-ascii char in %s line %d at position %d"
                         % (shortfn, lineno + 1, m.start(0) + 1)
                     )
+
+    return nwarnings
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Check source code for coding convention violations"
     )
-    parser.add_argument("cp2k_base_dir", type=str, help="CP2K base directory to check")
     parser.add_argument(
-        "-f",
-        "--file",
+        "-b", "--base-dir", type=str, default=".", help="CP2K base directory to check"
+    )
+    parser.add_argument(
+        "file",
         type=str,
-        action="append",
-        help="Limit the test to given files (given as relative paths to the base dir)",
+        nargs="*",
+        help="Limit the test to given files (given as relative paths to the base dir, otherwise all relevant files will be scanned)",
+    )
+    parser.add_argument(
+        "--fail",
+        action="store_true",
+        help="return non-0 exit code if warnings have been found (useful for pre-commit scripts)",
     )
     args = parser.parse_args()
 
-    validate(args.cp2k_base_dir, args.file)
+    nwarnings = validate(args.base_dir, args.file)
+
+    if args.fail and nwarnings:
+        sys.exit(1)
