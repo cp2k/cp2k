@@ -2137,21 +2137,15 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_INTERACTION", &
                           description="Interaction potential between helium and the solute", &
-                          usage="SOLUTE_INTERACTION (NONE | MWATER | CH5 | SELTABLE | CUBETABLE)", &
+                          usage="SOLUTE_INTERACTION (NONE | MWATER)", &
                           default_i_val=helium_solute_intpot_none, &
-                          enum_c_vals=s2a("NONE", "MWATER", "CH5", "SELTABLE", "CUBETABLE"), &
+                          enum_c_vals=s2a("NONE", "MWATER"), &
                           enum_i_vals=(/ &
                           helium_solute_intpot_none, &
-                          helium_solute_intpot_mwater, &
-                          helium_solute_intpot_ch5, &
-                          helium_solute_intpot_seltable, &
-                          helium_solute_intpot_cubetable/), &
+                          helium_solute_intpot_mwater/), &
                           enum_desc=s2a( &
                           "No interaction with solute", &
-                          "Test interaction with wrong Water", &
-                          "Interaction with CH5_plus molecule(s)", &
-                          "Selecttable", &
-                          "Cubetable"))
+                          "Test interaction with wrong Water"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
