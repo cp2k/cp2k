@@ -17,28 +17,88 @@ from prettify_cp2k import replacer
 from fprettify import reformat_ffile, fparse_utils, log_exception
 
 
-OPERATORS_STR = r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
-
-KEYWORDS_STR = "(?:a(?:llocat(?:able|e)|ssign(?:|ment))|c(?:a(?:ll|se)|haracter|lose|o(?:m(?:mon|plex)|nt(?:ains|inue))|ycle)|d(?:ata|eallocate|imension|o(?:|uble))|e(?:lse(?:|if|where)|n(?:d(?:|do|file|if)|try)|quivalence|x(?:it|ternal))|f(?:or(?:all|mat)|unction)|goto|i(?:f|mplicit|n(?:clude|quire|t(?:e(?:ger|nt|rface)|rinsic)))|logical|module|n(?:amelist|one|ullify)|o(?:nly|p(?:en|erator|tional))|p(?:a(?:rameter|use)|ointer|r(?:ecision|i(?:nt|vate)|o(?:cedure|gram))|ublic)|re(?:a[dl]|cursive|sult|turn|wind)|s(?:ave|e(?:lect|quence)|top|ubroutine)|t(?:arget|hen|ype)|use|w(?:h(?:ere|ile)|rite))"
-
-INTRINSIC_PROCSTR = r"(?:a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)|b(?:it_size|test)|c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)|d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)|e(?:oshift|psilon|xp(?:|onent))|f(?:loor|raction)|huge|i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)|kind|l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))|m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)|n(?:earest|int|ot)|p(?:ack|r(?:e(?:cision|sent)|oduct))|r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)|s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)|t(?:anh?|iny|r(?:ans(?:fer|pose)|im))|u(?:bound|npack)|verify)(?= *\()"
-
-OMP_DIR = r"(?:atomic|barrier|c(?:apture|ritical)|do|end|flush|if|master|num_threads|ordered|parallel|read|s(?:ection(?:|s)|ingle)|t(?:ask(?:|wait|yield)|hreadprivate)|update|w(?:orkshare|rite)|!\$omp)"
-
-OMP_CLAUSE = r"(?:a|co(?:llapse|py(?:in|private))|default|fi(?:nal|rstprivate)|i(?:and|eor|or)|lastprivate|m(?:ax|ergeable|in)|n(?:one|owait)|ordered|private|reduction|shared|untied|\.(?:and|eqv|neqv|or)\.)"
-
-OMP_ENV = r"omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?:tacksize|chedule)|thread_limit|wait_policy)"
-
 # FIXME: does not correctly match operator '.op.' if it is not separated
 # by whitespaces.
-TO_UPCASE_RE = re.compile("(?<![A-Za-z0-9_%#])(?<!% )(?P<toUpcase>" + OPERATORS_STR +
-                          "|" + KEYWORDS_STR + "|" + INTRINSIC_PROCSTR +
-                          ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
-TO_UPCASE_OMP_RE = re.compile("(?<![A-Za-z0-9_%#])(?P<toUpcase>"
-                              + OMP_DIR + "|" + OMP_CLAUSE + "|" + OMP_ENV +
-                              ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
-LINE_PARTS_RE = re.compile("(?P<commands>[^\"'!]*)(?P<comment>!.*)?" +
-                           "(?P<string>(?P<qchar>[\"']).*?(?P=qchar))?")
+TO_UPCASE_RE = re.compile(
+    r"""
+(?<![A-Za-z0-9_%#])(?<!%\ )
+(?P<toUpcase>
+    \.(?:and|eq|eqv|false|ge|gt|le|lt|ne|neqv|not|or|true)\.
+    | (?:
+        a(?:llocat(?:able|e)|ssign(?:|ment))
+        |c(?:a(?:ll|se)|haracter|lose|o(?:m(?:mon|plex)|nt(?:ains|inue))|ycle)
+        |d(?:ata|eallocate|imension|o(?:|uble))
+        |e(?:lse(?:|if|where)|n(?:d(?:|do|file|if)|try)|quivalence|x(?:it|ternal))
+        |f(?:or(?:all|mat)|unction)
+        |goto
+        |i(?:f|mplicit|n(?:clude|quire|t(?:e(?:ger|nt|rface)|rinsic)))
+        |logical
+        |module
+        |n(?:amelist|one|ullify)
+        |o(?:nly|p(?:en|erator|tional))
+        |p(?:a(?:rameter|use)|ointer|r(?:ecision|i(?:nt|vate)|o(?:cedure|gram))|ublic)
+        |re(?:a[dl]|cursive|sult|turn|wind)
+        |s(?:ave|e(?:lect|quence)|top|ubroutine)
+        |t(?:arget|hen|ype)
+        |use
+        |w(?:h(?:ere|ile)|rite)
+    )
+    | (?:
+        a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)
+        |b(?:it_size|test)
+        |c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)
+        |d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)
+        |e(?:oshift|psilon|xp(?:|onent))
+        |f(?:loor|raction)
+        |huge
+        |i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)
+        |kind
+        |l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))
+        |m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)
+        |n(?:earest|int|ot)
+        |p(?:ack|r(?:e(?:cision|sent)|oduct))
+        |r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)
+        |s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)
+        |t(?:anh?|iny|r(?:ans(?:fer|pose)|im))
+        |u(?:bound|npack)
+        |verify
+    ) (?=\ *\()
+)
+(?![A-Za-z0-9_%])
+""",
+    flags=re.IGNORECASE | re.VERBOSE,
+)
+
+TO_UPCASE_OMP_RE = re.compile(
+    """
+(?<![A-Za-z0-9_%#])
+(?P<toUpcase>
+    (?:
+        atomic|barrier|c(?:apture|ritical)|do|end|flush|if|master|num_threads|ordered|parallel|read
+        |s(?:ection(?:|s)|ingle)|t(?:ask(?:|wait|yield)|hreadprivate)|update|w(?:orkshare|rite)|!\$omp
+    )
+    | (?:
+        a|co(?:llapse|py(?:in|private))|default|fi(?:nal|rstprivate)|i(?:and|eor|or)|lastprivate
+        |m(?:ax|ergeable|in)|n(?:one|owait)|ordered|private|reduction|shared|untied|\.(?:and|eqv|neqv|or)\.
+    )
+    | omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?:tacksize|chedule)|thread_limit|wait_policy)
+)
+(?![A-Za-z0-9_%])
+""",
+    flags=re.IGNORECASE | re.VERBOSE,
+)
+
+LINE_PARTS_RE = re.compile(
+    r"""
+    (?P<commands>[^\"'!]*)
+    (?P<comment>!.*)?
+    (?P<string>
+        (?P<qchar>[\"'])
+        .*?
+        (?P=qchar))?
+""",
+    re.VERBOSE,
+)
 
 
 def upcaseStringKeywords(line):
@@ -50,8 +110,9 @@ def upcaseStringKeywords(line):
         m = LINE_PARTS_RE.match(line[start:])
         if not m:
             raise SyntaxError("Syntax error, open string")
-        res = res + TO_UPCASE_RE.sub(lambda match: match.group("toUpcase").upper(),
-                                     m.group("commands"))
+        res = res + TO_UPCASE_RE.sub(
+            lambda match: match.group("toUpcase").upper(), m.group("commands")
+        )
         if m.group("comment"):
             res = res + m.group("comment")
         if m.group("string"):
@@ -78,9 +139,19 @@ def upcaseKeywords(infile, outfile, upcase_omp):
         outfile.write(line)
 
 
-def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
-                 reformat, indent, whitespace, upcase_keywords,
-                 upcase_omp, replace):
+def prettifyFile(
+    infile,
+    filename,
+    normalize_use,
+    decl_linelength,
+    decl_offset,
+    reformat,
+    indent,
+    whitespace,
+    upcase_keywords,
+    upcase_omp,
+    replace,
+):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
     if normalize_use normalizes the use statements (defaults to true)
@@ -96,7 +167,7 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
     n_pretty_iter = 0
 
     if is_fypp(ifile):
-        logger = logging.getLogger('fprettify-logger')
+        logger = logging.getLogger("fprettify-logger")
         logger.error(orig_filename + ": fypp directives not supported.\n")
         return ifile
 
@@ -117,11 +188,17 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
             if reformat:  # reformat needs to be done first
                 tmpfile2 = tempfile.TemporaryFile(mode="w+")
                 try:
-                    reformat_ffile(ifile, tmpfile2,
-                                   indent_size=indent, whitespace=whitespace,
-                                   orig_filename=orig_filename)
+                    reformat_ffile(
+                        ifile,
+                        tmpfile2,
+                        indent_size=indent,
+                        whitespace=whitespace,
+                        orig_filename=orig_filename,
+                    )
                 except fparse_utils.FprettifyParseException as e:
-                    log_exception(e, "fprettify could not parse file, file is not prettified")
+                    log_exception(
+                        e, "fprettify could not parse file, file is not prettified"
+                    )
                     tmpfile2.write(ifile.read())
 
                 tmpfile2.seek(0)
@@ -131,9 +208,14 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 ifile = tmpfile
             if normalize_use:
                 tmpfile2 = tempfile.TemporaryFile(mode="w+")
-                normalizeFortranFile.rewriteFortranFile(ifile, tmpfile2, indent,
-                                                        decl_linelength, decl_offset,
-                                                        orig_filename=orig_filename)
+                normalizeFortranFile.rewriteFortranFile(
+                    ifile,
+                    tmpfile2,
+                    indent,
+                    decl_linelength,
+                    decl_offset,
+                    orig_filename=orig_filename,
+                )
                 tmpfile2.seek(0)
                 if tmpfile:
                     tmpfile.close()
@@ -154,9 +236,10 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 return ifile
             elif n_pretty_iter >= max_pretty_iter:
                 raise RuntimeError(
-                    "Prettify did not converge in", max_pretty_iter, "steps.")
+                    "Prettify did not converge in", max_pretty_iter, "steps."
+                )
         except:
-            logger = logging.getLogger('fprettify-logger')
+            logger = logging.getLogger("fprettify-logger")
             logger.critical("error processing file '" + infile.name + "'\n")
             raise
 
@@ -164,11 +247,11 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
 def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
     """Same as prettify, but inplace, replaces only if needed"""
 
-    if fileName == 'stdin':
-        infile = tempfile.TemporaryFile(mode='r+')
+    if fileName == "stdin":
+        infile = tempfile.TemporaryFile(mode="r+")
         infile.write(sys.stdin.read())
     else:
-        infile = open(fileName, 'r')
+        infile = open(fileName, "r")
 
     if stdout:
         outfile = prettifyFile(infile=infile, filename=fileName, **kwargs)
@@ -183,7 +266,7 @@ def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
         raise Error("bk-dir must be a directory, was " + bkDir)
 
     outfile = prettifyFile(infile=infile, filename=fileName, **kwargs)
-    if (infile == outfile):
+    if infile == outfile:
         return
     infile.seek(0)
     outfile.seek(0)
@@ -192,12 +275,12 @@ def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
     while 1:
         l1 = outfile.readline()
         l2 = infile.readline()
-        if (l1 != l2):
+        if l1 != l2:
             same = 0
             break
         if not l1:
             break
-    if (not same):
+    if not same:
         bkFile = None
         if bkDir:
             bkName = os.path.join(bkDir, os.path.basename(fileName))
@@ -212,11 +295,12 @@ def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
             bkFile.write(infile.read())
             bkFile.close()
         outfile.seek(0)
-        newFile = open(fileName, 'w')
+        newFile = open(fileName, "w")
         newFile.write(outfile.read())
         newFile.close()
     infile.close()
     outfile.close()
+
 
 def is_fypp(infile):
     FYPP_SYMBOLS = r"(#|\$|@)"
@@ -236,17 +320,26 @@ def is_fypp(infile):
 def main(argv=None):
     if argv is None:
         argv = sys.argv
-    defaultsDict = {'upcase': 1, 'normalize-use': 1, 'omp-upcase': 1,
-                    'decl-linelength': 100, 'decl-offset': 50,
-                    'reformat': 1, 'indent': 3, 'whitespace': 1,
-                    'replace': 1,
-                    'stdout': 0,
-                    'do-backup': 0,
-                    'backup-dir': 'preprettify',
-                    'report-errors': 1,
-                    'debug': 0}
+    defaultsDict = {
+        "upcase": 1,
+        "normalize-use": 1,
+        "omp-upcase": 1,
+        "decl-linelength": 100,
+        "decl-offset": 50,
+        "reformat": 1,
+        "indent": 3,
+        "whitespace": 1,
+        "replace": 1,
+        "stdout": 0,
+        "do-backup": 0,
+        "backup-dir": "preprettify",
+        "report-errors": 1,
+        "debug": 0,
+    }
 
-    usageDesc = ("usage:\nfprettify" + """
+    usageDesc = (
+        "usage:\nfprettify"
+        + """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
     [--[no-]reformat] [--indent=3] [--whitespace=1] [--help]
     [--[no-]stdout] [--[no-]do-backup] [--backup-dir=bk_dir] [--[no-]report-errors] file1 [file2 ...]
@@ -283,22 +376,25 @@ def main(argv=None):
     Note: for editor integration, use options --no-normalize-use --no-report-errors
 
     Defaults:
-    """ + str(defaultsDict))
+    """
+        + str(defaultsDict)
+    )
 
     replace = None
 
     if "--help" in argv:
-        sys.stderr.write(usageDesc + '\n')
-        return(0)
+        sys.stderr.write(usageDesc + "\n")
+        return 0
     args = []
     for arg in argv[1:]:
         m = re.match(
-            r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat|stdout|do-backup|report-errors|debug)", arg)
+            r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat|stdout|do-backup|report-errors|debug)",
+            arg,
+        )
         if m:
             defaultsDict[m.groups()[1]] = not m.groups()[0]
         else:
-            m = re.match(
-                r"--(indent|whitespace|decl-linelength|decl-offset)=(.*)", arg)
+            m = re.match(r"--(indent|whitespace|decl-linelength|decl-offset)=(.*)", arg)
             if m:
                 defaultsDict[m.groups()[0]] = int(m.groups()[1])
             else:
@@ -307,35 +403,35 @@ def main(argv=None):
                     path = os.path.abspath(os.path.expanduser(m.groups()[1]))
                     defaultsDict[m.groups()[0]] = path
                 else:
-                    if arg.startswith('--'):
-                        sys.stderr.write('unknown option ' + arg + '\n')
+                    if arg.startswith("--"):
+                        sys.stderr.write("unknown option " + arg + "\n")
                     else:
                         args.append(arg)
-    bkDir = ''
-    if defaultsDict['do-backup']:
-        bkDir = defaultsDict['backup-dir']
+    bkDir = ""
+    if defaultsDict["do-backup"]:
+        bkDir = defaultsDict["backup-dir"]
     if bkDir and not os.path.exists(bkDir):
         # Another parallel running instance might just have created the
         # dir.
         try:
             os.mkdir(bkDir)
         except:
-            assert(os.path.exists(bkDir))
+            assert os.path.exists(bkDir)
     if bkDir and not os.path.isdir(bkDir):
-        sys.stderr.write("bk-dir must be a directory" + '\n')
-        sys.stderr.write(usageDesc + '\n')
+        sys.stderr.write("bk-dir must be a directory" + "\n")
+        sys.stderr.write(usageDesc + "\n")
     else:
         failure = 0
         if not args:
-            args = ['stdin']
+            args = ["stdin"]
         for fileName in args:
-            if not os.path.isfile(fileName) and not fileName == 'stdin':
+            if not os.path.isfile(fileName) and not fileName == "stdin":
                 sys.stderr.write("file " + fileName + " does not exists!\n")
             else:
-                stdout = defaultsDict['stdout'] or fileName == 'stdin'
+                stdout = defaultsDict["stdout"] or fileName == "stdin"
 
-                if defaultsDict['report-errors']:
-                    if defaultsDict['debug']:
+                if defaultsDict["report-errors"]:
+                    if defaultsDict["debug"]:
                         level = logging.DEBUG
                     else:
                         level = logging.INFO
@@ -343,42 +439,39 @@ def main(argv=None):
                 else:
                     level = logging.CRITICAL
 
-                logger = logging.getLogger('fprettify-logger')
+                logger = logging.getLogger("fprettify-logger")
                 logger.setLevel(level)
                 sh = logging.StreamHandler()
                 sh.setLevel(level)
-                formatter = logging.Formatter('%(levelname)s - %(message)s')
+                formatter = logging.Formatter("%(levelname)s - %(message)s")
                 sh.setFormatter(formatter)
                 logger.addHandler(sh)
 
                 try:
-                    prettfyInplace(fileName, bkDir=bkDir,
-                                   stdout=stdout,
-                                   normalize_use=defaultsDict[
-                                       'normalize-use'],
-                                   decl_linelength=defaultsDict[
-                                       'decl-linelength'],
-                                   decl_offset=defaultsDict[
-                                       'decl-offset'],
-                                   reformat=defaultsDict['reformat'],
-                                   indent=defaultsDict['indent'],
-                                   whitespace=defaultsDict[
-                                       'whitespace'],
-                                   upcase_keywords=defaultsDict[
-                                       'upcase'],
-                                   upcase_omp=defaultsDict[
-                                       'omp-upcase'],
-                                   replace=defaultsDict['replace'])
+                    prettfyInplace(
+                        fileName,
+                        bkDir=bkDir,
+                        stdout=stdout,
+                        normalize_use=defaultsDict["normalize-use"],
+                        decl_linelength=defaultsDict["decl-linelength"],
+                        decl_offset=defaultsDict["decl-offset"],
+                        reformat=defaultsDict["reformat"],
+                        indent=defaultsDict["indent"],
+                        whitespace=defaultsDict["whitespace"],
+                        upcase_keywords=defaultsDict["upcase"],
+                        upcase_omp=defaultsDict["omp-upcase"],
+                        replace=defaultsDict["replace"],
+                    )
                 except:
                     failure += 1
                     import traceback
-                    sys.stderr.write('-' * 60 + "\n")
+
+                    sys.stderr.write("-" * 60 + "\n")
                     traceback.print_exc(file=sys.stderr)
-                    sys.stderr.write('-' * 60 + "\n")
-                    sys.stderr.write(
-                        "Processing file '" + fileName + "'\n")
-        return(failure > 0)
+                    sys.stderr.write("-" * 60 + "\n")
+                    sys.stderr.write("Processing file '" + fileName + "'\n")
+        return failure > 0
 
 
-if(__name__ == '__main__'):
+if __name__ == "__main__":
     sys.exit(main())
