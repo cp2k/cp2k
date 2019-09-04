@@ -1,4 +1,3 @@
-
 content = """
 MODULE prettify_selftest
    IMPLICIT NONE
@@ -41,6 +40,9 @@ CONTAINS
          l = 1
       ENDIF
    END FUNCTION
+
+   SUBROUTINE write ()
+   END SUBROUTINE write
 
 END MODULE
 
