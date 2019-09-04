@@ -17,61 +17,64 @@ from prettify_cp2k import replacer
 from fprettify import reformat_ffile, fparse_utils, log_exception
 
 
-# FIXME: does not correctly match operator '.op.' if it is not separated
-# by whitespaces.
 TO_UPCASE_RE = re.compile(
     r"""
-(?<![A-Za-z0-9_%#])(?<!%\ )
 (?P<toUpcase>
     \.(?:and|eq|eqv|false|ge|gt|le|lt|ne|neqv|not|or|true)\.
-    | (?:
-        a(?:llocat(?:able|e)|ssign(?:|ment))
-        |c(?:a(?:ll|se)|haracter|lose|o(?:m(?:mon|plex)|nt(?:ains|inue))|ycle)
-        |d(?:ata|eallocate|imension|o(?:|uble))
-        |e(?:lse(?:|if|where)|n(?:d(?:|do|file|if)|try)|quivalence|x(?:it|ternal))
-        |f(?:or(?:all|mat)|unction)
-        |goto
-        |i(?:f|mplicit|n(?:clude|quire|t(?:e(?:ger|nt|rface)|rinsic)))
-        |logical
-        |module
-        |n(?:amelist|one|ullify)
-        |o(?:nly|p(?:en|erator|tional))
-        |p(?:a(?:rameter|use)|ointer|r(?:ecision|i(?:nt|vate)|o(?:cedure|gram))|ublic)
-        |re(?:a[dl]|cursive|sult|turn|wind)
-        |s(?:ave|e(?:lect|quence)|top|ubroutine)
-        |t(?:arget|hen|ype)
-        |use
-        |w(?:h(?:ere|ile)|rite)
+    |
+    (?<![\w%#])  # do not match stmts/intrinsics midword or called as type-bound procedures
+    (?<!%\ )  # do not match stmts/intrinsics when being called as type-bound procedure with a space in between
+    (?<!subroutine\ )(?<!function\ )(?<!::\ )  # do not match stmts/intrinsics when used as procedure names
+    (?:
+        (?: # statements:
+            a(?:llocat(?:able|e)|ssign(?:|ment))
+            |c(?:a(?:ll|se)|haracter|lose|o(?:m(?:mon|plex)|nt(?:ains|inue))|ycle)
+            |d(?:ata|eallocate|imension|o(?:|uble))
+            |e(?:lse(?:|if|where)|n(?:d(?:|do|file|if)|try)|quivalence|x(?:it|ternal))
+            |f(?:or(?:all|mat)|unction)
+            |goto
+            |i(?:f|mplicit|n(?:clude|quire|t(?:e(?:ger|nt|rface)|rinsic)))
+            |logical
+            |module
+            |n(?:amelist|one|ullify)
+            |o(?:nly|p(?:en|erator|tional))
+            |p(?:a(?:rameter|use)|ointer|r(?:ecision|i(?:nt|vate)|o(?:cedure|gram))|ublic)
+            |re(?:a[dl]|cursive|sult|turn|wind)
+            |s(?:ave|e(?:lect|quence)|top|ubroutine)
+            |t(?:arget|hen|ype)
+            |use
+            |w(?:h(?:ere|ile)|rite)
+        )
+        | (?: # intrinsic functions:
+            a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)
+            |b(?:it_size|test)
+            |c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)
+            |d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)
+            |e(?:oshift|psilon|xp(?:|onent))
+            |f(?:loor|raction)
+            |huge
+            |i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)
+            |kind
+            |l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))
+            |m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)
+            |n(?:earest|int|ot)
+            |p(?:ack|r(?:e(?:cision|sent)|oduct))
+            |r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)
+            |s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)
+            |t(?:anh?|iny|r(?:ans(?:fer|pose)|im))
+            |u(?:bound|npack)
+            |verify
+        ) (?=\ *\()
     )
-    | (?:
-        a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)
-        |b(?:it_size|test)
-        |c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)
-        |d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)
-        |e(?:oshift|psilon|xp(?:|onent))
-        |f(?:loor|raction)
-        |huge
-        |i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)
-        |kind
-        |l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))
-        |m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)
-        |n(?:earest|int|ot)
-        |p(?:ack|r(?:e(?:cision|sent)|oduct))
-        |r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)
-        |s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)
-        |t(?:anh?|iny|r(?:ans(?:fer|pose)|im))
-        |u(?:bound|npack)
-        |verify
-    ) (?=\ *\()
+    (?![\w%])
 )
-(?![A-Za-z0-9_%])
 """,
     flags=re.IGNORECASE | re.VERBOSE,
 )
 
 TO_UPCASE_OMP_RE = re.compile(
     """
-(?<![A-Za-z0-9_%#])
+(?<![\w%#])
 (?P<toUpcase>
     (?:
         atomic|barrier|c(?:apture|ritical)|do|end|flush|if|master|num_threads|ordered|parallel|read
@@ -83,7 +86,7 @@ TO_UPCASE_OMP_RE = re.compile(
     )
     | omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?:tacksize|chedule)|thread_limit|wait_policy)
 )
-(?![A-Za-z0-9_%])
+(?![\w%])
 """,
     flags=re.IGNORECASE | re.VERBOSE,
 )
