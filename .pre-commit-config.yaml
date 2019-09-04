@@ -15,6 +15,10 @@ repos:
         name: Check python ast (with Python 3)
         language_version: python3
         stages: [manual]
+-   repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+    -   id: black
 -   repo: local
     hooks:
     -   id: prettify
