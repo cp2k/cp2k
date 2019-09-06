@@ -157,6 +157,7 @@ MODULE force_env_methods
                                               qs_rho_type
    USE restraint,                       ONLY: restraint_control
    USE string_utilities,                ONLY: compress
+   USE virial_methods,                  ONLY: write_stress_components
    USE virial_types,                    ONLY: cp_virial,&
                                               sym_virial,&
                                               virial_create,&
@@ -381,6 +382,9 @@ CONTAINS
                CALL section_vals_val_get(force_env%force_env_section, "PRINT%STRESS_TENSOR%NDIGITS", &
                                          i_val=ndigits)
                CALL write_stress_tensor(virial%pv_virial, output_unit, cell, ndigits, virial%pv_numer)
+               IF ((.NOT. virial%pv_numer) .AND. (force_env%in_use == use_qs_force)) THEN
+                  CALL write_stress_components(virial, output_unit)
+               END IF
             END IF
             CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
                                               "PRINT%STRESS_TENSOR")

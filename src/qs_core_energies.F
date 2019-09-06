@@ -211,6 +211,7 @@ CONTAINS
                                                             rab2, rootaab, zab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, radius, zeff
       REAL(KIND=dp), DIMENSION(3)                        :: deab, rab
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(neighbor_list_iterator_p_type), &
@@ -279,6 +280,7 @@ CONTAINS
       END DO
 
       ecore_overlap = 0.0_dp
+      pv_loc = 0.0_dp
 
       CALL neighbor_list_iterator_create(nl_iterator, sab_core)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -308,7 +310,7 @@ CONTAINS
                force(ikind)%core_overlap(:, atom_a) = force(ikind)%core_overlap(:, atom_a)+deab(:)
                force(jkind)%core_overlap(:, atom_b) = force(jkind)%core_overlap(:, atom_b)-deab(:)
                IF (use_virial) THEN
-                  CALL virial_pair_force(virial%pv_virial, 1._dp, deab, rab)
+                  CALL virial_pair_force(pv_loc, 1._dp, deab, rab)
                END IF
             END IF
          END IF
@@ -318,6 +320,10 @@ CONTAINS
       DEALLOCATE (alpha, radius, zeff)
       IF (calculate_forces) THEN
          DEALLOCATE (atom_of_kind)
+      END IF
+      IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_virial = virial%pv_virial+pv_loc
+         virial%pv_hartree = virial%pv_hartree+pv_loc
       END IF
 
       CALL mp_sum(ecore_overlap, group)

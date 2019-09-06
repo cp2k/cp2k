@@ -118,6 +118,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: hab, pab
       REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
                                                             set_radius_a, set_radius_b
@@ -177,6 +178,10 @@ CONTAINS
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
          END IF
       END DO
+
+      IF (use_virial) THEN
+         pv_loc = virial%pv_virial
+      END IF
 
       nthread = 1
 !$    nthread = omp_get_max_threads()
@@ -490,6 +495,10 @@ CONTAINS
                               alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
+      END IF
+
+      IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_ppl = virial%pv_virial-pv_loc
       END IF
 
       CALL timestop(handle)

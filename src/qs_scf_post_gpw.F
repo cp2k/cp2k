@@ -157,6 +157,8 @@ MODULE qs_scf_post_gpw
                                               qs_loc_env_init,&
                                               qs_loc_init,&
                                               retain_history
+   USE qs_local_properties,             ONLY: qs_local_energy,&
+                                              qs_local_stress
    USE qs_mo_io,                        ONLY: write_dm_binary_restart,&
                                               write_mo_set
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -2304,6 +2306,12 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_g%pw)
       END IF
 
+      ! Write cube files from the local energy
+      CALL qs_scf_post_local_energy(input, logger, qs_env)
+
+      ! Write cube files from the local stress tensor
+      CALL qs_scf_post_local_stress(input, logger, qs_env)
+
       ! Write cube files from the implicit Poisson solver
       CALL qs_scf_post_ps_implicit(input, logger, qs_env)
 
@@ -2647,6 +2655,163 @@ CONTAINS
       DEALLOCATE (smat, v, ipiv, afun)
 
    END SUBROUTINE project_function_b
+
+! **************************************************************************************************
+!> \brief Performs printing of cube files from local energy
+!> \param input input
+!> \param logger the logger
+!> \param qs_env the qs_env in which the qs_env lives
+!> \par History
+!>      07.2019 created
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE qs_scf_post_local_energy(input, logger, qs_env)
+      TYPE(section_vals_type), POINTER                   :: input
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_local_energy', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
+      INTEGER                                            :: handle, io_unit, natom, unit_nr
+      LOGICAL                                            :: append_cube, gapw, gapw_xc, mpi_io
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: eden
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CALL timeset(routineN, handle)
+      io_unit = cp_logger_get_default_io_unit(logger)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%PRINT%LOCAL_ENERGY_CUBE"), cp_p_file)) THEN
+         dft_section => section_vals_get_subs_vals(input, "DFT")
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, natom=natom)
+         gapw = dft_control%qs_control%gapw
+         gapw_xc = dft_control%qs_control%gapw_xc
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
+         CALL qs_subsys_get(subsys, particles=particles)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         CALL pw_pool_create_pw(auxbas_pw_pool, eden%pw, use_data=REALDATA3D, in_space=REALSPACE)
+         !
+         CALL qs_local_energy(qs_env, eden)
+         !
+         append_cube = section_get_lval(input, "DFT%PRINT%LOCAL_ENERGY_CUBE%APPEND")
+         IF (append_cube) THEN
+            my_pos_cube = "APPEND"
+         ELSE
+            my_pos_cube = "REWIND"
+         END IF
+         mpi_io = .TRUE.
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_ENERGY_CUBE", &
+                                        extension=".cube", middle_name="local_energy", &
+                                        file_position=my_pos_cube, mpi_io=mpi_io)
+         CALL cp_pw_to_cube(eden%pw, &
+                            unit_nr, "LOCAL ENERGY", particles=particles, &
+                            stride=section_get_ivals(dft_section, &
+                                                     "PRINT%LOCAL_ENERGY_CUBE%STRIDE"), mpi_io=mpi_io)
+         IF (io_unit > 0) THEN
+            INQUIRE (UNIT=unit_nr, NAME=filename)
+            IF (gapw .OR. gapw_xc) THEN
+               WRITE (UNIT=io_unit, FMT="(/,T3,A,A)") &
+                  "The soft part of the local energy is written to the file: ", TRIM(ADJUSTL(filename))
+            ELSE
+               WRITE (UNIT=io_unit, FMT="(/,T3,A,A)") &
+                  "The local energy is written to the file: ", TRIM(ADJUSTL(filename))
+            END IF
+         END IF
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%PRINT%LOCAL_ENERGY_CUBE", mpi_io=mpi_io)
+         !
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, eden%pw)
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_scf_post_local_energy
+
+! **************************************************************************************************
+!> \brief Performs printing of cube files from local energy
+!> \param input input
+!> \param logger the logger
+!> \param qs_env the qs_env in which the qs_env lives
+!> \par History
+!>      07.2019 created
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE qs_scf_post_local_stress(input, logger, qs_env)
+      TYPE(section_vals_type), POINTER                   :: input
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_local_stress', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
+      INTEGER                                            :: handle, io_unit, natom, unit_nr
+      LOGICAL                                            :: append_cube, gapw, gapw_xc, mpi_io
+      REAL(KIND=dp)                                      :: beta
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: stress
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CALL timeset(routineN, handle)
+      io_unit = cp_logger_get_default_io_unit(logger)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%PRINT%LOCAL_STRESS_CUBE"), cp_p_file)) THEN
+         dft_section => section_vals_get_subs_vals(input, "DFT")
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, natom=natom)
+         gapw = dft_control%qs_control%gapw
+         gapw_xc = dft_control%qs_control%gapw_xc
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
+         CALL qs_subsys_get(subsys, particles=particles)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         CALL pw_pool_create_pw(auxbas_pw_pool, stress%pw, use_data=REALDATA3D, in_space=REALSPACE)
+         !
+         ! use beta=0: kinetic energy density in symmetric form
+         beta = 0.0_dp
+         CALL qs_local_stress(qs_env, pressure=stress, beta=beta)
+         !
+         append_cube = section_get_lval(input, "DFT%PRINT%LOCAL_STRESS_CUBE%APPEND")
+         IF (append_cube) THEN
+            my_pos_cube = "APPEND"
+         ELSE
+            my_pos_cube = "REWIND"
+         END IF
+         mpi_io = .TRUE.
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_STRESS_CUBE", &
+                                        extension=".cube", middle_name="local_stress", &
+                                        file_position=my_pos_cube, mpi_io=mpi_io)
+         CALL cp_pw_to_cube(stress%pw, &
+                            unit_nr, "LOCAL STRESS", particles=particles, &
+                            stride=section_get_ivals(dft_section, &
+                                                     "PRINT%LOCAL_STRESS_CUBE%STRIDE"), mpi_io=mpi_io)
+         IF (io_unit > 0) THEN
+            INQUIRE (UNIT=unit_nr, NAME=filename)
+            WRITE (UNIT=io_unit, FMT="(/,T3,A)") "Write 1/3*Tr(sigma) to cube file"
+            IF (gapw .OR. gapw_xc) THEN
+               WRITE (UNIT=io_unit, FMT="(T3,A,A)") &
+                  "The soft part of the local stress is written to the file: ", TRIM(ADJUSTL(filename))
+            ELSE
+               WRITE (UNIT=io_unit, FMT="(T3,A,A)") &
+                  "The local stress is written to the file: ", TRIM(ADJUSTL(filename))
+            END IF
+         END IF
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%PRINT%LOCAL_STRESS_CUBE", mpi_io=mpi_io)
+         !
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, stress%pw)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_scf_post_local_stress
 
 ! **************************************************************************************************
 !> \brief Performs printing of cube files related to the implicit Poisson solver

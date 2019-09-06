@@ -94,7 +94,6 @@ MODULE qs_ks_methods
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -212,13 +211,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
-                                                            nspins
+      INTEGER                                            :: handle, iatom, idir, img, ispin, &
+                                                            nimages, ns, nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
@@ -240,7 +239,6 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: rho0_s_rs, rho_core, rho_nlcc, vee, &
                                                             vppl_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -255,7 +253,7 @@ CONTAINS
                mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
                vppl_rspace, v_hartree_rspace%pw, adiabatic_rescaling_section, &
                hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
-               auxbas_pw_pool, poisson_env, pw_pools, v_rspace_new, &
+               auxbas_pw_pool, poisson_env, v_rspace_new, &
                v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                matrix_vxc, vee, rho_nlcc, ks_env, &
                ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
@@ -360,8 +358,7 @@ CONTAINS
       END IF
 
       ! gets the tmp grids
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools, poisson_env=poisson_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
 
       IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
          CPABORT("The implicit Poisson solver cannot be used in conjunction with GAPW.")
@@ -418,6 +415,7 @@ CONTAINS
             CALL sccs(qs_env, rho_tot_gspace%pw, v_hartree_gspace%pw, v_sccs_rspace%pw, &
                       h_stress=h_stress)
             virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env%num_pe, dp)
+            virial%pv_hartree = virial%pv_hartree+h_stress/REAL(para_env%num_pe, dp)
          ELSE
             CALL sccs(qs_env, rho_tot_gspace%pw, v_hartree_gspace%pw, v_sccs_rspace%pw)
          END IF
@@ -430,6 +428,7 @@ CONTAINS
                                   v_hartree_gspace%pw, h_stress=h_stress, &
                                   rho_core=rho_core)
             virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env%num_pe, dp)
+            virial%pv_hartree = virial%pv_hartree+h_stress/REAL(para_env%num_pe, dp)
          ELSE
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
                                   v_hartree_gspace%pw, rho_core=rho_core)
@@ -608,6 +607,16 @@ CONTAINS
       NULLIFY (rho_struct)
       IF (use_virial .AND. calculate_forces) THEN
          virial%pv_virial = virial%pv_virial-virial%pv_xc
+         virial%pv_exc = -virial%pv_xc
+         DO idir = 1, 3
+            virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir)-energy%exc
+            virial%pv_hartree(idir, idir) = virial%pv_hartree(idir, idir)-2.0_dp*energy%hartree
+         END DO
+         IF (dft_control%do_admm) THEN
+            DO idir = 1, 3
+               virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir)-energy%exc_aux_fit
+            END DO
+         END IF
       ENDIF
 
       ! *** Add Hartree-Fock contribution if required ***
@@ -671,6 +680,9 @@ CONTAINS
             END DO
          END IF
 
+         IF (use_virial .AND. calculate_forces) THEN
+            pv_loc = virial%pv_virial
+         END IF
          ! sum up potentials and integrate
          ! Pointing my_rho to the density matrix rho_ao
          my_rho => rho_ao
@@ -679,6 +691,9 @@ CONTAINS
                                    v_efield_rspace, v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
                                    cdft_control, calculate_forces)
 
+         IF (use_virial .AND. calculate_forces) THEN
+            virial%pv_hartree = virial%pv_hartree+(virial%pv_virial-pv_loc)
+         END IF
          IF (dft_control%qs_control%do_kg) THEN
             CPASSERT(.NOT. (gapw .OR. gapw_xc))
             CPASSERT(nimages == 1)
