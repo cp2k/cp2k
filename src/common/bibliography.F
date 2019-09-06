@@ -4047,7 +4047,7 @@ CONTAINS
                          "BP 035120", &
                          "ER"), &
                          DOI="10.1103/PhysRevB.88.035120")
-            
+
       CALL add_reference(key=Cohen2000, ISI_record=s2a( &
                          "AU Cohen, Morrel H.", &
                          "   Frydel, Derek", &
