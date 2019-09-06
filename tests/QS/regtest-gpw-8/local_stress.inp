@@ -22,8 +22,7 @@
       METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS RESTART
-##      SCF_GUESS ATOMIC
+      SCF_GUESS ATOMIC
       MAX_SCF   20
       EPS_SCF 1.0e-7
       EPS_DIIS 1.0e-7
@@ -31,10 +30,6 @@
         PRECONDITIONER FULL_ALL
         ENERGY_GAP 0.001
       &END OT
-#      &SMEAR
-#        METHOD FERMI_DIRAC 
-#        ELECTRONIC_TEMPERATURE   5000.
-#      &END
       &MIXING
           METHOD BROYDEN_MIXING
           ALPHA   0.6

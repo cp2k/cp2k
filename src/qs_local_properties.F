@@ -285,13 +285,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
+      CALL cp_warn(__LOCATION__, "Local Stress Tensor code is not working, skipping")
+      RETURN
+
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Filippetti2000)
       CALL cite_reference(Rogers2002)
-
-      CALL cp_warn(__LOCATION__, "Local Stress Tensor code is not working")
-      CPABORT("Local Stress")
 
       CPASSERT(ASSOCIATED(qs_env))
 
