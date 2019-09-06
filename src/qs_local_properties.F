@@ -290,6 +290,9 @@ CONTAINS
       CALL cite_reference(Filippetti2000)
       CALL cite_reference(Rogers2002)
 
+      CALL cp_warn(__LOCATION__, "Local Stress Tensor code is not working")
+      CPABORT("Local Stress")
+
       CPASSERT(ASSOCIATED(qs_env))
 
       IF (PRESENT(stress_tensor)) THEN
