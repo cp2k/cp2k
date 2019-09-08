@@ -18,8 +18,12 @@ apt-get install -qq --no-install-recommends \
     ssh
 rm -rf /var/lib/apt/lists/*
 
-# install python packages
-pip install --quiet flake8 aiida ase==3.17.0
+# install dependencies of aiida-cp2k
+cd /opt/
+git clone --quiet https://github.com/aiidateam/aiida-cp2k.git
+pip install --quiet ./aiida-cp2k/[pre-commit,test]
+pip uninstall --yes --quiet aiida-cp2k
+
 
 # create ubuntu user with sudo powers
 adduser --disabled-password --gecos "" ubuntu
@@ -27,6 +31,9 @@ echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >>  /etc/sudoers
 
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
+
+# link mpi executables into path
+for i in $(dirname "$(which mpirun)")/* ; do ln -sf "$i" /usr/bin/; done
 
 # setup arch files
 cd /workspace/cp2k/arch
