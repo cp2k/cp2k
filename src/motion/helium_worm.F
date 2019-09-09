@@ -404,10 +404,10 @@ CONTAINS
          END IF
       END IF
 
-      sold = worm_centroid_move_action(pint_env, helium, helium%pos, iatom, &
+      sold = worm_centroid_move_action(helium, helium%pos, iatom, &
                                        helium%worm_xtra_bead, worm_in_moved_cycle)
 
-      snew = worm_centroid_move_action(pint_env, helium, helium%work, iatom, &
+      snew = worm_centroid_move_action(helium, helium%work, iatom, &
                                        helium%worm_xtra_bead_work, worm_in_moved_cycle)
 
       IF (helium%solute_present) THEN
@@ -542,7 +542,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Action for centroid move
-!> \param pint_env ...
 !> \param helium ...
 !> \param pos ...
 !> \param iatom ...
@@ -551,10 +550,9 @@ CONTAINS
 !> \return ...
 !> \author fuhl
 ! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION worm_centroid_move_action(pint_env, helium, pos, iatom, xtrapos, winc) &
+   REAL(KIND=dp) FUNCTION worm_centroid_move_action(helium, pos, iatom, xtrapos, winc) &
       RESULT(partaction)
 
-      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
       TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: pos
@@ -973,11 +971,11 @@ CONTAINS
       END IF
       ! action before the move
       IF (worm_overlap) THEN
-         sold = worm_path_action_worm_corrected(pint_env, helium, helium%pos, &
+         sold = worm_path_action_worm_corrected(helium, helium%pos, &
                                                 startatom, startbead, endatom, endbead, &
                                                 helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
       ELSE
-         sold = worm_path_action(pint_env, helium, helium%pos, &
+         sold = worm_path_action(helium, helium%pos, &
                                  startatom, startbead, endatom, endbead)
       END IF
 
@@ -1011,11 +1009,11 @@ CONTAINS
 
       ! action after the move
       IF (worm_overlap) THEN
-         snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
+         snew = worm_path_action_worm_corrected(helium, helium%work, &
                                                 startatom, startbead, endatom, endbead, &
                                                 helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       ELSE
-         snew = worm_path_action(pint_env, helium, helium%work, &
+         snew = worm_path_action(helium, helium%work, &
                                  startatom, startbead, endatom, endbead)
       END IF
 
@@ -1182,7 +1180,7 @@ CONTAINS
          startatom = helium%iperm(endatom)
          startbead = endbead+helium%beads-l
       END IF
-      sold = worm_path_action(pint_env, helium, helium%pos, &
+      sold = worm_path_action(helium, helium%pos, &
                               startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
@@ -1262,7 +1260,7 @@ CONTAINS
          END DO
       END IF
 
-      snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
+      snew = worm_path_action_worm_corrected(helium, helium%work, &
                                              startatom, startbead, endatom, endbead, &
                                              helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
@@ -1459,7 +1457,7 @@ CONTAINS
          startatom = helium%iperm(endatom)
          startbead = endbead+helium%beads-l
       END IF
-      sold = worm_path_action_worm_corrected(pint_env, helium, helium%pos, &
+      sold = worm_path_action_worm_corrected(helium, helium%pos, &
                                              startatom, startbead, endatom, endbead, &
                                              helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
 
@@ -1500,7 +1498,7 @@ CONTAINS
 
       helium%worm_is_closed = .TRUE.
 
-      snew = worm_path_action(pint_env, helium, helium%work, &
+      snew = worm_path_action(helium, helium%work, &
                               startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
@@ -1693,7 +1691,7 @@ CONTAINS
          startbead = endbead+helium%beads-l
       END IF
 
-      sold = worm_path_action_worm_corrected(pint_env, helium, helium%pos, &
+      sold = worm_path_action_worm_corrected(helium, helium%pos, &
                                              startatom, startbead, endatom, endbead, &
                                              helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
 
@@ -1767,7 +1765,7 @@ CONTAINS
          END DO
       END IF
 
-      snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
+      snew = worm_path_action_worm_corrected(helium, helium%work, &
                                              startatom, startbead, endatom, endbead, &
                                              helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
 
@@ -1954,7 +1952,7 @@ CONTAINS
       END IF
 
       !yes this is correct, as the head does not play any role here
-      sold = worm_path_action(pint_env, helium, helium%pos, &
+      sold = worm_path_action(helium, helium%pos, &
                               startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
@@ -2003,7 +2001,7 @@ CONTAINS
       END IF
 
       !yes this is correct, as the head does not play any role here
-      snew = worm_path_action(pint_env, helium, helium%work, &
+      snew = worm_path_action(helium, helium%work, &
                               startatom, startbead, endatom, endbead)
 
       IF (helium%solute_present) THEN
@@ -2184,7 +2182,7 @@ CONTAINS
 
       ! compute action before move
       ! head is not involved in pair action
-      sold = worm_path_action(pint_env, helium, helium%pos, &
+      sold = worm_path_action(helium, helium%pos, &
                               helium%worm_atom_idx, helium%worm_bead_idx, &
                               helium%worm_atom_idx_work, helium%worm_bead_idx_work)
       IF (helium%solute_present) THEN
@@ -2288,7 +2286,7 @@ CONTAINS
          END DO
       END IF
 
-      snew = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
+      snew = worm_path_action_worm_corrected(helium, helium%work, &
                                              helium%worm_atom_idx, helium%worm_bead_idx, &
                                              helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
                                              helium%worm_xtra_bead_work, helium%worm_atom_idx_work, helium%worm_bead_idx_work)
@@ -2479,7 +2477,7 @@ CONTAINS
 
       ! compute action before move
       ! head is not involved in pair action
-      sold = worm_path_action_worm_corrected(pint_env, helium, helium%work, &
+      sold = worm_path_action_worm_corrected(helium, helium%work, &
                                              helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
                                              helium%worm_atom_idx, helium%worm_bead_idx, &
                                              helium%worm_xtra_bead, helium%worm_atom_idx, helium%worm_bead_idx)
@@ -2561,7 +2559,7 @@ CONTAINS
          END DO
       END IF
 
-      snew = worm_path_action(pint_env, helium, helium%work, &
+      snew = worm_path_action(helium, helium%work, &
                               helium%worm_atom_idx_work, helium%worm_bead_idx_work, &
                               helium%worm_atom_idx, helium%worm_bead_idx)
 
@@ -2837,7 +2835,7 @@ CONTAINS
       mass = he_mass*massunit
 
       !compute action before the move
-      sold = worm_path_action(pint_env, helium, helium%pos, &
+      sold = worm_path_action(helium, helium%pos, &
                               bstartatom, startbead, fendatom, endbead)
 
       IF (helium%solute_present) THEN
@@ -2916,7 +2914,7 @@ CONTAINS
       ! action after the move
 
       IF (endbead > startbead) THEN
-         snew = worm_path_action(pint_env, helium, helium%work, &
+         snew = worm_path_action(helium, helium%work, &
                                  fstartatom, startbead, fstartatom, endbead)
          IF (helium%solute_present) THEN
             ! no special head treatment needed, because a swap can't go over
@@ -2928,7 +2926,7 @@ CONTAINS
             snew = snew+oldheadpotential+0.5_dp*newheadpotential
          END IF
       ELSE
-         snew = worm_path_action(pint_env, helium, helium%work, &
+         snew = worm_path_action(helium, helium%work, &
                                  fstartatom, startbead, helium%permutation(fstartatom), endbead)
          IF (helium%solute_present) THEN
             ! no special head treatment needed, because a swap can't go over
@@ -3082,7 +3080,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Action along path
-!> \param pint_env ...
 !> \param helium ...
 !> \param pos ...
 !> \param startatom ...
@@ -3092,10 +3089,9 @@ CONTAINS
 !> \return ...
 !> \author fuhl
 ! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION worm_path_action(pint_env, helium, pos, &
+   REAL(KIND=dp) FUNCTION worm_path_action(helium, pos, &
                                            startatom, startbead, endatom, endbead) RESULT(partaction)
 
-      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
       TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: pos
@@ -3161,7 +3157,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Corrected path action for worm
-!> \param pint_env ...
 !> \param helium ...
 !> \param pos ...
 !> \param startatom ...
@@ -3174,10 +3169,9 @@ CONTAINS
 !> \return ...
 !> \author fuhl
 ! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION worm_path_action_worm_corrected(pint_env, helium, pos, &
+   REAL(KIND=dp) FUNCTION worm_path_action_worm_corrected(helium, pos, &
                                    startatom, startbead, endatom, endbead, xtrapos, worm_atom_idx, worm_bead_idx) RESULT(partaction)
 
-      TYPE(pint_env_type), INTENT(IN), POINTER           :: pint_env
       TYPE(helium_solvent_type), INTENT(IN), POINTER     :: helium
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: pos
