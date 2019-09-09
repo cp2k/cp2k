@@ -2334,7 +2334,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CRAWL_REPETION", &
+      CALL keyword_create(keyword, __LOCATION__, name="CRAWL_REPETITION", &
                           description="Number of repeated crawl moves", &
                           repeats=.FALSE., default_i_val=4)
       CALL section_add_keyword(subsection, keyword)
