@@ -260,17 +260,21 @@ CONTAINS
             " Total number of MC steps           :", helium%num_steps
          WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
             " Number of outer MC trials per step :", helium%iter_rot
-         WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
-            " Number of inner MC trials per step :", helium%iter_norot
          i8tmp = INT(helium%iter_rot, int_8)
-         i8tmp = i8tmp*INT(helium%iter_norot, int_8)
+         IF (helium%sampling_method == helium_sampling_ceperley) THEN
+            WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
+               " Number of inner MC trials per step :", helium%iter_norot
+            i8tmp = i8tmp*INT(helium%iter_norot, int_8)
+         END IF
          stmp = ""
          WRITE (stmp, *) i8tmp
          WRITE (unit_nr, '(T2,A)') TRIM(my_label)// &
             " Total number of MC trials per step : "//TRIM(ADJUSTL(stmp))
          i8tmp = INT(helium%num_steps, int_8)
          i8tmp = i8tmp*INT(helium%iter_rot, int_8)
-         i8tmp = i8tmp*INT(helium%iter_norot, int_8)
+         IF (helium%sampling_method == helium_sampling_ceperley) THEN
+            i8tmp = i8tmp*INT(helium%iter_norot, int_8)
+         END IF
          stmp = ""
          WRITE (stmp, *) i8tmp
          WRITE (unit_nr, '(T2,A)') TRIM(my_label)// &
@@ -315,7 +319,7 @@ CONTAINS
             stmp1 = ""
             stmp2 = ""
             WRITE (stmp1, *) helium%worm_staging_l
-            WRITE (stmp2, *) "WORM| Staging length: "//TRIM(ADJUSTL(stmp1))
+            WRITE (stmp2, *) "WORM| Maximal staging length: "//TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
             stmp1 = ""
             stmp2 = ""
