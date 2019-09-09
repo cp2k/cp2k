@@ -267,7 +267,8 @@ CONTAINS
       ! Save naccepted and ntot
       helium%num_accepted(1, 1) = ncentracc+nstagacc+nopenacc+ncloseacc+nswapacc+ &
                                   nmoveheadacc+nmovetailacc+ncrawlfwdacc+ncrawlbwdacc
-      helium%num_accepted(2, 1) = ntot
+      helium%num_accepted(2, 1) = ncentratt+nstagatt+nopenatt+ncloseatt+nswapatt+ &
+                                  nmoveheadatt+nmovetailatt+ncrawlfwdatt+ncrawlbwdatt
 
       ! Calculate last_force
       IF (helium%solute_present) THEN
@@ -559,8 +560,6 @@ CONTAINS
       LOGICAL                                            :: incycle
       REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
-! is worm in cycle
-
       ! compute action difference
       ! action before the move from pos array
       partaction = 0.0_dp
@@ -755,8 +754,6 @@ CONTAINS
 
       INTEGER                                            :: jatom, jbead
       REAL(KIND=dp)                                      :: energy
-
-! is worm in cycle
 
       partaction = 0.0_dp
       ! spcial treatment if worm is in moved cycle
