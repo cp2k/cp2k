@@ -520,7 +520,7 @@ CONTAINS
                   helium_env(k)%helium%worm_open_close_min = helium_env(k)%helium%worm_swap_max+1
                   helium_env(k)%helium%worm_open_close_max = helium_env(k)%helium%worm_swap_max+itmp
                   helium_env(k)%helium%worm_all_limit = helium_env(k)%helium%worm_all_limit+itmp
-                  CALL section_vals_val_get(helium_section, "WORM%CRAWL_REPETION", &
+                  CALL section_vals_val_get(helium_section, "WORM%CRAWL_REPETITION", &
                                             i_val=helium_env(k)%helium%worm_repeat_crawl)
                END IF
 
