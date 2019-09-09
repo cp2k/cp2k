@@ -173,9 +173,6 @@ MODULE helium_types
       ! helium variables
       !
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: pos !< position of the helium atoms DIM(3,atoms,beads)
-#ifdef __FU_DEBUGWORM
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: TMPpos !< position of the helium atoms DIM(3,atoms,beads)
-#endif
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: work !< same dimensions as pos
       !
       INTEGER, DIMENSION(:), POINTER :: permutation !< current permutation state DIM(atoms)

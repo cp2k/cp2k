@@ -1175,7 +1175,9 @@ CONTAINS
                   iter = iter+1
                   invalidpos = .FALSE.
                   ! if sampling fails to often, reduce he he criterion
-                  minHeHedsttmp = 0.90_dp**(iter/100)*minHeHedst
+                  !CS TODO:
+                  !minHeHedsttmp = 0.90_dp**(iter/100)*minHeHedst
+                  minHeHedsttmp = 0.90_dp**MIN(0, iter-2)*minHeHedst
                   DO ic = 1, 3
                      r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
                      r1 = 2.0_dp*r1-1.0_dp
