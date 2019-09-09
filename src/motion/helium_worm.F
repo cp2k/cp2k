@@ -10,10 +10,12 @@
 ! **************************************************************************************************
 MODULE helium_worm
 
-   USE helium_common,                   ONLY: helium_eval_expansion,&
+   USE helium_common,                   ONLY: helium_calc_plength,&
+                                              helium_eval_expansion,&
                                               helium_pbc,&
                                               helium_update_coord_system
    USE helium_interactions,             ONLY: helium_bead_solute_e_f,&
+                                              helium_calc_energy,&
                                               helium_solute_e_f
    USE helium_io,                       ONLY: helium_write_line
    USE helium_types,                    ONLY: he_mass,&
@@ -201,9 +203,11 @@ CONTAINS
                IF (helium%worm_is_closed) THEN
                   nstat = nstat+1
 
-                  ! Only done at end of MC sampling before switching to MD
-                  !CALL helium_calc_energy(helium, pint_env)
-                  !helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
+                  CALL helium_calc_energy(helium, pint_env)
+                  helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
+
+                  CALL helium_calc_plength(helium)
+                  helium%plength_avrg(:) = helium%plength_avrg(:)+helium%plength_inst(:)
 
                   IF (helium%solute_present) THEN
                      IF (helium%get_helium_forces == helium_forces_average) THEN
@@ -250,9 +254,11 @@ CONTAINS
             nstat = nstat+1
             ntot = ntot+1
 
-            ! Only done at end of MC sampling before switching to MD
-            !CALL helium_calc_energy(helium, pint_env)
-            !helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
+            CALL helium_calc_energy(helium, pint_env)
+            helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
+
+            CALL helium_calc_plength(helium)
+            helium%plength_avrg(:) = helium%plength_avrg(:)+helium%plength_inst(:)
 
             IF (helium%solute_present) THEN
                IF (helium%get_helium_forces == helium_forces_average) THEN
@@ -269,6 +275,7 @@ CONTAINS
                                   nmoveheadacc+nmovetailacc+ncrawlfwdacc+ncrawlbwdacc
       helium%num_accepted(2, 1) = ncentratt+nstagatt+nopenatt+ncloseatt+nswapatt+ &
                                   nmoveheadatt+nmovetailatt+ncrawlfwdatt+ncrawlbwdatt
+      helium%worm_nstat = nstat
 
       ! Calculate last_force
       IF (helium%solute_present) THEN

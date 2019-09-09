@@ -125,6 +125,7 @@ MODULE helium_types
       INTEGER :: sampling_method
       ! worm sampling parameters
       REAL(KIND=dp) :: worm_centroid_drmax
+      INTEGER       :: worm_nstat
       INTEGER       :: worm_staging_l
       INTEGER       :: worm_repeat_crawl
       INTEGER       :: worm_all_limit

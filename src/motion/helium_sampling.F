@@ -218,12 +218,7 @@ CONTAINS
 
             CALL helium_sample_worm(helium_env(k)%helium, pint_env)
 
-            CALL helium_calc_energy(helium_env(k)%helium, pint_env)
-            helium_env(k)%helium%energy_avrg(:) = helium_env(k)%helium%energy_avrg(:)+helium_env(k)%helium%energy_inst(:)
-            CALL helium_calc_plength(helium_env(k)%helium)
-            helium_env(k)%helium%plength_avrg(:) = helium_env(k)%helium%plength_avrg(:)+helium_env(k)%helium%plength_inst(:)
-
-            inv_xn = 1.0_dp
+            inv_xn = 1.0_dp/REAL(helium_env(k)%helium%worm_nstat, dp)
 
          CASE (helium_sampling_ceperley)
             ! helium sampling (outer MC loop)

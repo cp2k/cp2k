@@ -23,8 +23,7 @@ MODULE helium_interactions
    USE input_constants,                 ONLY: helium_sampling_worm,&
                                               helium_solute_intpot_mwater,&
                                               helium_solute_intpot_none
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: angstrom,&
                                               kelvin
    USE pint_types,                      ONLY: pint_env_type

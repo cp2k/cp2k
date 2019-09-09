@@ -34,10 +34,9 @@ MODULE input_cp2k_motion
         helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
         helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
         helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
-        helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, &
-        ls_fit, ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, &
-        perm_cycle, perm_plain, propagator_pimd, propagator_rpmd, transformation_normal, &
-        transformation_stage
+        helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
+        ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, &
+        perm_plain, propagator_pimd, propagator_rpmd, transformation_normal, transformation_stage
    USE input_cp2k_constraints,          ONLY: create_constraint_section
    USE input_cp2k_free_energy,          ONLY: create_fe_section
    USE input_cp2k_md,                   ONLY: create_md_section
