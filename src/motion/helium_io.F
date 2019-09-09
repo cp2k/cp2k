@@ -475,9 +475,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_print_energy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iteration, k, m, ntot, unit_nr
+      INTEGER                                            :: handle, iteration, k, m, unit_nr
       LOGICAL                                            :: cepsample, file_is_new, should_output
-      REAL(KIND=dp)                                      :: naccptd
+      REAL(KIND=dp)                                      :: naccptd, ntot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_energy
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -502,7 +502,7 @@ CONTAINS
 
          naccptd = 0.0_dp
          IF (cepsample) THEN
-            ntot = 0
+            ntot = 0.0_dp
             DO k = 1, SIZE(helium_env)
                ntot = ntot+helium_env(1)%helium%iter_norot*helium_env(1)%helium%iter_rot
                DO m = 1, helium_env(k)%helium%maxcycle
@@ -510,7 +510,7 @@ CONTAINS
                END DO
             END DO
          ELSE !(wormsample)
-            ntot = 0
+            ntot = 0.0_dp
             DO k = 1, SIZE(helium_env)
                naccptd = naccptd+helium_env(k)%helium%num_accepted(1, 1)
                ntot = ntot+helium_env(k)%helium%num_accepted(2, 1)
@@ -544,7 +544,7 @@ CONTAINS
 
             WRITE (unit_nr, "(I9,7(1X,F20.9))") &
                iteration, &
-               REAL(naccptd, dp)/REAL(ntot, dp), &
+               naccptd/ntot, &
                my_energy(e_id_potential), &
                my_energy(e_id_kinetic), &
                my_energy(e_id_thermo), &
