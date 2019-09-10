@@ -28,6 +28,9 @@ MODULE qs_scf_post_se
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_result_methods,               ONLY: cp_results_erase,&
+                                              put_results
+   USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_get_ival,&
@@ -225,6 +228,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -234,6 +238,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_key
       TYPE(semi_empirical_type), POINTER                 :: se_kind
 
+      NULLIFY (results)
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MOMENTS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          ! Dipole Moments
@@ -257,6 +262,7 @@ CONTAINS
                          natom=natom, &
                          qs_kind_set=qs_kind_set, &
                          particle_set=particle_set, &
+                         results=results, &
                          dft_control=dft_control)
 
          CALL qs_rho_get(rho, rho_ao=matrix_p)
@@ -369,6 +375,9 @@ CONTAINS
             END DO
             DEALLOCATE (mom)
          END DO
+         CALL cp_results_erase(results=results, description=description)
+         CALL put_results(results=results, description=description, &
+                          values=dipole(1:3))
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(1X,A,T48,3F11.6)') "DIPOLE "//TRIM(dipole_type)//"(A.U.)|", dipole
             WRITE (unit_nr, '(1X,A,T48,3F11.6)') "DIPOLE "//TRIM(dipole_type)//"(Debye)|", dipole*debye

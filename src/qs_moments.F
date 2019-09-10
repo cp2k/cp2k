@@ -1685,9 +1685,9 @@ CONTAINS
          DO l = 0, nmom
             SELECT CASE (l)
             CASE (0)
-               WRITE (unit_number, "(T3,A,T32,3F14.8)") "Reference Point [Bohr]", rcc
+               WRITE (unit_number, "(T3,A,T33,3F16.8)") "Reference Point [Bohr]", rcc
                WRITE (unit_number, "(T3,A)") "Charges"
-               WRITE (unit_number, "(T5,A,T18,F14.8,T36,A,T42,F14.8,T60,A,T68,F14.8)") &
+               WRITE (unit_number, "(T5,A,T18,F14.8,T36,A,T42,F14.8,T60,A,T67,F14.8)") &
                   "Electronic=", rmom(1, 1), "Core=", rmom(1, 2), "Total=", rmom(1, 3)
             CASE (1)
                IF (periodic) THEN
@@ -1701,7 +1701,7 @@ CONTAINS
                ENDIF
                dd = SQRT(SUM(rmom(2:4, 3)**2))*debye
                WRITE (unit_number, "(T3,A)") "Dipole moment [Debye]"
-               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T68,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye, i=2, 4), "Total=", dd
             CASE (2)
                WRITE (unit_number, "(T3,A)") "Quadrupole moment [Debye*Angstrom]"
@@ -1743,7 +1743,7 @@ CONTAINS
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
                WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment (only orbital contrib.) [a.u.]"
-               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T68,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
                   (TRIM(rlab(i+1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
