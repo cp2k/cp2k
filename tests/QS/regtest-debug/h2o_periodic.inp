@@ -1,10 +1,21 @@
 &FORCE_EVAL
   METHOD Quickstep
+  &PROPERTIES
+    &LINRES
+       PRECONDITIONER FULL_ALL
+       EPS 1.e-10
+       &POLAR
+          DO_RAMAN T
+          PERIODIC_DIPOLE_OPERATOR T
+       &END
+    &END
+  &END
   &DFT
     &QS
       METHOD GPW
+      EPS_DEFAULT 1.e-10
     &END QS
-    &EFIELD
+    &PERIODIC_EFIELD
     &END
     &SCF
       SCF_GUESS ATOMIC 
@@ -14,10 +25,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -25,14 +36,13 @@
     &END XC
     &PRINT
       &MOMENTS ON
-         PERIODIC .FALSE.
-         REFERENCE COM
+         PERIODIC T
       &END
     &END
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD
@@ -63,9 +73,10 @@
 &DEBUG
    DEBUG_FORCES .FALSE.
    DEBUG_STRESS_TENSOR .FALSE.
-   DEBUG_DIPOLE .TRUE.
-   DEBUG_POLARIZABILITY .FALSE.
-   DE 0.0002
+   DEBUG_DIPOLE .FALSE.
+   DEBUG_POLARIZABILITY .TRUE.
+   DE 0.002
+   EPS_NO_ERROR_CHECK 5.e-5
 &END
  
 

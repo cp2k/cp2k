@@ -395,6 +395,7 @@ CONTAINS
                END DO
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="
+               WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") ' DIPOLE : CheckSum  =', SUM(dipole_moment)
             END IF
          ELSE
             CALL cp_warn(__LOCATION__, "Debug of dipole moments only for Quickstep code available")
@@ -452,6 +453,7 @@ CONTAINS
                END DO
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="
+               WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") ' POLAR : CheckSum  =', SUM(polar_analytic)
             END IF
          ELSE
             CALL cp_warn(__LOCATION__, "Debug of polarizabilities only for Quickstep code available")

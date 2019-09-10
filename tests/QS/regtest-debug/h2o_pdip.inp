@@ -4,7 +4,7 @@
     &QS
       METHOD GPW
     &END QS
-    &EFIELD
+    &PERIODIC_EFIELD
     &END
     &SCF
       SCF_GUESS ATOMIC 
@@ -25,14 +25,13 @@
     &END XC
     &PRINT
       &MOMENTS ON
-         PERIODIC .FALSE.
-         REFERENCE COM
+         PERIODIC T
       &END
     &END
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD
