@@ -1241,7 +1241,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_3c", &
-                          description="Group size used for cutting the RI index P in (alpha beta P) and for "// &
+                          description="This keyword is not needed if DO_DBCSR_T enabled. "// &
+                          "Group size used for cutting the RI index P in (alpha beta P) and for "// &
                           "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt. Has to be increased "// &
                           "for larger systems, at least linearly with system size, at most quadratically in  "// &
                           "system size.", &
@@ -1251,7 +1252,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_P", &
-                          description="Group size used for the calculation of P(it)=(Mocc(it))^T*Mvirt(it). "// &
+                          description="This keyword is not needed if DO_DBCSR_T enabled. "// &
+                          "Group size used for the calculation of P(it)=(Mocc(it))^T*Mvirt(it). "// &
                           "Default is to use a single process. A larger group size (for example the node size), "// &
                           "could be recommended for larger systems, since the P matrix is replicated in every group. ", &
                           usage="GROUP_SIZE_P 8", &
@@ -1304,6 +1306,16 @@ CONTAINS
          usage="DO_DBCSR_T", &
          default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="GROUP_SIZE_INTERNAL", &
+         description="If DO_DBCSR_T and this keyword set to .TRUE., group sizes are automatic and keywords GROUP_SIZE_3C "// &
+         "& GROUP_SIZE_P are ignored. This should be set to .FALSE. for testing purposes only.", &
+         usage="GROUP_SIZE_INTERNAL F", &
+         default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

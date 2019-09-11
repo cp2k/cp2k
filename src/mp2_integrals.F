@@ -115,6 +115,8 @@ MODULE mp2_integrals
                                               pw_p_type
    USE qs_3c_tensors,                   ONLY: build_3c_integrals,&
                                               build_3c_neighbor_lists,&
+                                              contiguous_tensor_dist,&
+                                              cyclic_tensor_dist,&
                                               distribution_3d_create,&
                                               neighbor_list_3c_destroy
    USE qs_3c_tensors_types,             ONLY: distribution_3d_type,&
@@ -326,9 +328,9 @@ CONTAINS
          sizes_RI_split, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info, local_col_row_info_beta, &
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
-      INTEGER, DIMENSION(3)                              :: periodic
+      INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
       LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
-                                                            memory_info
+                                                            impose_split, memory_info
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -763,6 +765,7 @@ CONTAINS
 
          ngroup_im_time = para_env%num_pe/qs_env%mp2_env%ri_rpa_im_time%group_size_3c
          ngroup_im_time_P = para_env%num_pe/qs_env%mp2_env%ri_rpa_im_time%group_size_p
+         impose_split = .NOT. qs_env%mp2_env%ri_rpa_im_time%group_size_internal
 
          color_sub_3c = para_env%mepos/qs_env%mp2_env%ri_rpa_im_time%group_size_3c
 
@@ -782,7 +785,12 @@ CONTAINS
 
             CALL get_qs_env(qs_env, natom=natom, nkind=nkind)
 
-            pgrid_t3c_overl = create_tensor_pgrid(para_env, ngroup_im_time, map1_2d=[1, 2], map2_2d=[3])
+            IF (.NOT. impose_split) THEN
+               pdims_t3c = 0
+               CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl, map1_2d=[1, 2], map2_2d=[3])
+            ELSE
+               pgrid_t3c_overl = get_pgrid_from_ngroup(para_env, ngroup_im_time, map1_2d=[1, 2], map2_2d=[3])
+            ENDIF
 
             ! set up basis
             ALLOCATE (sizes_RI(natom), sizes_AO(natom))
@@ -796,7 +804,7 @@ CONTAINS
             nimg = dft_control%nimages
             ALLOCATE (t_3c_overl_int(nimg, nimg))
 
-            CALL create_tensor_O_3c(t_3c_overl_int(1, 1), pgrid_t3c_overl, ngroup_im_time, &
+            CALL create_tensor_O_3c(t_3c_overl_int(1, 1), pgrid_t3c_overl, &
                                     sizes_AO, sizes_AO, sizes_RI, &
                                     nl_3c=nl_3c, qs_env=qs_env, &
                                     basis_ao_1=basis_set_ao, basis_ao_2=basis_set_ao, basis_RI=basis_set_ri_aux, &
@@ -823,16 +831,21 @@ CONTAINS
             CALL split_block_sizes(sizes_AO, sizes_AO_split, sqrt_max_bsize)
             CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
 
-            pgrid_t3c_M = create_tensor_pgrid(para_env, ngroup_im_time_P, map1_2d=[1], map2_2d=[2, 3])
+            IF (.NOT. impose_split) THEN
+               pdims_t3c = 0
+               CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M, map1_2d=[1], map2_2d=[2, 3])
+            ELSE
+               pgrid_t3c_M = get_pgrid_from_ngroup(para_env, ngroup_im_time_P, map1_2d=[1], map2_2d=[2, 3])
+            ENDIF
 
             CALL create_tensor_M_3c(t_3c_M, pgrid_t3c_M, &
-                                    cut_memory, ngroup_im_time_P, &
+                                    cut_memory, &
                                     sizes_AO_split, sizes_RI, starts_array_mc_t, ends_array_mc_t)
 
             CALL dbcsr_t_pgrid_destroy(pgrid_t3c_M)
 
             ALLOCATE (t_3c_O(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
-            CALL create_tensor_O_3c(t_3c_O(1, 1), pgrid_t3c_overl, ngroup_im_time, sizes_AO_split, &
+            CALL create_tensor_O_3c(t_3c_O(1, 1), pgrid_t3c_overl, sizes_AO_split, &
                                     sizes_AO, sizes_RI_split)
 
             CALL dbcsr_t_pgrid_destroy(pgrid_t3c_overl)
@@ -975,13 +988,13 @@ CONTAINS
 !> \param map2_2d mapping of 3d grid to 2 dimensions (see dbcsr_t_pgrid_create)
 !> \return process grid object compatible with DBCSR tensors
 ! **************************************************************************************************
-   FUNCTION create_tensor_pgrid(para_env, ngroup, map1_2d, map2_2d) RESULT(pgrid)
+   FUNCTION get_pgrid_from_ngroup(para_env, ngroup, map1_2d, map2_2d) RESULT(pgrid)
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: ngroup
       INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid
 
-      INTEGER                                            :: nproc_sub
+      INTEGER                                            :: dimsplit, nproc_sub
       INTEGER, DIMENSION(2)                              :: pdims_2_2d, pdims_sub_2d
       INTEGER, DIMENSION(3)                              :: pdims_t3c
 
@@ -991,15 +1004,18 @@ CONTAINS
       pdims_2_2d = 0
       CALL mp_dims_create(pdims_sub_2d(2)*ngroup, pdims_2_2d)
       IF (SIZE(map1_2d) == 1) THEN
+         dimsplit = 2
          pdims_t3c(map1_2d(1)) = pdims_sub_2d(1)
          pdims_t3c(map2_2d) = pdims_2_2d
       ELSEIF (SIZE(map2_2d) == 1) THEN
+         dimsplit = 1
          pdims_t3c(map2_2d(1)) = pdims_sub_2d(1)
          pdims_t3c(map1_2d) = pdims_2_2d
       ELSE
          CPABORT("map1_2d and map2_2d not compatible with a 3d grid")
       ENDIF
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid, map1_2d=map1_2d, map2_2d=map2_2d)
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid, map1_2d=map1_2d, map2_2d=map2_2d, &
+                                nsplit=ngroup, dimsplit=dimsplit)
    END FUNCTION
 
 ! **************************************************************************************************
@@ -1042,17 +1058,16 @@ CONTAINS
 !> \param t_3c_M ...
 !> \param pgrid_t3c_M ...
 !> \param mem_cut ...
-!> \param ngroup ...
 !> \param sizes_AO ...
 !> \param sizes_RI ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
 ! **************************************************************************************************
-   SUBROUTINE create_tensor_M_3c(t_3c_M, pgrid_t3c_M, mem_cut, ngroup, sizes_AO, sizes_RI, &
+   SUBROUTINE create_tensor_M_3c(t_3c_M, pgrid_t3c_M, mem_cut, sizes_AO, sizes_RI, &
                                  starts_array_mc, ends_array_mc)
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: pgrid_t3c_M
-      INTEGER, INTENT(IN)                                :: mem_cut, ngroup
+      INTEGER, INTENT(IN)                                :: mem_cut
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_AO, sizes_RI
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array_mc, ends_array_mc
 
@@ -1069,7 +1084,7 @@ CONTAINS
       size_AO = SIZE(sizes_AO)
 
       ALLOCATE (dist_RI(size_RI))
-      CALL cyclic_dist(size_RI, pdims(1), sizes_RI, dist_RI)
+      CALL cyclic_tensor_dist(size_RI, pdims(1), sizes_RI, dist_RI)
 
       ALLOCATE (starts_array_mc(mem_cut))
       ALLOCATE (ends_array_mc(mem_cut))
@@ -1080,7 +1095,7 @@ CONTAINS
          CPABORT("Use smaller MEMORY_CUT")
       ENDIF
 
-      CALL contiguous_dist(size_AO, mem_cut, sizes_AO, limits_start=starts_array_mc_block, limits_end=ends_array_mc_block)
+      CALL contiguous_tensor_dist(size_AO, mem_cut, sizes_AO, limits_start=starts_array_mc_block, limits_end=ends_array_mc_block)
 
       bsum = 0
       DO imem = 1, mem_cut
@@ -1096,16 +1111,15 @@ CONTAINS
          size_AO_cut = ends_array_mc_block(imem)-starts_array_mc_block(imem)+1
 
          IF (size_AO_cut < MIN(pdims(2), pdims(3))) THEN
-            CPABORT("Increment GROUP_SIZE_P, use smaller MEMORY_CUT or use less MPI ranks")
+            CPABORT("use smaller MEMORY_CUT or use less MPI ranks")
          ENDIF
-         CALL cyclic_dist(size_AO_cut, pdims(2), sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
-                          dist=dist_ao_1(starts_array_mc_block(imem):ends_array_mc_block(imem)))
-         CALL cyclic_dist(size_AO_cut, pdims(3), sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
-                          dist=dist_ao_2(starts_array_mc_block(imem):ends_array_mc_block(imem)))
+         CALL cyclic_tensor_dist(size_AO_cut, pdims(2), sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
+                                 dist=dist_ao_1(starts_array_mc_block(imem):ends_array_mc_block(imem)))
+         CALL cyclic_tensor_dist(size_AO_cut, pdims(3), sizes_AO(starts_array_mc_block(imem):ends_array_mc_block(imem)), &
+                                 dist=dist_ao_2(starts_array_mc_block(imem):ends_array_mc_block(imem)))
       ENDDO
 
-      CALL dbcsr_t_distribution_new(dist, pgrid_t3c_M, [1], [2, 3], dist_RI, dist_ao_1, dist_ao_2, &
-                                    ngroup=ngroup, dimsplit=2)
+      CALL dbcsr_t_distribution_new(dist, pgrid_t3c_M, [1], [2, 3], dist_RI, dist_ao_1, dist_ao_2)
       CALL dbcsr_t_create(t_3c_M, "M (RI | AO AO)", dist, [1], [2, 3], dbcsr_type_real_8, sizes_RI, &
                           sizes_AO, sizes_AO)
       CALL dbcsr_t_distribution_destroy(dist)
@@ -1117,7 +1131,6 @@ CONTAINS
 !> \param t_3c_O Create tensor with overlap integrals, optionally create 3c neighbor list matching tensor
 !>        distribution
 !> \param mp_comm_t3c ...
-!> \param ngroup number of process subgroups
 !> \param ao_sizes_1 block sizes of first AO index
 !> \param ao_sizes_2 block sizes of second AO index
 !> \param sizes_RI block sizes of RI index
@@ -1128,12 +1141,11 @@ CONTAINS
 !> \param basis_RI needed for nl_3c
 !> \param do_kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE create_tensor_O_3c(t_3c_O, mp_comm_t3c, ngroup, ao_sizes_1, ao_sizes_2, sizes_RI, &
+   SUBROUTINE create_tensor_O_3c(t_3c_O, mp_comm_t3c, ao_sizes_1, ao_sizes_2, sizes_RI, &
                                  nl_3c, qs_env, basis_ao_1, basis_ao_2, basis_RI, &
                                  do_kpoints)
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_O
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c
-      INTEGER, INTENT(IN)                                :: ngroup
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_sizes_1, ao_sizes_2, sizes_RI
       TYPE(neighbor_list_3c_type), INTENT(OUT), OPTIONAL :: nl_3c
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
@@ -1166,9 +1178,9 @@ CONTAINS
       ALLOCATE (dist_ao_1(size_AO_1))
       ALLOCATE (dist_ao_2(size_AO_2))
 
-      CALL cyclic_dist(size_RI, pdims(1), sizes_RI, dist_RI)
-      CALL cyclic_dist(size_AO_1, pdims(2), ao_sizes_1, dist_ao_1)
-      CALL cyclic_dist(size_AO_2, pdims(3), ao_sizes_2, dist_ao_2)
+      CALL cyclic_tensor_dist(size_RI, pdims(1), sizes_RI, dist_RI)
+      CALL cyclic_tensor_dist(size_AO_1, pdims(2), ao_sizes_1, dist_ao_1)
+      CALL cyclic_tensor_dist(size_AO_2, pdims(3), ao_sizes_2, dist_ao_2)
 
       IF (PRESENT(nl_3c)) THEN
          CPASSERT(PRESENT(qs_env))
@@ -1187,91 +1199,12 @@ CONTAINS
                                       sym_jk=.NOT. kp, own_dist=.TRUE.)
       ENDIF
 
-      CALL dbcsr_t_distribution_new(dist, mp_comm_t3c, [1, 2], [3], dist_RI, dist_ao_1, dist_ao_2, &
-                                    ngroup=ngroup, dimsplit=1)
+      CALL dbcsr_t_distribution_new(dist, mp_comm_t3c, [1, 2], [3], dist_RI, dist_ao_1, dist_ao_2)
       CALL dbcsr_t_create(t_3c_O, "O (RI AO | AO)", dist, [1, 2], [3], dbcsr_type_real_8, sizes_RI, &
                           ao_sizes_1, ao_sizes_2)
       CALL dbcsr_t_distribution_destroy(dist)
 
    END SUBROUTINE create_tensor_O_3c
-
-! **************************************************************************************************
-!> \brief contiguous distribution of weighted elements
-!> \param nel ...
-!> \param nbin ...
-!> \param weights ...
-!> \param limits_start ...
-!> \param limits_end ...
-!> \param dist ...
-! **************************************************************************************************
-   SUBROUTINE contiguous_dist(nel, nbin, weights, limits_start, limits_end, dist)
-      INTEGER, INTENT(IN)                                :: nel, nbin
-      INTEGER, DIMENSION(nel), INTENT(IN)                :: weights
-      INTEGER, DIMENSION(nbin), INTENT(OUT), OPTIONAL    :: limits_start, limits_end
-      INTEGER, DIMENSION(nel), INTENT(OUT), OPTIONAL     :: dist
-
-      INTEGER                                            :: el_end, el_start, end_weight, ibin, &
-                                                            nel_div, nel_rem, nel_split, nel_w, &
-                                                            w_partialsum
-
-      nel_w = SUM(weights)
-      nel_div = nel_w/nbin
-      nel_rem = MOD(nel_w, nbin)
-
-      w_partialsum = 0
-      el_end = 0
-      end_weight = 0
-      DO ibin = 1, nbin
-         nel_split = nel_div
-         IF (ibin <= nel_rem) THEN
-            nel_split = nel_split+1
-         ENDIF
-         el_start = el_end+1
-         el_end = el_start
-         w_partialsum = w_partialsum+weights(el_end)
-         end_weight = end_weight+nel_split
-         DO WHILE (w_partialsum < end_weight)
-            !IF (ABS(w_partialsum + weights(el_end) - end_weight) > ABS(w_partialsum - end_weight)) EXIT
-            el_end = el_end+1
-            w_partialsum = w_partialsum+weights(el_end)
-         ENDDO
-         IF (PRESENT(dist)) dist(el_start:el_end) = ibin-1
-         IF (PRESENT(limits_start)) limits_start(ibin) = el_start
-         IF (PRESENT(limits_end)) limits_end(ibin) = el_end
-      ENDDO
-
-   END SUBROUTINE contiguous_dist
-
-! **************************************************************************************************
-!> \brief cyclic distribution of weighted elements
-!> \param nel ...
-!> \param nbin ...
-!> \param weights ...
-!> \param dist ...
-! **************************************************************************************************
-   SUBROUTINE cyclic_dist(nel, nbin, weights, dist)
-      INTEGER, INTENT(IN)                                :: nel, nbin
-      INTEGER, DIMENSION(nel), INTENT(IN)                :: weights
-      INTEGER, DIMENSION(nel), INTENT(OUT)               :: dist
-
-      INTEGER                                            :: ibin, iel, niter
-      INTEGER, DIMENSION(nbin)                           :: occup
-
-      occup(:) = 0
-      ibin = 0
-      DO iel = 1, nel
-         niter = 0
-         ibin = MOD(ibin+1, nbin)
-         DO WHILE (occup(ibin+1)+weights(iel) .GE. MAXVAL(occup))
-            IF (MINLOC(occup, DIM=1) == ibin+1) EXIT
-            ibin = MOD(ibin+1, nbin)
-            niter = niter+1
-         ENDDO
-         dist(iel) = ibin
-         occup(ibin+1) = occup(ibin+1)+weights(iel)
-      ENDDO
-
-   END SUBROUTINE cyclic_dist
 
 ! **************************************************************************************************
 !> \brief Contract (P|ai) = (R|P) x (R|ai)
