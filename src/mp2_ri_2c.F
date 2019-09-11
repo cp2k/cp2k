@@ -226,7 +226,7 @@ CONTAINS
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
                                       gd_array, calc_PQ_cond_num, cond_num, &
                                       num_small_eigen, ri_metric, omega_metric, sab_orb_sub, &
-                                      external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L)
+                                      fm_matrix_L_extern=fm_matrix_L)
 
          END IF
 
@@ -321,7 +321,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       LOGICAL, INTENT(IN)                                :: do_svd
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
-      INTEGER, INTENT(OUT)                               :: num_small_eigen
+      INTEGER, INTENT(INOUT)                             :: num_small_eigen
       REAL(KIND=dp), INTENT(INOUT)                       :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
@@ -627,7 +627,6 @@ CONTAINS
 !> \param ri_metric ...
 !> \param omega ...
 !> \param sab_orb_sub ...
-!> \param external_matrix_struc ...
 !> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
 ! **************************************************************************************************
@@ -635,7 +634,7 @@ CONTAINS
                                    fm_matrix_L, ngroup, color_sub, dimen_RI, mo_coeff, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, &
                                    gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, ri_metric, omega, &
-                                   sab_orb_sub, external_matrix_struc, do_im_time, fm_matrix_L_extern)
+                                   sab_orb_sub, do_im_time, fm_matrix_L_extern)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
@@ -656,7 +655,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
-      LOGICAL, INTENT(IN), OPTIONAL                      :: external_matrix_struc, do_im_time
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals', &
@@ -668,13 +667,12 @@ CONTAINS
          rec_L_end, rec_L_size, rec_L_start, strat_group_size, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_do_im_time, my_external_matrix_struc
+      LOGICAL                                            :: my_do_im_time
       REAL(KIND=dp)                                      :: min_mem_for_QK
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egen_L
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_external_col, L_local_col
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_diag
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_sub_array
@@ -683,11 +681,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
-
-      my_external_matrix_struc = .FALSE.
-      IF (PRESENT(external_matrix_struc)) THEN
-         my_external_matrix_struc = external_matrix_struc
-      END IF
 
       my_do_im_time = .FALSE.
       IF (PRESENT(do_im_time)) THEN
@@ -806,19 +799,8 @@ CONTAINS
                              my_group_L_end, my_group_L_size, para_env_exchange)
 
       ! create the full matrix L defined in the L group
-      NULLIFY (fm_matrix_L)
-      NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, context=blacs_env_L, nrow_global=dimen_RI, &
-                               ncol_global=dimen_RI, para_env=para_env_L)
-      IF (my_external_matrix_struc) THEN
-         CALL cp_fm_create(fm_matrix_L, fm_matrix_L_extern%matrix_struct, name="fm_matrix_L")
-      ELSE
-         CALL cp_fm_create(fm_matrix_L, fm_struct, name="fm_matrix_L")
-      END IF
 
-      CALL cp_fm_struct_release(fm_struct)
-
-      CALL cp_fm_set_all(matrix=fm_matrix_L, alpha=0.0_dp)
+      CALL create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, "fm_matrix_L", fm_matrix_L_extern)
 
       IF (my_do_im_time .AND. para_env%num_pe > 1) THEN
 
@@ -901,19 +883,8 @@ CONTAINS
       IF (calc_PQ_cond_num) THEN
          ! calculate the condition number of the (P|Q) matrix
          ! create a copy of the matrix
-         NULLIFY (fm_matrix_L_diag)
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env_L, nrow_global=dimen_RI, &
-                                  ncol_global=dimen_RI, para_env=para_env_L)
-         IF (my_external_matrix_struc) THEN
-            CALL cp_fm_create(fm_matrix_L_diag, fm_matrix_L_extern%matrix_struct, name="fm_matrix_L_diag")
-         ELSE
-            CALL cp_fm_create(fm_matrix_L_diag, fm_struct, name="fm_matrix_L_diag")
-         END IF
 
-         CALL cp_fm_struct_release(fm_struct)
-
-         CALL cp_fm_set_all(matrix=fm_matrix_L_diag, alpha=0.0_dp)
+         CALL create_matrix_L(fm_matrix_L_diag, blacs_env_L, dimen_RI, para_env_L, "fm_matrix_L_diag", fm_matrix_L_extern)
 
          CALL cp_fm_to_fm(source=fm_matrix_L, destination=fm_matrix_L_diag)
 
@@ -1469,4 +1440,39 @@ CONTAINS
 
    END SUBROUTINE invert_L
 
+   SUBROUTINE create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, name, fm_matrix_L_extern)
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(cp_para_env_type), POINTER                    :: para_env_L
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_matrix_L', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+
+      CALL timeset(routineN, handle)
+
+      ! create the full matrix L defined in the L group
+      NULLIFY (fm_matrix_L)
+      IF (PRESENT(fm_matrix_L_extern)) THEN
+         CALL cp_fm_create(fm_matrix_L, fm_matrix_L_extern%matrix_struct, name=name)
+      ELSE
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, context=blacs_env_L, nrow_global=dimen_RI, &
+                                  ncol_global=dimen_RI, para_env=para_env_L)
+
+         CALL cp_fm_create(fm_matrix_L, fm_struct, name=name)
+
+         CALL cp_fm_struct_release(fm_struct)
+      END IF
+
+      CALL cp_fm_set_all(matrix=fm_matrix_L, alpha=0.0_dp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE create_matrix_L
 END MODULE mp2_ri_2c
