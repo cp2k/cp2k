@@ -1,0 +1,39 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD AM1
+      &SE
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+    &END SCF
+    &PRINT
+      &MOMENTS ON
+         PERIODIC .FALSE.
+         REFERENCE COM
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+          O                   .00000000     .00000000     .00000000
+          H                  1.05000000     .00000000     .00000000
+          H                  -.26289900    1.01655502     .00000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT h2o
+  RUN_TYPE VIBRATIONAL_ANALYSIS
+&END GLOBAL
+&VIBRATIONAL_ANALYSIS
+ INTENSITIES .TRUE.
+ DX 0.001
+&END
+

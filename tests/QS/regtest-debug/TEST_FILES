@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+h2o_dipole.inp                                        86      1e-05             0.908927636669E+00
+h2o_polar.inp                                         87      1e-05             0.164538039001E+02
+h2o_pdip.inp                                          86      1e-05             0.961018561809E+00
+h2o_periodic.inp                                      87      1e-05             0.139741440657E+02
+#EOF

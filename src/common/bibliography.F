@@ -4110,6 +4110,37 @@ CONTAINS
                          "ER"), &
                          DOI="10.1103/PhysRevB.65.224117")
 
+      CALL add_reference(key=Cohen2000, ISI_record=s2a( &
+                         "AU Cohen, Morrel H.", &
+                         "   Frydel, Derek", &
+                         "   Burke, Kieron", &
+                         "   Engel, Eberhard", &
+                         "AF Cohen, Morrel H.", &
+                         "   Frydel, Derek", &
+                         "   Burke, Kieron", &
+                         "   Engel, Eberhard", &
+                         "TI Total energy density as an interpretative tool", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2000", &
+                         "VL 113", &
+                         "BP 2990", &
+                         "DI 10.1063/1.1286805", &
+                         "ER"), &
+                         DOI="10.1063/1.1286805")
+
+      CALL add_reference(key=Rogers2002, ISI_record=s2a( &
+                         "AU Rogers, Christopher L.", &
+                         "   Rappe, Andrew M.", &
+                         "TI Geometric formulation of quantum stress fields", &
+                         "SO PHYSICAL REVIEW B", &
+                         "DT Article", &
+                         "PY 2002", &
+                         "VL 65", &
+                         "AR 224117", &
+                         "DI 10.1103/PhysRevB.65.224117", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.65.224117")
+
       CALL add_reference(key=Filippetti2000, ISI_record=s2a( &
                          "AU Filippetti, Alessio", &
                          "   Fiorentini, Vincenzo", &

@@ -330,9 +330,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DIPOLE", &
+                          description="Activates the debugging of the dipole moment", &
+                          usage="DEBUG_DIPOLE {LOGICAL}", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_POLARIZABILITY", &
+                          description="Activates the debugging of the polarizability", &
+                          usage="DEBUG_POLARIZABILITY {LOGICAL}", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Increment for the calculation of the numerical derivatives", &
                           usage="DX {REAL}", default_r_val=0.001_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DE", &
+                          description="Increment for the calculation of the numerical electric field derivatives", &
+                          usage="DE {REAL}", default_r_val=0.0001_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
