@@ -1594,7 +1594,7 @@ CONTAINS
       ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
       my_Lrows = 0.0_dp
 
-      ! proc_map, vector that replicate the processor numbers also
+      ! proc_map, vector that replicates the processor numbers also
       ! for negative and positive number > num_pe
       ! needed to know which is the processor, to respect to another one,
       ! for a given shift
