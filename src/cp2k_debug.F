@@ -96,6 +96,7 @@ CONTAINS
                                                             my_maxerr, poldir
       REAL(KIND=dp), DIMENSION(3, 2)                     :: dipn
       REAL(KIND=dp), DIMENSION(3, 3)                     :: polar_analytic, polar_numeric
+      REAL(KIND=dp), DIMENSION(9)                        :: pvals
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: analyt_forces, numer_forces
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -412,7 +413,8 @@ CONTAINS
             CALL get_qs_env(force_env%qs_env, results=results)
             description = "[POLAR]"
             IF (test_for_result(results, description=description)) THEN
-               CALL get_results(results, description=description, values=polar_analytic)
+               CALL get_results(results, description=description, values=pvals)
+               polar_analytic(1:3, 1:3) = RESHAPE(pvals(1:9), (/3, 3/))
             ELSE
                CALL cp_warn(__LOCATION__, "Debug of polarizabilities needs PROPERTIES/LINRES/POLAR section enabled")
                CPABORT("DEBUG")
