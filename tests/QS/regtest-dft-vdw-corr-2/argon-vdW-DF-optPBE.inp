@@ -19,14 +19,14 @@
       MAX_SCF 3
       EPS_SCF 1.0e-6
     &END SCF
-# C09-vdW Functional
+# optPBE-vdW Functional
     &XC
       &XC_FUNCTIONAL
         &LIBXC
-          FUNCTIONAL XC_GGA_X_C09X
+          FUNCTIONAL XC_GGA_X_OPTPBE_VDW
         &END LIBXC
-        &VWN
-        &END VWN
+        &PW92
+        &END PW92
       &END XC_FUNCTIONAL
       &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL NON_LOCAL
@@ -34,7 +34,6 @@
            TYPE DRSLL
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF  100
          &END NON_LOCAL
       &END vdW_POTENTIAL
     &END XC

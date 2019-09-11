@@ -21,12 +21,11 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &PBE
-          PARAMETRIZATION revPBE
-          SCALE_C 0.0
-        &END PBE
-        &VWN
-        &END VWN
+        &LIBXC
+          FUNCTIONAL XC_GGA_X_LV_RPW86
+        &END LIBXC
+        &PW92
+        &END PW92
       &END XC_FUNCTIONAL
       &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL NON_LOCAL
