@@ -29,7 +29,7 @@ MODULE topology_connectivity_util
         molecule_kind_type, opbend_type, set_molecule_kind, torsion_type, ub_type
    USE molecule_types,                  ONLY: allocate_molecule_set,&
                                               get_molecule,&
-                                              local_molecule_type,&
+                                              local_states_type,&
                                               molecule_type,&
                                               set_molecule,&
                                               set_molecule_set
@@ -86,7 +86,7 @@ CONTAINS
       TYPE(connectivity_info_type), POINTER              :: conn_info
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(impr_type), DIMENSION(:), POINTER             :: impr_list
-      TYPE(local_molecule_type), POINTER                 :: lmi
+      TYPE(local_states_type), DIMENSION(:), POINTER     :: lmi
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(opbend_type), DIMENSION(:), POINTER           :: opbend_list

@@ -62,12 +62,13 @@ CONTAINS
 !> \param nspins ...
 ! **************************************************************************************************
    SUBROUTINE wfc_to_molecule(qs_env, qs_loc_env, loc_print_key, center, &
-                              molecule_set, nspins)
+                              molecule_set, ispin, nspins)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_new_type), INTENT(IN)              :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_print_key
       REAL(KIND=dp), INTENT(IN)                          :: center(:, :)
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
+      INTEGER, INTENT(IN)                                :: ispin
       INTEGER, INTENT(IN)                                :: nspins
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfc_to_molecule', &
@@ -76,7 +77,7 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: zeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: ggamma, zphase
       INTEGER :: akind, counter, first_atom, i, iatom, ikind, imol, imol_now, istate, j, &
-         local_location, natom, natom_loc, natom_max, nkind, nmol, nstate, output_unit, reference
+         k, local_location, natom, natom_loc, natom_max, nkind, nmol, nstate, iounit, reference
       INTEGER, POINTER                                   :: wfc_to_atom_map(:)
       LOGICAL                                            :: do_berry, floating, ghost
       REAL(KIND=dp)                                      :: charge_tot, dipole(3), dr(3), mydist(2), &
@@ -130,12 +131,14 @@ CONTAINS
             CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom)
             natom_max = natom_max+natom
             IF (.NOT. ASSOCIATED(molecule_set(i)%lmi)) THEN
-               ALLOCATE (molecule_set(i)%lmi)
-               NULLIFY (molecule_set(i)%lmi%states)
+               ALLOCATE (molecule_set(i)%lmi(nspins))
+               DO k=1,nspins
+                  NULLIFY (molecule_set(i)%lmi(k)%states)
+               END DO
             ENDIF
-            molecule_set(i)%lmi%nstates = 0
-            IF (ASSOCIATED(molecule_set(i)%lmi%states)) THEN
-               DEALLOCATE (molecule_set(i)%lmi%states)
+            molecule_set(i)%lmi(ispin)%nstates = 0
+            IF (ASSOCIATED(molecule_set(i)%lmi(ispin)%states)) THEN
+               DEALLOCATE (molecule_set(i)%lmi(ispin)%states)
             END IF
          END DO
       END DO
@@ -216,11 +219,11 @@ CONTAINS
                   END DO
                   IF (counter >= iatom) EXIT
                END DO
-               i = molecule_set(imol_now)%lmi%nstates
+               i = molecule_set(imol_now)%lmi(ispin)%nstates
                i = i+1
-               molecule_set(imol_now)%lmi%nstates = i
-               CALL reallocate(molecule_set(imol_now)%lmi%states, 1, i)
-               molecule_set(imol_now)%lmi%states(i) = istate
+               molecule_set(imol_now)%lmi(ispin)%nstates = i
+               CALL reallocate(molecule_set(imol_now)%lmi(ispin)%states, 1, i)
+               molecule_set(imol_now)%lmi(ispin)%states(i) = istate
             END IF
          END DO
       END IF
@@ -246,7 +249,7 @@ CONTAINS
             nmol = SIZE(local_molecules%list(ikind)%array)
             DO imol = 1, nmol ! all the molecules of the kind
                imol_now = local_molecules%list(ikind)%array(imol) ! index in the global array
-               IF (.NOT. ASSOCIATED(molecule_set(imol_now)%lmi%states)) CYCLE
+               IF (.NOT. ASSOCIATED(molecule_set(imol_now)%lmi(ispin)%states)) CYCLE
                molecule_kind => molecule_set(imol_now)%molecule_kind
                first_atom = molecule_set(imol_now)%first_atom
                CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom)
@@ -271,7 +274,7 @@ CONTAINS
                      END IF
                   END DO
                   ! Charges of the wfc involved
-                  DO istate = 1, SIZE(molecule_set(imol_now)%lmi%states)
+                  DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
                      charge_set(imol_now) = charge_set(imol_now)-zwfc
                   ENDDO
 
@@ -299,8 +302,8 @@ CONTAINS
                   END DO
 
                   ! Charges of the wfc involved
-                  DO istate = 1, SIZE(molecule_set(imol_now)%lmi%states)
-                     i = molecule_set(imol_now)%lmi%states(istate)
+                  DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
+                     i = molecule_set(imol_now)%lmi(ispin)%states(istate)
                      ria = pbc(center(1:3, i), cell)
                      DO j = 1, 3
                         gvec = twopi*cell%h_inv(j, :)
@@ -328,8 +331,8 @@ CONTAINS
                      END IF
                   END DO
                   ! Charges of the wfc involved
-                  DO istate = 1, SIZE(molecule_set(imol_now)%lmi%states)
-                     i = molecule_set(imol_now)%lmi%states(istate)
+                  DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
+                     i = molecule_set(imol_now)%lmi(ispin)%states(istate)
                      ria = pbc(center(1:3, i), cell)
                      dipole = dipole-zwfc*(ria-rcc)
                      charge_set(imol_now) = charge_set(imol_now)-zwfc
@@ -341,17 +344,18 @@ CONTAINS
          CALL mp_sum(dipole_set, para_env%group)
          CALL mp_sum(charge_set, para_env%group)
 
-         output_unit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_DIPOLES", &
+         iounit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_DIPOLES", &
                                             extension=".MolDip", middle_name="MOLECULAR_DIPOLES")
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT='(A80)') "# molecule nr, charge, dipole vector, dipole (Debye) "
+         IF (iounit > 0) THEN
+            WRITE (UNIT=iounit, FMT='(A80)') &
+               "# molecule nr,      charge,           dipole vector,           dipole[Debye]"
             dipole_set(:, :) = dipole_set(:, :)*debye ! Debye
             DO I = 1, SIZE(dipole_set, 2)
-               WRITE (UNIT=output_unit, FMT='(I6,5F12.6)') I, charge_set(I), dipole_set(1:3, I), &
+               WRITE (UNIT=iounit, FMT='(T8,I6,T21,5F12.6)') I, charge_set(I), dipole_set(1:3, I), &
                   SQRT(DOT_PRODUCT(dipole_set(1:3, I), dipole_set(1:3, I)))
             ENDDO
          ENDIF
-         CALL cp_print_key_finished_output(output_unit, logger, loc_print_key, &
+         CALL cp_print_key_finished_output(iounit, logger, loc_print_key, &
                                            "MOLECULAR_DIPOLES")
          DEALLOCATE (dipole_set, charge_set)
       END IF
@@ -361,7 +365,6 @@ CONTAINS
 
       DEALLOCATE (distance)
       DEALLOCATE (r)
-
       DEALLOCATE (wfc_to_atom_map)
 
    END SUBROUTINE wfc_to_molecule
