@@ -534,7 +534,7 @@ loop:   DO I=1,SIZE(reference)
             q(m)=n
           END DO
         ENDIF
-        IF(q(n-1).eq.n) THEN
+        IF(q(n-1).EQ.n) THEN
           q(n-1)=n-1
           t=x(n)
           x(n)=x(n-1)
@@ -542,7 +542,7 @@ loop:   DO I=1,SIZE(reference)
           RETURN
         ENDIF
         DO k=n-1,1,-1
-          IF(q(k).eq.k) THEN
+          IF(q(k).EQ.k) THEN
             q(k)=n
           ELSE
             go to 1
@@ -563,7 +563,7 @@ loop:   DO I=1,SIZE(reference)
         x(k)=t
         m=m-1
         k=k+1
-        DO WHILE (k.lt.m)
+        DO WHILE (k.LT.m)
           t=x(m)
           x(m)=x(k)
           x(k)=t

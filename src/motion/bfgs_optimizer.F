@@ -227,7 +227,7 @@ CONTAINS
              "BFGS: Matrix diagonalization failed, using unity as model Hessian."
        ELSE
           DO its=1,SIZE(eigval)
-            IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
+            IF(eigval(its).LT.0.1_dp)eigval(its)=0.1_dp
           END DO
           CALL cp_fm_to_fm(eigvec_mat,hess_tmp)
           CALL cp_fm_column_scale(eigvec_mat,eigval)
@@ -1015,14 +1015,14 @@ CONTAINS
         iglobal=col_indices(i)
         iind=MOD(iglobal-1,3)+1
         iat_col=(iglobal+2)/3
-        IF(iat_col.gt.natom)CYCLE
+        IF(iat_col.GT.natom)CYCLE
         DO j=1,nrow_local
            jglobal=row_indices(j)
            jind=MOD(jglobal-1,3)+1
            iat_row=(jglobal+2)/3 
-           IF(iat_row.gt.natom)CYCLE
-           IF(iat_row.ne.iat_col)THEN
-               IF(d_ij(iat_row,iat_col).lt.6.0_dp)&
+           IF(iat_row.GT.natom)CYCLE
+           IF(iat_row.NE.iat_col)THEN
+               IF(d_ij(iat_row,iat_col).LT.6.0_dp)&
                local_data(j,i)=local_data(j,i)+&
                      angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
            ELSE
@@ -1030,20 +1030,20 @@ CONTAINS
                      angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
            END IF
            IF(iat_col.NE.iat_row)THEN
-               IF(d_ij(iat_row,iat_col).lt.6.0_dp) &
+               IF(d_ij(iat_row,iat_col).LT.6.0_dp) &
                local_data(j,i)=local_data(j,i)-&
                                dist_second_deriv(r_ij(iat_col,iat_row,:),&
                                iind,jind,d_ij(iat_row,iat_col),rho_ij(iat_row,iat_col))
            ELSE
               DO k=1,natom
                  IF(k==iat_col)CYCLE
-                 IF(d_ij(iat_row,k).lt.6.0_dp) &
+                 IF(d_ij(iat_row,k).LT.6.0_dp) &
                  local_data(j,i)=local_data(j,i)+&
                                dist_second_deriv(r_ij(iat_col,k,:),&
                                iind,jind,d_ij(iat_row,k),rho_ij(iat_row,k))
               END DO
            END IF
-           IF(fixed(jind,iat_row).lt.0.5_dp.OR.fixed(iind,iat_col).lt.0.5_dp)THEN
+           IF(fixed(jind,iat_row).LT.0.5_dp.OR.fixed(iind,iat_col).LT.0.5_dp)THEN
               local_data(j,i)=0.0_dp
               IF(jind==iind.AND.iat_row==iat_col)local_data(j,i)=1.0_dp
            END IF 
@@ -1101,11 +1101,11 @@ CONTAINS
      deriv=0._dp
      IF(iat_der==jat_der)THEN
         DO i=1,natom-1
-           IF(rho_ij(iat_der,i).lt.0.00001)CYCLE
+           IF(rho_ij(iat_der,i).LT.0.00001)CYCLE
            DO j=i+1,natom
-              IF(rho_ij(iat_der,j).lt.0.00001)CYCLE
+              IF(rho_ij(iat_der,j).LT.0.00001)CYCLE
               IF(i==iat_der.OR.j==iat_der)CYCLE
-              IF(iat_der.lt.i.OR.iat_der.gt.j)THEN
+              IF(iat_der.LT.i.OR.iat_der.GT.j)THEN
                  r12=r_ij(iat_der,i,:); r23=r_ij(i,j,:); r31=r_ij(j,iat_der,:)
                  d12=d_ij(iat_der,i); d23=d_ij(i,j); d31=d_ij(j,iat_der)
                  rho12=rho_ij(iat_der,i); rho23=rho_ij(i,j); rho31=rho_ij(j,iat_der)
@@ -1129,9 +1129,9 @@ CONTAINS
                                                          rsst3*r12(idir)/(d31*d12**3)
               D_mat(3,2)=(r31(jdir)-r12(jdir))/(d31*d12)+rsst3*r31(jdir)/(d31**3*d12)-&
                                                          rsst3*r12(jdir)/(d31*d12**3)
-              IF(ABS(denom1).le.0.011_dp)D_mat(1,1)=0.0_dp
-              IF(ABS(denom2).le.0.011_dp)D_mat(2,1)=0.0_dp
-              IF(ABS(denom3).le.0.011_dp)D_mat(3,1)=0.0_dp
+              IF(ABS(denom1).LE.0.011_dp)D_mat(1,1)=0.0_dp
+              IF(ABS(denom2).LE.0.011_dp)D_mat(2,1)=0.0_dp
+              IF(ABS(denom3).LE.0.011_dp)D_mat(3,1)=0.0_dp
               deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
                     ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
                     ka3*D_mat(3,1)*D_mat(3,2)/denom3
@@ -1141,12 +1141,12 @@ CONTAINS
      ELSE
         DO i=1,natom
            IF(i==iat_der.OR.i==jat_der)CYCLE
-           IF(jat_der.lt.iat_der)THEN
+           IF(jat_der.LT.iat_der)THEN
               iat=jat_der; jat=iat_der; idr=jdir; jdr=idir
            ELSE
               iat=iat_der; jat=jat_der; idr=idir; jdr=jdir
            END IF
-           IF(jat.lt.i.OR.iat.gt.i)THEN
+           IF(jat.LT.i.OR.iat.GT.i)THEN
               r12=r_ij(iat,jat,:); r23=r_ij(jat,i,:); r31=r_ij(i,iat,:)
               d12=d_ij(iat,jat); d23=d_ij(jat,i); d31=d_ij(i,iat)
               rho12=rho_ij(iat,jat); rho23=rho_ij(jat,i); rho31=rho_ij(i,iat)
@@ -1166,7 +1166,7 @@ CONTAINS
            D_mat(2,1)=-r23(idr)/(d23*d31)+rsst2*r31(idr)/(d23*d31**3)
            D_mat(3,1)=(r31(idr)-r12(idr))/(d31*d12)+rsst3*r31(idr)/(d31**3*d12)-&
                                                          rsst3*r12(idr)/(d31*d12**3)
-           IF(jat.lt.i.OR.iat.gt.i)THEN
+           IF(jat.LT.i.OR.iat.GT.i)THEN
               D_mat(1,2)=(r12(jdr)-r23(jdr))/(d12*d23)+rsst1*r12(jdr)/(d12**3*d23)-&
                                                        rsst1*r23(jdr)/(d12*d23**3)
               D_mat(2,2)=r31(jdr)/(d23*d31)-rsst2*r23(jdr)/(d23**3*d31)
@@ -1177,9 +1177,9 @@ CONTAINS
                                                        rsst2*r31(jdr)/(d23*d31**3)
               D_mat(3,2)=r12(jdr)/(d31*d12)-rsst3*r31(jdr)/(d31**3*d12)
            END IF
-           IF(ABS(denom1).le.0.011_dp)D_mat(1,1)=0.0_dp
-           IF(ABS(denom2).le.0.011_dp)D_mat(2,1)=0.0_dp
-           IF(ABS(denom3).le.0.011_dp)D_mat(3,1)=0.0_dp
+           IF(ABS(denom1).LE.0.011_dp)D_mat(1,1)=0.0_dp
+           IF(ABS(denom2).LE.0.011_dp)D_mat(2,1)=0.0_dp
+           IF(ABS(denom3).LE.0.011_dp)D_mat(3,1)=0.0_dp
 
            deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
                  ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
