@@ -19,6 +19,7 @@ MODULE qs_loc_states
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE molecular_dipoles,               ONLY: calculate_molecular_dipole
    USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -171,6 +172,17 @@ CONTAINS
             ENDIF
          END IF
       ENDDO
+
+      ! Compute molecular dipoles
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                            "MOLECULAR_DIPOLES"), cp_p_file)) THEN
+         DO ispin = 1, dft_control%nspins
+            scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
+            CALL calculate_molecular_dipole(qs_env, qs_loc_env, loc_print_section, scenter, &
+                                            molecule_set, ispin, dft_control%nspins)
+         END DO
+      END IF
+
       ! Compute molecular multipole moments
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "MOLECULAR_MOMENTS"), cp_p_file)) THEN

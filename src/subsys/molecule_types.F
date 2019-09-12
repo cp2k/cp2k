@@ -295,8 +295,8 @@ CONTAINS
 
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind
-      TYPE(local_states_type), OPTIONAL, &
-         DIMENSION(:), POINTER                           :: lmi
+      TYPE(local_states_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: lmi
       TYPE(local_constraint_type), OPTIONAL, POINTER     :: lci
       TYPE(local_g3x3_constraint_type), OPTIONAL, &
          POINTER                                         :: lg3x3(:)
@@ -364,8 +364,8 @@ CONTAINS
    SUBROUTINE set_molecule(molecule, molecule_kind, lmi, lci, lcolv, lg3x3, lg4x6)
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind
-      TYPE(local_states_type), OPTIONAL, &
-         DIMENSION(:), POINTER                           :: lmi
+      TYPE(local_states_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: lmi
       TYPE(local_constraint_type), OPTIONAL, POINTER     :: lci
       TYPE(local_colvar_constraint_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: lcolv
