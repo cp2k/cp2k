@@ -71,7 +71,7 @@ MODULE mp2_ri_2c
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_comm_split_direct,&
                                               mp_sendrecv,&
-                                              mp_sum
+                                              mp_sum, mp_bcast
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type
@@ -193,7 +193,7 @@ CONTAINS
 
       IF (ri_metric == potential_type) THEN
          CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
-                           dimen_RI, dimen_RI_red)
+                           dimen_RI, dimen_RI_red, para_env)
       ELSE
 
          ! Obara-Saika overlap matrix
@@ -240,10 +240,10 @@ CONTAINS
          ELSE
 
             CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
-                              dimen_RI, dimen_RI_red)
+                              dimen_RI, dimen_RI_red, para_env)
 
             CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1)%matrix, .FALSE., 0.0_dp, num_small_eigen, cond_num, .TRUE., &
-                              gd_array, ngroup, dimen_RI, dimen_RI_red)
+                              gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
             NULLIFY (fm_matrix_S_inv_work)
             CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
@@ -316,7 +316,7 @@ CONTAINS
 !> \param dimen_RI_red ...
 ! **************************************************************************************************
    SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
-                           dimen_RI, dimen_RI_red)
+                           dimen_RI, dimen_RI_red, para_env)
 
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       LOGICAL, INTENT(IN)                                :: do_svd
@@ -327,11 +327,12 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
       INTEGER, INTENT(IN)                                :: ngroup, dimen_RI
       INTEGER, INTENT(INOUT)                             :: dimen_RI_red
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'decomp_mat_L', routineP = moduleN//':'//routineN
 
       IF (do_svd) THEN
-         CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, do_inversion)
+         CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, do_inversion, para_env)
 
          dimen_RI_red = dimen_RI-num_small_eigen
 
@@ -920,19 +921,23 @@ CONTAINS
 !> \param cond_num ...
 !> \param do_inversion ...
 ! **************************************************************************************************
-   SUBROUTINE matrix_root_with_svd(matrix, eps_svd, num_small_evals, cond_num, do_inversion)
+   SUBROUTINE matrix_root_with_svd(matrix, eps_svd, num_small_evals, cond_num, do_inversion, para_env)
       TYPE(cp_fm_type), POINTER                          :: matrix
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
+      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ii, needed_evals, nrow
+      INTEGER                                            :: handle, ii, needed_evals, nrow, group_size_L, comm_exchange, &
+                                                            pos_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_type), POINTER                          :: evecs
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_eval
+      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
 
       CALL timeset(routineN, handle)
 
@@ -972,6 +977,42 @@ CONTAINS
       END IF
 
       CALL cp_fm_column_scale(evecs, evals)
+
+      ! As it turns out, the results in the subgroups differ.
+      ! Thus, we have to equilibrate the results.
+      ! Step 1: Get a communicator connecting processes with same id within subgroups
+      ! use that group_size_L is divisible by the total number of processes (see above)
+      group_size_L = para_env%num_pe/matrix%matrix_struct%para_env%num_pe
+      CALL mp_comm_split_direct(para_env%group, comm_exchange, matrix%matrix_struct%para_env%mepos)
+      NULLIFY(para_env_exchange)
+      CALL cp_para_env_create(para_env_exchange, comm_exchange)
+
+      ALLOCATE(num_eval(0:group_size_L-1))
+      num_eval = 0
+      num_eval(para_env_exchange%mepos) = num_small_evals
+      CALL mp_sum(num_eval, para_env_exchange%group)
+
+      num_small_evals = MINVAL(num_eval)
+
+      IF (num_small_evals /= MAXVAL(num_eval)) THEN
+         ! Step 2: Get position of maximum value
+         DO ii = 0, group_size_L-1
+            IF (num_eval(ii) == num_small_evals) THEN
+               pos_max = ii
+               EXIT
+            END IF
+         END DO
+         num_small_evals = num_eval(pos_max)
+         needed_evals = nrow-num_small_evals
+
+         ! Step 3: Broadcast your local data to all other processes
+         CALL mp_bcast(evecs%local_data, pos_max, para_env_exchange%group)
+         CALL mp_bcast(cond_num, pos_max, para_env_exchange%group)
+      END IF
+
+      DEALLOCATE(num_eval)
+
+      CALL cp_para_env_release(para_env_exchange)
 
       CALL reset_size_matrix(matrix, needed_evals, matrix%matrix_struct)
 
