@@ -266,8 +266,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="RELAX_MULTIPLICITY", &
                           variants=(/"RELAX_MULTIP"/), &
-                          description="Tolerance in Hartrees. Do not enforce the occupation of alpha and beta MOs due to the initially "// &
-                          "defined multiplicity, but rather follow an Aufbau principle. "// &
+                          description="Tolerance in Hartrees. Do not enforce the occupation "// &
+                          "of alpha and beta MOs due to the initially "// &
+                          "defined multiplicity, but rather follow the Aufbau principle. "// &
                           "A value greater than zero activates this option. "// &
                           "Larger tolerance values increase the probability for a spin flip. "// &
                           "This option is only valid for unrestricted (i.e. spin polarised) "// &
