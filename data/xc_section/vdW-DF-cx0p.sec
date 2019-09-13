@@ -1,0 +1,43 @@
+# vdW-DF-cx0p: Y. Jiao, E. Schroeder, and P. Hyldgaard,
+# Extent of Fock-exchange mixing for a hybrid van der Waals density
+# functional?, Journal of Chemical Physics 148, 194115 (2018).
+#
+# CUTOFF should be optimised for accuracy and efficiency
+# CUTOFF_RADIUS is system dependent (~A/2) !
+# POTENTIAL_TYPE TRUNCATED for large and periodic systems!
+#
+    &XC
+      &XC_FUNCTIONAL
+        &LIBXC
+          FUNCTIONAL XC_GGA_X_LV_RPW86
+          SCALE 0.80
+        &END LIBXC
+        &PW92
+        &END PW92
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+          SCREEN_ON_INITIAL_P FALSE
+        &END
+        &MEMORY
+          EPS_STORAGE_SCALING 0.1
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 2.0
+          T_C_G_DATA t_c_g.dat
+        &END
+        FRACTION 0.20
+      &END
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE DRSLL
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME vdW_kernel_table.dat
+           CUTOFF  100
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
+    &END XC
+

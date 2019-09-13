@@ -1,0 +1,25 @@
+# vdW-DF1: M. Dion, H. Rydberg, E. Schroeder, D.C. Langreth, and B.I.
+# Lundqvist, Physical Review Letters 92 (2004) 246401. Note: This should
+# really be cited together with erratum: PRL 95, 109902 (2005) 
+#
+# CUTOFF should be optimised for accuracy and efficiency
+#
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          PARAMETRIZATION revPBE
+          SCALE_C 0.0
+        &END PBE
+        &PW92
+        &END PW92
+      &END XC_FUNCTIONAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE DRSLL
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME vdW_kernel_table.dat
+           CUTOFF  100
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
+    &END XC

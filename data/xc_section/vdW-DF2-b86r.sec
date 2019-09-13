@@ -1,0 +1,23 @@
+# vdW-DF2-b86r: I. Hamada, van der Waals density functional made accurate,
+# Physical Review B 89, 121103 (2014).
+#
+# CUTOFF should be optimised for accuracy and efficiency
+#
+    &XC
+      &XC_FUNCTIONAL
+        &LIBXC
+          FUNCTIONAL XC_GGA_X_B86_R
+        &END LIBXC
+        &PW92
+        &END PW92
+      &END XC_FUNCTIONAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE LMKLL
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME vdW_kernel_table.dat
+           CUTOFF  100
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
+    &END XC
