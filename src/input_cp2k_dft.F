@@ -788,6 +788,18 @@ CONTAINS
       CALL create_dipoles_section(subsection, "MOLECULAR_DIPOLES", debug_print_level+1)
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
+      ! Molecular Mulipole Moments with wannier
+      CALL cp_print_key_section_create(subsection, __LOCATION__, name="MOLECULAR_MOMENTS", &
+                                       description="Section controlling the calculation of molecular multipole moments.", &
+                                       print_level=debug_print_level+1, filename="__STD_OUT__")
+      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
+                          description="Maximum order of mulitpoles to be calculated.", &
+                          usage=" ORDER {integer}", default_i_val=2, type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL section_add_subsection(print_section, subsection)
+      CALL section_release(subsection)
       ! Molecular States with wannier
       CALL create_molecular_states_section(subsection)
       CALL section_add_subsection(print_section, subsection)

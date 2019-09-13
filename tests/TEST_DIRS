@@ -130,7 +130,7 @@ QS/regtest-gpw-2-2
 QS/regtest-epr-1
 Fist/regtest-4
 Fist/regtest-3
-QS/regtest-rma                                              libint mpi3
+QS/regtest-rma                                              libint mpi3 mpiranks==4
 QS/regtest-hybrid-3                                         libint
 Fist/regtest-excl-R
 QMMM/QS/regtest-3

@@ -68,10 +68,10 @@ MODULE molecule_types
    END TYPE local_g4x6_constraint_type
 
 ! **************************************************************************************************
-   TYPE local_molecule_type
+   TYPE local_states_type
       INTEGER, DIMENSION(:), POINTER :: states ! indices of Kohn-Sham states for molecule
       INTEGER                        :: nstates ! Kohn-Sham states for molecule
-   END TYPE local_molecule_type
+   END TYPE local_states_type
 
 ! **************************************************************************************************
    TYPE local_constraint_type
@@ -100,7 +100,7 @@ MODULE molecule_types
 ! **************************************************************************************************
    TYPE molecule_type
       TYPE(molecule_kind_type), POINTER    :: molecule_kind ! pointer to molecule kind information
-      TYPE(local_molecule_type), POINTER   :: lmi ! local molecule information
+      TYPE(local_states_type), DIMENSION(:), POINTER   :: lmi ! local (spin)-states information
       TYPE(local_constraint_type), POINTER :: lci ! local molecule constraint info
       INTEGER                              :: first_atom ! global index of first atom in molecule
       INTEGER                              :: last_atom ! global index of last atom in molecule
@@ -114,7 +114,7 @@ MODULE molecule_types
              local_g3x3_constraint_type, &
              local_g4x6_constraint_type, &
              local_constraint_type, &
-             local_molecule_type, &
+             local_states_type, &
              global_constraint_type, &
              molecule_type
 
@@ -235,9 +235,11 @@ CONTAINS
 
          DO imolecule = 1, SIZE(molecule_set)
             IF (ASSOCIATED(molecule_set(imolecule)%lmi)) THEN
-               IF (ASSOCIATED(molecule_set(imolecule)%lmi%states)) THEN
-                  DEALLOCATE (molecule_set(imolecule)%lmi%states)
-               ENDIF
+               DO j = 1, SIZE(molecule_set(imolecule)%lmi)
+                  IF (ASSOCIATED(molecule_set(imolecule)%lmi(j)%states)) THEN
+                     DEALLOCATE (molecule_set(imolecule)%lmi(j)%states)
+                  ENDIF
+               END DO
                DEALLOCATE (molecule_set(imolecule)%lmi)
             ENDIF
             IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
@@ -293,7 +295,8 @@ CONTAINS
 
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind
-      TYPE(local_molecule_type), OPTIONAL, POINTER       :: lmi
+      TYPE(local_states_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: lmi
       TYPE(local_constraint_type), OPTIONAL, POINTER     :: lci
       TYPE(local_g3x3_constraint_type), OPTIONAL, &
          POINTER                                         :: lg3x3(:)
@@ -361,7 +364,8 @@ CONTAINS
    SUBROUTINE set_molecule(molecule, molecule_kind, lmi, lci, lcolv, lg3x3, lg4x6)
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind
-      TYPE(local_molecule_type), OPTIONAL, POINTER       :: lmi
+      TYPE(local_states_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: lmi
       TYPE(local_constraint_type), OPTIONAL, POINTER     :: lci
       TYPE(local_colvar_constraint_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: lcolv

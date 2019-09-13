@@ -19,6 +19,7 @@ MODULE qs_loc_states
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE molecular_dipoles,               ONLY: calculate_molecular_dipole
    USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -82,13 +83,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(molecule_type), POINTER                       :: molecule_set(:)
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(section_vals_type), POINTER                   :: loc_print_section
       TYPE(wannier_centres_type), DIMENSION(:), POINTER  :: wc
 
       CALL timeset(routineN, handle)
       NULLIFY (mos, ks_rmpv, dft_control, loc_print_section, marked_states_spin, &
-               matrix_s, molecule_set, scenter, wc)
+               matrix_s, scenter, wc)
       CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv, molecule_set=molecule_set, &
                       dft_control=dft_control, matrix_s=matrix_s)
       logger => cp_get_default_logger()
@@ -102,6 +103,7 @@ CONTAINS
             ALLOCATE (wc(dft_control%nspins))
          ENDIF
       ENDIF
+      !
       DO ispin = 1, dft_control%nspins
          !
          IF (do_homo) THEN
@@ -128,9 +130,10 @@ CONTAINS
             IF ((BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                   "MOLECULAR_DIPOLES"), cp_p_file) .OR. &
                  BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                                  "MOLECULAR_MOMENTS"), cp_p_file) .OR. &
+                 BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                   "MOLECULAR_STATES"), cp_p_file))) THEN
-               CALL wfc_to_molecule(qs_env, qs_loc_env, loc_print_section, scenter, &
-                                    molecule_set, dft_control%nspins)
+               CALL wfc_to_molecule(qs_loc_env, scenter, molecule_set, ispin, dft_control%nspins)
             END IF
 
             ! Compute the wannier states
@@ -155,7 +158,7 @@ CONTAINS
                   molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix, &
                   evals(ispin)%array, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                   loc_print_section=loc_print_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo), &
-                  marked_states=marked_states_spin)
+                  marked_states=marked_states_spin, ispin=ispin)
                IF (ASSOCIATED(marked_states_spin)) THEN
                   IF (.NOT. ASSOCIATED(marked_states)) THEN
                      ALLOCATE (marked_states(SIZE(marked_states_spin), dft_control%nspins, 2))
@@ -168,6 +171,19 @@ CONTAINS
             ENDIF
          END IF
       ENDDO
+
+      ! Compute molecular dipoles
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                           "MOLECULAR_DIPOLES"), cp_p_file)) THEN
+         CALL calculate_molecular_dipole(qs_env, qs_loc_env, loc_print_section, molecule_set)
+      END IF
+
+      ! Compute molecular multipole moments
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                           "MOLECULAR_MOMENTS"), cp_p_file)) THEN
+         CPABORT("NYA")
+      END IF
+      !
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "WANNIER_STATES"), cp_p_file)) THEN
          CALL set_qs_env(qs_env=qs_env, WannierCentres=wc)

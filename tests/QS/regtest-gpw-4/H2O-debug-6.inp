@@ -1,0 +1,57 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    &MGRID
+      CUTOFF 250
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      &OT ON
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &LOCALIZE T
+      &PRINT
+        &MOLECULAR_DIPOLES
+          PERIODIC T
+        &END
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+    &END CELL
+    &COORD
+    O     0.000000     0.000000     0.000000    H2O1
+    H     0.000000     0.000000     1.000000    H2O1
+    H     0.942809     0.000000    -0.333333    H2O1
+    O    -1.617979    -0.948062    -2.341650    H2O2
+    H    -2.529195    -1.296822    -2.122437    H2O2
+    H    -1.534288    -0.833088    -3.331486    H2O2
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O-debug-5
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL

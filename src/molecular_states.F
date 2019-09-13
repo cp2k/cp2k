@@ -85,10 +85,11 @@ CONTAINS
 !> \param particles ...
 !> \param tag ...
 !> \param marked_states ...
+!> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                                          mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g, &
-                                         loc_print_section, particles, tag, marked_states)
+                                         loc_print_section, particles, tag, marked_states, ispin)
 
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(cp_fm_type), POINTER                          :: mo_localized, mo_coeff
@@ -100,6 +101,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
       INTEGER, DIMENSION(:), POINTER                     :: marked_states
+      INTEGER, INTENT(IN)                                :: ispin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_molecular_states', &
          routineP = moduleN//':'//routineN
@@ -200,7 +202,7 @@ CONTAINS
 
       DO imol = 1, SIZE(molecule_set)
          IF (ASSOCIATED(molecule_set(imol)%lmi)) THEN
-            nstates(1) = molecule_set(imol)%lmi%nstates
+            nstates(1) = molecule_set(imol)%lmi(ispin)%nstates
          ELSE
             nstates(1) = 0
          ENDIF
@@ -215,7 +217,7 @@ CONTAINS
 
          iproc = nstates(2)
          IF (iproc == para_env%mepos) THEN
-            states(:) = molecule_set(imol)%lmi%states(:)
+            states(:) = molecule_set(imol)%lmi(ispin)%states(:)
          END IF
          !!BCAST from here root = iproc
          CALL mp_bcast(states, iproc, para_env%group)
