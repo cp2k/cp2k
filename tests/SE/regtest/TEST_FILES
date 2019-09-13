@@ -54,5 +54,5 @@ ice-ewald-r_cut.inp                                    3    1.0E-14           -2
 # Atprop energy
 dimer_atprop.inp                                       3      2e-13            -697.08211512090054
 # VIBANALYSIS
-h2o_vib.inp                                            8    8.0E-06                     1922.87193
+h2o_vib.inp                                            8    8.0E-06                    1922.908914
 #EOF
