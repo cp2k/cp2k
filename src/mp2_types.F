@@ -152,7 +152,7 @@ MODULE mp2_types
       INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt, kp_grid
       LOGICAL                  :: do_im_time_kpoints
       REAL(KIND=dp)            :: stabilize_exp
-      LOGICAL  :: do_dbcsr_t
+      LOGICAL  :: do_dbcsr_t, group_size_internal
       INTEGER  :: max_bsize_sqrt
    END TYPE
 

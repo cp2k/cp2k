@@ -1791,10 +1791,12 @@ CONTAINS
 
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
                "MEMORY_INFO| Memory cut:", cut_memory
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
-               "MEMORY_INFO| Im. time group size for RI functions:", mp2_env%ri_rpa_im_time%group_size_3c
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
-               "MEMORY_INFO| Im. time group size for local P matrix:", group_size_P
+            IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal .OR. .NOT. mp2_env%ri_rpa_im_time%do_dbcsr_t) THEN
+               IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
+                  "MEMORY_INFO| Im. time group size for RI functions:", mp2_env%ri_rpa_im_time%group_size_3c
+               IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
+                  "MEMORY_INFO| Im. time group size for local P matrix:", group_size_P
+            ENDIF
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
                "SPARSITY_INFO| Eps pgf orb for imaginary time:", mp2_env%mp2_gpw%eps_grid
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &

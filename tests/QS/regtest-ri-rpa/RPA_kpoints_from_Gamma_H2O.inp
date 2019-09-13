@@ -49,7 +49,7 @@
         IM_TIME
         &IM_TIME
           MEMORY_CUT 1
-          MEMORY_INFO
+          !MEMORY_INFO
           GROUP_SIZE_P  1
           KPOINTS 4 4 4
           EPS_FILTER_IM_TIME 1.0E-6

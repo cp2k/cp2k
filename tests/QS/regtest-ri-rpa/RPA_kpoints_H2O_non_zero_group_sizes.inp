@@ -56,9 +56,10 @@
         NUMBER_PROC  1
         IM_TIME
         &IM_TIME
+          GROUP_SIZE_INTERNAL .FALSE.
           MEMORY_CUT 2
           GROUP_SIZE_3C 2
-          MEMORY_INFO
+          !MEMORY_INFO
           GROUP_SIZE_P 2
           DO_KPOINTS
           EPS_FILTER_IM_TIME 1.0E-6
