@@ -1043,6 +1043,10 @@ CONTAINS
       gama = gama-gama*gama
       DO WHILE (nu(i) < gama)
          ! safeguard against negative root, is skipping correct?
+         IF (wu(i) < 1.0e-14_dp) THEN
+            i = i-1
+            CYCLE
+         END IF
          IF ((1.0_dp-4.0_dp*nu(i)*nu(i)/wu(i)) < 0.0_dp) THEN
             i = i-1
             CYCLE
