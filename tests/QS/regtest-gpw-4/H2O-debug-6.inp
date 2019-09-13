@@ -1,6 +1,7 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    LSD
     &MGRID
       CUTOFF 250
     &END MGRID
@@ -22,7 +23,7 @@
     &LOCALIZE T
       &PRINT
         &MOLECULAR_DIPOLES
-          PERIODIC F
+          PERIODIC T
         &END
       &END
     &END

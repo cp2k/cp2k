@@ -133,8 +133,7 @@ CONTAINS
                                                   "MOLECULAR_MOMENTS"), cp_p_file) .OR. &
                  BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                   "MOLECULAR_STATES"), cp_p_file))) THEN
-               CALL wfc_to_molecule(qs_env, qs_loc_env, loc_print_section, scenter, &
-                                    molecule_set, ispin, dft_control%nspins)
+               CALL wfc_to_molecule(qs_loc_env, scenter, molecule_set, ispin, dft_control%nspins)
             END IF
 
             ! Compute the wannier states
@@ -175,12 +174,8 @@ CONTAINS
 
       ! Compute molecular dipoles
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                            "MOLECULAR_DIPOLES"), cp_p_file)) THEN
-         DO ispin = 1, dft_control%nspins
-            scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-            CALL calculate_molecular_dipole(qs_env, qs_loc_env, loc_print_section, scenter, &
-                                            molecule_set, ispin, dft_control%nspins)
-         END DO
+                                           "MOLECULAR_DIPOLES"), cp_p_file)) THEN
+         CALL calculate_molecular_dipole(qs_env, qs_loc_env, loc_print_section, molecule_set)
       END IF
 
       ! Compute molecular multipole moments

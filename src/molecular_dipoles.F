@@ -11,11 +11,10 @@ MODULE molecular_dipoles
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_p_file,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_should_output,&
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -54,19 +53,13 @@ CONTAINS
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param qs_loc_env ...
 !> \param loc_print_key ...
-!> \param center ...
 !> \param molecule_set ...
-!> \param ispin ...
-!> \param nspins ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_molecular_dipole(qs_env, qs_loc_env, loc_print_key, center, &
-                                         molecule_set, ispin, nspins)
+   SUBROUTINE calculate_molecular_dipole(qs_env, qs_loc_env, loc_print_key, molecule_set)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_new_type), INTENT(IN)              :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_print_key
-      REAL(KIND=dp), INTENT(IN)                          :: center(:, :)
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
-      INTEGER, INTENT(IN)                                :: ispin, nspins
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_molecular_dipole', &
          routineP = moduleN//':'//routineN
@@ -74,8 +67,9 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: zeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: ggamma, zphase
       INTEGER                                            :: akind, first_atom, i, iatom, ikind, &
-                                                            imol, imol_now, iounit, istate, j, &
-                                                            natom, nkind, nmol, nstate, reference
+                                                            imol, imol_now, iounit, ispin, istate, &
+                                                            j, natom, nkind, nmol, nspins, nstate, &
+                                                            reference
       LOGICAL                                            :: do_berry, floating, ghost
       REAL(KIND=dp)                                      :: charge_tot, dipole(3), ria(3), theta, &
                                                             zeff, zwfc
@@ -83,10 +77,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dipole_set
       REAL(KIND=dp), DIMENSION(3)                        :: ci, gvec, rcc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: center(:, :)
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -95,40 +91,29 @@ CONTAINS
       logger => cp_get_default_logger()
 
       ! Molecular Dipoles availables only for nspin == 1
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_key, &
-                                           "MOLECULAR_DIPOLES"), cp_p_file)) THEN
-         IF (nspins > 1) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "Molecular Dipoles not implemented for SPIN multiplicity "// &
-                          "larger than 1!")
-         END IF
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      nspins = dft_control%nspins
 
-         ! Setup reference point and some warning..
-         reference = section_get_ival(loc_print_key, keyword_name="MOLECULAR_DIPOLES%REFERENCE")
-         CALL section_vals_val_get(loc_print_key, "MOLECULAR_DIPOLES%REF_POINT", r_vals=ref_point)
-         CALL section_vals_val_get(loc_print_key, "MOLECULAR_DIPOLES%PERIODIC", l_val=do_berry)
-      END IF
+      ! Setup reference point
+      reference = section_get_ival(loc_print_key, keyword_name="MOLECULAR_DIPOLES%REFERENCE")
+      CALL section_vals_val_get(loc_print_key, "MOLECULAR_DIPOLES%REF_POINT", r_vals=ref_point)
+      CALL section_vals_val_get(loc_print_key, "MOLECULAR_DIPOLES%PERIODIC", l_val=do_berry)
 
-      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell)
       particle_set => qs_loc_env%particle_set
       para_env => qs_loc_env%para_env
       local_molecules => qs_loc_env%local_molecules
-      nstate = SIZE(center, 2)
+      nkind = SIZE(local_molecules%n_el)
+      zwfc = 3.0_dp-REAL(nspins, KIND=dp)
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_key, &
-                                           "MOLECULAR_DIPOLES"), cp_p_file)) THEN
+      ALLOCATE (dipole_set(3, SIZE(molecule_set)))
+      ALLOCATE (charge_set(SIZE(molecule_set)))
+      dipole_set = 0.0_dp
+      charge_set = 0.0_dp
 
-         particle_set => qs_loc_env%particle_set
-         para_env => qs_loc_env%para_env
-         local_molecules => qs_loc_env%local_molecules
+      DO ispin = 1, nspins
+         center => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
          nstate = SIZE(center, 2)
-         ALLOCATE (dipole_set(3, SIZE(molecule_set)))
-         ALLOCATE (charge_set(SIZE(molecule_set)))
-         dipole_set = 0.0_dp
-         charge_set = 0.0_dp
-         cell => qs_loc_env%cell
-         zwfc = 3.0_dp-REAL(nspins, KIND=dp)
-         nkind = SIZE(local_molecules%n_el)
          DO ikind = 1, nkind ! loop over different molecules
             nmol = SIZE(local_molecules%list(ikind)%array)
             DO imol = 1, nmol ! all the molecules of the kind
@@ -168,6 +153,7 @@ CONTAINS
                   ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
 
                   ! Nuclear charges
+                  IF (ispin == 1) THEN
                   DO iatom = 1, natom
                      i = first_atom+iatom-1
                      atomic_kind => particle_set(i)%atomic_kind
@@ -184,6 +170,7 @@ CONTAINS
                         END DO
                      END IF
                   END DO
+                  END IF
 
                   ! Charges of the wfc involved
                   DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
@@ -201,19 +188,21 @@ CONTAINS
                   ci = AIMAG(LOG(ggamma))/twopi
                   dipole = MATMUL(cell%hmat, ci)
                ELSE
-                  ! Nuclear charges
-                  DO iatom = 1, natom
-                     i = first_atom+iatom-1
-                     atomic_kind => particle_set(i)%atomic_kind
-                     CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
-                     IF (.NOT. ghost .AND. .NOT. floating) THEN
-                        CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
-                        ria = pbc(particle_set(i)%r, cell)-rcc
-                        dipole = dipole+zeff*(ria-rcc)
-                        charge_set(imol_now) = charge_set(imol_now)+zeff
-                     END IF
-                  END DO
+                  IF (ispin == 1) THEN
+                     ! Nuclear charges
+                     DO iatom = 1, natom
+                        i = first_atom+iatom-1
+                        atomic_kind => particle_set(i)%atomic_kind
+                        CALL get_atomic_kind(atomic_kind, kind_number=akind)
+                        CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
+                        IF (.NOT. ghost .AND. .NOT. floating) THEN
+                           CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
+                           ria = pbc(particle_set(i)%r, cell)-rcc
+                           dipole = dipole+zeff*(ria-rcc)
+                           charge_set(imol_now) = charge_set(imol_now)+zeff
+                        END IF
+                     END DO
+                  END IF
                   ! Charges of the wfc involved
                   DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
                      i = molecule_set(imol_now)%lmi(ispin)%states(istate)
@@ -222,27 +211,29 @@ CONTAINS
                      charge_set(imol_now) = charge_set(imol_now)-zwfc
                   ENDDO
                END IF
-               dipole_set(:, imol_now) = dipole ! a.u.
+               dipole_set(:, imol_now) = dipole_set(:, imol_now)+dipole ! a.u.
             ENDDO
          ENDDO
-         CALL mp_sum(dipole_set, para_env%group)
-         CALL mp_sum(charge_set, para_env%group)
+      END DO
+      CALL mp_sum(dipole_set, para_env%group)
+      CALL mp_sum(charge_set, para_env%group)
 
-         iounit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_DIPOLES", &
-                                       extension=".MolDip", middle_name="MOLECULAR_DIPOLES")
-         IF (iounit > 0) THEN
-            WRITE (UNIT=iounit, FMT='(A80)') &
-               "# molecule nr,      charge,           dipole vector,           dipole[Debye]"
-            dipole_set(:, :) = dipole_set(:, :)*debye ! Debye
-            DO I = 1, SIZE(dipole_set, 2)
-               WRITE (UNIT=iounit, FMT='(T8,I6,T21,5F12.6)') I, charge_set(I), dipole_set(1:3, I), &
-                  SQRT(DOT_PRODUCT(dipole_set(1:3, I), dipole_set(1:3, I)))
-            ENDDO
-         ENDIF
-         CALL cp_print_key_finished_output(iounit, logger, loc_print_key, &
-                                           "MOLECULAR_DIPOLES")
-         DEALLOCATE (dipole_set, charge_set)
-      END IF
+      iounit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_DIPOLES", &
+                                    extension=".MolDip", middle_name="MOLECULAR_DIPOLES")
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT='(A80)') &
+            "# molecule nr,      charge,           dipole vector,           dipole[Debye]"
+         dipole_set(:, :) = dipole_set(:, :)*debye ! Debye
+         DO I = 1, SIZE(dipole_set, 2)
+            WRITE (UNIT=iounit, FMT='(T8,I6,T21,5F12.6)') I, charge_set(I), dipole_set(1:3, I), &
+               SQRT(DOT_PRODUCT(dipole_set(1:3, I), dipole_set(1:3, I)))
+         ENDDO
+         WRITE (UNIT=iounit, FMT="(T2,A,T61,E20.12)") ' DIPOLE : CheckSum  =', SUM(dipole_set)
+      ENDIF
+      CALL cp_print_key_finished_output(iounit, logger, loc_print_key, &
+                                        "MOLECULAR_DIPOLES")
+
+      DEALLOCATE (dipole_set, charge_set)
 
    END SUBROUTINE calculate_molecular_dipole
    !------------------------------------------------------------------------------
