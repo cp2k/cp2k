@@ -1034,7 +1034,8 @@ CONTAINS
       ! nonlocal section
       NULLIFY (subsection, keyword)
       CALL section_create(subsection, __LOCATION__, name="NON_LOCAL", &
-                          description="Information on the non local dispersion functional", &
+                          description="Information on the non local part of dispersion functionals."// &
+                          "Correct functionals require a corresponding setting of XC_FUNCTIONAL.", &
                           n_keywords=0, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
