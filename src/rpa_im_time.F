@@ -211,7 +211,7 @@ CONTAINS
             CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_occ(i, j))
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_virt(i, j))
             CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_virt(i, j))
-            CALL dbcsr_t_clear(t_3c_O(i, j))
+            !CALL dbcsr_t_clear(t_3c_O(i, j)) ! clearing t_3c_O is not safe because it may be used later
          ENDDO
       ENDDO
 
@@ -220,13 +220,23 @@ CONTAINS
 
          flops_1_max_virt = 0; flops_1_max_occ = 0; flops_2_max = 0
 
-         IF (jquad .GT. 1 .AND. do_opt_pgrid) THEN
+         IF (pgrid_1_init_occ) THEN
             DO i = 1, SIZE(t_3c_O, 1)
                DO j = 1, SIZE(t_3c_O, 2)
                   CALL tensor_change_pgrid(t_3c_O_occ(i, j), pgrid_1_use_occ)
+               ENDDO
+            ENDDO
+         ENDIF
+
+         IF (pgrid_1_init_virt) THEN
+            DO i = 1, SIZE(t_3c_O, 1)
+               DO j = 1, SIZE(t_3c_O, 2)
                   CALL tensor_change_pgrid(t_3c_O_virt(i, j), pgrid_1_use_virt)
                ENDDO
             ENDDO
+         ENDIF
+
+         IF (pgrid_2_init) THEN
             CALL tensor_change_pgrid(t_3c_M, pgrid_2_use, nodata=.TRUE.)
          ENDIF
 
@@ -250,27 +260,33 @@ CONTAINS
                                     num_cells_dm, index_to_cell_dm, &
                                     does_mat_P_T_tau_have_blocks)
 
-         IF (memory_info .AND. jquad .GT. 1 .AND. do_opt_pgrid) THEN
-            CALL dbcsr_t_get_info(t_3c_O_occ(1, 1), pdims=pdims)
-            IF (unit_nr_prv > 0) THEN
-               WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO M = O x D_occ"
-               WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+         IF (memory_info) THEN
+            IF (pgrid_1_init_occ) THEN
+               CALL dbcsr_t_get_info(t_3c_O_occ(1, 1), pdims=pdims)
+               IF (unit_nr_prv > 0) THEN
+                  WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO M = O x D_occ"
+                  WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+               ENDIF
+               CALL dbcsr_t_write_split_info(pgrid_1_use_occ, unit_nr_prv)
             ENDIF
-            CALL dbcsr_t_write_split_info(pgrid_1_use_occ, unit_nr_prv)
 
-            CALL dbcsr_t_get_info(t_3c_O_virt(1, 1), pdims=pdims)
-            IF (unit_nr_prv > 0) THEN
-               WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO M = O x D_virt"
-               WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+            IF (pgrid_1_init_virt) THEN
+               CALL dbcsr_t_get_info(t_3c_O_virt(1, 1), pdims=pdims)
+               IF (unit_nr_prv > 0) THEN
+                  WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO M = O x D_virt"
+                  WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+               ENDIF
+               CALL dbcsr_t_write_split_info(pgrid_1_use_virt, unit_nr_prv)
             ENDIF
-            CALL dbcsr_t_write_split_info(pgrid_1_use_virt, unit_nr_prv)
 
-            CALL dbcsr_t_get_info(t_3c_M, pdims=pdims)
-            IF (unit_nr_prv > 0) THEN
-               WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO P = M x M"
-               WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+            IF (pgrid_2_init) THEN
+               CALL dbcsr_t_get_info(t_3c_M, pdims=pdims)
+               IF (unit_nr_prv > 0) THEN
+                  WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO P = M x M"
+                  WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+               ENDIF
+               IF (pgrid_2_init) CALL dbcsr_t_write_split_info(pgrid_2_use, unit_nr_prv)
             ENDIF
-            CALL dbcsr_t_write_split_info(pgrid_2_use, unit_nr_prv)
          ENDIF
 
          CALL timeset(routineN//"_dbcsr_t", handle6)
