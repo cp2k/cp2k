@@ -10,6 +10,10 @@
 MODULE grrm_utils
 
    USE kinds,                           ONLY: dp
+   USE force_env_types,                 ONLY: force_env_type
+   USE qs_environment_types,            ONLY: get_qs_env
+   USE qs_energy_types,                 ONLY: qs_energy_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom
 #include "./base/base_uses.f90"
@@ -38,9 +42,10 @@ CONTAINS
 !> \param polar ...
 !> \param fixed_atoms ...
 ! **************************************************************************************************
-   SUBROUTINE write_grrm(iounit, particles, energy, dipole, hessian, dipder, polar, fixed_atoms)
+   SUBROUTINE write_grrm(iounit, force_env, particles, energy, dipole, hessian, dipder, polar, &
+                         fixed_atoms)
 
-      INTEGER, INTENT(IN)                                :: iounit
+      TYPE(force_env_type), POINTER                      :: force_env
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particles
       REAL(KIND=dp), INTENT(IN)                          :: energy
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: dipole
@@ -49,14 +54,30 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: polar
       INTEGER, INTENT(IN), OPTIONAL                      :: fixed_atoms
+      INTEGER, INTENT(IN)                                :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_grrm', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
+      LOGICAL                                            :: nddo
       INTEGER                                            :: i, j, natom, nc
+      REAL(KIND=dp)                                      :: eout
       REAL(KIND=dp), DIMENSION(5)                        :: fz
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       IF (iounit > 0) THEN
+         ! the units depend on the qs method!
+         CPASSERT(ASSOCIATED(force_env%qs_env))
+         CALL get_qs_env(force_env%qs_env,dft_control=dft_control)
+         nddo = dft_control%qs_control%semi_empirical
+         IF(nddo) THEN
+            CALL get_qs_env(force_env%qs_env,energy=qs_energy)
+            eout = energy + qs_energy%core_self
+         ELSE
+            eout = energy
+         END IF
+         !
          natom = SIZE(particles)
          IF (PRESENT(fixed_atoms)) natom = natom-fixed_atoms
          WRITE (iounit, "(A7)") "RESULTS"
@@ -65,12 +86,12 @@ CONTAINS
             WRITE (iounit, "(A,3F24.12)") TRIM(ADJUSTL(particles(i)%atomic_kind%element_symbol)), &
                particles(i)%r(1:3)*angstrom
          END DO
-         WRITE (iounit, "(A8,3F18.12)") "ENERGY =", energy, zero, zero
+         WRITE (iounit, "(A8,3F18.12)") "ENERGY =", eout, zero, zero
          WRITE (iounit, "(A8,3F18.12)") "       =", zero, zero, zero
          WRITE (iounit, "(A8,F18.12)") "S**2   =", zero
          WRITE (iounit, "(A8)") "GRADIENT"
          DO i = 1, natom
-            WRITE (iounit, "(F17.12)") particles(i)%f(1:3)
+            WRITE (iounit, "(F17.12)")-particles(i)%f(1:3)
          END DO
          IF (PRESENT(dipole)) THEN
             WRITE (iounit, "(A8,3F18.12)") "DIPOLE =", dipole(1:3)

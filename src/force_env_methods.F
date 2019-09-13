@@ -454,7 +454,7 @@ CONTAINS
             nfixed_atoms_total = nfixed_atoms_total+nfixed_atoms
          END DO
          !
-         CALL write_grrm(print_grrm, particles%els, e_pot, fixed_atoms=nfixed_atoms_total)
+         CALL write_grrm(print_grrm, force_env, particles%els, e_pot, fixed_atoms=nfixed_atoms_total)
       END IF
       CALL cp_print_key_finished_output(print_grrm, logger, force_env%force_env_section, "PRINT%GRRM")
 

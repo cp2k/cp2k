@@ -415,7 +415,8 @@ CONTAINS
                   END DO
                END DO
                nfrozen = SIZE(particles)-natoms
-               CALL write_grrm(print_grrm, particles, minimum_energy, hessian=Hint1, fixed_atoms=nfrozen)
+               CALL write_grrm(print_grrm, f_env%force_env, particles, minimum_energy, &
+                               hessian=Hint1, fixed_atoms=nfrozen)
                DEALLOCATE (Hint1, rmass)
             END IF
             CALL cp_print_key_finished_output(print_grrm, logger, force_env_section, "PRINT%GRRM")
