@@ -266,10 +266,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="RELAX_MULTIPLICITY", &
                           variants=(/"RELAX_MULTIP"/), &
-                          description="Do not enforce the occupation of alpha and beta MOs due to the initially "// &
-                          "defined multiplicity, but rather follow an Aufbau principle. "// &
-                          "A threshold value greater than zero activates this option. "// &
-                          "Larger threshold values increase the probability for a spin flip. "// &
+                          description="Tolerance in Hartrees. Do not enforce the occupation "// &
+                          "of alpha and beta MOs due to the initially "// &
+                          "defined multiplicity, but rather follow the Aufbau principle. "// &
+                          "A value greater than zero activates this option. "// &
+                          "Larger tolerance values increase the probability for a spin flip. "// &
                           "This option is only valid for unrestricted (i.e. spin polarised) "// &
                           "Kohn-Sham (UKS) calculations.", &
                           usage="RELAX_MULTIPLICITY 0.00001", &
