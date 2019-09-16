@@ -217,10 +217,6 @@ MODULE input_constants
                                                almo_frz_crystal = 2, &
                                                almo_frz_both = 3
 
-   INTEGER, PARAMETER, PUBLIC               :: pw_interp = 1, &
-                                               spline3_nopbc_interp = 2, &
-                                               spline3_pbc_interp = 3
-
    INTEGER, PARAMETER, PUBLIC               :: do_gapw_gcs = 1, &
                                                do_gapw_gct = 2, &
                                                do_gapw_log = 3

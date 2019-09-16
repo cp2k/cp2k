@@ -26,6 +26,7 @@ MODULE input_cp2k_qmmm
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE cp_spline_utils,                 ONLY: spline3_nopbc_interp
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         alpha_imomm_default, charge_scale_factor, do_eri_gpw, do_eri_mme, &
@@ -36,8 +37,7 @@ MODULE input_cp2k_qmmm
         do_qmmm_center_pbc_aware, do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, &
         do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, do_qmmm_link_imomm, &
         do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave, do_qmmm_wall_none, &
-        do_qmmm_wall_quadratic, do_qmmm_wall_reflective, gaussian, radius_qmmm_default, &
-        spline3_nopbc_interp
+        do_qmmm_wall_quadratic, do_qmmm_wall_reflective, gaussian, radius_qmmm_default
    USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                               create_Goodwin_section,&
                                               create_LJ_section,&

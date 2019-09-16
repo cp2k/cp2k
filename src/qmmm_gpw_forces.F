@@ -18,16 +18,16 @@ MODULE qmmm_gpw_forces
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_spline_utils,                 ONLY: pw_restrict_s3
+   USE cp_spline_utils,                 ONLY: pw_restrict_s3,&
+                                              spline3_nopbc_interp,&
+                                              spline3_pbc_interp
    USE cube_utils,                      ONLY: cube_info_type
    USE input_constants,                 ONLY: do_par_atom,&
                                               do_qmmm_coulomb,&
                                               do_qmmm_gauss,&
                                               do_qmmm_none,&
                                               do_qmmm_pcharge,&
-                                              do_qmmm_swave,&
-                                              spline3_nopbc_interp,&
-                                              spline3_pbc_interp
+                                              do_qmmm_swave
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
