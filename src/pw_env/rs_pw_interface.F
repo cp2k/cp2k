@@ -11,11 +11,11 @@
 ! **************************************************************************************************
 MODULE rs_pw_interface
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_spline_utils,                 ONLY: pw_prolongate_s3,&
-                                              pw_restrict_s3
-   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-   USE input_constants,                 ONLY: pw_interp,&
+   USE cp_spline_utils,                 ONLY: pw_interp,&
+                                              pw_prolongate_s3,&
+                                              pw_restrict_s3,&
                                               spline3_pbc_interp
+   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -38,7 +38,7 @@ MODULE rs_pw_interface
                                               rs2pw,&
                                               rs_grid_release,&
                                               rs_pw_transfer
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

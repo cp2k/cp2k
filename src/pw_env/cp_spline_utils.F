@@ -10,8 +10,6 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE cp_spline_utils
-   USE input_constants,                 ONLY: spline3_nopbc_interp,&
-                                              spline3_pbc_interp
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -28,7 +26,7 @@ MODULE cp_spline_utils
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
@@ -36,6 +34,11 @@ MODULE cp_spline_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_spline_utils'
 
    PUBLIC ::  pw_prolongate_s3, pw_restrict_s3
+
+   ! input constants
+   INTEGER, PARAMETER, PUBLIC               :: pw_interp = 1, &
+                                               spline3_nopbc_interp = 2, &
+                                               spline3_pbc_interp = 3
 
 CONTAINS
 

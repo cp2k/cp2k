@@ -1,0 +1,4 @@
+{
+"description": "Plane Wave Environment - A container for grids stuff",
+"requires": ["../base", "../pw", "../common", "../input", "../mpiwrap"],
+}
