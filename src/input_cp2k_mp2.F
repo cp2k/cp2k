@@ -244,8 +244,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DO_SVD", &
                           description="Wether to perform a singular value decomposition instead of the Cholesky decomposition "// &
                           "of the potential operator in the RI basis. Computationally expensive but numerically more stable. "// &
-                          "It reduces the coomputational cost of some subsequent steps. Recommended when a longrange Coulomb "// &
-                          "potential is employed for a much emproved numerical stability.", &
+                          "It reduces the computational costs of some subsequent steps. Recommended when a longrange Coulomb "// &
+                          "potential is employed.", &
                           usage="DO_SVD  .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
