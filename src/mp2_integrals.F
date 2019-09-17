@@ -280,8 +280,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info, local_col_row_info_beta, &
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
       INTEGER, DIMENSION(3)                              :: pdims_t3c, periodic
-      LOGICAL                                            :: do_alpha_beta, do_kpoints_from_Gamma, &
-                                                            impose_split, memory_info, do_svd, do_gpw
+      LOGICAL                                            :: do_alpha_beta, do_gpw, &
+                                                            do_kpoints_from_Gamma, do_svd, &
+                                                            impose_split, memory_info
       REAL(KIND=dp)                                      :: cond_num, cutoff_old, eps_svd, &
                                                             mem_for_iaK, omega_metric, omega_pot, &
                                                             relative_cutoff_old
