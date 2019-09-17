@@ -69,9 +69,10 @@ MODULE mp2_ri_2c
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_alltoall,&
+                                              mp_bcast,&
                                               mp_comm_split_direct,&
                                               mp_sendrecv,&
-                                              mp_sum, mp_bcast
+                                              mp_sum
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type
@@ -314,6 +315,7 @@ CONTAINS
 !> \param ngroup ...
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
@@ -920,6 +922,7 @@ CONTAINS
 !> \param num_small_evals ...
 !> \param cond_num ...
 !> \param do_inversion ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE matrix_root_with_svd(matrix, eps_svd, num_small_evals, cond_num, do_inversion, para_env)
       TYPE(cp_fm_type), POINTER                          :: matrix
@@ -927,16 +930,16 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ii, needed_evals, nrow, group_size_L, comm_exchange, &
-                                                            pos_max
+      INTEGER                                            :: comm_exchange, group_size_L, handle, ii, &
+                                                            needed_evals, nrow, pos_max
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_type), POINTER                          :: evecs
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_eval
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
 
       CALL timeset(routineN, handle)
@@ -984,10 +987,10 @@ CONTAINS
       ! use that group_size_L is divisible by the total number of processes (see above)
       group_size_L = para_env%num_pe/matrix%matrix_struct%para_env%num_pe
       CALL mp_comm_split_direct(para_env%group, comm_exchange, matrix%matrix_struct%para_env%mepos)
-      NULLIFY(para_env_exchange)
+      NULLIFY (para_env_exchange)
       CALL cp_para_env_create(para_env_exchange, comm_exchange)
 
-      ALLOCATE(num_eval(0:group_size_L-1))
+      ALLOCATE (num_eval(0:group_size_L-1))
       num_eval = 0
       num_eval(para_env_exchange%mepos) = num_small_evals
       CALL mp_sum(num_eval, para_env_exchange%group)
@@ -1010,7 +1013,7 @@ CONTAINS
          CALL mp_bcast(cond_num, pos_max, para_env_exchange%group)
       END IF
 
-      DEALLOCATE(num_eval)
+      DEALLOCATE (num_eval)
 
       CALL cp_para_env_release(para_env_exchange)
 
@@ -1481,6 +1484,15 @@ CONTAINS
 
    END SUBROUTINE invert_L
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_matrix_L ...
+!> \param blacs_env_L ...
+!> \param dimen_RI ...
+!> \param para_env_L ...
+!> \param name ...
+!> \param fm_matrix_L_extern ...
+! **************************************************************************************************
    SUBROUTINE create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, name, fm_matrix_L_extern)
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
