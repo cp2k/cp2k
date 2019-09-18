@@ -17,6 +17,11 @@ try:
 except ImportError:
     from md5 import new as md5
 
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import replacer
 
@@ -175,30 +180,25 @@ def prettifyFile(
         return infile
 
     # create a temporary file first as a copy of the input file
-    tmpfile = tempfile.TemporaryFile(mode="w+")
-    tmpfile.write(infile.read())
-    tmpfile.seek(0)
+    inbuf = StringIO(infile.read())
 
-    infile = tmpfile  # overwrite the handle since we don't need it anymore
-
-    hash_prev = md5(infile.read().encode("utf8"))
-    infile.seek(0)
+    hash_prev = md5(inbuf.getvalue().encode("utf8"))
 
     for _ in range(max_pretty_iter):
         try:
             if replace:
-                tmpfile = tempfile.TemporaryFile(mode="w+")
-                replacer.replaceWords(infile, tmpfile)
-                tmpfile.seek(0)
-                infile.close()
-                infile = tmpfile
+                outbuf = StringIO()
+                replacer.replaceWords(inbuf, outbuf)
+                outbuf.seek(0)
+                inbuf.close()
+                inbuf = outbuf
 
             if reformat:  # reformat needs to be done first
-                tmpfile = tempfile.TemporaryFile(mode="w+")
+                outbuf = StringIO()
                 try:
                     reformat_ffile(
-                        infile,
-                        tmpfile,
+                        inbuf,
+                        outbuf,
                         indent_size=indent,
                         whitespace=whitespace,
                         orig_filename=filename,
@@ -207,38 +207,37 @@ def prettifyFile(
                     log_exception(
                         e, "fprettify could not parse file, file is not prettified"
                     )
-                    tmpfile.write(infile.read())
+                    outbuf.write(inbuf.read())
 
-                tmpfile.seek(0)
-                infile.close()
-                infile = tmpfile
+                outbuf.seek(0)
+                inbuf.close()
+                inbuf = outbuf
 
             if normalize_use:
-                tmpfile = tempfile.TemporaryFile(mode="w+")
+                outbuf = StringIO()
                 normalizeFortranFile.rewriteFortranFile(
-                    infile,
-                    tmpfile,
+                    inbuf,
+                    outbuf,
                     indent,
                     decl_linelength,
                     decl_offset,
                     orig_filename=filename,
                 )
-                tmpfile.seek(0)
-                infile.close()
-                infile = tmpfile
+                outbuf.seek(0)
+                inbuf.close()
+                inbuf = outbuf
 
             if upcase_keywords:
-                tmpfile = tempfile.TemporaryFile(mode="w+")
-                upcaseKeywords(infile, tmpfile, upcase_omp)
-                tmpfile.seek(0)
-                infile.close()
-                infile = tmpfile
+                outbuf = StringIO()
+                upcaseKeywords(inbuf, outbuf, upcase_omp)
+                outbuf.seek(0)
+                inbuf.close()
+                inbuf = outbuf
 
-            hash_new = md5(infile.read().encode("utf8"))
-            infile.seek(0)
+            hash_new = md5(inbuf.getvalue().encode("utf8"))
 
             if hash_prev.digest() == hash_new.digest():
-                return infile
+                return inbuf
 
             hash_prev = hash_new
 
