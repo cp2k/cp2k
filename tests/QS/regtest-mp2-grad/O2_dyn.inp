@@ -53,7 +53,7 @@
           FREE_HFX_BUFFER .TRUE.
         &END RI_MP2
         &WFC_GPW
-          CUTOFF  100
+          CUTOFF  50
           REL_CUTOFF 25
           EPS_FILTER 1.0E-5
           EPS_GRID 1.0E-4
@@ -72,7 +72,7 @@
            0.0                       0.0                       0.0
     &END VELOCITY        
     &CELL
-      ABC [angstrom]  8.000   8.000   8.000
+      ABC [angstrom]  6.000   6.000   6.000
       !PERIODIC NONE
     &END CELL
     &KIND O

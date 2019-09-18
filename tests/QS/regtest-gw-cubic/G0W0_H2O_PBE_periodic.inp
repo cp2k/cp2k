@@ -67,12 +67,13 @@
           RPA_NUM_QUAD_POINTS     10
           GW
           &RI_G0W0
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
+            CORR_MOS_OCC          4
+            CORR_MOS_VIRT         4
             PRINT_GW_DETAILS
             PERIODIC
             &PERIODIC
-              NUM_OMEGA_POINTS   100
+              # That value should be chosen much larger !
+              NUM_OMEGA_POINTS   5
             &END
           &END RI_G0W0
         &END RI_RPA
@@ -87,7 +88,7 @@
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET          cc-TZV2P-GTH
+      BASIS_SET          DZVP-GTH
       BASIS_SET RI_AUX   RI_DZVP-GTH
       BASIS_SET AUX_GW   DZVP-GTH
       POTENTIAL  GTH-PBE-q1

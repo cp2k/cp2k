@@ -49,7 +49,8 @@
         METHOD  RI_MP2_GPW
         ERI_METHOD MME
         &ERI_MME
-            N_MINIMAX 4
+            N_MINIMAX 3
+            SUM_PRECISION 1.0E-5
         &END
         &RI_MP2
           BLOCK_SIZE  1
@@ -57,7 +58,7 @@
           FREE_HFX_BUFFER .TRUE.
         &END RI_MP2
         &WFC_GPW
-          CUTOFF  100
+          CUTOFF  50
           REL_CUTOFF 20
         &END
         MEMORY  500.0
@@ -74,9 +75,9 @@
            0.0                       0.0                       0.0
     &END VELOCITY
     &CELL
-      A 8.0 0.1 0.05
-      B -0.15 8.0 0.0
-      C -0.05 0.1 8.0
+      A 8.0 0.05 0.0
+      B 0.05 8.0 0.0
+      C 0.05 0.0 8.0
     &END CELL
     &KIND O
       BASIS_SET         DZVP-GTH
