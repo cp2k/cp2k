@@ -49,7 +49,7 @@
         METHOD  RI_MP2_GPW
         ERI_METHOD MME
         &ERI_MME
-            N_MINIMAX 8
+            N_MINIMAX 4
         &END
         &RI_MP2
           BLOCK_SIZE  1
