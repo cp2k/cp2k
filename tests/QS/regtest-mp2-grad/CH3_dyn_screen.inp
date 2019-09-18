@@ -58,7 +58,7 @@
           FREE_HFX_BUFFER .TRUE.
         &END RI_MP2
         &WFC_GPW
-          CUTOFF  50
+          CUTOFF  30
           REL_CUTOFF 10
         &END
         MEMORY  500.0
