@@ -176,8 +176,14 @@ def prettifyFile(
     logger = logging.getLogger("fprettify-logger")
 
     if is_fypp(infile):
-        logger.error("{}: fypp directives not supported.\n".format(filename))
-        return infile
+        logger.warning(
+            "{}: fypp directives not fully supported, running only fprettify".format(
+                filename
+            )
+        )
+        replace = False
+        normalize_use = False
+        upcase_keywords = False
 
     # create a temporary file first as a copy of the input file
     inbuf = StringIO(infile.read())
@@ -207,11 +213,12 @@ def prettifyFile(
                     log_exception(
                         e, "fprettify could not parse file, file is not prettified"
                     )
-                    outbuf.write(inbuf.read())
-
-                outbuf.seek(0)
-                inbuf.close()
-                inbuf = outbuf
+                    outbuf.close()
+                    inbuf.seek(0)
+                else:
+                    outbuf.seek(0)
+                    inbuf.close()
+                    inbuf = outbuf
 
             if normalize_use:
                 outbuf = StringIO()
@@ -242,7 +249,7 @@ def prettifyFile(
             hash_prev = hash_new
 
         except:
-            logger.critical("error processing file '{}'\n".format(filename))
+            logger.critical("error processing file '{}'".format(filename))
             raise
 
     else:
