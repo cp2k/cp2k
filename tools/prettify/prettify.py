@@ -19,6 +19,8 @@ except ImportError:
 
 from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import replacer
+
+sys.path.append(path.join(path.dirname(path.abspath(__file__)), "fprettify"))
 from fprettify import reformat_ffile, fparse_utils, log_exception
 
 
@@ -357,7 +359,7 @@ def main(argv):
     )
 
     parser.add_argument("--indent", type=int, default=3)
-    parser.add_argument("--whitespace", type=int, default=1, choices=range(3))
+    parser.add_argument("--whitespace", type=int, default=2, choices=range(0, 5))
     parser.add_argument("--decl-linelength", type=int, default=100)
     parser.add_argument("--decl-offset", type=int, default=50)
     parser.add_argument("--backup-dir", type=abspath, default=abspath("preprettify"))

@@ -27,7 +27,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: r, i, j, k
       INTEGER                                            :: l
 
-      l = r+i+j+k
+      l = r + i + j + k
    END FUNCTION
    FUNCTION &
       str_function(a) RESULT(l)
@@ -65,7 +65,7 @@ PROGRAM example_prog
 ! example 1.1
    r = 1; i = -2; j = 3; k = 4; l = 5
    r2 = 0.0_dp; r3 = 1.0_dp; r4 = 2.0_dp; r5 = 3.0_dp; r6 = 4.0_dp
-   r1 = -(r2**i*(r3+r5*(-r4)-r6))-2.e+2
+   r1 = -(r2**i*(r3 + r5*(-r4) - r6)) - 2.e+2
    IF (r .EQ. 2 .AND. r <= 5) i = 3
    WRITE (*, *) (MERGE(3, 1, i <= 2))
    WRITE (*, *) test_function(r, i, j, k)
@@ -117,15 +117,15 @@ PROGRAM example_prog
             IF (i <= 2) THEN
                m = 0
                DO WHILE (m < 4)
-                  m = m+1
+                  m = m + 1
                   DO k = 1, 3
-                     IF (k == 1) l = l+1
+                     IF (k == 1) l = l + 1
                   END DO
                ENDDO
             ENDIF
          ENDDO do_label
       CASE (2)
-         l = i+j+k
+         l = i + j + k
       END SELECT
    ENDDO
 
@@ -138,7 +138,7 @@ PROGRAM example_prog
          DO i = 4, 5
             DO my_integer = 1, 1
             DO j = 1, 2
-               WRITE (*, *) test_function(m, r, k, l)+i
+               WRITE (*, *) test_function(m, r, k, l) + i
             ENDDO
             ENDDO
          ENDDO
@@ -151,33 +151,33 @@ PROGRAM example_prog
 !************************************!
 
 ! example 3.1
-   l = test_function(1, 2, test_function(1, 2, 3, 4), 4)+3*(2+1)
+   l = test_function(1, 2, test_function(1, 2, 3, 4), 4) + 3*(2 + 1)
 
-   l = test_function(1, 2, test_function(1, 2, 3, 4), 4)+ &
-       3*(2+1)
+   l = test_function(1, 2, test_function(1, 2, 3, 4), 4) + &
+       3*(2 + 1)
 
    l = test_function(1, 2, &
-                     test_function(1, 2, 3, 4), 4)+ &
-       3*(2+1)
+                     test_function(1, 2, 3, 4), 4) + &
+       3*(2 + 1)
 
    l = test_function(1, 2, &
                      test_function(1, 2, 3, &
-                                   4), 4)+ &
-       3*(2+1)
+                                   4), 4) + &
+       3*(2 + 1)
 
 ! example 3.2
-   arr = [1, (/3, 4, 5/), 6]+[1, 2, 3, 4, 5]
+   arr = [1, (/3, 4, 5/), 6] + [1, 2, 3, 4, 5]
 
    arr = [1, (/3, 4, 5/), &
-          6]+[1, 2, 3, 4, 5]
+          6] + [1, 2, 3, 4, 5]
 
    arr = [1, (/3, 4, 5/), &
-          6]+ &
+          6] + &
          [1, 2, 3, 4, 5]
 
    arr = [1, (/3, 4, &
                5/), &
-          6]+ &
+          6] + &
          [1, 2, 3, 4, 5]
 
 ! example 3.3
@@ -203,7 +203,7 @@ PROGRAM example_prog
          DO i = 1, 100; IF (i <= 2) THEN ! comment
                DO j = 1, 5
                   DO k = 1, 3
-                     l = l+1
+                     l = l + 1
 ! unindented comment
                      ! indented comment
                   END DO; ENDDO
@@ -214,7 +214,7 @@ PROGRAM example_prog
             ENDIF
          ENDDO
       CASE (2)
-         l = i+j+k
+         l = i + j + k
       END SELECT
    ENDDO
 
@@ -227,12 +227,12 @@ PROGRAM example_prog
          IF (k == 1) &
             l = test_function(1, &
                               test_function(r=4, i=5, &
-                                            j=6, k=test_function(1, 2*(3*(1+1)), str_function(")a!(b['(;=dfe"), &
-                                                                 9)+ &
+                                            j=6, k=test_function(1, 2*(3*(1 + 1)), str_function(")a!(b['(;=dfe"), &
+                                                                 9) + &
                                             test_function(1, 2, 3, 4)), 9, 10) &
                 ! test_function(1,2,3,4)),9,10) &
-                ! +13*str_function('') + str_function('"')
-                +13*str_function('')+str_function('"')
+                ! + 13*str_function('') + str_function('"')
+                + 13*str_function('') + str_function('"')
       END & ! comment
          ! comment
          DO
@@ -241,7 +241,7 @@ PROGRAM example_prog
 ! example 4.3
    arr = [1, (/3, 4, &
                5/), &
-          6]+ &
+          6] + &
          [1, 2, 3, 4, 5]; arr = [1, 2, &
  3, 4, 5]
 
