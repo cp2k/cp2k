@@ -21,7 +21,7 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF      150
+      CUTOFF      100
       REL_CUTOFF   30
     &END MGRID
     &QS
@@ -30,7 +30,7 @@
     &END QS
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-10
+      EPS_SCF     1.0E-5
       MAX_SCF     100
       &PRINT
         &RESTART OFF
@@ -43,8 +43,8 @@
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ 1.0E-6
-          EPS_SCHWARZ_FORCES  1.0E-6
+          EPS_SCHWARZ 1.0E-5
+          EPS_SCHWARZ_FORCES  1.0E-5
           SCREEN_ON_INITIAL_P .FALSE.
         &END SCREENING
         &INTERACTION_POTENTIAL
@@ -57,7 +57,8 @@
         METHOD  RI_MP2_GPW
         ERI_METHOD MME
         &ERI_MME
-            N_MINIMAX 8
+            N_MINIMAX 4
+            SUM_PRECISION 1.0E-5
         &END
         &RI_MP2
           BLOCK_SIZE  1
@@ -79,7 +80,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom]  6.000   6.000  6.000
     &END CELL
     &KIND H
       BASIS_SET         DZVP-GTH

@@ -12,7 +12,7 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
-      CUTOFF  200
+      CUTOFF  100
       REL_CUTOFF  30
     &END MGRID
     &POISSON
@@ -26,7 +26,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-5
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -37,7 +37,7 @@
         PRECONDITIONER  FULL_SINGLE_INVERSE
       &END
       &OUTER_SCF
-        EPS_SCF  1.0E-6
+        EPS_SCF  1.0E-5
         MAX_SCF  50
       &END
     &END SCF
@@ -47,8 +47,6 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &WFC_GPW
-          CUTOFF 100
-          REL_CUTOFF 20
           ! normally, this EPS_FILTER controls the accuracy and
           ! the time for the cubic_scaling RPA calculation
           EPS_FILTER  1.0E-6
@@ -60,12 +58,12 @@
           DO_DBCSR_T .FALSE.
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS  10
+          RPA_NUM_QUAD_POINTS  5
           MINIMAX
           GW
           &RI_G0W0
-            CORR_MOS_OCC 4
-            CORR_MOS_VIRT 5
+            CORR_MOS_OCC 3
+            CORR_MOS_VIRT 3
             PRINT_GW_DETAILS
             IC
             &IC

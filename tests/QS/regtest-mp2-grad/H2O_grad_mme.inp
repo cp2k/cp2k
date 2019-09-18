@@ -14,6 +14,7 @@
 &FORCE_EVAL
     METHOD Quickstep
     &DFT
+        BASIS_SET_FILE_NAME  GTH_BASIS_SETS
         BASIS_SET_FILE_NAME  HFX_BASIS
         POTENTIAL_FILE_NAME  POTENTIAL
         &MGRID
@@ -41,7 +42,7 @@
                 &END SCREENING
                 &INTERACTION_POTENTIAL
                     POTENTIAL_TYPE TRUNCATED
-                    CUTOFF_RADIUS 2.4999999999
+                    CUTOFF_RADIUS 2.0
                     T_C_G_DATA t_c_g.dat
                 &END
             &END HF
@@ -50,18 +51,18 @@
                 METHOD  RI_MP2_GPW
                 &RI_MP2
                     BLOCK_SIZE  1
-                    EPS_CANONICAL 0.00001
+                    EPS_CANONICAL 0.0001
                     FREE_HFX_BUFFER .TRUE.
                 &END
                 &CPHF
-                    EPS_CONV  1.0E-6
-                    MAX_ITER  50
+                    EPS_CONV  1.0E-4
+                    MAX_ITER  10
                 &END
                 &WFC_GPW
-                    CUTOFF      150
+                    CUTOFF      100
                     REL_CUTOFF  30
-                    EPS_FILTER  1.0E-12
-                    EPS_GRID    1.0E-8
+                    EPS_FILTER  1.0E-6
+                    EPS_GRID    1.0E-6
                 &END
                 MEMORY       1.00
                 NUMBER_PROC  1
@@ -77,12 +78,12 @@
             ABC [angstrom]  5.0 5.0 5.0
         &END CELL
         &KIND H
-            BASIS_SET         DZVP-GTH
+            BASIS_SET         SZV-GTH
             BASIS_SET RI_AUX  RI_DZVP-GTH
             POTENTIAL         GTH-HF-q1
         &END KIND
         &KIND O
-            BASIS_SET         DZVP-GTH
+            BASIS_SET         SZV-GTH
             BASIS_SET RI_AUX  RI_DZVP-GTH
             POTENTIAL         GTH-HF-q6
         &END KIND
