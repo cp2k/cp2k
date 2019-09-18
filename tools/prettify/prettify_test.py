@@ -11,6 +11,7 @@ import sys
 from prettify import main
 from prettify_cp2k import selftest
 
+
 class TestSingleFileFolder(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
@@ -26,7 +27,7 @@ class TestSingleFileFolder(unittest.TestCase):
     def test_prettify(self):
 
         # call prettify, the return value should be 0 (OK)
-        self.assertEqual(main([sys.argv[0], self.fname]), 0)
+        self.assertEqual(main([self.fname]), 0)
 
         # check if file was altered (it shouldn't)
         with open(self.fname) as fhandle:
@@ -34,5 +35,6 @@ class TestSingleFileFolder(unittest.TestCase):
 
         self.assertEqual(result.splitlines(), selftest.content.splitlines())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
