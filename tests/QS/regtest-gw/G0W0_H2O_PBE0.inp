@@ -43,7 +43,7 @@
       &HF
         FRACTION 0.2500000
         &SCREENING
-          EPS_SCHWARZ 1.0E-8
+          EPS_SCHWARZ 1.0E-6
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
@@ -57,11 +57,11 @@
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-6
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          RPA_NUM_QUAD_POINTS 40
+          RPA_NUM_QUAD_POINTS 10
           GW
           &RI_G0W0
             CORR_MOS_OCC          10
@@ -81,7 +81,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  6.000   6.000  6.000
       PERIODIC NONE
     &END CELL
     &KIND H

@@ -39,7 +39,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 5.0E-7
+      EPS_SCF 5.0E-5
       MAX_SCF 30
       ADDED_MOS 5
 
@@ -49,7 +49,7 @@
       &END MOM
 
       &OUTER_SCF
-        EPS_SCF  2.0E-7
+        EPS_SCF  2.0E-5
         MAX_SCF  2
       &END
     &END SCF
@@ -64,7 +64,7 @@
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS  3.0
+          CUTOFF_RADIUS  2.0
           T_C_G_DATA  t_c_g.dat
         &END
       &END HF

@@ -56,6 +56,8 @@
           ! REL_CUTOFF 50
           CUTOFF  100
           REL_CUTOFF 30
+          EPS_GRID 1.0E-6
+          EPS_FILTER 1.0E-6
         &END
         MEMORY  1000.
         NUMBER_PROC  1
@@ -65,7 +67,7 @@
   &SUBSYS
     &CELL
       ! ABC [angstrom] 12 12 12
-      ABC [angstrom] 7 7 7 
+      ABC [angstrom] 5 5 5 
       PERIODIC NONE
     &END CELL
     &KIND H

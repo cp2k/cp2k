@@ -47,8 +47,8 @@
           OMEGA 0.5
         &END INTERACTION_POTENTIAL
         &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 50
+          CUTOFF  50
+          REL_CUTOFF 10
         &END
         MEMORY  200.
         NUMBER_PROC  1
