@@ -31,6 +31,7 @@ MODULE qs_force
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: calculate_ecore_efield
+   USE energy_corrections,              ONLY: energy_correction
    USE input_constants,                 ONLY: do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -330,7 +331,7 @@ CONTAINS
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
-         energy%total = energy%total + energy%mp2
+         energy%total = energy%total+energy%mp2
 
          ! Compute MP2 properties
          ! Get the HF+MP2 density
@@ -380,7 +381,12 @@ CONTAINS
          CALL calc_mixed_overlap_force(qs_env)
       END IF
 
-      !  *** replicate forces ***
+      ! Energy_correction
+      CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
+
+      ! replicate forces (get current pointer)
+      NULLIFY (force)
+      CALL get_qs_env(qs_env=qs_env, force=force)
       CALL replicate_qs_force(force, para_env)
 
       DO iatom = 1, natom
@@ -391,8 +397,8 @@ CONTAINS
          ! Things should have the right name
          ! The minus sign below is a hack
          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-         force(ikind)%other(1:3, i) = -particle_set(iatom)%f(1:3) + force(ikind)%ch_pulay(1:3, i)
-         force(ikind)%total(1:3, i) = force(ikind)%total(1:3, i) + force(ikind)%other(1:3, i)
+         force(ikind)%other(1:3, i) = -particle_set(iatom)%f(1:3)+force(ikind)%ch_pulay(1:3, i)
+         force(ikind)%total(1:3, i) = force(ikind)%total(1:3, i)+force(ikind)%other(1:3, i)
          particle_set(iatom)%f = -force(ikind)%total(1:3, i)
       END DO
 
@@ -407,10 +413,10 @@ CONTAINS
                      dft_control%qs_control%xtb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
             DO dir = 1, 3
-               virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir) - energy%exc &
-                                            - 2.0_dp*energy%hartree
+               virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir)-energy%exc &
+                                            -2.0_dp*energy%hartree
                IF (dft_control%do_admm) THEN
-                  virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir) - energy%exc_aux_fit
+                  virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir)-energy%exc_aux_fit
                END IF
                ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
                ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
@@ -506,19 +512,19 @@ CONTAINS
                                    i_val=ndigits)
 
          fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
-         WRITE (UNIT=fmtstr1(41:42), FMT="(I2)") ndigits + 5
+         WRITE (UNIT=fmtstr1(41:42), FMT="(I2)") ndigits+5
 
          fmtstr2 = "(/,(T2,I5,4X,I4,T18,A,T34,3F  .  ))"
          WRITE (UNIT=fmtstr2(32:33), FMT="(I2)") ndigits
-         WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") ndigits + 6
+         WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") ndigits+6
 
          fmtstr3 = "(/,T3,A,T34,3F  .  )"
          WRITE (UNIT=fmtstr3(18:19), FMT="(I2)") ndigits
-         WRITE (UNIT=fmtstr3(15:16), FMT="(I2)") ndigits + 6
+         WRITE (UNIT=fmtstr3(15:16), FMT="(I2)") ndigits+6
 
          fmtstr4 = "((T34,3F  .  ))"
          WRITE (UNIT=fmtstr4(12:13), FMT="(I2)") ndigits
-         WRITE (UNIT=fmtstr4(9:10), FMT="(I2)") ndigits + 6
+         WRITE (UNIT=fmtstr4(9:10), FMT="(I2)") ndigits+6
 
          fmtstr5 = "(/T2,A//T3,A)"
 
@@ -536,7 +542,7 @@ CONTAINS
                i = atom_of_kind(iatom)
                WRITE (UNIT=output_unit, FMT=fmtstr2) &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          CASE (0)
             DO iatom = 1, natom
@@ -564,7 +570,7 @@ CONTAINS
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
                   iatom, ikind, "       mp2_sep", qs_force(ikind)%mp2_sep(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          CASE (1)
             DO iatom = 1, natom
@@ -593,7 +599,7 @@ CONTAINS
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
                   iatom, ikind, "       mp2_sep", qs_force(ikind)%mp2_sep(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          CASE (2)
             DO iatom = 1, natom
@@ -603,7 +609,7 @@ CONTAINS
                   iatom, ikind, " all_potential", qs_force(ikind)%all_potential(1:3, i), &
                   iatom, ikind, "      rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          CASE (3)
             DO iatom = 1, natom
@@ -624,7 +630,7 @@ CONTAINS
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
                   iatom, ikind, "       mp2_sep", qs_force(ikind)%mp2_sep(1:3, i), &
                   iatom, ikind, "          total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          CASE (4)
             DO iatom = 1, natom
@@ -639,7 +645,7 @@ CONTAINS
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "     ehrenfest", qs_force(ikind)%ehrenfest(1:3, i), &
                   iatom, ikind, "          total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          CASE (5)
             DO iatom = 1, natom
@@ -653,7 +659,7 @@ CONTAINS
                   iatom, ikind, " all potential", qs_force(ikind)%all_potential(1:3, i), &
                   iatom, ikind, "         other", qs_force(ikind)%other(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
-               grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
+               grand_total(1:3) = grand_total(1:3)+qs_force(ikind)%total(1:3, i)
             END DO
          END SELECT
 

@@ -12,16 +12,11 @@
 MODULE kg_environment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE basis_set_container_types,       ONLY: add_basis_set_to_container,&
-                                              remove_basis_from_container
-   USE basis_set_types,                 ONLY: copy_gto_basis_set,&
-                                              create_primitive_basis_set,&
-                                              get_gto_basis_set,&
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
-   USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -32,13 +27,10 @@ MODULE kg_environment
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&
                                               local_potential_type
-   USE input_constants,                 ONLY: kg_ec_functional_harris,&
-                                              kg_tnadd_atomic,&
+   USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
-                                              kg_tnadd_none,&
-                                              xc_vdw_fun_nonloc,&
-                                              xc_vdw_fun_pairpot
+                                              kg_tnadd_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -57,14 +49,9 @@ MODULE kg_environment
                                               mp_max
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
-   USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
-   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init
-   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-   USE qs_dispersion_utils,             ONLY: qs_dispersion_env_set
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: initialize_atomic_grid
-   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -140,23 +127,19 @@ CONTAINS
       INTEGER                                            :: handle, i, iatom, ib, ikind, iunit, n, &
                                                             na, natom, nbatch, nkind, np, nr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: bid
-      REAL(KIND=dp)                                      :: eps_pgf_orb, load, radb, rmax
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      REAL(KIND=dp)                                      :: load, radb, rmax
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis, lri_aux_basis
+      TYPE(gto_basis_set_type), POINTER                  :: lri_aux_basis
       TYPE(integration_grid_type), POINTER               :: ig_full, ig_mol
-      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), POINTER                        :: qs_kind
-      TYPE(section_vals_type), POINTER                   :: lri_section, nl_section, pp_section, &
-                                                            xc_section, xc_section_kg
+      TYPE(section_vals_type), POINTER                   :: lri_section
 
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Andermatt2016)
 
-      NULLIFY (atomic_kind_set, dispersion_env, para_env)
+      NULLIFY (para_env)
       NULLIFY (kg_env%sab_orb_full)
       NULLIFY (kg_env%sac_kin)
       NULLIFY (kg_env%subset_of_mol)
@@ -167,15 +150,6 @@ CONTAINS
       NULLIFY (kg_env%int_grid_molecules)
       NULLIFY (kg_env%int_grid_full)
       NULLIFY (kg_env%lri_density)
-      NULLIFY (kg_env%ec_env%sab_orb, kg_env%ec_env%sac_ppl, kg_env%ec_env%sap_ppnl)
-      NULLIFY (kg_env%ec_env%matrix_ks, kg_env%ec_env%matrix_h, kg_env%ec_env%matrix_s)
-      NULLIFY (kg_env%ec_env%matrix_t, kg_env%ec_env%matrix_p)
-      NULLIFY (kg_env%ec_env%task_list)
-      NULLIFY (kg_env%ec_env%mao_coef)
-      NULLIFY (kg_env%ec_env%dispersion_env)
-      NULLIFY (kg_env%ec_env%xc_section)
-
-      kg_env%ec_env%mao = .FALSE.
 
       kg_env%nsubsets = 0
 
@@ -184,110 +158,6 @@ CONTAINS
       ! get method for nonadditive kinetic energy embedding potential
       CALL section_vals_val_get(input, "DFT%KG_METHOD%TNADD_METHOD", i_val=kg_env%tnadd_method)
       !
-      CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
-                                l_val=kg_env%energy_correction)
-      IF (kg_env%energy_correction) THEN
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%ALGORITHM", &
-                                   i_val=kg_env%ec_env%ks_solver)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%ENERGY_FUNCTIONAL", &
-                                   i_val=kg_env%ec_env%energy_functional)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%FACTORIZATION", &
-                                   i_val=kg_env%ec_env%factorization)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%EPS_DEFAULT", &
-                                   r_val=kg_env%ec_env%eps_default)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%HARRIS_BASIS", &
-                                   c_val=kg_env%ec_env%basis)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO", &
-                                   l_val=kg_env%ec_env%mao)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO_MAX_ITER", &
-                                   i_val=kg_env%ec_env%mao_max_iter)
-         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO_EPS_GRAD", &
-                                   r_val=kg_env%ec_env%mao_eps_grad)
-
-         ! set basis
-         nkind = SIZE(qs_kind_set)
-         CALL uppercase(kg_env%ec_env%basis)
-         SELECT CASE (kg_env%ec_env%basis)
-         CASE ("ORBITAL")
-            DO ikind = 1, nkind
-               qs_kind => qs_kind_set(ikind)
-               CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
-               IF (ASSOCIATED(basis_set)) THEN
-                  NULLIFY (harris_basis)
-                  CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
-                  IF (ASSOCIATED(harris_basis)) THEN
-                     CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="HARRIS")
-                  END IF
-                  NULLIFY (harris_basis)
-                  CALL copy_gto_basis_set(basis_set, harris_basis)
-                  CALL add_basis_set_to_container(qs_kind%basis_sets, harris_basis, "HARRIS")
-               END IF
-            END DO
-         CASE ("PRIMITIVE")
-            DO ikind = 1, nkind
-               qs_kind => qs_kind_set(ikind)
-               CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
-               IF (ASSOCIATED(basis_set)) THEN
-                  NULLIFY (harris_basis)
-                  CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
-                  IF (ASSOCIATED(harris_basis)) THEN
-                     CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="HARRIS")
-                  END IF
-                  NULLIFY (harris_basis)
-                  CALL create_primitive_basis_set(basis_set, harris_basis)
-                  CALL get_qs_env(qs_env, dft_control=dft_control)
-                  eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
-                  CALL init_interaction_radii_orb_basis(harris_basis, eps_pgf_orb)
-                  harris_basis%kind_radius = basis_set%kind_radius
-                  CALL add_basis_set_to_container(qs_kind%basis_sets, harris_basis, "HARRIS")
-               END IF
-            END DO
-         CASE ("HARRIS")
-            DO ikind = 1, nkind
-               qs_kind => qs_kind_set(ikind)
-               NULLIFY (harris_basis)
-               CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
-               IF (.NOT. ASSOCIATED(harris_basis)) THEN
-                  CPWARN("Harris Basis not defined for all types of atoms.")
-               END IF
-            END DO
-         CASE DEFAULT
-            CPABORT("Unknown KG energy correction basis")
-         END SELECT
-         ! set functional
-         SELECT CASE (kg_env%ec_env%energy_functional)
-         CASE (kg_ec_functional_harris)
-            kg_env%ec_env%ec_name = "Harris"
-         CASE DEFAULT
-            CPABORT("unknown kg energy correction")
-         END SELECT
-         ! select the XC section
-         NULLIFY (xc_section, xc_section_kg)
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         xc_section_kg => section_vals_get_subs_vals(input, "DFT%KG_METHOD%ENERGY_CORRECTION%XC")
-         IF (ASSOCIATED(xc_section_kg)) THEN
-            kg_env%ec_env%xc_section => xc_section_kg
-         ELSE
-            kg_env%ec_env%xc_section => xc_section
-         END IF
-         ! dispersion
-         ALLOCATE (dispersion_env)
-         NULLIFY (xc_section)
-         xc_section => kg_env%ec_env%xc_section
-         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env)
-         CALL qs_dispersion_env_set(dispersion_env, xc_section)
-         IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
-            NULLIFY (pp_section)
-            pp_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%PAIR_POTENTIAL")
-            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, pp_section, para_env)
-         ELSE IF (dispersion_env%type == xc_vdw_fun_nonloc) THEN
-            NULLIFY (nl_section)
-            nl_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%NON_LOCAL")
-            CALL qs_dispersion_nonloc_init(dispersion_env, para_env)
-         END IF
-         kg_env%ec_env%dispersion_env => dispersion_env
-      END IF
-
       SELECT CASE (kg_env%tnadd_method)
       CASE (kg_tnadd_embed, kg_tnadd_embed_ri)
          ! kinetic energy functional
@@ -354,13 +224,13 @@ CONTAINS
          CALL allocate_intgrid(kg_env%int_grid_molecules)
          ig_mol => kg_env%int_grid_molecules
          nbatch = (natom*kg_env%int_grid_atom%nbatch)/np
-         nbatch = NINT((nbatch + 1)*1.2_dp)
+         nbatch = NINT((nbatch+1)*1.2_dp)
          ALLOCATE (bid(2, nbatch))
          nbatch = 0
          DO iatom = 1, natom
             DO ib = 1, kg_env%int_grid_atom%nbatch
-               IF (para_env%mepos == MOD(iatom + ib, np)) THEN
-                  nbatch = nbatch + 1
+               IF (para_env%mepos == MOD(iatom+ib, np)) THEN
+                  nbatch = nbatch+1
                   CPASSERT(nbatch <= SIZE(bid, 2))
                   bid(1, nbatch) = iatom
                   bid(2, nbatch) = ib
@@ -581,7 +451,7 @@ CONTAINS
       IF (n > 0) THEN
          ! represent a pair of int_4 as a single int_8 number, simplifies sorting.
          sort_keys(1:n) = ISHFT(INT(pairs_buffer(1, 1:n), KIND=int_8), 8*int_4_size)
-         sort_keys(1:n) = sort_keys(1:n) + pairs_buffer(2, 1:n) !upper + lower bytes
+         sort_keys(1:n) = sort_keys(1:n)+pairs_buffer(2, 1:n) !upper + lower bytes
          CALL sort(sort_keys, n, ind)
 
          ! add first pair, the case npairs==0 was excluded above
@@ -590,8 +460,8 @@ CONTAINS
 
          ! remove duplicates from the sorted list
          DO i = 2, n
-            IF (sort_keys(i) /= sort_keys(i - 1)) THEN
-               npairs = npairs + 1
+            IF (sort_keys(i) /= sort_keys(i-1)) THEN
+               npairs = npairs+1
                work(:, npairs) = pairs_buffer(:, ind(i))
             END IF
          END DO
@@ -712,7 +582,7 @@ CONTAINS
          !IF (imol<jmol) THEN
          IF (imol .NE. jmol) THEN
 
-            npairs = npairs + 2
+            npairs = npairs+2
 
          END IF
 
@@ -734,12 +604,12 @@ CONTAINS
             ! add pair to the local list
 
             ! add both orderings - makes it easier to build the neighborlist
-            npairs = npairs + 1
+            npairs = npairs+1
 
             pairs_buffer(1, npairs) = imol
             pairs_buffer(2, npairs) = jmol
 
-            npairs = npairs + 1
+            npairs = npairs+1
 
             pairs_buffer(2, npairs) = imol
             pairs_buffer(1, npairs) = jmol
@@ -761,7 +631,7 @@ CONTAINS
       ALLOCATE (pairs(2, npairs))
 
       pairs(:, 1:npairs_local) = pairs_buffer(:, 1:npairs_local)
-      pairs(:, npairs_local + 1:) = 0
+      pairs(:, npairs_local+1:) = 0
 
       DEALLOCATE (pairs_buffer)
 
@@ -788,7 +658,7 @@ CONTAINS
 
          DO i = 1, SIZE(msg_gather, 2)
             IF (msg_gather(1, i) .NE. 0) THEN
-               npairs = npairs + 1
+               npairs = npairs+1
                msg_gather(:, npairs) = msg_gather(:, i)
             END IF
          END DO
@@ -865,7 +735,7 @@ CONTAINS
       DO i = 1, nmol ! nmol=nnodes
          color = color_of_node(i)
          kg_env%subset_of_mol(i) = color
-         nnodes_of_color(color) = nnodes_of_color(color) + 1
+         nnodes_of_color(color) = nnodes_of_color(color)+1
       END DO
 
       DEALLOCATE (nnodes_of_color)

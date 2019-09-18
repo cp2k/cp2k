@@ -13,7 +13,7 @@ MODULE qs_energy
    USE almo_scf,                        ONLY: almo_entry_scf
    USE cp_control_types,                ONLY: dft_control_type
    USE dm_ls_scf,                       ONLY: ls_scf
-   USE kg_energy_corrections,           ONLY: kg_energy_correction
+   USE energy_corrections,              ONLY: energy_correction
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -93,20 +93,18 @@ CONTAINS
 
          END IF
 
-         IF (dft_control%qs_control%do_kg) THEN
-            ! Check for energy correction
-            CALL kg_energy_correction(qs_env, calculate_forces=my_calc_forces)
-         END IF
-
          IF (PRESENT(consistent_energies)) THEN
             IF (consistent_energies) THEN
                CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
                ! add MP2 energy if necessary
                IF (ASSOCIATED(qs_env%mp2_env)) THEN
-                  energy%total = energy%total + energy%mp2
+                  energy%total = energy%total+energy%mp2
                END IF
             END IF
          END IF
+
+         ! Check for energy correction
+         CALL energy_correction(qs_env, ec_init=.TRUE., calculate_forces=.FALSE.)
 
          CALL qs_energies_properties(qs_env)
 

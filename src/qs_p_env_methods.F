@@ -152,6 +152,7 @@ CONTAINS
       ALLOCATE (p_env)
       NULLIFY (p_env%kpp1, &
                p_env%p1, &
+               p_env%w1, &
                p_env%m_epsilon, &
                p_env%psi0d, &
                p_env%S_psi0, &
@@ -166,7 +167,7 @@ CONTAINS
                p_env%ev_h0)
 
       p_env%ref_count = 1
-      last_p_env_id = last_p_env_id + 1
+      last_p_env_id = last_p_env_id+1
       p_env%id_nr = last_p_env_id
       p_env%iter = 0
 
@@ -407,7 +408,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       n_spins = dft_control%nspins
-      p_env%iter = p_env%iter + 1
+      p_env%iter = p_env%iter+1
       CALL mpools_get(qs_env%mpools, &
                       ao_mo_fm_pools=ao_mo_fm_pools)
       ! def my_psi0
@@ -715,7 +716,7 @@ CONTAINS
       my_beta = 0.0_dp
       IF (PRESENT(beta)) my_beta = beta
 
-      iter = iter + 1
+      iter = iter+1
 
       CPASSERT(ASSOCIATED(p_env))
       CPASSERT(p_env%ref_count > 0)

@@ -151,6 +151,7 @@ MODULE qs_linres_methods
    ! *** Public subroutines ***
    PUBLIC :: linres_localize, linres_solver
    PUBLIC :: linres_write_restart, linres_read_restart
+   PUBLIC :: build_dm_response
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
@@ -379,7 +380,7 @@ CONTAINS
       IF (iounit > 0) THEN
          WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)") &
             "Iteration", "Method", "Restart", "Stepsize", "Convergence", "Time", &
-            REPEAT("-", 80)
+            REPEAT("-", 78)
       ENDIF
       !
       ! orthogonalize x with respect to the psi0
@@ -468,7 +469,7 @@ CONTAINS
          IF (iter .EQ. 1 .OR. MOD(iter, 1) .EQ. 0 .OR. linres_control%converged .OR. restart .OR. should_stop) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
-                  iter, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2 - t1
+                  iter, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2-t1
                CALL m_flush(iounit)
             ENDIF
          ENDIF
@@ -687,7 +688,7 @@ CONTAINS
 
          chksum = 0.0_dp
          DO ispin = 1, nspins
-            chksum = chksum + dbcsr_checksum(p_env%p1(ispin)%matrix)
+            chksum = chksum+dbcsr_checksum(p_env%p1(ispin)%matrix)
          ENDDO
 
          ! skip the kernel if the DM is very small
@@ -935,7 +936,7 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
 
-      p_env%kpp1_env%iter = p_env%kpp1_env%iter + 1
+      p_env%kpp1_env%iter = p_env%kpp1_env%iter+1
 
       ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -1074,16 +1075,16 @@ CONTAINS
                CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
             END DO
             CALL xc_rho_set_get(p_env%kpp1_env%rho_set, rhoa=rhoa, rhob=rhob)
-            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
-            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
+            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)+0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)+0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_1, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
-            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) - 0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
+            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)-0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)-0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_2, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
-            v_xc(2)%pw%cr3d(:, :, :) = (vxc_rho_1(2)%pw%cr3d(:, :, :) - vxc_rho_2(2)%pw%cr3d(:, :, :))/h
+            v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+            v_xc(2)%pw%cr3d(:, :, :) = (vxc_rho_1(2)%pw%cr3d(:, :, :)-vxc_rho_2(2)%pw%cr3d(:, :, :))/h
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
             END DO
@@ -1102,26 +1103,26 @@ CONTAINS
             END DO
             CALL xc_rho_set_get(p_env%kpp1_env%rho_set, rhoa=rhoa, rhob=rhob)
             ! K(alpha,alpha)
-            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)+0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
             rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_1, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)-0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
             rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_2, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+            v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
             ! K(alpha,beta)
             rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
-            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)+0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_3, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
             rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
-            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)-0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_4, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            v_xc(1)%pw%cr3d(:, :, :) = v_xc(1)%pw%cr3d(:, :, :) - &
-                                       (vxc_rho_3(1)%pw%cr3d(:, :, :) - vxc_rho_4(1)%pw%cr3d(:, :, :))/h
+            v_xc(1)%pw%cr3d(:, :, :) = v_xc(1)%pw%cr3d(:, :, :)- &
+                                       (vxc_rho_3(1)%pw%cr3d(:, :, :)-vxc_rho_4(1)%pw%cr3d(:, :, :))/h
             DO ispin = 1, 2
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
             END DO
@@ -1139,13 +1140,13 @@ CONTAINS
             NULLIFY (rho_r(1)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
             CALL xc_rho_set_get(p_env%kpp1_env%rho_set, rho=rho3)
-            rho_r(1)%pw%cr3d(:, :, :) = rho3(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(1)%pw%cr3d(:, :, :) = rho3(:, :, :)+0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_1, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            rho_r(1)%pw%cr3d(:, :, :) = rho3(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            rho_r(1)%pw%cr3d(:, :, :) = rho3(:, :, :)-0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
             CALL xc_vxc_pw_create(vxc_rho_2, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
                                   auxbas_pw_pool, .FALSE., virial_xc)
-            v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+            v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(1)%pw)
             DEALLOCATE (rho_r)
             CALL pw_release(vxc_rho_1(1)%pw)
@@ -1393,7 +1394,7 @@ CONTAINS
       CPASSERT(.NOT. lr_triplet)
 
       nspins = SIZE(p_env%kpp1)
-      p_env%kpp1_env%iter = p_env%kpp1_env%iter + 1
+      p_env%kpp1_env%iter = p_env%kpp1_env%iter+1
 
       DO ispin = 1, nspins
          CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
@@ -1428,9 +1429,9 @@ CONTAINS
                atom_a = atomic_kind_set(ikind)%atom_list(iatom)
                charges(atom_a, :) = REAL(occ(:), KIND=dp)
                DO is = 1, natorb
-                  ns = lao(is) + 1
-                  charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
-                  charges1(atom_a, ns) = charges1(atom_a, ns) - aocg1(is, atom_a)
+                  ns = lao(is)+1
+                  charges(atom_a, ns) = charges(atom_a, ns)-aocg(is, atom_a)
+                  charges1(atom_a, ns) = charges1(atom_a, ns)-aocg1(is, atom_a)
                END DO
             END DO
          END DO
@@ -1803,7 +1804,7 @@ CONTAINS
             IF (rst_unit > 0) WRITE (rst_unit) nmo
 
             DO i = 1, nmo, MAX(max_block, 1)
-               i_block = MIN(max_block, nmo - i + 1)
+               i_block = MIN(max_block, nmo-i+1)
                CALL cp_fm_get_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
                ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
                ! to old ones, and in cases where max_block is different between runs, as might happen during
@@ -1961,7 +1962,7 @@ CONTAINS
                !
                ! read the response
                DO i = 1, nmo, MAX(max_block, 1)
-                  i_block = MIN(max_block, nmo - i + 1)
+                  i_block = MIN(max_block, nmo-i+1)
                   DO j = 1, i_block
                      IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                   ENDDO

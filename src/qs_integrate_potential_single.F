@@ -155,7 +155,7 @@ CONTAINS
 
          IF (lppl <= 0) CYCLE
 
-         ni = ncoset(2*lppl - 2)
+         ni = ncoset(2*lppl-2)
          ALLOCATE (hab(ni, 1), pab(ni, 1))
          pab = 0._dp
 
@@ -220,11 +220,11 @@ CONTAINS
             IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
                IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
-                  npme = npme + 1
+                  npme = npme+1
                   cores(npme) = iatom
                ENDIF
             ELSE
-               npme = npme + 1
+               npme = npme+1
                cores(npme) = iatom
             ENDIF
          END DO
@@ -241,7 +241,7 @@ CONTAINS
                my_virial_a = 0.0_dp
                my_virial_b = 0.0_dp
             END IF
-            ni = 2*lppl - 2
+            ni = 2*lppl-2
 
             CALL integrate_pgf_product_rspace(ni, alpha, 0, &
                                               0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
@@ -252,11 +252,11 @@ CONTAINS
                                               my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
             force(ikind)%gth_ppl(:, iatom) = &
-               force(ikind)%gth_ppl(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
+               force(ikind)%gth_ppl(:, iatom)+force_a(:)*rho_rspace%pw%pw_grid%dvol
 
             IF (use_virial) THEN
-               virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
-               virial%pv_ppl = virial%pv_ppl + my_virial_a*rho_rspace%pw%pw_grid%dvol
+               virial%pv_virial = virial%pv_virial+my_virial_a*rho_rspace%pw%pw_grid%dvol
+               virial%pv_ppl = virial%pv_ppl+my_virial_a*rho_rspace%pw%pw_grid%dvol
                CPABORT("Virial not debuged for CORE_PPL")
             END IF
          END DO
@@ -345,7 +345,7 @@ CONTAINS
             alpha = alpha_nlcc(iexp_nlcc)
             nc = nct_nlcc(iexp_nlcc)
 
-            ni = ncoset(2*nc - 2)
+            ni = ncoset(2*nc-2)
 
             nthread = 1
             ithread = 0
@@ -415,11 +415,11 @@ CONTAINS
                IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
                   IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
-                     npme = npme + 1
+                     npme = npme+1
                      cores(npme) = iatom
                   ENDIF
                ELSE
-                  npme = npme + 1
+                  npme = npme+1
                   cores(npme) = iatom
                ENDIF
             END DO
@@ -436,7 +436,7 @@ CONTAINS
                   my_virial_a = 0.0_dp
                   my_virial_b = 0.0_dp
                END IF
-               ni = 2*nc - 2
+               ni = 2*nc-2
 
                CALL integrate_pgf_product_rspace(ni, 1/(2*alpha**2), 0, &
                                                  0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
@@ -447,11 +447,11 @@ CONTAINS
                                                  my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
                force(ikind)%gth_nlcc(:, iatom) = &
-                  force(ikind)%gth_nlcc(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
+                  force(ikind)%gth_nlcc(:, iatom)+force_a(:)*rho_rspace%pw%pw_grid%dvol
 
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
-                  virial%pv_exc = virial%pv_exc + my_virial_a*rho_rspace%pw%pw_grid%dvol
+                  virial%pv_virial = virial%pv_virial+my_virial_a*rho_rspace%pw%pw_grid%dvol
+                  virial%pv_exc = virial%pv_exc+my_virial_a*rho_rspace%pw%pw_grid%dvol
                END IF
             END DO
 
@@ -503,7 +503,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (virial, atprop, dft_control)
+      NULLIFY (virial, force, atprop, dft_control)
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
@@ -553,16 +553,9 @@ CONTAINS
                              alpha_core_charge=alpha_core_charge, &
                              ccore_charge=ccore_charge)
 
-            IF (paw_atom) THEN
-               force(ikind)%rho_core(:, :) = 0.0_dp
-               CYCLE
-            END IF
+            IF (paw_atom) CYCLE
+
             pab(1, 1) = -ccore_charge
-
-            IF (ASSOCIATED(force)) THEN
-               force(ikind)%rho_core = 0.0_dp
-            ENDIF
-
             IF (alpha_core_charge == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
 
             CALL reallocate(cores, 1, natom_of_kind)
@@ -575,11 +568,11 @@ CONTAINS
                IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
                   IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
-                     npme = npme + 1
+                     npme = npme+1
                      cores(npme) = iatom
                   ENDIF
                ELSE
-                  npme = npme + 1
+                  npme = npme+1
                   cores(npme) = iatom
                ENDIF
             END DO
@@ -606,16 +599,14 @@ CONTAINS
                                                  my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
                IF (ASSOCIATED(force)) THEN
-                  force(ikind)%rho_core(:, iatom) = &
-                     force(ikind)%rho_core(:, iatom) + force_a(:)
-               ENDIF
-
+                  force(ikind)%rho_core(:, iatom) = force(ikind)%rho_core(:, iatom)+force_a(:)
+               END IF
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial + my_virial_a
-                  virial%pv_hartree = virial%pv_hartree + my_virial_a
+                  virial%pv_virial = virial%pv_virial+my_virial_a
+                  virial%pv_hartree = virial%pv_hartree+my_virial_a
                END IF
                IF (ASSOCIATED(atprop)) THEN
-                  atprop%ateb(atom_a) = atprop%ateb(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
+                  atprop%ateb(atom_a) = atprop%ateb(atom_a)+0.5_dp*hab(1, 1)*pab(1, 1)
                END IF
 
             END DO
@@ -774,14 +765,14 @@ CONTAINS
                         tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
                         tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
                         IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
-                           ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
+                           lb(dir) = rs_grid%lb_local(dir)+rs_grid%desc%border
+                           ub(dir) = rs_grid%ub_local(dir)-rs_grid%desc%border
                         ELSE
                            lb(dir) = rs_grid%lb_local(dir)
                            ub(dir) = rs_grid%ub_local(dir)
                         ENDIF
                         ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir) + rs_grid%desc%lb(dir)
+                        location(dir) = tp(dir)+rs_grid%desc%lb(dir)
                      ENDDO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -793,7 +784,7 @@ CONTAINS
                      IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
                   ENDIF
                END DO
-               offset = offset + 1
+               offset = offset+1
                !
                IF (ANY(map_it(1:npgfa(iset)))) THEN
                   sgfa = first_sgfa(1, iset)
@@ -804,7 +795,7 @@ CONTAINS
 
                   ! get fit coefficients for forces
                   IF (calculate_forces) THEN
-                     m1 = sgfa + nsgf_seta(iset) - 1
+                     m1 = sgfa+nsgf_seta(iset)-1
                      ALLOCATE (work_f(nsgf_seta(iset), 1))
                      work_f(1:nsgf_seta(iset), 1) = int_res(ikind)%acoef(iatom, sgfa:m1)
                      CALL dgemm("N", "N", ncoa, 1, nsgf_seta(iset), 1.0_dp, sphi_a(1, sgfa), &
@@ -814,7 +805,7 @@ CONTAINS
                   ENDIF
 
                   DO ipgf = 1, npgfa(iset)
-                     na1 = (ipgf - 1)*ncoset(la_max(iset))
+                     na1 = (ipgf-1)*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                      rs_grid => rs_v(igrid_level)%rs_grid
 
@@ -849,16 +840,16 @@ CONTAINS
                   CALL dgemm("T", "N", nsgf_seta(iset), 1, ncoa, 1.0_dp, sphi_a(1, sgfa), &
                              SIZE(sphi_a, 1), hab(1, 1), SIZE(hab, 1), 0.0_dp, work_i(1, 1), SIZE(work_i, 1))
 
-                  int_res(ikind)%v_int(iatom, sgfa:sgfa - 1 + nsgf_seta(iset)) = &
-                     int_res(ikind)%v_int(iatom, sgfa:sgfa - 1 + nsgf_seta(iset)) + work_i(1:nsgf_seta(iset), 1)
+                  int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset)) = &
+                     int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset))+work_i(1:nsgf_seta(iset), 1)
                   DEALLOCATE (work_i)
                END IF
             ENDDO
             !
             IF (calculate_forces) THEN
-               int_res(ikind)%v_dfdr(iatom, :) = int_res(ikind)%v_dfdr(iatom, :) + force_a(:)
+               int_res(ikind)%v_dfdr(iatom, :) = int_res(ikind)%v_dfdr(iatom, :)+force_a(:)
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial + my_virial_a
+                  virial%pv_virial = virial%pv_virial+my_virial_a
                ENDIF
             ENDIF
 
@@ -1009,7 +1000,7 @@ CONTAINS
                   map_it2 = .FALSE.
                   DO ipgf = 1, npgfa(iset)
                      DO jpgf = 1, npgfa(jset)
-                        zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
+                        zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
                         igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                         rs_grid => rs_v(igrid_level)%rs_grid
                         IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
@@ -1018,14 +1009,14 @@ CONTAINS
                               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
                               tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
                               IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                                 lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
-                                 ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
+                                 lb(dir) = rs_grid%lb_local(dir)+rs_grid%desc%border
+                                 ub(dir) = rs_grid%ub_local(dir)-rs_grid%desc%border
                               ELSE
                                  lb(dir) = rs_grid%lb_local(dir)
                                  ub(dir) = rs_grid%ub_local(dir)
                               ENDIF
                               ! distributed grid, only map if it is local to the grid
-                              location(dir) = tp(dir) + rs_grid%desc%lb(dir)
+                              location(dir) = tp(dir)+rs_grid%desc%lb(dir)
                            ENDDO
                            IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                                lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -1038,7 +1029,7 @@ CONTAINS
                         ENDIF
                      END DO
                   END DO
-                  offset = offset + 1
+                  offset = offset+1
                   !
                   IF (ANY(map_it2(1:npgfa(iset), 1:npgfa(jset)))) THEN
                      hab(:, :) = 0._dp
@@ -1054,13 +1045,13 @@ CONTAINS
                      END IF
 
                      DO ipgf = 1, npgfa(iset)
-                        na1 = (ipgf - 1)*ncoset(la_max(iset))
+                        na1 = (ipgf-1)*ncoset(la_max(iset))
                         na2 = ipgf*ncoset(la_max(iset))
                         DO jpgf = 1, npgfa(jset)
-                           nb1 = (jpgf - 1)*ncoset(la_max(jset))
+                           nb1 = (jpgf-1)*ncoset(la_max(jset))
                            nb2 = jpgf*ncoset(la_max(jset))
 
-                           zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
+                           zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                            rs_grid => rs_v(igrid_level)%rs_grid
                            IF (map_it2(ipgf, jpgf)) THEN
@@ -1106,13 +1097,13 @@ CONTAINS
             CALL mp_sum(hmat, para_env%group)
             CALL dbcsr_get_block_p(matrix=ksmat, row=atom_a, col=atom_a, BLOCK=h_block, found=found)
             IF (found) THEN
-               h_block(1:nsgfa, 1:nsgfa) = h_block(1:nsgfa, 1:nsgfa) + hmat(1:nsgfa, 1:nsgfa)
+               h_block(1:nsgfa, 1:nsgfa) = h_block(1:nsgfa, 1:nsgfa)+hmat(1:nsgfa, 1:nsgfa)
             END IF
             IF (calculate_forces) THEN
-               force(ikind)%rho_elec(:, iatom) = force(ikind)%rho_elec(:, iatom) + 2.0_dp*force_a(:)
+               force(ikind)%rho_elec(:, iatom) = force(ikind)%rho_elec(:, iatom)+2.0_dp*force_a(:)
                IF (use_virial) THEN
                   IF (use_virial .AND. calculate_forces) THEN
-                     virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_a
+                     virial%pv_virial = virial%pv_virial+2.0_dp*my_virial_a
                   END IF
                END IF
             ENDIF

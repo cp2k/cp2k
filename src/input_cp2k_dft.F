@@ -52,12 +52,12 @@ MODULE input_cp2k_dft
         do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
         do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
-        do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, do_potential_short, &
-        do_potential_truncated, do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
-        do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
-        do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-        do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, ehrenfest, embed_diff, &
-        embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
+        do_method_xtb, do_pade, do_potential_coulomb, do_potential_short, do_potential_truncated, &
+        do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
+        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
+        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
+        do_spin_density, do_taylor, ec_diagonalization, ec_functional_harris, ehrenfest, &
+        embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
         embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, eri_method_gpw_ht, &
         eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
         eri_operator_yukawa, gaussian, general_roks, gto_cartesian, gto_spherical, hf_model, &
@@ -95,8 +95,8 @@ MODULE input_cp2k_dft
         wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
         xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
         xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
-        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
-        xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_diag_std, xas_tdp_diag_syevr, &
+        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -340,6 +340,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_kg_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_ec_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -5163,7 +5167,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
+      TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="KG_METHOD", &
@@ -5256,9 +5260,26 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      !!!!!!!!!!!!!!!  ENERGY_CORRECTION SECTION !!!!!!!!!!!!!!!!!!!
-      NULLIFY (keyword, subsection, print_key)
-      CALL section_create(subsection, __LOCATION__, name="ENERGY_CORRECTION", &
+   END SUBROUTINE create_kg_section
+
+! **************************************************************************************************
+!> \brief creates the ENERGY CORRECTION section
+!> \param section ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE create_ec_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ec_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      NULLIFY (keyword)
+      CALL section_create(section, __LOCATION__, name="ENERGY_CORRECTION", &
                           description="Sets the various options for the Energy Correction", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
@@ -5267,23 +5288,23 @@ CONTAINS
                           usage="&ENERGY_CORRECTION T", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! add a special XC section
-      NULLIFY (subsubsection)
-      CALL create_xc_section(subsubsection)
-      CALL section_add_subsection(subsection, subsubsection)
-      CALL section_release(subsubsection)
+      NULLIFY (subsection)
+      CALL create_xc_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_FUNCTIONAL", &
                           description="Functional used in energy correction", &
                           usage="ENERGY_FUNCTIONAL HARRIS", &
-                          default_i_val=kg_ec_functional_harris, &
+                          default_i_val=ec_functional_harris, &
                           enum_c_vals=s2a("HARRIS"), &
                           enum_desc=s2a("Harris functional"), &
-                          enum_i_vals=(/kg_ec_functional_harris/))
-      CALL section_add_keyword(subsection, keyword)
+                          enum_i_vals=(/ec_functional_harris/))
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="HARRIS_BASIS", &
@@ -5293,35 +5314,35 @@ CONTAINS
                           "(3) the basis set labeled in Kind section (HARRIS)", &
                           usage="HARRIS_BASIS ORBITAL", &
                           type_of_var=char_t, default_c_val="ORBITAL", n_var=-1)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAO", &
                           description="Use modified atomic orbitals (MAO) to solve Harris equation", &
                           usage="MAO T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAO_MAX_ITER", &
                           description="Maximum iterations in MAO optimization. ", &
                           usage="MAO_MAX_ITER 100 ", default_i_val=0)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAO_EPS_GRAD", &
                           description="Threshold used for MAO iterations. ", &
                           usage="MAO_EPS_GRAD 1.0E-4 ", default_r_val=1.0E-5_dp)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ALGORITHM", &
                           description="Algorithm used to solve KS equation", &
                           usage="ALGORITHM DIAGONALIZATION", &
-                          default_i_val=kg_ec_diagonalization, &
+                          default_i_val=ec_diagonalization, &
                           enum_c_vals=s2a("DIAGONALIZATION"), &
                           enum_desc=s2a("Diagonalization of KS matrix."), &
-                          enum_i_vals=(/kg_ec_diagonalization/))
-      CALL section_add_keyword(subsection, keyword)
+                          enum_i_vals=(/ec_diagonalization/))
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FACTORIZATION", &
@@ -5331,19 +5352,16 @@ CONTAINS
                           enum_c_vals=s2a("CHOLESKY"), &
                           enum_desc=s2a("Cholesky factorization of overlap matrix"), &
                           enum_i_vals=(/kg_cholesky/))
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_DEFAULT", &
-                          description="Threshold used for accuracy estimates within energy correction algorithms. ", &
+                          description="Threshold used for accuracy estimates within energy correction. ", &
                           usage="EPS_DEFAULT 1.0E-6 ", default_r_val=1.0E-12_dp)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-   END SUBROUTINE create_kg_section
+   END SUBROUTINE create_ec_section
 
 ! **************************************************************************************************
 !> \brief creates the structure of the section with SCF parameters

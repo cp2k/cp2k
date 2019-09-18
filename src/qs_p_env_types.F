@@ -60,7 +60,7 @@ MODULE qs_p_env_types
 
       LOGICAL :: orthogonal_orbitals
       INTEGER :: id_nr, ref_count, iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, p1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, p1, w1
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon, &
                                                    psi0d, S_psi0, Smo_inv
       TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
@@ -116,7 +116,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(p_env))
       CPASSERT(p_env%ref_count > 0)
-      p_env%ref_count = p_env%ref_count + 1
+      p_env%ref_count = p_env%ref_count+1
    END SUBROUTINE p_env_retain
 
 ! **************************************************************************************************
@@ -136,7 +136,7 @@ CONTAINS
 
       IF (ASSOCIATED(p_env)) THEN
          CPASSERT(p_env%ref_count > 0)
-         p_env%ref_count = p_env%ref_count - 1
+         p_env%ref_count = p_env%ref_count-1
          IF (p_env%ref_count < 1) THEN
             CALL kpp1_release(p_env%kpp1_env)
             CALL cp_fm_vect_dealloc(p_env%S_psi0)
@@ -149,6 +149,7 @@ CONTAINS
             CALL qs_rho_release(p_env%rho1)
             IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)
             IF (ASSOCIATED(p_env%p1)) CALL dbcsr_deallocate_matrix_set(p_env%p1)
+            IF (ASSOCIATED(p_env%w1)) CALL dbcsr_deallocate_matrix_set(p_env%w1)
             IF (ASSOCIATED(p_env%local_rho_set)) THEN
                CALL local_rho_set_release(p_env%local_rho_set)
             END IF

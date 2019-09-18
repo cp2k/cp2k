@@ -1020,12 +1020,11 @@ MODULE input_constants
                                                kg_tnadd_atomic = 200, &
                                                kg_tnadd_none = 300
 
-   ! kg energy corrections
-   INTEGER, PARAMETER, PUBLIC               :: kg_ec_diagonalization = 1001
-
-   INTEGER, PARAMETER, PUBLIC               :: kg_ec_functional_harris = 2001
-
    INTEGER, PARAMETER, PUBLIC               :: kg_cholesky = 3001
+
+   ! kg energy corrections
+   INTEGER, PARAMETER, PUBLIC               :: ec_diagonalization = 1001
+   INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001
 
    ! swarm parameters
    INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt = 1

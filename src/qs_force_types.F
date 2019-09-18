@@ -56,6 +56,10 @@ MODULE qs_force_types
              add_qs_force, &
              deallocate_qs_force, &
              replicate_qs_force, &
+             sum_qs_force, &
+             get_qs_force, &
+             put_qs_force, &
+             total_qs_force, &
              zero_qs_force
 
 CONTAINS
@@ -290,6 +294,76 @@ CONTAINS
    END SUBROUTINE zero_qs_force
 
 ! **************************************************************************************************
+!> \brief    Sum up two qs_force entities qs_force_out = qs_force_out + qs_force_in
+!> \param qs_force_out ...
+!> \param qs_force_in ...
+!> \author  JGH
+! **************************************************************************************************
+   SUBROUTINE sum_qs_force(qs_force_out, qs_force_in)
+
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force_out, qs_force_in
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'sum_qs_force', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind
+
+      CPASSERT(ASSOCIATED(qs_force_out))
+      CPASSERT(ASSOCIATED(qs_force_in))
+
+      DO ikind = 1, SIZE(qs_force_out)
+         qs_force_out(ikind)%all_potential(:, :) = qs_force_out(ikind)%all_potential(:, :)+ &
+                                                   qs_force_in(ikind)%all_potential(:, :)
+         qs_force_out(ikind)%core_overlap(:, :) = qs_force_out(ikind)%core_overlap(:, :)+ &
+                                                  qs_force_in(ikind)%core_overlap(:, :)
+         qs_force_out(ikind)%gth_ppl(:, :) = qs_force_out(ikind)%gth_ppl(:, :)+ &
+                                             qs_force_in(ikind)%gth_ppl(:, :)
+         qs_force_out(ikind)%gth_nlcc(:, :) = qs_force_out(ikind)%gth_nlcc(:, :)+ &
+                                              qs_force_in(ikind)%gth_nlcc(:, :)
+         qs_force_out(ikind)%gth_ppnl(:, :) = qs_force_out(ikind)%gth_ppnl(:, :)+ &
+                                              qs_force_in(ikind)%gth_ppnl(:, :)
+         qs_force_out(ikind)%kinetic(:, :) = qs_force_out(ikind)%kinetic(:, :)+ &
+                                             qs_force_in(ikind)%kinetic(:, :)
+         qs_force_out(ikind)%overlap(:, :) = qs_force_out(ikind)%overlap(:, :)+ &
+                                             qs_force_in(ikind)%overlap(:, :)
+         qs_force_out(ikind)%overlap_admm(:, :) = qs_force_out(ikind)%overlap_admm(:, :)+ &
+                                                  qs_force_in(ikind)%overlap_admm(:, :)
+         qs_force_out(ikind)%rho_core(:, :) = qs_force_out(ikind)%rho_core(:, :)+ &
+                                              qs_force_in(ikind)%rho_core(:, :)
+         qs_force_out(ikind)%rho_elec(:, :) = qs_force_out(ikind)%rho_elec(:, :)+ &
+                                              qs_force_in(ikind)%rho_elec(:, :)
+         qs_force_out(ikind)%rho_lri_elec(:, :) = qs_force_out(ikind)%rho_lri_elec(:, :)+ &
+                                                  qs_force_in(ikind)%rho_lri_elec(:, :)
+         qs_force_out(ikind)%vhxc_atom(:, :) = qs_force_out(ikind)%vhxc_atom(:, :)+ &
+                                               qs_force_in(ikind)%vhxc_atom(:, :)
+         qs_force_out(ikind)%g0s_Vh_elec(:, :) = qs_force_out(ikind)%g0s_Vh_elec(:, :)+ &
+                                                 qs_force_in(ikind)%g0s_Vh_elec(:, :)
+         qs_force_out(ikind)%repulsive(:, :) = qs_force_out(ikind)%repulsive(:, :)+ &
+                                               qs_force_in(ikind)%repulsive(:, :)
+         qs_force_out(ikind)%dispersion(:, :) = qs_force_out(ikind)%dispersion(:, :)+ &
+                                                qs_force_in(ikind)%dispersion(:, :)
+         qs_force_out(ikind)%gcp(:, :) = qs_force_out(ikind)%gcp(:, :)+ &
+                                         qs_force_in(ikind)%gcp(:, :)
+         qs_force_out(ikind)%other(:, :) = qs_force_out(ikind)%other(:, :)+ &
+                                           qs_force_in(ikind)%other(:, :)
+         qs_force_out(ikind)%fock_4c(:, :) = qs_force_out(ikind)%fock_4c(:, :)+ &
+                                             qs_force_in(ikind)%fock_4c(:, :)
+         qs_force_out(ikind)%ehrenfest(:, :) = qs_force_out(ikind)%ehrenfest(:, :)+ &
+                                               qs_force_in(ikind)%ehrenfest(:, :)
+         qs_force_out(ikind)%efield(:, :) = qs_force_out(ikind)%efield(:, :)+ &
+                                            qs_force_in(ikind)%efield(:, :)
+         qs_force_out(ikind)%eev(:, :) = qs_force_out(ikind)%eev(:, :)+ &
+                                         qs_force_in(ikind)%eev(:, :)
+         qs_force_out(ikind)%mp2_non_sep(:, :) = qs_force_out(ikind)%mp2_non_sep(:, :)+ &
+                                                 qs_force_in(ikind)%mp2_non_sep(:, :)
+         qs_force_out(ikind)%mp2_sep(:, :) = qs_force_out(ikind)%mp2_sep(:, :)+ &
+                                             qs_force_in(ikind)%mp2_sep(:, :)
+         qs_force_out(ikind)%total(:, :) = qs_force_out(ikind)%total(:, :)+ &
+                                           qs_force_in(ikind)%total(:, :)
+      END DO
+
+   END SUBROUTINE sum_qs_force
+
+! **************************************************************************************************
 !> \brief    Replicate and sum up the force
 !> \param qs_force ...
 !> \param para_env ...
@@ -330,28 +404,28 @@ CONTAINS
          CALL mp_sum(qs_force(ikind)%gcp, para_env%group)
          CALL mp_sum(qs_force(ikind)%ehrenfest, para_env%group)
 
-         qs_force(ikind)%total(:, :) = qs_force(ikind)%total(:, :) + &
-                                       qs_force(ikind)%core_overlap(:, :) + &
-                                       qs_force(ikind)%gth_ppl(:, :) + &
-                                       qs_force(ikind)%gth_nlcc(:, :) + &
-                                       qs_force(ikind)%gth_ppnl(:, :) + &
-                                       qs_force(ikind)%all_potential(:, :) + &
-                                       qs_force(ikind)%kinetic(:, :) + &
-                                       qs_force(ikind)%overlap(:, :) + &
-                                       qs_force(ikind)%overlap_admm(:, :) + &
-                                       qs_force(ikind)%rho_core(:, :) + &
-                                       qs_force(ikind)%rho_elec(:, :) + &
-                                       qs_force(ikind)%rho_lri_elec(:, :) + &
-                                       qs_force(ikind)%vhxc_atom(:, :) + &
-                                       qs_force(ikind)%g0s_Vh_elec(:, :) + &
-                                       qs_force(ikind)%fock_4c(:, :) + &
-                                       qs_force(ikind)%mp2_non_sep(:, :) + &
-                                       qs_force(ikind)%mp2_sep(:, :) + &
-                                       qs_force(ikind)%repulsive(:, :) + &
-                                       qs_force(ikind)%dispersion(:, :) + &
-                                       qs_force(ikind)%gcp(:, :) + &
-                                       qs_force(ikind)%ehrenfest(:, :) + &
-                                       qs_force(ikind)%efield(:, :) + &
+         qs_force(ikind)%total(:, :) = qs_force(ikind)%total(:, :)+ &
+                                       qs_force(ikind)%core_overlap(:, :)+ &
+                                       qs_force(ikind)%gth_ppl(:, :)+ &
+                                       qs_force(ikind)%gth_nlcc(:, :)+ &
+                                       qs_force(ikind)%gth_ppnl(:, :)+ &
+                                       qs_force(ikind)%all_potential(:, :)+ &
+                                       qs_force(ikind)%kinetic(:, :)+ &
+                                       qs_force(ikind)%overlap(:, :)+ &
+                                       qs_force(ikind)%overlap_admm(:, :)+ &
+                                       qs_force(ikind)%rho_core(:, :)+ &
+                                       qs_force(ikind)%rho_elec(:, :)+ &
+                                       qs_force(ikind)%rho_lri_elec(:, :)+ &
+                                       qs_force(ikind)%vhxc_atom(:, :)+ &
+                                       qs_force(ikind)%g0s_Vh_elec(:, :)+ &
+                                       qs_force(ikind)%fock_4c(:, :)+ &
+                                       qs_force(ikind)%mp2_non_sep(:, :)+ &
+                                       qs_force(ikind)%mp2_sep(:, :)+ &
+                                       qs_force(ikind)%repulsive(:, :)+ &
+                                       qs_force(ikind)%dispersion(:, :)+ &
+                                       qs_force(ikind)%gcp(:, :)+ &
+                                       qs_force(ikind)%ehrenfest(:, :)+ &
+                                       qs_force(ikind)%efield(:, :)+ &
                                        qs_force(ikind)%eev(:, :)
       END DO
 
@@ -390,7 +464,7 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
             DO ia = 1, natom_kind
                iatom = atomic_kind%atom_list(ia)
-               qs_force(ikind)%overlap_admm(:, ia) = qs_force(ikind)%overlap_admm(:, ia) + force(:, iatom)
+               qs_force(ikind)%overlap_admm(:, ia) = qs_force(ikind)%overlap_admm(:, ia)+force(:, iatom)
             END DO
          END DO
       CASE DEFAULT
@@ -398,5 +472,140 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE add_qs_force
+
+! **************************************************************************************************
+!> \brief Put force to a force_type  variable.
+!> \param force Input force, dimension (3,natom)
+!> \param qs_force The force type variable to be used
+!> \param forcetype ...
+!> \param atomic_kind_set ...
+!> \par History
+!>      09.2019 JGH
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE put_qs_force(force, qs_force, forcetype, atomic_kind_set)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: force
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
+      CHARACTER(LEN=*), INTENT(IN)                       :: forcetype
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'put_qs_force', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ia, iatom, ikind, natom_kind
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+
+!   ------------------------------------------------------------------------
+
+      SELECT CASE (forcetype)
+      CASE ("dispersion")
+         DO ikind = 1, SIZE(atomic_kind_set, 1)
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
+            DO ia = 1, natom_kind
+               iatom = atomic_kind%atom_list(ia)
+               qs_force(ikind)%dispersion(:, ia) = force(:, iatom)
+            END DO
+         END DO
+      CASE DEFAULT
+         CPABORT("")
+      END SELECT
+
+   END SUBROUTINE put_qs_force
+
+! **************************************************************************************************
+!> \brief Get force from a force_type  variable.
+!> \param force Input force, dimension (3,natom)
+!> \param qs_force The force type variable to be used
+!> \param forcetype ...
+!> \param atomic_kind_set ...
+!> \par History
+!>      09.2019 JGH
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE get_qs_force(force, qs_force, forcetype, atomic_kind_set)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: force
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
+      CHARACTER(LEN=*), INTENT(IN)                       :: forcetype
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_force', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ia, iatom, ikind, natom_kind
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+
+!   ------------------------------------------------------------------------
+
+      SELECT CASE (forcetype)
+      CASE ("dispersion")
+         DO ikind = 1, SIZE(atomic_kind_set, 1)
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
+            DO ia = 1, natom_kind
+               iatom = atomic_kind%atom_list(ia)
+               force(:, iatom) = qs_force(ikind)%dispersion(:, ia)
+            END DO
+         END DO
+      CASE DEFAULT
+         CPABORT("")
+      END SELECT
+
+   END SUBROUTINE get_qs_force
+
+! **************************************************************************************************
+!> \brief Get current total force
+!> \param force Input force, dimension (3,natom)
+!> \param qs_force The force type variable to be used
+!> \param atomic_kind_set ...
+!> \par History
+!>      09.2019 JGH
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE total_qs_force(force, qs_force, atomic_kind_set)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: force
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'total_qs_force', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ia, iatom, ikind, natom_kind
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+
+!   ------------------------------------------------------------------------
+
+      force(:, :) = 0.0_dp
+      DO ikind = 1, SIZE(atomic_kind_set, 1)
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
+         DO ia = 1, natom_kind
+            iatom = atomic_kind%atom_list(ia)
+            force(:, iatom) = qs_force(ikind)%core_overlap(:, ia)+ &
+                              qs_force(ikind)%gth_ppl(:, ia)+ &
+                              qs_force(ikind)%gth_nlcc(:, ia)+ &
+                              qs_force(ikind)%gth_ppnl(:, ia)+ &
+                              qs_force(ikind)%all_potential(:, ia)+ &
+                              qs_force(ikind)%kinetic(:, ia)+ &
+                              qs_force(ikind)%overlap(:, ia)+ &
+                              qs_force(ikind)%overlap_admm(:, ia)+ &
+                              qs_force(ikind)%rho_core(:, ia)+ &
+                              qs_force(ikind)%rho_elec(:, ia)+ &
+                              qs_force(ikind)%rho_lri_elec(:, ia)+ &
+                              qs_force(ikind)%vhxc_atom(:, ia)+ &
+                              qs_force(ikind)%g0s_Vh_elec(:, ia)+ &
+                              qs_force(ikind)%fock_4c(:, ia)+ &
+                              qs_force(ikind)%mp2_non_sep(:, ia)+ &
+                              qs_force(ikind)%mp2_sep(:, ia)+ &
+                              qs_force(ikind)%repulsive(:, ia)+ &
+                              qs_force(ikind)%dispersion(:, ia)+ &
+                              qs_force(ikind)%gcp(:, ia)+ &
+                              qs_force(ikind)%ehrenfest(:, ia)+ &
+                              qs_force(ikind)%efield(:, ia)+ &
+                              qs_force(ikind)%eev(:, ia)
+         END DO
+      END DO
+
+   END SUBROUTINE total_qs_force
 
 END MODULE qs_force_types
