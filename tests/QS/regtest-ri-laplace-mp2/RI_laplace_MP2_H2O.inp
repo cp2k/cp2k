@@ -46,7 +46,7 @@
           QUADRATURE_POINTS  5 
         &END
         &WFC_GPW
-          CUTOFF  100
+          CUTOFF  50
           REL_CUTOFF 20
         &END
         MEMORY  200.

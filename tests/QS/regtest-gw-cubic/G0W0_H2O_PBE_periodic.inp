@@ -59,7 +59,7 @@
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-6
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
@@ -83,7 +83,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.500   8.500  8.500
+      ABC [angstrom]  7.500   7.500  7.500
       PERIODIC NONE
     &END CELL
     &KIND H

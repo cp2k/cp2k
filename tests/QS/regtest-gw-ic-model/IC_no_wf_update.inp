@@ -47,6 +47,8 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &WFC_GPW
+          CUTOFF 100
+          REL_CUTOFF 20
           ! normally, this EPS_FILTER controls the accuracy and
           ! the time for the cubic_scaling RPA calculation
           EPS_FILTER  1.0E-6
@@ -58,7 +60,7 @@
           DO_DBCSR_T .FALSE.
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS  20
+          RPA_NUM_QUAD_POINTS  10
           MINIMAX
           GW
           &RI_G0W0
@@ -78,7 +80,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  9.0 6.0 9.0
+      ABC [angstrom]  7.0 5.0 7.0
       PERIODIC NONE
     &END CELL
     &KIND H

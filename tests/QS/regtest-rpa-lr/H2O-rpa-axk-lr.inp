@@ -47,7 +47,7 @@
           REL_CUTOFF 20
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 8
+          RPA_NUM_QUAD_POINTS 6
           RI_AXK .TRUE.
           &HF
             FRACTION 1.0000000

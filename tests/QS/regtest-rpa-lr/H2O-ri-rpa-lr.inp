@@ -39,7 +39,7 @@
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ 1.0E-8
+          EPS_SCHWARZ 1.0E-6
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
@@ -52,14 +52,16 @@
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20
+          EPS_GRID 1.0E-6
+          EPS_FILTER 1.0E-6
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 15
+          RPA_NUM_QUAD_POINTS 8
           MINIMAX
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-6
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
@@ -73,7 +75,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  6.000   6.000  6.000
       PERIODIC XYZ
     &END CELL
     &KIND H

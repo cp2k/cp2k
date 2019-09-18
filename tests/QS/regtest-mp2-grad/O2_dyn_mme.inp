@@ -27,7 +27,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-5
       MAX_SCF 100
     &END SCF
     &XC
@@ -36,12 +36,12 @@
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ 1.0E-7
+          EPS_SCHWARZ 1.0E-6
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 2.4999999999
+          CUTOFF_RADIUS 2.0
           T_C_G_DATA t_c_g.dat
         &END
       &END HF
@@ -57,8 +57,8 @@
           FREE_HFX_BUFFER .TRUE.
         &END RI_MP2
         &WFC_GPW
-          CUTOFF  300
-          REL_CUTOFF 50
+          CUTOFF  100
+          REL_CUTOFF 20
         &END
         MEMORY  500.0
         NUMBER_PROC  2
