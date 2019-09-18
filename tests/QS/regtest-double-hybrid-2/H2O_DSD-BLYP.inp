@@ -12,7 +12,7 @@
     BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF  200
+      CUTOFF  100
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -66,15 +66,15 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000   10.000
+      ABC [angstrom]  6.000   6.000   6.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET aug-cc-pVTZ
+      BASIS_SET aug-cc-pVDZ
       POTENTIAL ALL
     &END KIND
     &KIND O
-      BASIS_SET aug-cc-pVTZ
+      BASIS_SET aug-cc-pVDZ
       POTENTIAL ALL
     &END KIND
     &TOPOLOGY
