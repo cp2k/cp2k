@@ -64,7 +64,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
     # check flags and banners
     flags = set()
     year = datetime.utcnow().year
-    nwarnings = 0
+    warnings = []
 
     # directories to exclude, if given as relative dirs, they're relative to cp2k_dir
     excluded_dirs = [path.join(cp2k_dir, p) for p in DEFAULT_EXCLUDED_DIRS]
@@ -104,8 +104,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
                     and not content.startswith(BANNER_C.format(year))
                 )
             ):
-                nwarnings += 1
-                print("%s: Copyright banner malformed" % fn)
+                warnings += ["%s: Copyright banner malformed" % fn]
 
             # find all flags
             for line in content.split("\n"):
@@ -138,11 +137,9 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
 
     for f in sorted(flags):
         if f not in install_txt:
-            nwarnings += 1
-            print("Flag %s not mentioned in INSTALL.md" % f)
+            warnings += ["Flag %s not mentioned in INSTALL.md" % f]
         if f not in flags_src:
-            nwarnings += 1
-            print("Flag %s not mentioned in cp2k_flags()" % f)
+            warnings += ["Flag %s not mentioned in cp2k_flags()" % f]
 
     if not filelist:
         # check for copies of data files
@@ -153,8 +150,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
         for root, _, files in os.walk(path.join(cp2k_dir, "tests")):
             d = path.relpath(root, cp2k_dir)
             for c in data_files.intersection(files):
-                nwarnings += 1
-                print("Data file %s copied to %s" % (c, d))
+                warnings += ["Data file %s copied to %s" % (c, d)]
 
     if filelist:
         fileiter = [(cp2k_dir, [], filelist)]
@@ -178,8 +174,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
             if b"\0" in content:
                 continue  # skip binary files
             if b"\r\n" in content:
-                nwarnings += 1
-                print("Text file %s contains DOS linebreaks" % shortfn)
+                warnings += ["Text file %s contains DOS linebreaks" % shortfn]
 
             # check for non-ascii chars
             if b"# -*- coding: utf-8 -*-" in content:
@@ -191,13 +186,12 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
             for lineno, line in enumerate(content.splitlines()):
                 m = re.search(b"[\x80-\xFF]", line)
                 if m:
-                    nwarnings += 1
-                    print(
+                    warnings += [
                         "Found non-ascii char in %s line %d at position %d"
                         % (shortfn, lineno + 1, m.start(0) + 1)
-                    )
+                    ]
 
-    return nwarnings
+    return warnings
 
 
 if __name__ == "__main__":
@@ -218,9 +212,23 @@ if __name__ == "__main__":
         action="store_true",
         help="return non-0 exit code if warnings have been found (useful for pre-commit scripts)",
     )
+    parser.add_argument(
+        "--suppressions",
+        type=argparse.FileType("r"),
+        help="Specify a suppression file with messages to not count towards the number of warnings",
+    )
     args = parser.parse_args()
 
-    nwarnings = validate(args.base_dir, args.file)
+    warnings = validate(args.base_dir, args.file)
 
-    if args.fail and nwarnings:
+    if args.suppressions:
+        suppress = [
+            l.rstrip() for l in args.suppressions if l and not l.startswith("#")
+        ]
+        warnings = [w for w in warnings if not any(s in w for s in suppress)]
+
+    for warning in warnings:
+        print(warning)
+
+    if args.fail and warnings:
         sys.exit(1)

@@ -34,6 +34,6 @@ repos:
           )$
     -   id: analyze_src
         name: Run analyze_src
-        entry: ./tools/conventions/analyze_src.py --fail
+        entry: ./tools/conventions/analyze_src.py --fail --suppressions ./tools/conventions/conventions.supp
         language: script
         files: '.*\.(F|fypp|c|cu|cpp|h|hpp)$'
