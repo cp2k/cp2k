@@ -2,7 +2,7 @@ H2O_grad_mme.inp                                      11      7e-11            -
 H2O_grad_gpw.inp                                      11      4e-09            -16.999046964345563
 H2_H2_no_freeHFX.inp                                  11      3e-14             -2.307711033963856
 O2_dyn.inp                                            11      2e-11            -31.520778996684630
-O2_dyn_mme.inp                                        72       1e-8                     0.63336576
+O2_dyn_mme.inp                                        72       1e-8                     0.63322357
 CH3_dyn_screen.inp                                    11      2e-04             -7.038431779827659
 MOM_MP2_geoopt.inp                                    11      2e-06            -16.757660536643318
 H2O_MD_mme.inp                                        11      1e-10            -17.056807611430269
