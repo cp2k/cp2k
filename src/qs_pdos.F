@@ -128,9 +128,10 @@ CONTAINS
 !> \param dft_section ...
 !> \param ispin ...
 !> \param xas_mittle ...
+!> \param external_matrix_shalf
 !> \date    26.02.2008
 !> \par History:
-!>       -
+!>       - Added optional external matrix_shalf to avoid recomputing it (A. Bussy, 09.2019)
 !> \par Variables
 !>       -
 !>       -
@@ -138,7 +139,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, qs_env, &
-                                      dft_section, ispin, xas_mittle)
+                                      dft_section, ispin, xas_mittle, external_matrix_shalf)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -149,6 +150,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: xas_mittle
+      TYPE(cp_fm_type), POINTER, OPTIONAL                :: external_matrix_shalf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos', &
          routineP = moduleN//':'//routineN
@@ -169,7 +171,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
       LOGICAL                                            :: append, do_ldos, do_r_ldos, do_virt, &
                                                             ionode, separate_components, &
-                                                            should_output
+                                                            should_output, calc_matsh
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
       REAL(KIND=dp)                                      :: dh(3, 3), dvol, e_fermi, r(3), r_vec(3), &
                                                             ratom(3)
@@ -250,15 +252,22 @@ CONTAINS
          nvirt = 0
       END IF
 
-      ! Create S^1/2 : from sparse to full matrix
-      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
-                               nrow_global=nrow_global, ncol_global=nrow_global)
-      CALL cp_fm_create(matrix_shalf, fm_struct_tmp, name="matrix_shalf")
-      CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_work")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, matrix_shalf)
-      CALL cp_fm_power(matrix_shalf, matrix_work, 0.5_dp, EPSILON(0.0_dp), n_dependent)
-      CALL cp_fm_release(matrix_work)
+      calc_matsh = .TRUE.
+      IF (PRESENT(external_matrix_shalf)) calc_matsh = .FALSE.
+
+      ! Create S^1/2 : from sparse to full matrix, if no external available
+      IF (calc_matsh) THEN
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
+                                  nrow_global=nrow_global, ncol_global=nrow_global)
+         CALL cp_fm_create(matrix_shalf, fm_struct_tmp, name="matrix_shalf")
+         CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_work")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, matrix_shalf)
+         CALL cp_fm_power(matrix_shalf, matrix_work, 0.5_dp, EPSILON(0.0_dp), n_dependent)
+         CALL cp_fm_release(matrix_work)
+      ELSE
+         matrix_shalf => external_matrix_shalf
+      END IF
 
       ! Multiply S^(1/2) time the mOS coefficients to get orthonormalized MOS
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
@@ -279,7 +288,7 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
       END IF
 
-      CALL cp_fm_release(matrix_shalf)
+      IF (calc_matsh) CALL cp_fm_release(matrix_shalf)
       ! Array to store the PDOS per kind and angular momentum
       do_ldos = .FALSE.
       ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%LDOS")

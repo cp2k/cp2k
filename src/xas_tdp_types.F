@@ -90,8 +90,6 @@ MODULE xas_tdp_types
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
 !> \param diag_type which of the CP2K standard or syevr
-!> \param max_iter the maximum allowed number of iteration for OT diagonalization
-!> \param eps_iter the required accuracy for OT diagonalization
 !> \param is_periodic self-explanatory
 !> \param batch_size how many procs are allocated to the XC treatment of excited atoms
 ! **************************************************************************************************
@@ -100,7 +98,6 @@ MODULE xas_tdp_types
       INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
       INTEGER                                 :: n_excited
-      INTEGER                                 :: max_iter
       INTEGER                                 :: batch_size
       REAL(dp)                                :: sx
       REAL(dp)                                :: x_range
@@ -110,7 +107,6 @@ MODULE xas_tdp_types
       INTEGER                                 :: x_op
       CHARACTER(len=default_string_length)    :: x_t_c_filename
       REAL(dp)                                :: ri_radius
-      REAL(dp)                                :: eps_iter
       LOGICAL                                 :: do_hfx
       LOGICAL                                 :: do_xc
       LOGICAL                                 :: do_coulomb
@@ -169,6 +165,7 @@ MODULE xas_tdp_types
 !> \param ri_fxc the array of xc integrals of type (P|fxc|Q), for alpha-alpha, alpha-beta and beta-beta
 !> \param fxc_avail a boolean telling whwther fxc is availavle on all procs
 !> \param orb_soc the matrix where the SOC is evaluated wrt the orbital basis set, for x,y,z
+!> \param matrix_shalf the SQRT of the orbital overlap matrix, stored for PDOS use
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
       CHARACTER(len=2), DIMENSION(3)          :: state_type_char
@@ -197,7 +194,8 @@ MODULE xas_tdp_types
          POINTER   :: ri_fxc
       LOGICAL                                 :: fxc_avail
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: orb_soc
+                                    POINTER   :: orb_soc
+      TYPE(cp_fm_type), POINTER               :: matrix_shalf
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
@@ -363,8 +361,6 @@ CONTAINS
       xas_tdp_control%diag_type = xas_tdp_diag_std
       xas_tdp_control%is_periodic = .FALSE.
       xas_tdp_control%n_excited = -1
-      xas_tdp_control%eps_iter = 1.0E-6_dp
-      xas_tdp_control%max_iter = 1000
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
@@ -609,6 +605,7 @@ CONTAINS
       NULLIFY (xas_tdp_env%ri_o3c_ex)
       NULLIFY (xas_tdp_env%ri_fxc)
       NULLIFY (xas_tdp_env%orb_soc)
+      NULLIFY (xas_tdp_env%matrix_shalf)
 
 !     Putting the state types as char manually
       xas_tdp_env%state_type_char(1) = "1s"
@@ -704,6 +701,9 @@ CONTAINS
                DEALLOCATE (xas_tdp_env%orb_soc(i)%matrix)
             END DO
             DEALLOCATE (xas_tdp_env%orb_soc)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%matrix_shalf)) THEN
+            CALL cp_fm_release(xas_tdp_env%matrix_shalf)
          END IF
          DEALLOCATE (xas_tdp_env)
       END IF

@@ -26,32 +26,29 @@ MODULE xas_tdp_methods
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_sm_fm_multiply
-   USE cp_fm_diag,                      ONLY: cp_fm_geeig,&
-                                              cp_fm_syevd
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply, copy_dbcsr_to_fm, &
+                                              copy_fm_to_dbcsr
+   USE cp_files,                        ONLY: close_file, open_file
+   USE cp_fm_diag,                      ONLY: cp_fm_geeig, cp_fm_syevd, cp_fm_power
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,&
+                                              cp_fm_struct_release
+   USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_get_submatrix, cp_fm_create,&
+                                              cp_fm_release, cp_fm_set_all, cp_fm_p_type,&
+                                              cp_fm_get_info, cp_fm_to_fm_submat, & 
+                                              cp_fm_set_submatrix, cp_fm_get_diag, cp_fm_to_fm, &
+                                              cp_fm_write_unformatted, cp_fm_read_unformatted
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr,&
-                                              debug_print_level
+   USE cp_log_handling,                 ONLY: cp_get_default_logger, cp_logger_type, &
+                                              cp_logger_get_default_io_unit, cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add_on_diag,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_finalize,&
-                                              dbcsr_get_info,&
-                                              dbcsr_multiply,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set
+   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, debug_print_level, &
+                                              cp_print_key_finished_output, cp_p_file, &
+                                              cp_print_key_should_output, &
+                                              cp_print_key_generate_filename
+   USE dbcsr_api,                       ONLY: dbcsr_p_type, dbcsr_type, dbcsr_release, dbcsr_print, &
+                                              dbcsr_create, dbcsr_multiply, dbcsr_add_on_diag, &
+                                              dbcsr_finalize, dbcsr_copy, dbcsr_set, dbcsr_add, &
+                                              dbcsr_get_info
    USE hfx_libint_wrapper,              ONLY: cp_libint_static_init
    USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
                                               do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
@@ -73,22 +70,24 @@ MODULE xas_tdp_methods
                                               section_vals_create, &
                                               section_type, &
                                               section_release
-   USE kinds,                           ONLY: dp, default_string_length
+   USE kinds,                           ONLY: dp, default_string_length, default_path_length
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_bcast
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
-   USE physcon,                         ONLY: a_fine,&
-                                              angstrom,&
-                                              evolt
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
-   USE qs_loc_methods,                  ONLY: centers_spreads_berry,&
-                                              qs_loc_driver
+   USE physcon,                         ONLY: angstrom, evolt, a_fine
+   USE pw_types,                        ONLY: pw_p_type, pw_release
+   USE qs_environment_types,            ONLY: qs_environment_type,&
+                                              get_qs_env
+   USE qs_kind_types,                   ONLY: get_qs_kind,&   
+                                              qs_kind_type,&
+                                              get_qs_kind_set
+   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
+                                              centers_spreads_berry,&
+                                              qs_print_cubes
    USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
                                               qs_loc_env_create,&
                                               qs_loc_env_new_type,&
@@ -97,12 +96,12 @@ MODULE xas_tdp_methods
                                               qs_loc_env_init,&
                                               set_loc_centers
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
-   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                              rRc_xyz_ao
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
+   USE qs_mo_types,                     ONLY: get_mo_set, mo_set_p_type, mo_set_type, &
+                                              allocate_mo_set, init_mo_set, deallocate_mo_set
+   USE qs_operators_ao,                 ONLY: p_xyz_ao, rRc_xyz_ao
+   USE qs_pdos,                         ONLY: calculate_projected_dos
+   USE qs_rho_types,                    ONLY: qs_rho_get, qs_rho_type
+   USE qs_scf_methods,                  ONLY: combine_ks_matrices
    USE qs_scf_types,                    ONLY: ot_method_nr
    USE util,                            ONLY: locate,&
                                               sort_unique
@@ -148,38 +147,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, iat, istate, tmp_index,&
-                                                            current_state_index, output_unit, &
-                                                            iatom, ispin
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      CHARACTER(LEN=default_string_length)               :: kind_name
-      INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      LOGICAL                                            :: do_os
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: handle, output_unit, n_rep
+      LOGICAL                                            :: do_restart
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
-      TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      LOGICAL                                            :: do_os
-      TYPE(admm_type), POINTER                           :: admm_env
-
-      NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
-      NULLIFY(xas_atom_env, dft_control, matrix_ks, admm_env, xas_tdp_section)
+      CHARACTER(default_string_length)                   :: rst_filename
 
       CALL timeset(routineN, handle)
 
-!  TODO: look everywhere to see if built-in functions such as DOT_PRODUCT or NORM2 can be used
-!        as they are better than hand-made stuff
-
 !  Logger initialization and XAS TDP banner printing
-      NULLIFY (logger, xas_tdp_section)
-      logger => cp_get_default_logger()
+      NULLIFY (xas_tdp_section)
       xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
-      output_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".Log")
+      output_unit = cp_logger_get_default_io_unit()
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,/,T3,A,/,T3,A,/)") &
@@ -189,7 +167,75 @@ CONTAINS
             "!===========================================================================!"
       END IF
 
+!  Check whether this is a restart calculation, i.e. is a restart file is provided
+      CALL section_vals_val_get(xas_tdp_section, "RESTART_FROM_FILE", n_rep_val=n_rep)
+
+      IF (n_rep < 1) THEN
+         do_restart = .FALSE.
+      ELSE
+         CALL section_vals_val_get(xas_tdp_section, "RESTART_FROM_FILE", c_val=rst_filename)
+         do_restart = .TRUE.
+      END IF
+
+!  Restart the calculation if needed
+      IF (do_restart) THEN
+
+         IF (output_unit > 0) THEN
+            WRITE(UNIT=output_unit, FMT="(/,T3,A)") &
+               "# This is a RESTART calculation for PDOS and/or CUBE printing"
+         END IF
+
+         CALL restart_calculation(rst_filename, xas_tdp_section, qs_env)
+
+!  or run the core XAS_TDP routine if not
+      ELSE
+         CALL xas_tdp_core(xas_tdp_section, qs_env)
+      END IF
+
+      IF (output_unit > 0) THEN
+         WRITE(UNIT=output_unit, FMT="(/,T3,A,/,T3,A,/,T3,A,/)") &
+            "!===========================================================================!", &
+            "!     End of TDDFPT driven X-rays absorption spectroscopy calculations      !", &
+            "!===========================================================================!" 
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xas_tdp
+
+! **************************************************************************************************
+!> \brief The core workflow of the XAS_TDP method
+!> \param xas_tdp_section the input values for XAS_TDP
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE xas_tdp_core(xas_tdp_section, qs_env)
+
+      TYPE(section_vals_type), POINTER                :: xas_tdp_section
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "xas_tdp_core", routineP = moduleN//":"//routineN
+
+      INTEGER                                            :: ikind, iat, istate, tmp_index, &
+                                                            current_state_index, iatom, ispin, &
+                                                            output_unit
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      CHARACTER(LEN=default_string_length)               :: kind_name
+      INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
+      TYPE(donor_state_type), POINTER                    :: current_state
+      TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      LOGICAL                                            :: do_os
+      TYPE(admm_type), POINTER                           :: admm_env
+
+      NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
+      NULLIFY(xas_atom_env, dft_control, matrix_ks, admm_env)
+
 !  Initialization
+      output_unit = cp_logger_get_default_io_unit()
+
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T3,A)") &
             "# Create and initialize the XAS_TDP environment"
@@ -360,24 +406,39 @@ CONTAINS
                                           ex_type=tddfpt_spin_cons)
                   CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
                   IF (xas_tdp_control%do_quad) CALL compute_quadrupole_fosc(current_state, &
-                                                                            xas_tdp_control, xas_tdp_env)
+                                                    xas_tdp_control, xas_tdp_env)
+                  CALL xas_tdp_post(tddfpt_spin_cons, current_state, xas_tdp_env, &
+                                    xas_tdp_section, qs_env)
+                  CALL write_donor_state_restart(tddfpt_spin_cons, current_state, xas_tdp_section)
                END IF
+
                IF (xas_tdp_control%do_spin_flip) THEN
                   CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                           ex_type=tddfpt_spin_flip)
                   !no dipole in spin-flip (spin-forbidden)
+                  CALL xas_tdp_post(tddfpt_spin_flip, current_state, xas_tdp_env, &
+                                    xas_tdp_section, qs_env)
+                  CALL write_donor_state_restart(tddfpt_spin_flip, current_state, xas_tdp_section)
                END IF
+
                IF (xas_tdp_control%do_singlet) THEN
                   CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                           ex_type=tddfpt_singlet)
                   CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
                   IF (xas_tdp_control%do_quad) CALL compute_quadrupole_fosc(current_state, &
-                                                                            xas_tdp_control, xas_tdp_env)
+                                                    xas_tdp_control, xas_tdp_env)
+                  CALL xas_tdp_post(tddfpt_singlet, current_state, xas_tdp_env, &
+                                    xas_tdp_section, qs_env)
+                  CALL write_donor_state_restart(tddfpt_singlet, current_state, xas_tdp_section)
                END IF
+
                IF (xas_tdp_control%do_triplet) THEN
                   CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                           ex_type=tddfpt_triplet)
                   !no dipole for triplets by construction
+                  CALL xas_tdp_post(tddfpt_triplet, current_state, xas_tdp_env, &
+                                    xas_tdp_section, qs_env)
+                  CALL write_donor_state_restart(tddfpt_triplet, current_state, xas_tdp_section)
                END IF
 
 !              Include the SOC if required
@@ -390,6 +451,7 @@ CONTAINS
                   END IF
                END IF
 
+!              Print the requested properties
                CALL print_xas_tdp_to_file(current_state, xas_tdp_env, xas_tdp_control, xas_tdp_section)
 
 !              Free some unneeded attributes of current_state
@@ -414,19 +476,8 @@ CONTAINS
 
 !  Clean-up
       CALL xas_tdp_env_release(xas_tdp_env)
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,/,T3,A,/)") &
-            "!===========================================================================!", &
-            "!     End of TDDFPT driven X-rays absorption spectroscopy calculations      !", &
-            "!===========================================================================!"
-      END IF
 
-      CALL cp_print_key_finished_output(output_unit, logger, xas_tdp_section, &
-                                        "PRINT%PROGRAM_RUN_INFO")
-
-      CALL timestop(handle)
-
-   END SUBROUTINE xas_tdp
+   END SUBROUTINE xas_tdp_core
 
 ! **************************************************************************************************
 !> \brief Overall control and  environment types initialization
@@ -935,6 +986,10 @@ CONTAINS
                "EXACT_EXCHANGE| Omega: ", xas_tdp_control%x_omega, ", (1/a0)", &
                "EXACT_EXCHANGE| Effective Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
                "EXACT_EXCHANGE| EPS_RANGE: ", xas_tdp_control%eps_range
+         END IF
+         IF (xas_tdp_control%eps_screen > 1.0E-16) THEN
+            WRITE(UNIT=ou, FMT="(T3,A,ES7.1)") &
+               "EXACT_EXCHANGE| EPS_SCREENING: ", xas_tdp_control%eps_screen
          END IF
       END IF
 
@@ -2180,7 +2235,244 @@ CONTAINS
    END SUBROUTINE perform_mulliken_on_donor_state
 
 ! **************************************************************************************************
-!> \brief Prints the excitation energies and the oscillator strengths for a given donor_state in a file
+!> \brief write the PDOS wrt the LR-orbitals for the current donor_state and/or the CUBES files
+!> \param ex_type the excitation type: singlet, triplet, spin-conserving, etc
+!> \param donor_state ...
+!> \param xas_tdp_env ...
+!> \param xas_tdp_section ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE xas_tdp_post(ex_type, donor_state, xas_tdp_env, xas_tdp_section, qs_env)
+
+      INTEGER, INTENT(IN)                             :: ex_type
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(section_vals_type), POINTER                :: xas_tdp_section
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "xas_tdp_post", routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: ispin, nspins, ido_mo, ndo_mo, nao, nmo, &
+                                                         imo, ndo_so, n_dependent, output_unit, &
+                                                         nlumo, handle, ncubes, ic, n_rep, irep
+      LOGICAL                                         :: do_pdos, do_cubes, append_cube
+      REAL(dp), DIMENSION(:), POINTER                 :: lr_evals
+      TYPE(cp_fm_type), POINTER                       :: lr_coeffs, mo_coeff, work_fm
+      TYPE(cp_fm_struct_type), POINTER                :: mo_struct, fm_struct
+      CHARACTER(len=default_string_length)            :: xas_mittle, domo, excite, domon, pos
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
+      TYPE(mo_set_type), POINTER                      :: mo_set
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(cp_logger_type), POINTER                   :: logger
+      REAL(dp), DIMENSION(:,:), POINTER               :: centers
+      INTEGER, DIMENSION(:), POINTER                  :: state_list, bounds, list
+      TYPE(section_vals_type), POINTER                :: print_key
+
+      NULLIFY(atomic_kind_set, particle_set, qs_kind_set, mo_set, lr_evals, lr_coeffs, mo_coeff)
+      NULLIFY(mo_struct, para_env, blacs_env, fm_struct, matrix_s, work_fm, print_key, logger)
+      NULLIFY(bounds, state_list, list)
+
+      !Tests on what to do
+      logger => cp_get_default_logger()
+      do_pdos = .FALSE.; do_cubes = .FALSE.
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, xas_tdp_section, &
+                "PRINT%PDOS"), cp_p_file)) do_pdos = .TRUE.
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, xas_tdp_section, &
+                "PRINT%CUBES"), cp_p_file)) do_cubes = .TRUE.
+
+      IF (.NOT. (do_pdos .OR. do_cubes)) RETURN
+
+      CALL timeset(routineN, handle)
+
+      !Initialization
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, para_env=para_env, blacs_env=blacs_env, &
+                      matrix_s=matrix_s)
+
+      SELECT CASE(ex_type)
+      CASE (tddfpt_spin_cons)
+         lr_evals => donor_state%sc_evals
+         lr_coeffs => donor_state%sc_coeffs
+         nspins = 2
+         excite = "spincons"
+      CASE (tddfpt_spin_flip)
+         lr_evals => donor_state%sf_evals
+         lr_coeffs => donor_state%sf_coeffs
+         nspins = 2
+         excite = "spinflip"
+      CASE (tddfpt_singlet)
+         lr_evals => donor_state%sg_evals
+         lr_coeffs => donor_state%sg_coeffs
+         nspins = 1
+         excite = "singlet"
+      CASE (tddfpt_triplet)
+         lr_evals => donor_state%tp_evals
+         lr_coeffs => donor_state%tp_coeffs
+         nspins = 1
+         excite = "triplet"
+      END SELECT
+
+      SELECT CASE(donor_state%state_type)
+      CASE (xas_1s_type)
+         domo = "1s"
+      CASE (xas_2s_type)
+         domo = "2s"
+      CASE (xas_2p_type)
+         domo = "2p"
+      END SELECT
+
+      ndo_mo = donor_state%ndo_mo
+      ndo_so = ndo_mo*nspins
+      nmo = SIZE(lr_evals)
+      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
+
+      CALL cp_fm_struct_create(mo_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=nao, ncol_global=nmo)
+      CALL cp_fm_create(mo_coeff, mo_struct)
+
+      !PDOS related stuff
+      IF (do_pdos) THEN
+
+         !If S^0.5 not yet stored, compute it once and for all
+         IF (.NOT. ASSOCIATED(xas_tdp_env%matrix_shalf) .AND. do_pdos) THEN
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
+                                     nrow_global=nao, ncol_global=nao)
+            CALL cp_fm_create(xas_tdp_env%matrix_shalf, fm_struct)
+            CALL cp_fm_create(work_fm, fm_struct)
+
+            CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, xas_tdp_env%matrix_shalf)
+            CALL cp_fm_power(xas_tdp_env%matrix_shalf, work_fm, 0.5_dp, EPSILON(0.0_dp), n_dependent)
+
+            CALL cp_fm_release(work_fm)
+            CALL cp_fm_struct_release(fm_struct)
+         END IF
+
+         !Giving some PDOS info
+         output_unit = cp_logger_get_default_io_unit()
+         IF (output_unit > 0 ) THEN
+            WRITE(UNIT=output_unit, FMT="(/,T5,A,/,T5,A,/,T5,A)") &
+               "Computing the PDOS of linear-response orbitals for spectral features analysis",&
+               "Note: using stendard PDOS routines => ignore mentions of KS states and MO ", &
+               "      occupation numbers. Eigenvalues in *.pdos files are excitations energies."
+         END IF
+
+         !Check on NLUMO
+         CALL  section_vals_val_get(xas_tdp_section, "PRINT%PDOS%NLUMO", i_val=nlumo)
+         IF (nlumo .NE. 0) THEN
+            CPWARN("NLUMO is irrelevant for XAS_TDP PDOS. It was overwritten to 0.")
+         END IF
+         CALL section_vals_val_set(xas_tdp_section, "PRINT%PDOS%NLUMO", i_val=0)
+      END IF
+
+      !CUBES related stuff
+      IF (do_cubes) THEN
+
+         print_key => section_vals_get_subs_vals(xas_tdp_section, "PRINT%CUBES")
+
+         CALL section_vals_val_get(print_key, "CUBES_LU_BOUNDS", i_vals=bounds)
+         ncubes = bounds(2)-bounds(1)+1
+         IF (ncubes > 0) THEN
+            ALLOCATE(state_list(ncubes))
+            DO ic = 1, ncubes
+               state_list(ic) = bounds(1)+ic-1
+            END DO
+         END IF
+
+         IF (.NOT. ASSOCIATED(state_list)) THEN
+            CALL section_vals_val_get(print_key, "CUBES_LIST",  n_rep_val=n_rep)
+
+            ncubes = 0
+            DO irep = 1, n_rep
+               NULLIFY(list)
+               CALL section_vals_val_get(print_key, "CUBES_LIST", i_rep_val=irep, i_vals=list)
+               IF (ASSOCIATED(list)) THEN
+                  CALL reallocate(state_list, 1, ncubes+SIZE(list))
+                  DO ic = 1, SIZE(list)
+                     state_list(ncubes+ic) = list(ic)
+                  END DO
+                  ncubes = ncubes + SIZE(list)
+               END IF
+            END DO
+         END IF
+
+         IF (.NOT. ASSOCIATED(state_list)) THEN
+            ncubes = 1
+            ALLOCATE(state_list(1))
+            state_list(1) = 1
+         END IF
+
+         CALL section_vals_val_get(print_key, "APPEND", l_val=append_cube)
+         pos = "REWIND"
+         IF (append_cube) pos = "APPEND"
+
+         ALLOCATE(centers(6, ncubes))
+         centers = 0.0_dp
+
+      END IF
+
+      !Loop over MOs and spin, one PDOS/CUBE for each
+      DO ido_mo = 1, ndo_mo
+         DO ispin = 1, nspins
+
+            !need to create a mo set for the LR-orbitals
+            CALL allocate_mo_set(mo_set, nao=nao, nmo=nmo, nelectron=nmo, n_el_f=REAL(nmo, dp), &
+                                 maxocc=1.0_dp, flexible_electron_count=0.0_dp)
+            CALL init_mo_set(mo_set, fm_ref=mo_coeff, name="PDOS XAS_TDP MOs")
+            mo_set%eigenvalues(:) = lr_evals(:)
+
+            !get the actual coeff => most common case: closed-shell K-edge, can directly take lr_coeffs
+            IF (nspins == 1 .AND. ndo_mo == 1) THEN
+               CALL cp_fm_to_fm(lr_coeffs, mo_set%mo_coeff)
+            ELSE
+               DO imo = 1, nmo
+                  CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=mo_set%mo_coeff, &
+                                          nrow=nao, ncol=1, s_firstrow=1, &
+                                          s_firstcol=(imo-1)*ndo_so + (ispin-1)*ndo_mo+ido_mo, &
+                                          t_firstrow=1, t_firstcol=imo)
+               END DO
+            END IF
+
+            !naming the output
+            domon = domo
+            IF (donor_state%state_type == xas_2p_type) domon = TRIM(domo)//TRIM(ADJUSTL(cp_to_string(ido_mo)))
+            xas_mittle = 'xasat'//TRIM(ADJUSTL(cp_to_string(donor_state%at_index)))//'_'//&
+                         TRIM(domon)//'_'//TRIM(excite)
+
+            IF (do_pdos) THEN
+               CALL calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                                            qs_env, xas_tdp_section, ispin, xas_mittle, &
+                                            external_matrix_shalf=xas_tdp_env%matrix_shalf)
+            END IF
+
+            IF (do_cubes) THEN
+               CALL qs_print_cubes(qs_env, mo_set%mo_coeff, ncubes, state_list, centers, &
+                                   print_key=print_key, root=xas_mittle, ispin=ispin, &
+                                   file_position=pos)
+            END IF
+
+            !clean-up
+            CALL deallocate_mo_set(mo_set)
+
+         END DO
+      END DO
+
+      !clean-up
+      CALL cp_fm_release(mo_coeff)
+      CALL cp_fm_struct_release(mo_struct)
+      IF (do_cubes) DEALLOCATE(centers, state_list)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xas_tdp_post
+
+! **************************************************************************************************
+!> \brief Prints the excitation energies and the oscillator strengths for a given donor_state in a file 
 !> \param donor_state the donor_state to print
 ! **************************************************************************************************
    SUBROUTINE print_xas_tdp_to_file(donor_state, xas_tdp_env, xas_tdp_control, xas_tdp_section)
@@ -2373,4 +2665,258 @@ CONTAINS
       CALL cp_print_key_finished_output(xas_tdp_unit, logger, xas_tdp_section, "PRINT%SPECTRUM")
 
    END SUBROUTINE print_xas_tdp_to_file
+
+! **************************************************************************************************
+!> \brief Prints the donor_state and excitation_type info into a RESTART file for cheap PDOS and/or
+!>        CUBE printing without expensive computation
+!> \param ex_type singlet, triplet, etc.
+!> \param donor_state ...
+!> \param xas_tdp_section ...
+! **************************************************************************************************
+   SUBROUTINE write_donor_state_restart(ex_type, donor_state, xas_tdp_section)
+
+      INTEGER, INTENT(IN)                             :: ex_type
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(section_vals_type), POINTER                :: xas_tdp_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = "write_donor_state_restart", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: output_unit, rst_unit, ndo_mo, nspins, &
+                                                         nao, nex, state_type, ex_atom, handle
+      LOGICAL                                         :: do_print
+      REAL(dp), DIMENSION(:), POINTER                 :: lr_evals
+      TYPE(cp_logger_type), POINTER                   :: logger
+      TYPE(cp_fm_type), POINTER                       :: lr_coeffs
+      CHARACTER(len=default_string_length)            :: domo, excite, my_middle
+      CHARACTER(len=default_path_length)              :: filename
+      TYPE(section_vals_type), POINTER                :: print_key
+
+      NULLIFY(logger, lr_coeffs, lr_evals, print_key)
+
+      !Initialization
+      logger => cp_get_default_logger()
+      do_print = .FALSE.
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, xas_tdp_section, &
+                "PRINT%RESTART", used_print_key=print_key), cp_p_file)) do_print = .TRUE.
+
+      IF (.NOT. do_print) RETURN
+
+      CALL timeset(routineN, handle)
+
+      output_unit = cp_logger_get_default_io_unit()
+
+      !Get general info
+      SELECT CASE(ex_type)
+      CASE (tddfpt_spin_cons)
+         lr_evals => donor_state%sc_evals
+         lr_coeffs => donor_state%sc_coeffs
+         excite = "spincons"
+         nspins = 2
+      CASE (tddfpt_spin_flip)
+         lr_evals => donor_state%sf_evals
+         lr_coeffs => donor_state%sf_coeffs
+         excite = "spinflip"
+         nspins = 2
+      CASE (tddfpt_singlet)
+         lr_evals => donor_state%sg_evals
+         lr_coeffs => donor_state%sg_coeffs
+         excite = "singlet"
+         nspins = 1
+      CASE (tddfpt_triplet)
+         lr_evals => donor_state%tp_evals
+         lr_coeffs => donor_state%tp_coeffs
+         excite = "triplet"
+         nspins = 1
+      END SELECT
+
+      SELECT CASE(donor_state%state_type)
+      CASE (xas_1s_type)
+         domo = "1s"
+      CASE (xas_2s_type)
+         domo = "2s"
+      CASE (xas_2p_type)
+         domo = "2p"
+      END SELECT
+
+      ndo_mo = donor_state%ndo_mo
+      nex = SIZE(lr_evals)
+      CALL cp_fm_get_info(lr_coeffs, nrow_global=nao)
+      state_type = donor_state%state_type
+      ex_atom = donor_state%at_index
+
+      !Opening restart file
+      rst_unit = -1
+      my_middle = 'xasat'//TRIM(ADJUSTL(cp_to_string(ex_atom)))//'_'//TRIM(domo)//'_'//TRIM(excite)
+      rst_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%RESTART", extension=".rst", &
+                                      file_status="REPLACE", file_action="WRITE", &
+                                      file_form="UNFORMATTED", middle_name=TRIM(my_middle))
+
+      filename = cp_print_key_generate_filename(logger, print_key, middle_name=TRIM(my_middle), &
+                                                extension=".rst", my_local=.FALSE.)
+
+      IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T5,A,/T5,A,A,A)") &
+            "Linear-response orbitals and excitation energies are written in: ", &
+            '"',TRIM(filename), '"'
+      END IF
+
+      !Writing
+      IF (rst_unit > 0) THEN
+         WRITE (rst_unit) ex_atom, state_type, ndo_mo, ex_type
+         WRITE (rst_unit) nao, nex, nspins
+         WRITE (rst_unit) lr_evals(:)
+      END IF
+      CALL cp_fm_write_unformatted(lr_coeffs, rst_unit)
+
+      !closing
+      CALL cp_print_key_finished_output(rst_unit, logger, xas_tdp_section, "PRINT%RESTART")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_donor_state_restart
+
+! **************************************************************************************************
+!> \brief Reads donor_state info from a restart file
+!> \param donor_state the pre-allocated donor_state
+!> \param ex_type the excitations stored in this specific file
+!> \param filename the restart file to read from
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE read_donor_state_restart(donor_state, ex_type, filename, qs_env)
+
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      INTEGER, INTENT(OUT)                            :: ex_type
+      CHARACTER(len=*), INTENT(IN)                    :: filename
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "read_donor_state_restart", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: handle, rst_unit, group, source, nao, &
+                                                         nex, read_params(7), output_unit, nspins
+      LOGICAL                                         :: file_exists
+      REAL(dp), DIMENSION(:), POINTER                 :: lr_evals
+      TYPE(cp_fm_type), POINTER                       :: lr_coeffs
+      TYPE(cp_fm_struct_type), POINTER                :: fm_struct
+      TYPE(cp_logger_type), POINTER                   :: logger
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+
+      NULLIFY(lr_evals, lr_coeffs, logger, para_env, fm_struct, blacs_env)
+
+      CALL timeset(routineN, handle)
+
+      output_unit = cp_logger_get_default_io_unit()
+      CPASSERT(ASSOCIATED(donor_state))
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+      group = para_env%group
+      source = para_env%source
+
+      file_exists = .FALSE.
+      rst_unit = -1
+
+      IF (para_env%ionode) THEN
+
+         INQUIRE (FILE=filename, EXIST=file_exists)
+         IF (.NOT. file_exists) CPABORT("Trying to read non-existing XAS_TDP restart file")
+
+         CALL open_file(file_name=TRIM(filename), file_action="READ", file_form="UNFORMATTED", &
+                        file_position="REWIND", file_status="OLD", unit_number=rst_unit)
+      END IF
+
+      IF (output_unit > 0) THEN
+         WRITE(UNIT=output_unit, FMT="(/,T5,A,/,T5,A,A,A)") &
+            "Reading linear-response orbitals and excitation energies from file: ", &
+            '"', filename, '"'
+      END IF
+
+      !read general params
+      IF (rst_unit > 0) THEN
+         READ (rst_unit) read_params(1:4)
+         READ (rst_unit) read_params(5:7)
+      END IF
+      CALL mp_bcast(read_params, source, group)
+      donor_state%at_index = read_params(1)
+      donor_state%state_type = read_params(2)
+      donor_state%ndo_mo = read_params(3)
+      ex_type = read_params(4)
+      nao = read_params(5)
+      nex = read_params(6)
+      nspins = read_params(7)
+
+      !read evals
+      ALLOCATE(lr_evals(nex))
+      IF (rst_unit > 0) READ (rst_unit) lr_evals(1:nex)
+      CALL mp_bcast(lr_evals, source, group)
+
+      !read evecs
+      CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=nao, ncol_global=nex*donor_state%ndo_mo*nspins)
+      CALL cp_fm_create(lr_coeffs, fm_struct)
+      CALL cp_fm_read_unformatted(lr_coeffs, rst_unit)
+      CALL cp_fm_struct_release(fm_struct)
+
+      !closing file
+      IF (para_env%ionode) THEN
+         CALL close_file(unit_number=rst_unit)
+      END IF
+
+      !case study on excitation type
+      SELECT CASE(ex_type)
+      CASE (tddfpt_spin_cons)
+         donor_state%sc_evals => lr_evals
+         donor_state%sc_coeffs => lr_coeffs
+      CASE (tddfpt_spin_flip)
+         donor_state%sf_evals => lr_evals
+         donor_state%sf_coeffs => lr_coeffs
+      CASE (tddfpt_singlet)
+         donor_state%sg_evals => lr_evals
+         donor_state%sg_coeffs => lr_coeffs
+      CASE (tddfpt_triplet)
+         donor_state%tp_evals => lr_evals
+         donor_state%tp_coeffs => lr_coeffs
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_donor_state_restart
+
+! **************************************************************************************************
+!> \brief Checks whether this is a restart calculation and runs it if so
+!> \param rst_filename the file to read for restart
+!> \param xas_tdp_section ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE restart_calculation(rst_filename, xas_tdp_section, qs_env)
+
+      CHARACTER(len=*), INTENT(IN)                    :: rst_filename
+      TYPE(section_vals_type), POINTER                :: xas_tdp_section
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "restart_calculation", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: ex_type
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+
+      NULLIFY(xas_tdp_env, donor_state)
+
+      !create a donor_state that we fill with the information we read
+      ALLOCATE(donor_state)
+      CALL donor_state_create(donor_state)
+      CALL read_donor_state_restart(donor_state, ex_type, rst_filename, qs_env)
+
+      !create a dummy xas_tdp_env and compute the post XAS_TDP stuff
+      CALL xas_tdp_env_create(xas_tdp_env)
+      CALL xas_tdp_post(ex_type, donor_state, xas_tdp_env, xas_tdp_section, qs_env)
+
+      !clean-up
+      CALL xas_tdp_env_release(xas_tdp_env)
+      CALL free_ds_memory(donor_state)
+      DEALLOCATE(donor_state)
+
+   END SUBROUTINE restart_calculation
+
 END MODULE xas_tdp_methods
