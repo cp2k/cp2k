@@ -38,19 +38,52 @@ BANNER_C = """\
  *****************************************************************************/
 """
 
+DEFAULT_EXCLUDED_DIRS = (
+    ".git",
+    "obj",
+    "lib",
+    "exe",
+    "regtesting",
+    "tools/toolchain/build",
+    "tools/toolchain/install",
+)
 
-def validate(cp2k_dir, filelist):
+
+def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
+    """
+    Check the source files in the given directory/filelist for convention violations, like:
+
+    - correct copyright headers
+    - undocumented preprocessor flags
+    - stray unicode characters
+
+    :param cp2k_dir: base directory to look for files
+    :param filelist: specific list of files to check in the given directory
+    :param excluded_dirs: List of directories to exclude in the checks (usually relative to `cp2k_dir`)
+    """
     # check flags and banners
     flags = set()
     year = datetime.utcnow().year
     nwarnings = 0
+
+    # directories to exclude, if given as relative dirs, they're relative to cp2k_dir
+    excluded_dirs = [path.join(cp2k_dir, p) for p in DEFAULT_EXCLUDED_DIRS]
+
+    # also exclude any Git submodules
+    if path.exists(path.join(cp2k_dir, ".gitmodules")):
+        with open(path.join(cp2k_dir, ".gitmodules"), "r") as fhandle:
+            excluded_dirs += [
+                path.join(cp2k_dir, l.split()[-1]) for l in fhandle if "path =" in l
+            ]
 
     if filelist:
         fileiter = [(cp2k_dir, [], filelist)]
     else:
         fileiter = os.walk(path.join(cp2k_dir, "src"))
 
-    for root, _, files in fileiter:
+    for root, dirs, files in fileiter:
+        dirs[:] = [d for d in dirs if path.join(root, d) not in excluded_dirs]
+
         for fn in files:
             fn_ext = fn.rsplit(".", 1)[-1]
             if fn_ext in ("template", "instantiate"):
@@ -130,16 +163,7 @@ def validate(cp2k_dir, filelist):
 
     # check linebreaks and encoding
     for root, dirs, files in fileiter:
-        # filter some directories to never visit
-        if root == cp2k_dir:
-            dirs[:] = [
-                d
-                for d in dirs
-                if d not in (".git", "obj", "lib", "exe", "regtesting", "exts")
-            ]
-
-        if root.endswith("tools/toolchain"):
-            dirs[:] = [d for d in dirs if d not in ("build", "install")]
+        dirs[:] = [d for d in dirs if path.join(root, d) not in excluded_dirs]
 
         for fn in files:
             absfn = path.join(root, fn)
