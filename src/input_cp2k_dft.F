@@ -7885,7 +7885,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "//&
                           "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=11, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=12, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7909,6 +7909,18 @@ CONTAINS
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE., &
                           repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FROM_FILE", &
+                          variants=s2a("RESTART_FILENAME", "RST_FILENAME", "RESTART_FILE", "RST_FILE"), &
+                          description="By providing a RESTART file containing the linear-response "//&
+                                      "orbitals and excitations energies from a previous calculation, "//&
+                                      "all computations are skipped except for the corresponding "//&
+                                      "PDOS and/or CUBE file printing as defined in the PRINT "// &
+                                      "subsection. Basis sets and geometry need to be consistent.",&
+                          usage="RESTART_FROM_FILE <FILENAME>", &
+                          type_of_var=char_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8240,7 +8252,7 @@ CONTAINS
                                       "are kept for contraction, as the latter operation can be "//&
                                       "expensive (especially for large basis sets )." //&
                                       "If |(ab|c)| < EPS_SCREENNING, it is discarded.", &
-                          default_r_val=1.0E-10_dp, &
+                          default_r_val=0.0_dp, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
@@ -8260,16 +8272,63 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information during "//&
                           "XAS TDP calculations", repeats=.FALSE.)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, name="PROGRAM_RUN_INFO",&
-                                       description="Controls the printing of basic programm steps information",&
-                                       print_level=low_print_level, add_last=add_last_numeric,&
-                                       filename="__STD_OUT__")
-      CALL section_add_subsection(subsection, print_key)
-      CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &
                                        description="Controles the dumping of the XAS TDP spectrum in ouput files", &
                                        print_level=low_print_level, filename="", common_iter_levels=3)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL create_pdos_section(print_key)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CUBES", &
+                                       description="Controls the printing of the linear-response orbitals "//&
+                                                   "as *.cube files.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       add_last=add_last_numeric, filename="")
+
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
+                          variants=(/"CUBES_LU"/), &
+                          description="The lower and upper index of the excited states to be printed as cube", &
+                          usage="CUBES_LU_BOUNDS integer integer", &
+                          n_var=2, default_i_vals=(/1, 0/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
+                          description="Indexes of the excited states to be printed as cube files"// &
+                          "This keyword can be repeated several times"// &
+                          "(useful if you have to specify many indexes).", &
+                          usage="CUBES_LIST 1 2", &
+                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
+                                       description="Controls the dumping of LR-orbitals coefficients "// &
+                                                   "and corresponding excitation energies such that "// &
+                                                   "the program can be restarted for PDOS or CUBE "// &
+                                                   "printing without the heavy computing.", &
+                                       print_level=medium_print_level, filename="", common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
