@@ -128,7 +128,7 @@ CONTAINS
 !> \param dft_section ...
 !> \param ispin ...
 !> \param xas_mittle ...
-!> \param external_matrix_shalf
+!> \param external_matrix_shalf ...
 !> \date    26.02.2008
 !> \par History:
 !>       - Added optional external matrix_shalf to avoid recomputing it (A. Bussy, 09.2019)
@@ -150,7 +150,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: xas_mittle
-      TYPE(cp_fm_type), POINTER, OPTIONAL                :: external_matrix_shalf
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: external_matrix_shalf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos', &
          routineP = moduleN//':'//routineN
@@ -169,9 +169,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
-      LOGICAL                                            :: append, do_ldos, do_r_ldos, do_virt, &
-                                                            ionode, separate_components, &
-                                                            should_output, calc_matsh
+      LOGICAL                                            :: append, calc_matsh, do_ldos, do_r_ldos, &
+                                                            do_virt, ionode, separate_components, &
+                                                            should_output
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
       REAL(KIND=dp)                                      :: dh(3, 3), dvol, e_fermi, r(3), r_vec(3), &
                                                             ratom(3)

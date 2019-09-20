@@ -68,8 +68,8 @@ CONTAINS
 !> \param fba basis at center A
 !> \param fbb basis at center B
 !> \param omega parameter in the operator
-!> \param calculate_forces ...
 !> \param r_cutoff the cutoff in case of truncated coulomb operator
+!> \param calculate_forces ...
 ! **************************************************************************************************
    SUBROUTINE int_operators_r12_ab_os(r12_operator, vab, dvab, rab, fba, fbb, omega, r_cutoff, &
                                       calculate_forces)
@@ -268,8 +268,8 @@ CONTAINS
    SUBROUTINE int_overlap_ab_os(sab, dsab, rab, fba, fbb, calculate_forces, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
-      REAL(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(INOUT), OPTIONAL                         :: dsab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug

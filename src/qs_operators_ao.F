@@ -1074,8 +1074,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', routineP = moduleN//':'//routineN
 
       INTEGER :: handle, iatom, icol, ikind, imom, inode, irow, iset, jatom, jkind, jset, &
-         last_jatom, ldab, ldsa, ldsb, ldwork, M_dim, maxl, ncoa, ncob, nkind, nseta, nsetb, &
-         sgfa, sgfb, smom
+         last_jatom, ldab, ldsa, ldsb, ldwork, M_dim, maxl, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
+         sgfb, smom
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, npgfa, npgfb, &
                                                             nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb

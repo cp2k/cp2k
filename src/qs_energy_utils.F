@@ -1,4 +1,3 @@
-!TEMP COMMENT
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2019  CP2K developers group                                               !
@@ -294,7 +293,7 @@ CONTAINS
 
       IF (dft_control%do_xas_tdp_calculation) THEN
          CALL xas_tdp(qs_env)
-      END IF  
+      END IF
 
       ! Compute Linear Response properties as post-scf
       IF (.NOT. qs_env%linres_run) THEN

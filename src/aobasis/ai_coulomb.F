@@ -856,7 +856,6 @@ CONTAINS
          IF (rpgfa(ipgf)+rpgfc < dac) THEN
             na = na+ncoset(la_max-maxder_local)
             nap = nap+ncoset(la_max)
-            CPABORT("An ERI integral is being screened out...")
             CYCLE
          END IF
 
@@ -869,7 +868,6 @@ CONTAINS
                (rpgfb(jpgf)+rpgfc < dbc) .OR. &
                (rpgfa(ipgf)+rpgfb(jpgf) < dab)) THEN
                nb = nb+ncoset(lb_max)
-               CPABORT("An ERI integral is being screened out...")
                CYCLE
             END IF
 

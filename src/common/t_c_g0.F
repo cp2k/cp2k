@@ -45,9 +45,9 @@
 !
 !   Joost VandeVondele and Manuel Guidon, Nov 2008.
 ! instead of a module one could use: INTEGER, PARAMETER ::  dp=KIND(0.0D0)
-! 
-! History: -05.2019 Added a get_maxl_init function to get current status of nderiv_init and
-!           moved the file to common (together with gamma) A. Bussy
+!
+! History: -05.2019 Added a get_maxl_init function to get current status of nderiv_init and moved
+!           the file to common (made it accessible from aobasis, same place as gamma.F) A. Bussy
 
 MODULE t_c_g0
    USE kinds,                           ONLY: dp
@@ -1446,11 +1446,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the value of nderiv_init so that one can check if opening the potential file is
 !>        worhtwhile
+!> \return ...
 !> \author A. Bussy, 05.2019
 ! **************************************************************************************************
    FUNCTION get_lmax_init() RESULT(lmax_init)
 
-      INTEGER  :: lmax_init
+      INTEGER                                            :: lmax_init
 
       lmax_init = nderiv_init
 

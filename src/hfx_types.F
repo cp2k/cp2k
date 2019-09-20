@@ -859,11 +859,11 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_admm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
       INTEGER :: co_counter, handle, i, ikind, ipgf, iset, j, k, la, max_am_kind, max_coeff, &
-                 max_nsgfl, max_pgf, max_pgf_kind, max_set, nkind, nl_count, nset, nseta, offset_a, &
-                 offset_a1, s_offset_nl_a, sgfa, so_counter
+         max_nsgfl, max_pgf, max_pgf_kind, max_set, nkind, nl_count, nset, nseta, offset_a, &
+         offset_a1, s_offset_nl_a, sgfa, so_counter
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, nl_a
       REAL(dp), DIMENSION(:, :), POINTER                 :: sphi_a
