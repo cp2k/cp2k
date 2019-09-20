@@ -571,7 +571,7 @@ CONTAINS
          IF (iatom == jatom) THEN
             ikind = kind_of(iatom)
             CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)
-            IF(ASSOCIATED(reltmat)) hblock = hblock+reltmat
+            IF (ASSOCIATED(reltmat)) hblock = hblock+reltmat
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)

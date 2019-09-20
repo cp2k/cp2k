@@ -4,6 +4,8 @@
 !--------------------------------------------------------------------------------------------------!
 ! **************************************************************************************************
 !> \brief 3-center overlap type integrals containers
+!> \par History
+!>      - Added options to only keep (abc) triplet if b and c share the same center (2019 A.Bussy)
 ! **************************************************************************************************
 MODULE qs_o3c_types
 
@@ -105,7 +107,7 @@ CONTAINS
 !> \param basis_set_list_c ...
 !> \param sab_nl ...
 !> \param sac_nl ...
-!> \param only_bc_same_center only consider a,b,c atoms if b and c share the same center 
+!> \param only_bc_same_center only consider a,b,c atoms if b and c share the same center
 !> \par History: only_bc_same_cetner added by A.Bussy for XAS_TDP (04.2019)
 ! **************************************************************************************************
    SUBROUTINE init_o3c_container(o3c, nspin, basis_set_list_a, basis_set_list_b, basis_set_list_c, &
@@ -122,8 +124,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: kkind, nij, nk, nkind
+      LOGICAL                                            :: my_sort_bc, symmetric
       REAL(dp)                                           :: rik(3), rjk(3)
-      LOGICAL                                            :: symmetric, my_sort_bc
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ac_iterator, nl_iterator
       TYPE(o3c_int_type), POINTER                        :: ijk
@@ -176,7 +178,7 @@ CONTAINS
                IF (my_sort_bc) THEN
                   !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
                   CALL get_iterator_info(ac_iterator, r=rik)
-                  rjk(:) = rik(:) - ijpair%rij(:)
+                  rjk(:) = rik(:)-ijpair%rij(:)
                   IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
                END IF
                nk = nk+1
@@ -193,7 +195,7 @@ CONTAINS
                IF (my_sort_bc) THEN
                   !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
                   CALL get_iterator_info(ac_iterator, r=rik)
-                  rjk(:) = rik(:) - ijpair%rij(:)
+                  rjk(:) = rik(:)-ijpair%rij(:)
                   IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
                END IF
 

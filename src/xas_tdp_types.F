@@ -14,8 +14,7 @@ MODULE xas_tdp_types
                                               cp_2d_r_p_type,&
                                               cp_3d_r_p_type
    USE cp_files,                        ONLY: file_exists
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_release,&
@@ -24,22 +23,15 @@ MODULE xas_tdp_types
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE hfx_libint_wrapper,              ONLY: cp_libint_static_cleanup
-   USE input_constants,                 ONLY: xas_tdp_by_index,&
-                                              xas_tdp_by_kind, &
-                                              tddfpt_singlet, &
-                                              tddfpt_triplet, &
-                                              tddfpt_spin_cons, &
-                                              tddfpt_spin_flip, &
-                                              do_potential_coulomb, &
-                                              do_potential_truncated, &
-                                              do_potential_short, &
-                                              xas_dip_vel, &
-                                              xas_tdp_diag_std
-   USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_get,&
-                                              section_vals_get_subs_vals, &
-                                              section_vals_release
-   USE kinds,                           ONLY: dp ,default_string_length
+   USE input_constants,                 ONLY: &
+        do_potential_coulomb, do_potential_short, do_potential_truncated, tddfpt_singlet, &
+        tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_vel, xas_tdp_by_index, &
+        xas_tdp_by_kind, xas_tdp_diag_std
+   USE input_section_types,             ONLY: section_vals_release,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
    USE physcon,                         ONLY: bohr
@@ -49,8 +41,8 @@ MODULE xas_tdp_types
                                               harmonics_atom_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release
-   USE qs_o3c_types,                    ONLY: o3c_container_type, release_o3c_container
-                                     
+   USE qs_o3c_types,                    ONLY: o3c_container_type,&
+                                              release_o3c_container
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -129,8 +121,8 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:, :), POINTER        :: state_types
       TYPE(section_vals_type), POINTER        :: loc_subsection
       TYPE(section_vals_type), POINTER        :: print_loc_subsection
-      CHARACTER(len=default_string_length),&
-                     DIMENSION(:,:), POINTER  :: grid_info
+      CHARACTER(len=default_string_length), &
+         DIMENSION(:, :), POINTER  :: grid_info
 
    END TYPE xas_tdp_control_type
 
@@ -176,9 +168,9 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:, :), POINTER        :: state_types
       TYPE(o3c_container_type), POINTER       :: ri_o3c_coul
       TYPE(o3c_container_type), POINTER       :: ri_o3c_ex
-      TYPE(donor_state_type), DIMENSION(:),&
-                                    POINTER   :: donor_states
-      INTEGER, DIMENSION(:,:,:), POINTER      :: mos_of_ex_atoms
+      TYPE(donor_state_type), DIMENSION(:), &
+         POINTER   :: donor_states
+      INTEGER, DIMENSION(:, :, :), POINTER      :: mos_of_ex_atoms
       TYPE(qs_loc_env_new_type), POINTER      :: qs_loc_env
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex
@@ -194,7 +186,7 @@ MODULE xas_tdp_types
          POINTER   :: ri_fxc
       LOGICAL                                 :: fxc_avail
       TYPE(dbcsr_p_type), DIMENSION(:), &
-                                    POINTER   :: orb_soc
+         POINTER   :: orb_soc
       TYPE(cp_fm_type), POINTER               :: matrix_shalf
    END TYPE xas_tdp_env_type
 
@@ -413,9 +405,12 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      INTEGER                                            :: irep, nrep, nexc, excitation
-      CHARACTER(len=default_string_length),&
-                     DIMENSION(:), POINTER               :: k_list
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_xas_tdp_control', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=default_string_length), &
+         DIMENSION(:), POINTER                           :: k_list
+      INTEGER                                            :: excitation, irep, nexc, nrep
       INTEGER, DIMENSION(:), POINTER                     :: a_list, t_list
 
       NULLIFY (k_list, a_list, t_list)
@@ -509,7 +504,7 @@ CONTAINS
          END DO
       END IF
       IF (ALL(xas_tdp_control%state_types == 0)) CPABORT("Please specify STATE_TYPES")
-      
+
       CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%N_SEARCH", i_val=xas_tdp_control%n_search)
 
       CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%LOCALIZE", l_val=xas_tdp_control%do_loc)
@@ -545,7 +540,7 @@ CONTAINS
 
          !short range erfc
          IF (xas_tdp_control%x_op == do_potential_short) THEN
-            CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OMEGA", & 
+            CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OMEGA", &
                                       r_val=xas_tdp_control%x_omega)
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%EPS_RANGE", &
                                       r_val=xas_tdp_control%eps_range)
@@ -571,10 +566,10 @@ CONTAINS
 
    END SUBROUTINE read_xas_tdp_control
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Creates a TDP XAS environment type
 !> \param xas_tdp_env the type to create
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE xas_tdp_env_create(xas_tdp_env)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -614,10 +609,10 @@ CONTAINS
 
    END SUBROUTINE xas_tdp_env_create
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Releases the TDP XAS environment type
 !> \param xas_tdp_env the type to release
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE xas_tdp_env_release(xas_tdp_env)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -709,9 +704,12 @@ CONTAINS
       END IF
    END SUBROUTINE xas_tdp_env_release
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Sets values of selected variables within the TDP XAS environment type
-!> *************************************************************************************************
+!> \param xas_tdp_env ...
+!> \param nex_atoms ...
+!> \param nex_kinds ...
+! **************************************************************************************************
    SUBROUTINE set_xas_tdp_env(xas_tdp_env, nex_atoms, nex_kinds)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -727,10 +725,10 @@ CONTAINS
 
    END SUBROUTINE set_xas_tdp_env
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Creates a donor_state
 !> \param donor_state ...
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE donor_state_create(donor_state)
 
       TYPE(donor_state_type), INTENT(INOUT)              :: donor_state
@@ -764,26 +762,24 @@ CONTAINS
 
    END SUBROUTINE donor_state_create
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief sets specified values of the donor state type
 !> \param donor_state the type which values should be set
 !> \param at_index ...
 !> \param at_symbol ...
+!> \param kind_index ...
 !> \param state_type ...
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE set_donor_state(donor_state, at_index, at_symbol, kind_index, state_type)
 
       TYPE(donor_state_type), POINTER                    :: donor_state
       INTEGER, INTENT(IN), OPTIONAL                      :: at_index
-      CHARACTER(len=2), INTENT(IN), OPTIONAL             :: at_symbol
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: at_symbol
       INTEGER, INTENT(IN), OPTIONAL                      :: kind_index, state_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_donor_state', &
          routineP = moduleN//':'//routineN
 
-      INTEGER, INTENT(IN), OPTIONAL                        :: at_index, state_type, kind_index
-      CHARACTER(LEN=default_string_length), OPTIONAL       :: at_symbol
-      
       CPASSERT(ASSOCIATED(donor_state))
 
       IF (PRESENT(at_index)) donor_state%at_index = at_index
@@ -793,12 +789,11 @@ CONTAINS
 
    END SUBROUTINE set_donor_state
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Deallocate a set of donor states
 !> \param donor_state_set the set of donor states to deallocate
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE deallocate_donor_state_set(donor_state_set)
-
       TYPE(donor_state_type), DIMENSION(:), POINTER      :: donor_state_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_donor_state_set', &
@@ -918,10 +913,10 @@ CONTAINS
 
    END SUBROUTINE deallocate_donor_state_set
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Deallocate a donor_state's heavy attributes
 !> \param donor_state ...
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE free_ds_memory(donor_state)
 
       TYPE(donor_state_type), POINTER                    :: donor_state
@@ -995,10 +990,10 @@ CONTAINS
 
    END SUBROUTINE free_ds_memory
 
-!> *************************************************************************************************
+! **************************************************************************************************
 !> \brief Creates a xas_atom_env type
 !> \param xas_atom_env ...
-!> *************************************************************************************************
+! **************************************************************************************************
    SUBROUTINE xas_atom_env_create(xas_atom_env)
 
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env

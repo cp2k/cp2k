@@ -1,0 +1,91 @@
+&GLOBAL
+  PROJECT Ne-pbc-truncated
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    AUTO_BASIS RI_XAS MEDIUM
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &XC
+      &XC_FUNCTIONAL 
+         &LIBXC
+            FUNCTIONAL LDA_C_VWN
+         &END LIBXC
+         &LIBXC
+            FUNCTIONAL LDA_X
+            SCALE 0.75
+         &END LIBXC
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.25
+         &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE TRUNCATED
+            CUTOFF_RADIUS 3.0
+         &END INTERACTION_POTENTIAL
+      &END HF
+    &END XC
+
+    &XAS_TDP
+      &DONOR_STATES
+         DEFINE_EXCITED BY_INDEX
+         AT_LIST 1 
+         STATE_TYPES 1s
+         N_SEARCH 8
+         LOCALIZE
+      &END DONOR_STATES
+
+      TAMM_DANCOFF 
+      GRID Ne 150 150
+
+      &KERNEL
+         &XC_FUNCTIONAL 
+            &LIBXC
+               FUNCTIONAL LDA_C_VWN
+            &END LIBXC
+            &LIBXC
+               FUNCTIONAL LDA_X
+               SCALE 0.75
+            &END LIBXC
+         &END XC_FUNCTIONAL
+
+         &EXACT_EXCHANGE
+            FRACTION 0.25
+            OPERATOR TRUNCATED
+            CUTOFF_RADIUS 3.0
+            EPS_SCREENING 1.0E-8
+         &END EXACT_EXCHANGE
+      &END KERNEL
+
+      &DIAGONALIZATION
+         N_EXCITED 10
+      &END DIAGONALIZATION
+    &END XAS_TDP
+
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      Ne 0.0 0.0 0.0
+      Ne 3.0 0.0 0.0
+      Ne 0.0 3.0 0.0
+      Ne 0.0 0.0 3.0
+      Ne 3.0 3.0 0.0
+      Ne 3.0 0.0 3.0
+      Ne 0.0 3.0 3.0
+      Ne 3.0 3.0 3.0
+    &END COORD
+    &KIND Ne
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

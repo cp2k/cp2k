@@ -39,7 +39,8 @@ MODULE ai_operators_r12
                                               pi
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
-   USE t_c_g0,                          ONLY: t_c_g0_n, get_lmax_init
+   USE t_c_g0,                          ONLY: get_lmax_init,&
+                                              t_c_g0_n
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -691,9 +692,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cps_truncated2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: n
-      REAL(KIND=dp)                                      :: t, r, f0
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
       LOGICAL                                            :: use_gamma
+      REAL(KIND=dp)                                      :: f0, r, t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
 
       MARK_USED(omega)
 
@@ -704,7 +705,7 @@ CONTAINS
       f0 = 2.0_dp*SQRT(pi**5*zetw)*zetp*zetq
 
       !check that the operator has been init from file
-      CPASSERT(get_lmax_init() .GE. nmax) 
+      CPASSERT(get_lmax_init() .GE. nmax)
 
       CALL t_c_g0_n(f, use_gamma, r, t, nmax)
       IF (use_gamma) CALL fgamma(nmax, t, f)
@@ -712,8 +713,8 @@ CONTAINS
       DO n = 1, nmax
          v(1, 1, n) = f0*f(n)
       END DO
-      
-      DEALLOCATE(f)
+
+      DEALLOCATE (f)
 
    END SUBROUTINE cps_truncated2
 

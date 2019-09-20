@@ -506,7 +506,8 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
-                                                            ri_hfx_basis, tmp_basis_set, ri_xas_basis
+                                                            ri_hfx_basis, ri_xas_basis, &
+                                                            tmp_basis_set
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -796,11 +797,11 @@ CONTAINS
          ! Check if RI_XAS basis is given, auto-generate if not
          CALL get_qs_env(qs_env, nkind=nkind)
          DO ikind = 1, nkind
-            NULLIFY(ri_xas_basis)
+            NULLIFY (ri_xas_basis)
             qs_kind => qs_kind_set(ikind)
             CALL get_qs_kind(qs_kind, basis_Set=ri_xas_basis, basis_type="RI_XAS")
             IF (.NOT. ASSOCIATED(ri_xas_basis)) THEN
-               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_XAS basis. "// & 
+               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_XAS basis. "// &
                             "This is experimental code.")
                !Because might need nco(l) with high l<=max_orbl in create_ri_aux_basis_set
                CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)

@@ -1742,6 +1742,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief - compute a truncation radius for the shortrange operator
 !> \param eps target accuracy!> \param omg screening parameter
+!> \param omg ...
 !> \param r_cutoff cutoff radius
 !> \par History
 !>      10.2012 created [Hossein Banihashemian]
@@ -1788,8 +1789,8 @@ CONTAINS
 !> \param df ...
 ! **************************************************************************************************
       SUBROUTINE eval_transc_func(r, eps, omega, fn, df)
-         REAL(dp), INTENT(in)                               :: r, eps, omega
-         REAL(dp), INTENT(out)                              :: fn, df
+      REAL(dp), INTENT(in)                               :: r, eps, omega
+      REAL(dp), INTENT(out)                              :: fn, df
 
          fn = erfc(omega*r)-r*eps
          df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi)-eps

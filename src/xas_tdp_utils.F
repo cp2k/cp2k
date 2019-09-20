@@ -1,6 +1,6 @@
-!--------------------------------------------------------------------------------------------------! 
-!   CP2K: A general program to perform molecular dynamics simulations                              ! 
-!   Copyright (C) 2000 - 2017  CP2K developers group                                               ! 
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -19,23 +19,42 @@ MODULE xas_tdp_utils
                                               operator_truncated,&
                                               operator_verfc
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_fm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
-                                              cp_cfm_create, cp_cfm_release, cp_cfm_get_submatrix, &
-                                              cp_cfm_get_element, cp_cfm_get_info
-   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param, cp_eri_mme_set_params
-   USE cp_files,                        ONLY: close_file, open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale, cp_fm_trace, cp_fm_upper_to_full,&
-                                              cp_fm_scale, cp_fm_scale_and_add, cp_fm_transpose, &
-                                              cp_fm_triangular_multiply, cp_fm_triangular_invert
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_get_submatrix,&
+                                              cp_cfm_release,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
+   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
+                                              cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
+                                              cp_eri_mme_set_params
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_scale,&
+                                              cp_fm_transpose,&
+                                              cp_fm_triangular_invert,&
+                                              cp_fm_triangular_multiply,&
+                                              cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver, cp_fm_geeig, cp_fm_power
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create, cp_fm_struct_release, &     
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_geeig,&
+                                              cp_fm_power
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_element, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_release, cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -52,14 +71,10 @@ MODULE xas_tdp_utils
    USE eri_mme_types,                   ONLY: eri_mme_init,&
                                               eri_mme_release
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t, cp_libint_cleanup_3eri, & 
-                                              cp_libint_init_3eri, cp_libint_set_contrdepth
-   USE input_constants,                 ONLY: tddfpt_singlet, tddfpt_triplet, xas_tdp_uks, &
-                                              xas_tdp_roks, tddfpt_spin_cons, tddfpt_spin_flip, &
-                                              do_potential_coulomb, do_potential_truncated,&
-                                              xas_dip_len, xas_dip_vel, do_eri_mme, &
-                                              do_potential_short, do_potential_id, &
-                                              xas_tdp_diag_std, xas_tdp_diag_syevr
+   USE input_constants,                 ONLY: &
+        do_potential_coulomb, do_potential_id, do_potential_short, do_potential_truncated, &
+        tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_len, &
+        xas_tdp_diag_std
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: get_diag,&
@@ -76,7 +91,6 @@ MODULE xas_tdp_utils
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: release_sab
-   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -94,11 +108,13 @@ MODULE xas_tdp_utils
                                               o3c_iterator_release,&
                                               o3c_iterator_type,&
                                               release_o3c_container
-   USE t_c_g0,                          ONLY: init, get_lmax_init
-   USE util,                            ONLY: locate
-   USE xas_tdp_kernel,                  ONLY: kernel_coulomb_xc, kernel_exchange
-   USE xas_tdp_types,                   ONLY: donor_state_type, xas_tdp_env_type, &
-                                              xas_tdp_control_type
+   USE t_c_g0,                          ONLY: get_lmax_init,&
+                                              init
+   USE xas_tdp_kernel,                  ONLY: kernel_coulomb_xc,&
+                                              kernel_exchange
+   USE xas_tdp_types,                   ONLY: donor_state_type,&
+                                              xas_tdp_control_type,&
+                                              xas_tdp_env_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -479,36 +495,35 @@ CONTAINS
 !>       The problem is solved for the LR coefficients c_pIa as they are (not linear combination)
 !>       The routine might be called twice (once for spin-conservign, one for spin-flip)
 ! **************************************************************************************************
-   SUBROUTINE solve_xas_tdp_prob(donor_state, xas_tdp_control, xas_tdp_env, qs_env, ex_type)  
+   SUBROUTINE solve_xas_tdp_prob(donor_state, xas_tdp_control, xas_tdp_env, qs_env, ex_type)
 
-      TYPE(donor_state_type), POINTER                 :: donor_state
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
-      TYPE(qs_environment_type), POINTER              :: qs_env
-      INTEGER, INTENT(IN)                             :: ex_type
+      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: ex_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = "solve_xas_tdp_prob", &
-                                     routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'solve_xas_tdp_prob', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: nrow, i, nao, imo, &
-                                                         ndo_mo, nelectron, &
-                                                         nevals, nocc, handle, &
-                                                         nspins, ispin, diag_type, first_ex
-      TYPE(cp_para_env_type), POINTER                 :: para_env
-      TYPE(dbcsr_type), POINTER                       :: matrix_tdp
-      TYPE(dbcsr_type)                                :: tmp_mat
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                :: fm_struct, ex_struct
-      TYPE(cp_fm_type), POINTER                       :: rhs_matrix, lhs_matrix, work, c_diff, &
-                                                         c_sum, lr_coeffs
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: scaling, tmp_evals
-      REAL(dp), DIMENSION(:), POINTER                 :: lr_evals
-      LOGICAL                                         :: do_os, do_sf
+      INTEGER                                            :: diag_type, first_ex, handle, i, imo, &
+                                                            ispin, nao, ndo_mo, nelectron, nevals, &
+                                                            nocc, nrow, nspins
+      LOGICAL                                            :: do_os, do_sf
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: scaling, tmp_evals
+      REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: ex_struct, fm_struct
+      TYPE(cp_fm_type), POINTER                          :: c_diff, c_sum, lhs_matrix, lr_coeffs, &
+                                                            rhs_matrix, work
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_type)                                   :: tmp_mat
+      TYPE(dbcsr_type), POINTER                          :: matrix_tdp
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work)
-      NULLIFY(c_diff, c_sum, ex_struct, lr_evals, lr_coeffs)
+      NULLIFY (para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work)
+      NULLIFY (c_diff, c_sum, ex_struct, lr_evals, lr_coeffs)
       CPASSERT(ASSOCIATED(xas_tdp_env))
 
       do_os = .FALSE.
@@ -530,7 +545,7 @@ CONTAINS
 !     Initialization
       nspins = 1; IF (do_os) nspins = 2
       diag_type = xas_tdp_control%diag_type
-      CALL cp_fm_get_info(donor_state%gs_coeffs, nrow_global=nao)      
+      CALL cp_fm_get_info(donor_state%gs_coeffs, nrow_global=nao)
       CALL dbcsr_get_info(matrix_tdp, nfullrows_total=nrow)
       ndo_mo = donor_state%ndo_mo
       nocc = nelectron/2; IF (do_os) nocc = nelectron
@@ -539,7 +554,7 @@ CONTAINS
          nevals = xas_tdp_control%n_excited
       END IF
       nevals = ndo_mo*nevals !as in input description, multiply by # of donor MOs
-      nocc  = ndo_mo*nocc
+      nocc = ndo_mo*nocc
       first_ex = nocc+1 !where to find the first proper eigenvalue
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nrow, &
@@ -561,10 +576,10 @@ CONTAINS
          lr_evals => donor_state%tp_evals
       END IF
 
-         ! create the fm infrastructure
-         ALLOCATE (tmp_evals(nrow))
-         CALL cp_fm_create(rhs_matrix, fm_struct)
-         CALL cp_fm_create(work, fm_struct)
+      ! create the fm infrastructure
+      ALLOCATE (tmp_evals(nrow))
+      CALL cp_fm_create(rhs_matrix, fm_struct)
+      CALL cp_fm_create(work, fm_struct)
 
 !     Test on TDA
       IF (xas_tdp_control%tamm_dancoff) THEN
@@ -618,7 +633,7 @@ CONTAINS
          CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%matrix_aux, 0.0_dp, tmp_mat)
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, work, c_diff, ncol=nrow)
 
-         ALLOCATE(scaling(nrow))
+         ALLOCATE (scaling(nrow))
          WHERE (tmp_evals .NE. 0.0_dp) scaling = 1.0_dp/tmp_evals
          CALL cp_fm_column_scale(c_diff, scaling)
 
@@ -642,7 +657,7 @@ CONTAINS
 !        Full TDDFT specific clean-up
          CALL cp_fm_release(c_diff)
          CALL dbcsr_release(tmp_mat)
-         DEALLOCATE(scaling)
+         DEALLOCATE (scaling)
 
       END IF ! TDA
 
@@ -663,7 +678,7 @@ CONTAINS
             DO imo = 1, ndo_mo
 
                CALL cp_fm_to_fm_submat(msource=c_sum, mtarget=lr_coeffs, &
-                                       nrow=nao, ncol=1, s_firstrow=((ispin-1)*ndo_mo+imo-1)*nao+1,&
+                                       nrow=nao, ncol=1, s_firstrow=((ispin-1)*ndo_mo+imo-1)*nao+1, &
                                        s_firstcol=first_ex+i-1, t_firstrow=1, &
                                        t_firstcol=(i-1)*ndo_mo*nspins+(ispin-1)*ndo_mo+imo)
             END DO !imo
@@ -697,25 +712,27 @@ CONTAINS
 !>        can be computed. Can be considerably cheaper than the stendard diagonalization for very
 !>        large matrices
 !> amatrix ...
+!> \param amatrix ...
 !> \param bmatrix ...
-!> \param eigenvectors ... 
+!> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param ilow index of the first eigenvalue to compute
 !> \param iup index of the last eigenvalue to compute
-!> \param work ... 
-!> \note Blatantly copied from cp_fm_geeig. The eigenvalues are the first elements of the 
+!> \param work ...
+!> \note Blatantly copied from cp_fm_geeig. The eigenvalues are the first elements of the
 !>       `eigenvalues` array and the eigenvectors are in the first columns of `eigenvectors`
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig_syevr(amatrix, bmatrix, eigenvectors, eigenvalues, ilow, iup, work)
 
-      TYPE(cp_fm_type), POINTER                       :: amatrix, bmatrix, eigenvectors
-      REAL(dp), DIMENSION(:)                          :: eigenvalues
-      TYPE(cp_fm_type), POINTER                       :: work
-      INTEGER, INTENT(IN)                             :: ilow, iup
+      TYPE(cp_fm_type), POINTER                          :: amatrix, bmatrix, eigenvectors
+      REAL(dp), DIMENSION(:)                             :: eigenvalues
+      INTEGER, INTENT(IN)                                :: ilow, iup
+      TYPE(cp_fm_type), POINTER                          :: work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig_syevr', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig_syevr', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: nao, neig
+      INTEGER                                            :: nao, neig
 
       CALL cp_fm_get_info(amatrix, nrow_global=nao)
       neig = iup-ilow+1
@@ -976,13 +993,13 @@ CONTAINS
    END SUBROUTINE get_normal_scaling
 
 ! **************************************************************************************************
-!> \breif This subroutine computes the row/column block structure as well as the dbcsr ditrinution
+!> \brief This subroutine computes the row/column block structure as well as the dbcsr ditrinution
 !>        for the submatrices making up the generalized XAS TDP eigenvalue problem. They all share
 !>        the same properties, which are based on the replication of the KS matrix
 !> \param submat_dist the dbcsr distribution of the submatrices
 !> \param submat_blk_size the row/col block sizes for the submatrices
-!> \param do_os whther this is a open-shell calculation
 !> \param donor_state ...
+!> \param do_os whther this is a open-shell calculation
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_submat_dist_and_blk_size(submat_dist, submat_blk_size, donor_state, do_os, &
@@ -1053,8 +1070,8 @@ CONTAINS
 !> \param blk_size_q the block size
 !> \param donor_state ...
 !> \param do_os whether it is open-shell calculation
-!> \param do_sf whether the projector should be prepared for spin-flip excitations
 !> \param xas_tdp_env ...
+!> \param do_sf whether the projector should be prepared for spin-flip excitations
 !> \note In the spin-flip case, the alpha spins are sent to beta and vice-versa. The structure of
 !>       the projector is changed by swapping the alpha-alpha with the beta-beta block, which
 !>       naturally take the spin change into account. Only for open-shell.
@@ -1072,14 +1089,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_q_projector', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, blk, iblk, iblk, imo, ispin, jblk, &
-                                                            jblk, nblk_row, nblk_row, ndo_mo, &
+      INTEGER                                            :: blk, iblk, imo, ispin, jblk, nblk_row, &
                                                             ndo_mo, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, row_blk_size
-      LOGICAL                                            :: found_block, found_block, my_dosf
-      REAL(dp), DIMENSION(:), POINTER                    :: work_block, work_block
-      TYPE(dbcsr_iterator_type)                          :: iter, iter
-      TYPE(dbcsr_type), POINTER                          :: one_sp, one_sp
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      LOGICAL                                            :: found_block, my_dosf
+      REAL(dp), DIMENSION(:), POINTER                    :: work_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type), POINTER                          :: one_sp
 
       NULLIFY (work_block, one_sp, row_blk_size)
 
@@ -1156,22 +1172,21 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_sf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_gs_contribution', &
-                                     routineP = moduleN//":"//routineN
-      
-      INTEGER                                         :: ndo_mo, imo, nblk_row, iblk, jblk, blk, &
-                                                         nspins, ispin
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, m_ks
-      TYPE(dbcsr_distribution_type), POINTER          :: dbcsr_dist
-      INTEGER, DIMENSION(:), POINTER                  :: row_blk_size 
-      REAL(dp), DIMENSION(:), POINTER                 :: energy_evals     
-      REAL(dp), DIMENSION(:), POINTER                 :: work_block
-      LOGICAL                                         :: found_block, my_dosf
-      TYPE(dbcsr_type)                                :: work_matrix
-      TYPE(dbcsr_iterator_type)                       :: iter
+         routineP = moduleN//':'//routineN
 
-      NULLIFY(matrix_ks, dbcsr_dist, row_blk_size, work_block, energy_evals, matrix_s, m_ks)
+      INTEGER                                            :: blk, iblk, imo, ispin, jblk, nblk_row, &
+                                                            ndo_mo, nspins
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      LOGICAL                                            :: found_block, my_dosf
+      REAL(dp), DIMENSION(:), POINTER                    :: energy_evals, work_block
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: m_ks, matrix_ks, matrix_s
+      TYPE(dbcsr_type)                                   :: work_matrix
 
-      !  Note: matrix A is symmetric and block diagonal. If ADMM, the ks matrix is the total one, 
+      NULLIFY (matrix_ks, dbcsr_dist, row_blk_size, work_block, energy_evals, matrix_s, m_ks)
+
+      !  Note: matrix A is symmetric and block diagonal. If ADMM, the ks matrix is the total one,
       !        and it is corrected for eigenvalues (done at xas_tdp_init)
 
 !  Initialization
@@ -1273,8 +1288,8 @@ CONTAINS
 !> \param blk_size_g block sizes of G
 !> \param donor_state ...
 !> \param qs_env ...
-!> \param do_inv if the inverse of G should be computed
 !> \param do_os if open-shell calculation
+!> \param do_inv if the inverse of G should be computed
 ! **************************************************************************************************
    SUBROUTINE build_metric(matrix_g, dist_g, blk_size_g, donor_state, qs_env, do_os, do_inv)
 
@@ -1388,8 +1403,8 @@ CONTAINS
    END SUBROUTINE build_metric
 
 ! **************************************************************************************************
-! \brief Builds the auxiliary matrix (A-D+E)^+0.5 needed for the transofrmation of the
-!>       full-TDDFT problem into an Hermitian one
+!> \brief Builds the auxiliary matrix (A-D+E)^+0.5 needed for the transofrmation of the
+!>        full-TDDFT problem into an Hermitian one
 !> \param threshold a threshold for allowed negative eigenvalues
 !> \param sx the amount of exact exchange
 !> \param matrix_a the ground state contribution matrix A
@@ -1414,13 +1429,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_aux_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: nrow, ndep, handle
-      REAL(dp)                                        :: evals(2)
-      TYPE(dbcsr_type)                                :: tmp_mat
-      TYPE(cp_fm_type), POINTER                       :: aux_fm, work_fm
-      TYPE(cp_fm_struct_type), POINTER                :: struct
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(cp_para_env_type), POINTER                 :: para_env
+      INTEGER                                            :: handle, ndep, nrow
+      REAL(dp)                                           :: evals(2)
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: struct
+      TYPE(cp_fm_type), POINTER                          :: aux_fm, work_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_type)                                   :: tmp_mat
 
       NULLIFY (aux_fm, work_fm, struct, blacs_env, para_env)
 
@@ -1474,6 +1489,7 @@ CONTAINS
 !>        excited kind
 !> \param ex_kind ...
 !> \param xas_tdp_env ...
+!> \param xas_tdp_control ...
 !> \param qs_env ...
 !> \note Computes all these integrals in non-PBCs as we assume that the range is short enough that
 !>       atoms do not exchange with their periodic images
@@ -1549,6 +1565,7 @@ CONTAINS
 !>        excited kind
 !> \param ex_kind ...
 !> \param xas_tdp_env ...
+!> \param xas_tdp_control ...
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_ri_coulomb2_int(ex_kind, xas_tdp_env, xas_tdp_control, qs_env)
@@ -1596,7 +1613,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the two-center inverse coulomb integral in the case of PBCs
 !> \param ri_coul2 ...
-!> \param ri_absis ...
+!> \param ri_basis ...
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE periodic_ri_coulomb2(ri_coul2, ri_basis, qs_env)
@@ -1841,9 +1858,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns an optimized distribution_2d for the given neighbor lists based on an evaluation
 !>        of the cost of the corresponding 3-center integrals
-!> \param opt_3c_dist2 the optimized distribution_2d
+!> \param opt_3c_dist2d the optimized distribution_2d
 !> \param ab_list ...
-!> \param ac_lsit ...
+!> \param ac_list ...
 !> \param basis_set_a ...
 !> \param basis_set_b ...
 !> \param basis_set_c ...
@@ -2011,8 +2028,8 @@ CONTAINS
 !> \param ab_list the neighbor list
 !> \param basis_a basis set list for atom a
 !> \param basis_b basis set list for atom b
-!> \param excited_atoms the indices of the excited atoms on which b is centered
 !> \param qs_env ...
+!> \param excited_atoms the indices of the excited atoms on which b is centered
 !> \param ext_dist2d use an external distribution2d
 ! **************************************************************************************************
    SUBROUTINE build_xas_tdp_ovlp_nl(ab_list, basis_a, basis_b, qs_env, excited_atoms, ext_dist2d)
@@ -2111,10 +2128,10 @@ CONTAINS
 !> \param basis_a basis set list for atom a
 !> \param basis_c basis set list for atom c
 !> \param op_type to indicate whther the list should be built with overlap or Coulomb in mind
+!> \param qs_env ...
 !> \param excited_atoms the indices of the excited atoms to consider (if not given, all atoms are taken)
 !> \param x_range in case some truncated/screened operator is used, gives its range
 !> \param ext_dist2d external distribution_2d to be used
-!> \param qs_env ...
 !> \note Based on setup_neighbor_list with added features
 ! **************************************************************************************************
    SUBROUTINE build_xas_tdp_3c_nl(ac_list, basis_a, basis_c, op_type, qs_env, excited_atoms, &
@@ -3079,8 +3096,8 @@ CONTAINS
 !> \param gs_coeffs the coefficient of the GS donor MOs. Ecplicitely passed because of special
 !>                  format in the ROKS case (see include_os_soc routine)
 !> \param dbcsr_soc_package inhertited from the main SOC routine
-!> \donor_state ...
-!> \qs_env ...
+!> \param donor_state ...
+!> \param qs_env ...
 !> \note The ordering of the AMEWs is consistent with SOC and is gs, sc, sf
 !>       We assume that the operator is spin-independent => only <0|0>, <0|sc>, <sc|sc> and <sf|sf>
 !>       yield non-zero matrix elements
@@ -3512,8 +3529,10 @@ CONTAINS
 !> \param lr_soc dbcsr matrix with the SOC wrt the LR orbitals
 !> \param lr_overlap dbcsr matrix with the excited states LR orbital overlap
 !> \param domo_soc the SOC in the basis of the donor MOs
-!> \param pref_trace see notes
-!> \param pref_overall see notes
+!> \param pref_diaga ...
+!> \param pref_diagb ...
+!> \param pref_tracea ...
+!> \param pref_traceb ...
 !> \param pref_diags see notes
 !> \param symmetric if the outcome is known to be symmetric, only elements with iex <= jex are done
 !> \param tracea_start the indices where to start in the trace part for alpha
@@ -3681,7 +3700,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the dipole oscillator strengths in the AMEWs basis for SOC
 !> \param soc_evecs_cfm the complex AMEWs coefficients
-!> \param inherited from the main SOC routine
+!> \param dbcsr_soc_package ...
 !> \param donor_state ...
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...

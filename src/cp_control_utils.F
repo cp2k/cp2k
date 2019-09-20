@@ -365,12 +365,12 @@ CONTAINS
       END IF
 
       tmp_section => section_vals_get_subs_vals(dft_section, "XAS_TDP")
-      CALL section_vals_get(tmp_section, explicit=dft_control%do_xas_tdp_calculation)     
+      CALL section_vals_get(tmp_section, explicit=dft_control%do_xas_tdp_calculation)
       IF (dft_control%do_xas_tdp_calculation) THEN
          ! Override with section parameter
          CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
                                    l_val=dft_control%do_xas_tdp_calculation)
-      END IF 
+      END IF
 
       ! Read the finite field input section
       dft_control%apply_efield = .FALSE.

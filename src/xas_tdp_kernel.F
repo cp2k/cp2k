@@ -25,9 +25,14 @@ MODULE xas_tdp_kernel
         dbcsr_type_symmetric
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_bcast, mp_isend, mp_irecv, mp_waitall
-   USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env 
-   USE qs_kind_types,                   ONLY: get_qs_kind, qs_kind_type
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_irecv,&
+                                              mp_isend,&
+                                              mp_waitall
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_o3c_methods,                  ONLY: contract3_o3c
    USE qs_o3c_types,                    ONLY: &
         get_o3c_container, get_o3c_iterator_info, get_o3c_vec, o3c_container_type, o3c_iterate, &
@@ -61,8 +66,8 @@ CONTAINS
 !> \param dist the dbcsr_dist of the kernel matrices
 !> \param blk_size the block size of the kernel matrices
 !> \param donor_state ...
-!> \param xas_tdp_control ...
 !> \param xas_tdp_env ...
+!> \param xas_tdp_control ...
 !> \param qs_env ...
 !> \note Coulomb and xc kernel are put together in the same routine because they use the same RI
 !>       Coulomb: (aI|Jb) = (aI|P) (P|Q)^-1 (Q|Jb)
@@ -75,28 +80,29 @@ CONTAINS
    SUBROUTINE kernel_coulomb_xc(coul_ker, xc_ker, dist, blk_size, donor_state, xas_tdp_env, &
                                 xas_tdp_control, qs_env)
 
-      TYPE(dbcsr_type), INTENT(INOUT)                 :: coul_ker
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: xc_ker
-      TYPE(dbcsr_distribution_type), POINTER          :: dist
-      INTEGER, DIMENSION(:), POINTER                  :: blk_size
-      TYPE(donor_state_type), POINTER                 :: donor_state
-      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(qs_environment_type), POINTER              :: qs_env
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: coul_ker
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: xc_ker
+      TYPE(dbcsr_distribution_type), POINTER             :: dist
+      INTEGER, DIMENSION(:), POINTER                     :: blk_size
+      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = "kernel_coulomb_xc", routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kernel_coulomb_xc', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: handle, ndo_mo, ri_atom, iex, &
-                                                         natom, nsgfp, source, nex_atom, bo(2),&
-                                                         ndo_so, i, ub, lb, nbatch, ibatch
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: contr1_int
-      REAL(dp), DIMENSION(:,:), POINTER               :: PQ
-      TYPE(dbcsr_distribution_type), POINTER          :: dbcsr_dist
-      TYPE(cp_para_env_type), POINTER                 :: para_env
-      LOGICAL                                         :: found, do_coulomb, do_xc, do_sg, do_tp, &
-                                                         do_sc, do_sf
+      INTEGER                                            :: bo(2), handle, i, ibatch, iex, lb, &
+                                                            natom, nbatch, ndo_mo, ndo_so, &
+                                                            nex_atom, nsgfp, ri_atom, source, ub
+      LOGICAL                                            :: do_coulomb, do_sc, do_sf, do_sg, do_tp, &
+                                                            do_xc, found
+      REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: contr1_int
 
-      NULLIFY(contr1_int, PQ, dbcsr_dist, para_env)
+      NULLIFY (contr1_int, PQ, dbcsr_dist, para_env)
 
 !  Initialization
       ndo_mo = donor_state%ndo_mo
@@ -149,8 +155,8 @@ CONTAINS
                DO iex = bo(1), bo(2)
 
                   IF (xas_tdp_env%ex_atom_indices(iex) == ri_atom) THEN
-                     source = ibatch*xas_tdp_control%batch_size !fxc is on all procs of the batch, 
-                     found = .TRUE.                             !but simply take the first
+                     source = ibatch*xas_tdp_control%batch_size !fxc is on all procs of the batch,
+                     found = .TRUE. !but simply take the first
                      EXIT
                   END IF
                END DO !iex
@@ -576,6 +582,7 @@ CONTAINS
 !>        1) the on-diagonal kernel: (ab|I_sigma J_tau) * delta_sigma,tau
 !>        2) the off-diagonal spin-conserving kernel: (aJ_sigma|I_tau b) * delta_sigma,tau
 !>        An internal analysis determines which of the above are computed (can range from 0 to 2),
+!> \param ex_ker ...
 !> \param dist the usual dbcsr distribution
 !> \param blk_size the block size
 !> \param donor_state ...
@@ -1432,7 +1439,7 @@ CONTAINS
 !> \param quadrants on which quadrant(s) on the kernel matrix the product is stored
 !> \param qs_env ...
 !> \param mo_transpose whether the MO blocks should be transpose, i.e. (aI|Jb) => (aJ|Ib)
-!> \Note It is assumed that the kerenl matrix is NOT symmetric
+!> \note It is assumed that the kerenl matrix is NOT symmetric
 !>       There are three quadrants, corresponding to 1: the upper-left (diagonal), 2: the
 !>       upper-right (off-diagonal) and 3: the lower-right (diagonal).
 !>       Need to finalize the kernel matrix after calling this routine (possibly multiple times)

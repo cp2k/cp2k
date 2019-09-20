@@ -12,9 +12,9 @@
 MODULE qs_o3c_methods
    USE ai_contraction_sphi,             ONLY: abc_contract
    USE ai_overlap3,                     ONLY: overlap3
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
-                                              gto_basis_set_type, &
-                                              get_gto_basis_set
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -22,8 +22,10 @@ MODULE qs_o3c_methods
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE gamma,                           ONLY: init_md_ftable
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t, cp_libint_cleanup_3eri, &
-                                              cp_libint_init_3eri, cp_libint_set_contrdepth
+   USE hfx_libint_wrapper,              ONLY: cp_libint_cleanup_3eri,&
+                                              cp_libint_init_3eri,&
+                                              cp_libint_set_contrdepth,&
+                                              cp_libint_t
    USE input_constants,                 ONLY: do_potential_truncated
    USE kinds,                           ONLY: dp
    USE libint_3center,                  ONLY: eri_3center
@@ -32,7 +34,8 @@ MODULE qs_o3c_methods
         get_o3c_container, get_o3c_iterator_info, get_o3c_vec, o3c_container_type, o3c_iterate, &
         o3c_iterator_create, o3c_iterator_release, o3c_iterator_type, o3c_vec_type, &
         set_o3c_container
-   USE t_c_g0,                          ONLY: init, get_lmax_init
+   USE t_c_g0,                          ONLY: get_lmax_init,&
+                                              init
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -321,6 +324,7 @@ CONTAINS
 !> \param o3c the 3-center integrals container
 !> \param op the operator for the integrals
 !> \param t_c_filename the name of the file with the truncated Coulomb data
+!> \param para_env ...
 !> \param r_cutoff the cutoff radius for the truncated coulomb operator
 !> \param omega the range parameter for the erfc short range operator
 !> \param eps_screen the screening threshold for sicarding integrals before contraction
@@ -334,38 +338,35 @@ CONTAINS
       TYPE(o3c_container_type), POINTER                  :: o3c
       INTEGER, INTENT(IN)                                :: op
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
-      TYPE(cp_para_env_type), POINTER, OPTIONAL          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff, omega, eps_screen
 
-      CHARACTER(len=*), PARAMETER :: routineN = "calculate_o3c_libint_integrals", &
-                                     routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_o3c_libint_integrals', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, nspin, nthread, mepos, ikind, &
-                                                            jkind, kkind, nseta, nsetb, nsetc, &
-                                                            iset, jset, kset, ni, nj, nk, ncoa, &
-                                                            ncob, ncoc, sgfa, sgfb, sgfc, egfa, &
-                                                            egfb, egfc, maxli, maxlj, maxlk, imax, &
-                                                            ibasis, unit_id, m_max
-      LOGICAL                                            :: do_screen
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, & 
-                                                            basis_set_list_c
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_c
-      TYPE(o3c_iterator_type)                            :: o3c_iterator
-      REAL(dp), DIMENSION(3)                             :: rij, rik, ri, rj, rk
-      REAL(dp), DIMENSION(:,:), POINTER                  :: tvec, sphi_a, sphi_b, sphi_c, &
-                                                            zeta, zetb, zetc
-      REAL(dp), DIMENSION(:,:,:), POINTER                :: iabc
-      REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: sabc
+      INTEGER :: egfa, egfb, egfc, handle, ibasis, ikind, imax, iset, jkind, jset, kkind, kset, &
+         m_max, maxli, maxlj, maxlk, mepos, ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, &
+         nspin, nthread, sgfa, sgfb, sgfc, unit_id
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
-      INTEGER, DIMENSION(:,:), POINTER                   :: first_sgfa, first_sgfb, first_sgfc
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfc
+      LOGICAL                                            :: do_screen
+      REAL(dp)                                           :: my_eps_screen, my_omega, my_r_cutoff
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: sabc
+      REAL(dp), DIMENSION(3)                             :: ri, rij, rik, rj, rk
+      REAL(dp), DIMENSION(:, :), POINTER                 :: sphi_a, sphi_b, sphi_c, tvec, zeta, &
+                                                            zetb, zetc
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: iabc
       TYPE(cp_libint_t)                                  :: lib
-      REAL(dp)                                           :: my_omega, my_r_cutoff, my_eps_screen
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, &
+                                                            basis_set_list_c
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_c
+      TYPE(o3c_iterator_type)                            :: o3c_iterator
 
-      NULLIFY(basis_set_list_a, basis_set_list_b, basis_set_list_c, basis_set_a, basis_set_b)
-      NULLIFY(basis_set_c, iabc, tvec, first_sgfa, first_sgfb, first_sgfc, la_max, la_min, lb_max)
-      NULLIFY(lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
+      NULLIFY (basis_set_list_a, basis_set_list_b, basis_set_list_c, basis_set_a, basis_set_b)
+      NULLIFY (basis_set_c, iabc, tvec, first_sgfa, first_sgfb, first_sgfc, la_max, la_min, lb_max)
+      NULLIFY (lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
 
       CALL timeset(routineN, handle)
 
@@ -411,7 +412,7 @@ CONTAINS
          !open the file only if necessary
          IF (m_max > get_lmax_init()) THEN
             IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=t_c_filename)       
+               CALL open_file(unit_number=unit_id, file_name=t_c_filename)
             END IF
             CALL init(m_max, unit_id, para_env%mepos, para_env%group)
             IF (para_env%mepos == 0) THEN
@@ -443,99 +444,99 @@ CONTAINS
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
 
-      DO WHILE(o3c_iterate(o3c_iterator, mepos=mepos) == 0)
+      DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
 
          CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                     kkind=kkind, rij=rij, rik=rik, integral=iabc, tvec=tvec)
 
-            !basis
-            basis_set_a => basis_set_list_a(ikind)%gto_basis_set
-            basis_set_b => basis_set_list_b(jkind)%gto_basis_set
-            basis_set_c => basis_set_list_c(kkind)%gto_basis_set
-            ! center A
-            first_sgfa => basis_set_a%first_sgf
-            la_max => basis_set_a%lmax
-            la_min => basis_set_a%lmin
-            npgfa => basis_set_a%npgf
-            nseta = basis_set_a%nset
-            nsgfa => basis_set_a%nsgf_set
-            sphi_a => basis_set_a%sphi
-            zeta => basis_set_a%zet
-            ! center B
-            first_sgfb => basis_set_b%first_sgf
-            lb_max => basis_set_b%lmax
-            lb_min => basis_set_b%lmin
-            npgfb => basis_set_b%npgf
-            nsetb = basis_set_b%nset
-            nsgfb => basis_set_b%nsgf_set
-            sphi_b => basis_set_b%sphi
-            zetb => basis_set_b%zet
-            ! center C
-            first_sgfc => basis_set_c%first_sgf
-            lc_max => basis_set_c%lmax
-            lc_min => basis_set_c%lmin
-            npgfc => basis_set_c%npgf
-            nsetc = basis_set_c%nset
-            nsgfc => basis_set_c%nsgf_set
-            sphi_c => basis_set_c%sphi
-            zetc => basis_set_c%zet
+         !basis
+         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
+         basis_set_b => basis_set_list_b(jkind)%gto_basis_set
+         basis_set_c => basis_set_list_c(kkind)%gto_basis_set
+         ! center A
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         sphi_a => basis_set_a%sphi
+         zeta => basis_set_a%zet
+         ! center B
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         sphi_b => basis_set_b%sphi
+         zetb => basis_set_b%zet
+         ! center C
+         first_sgfc => basis_set_c%first_sgf
+         lc_max => basis_set_c%lmax
+         lc_min => basis_set_c%lmin
+         npgfc => basis_set_c%npgf
+         nsetc = basis_set_c%nset
+         nsgfc => basis_set_c%nsgf_set
+         sphi_c => basis_set_c%sphi
+         zetc => basis_set_c%zet
 
-            ni = SUM(nsgfa)
-            nj = SUM(nsgfb)
-            nk = SUM(nsgfc)
+         ni = SUM(nsgfa)
+         nj = SUM(nsgfb)
+         nk = SUM(nsgfc)
 
-            ALLOCATE(iabc(ni, nj, nk))
-            iabc(:,:,:) = 0.0_dp
+         ALLOCATE (iabc(ni, nj, nk))
+         iabc(:, :, :) = 0.0_dp
 
-            ALLOCATE(tvec(nk, nspin))
-            tvec(:,:) = 0.0_dp
+         ALLOCATE (tvec(nk, nspin))
+         tvec(:, :) = 0.0_dp
 
-            !need positions for libint. Only relative positions are needed => set ri to 0.0
-            ri = 0.0_dp
-            rj = rij ! ri + rij
-            rk = rik ! ri + rik
+         !need positions for libint. Only relative positions are needed => set ri to 0.0
+         ri = 0.0_dp
+         rj = rij ! ri + rij
+         rk = rik ! ri + rik
 
-            DO iset = 1, nseta
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               sgfa = first_sgfa(1, iset)
-               egfa = sgfa+nsgfa(iset)-1
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+            egfa = sgfa+nsgfa(iset)-1
 
-               DO jset = 1, nsetb
-                  ncob = npgfb(jset)*ncoset(lb_max(jset))
-                  sgfb = first_sgfb(1, jset)
-                  egfb = sgfb+nsgfb(jset)-1
+            DO jset = 1, nsetb
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               sgfb = first_sgfb(1, jset)
+               egfb = sgfb+nsgfb(jset)-1
 
-                  DO kset = 1, nsetc
-                     ncoc = npgfc(kset)*ncoset(lc_max(kset))
-                     sgfc = first_sgfc(1, kset)
-                     egfc = sgfc+nsgfc(kset)-1
+               DO kset = 1, nsetc
+                  ncoc = npgfc(kset)*ncoset(lc_max(kset))
+                  sgfc = first_sgfc(1, kset)
+                  egfc = sgfc+nsgfc(kset)-1
 
-                     ALLOCATE(sabc(ncoa, ncob, ncoc))
-                     sabc = 0.0_dp
+                  ALLOCATE (sabc(ncoa, ncob, ncoc))
+                  sabc = 0.0_dp
 
-                     CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:,iset), &
-                                      ri, lb_min(jset), lb_max(jset), npgfb(jset), zetb(:,jset), &
-                                      rj, lc_min(kset), lc_max(kset), npgfc(kset), zetc(:,kset), &
-                                      rk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
+                  CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
+                                   ri, lb_min(jset), lb_max(jset), npgfb(jset), zetb(:, jset), &
+                                   rj, lc_min(kset), lc_max(kset), npgfc(kset), zetc(:, kset), &
+                                   rk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
 
-                     IF (do_screen) THEN
-                        IF (MAXVAL(ABS(sabc)) < my_eps_screen) THEN
-                           DEALLOCATE(sabc)
-                           CYCLE
-                        END IF
+                  IF (do_screen) THEN
+                     IF (MAXVAL(ABS(sabc)) < my_eps_screen) THEN
+                        DEALLOCATE (sabc)
+                        CYCLE
                      END IF
+                  END IF
 
-                     CALL abc_contract(iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc), sabc, &
-                                       sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
-                                       ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
+                  CALL abc_contract(iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc), sabc, &
+                                    sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
+                                    ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
 
-                     DEALLOCATE(sabc)
+                  DEALLOCATE (sabc)
 
-                  END DO !kset
-               END DO !jset
-            END DO !iset
+               END DO !kset
+            END DO !jset
+         END DO !iset
 
-            CALL set_o3c_container(o3c_iterator, mepos=mepos, integral=iabc, tvec=tvec)
+         CALL set_o3c_container(o3c_iterator, mepos=mepos, integral=iabc, tvec=tvec)
 
       END DO !o3c_iterator
       CALL cp_libint_cleanup_3eri(lib)

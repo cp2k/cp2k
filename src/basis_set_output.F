@@ -61,7 +61,8 @@ CONTAINS
       INTEGER, SAVE                                      :: ncalls = 0
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, orb_basis, &
-                                                            ri_aux_basis, ri_hxc_basis, ri_xas_basis
+                                                            ri_aux_basis, ri_hxc_basis, &
+                                                            ri_xas_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
