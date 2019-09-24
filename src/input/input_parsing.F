@@ -635,17 +635,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_r_val', routineP = moduleN//':'//routineN
 
-      LOGICAL                                            :: check
       TYPE(cp_unit_type), POINTER                        :: my_unit
 
       NULLIFY (my_unit)
       IF (ASSOCIATED(unit)) THEN
          IF ('STR' == parser_test_next_token(parser)) THEN
             CALL parser_get_object(parser, c_val)
-            check = c_val(1:1) == "["
-            CPASSERT(check)
-            check = c_val(LEN_TRIM(c_val):LEN_TRIM(c_val)) == "]"
-            CPASSERT(check)
+            IF (c_val(1:1) /= "[" .OR. c_val(LEN_TRIM(c_val):LEN_TRIM(c_val)) /= "]") THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Invalid unit specifier found when parsing a number: "// &
+                             c_val)
+            END IF
             CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val)-1))
          ELSE
             IF (c_val /= "") THEN
