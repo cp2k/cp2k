@@ -67,7 +67,9 @@ MODULE molecular_moments
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief maps wfc's to molecules and also prints molecular dipoles
+!> \brief Calculates electrical molecular moments using local operators r-r_ref
+!>        r_ref: center of mass of the molecule
+!>        Output is in atomic units
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param qs_loc_env ...
 !> \param mo_local ...
@@ -239,7 +241,7 @@ CONTAINS
                      CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
                      IF (.NOT. ghost .AND. .NOT. floating) THEN
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
-                        ria = particle_set(i)%r-rcc
+                        ria = particle_set(j)%r-rcc
                         ria = pbc(ria, cell)
                         moment_set(i, imol_now) = moment_set(i, imol_now)+ &
                                                   zeff*ria(1)**lx*ria(2)**ly*ria(3)**lz
