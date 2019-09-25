@@ -12,7 +12,7 @@
       EPS_SCF 1.0E-6
       SCF_GUESS ATOMIC
       &OT ON
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
       &END
     &END SCF
@@ -24,6 +24,9 @@
       &PRINT
         &MOLECULAR_DIPOLES
           PERIODIC T
+        &END
+        &MOLECULAR_MOMENTS
+          ORDER 2
         &END
       &END
     &END
@@ -51,7 +54,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O-debug-6
+  PROJECT H2O-debug-7
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL

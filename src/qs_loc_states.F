@@ -20,6 +20,7 @@ MODULE qs_loc_states
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE molecular_dipoles,               ONLY: calculate_molecular_dipole
+   USE molecular_moments,               ONLY: calculate_molecular_moments
    USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -181,7 +182,7 @@ CONTAINS
       ! Compute molecular multipole moments
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "MOLECULAR_MOMENTS"), cp_p_file)) THEN
-         CPABORT("NYA")
+         CALL calculate_molecular_moments(qs_env, qs_loc_env, mo_local, loc_print_section, molecule_set)
       END IF
       !
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
