@@ -569,13 +569,13 @@ CONTAINS
       ! process line until all variables named with the convention $VAR are expanded
       DO WHILE (INDEX(input_line, '$') > 0)
          pos1 = INDEX(input_line, '$')
-         pos1 = pos1+1
+         pos1 = pos1+1 ! move to the start of the variable name
          pos2 = INDEX(input_line(pos1:), ' ')
 
          IF (pos2 == 0) &
             pos2 = LEN_TRIM(input_line(pos1:))+1
 
-         pos2 = pos1+pos2-1
+         pos2 = pos1+pos2-2 ! end of the variable name, minus the separating whitespace
          varname = input_line(pos1:pos2)
          idx = inpp_find_variable(inpp, varname)
 
