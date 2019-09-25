@@ -90,7 +90,6 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      ! Molecular Dipoles availables only for nspin == 1
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
 
