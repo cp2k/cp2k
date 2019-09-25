@@ -1,44 +1,40 @@
 #!/bin/bash
 
-DEBUG=0 # Set to 0 for no debugging, 1 for debugging
+ARGS=${ARGS:-} # Set to "-v" for debugging
 SCRIPTDIR=$(cd $(dirname "$0"); pwd) # Pick up full path to scripts from wherever doxify.sh lives
 
-for file in "$@"; do
+nwarnings=0
 
-   if $(python $SCRIPTDIR/is_fypp.py $file) ; then exit 0; fi
+for file in "$@"; do
+   "${SCRIPTDIR}/is_fypp.py" "${file}" && continue
 
    # generate temp-file names
-   tmp_file1=`mktemp`
-   tmp_file2=`mktemp`
-   tmp_file3=`mktemp`
+   tmp_file=`mktemp`
 
-   # First apply the pre-processing script to get rid of any double & type lines
-   $SCRIPTDIR/remove_double_ampersands.pl $file $tmp_file1 $DEBUG
-
-   # Run the fixcomments.pl script. This adds comment blocks to any subroutine/function
-   # definitions that don't have any and checks that existing comments are complete,
-   # fixing these if required.
-   $SCRIPTDIR/fixcomments.pl $tmp_file1 $tmp_file2 $DEBUG
-
-   # After adding comments, remove any double comment header lines
-   $SCRIPTDIR/remove_extra_comments.pl $tmp_file2 $tmp_file3 $DEBUG
+   # * First apply the pre-processing script to get rid of any double & type lines
+   # * Run the fixcomments.pl script. This adds comment blocks to any subroutine/function
+   #   definitions that don't have any and checks that existing comments are complete,
+   #   fixing these if required.
+   # * After adding comments, remove any double comment header lines
+   "${SCRIPTDIR}/remove_double_ampersands.pl" ${ARGS} "${file}" \
+       | "${SCRIPTDIR}/fixcomments.pl" ${ARGS} \
+       | "${SCRIPTDIR}/remove_extra_comments.pl" ${ARGS} > "${tmp_file}"
 
    # Copy the final modified source file on top of the original file
-   if (! cmp -s $file $tmp_file3) ; then
-       cp $tmp_file3 $file
+   if ! cmp -s "${file}" "${tmp_file}" ; then
+       cp "${tmp_file}" "${file}"
    fi
 
-   # Remove temp-files
-   rm -f $tmp_file1 $tmp_file2 $tmp_file3
+   # Remove temp-file
+   rm -f "${tmp_file}"
 
    if grep -e "UNMATCHED_PROCEDURE_ARGUMENT" \
            -e "UNKNOWN_DOXYGEN_COMMENT" \
            -e "UNKNOWN_COMMENT" \
-           $file ; then
-     echo "Found doxify warnings in $file"
-     exit 42
+           "${file}" ; then
+     echo "Found doxify warnings in ${file}"
+     ((nwarnings++))
    fi
-
 done
 
-#EOF
+exit ${nwarnings}
