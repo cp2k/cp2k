@@ -73,6 +73,7 @@ endif
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help \
          test testbg testclean testrealclean \
+         data \
 	 $(EXTSPACKAGES)
 
 # Discover files and directories ============================================
@@ -381,6 +382,16 @@ doxygen: doxygen/clean
 	@cat $(TOOLSRC)/doxify/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/build_utils/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
 	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
+
+# data stuff ================================================================
+data: data/POTENTIAL
+	@:
+
+data/POTENTIAL: data/GTH_POTENTIALS data/HF_POTENTIALS data/NLCC_POTENTIALS data/ALL_POTENTIALS
+	@echo "(re-)generating $@ ..."
+	@cat $^ > $@
+
+OTHER_HELP += "data : (re-)generate merged data files (e.g. data/POTENTIALS)"
 
 # automatic dependency generation ===========================================
 MAKEDEPMODE = "normal"
