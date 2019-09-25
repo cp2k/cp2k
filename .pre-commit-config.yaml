@@ -21,6 +21,11 @@ repos:
     -   id: black
 -   repo: local
     hooks:
+    -   id: doxify
+        name: Run doxify
+        entry: ./tools/doxify/doxify.sh
+        language: script
+        files: '.*\.(F|f90)$'
     -   id: prettify
         name: Run prettify
         entry: ./tools/prettify/prettify.py
