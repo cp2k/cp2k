@@ -15,6 +15,4 @@ apt-get install -qq --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # clone cp2k repository
-git clone --quiet --recursive --depth=1 --single-branch -b master https://github.com/cp2k/cp2k.git /workspace/cp2k
-
-#EOF
+git clone --quiet --recursive --single-branch -b master https://github.com/cp2k/cp2k.git /workspace/cp2k
