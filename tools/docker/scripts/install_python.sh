@@ -24,12 +24,6 @@ rm -rf /var/lib/apt/lists/*
 pip  install --quiet numpy matplotlib requests
 pip3 install --quiet numpy matplotlib requests pre-commit
 
+# register the pre-commit hooks
 cd /workspace/cp2k
-echo -n "Warming cache by trying to run pre-commit hooks... "
-if pre-commit run --all-files --hook-stage manual check-ast &> /dev/null ; then
-    echo "done."
-else
-    echo "failed."
-fi
-
-#EOF
+pre-commit install --install-hooks
