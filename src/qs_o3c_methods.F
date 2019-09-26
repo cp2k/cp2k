@@ -188,9 +188,9 @@ CONTAINS
          tvec(:, :) = 0.0_dp
 
          rjk(1:3) = rik(1:3)-rij(1:3)
-         dij = SQRT(SUM(rij**2))
-         dik = SQRT(SUM(rik**2))
-         djk = SQRT(SUM(rjk**2))
+         dij = NORM2(rij)
+         dik = NORM2(rik)
+         djk = NORM2(rjk)
 
          DO iset = 1, nseta
             DO jset = 1, nsetb

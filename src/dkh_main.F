@@ -25,7 +25,7 @@ MODULE dkh_main
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE kinds,                           ONLY: dp
-   USE physcon,                         ONLY: a_fine
+   USE physcon,                         ONLY: c_light_au
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
 #include "./base/base_uses.f90"
@@ -87,10 +87,10 @@ CONTAINS
 !>    ev2  (:,:) DKH-even2 matrix in position space
 !>    ove (:,:) scratch
 !>    aux (:,:) scratch
-!>    velit  velocity of light 137 a.u.
-!>    prea   prefactor, 1/137^2
-!>    con2   prefactor, 2/137^2
-!>    con    prefactor, 137^2
+!>    c_light_au  velocity of light 137 a.u.
+!>    prea        prefactor, 1/137^2
+!>    con2        prefactor, 2/137^2
+!>    con         prefactor, 137^2
 !> \author
 !>     Jens Thar, Barbara Kirchner: Uni Bonn (09/2006)
 !>     Markus Reiher: ETH Zurich (09/2006)
@@ -105,7 +105,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i
-      REAL(KIND=dp)                                      :: velit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aa, e, ev0t, rr, tt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_full
@@ -114,12 +113,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (blacs_env)
-      !-----------------------------------------------------------------------
-      !     Define velocity of light
-      !-----------------------------------------------------------------------
-
-      !     velit = 137.0359895_dp   ! 1/a_fine  physcon
-      velit = 1._dp/a_fine
 
       !-----------------------------------------------------------------------
       !     Construct the matrix structure
@@ -182,7 +175,7 @@ CONTAINS
       !     Calculate kinetic part of Hamiltonian in T-basis
       !-----------------------------------------------------------------------
 
-      CALL kintegral(n, ev0t, tt, e, velit)
+      CALL kintegral(n, ev0t, tt, e)
 
       !-----------------------------------------------------------------------
       !     Calculate reverse transformation matrix revt
@@ -205,8 +198,8 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       DO i = 1, n
-         aa(i) = SQRT((velit*velit+e(i))/(2.0_dp*e(i)))
-         rr(i) = SQRT(velit*velit)/(velit*velit+e(i))
+         aa(i) = SQRT((c_light_au**2+e(i))/(2.0_dp*e(i)))
+         rr(i) = SQRT(c_light_au**2)/(c_light_au**2+e(i))
       END DO
 
       !-----------------------------------------------------------------------
@@ -329,20 +322,18 @@ CONTAINS
 !> \param ev0t ...
 !> \param tt ...
 !> \param e ...
-!> \param velit ...
 ! **************************************************************************************************
-   SUBROUTINE kintegral(n, ev0t, tt, e, velit)
+   SUBROUTINE kintegral(n, ev0t, tt, e)
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ev0t
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tt
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: e
-      REAL(KIND=dp), INTENT(IN)                          :: velit
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: con, con2, prea, ratio, tv1, tv2, tv3, &
                                                             tv4
 
-      prea = 1/(velit*velit)
+      prea = 1/(c_light_au**2)
       con2 = prea+prea
       con = 1.0_dp/prea
 
@@ -355,7 +346,7 @@ CONTAINS
          !       cancellation, otherwise calculate SQRT directly
 
          ev0t(i) = tt(i)
-         ratio = tt(i)/velit
+         ratio = tt(i)/c_light_au
          IF (ratio .LE. 0.02_dp) THEN
             tv1 = tt(i)
             tv2 = -tv1*tt(i)*prea*0.5_dp
@@ -1329,10 +1320,10 @@ CONTAINS
       !    ev2  (:,:) DKH-even2 matrix in position space                     *
       !    ove (:,:) scratch                                                 *
       !    aux (:,:) scratch                                                 *
-      !    velit  velocity of light 137 a.u.                                 *
-      !    prea   prefactor, 1/137^2                                         *
-      !    con2   prefactor, 2/137^2                                         *
-      !    con    prefactor, 137^2                                           *
+      !    c_light_au  velocity of light 137 a.u.                            *
+      !    prea        prefactor, 1/137^2                                    *
+      !    con2        prefactor, 2/137^2                                    *
+      !    con         prefactor, 137^2                                      *
       !-----------------------------------------------------------------------
 
       !-----------------------------------------------------------------------
@@ -1344,7 +1335,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, j, k
-      REAL(KIND=dp)                                      :: velit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aa, e, ev0t, rr, tt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aux, eig, ev1, ev1t, ev2, ev2t, ev3, &
                                                             ev3t, ev4, ev4t, ove, pev1tp, pVpt, &
@@ -1353,12 +1343,6 @@ CONTAINS
       IF (dkh_order .LT. 0) RETURN
 
       !CAW  pp: p^2-values (in momentum-space), stored as matrix!!
-      !-----------------------------------------------------------------------
-      !     Define velocity of light
-      !-----------------------------------------------------------------------
-      !      velit = 137.0359895_dp
-
-      velit = 1._dp/a_fine
 
       !-----------------------------------------------------------------------
       !     Allocate some matrices
@@ -1402,7 +1386,7 @@ CONTAINS
       !     Calculate kinetic part of Hamiltonian in T-basis
       !-----------------------------------------------------------------------
 
-      CALL kintegral_a(n, ev0t, tt, e, velit)
+      CALL kintegral_a(n, ev0t, tt, e)
 
       !-----------------------------------------------------------------------
       !     Calculate reverse transformation matrix revt
@@ -1430,8 +1414,8 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       DO i = 1, n
-         aa(i) = SQRT((velit*velit+e(i))/(2.0_dp*e(i)))
-         rr(i) = SQRT(velit*velit)/(velit*velit+e(i))
+         aa(i) = SQRT((c_light_au**2+e(i))/(2.0_dp*e(i)))
+         rr(i) = SQRT(c_light_au**2)/(c_light_au**2+e(i))
       END DO
 
       !-----------------------------------------------------------------------
@@ -1546,9 +1530,8 @@ CONTAINS
 !> \param ev0t ...
 !> \param tt ...
 !> \param e ...
-!> \param velit ...
 ! **************************************************************************************************
-   SUBROUTINE kintegral_a(n, ev0t, tt, e, velit)
+   SUBROUTINE kintegral_a(n, ev0t, tt, e)
 
       !-----------------------------------------------------------------------
 
@@ -1556,7 +1539,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ev0t
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tt
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: e
-      REAL(KIND=dp), INTENT(IN)                          :: velit
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: con, con2, prea, ratio, tv1, tv2, tv3, &
@@ -1571,7 +1553,7 @@ CONTAINS
 
          !       Calculate some constants
 
-         prea = 1/(velit*velit)
+         prea = 1/(c_light_au**2)
          con2 = prea+prea
          con = 1.0_dp/prea
 
@@ -1579,7 +1561,7 @@ CONTAINS
          !       cancellation, otherwise calculate SQRT directly
 
          ev0t(i) = tt(i)
-         ratio = tt(i)/velit
+         ratio = tt(i)/c_light_au
          IF (ratio .LE. 0.02_dp) THEN
             tv1 = tt(i)
             tv2 = -tv1*tt(i)*prea/2.0_dp

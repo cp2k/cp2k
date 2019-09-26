@@ -709,7 +709,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief A geeig solver using Cholesky decomposition and syevr so that only a couple of eigenvalues
-!>        can be computed. Can be considerably cheaper than the stendard diagonalization for very
+!>        can be computed. Can be considerably cheaper than the standard diagonalization for very
 !>        large matrices
 !> amatrix ...
 !> \param amatrix ...
@@ -1064,7 +1064,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Returns the projector on the unperturbed unoccupied ground state Q = 1 - SP on the block
-!>        diagonal of a matrix with the stendard size and distribution.
+!>        diagonal of a matrix with the standard size and distribution.
 !> \param proj_Q the matrix with the projector
 !> \param dist_q the dbcsr distribution
 !> \param blk_size_q the block size

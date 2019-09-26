@@ -124,7 +124,7 @@ CONTAINS
                zetk = zetc(kpgf)
                c_start = (kpgf-1)*ncoset(lc_max)
 
-               !start with all the (c|ba) integrals (stendard order) and keep to lb >= la
+               !start with all the (c|ba) integrals (standard order) and keep to lb >= la
                CALL set_params(lib, ra, rb, rc, la_max, lb_max, lc_max, zeti, zetj, zetk, op, &
                                params_out=params, r_cutoff=my_r_cutoff, omega=my_omega)
 

@@ -11,7 +11,7 @@
 !> \par History
 !>      created [06.2015]
 !>      05.2019: Added truncated coulomb operator (A. Bussy)
-!> \author Doro/hea Golze
+!> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE generic_os_integrals
    USE ai_contraction_sphi,             ONLY: ab_contract,&

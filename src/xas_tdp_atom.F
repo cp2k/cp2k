@@ -67,7 +67,7 @@ MODULE xas_tdp_atom
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: a_fine
+   USE physcon,                         ONLY: c_light_au
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
@@ -3258,7 +3258,7 @@ CONTAINS
 
       INTEGER                                            :: blk, handle, i, iat, ikind, ir, jat, &
                                                             maxso, na, nkind, nr, nset, nsgf
-      REAL(dp)                                           :: cspeed, zeff
+      REAL(dp)                                           :: zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Vr
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: V
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: intso
@@ -3281,7 +3281,6 @@ CONTAINS
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, matrix_s=matrix_s, &
                       particle_set=particle_set)
       ALLOCATE (int_soc(nkind))
-      cspeed = 1.0_dp/a_fine
 
 !  Loop over the kinds to compute the integrals
       DO ikind = 1, nkind
@@ -3302,7 +3301,7 @@ CONTAINS
          ALLOCATE (V(na, nr))
          V = 0.0_dp
          DO ir = 1, nr
-            CALL daxpy(na, Vr(ir)/(4.0_dp*cspeed**2-2.0_dp*Vr(ir)), grid%weight(1:na, ir), 1, &
+            CALL daxpy(na, Vr(ir)/(4.0_dp*c_light_au**2-2.0_dp*Vr(ir)), grid%weight(1:na, ir), 1, &
                        V(1:na, ir), 1)
          END DO
          DEALLOCATE (Vr)

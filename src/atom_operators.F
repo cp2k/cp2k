@@ -31,7 +31,7 @@ MODULE atom_operators
                                               sqrt2
    USE mathlib,                         ONLY: jacobi
    USE periodic_table,                  ONLY: ptable
-   USE physcon,                         ONLY: a_fine
+   USE physcon,                         ONLY: c_light_au
    USE qs_grid_atom,                    ONLY: grid_atom_type
 #include "./base/base_uses.f90"
 
@@ -813,15 +813,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: dkhorder, handle, i, k1, k2, l, m, n, nl
-      REAL(dp)                                           :: ascal, cspeed
+      REAL(dp)                                           :: ascal
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: cpot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: modpot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ener, sps
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hmat, pvp, sp, tp, vp, wfn
 
       CALL timeset(routineN, handle)
-
-      cspeed = 1._dp/a_fine
 
       SELECT CASE (reltyp)
       CASE DEFAULT
@@ -856,7 +854,7 @@ CONTAINS
             ALLOCATE (modpot(1:m), cpot(1:m))
             CALL calculate_model_potential(modpot, basis%grid, zcore)
             ! Zora potential
-            cpot(1:m) = modpot(1:m)/(4._dp*cspeed*cspeed-2._dp*modpot(1:m))
+            cpot(1:m) = modpot(1:m)/(4._dp*c_light_au*c_light_au-2._dp*modpot(1:m))
             cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
             CALL numpot_matrix(integrals%tzora, cpot, basis, 0)
             DO l = 0, lmat
@@ -875,7 +873,7 @@ CONTAINS
                ! eigenvalues and eigenvectors
                CALL atom_solve(hmat, integrals%utrans, wfn, ener, basis%nbas, integrals%nne, lmat)
                ! relativistic kinetic energy
-               cpot(1:m) = cspeed*cspeed/(2._dp*cspeed*cspeed-modpot(1:m))**2
+               cpot(1:m) = c_light_au*c_light_au/(2._dp*c_light_au*c_light_au-modpot(1:m))**2
                cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
                pvp = 0.0_dp
                CALL numpot_matrix(pvp, cpot, basis, 0)
