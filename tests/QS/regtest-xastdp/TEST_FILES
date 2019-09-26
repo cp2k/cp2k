@@ -1,6 +1,8 @@
 #Testing the XAS_TDP method and the keyword combinations it involves
 #Checking that the user can spefify his own RI_XAS basis set + simple CIS
 Ne-HF-extRI_XAS.inp                                    88      1e-06           890.898285
+#Checking that the searched excitation energies can be defined by a range
+Ne-LDA-e_range.inp                                     88      1e-06           829.640328
 #Checking full TDDFT and simple hybrid functional
 H2O-B3LYP-full.inp                                     88      1e-06           519.570612
 #Checking the ability to restart for PDOS and CUBES
@@ -12,6 +14,8 @@ Ne-pbc-shortrange.inp                                  88      1e-06           8
 Ne-pbc-truncated.inp                                   88      1e-06           890.773794
 #Checking the use of pseudo-potential and ADMM
 SiH4-PBE0-admm-pseudo.inp                              88      1e-06           146.188189
+#Checking open-shell calculation with non-singlet ground state
+CH3-PBE-uks.inp                                        88      1e-06           265.243216 
 #Checking singlet, triplet, spin-conserving, spin-flip and SOC
 Ar-HF-2p-SOC-rcs.inp                                   88      1e-06           261.348884
 Ar-HF-2p-SOC-os.inp                                    88      1e-06           261.347343

@@ -8089,7 +8089,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="DIAGONALIZATION", &
                           description="Set the choice of method and parameters for solving the "// &
                           "XAS TDP eigenvalue problem.", &
-                          n_keywords=2, &
+                          n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -8101,6 +8101,18 @@ CONTAINS
                           "If N_EXCITED is set to -1, all excitations are considered", &
                           usage="N_EXCITED {integer}", &
                           default_i_val=-1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_RANGE", &
+                          variants=s2a("E_RANGE"), &
+                          description="The energy range in eV for which excitations are considered. "// &
+                          "Only excitated states within the range of: first excitation "// &
+                          "energy + ENERGY_RANGE are kept/computed. If ENERGY_RANGE "// &
+                          "and N_EXCITED are specified, the former has priority. "// &
+                          "Negative values are ignored and N_EXCITED takes over.", &
+                          usage="ENERGY_RANGE {real}", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 

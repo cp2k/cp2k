@@ -63,8 +63,6 @@ CONTAINS
 !>               2) the restricted closed-shell triplet kernel
 !>               3) the spin-conserving open-shell xc kernel
 !>               4) the on-diagonal spin-flip open-shell xc kernel
-!> \param dist the dbcsr_dist of the kernel matrices
-!> \param blk_size the block size of the kernel matrices
 !> \param donor_state ...
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
@@ -77,13 +75,10 @@ CONTAINS
 !>       (open-shell, singlet, triplet, ROKS, LSD, etc...)
 !>       On entry, the pointers should be allocated
 ! **************************************************************************************************
-   SUBROUTINE kernel_coulomb_xc(coul_ker, xc_ker, dist, blk_size, donor_state, xas_tdp_env, &
-                                xas_tdp_control, qs_env)
+   SUBROUTINE kernel_coulomb_xc(coul_ker, xc_ker, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: coul_ker
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: xc_ker
-      TYPE(dbcsr_distribution_type), POINTER             :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
@@ -95,14 +90,15 @@ CONTAINS
       INTEGER                                            :: bo(2), handle, i, ibatch, iex, lb, &
                                                             natom, nbatch, ndo_mo, ndo_so, &
                                                             nex_atom, nsgfp, ri_atom, source, ub
+      INTEGER, DIMENSION(:), POINTER                     :: blk_size
       LOGICAL                                            :: do_coulomb, do_sc, do_sf, do_sg, do_tp, &
                                                             do_xc, found
       REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: contr1_int
 
-      NULLIFY (contr1_int, PQ, dbcsr_dist, para_env)
+      NULLIFY (contr1_int, PQ, para_env, dist, blk_size)
 
 !  Initialization
       ndo_mo = donor_state%ndo_mo
@@ -113,8 +109,10 @@ CONTAINS
       do_sf = xas_tdp_control%do_spin_flip
       ndo_so = ndo_mo; IF (xas_tdp_control%do_uks) ndo_so = 2*ndo_mo
       ri_atom = donor_state%at_index
-      CALL get_qs_env(qs_env, natom=natom, dbcsr_dist=dbcsr_dist, para_env=para_env)
+      CALL get_qs_env(qs_env, natom=natom, para_env=para_env)
       do_coulomb = xas_tdp_control%do_coulomb
+      dist => donor_state%dbcsr_dist
+      blk_size => donor_state%blk_size
 
 !  If no Coulomb nor xc, simply exit
       IF ((.NOT. do_coulomb) .AND. (.NOT. do_xc)) RETURN
@@ -582,8 +580,6 @@ CONTAINS
 !>        2) the off-diagonal spin-conserving kernel: (aJ_sigma|I_tau b) * delta_sigma,tau
 !>        An internal analysis determines which of the above are computed (can range from 0 to 2),
 !> \param ex_ker ...
-!> \param dist the usual dbcsr distribution
-!> \param blk_size the block size
 !> \param donor_state ...
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
@@ -594,11 +590,9 @@ CONTAINS
 !>       projector where the alpha-alpha and beta-beta quadrants are swapped
 !>       The ex_ker array should be allocated on entry (not the internals)
 ! **************************************************************************************************
-   SUBROUTINE kernel_exchange(ex_ker, dist, blk_size, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
+   SUBROUTINE kernel_exchange(ex_ker, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ex_ker
-      TYPE(dbcsr_distribution_type), POINTER             :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
@@ -608,15 +602,20 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      INTEGER, DIMENSION(:), POINTER                     :: blk_size
       LOGICAL                                            :: do_off_sc
+      TYPE(dbcsr_distribution_type), POINTER             :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: contr1_int
 
-      NULLIFY (contr1_int)
+      NULLIFY (contr1_int, dist, blk_size)
 
       !Don't do anything if no hfx
       IF (.NOT. xas_tdp_control%do_hfx) RETURN
 
       CALL timeset(routineN, handle)
+
+      dist => donor_state%dbcsr_dist
+      blk_size => donor_state%blk_size
 
       !compute the off-diag spin-conserving only if not TDA and anything that is spin-conserving
       do_off_sc = (.NOT. xas_tdp_control%tamm_dancoff) .AND. (xas_tdp_control%do_spin_cons &
