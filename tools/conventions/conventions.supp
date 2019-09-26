@@ -263,6 +263,7 @@ topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule"
 topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
 topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb"
+xas_tdp_utils.F: Routine PDSYEVR called with an implicit interface.
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"

@@ -359,11 +359,6 @@ CONTAINS
          grid_atom%ng_sphere = na
          grid_atom%nr = nr
 
-         IF (llmax > la) THEN
-            CPWARN("A Lebedev grid for XAS TDP is built for a too low angular momentum l")
-            CPWARN("To fix this (l too low), increase the value of 'na' in the GRID keyword.")
-         END IF
-
 !        If this is an excited kind, create the harmonics with the RI_XAS basis, otherwise the ORB
          IF (ANY(xas_atom_env%excited_kinds == ikind) .AND. do_xc) THEN
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="RI_XAS")

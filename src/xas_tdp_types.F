@@ -16,7 +16,9 @@ MODULE xas_tdp_types
    USE cp_files,                        ONLY: file_exists
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
+                                              dbcsr_distribution_type,&
+                                              dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_release_p,&
                                               dbcsr_type
@@ -34,7 +36,8 @@ MODULE xas_tdp_types
                                               dp
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
-   USE physcon,                         ONLY: bohr
+   USE physcon,                         ONLY: bohr,&
+                                              evolt
    USE qs_grid_atom,                    ONLY: deallocate_grid_atom,&
                                               grid_atom_type
    USE qs_harmonics_atom,               ONLY: deallocate_harmonics_atom,&
@@ -78,6 +81,7 @@ MODULE xas_tdp_types
 !> \param do_spin_flip whether spin-flip excitation (for open-shell) should be computed
 !> \param do_soc whether spin-orbit coupling should be included
 !> \param n_excited the number of excited states to compute
+!> \param e_range the energy range where to look for eigenvalues
 !> \param state_types columns correspond to the states to excite for each atom kind/index
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
@@ -91,6 +95,7 @@ MODULE xas_tdp_types
       INTEGER                                 :: n_search
       INTEGER                                 :: n_excited
       INTEGER                                 :: batch_size
+      REAL(dp)                                :: e_range
       REAL(dp)                                :: sx
       REAL(dp)                                :: x_range
       REAL(dp)                                :: x_omega
@@ -220,6 +225,8 @@ MODULE xas_tdp_types
 !> \param tp_matrix_tdp the dbcsr matrix to be diagonalized to solve the problem for triplets
 !> \param metric the metric of the linear response problem M*c = omega*S*c and its inverse
 !> \param matrix_aux the auxiliary matrix (A-D+E)^1/2 used to make the problem Hermitian
+!> \param blk_size the col/row block size of the dbcsr matrices
+!> \param dbcsr_dist the distribution of the dbcsr matrices
 !> *************************************************************************************************
    TYPE donor_state_type
       INTEGER                                 :: at_index
@@ -227,8 +234,9 @@ MODULE xas_tdp_types
       INTEGER                                 :: ndo_mo
       CHARACTER(LEN=default_string_length)    :: at_symbol
       INTEGER                                 :: state_type
-      REAL(dp), DIMENSION(:, :), POINTER       :: energy_evals
-      INTEGER, DIMENSION(:, :), POINTER        :: mo_indices
+      INTEGER, DIMENSION(:), POINTER          :: blk_size
+      REAL(dp), DIMENSION(:, :), POINTER      :: energy_evals
+      INTEGER, DIMENSION(:, :), POINTER       :: mo_indices
       TYPE(cp_fm_type), POINTER               :: sc_coeffs
       TYPE(cp_fm_type), POINTER               :: sf_coeffs
       TYPE(cp_fm_type), POINTER               :: sg_coeffs
@@ -251,6 +259,7 @@ MODULE xas_tdp_types
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: metric
       TYPE(dbcsr_type), POINTER               :: matrix_aux
+      TYPE(dbcsr_distribution_type), POINTER  :: dbcsr_dist
 
    END TYPE donor_state_type
 
@@ -353,6 +362,7 @@ CONTAINS
       xas_tdp_control%diag_type = xas_tdp_diag_std
       xas_tdp_control%is_periodic = .FALSE.
       xas_tdp_control%n_excited = -1
+      xas_tdp_control%e_range = -1.0_dp
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
@@ -563,6 +573,10 @@ CONTAINS
                                 i_val=xas_tdp_control%n_excited)
       CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%DIAGONALIZATION_TYPE", &
                                 i_val=xas_tdp_control%diag_type)
+      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%ENERGY_RANGE", &
+                                r_val=xas_tdp_control%e_range)
+      !store the range in Hartree, not eV
+      xas_tdp_control%e_range = xas_tdp_control%e_range/evolt
 
    END SUBROUTINE read_xas_tdp_control
 
@@ -759,6 +773,8 @@ CONTAINS
       NULLIFY (donor_state%tp_matrix_tdp)
       NULLIFY (donor_state%metric)
       NULLIFY (donor_state%matrix_aux)
+      NULLIFY (donor_state%blk_size)
+      NULLIFY (donor_state%dbcsr_dist)
 
    END SUBROUTINE donor_state_create
 
@@ -907,6 +923,14 @@ CONTAINS
                DEALLOCATE (donor_state_set(i)%matrix_aux)
             END IF
 
+            IF (ASSOCIATED(donor_state_set(i)%blk_size)) THEN
+               DEALLOCATE (donor_state_set(i)%blk_size)
+            END IF
+
+            IF (ASSOCIATED(donor_state_set(i)%dbcsr_dist)) THEN
+               CALL dbcsr_distribution_release(donor_state_set(i)%dbcsr_dist)
+               DEALLOCATE (donor_state_set(i)%dbcsr_dist)
+            END IF
          END DO
          DEALLOCATE (donor_state_set)
       END IF
@@ -936,6 +960,7 @@ CONTAINS
       IF (ASSOCIATED(donor_state%quad_osc_str)) DEALLOCATE (donor_state%quad_osc_str)
       IF (ASSOCIATED(donor_state%soc_quad_osc_str)) DEALLOCATE (donor_state%soc_quad_osc_str)
       IF (ASSOCIATED(donor_state%gs_coeffs)) CALL cp_fm_release(donor_state%gs_coeffs)
+      IF (ASSOCIATED(donor_state%blk_size)) DEALLOCATE (donor_state%blk_size)
 
       IF (ASSOCIATED(donor_state%sc_coeffs)) THEN
          CALL cp_fm_release(donor_state%sc_coeffs)
@@ -986,6 +1011,11 @@ CONTAINS
       IF (ASSOCIATED(donor_state%matrix_aux)) THEN
          CALL dbcsr_release(donor_state%matrix_aux)
          DEALLOCATE (donor_state%matrix_aux)
+      END IF
+
+      IF (ASSOCIATED(donor_state%dbcsr_dist)) THEN
+         CALL dbcsr_distribution_release(donor_state%dbcsr_dist)
+         DEALLOCATE (donor_state%dbcsr_dist)
       END IF
 
    END SUBROUTINE free_ds_memory
