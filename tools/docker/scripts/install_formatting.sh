@@ -8,17 +8,14 @@ apt-get install -qq --no-install-recommends \
     libfindbin-libs-perl                    \
     make                                    \
     perl                                    \
-    python
+    python                                  \
+    python3-{pip,setuptools,wheel}
 
 rm -rf /var/lib/apt/lists/*
 
-# pre-run prettify
-cd /workspace/cp2k
-echo -n "Warming cache by trying to run make pretty... "
-if make -j 16 pretty &> /dev/null ; then
-   echo "done."
-else
-   echo "failed."
-fi
+# install python packages
+pip3 install pre-commit
 
-#EOF
+# register the pre-commit hooks
+cd /workspace/cp2k
+pre-commit install --install-hooks
