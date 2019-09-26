@@ -6195,7 +6195,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -6249,7 +6249,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -8206,13 +8206,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPERATOR", variants=(/"OP"/), &
-                          description="The type of operator used for exact exchange. The stendard "// &
+                          description="The type of operator used for exact exchange. The standard "// &
                           "Coulomb operator cannot be used in periodic systems.", &
                           usage="OPERATOR {string}", &
                           repeats=.FALSE., &
                           default_i_val=do_potential_coulomb, &
                           enum_c_vals=s2a("COULOMB", "TRUNCATED", "SHORTRANGE"), &
-                          enum_desc=s2a("Stendard Coulomb operator: 1/r", &
+                          enum_desc=s2a("Standard Coulomb operator: 1/r", &
                                         "Truncated Coulomb operator: 1/r if r < R_c, 0 otherwise ", &
                                         "Short range: erfc(omega*r)/r"), &
                           enum_i_vals=(/do_potential_coulomb, do_potential_truncated, &

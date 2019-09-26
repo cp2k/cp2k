@@ -69,9 +69,13 @@ MODULE hfx_libint_wrapper
 #endif
    END TYPE
 
-   !This is a safeguard/hack because 3-center ERIs are bugged on libint 2.5
+#if(__LIBINT)
+   !Fortran 3-center integrals are bugged in libint 2.5. More specifically, the dimensions of the
+   !following array are mixed up. This should be fixed from libint 2.6 on. Then, one will be able
+   !to simply USE libint2_build_3eri, as currently commented above
    TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM,0:LIBINT2_MAX_AM,0:LIBINT2_MAX_AM_3eri), &
       BIND(C) :: libint2_build_3eri
+#endif
 
 CONTAINS
 

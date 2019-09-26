@@ -1052,7 +1052,7 @@ CONTAINS
             DO iat = 1, n_atoms
                at_pos = particle_set(iat)%r
                r_ac = pbc(at_pos, wfn_center, cell)
-               dist = SQRT(r_ac(1)*r_ac(1)+r_ac(2)*r_ac(2)+r_ac(3)*r_ac(3))
+               dist = NORM2(r_ac)
 
 !              keep memory of which atom is the closest to the wave function center
                IF (dist < dist_min) THEN
@@ -2111,7 +2111,7 @@ CONTAINS
                at_pos = particle_set(at_index)%r
                wfn_center = xas_tdp_env%qs_loc_env%localized_wfn_control%centers_set(ispin)%array(1:3, imo)
                r_ac = pbc(at_pos, wfn_center, cell)
-               dist = SQRT(r_ac(1)*r_ac(1)+r_ac(2)*r_ac(2)+r_ac(3)*r_ac(3))
+               dist = NORM2(r_ac)
 !              convert distance from a.u. to Angstrom
                dist = dist*angstrom
 
@@ -2358,7 +2358,7 @@ CONTAINS
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T5,A,/,T5,A,/,T5,A)") &
                "Computing the PDOS of linear-response orbitals for spectral features analysis", &
-               "Note: using stendard PDOS routines => ignore mentions of KS states and MO ", &
+               "Note: using standard PDOS routines => ignore mentions of KS states and MO ", &
                "      occupation numbers. Eigenvalues in *.pdos files are excitations energies."
          END IF
 

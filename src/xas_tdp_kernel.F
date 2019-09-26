@@ -246,11 +246,10 @@ CONTAINS
 
       !In the special case of ROKS, same MOs for each spin => put same (aI|Jb) product on the
       !alpha-alpha, alpha-beta and beta-beta quadrants of the kernel matrix.
-      quadrants = .FALSE.
       IF (xas_tdp_control%do_roks) THEN
-         quadrants(1:3) = .TRUE.
+         quadrants = [.TRUE., .TRUE., .TRUE.]
       ELSE
-         quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
       END IF
       CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
       CALL dbcsr_finalize(work_mat)
@@ -318,7 +317,7 @@ CONTAINS
          ! => Carfully treat each spin-quadrant separately
 
          ! alpha-alpha spin quadrant (upper-lefet)
-         quadrants = .FALSE.; quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
 
          ! Copy the alpha part into lhs_int, multiply by the alpha-alpha (Q|fxc|R) and then
          ! by the alpha part of rhs_int
@@ -327,7 +326,7 @@ CONTAINS
          CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, qs_env)
 
          ! alpha-beta spin quadrant (upper-right)
-         quadrants = .FALSE.; quadrants(2) = .TRUE.
+         quadrants = [.FALSE., .TRUE., .FALSE.]
 
          !Copy the alpha part into LHS, multiply by the alpha-beta kernel and the beta part of RHS
          CALL copy_ri_contr_int(lhs_int(1:ndo_mo), rhs_int(1:ndo_mo))
@@ -336,7 +335,7 @@ CONTAINS
                              quadrants, qs_env)
 
          ! beta-beta spin quadrant (lower-right)
-         quadrants = .FALSE.; quadrants(3) = .TRUE.
+         quadrants = [.FALSE., .FALSE., .TRUE.]
 
          !Copy the beta part into LHS, multiply by the beta-beta kernel and the beta part of RHS
          CALL copy_ri_contr_int(lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo))
@@ -350,7 +349,7 @@ CONTAINS
          ! donor MOs remain the same
 
          ! alpha-alpha kernel in the upper left quadrant
-         quadrants = .FALSE.; quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
 
          !Copy the LHS and multiply by alpha-alpha kernel
          CALL copy_ri_contr_int(lhs_int, rhs_int)
@@ -358,7 +357,7 @@ CONTAINS
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
 
          ! alpha-beta kernel in the upper-right quadrant
-         quadrants = .FALSE.; quadrants(2) = .TRUE.
+         quadrants = [.FALSE., .TRUE., .FALSE.]
 
          !Copy LHS and multiply by the alpha-beta kernel
          CALL copy_ri_contr_int(lhs_int, rhs_int)
@@ -366,7 +365,7 @@ CONTAINS
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
 
          ! beta-beta kernel in the lower-right quadrant
-         quadrants = .FALSE.; quadrants(3) = .TRUE.
+         quadrants = [.FALSE., .FALSE., .TRUE.]
 
          !Copy the LHS and multiply by the beta-beta kernel
          CALL copy_ri_contr_int(lhs_int, rhs_int)
@@ -446,11 +445,11 @@ CONTAINS
          ! NO alpha-beta because of the delta_sigma,tau
 
          ! alpha-alpha spin quadrant (upper-lefet)
-         quadrants = .FALSE.; quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
          CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, qs_env)
 
          ! beta-beta spin quadrant (lower-right)
-         quadrants = .FALSE.; quadrants(3) = .TRUE.
+         quadrants = [.FALSE., .FALSE., .TRUE.]
          CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
                              quadrants, qs_env)
 
@@ -459,7 +458,7 @@ CONTAINS
          ! In the case of ROKS, same donor MOs for both spins => can do it all at once
          ! But NOT the alpha-beta quadrant because of delta_sigma,tau
 
-         quadrants(1) = .TRUE.; quadrants(2) = .FALSE.; quadrants(3) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .TRUE.]
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
 
       END IF
@@ -536,7 +535,7 @@ CONTAINS
          CALL ri_all_blocks_mm(lhs_int, fxc)
 
          ! Compute the final LHS RHS product => spin-restricted, only upper-left quadrant
-         quadrants = .FALSE.; quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
          CALL dbcsr_finalize(work_mat)
 
@@ -558,7 +557,7 @@ CONTAINS
          CALL ri_all_blocks_mm(lhs_int, fxc)
 
          ! Compute the final LHS RHS product => spin-restricted, only upper-left quadrant
-         quadrants = .FALSE.; quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
          CALL dbcsr_finalize(work_mat)
 
@@ -760,7 +759,7 @@ CONTAINS
             CALL dbcsr_set(abIJ, 0.0_dp)
             CALL contract3_o3c(xas_tdp_env%ri_o3c_ex, o3c_vec, abIJ)
 
-            ! (ab|IJ) is symmetric, but need it as normal in the stendard dbcsr distribution
+            ! (ab|IJ) is symmetric, but need it as normal in the standard dbcsr distribution
             ! for the block by block copying process
             CALL dbcsr_desymmetrize(abIJ, abIJ_desymm)
             CALL dbcsr_filter(abIJ_desymm, 1.0E-12_dp) !if short range exchange, might have 0 blocks
@@ -863,25 +862,25 @@ CONTAINS
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       !Case study on closed-shell, ROKS or UKS
-      quadrants = .FALSE.
       IF (do_roks) THEN
          !In ROKS, the donor MOs for each spin are the same => copy the product in both the
          !alpha-alpha and the beta-beta quadrants
-         quadrants(1) = .TRUE.
-         quadrants(3) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .TRUE.]
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, mo_transpose=.TRUE.)
+
       ELSE IF (do_uks) THEN
          !In UKS, the donor MOs are possibly different for each spin => start with the
          !alpha-alpha product and the perform the beta-beta product separately
-         quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
          CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, &
                              qs_env, mo_transpose=.TRUE.)
-         quadrants(1) = .FALSE.; quadrants(3) = .TRUE.
+
+         quadrants = [.FALSE., .FALSE., .TRUE.]
          CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
                              quadrants, qs_env, mo_transpose=.TRUE.)
       ELSE
          !In the restricted closed-shell case, only have one spin and a single qudarant
-         quadrants(1) = .TRUE.
+         quadrants = [.TRUE., .FALSE., .FALSE.]
          CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, mo_transpose=.TRUE.)
       END IF
       CALL dbcsr_finalize(work_mat)
