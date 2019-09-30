@@ -11,13 +11,11 @@ for file in "$@"; do
    # generate temp-file names
    tmp_file=`mktemp`
 
-   # * First apply the pre-processing script to get rid of any double & type lines
    # * Run the fixcomments.pl script. This adds comment blocks to any subroutine/function
    #   definitions that don't have any and checks that existing comments are complete,
    #   fixing these if required.
    # * After adding comments, remove any double comment header lines
-   "${SCRIPTDIR}/remove_double_ampersands.pl" ${ARGS} "${file}" \
-       | "${SCRIPTDIR}/fixcomments.pl" ${ARGS} \
+   "${SCRIPTDIR}/fixcomments.pl" ${ARGS} "${file}" \
        | "${SCRIPTDIR}/remove_extra_comments.pl" ${ARGS} > "${tmp_file}"
 
    # Copy the final modified source file on top of the original file
