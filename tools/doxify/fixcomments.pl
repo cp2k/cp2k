@@ -504,14 +504,20 @@ sub processSubroutineDefinition {
 
     # Split the subroutine or function definition by space or comma
     my @string = split(/([,\(\)\s+]+)/x, $functionLine);
-    foreach (@string) {
-        if (defined) {
-        my $p = $_;
+
+    while (my ($idx, $p) = each @string) {
+        defined $p or next;  # continue with the next item if $p is undefined
+
         $p =~ s/^\s+|\s+$//gx;
-        if (($p ne $EMPTY) && ($p ne ",")) {
+
+        $p ne $EMPTY or next;  # continue with the next item if empty
+        $p ne "," or next;  # or simply the ','
+
         print_debug("Processing item $p");
         if ($p eq "&") {
-            # If we encounter an & then it spans multiple lines
+            # If we encounter an & as the last element in this line it starts a line continuation,
+            # otherwise it is the continuation point of a previous one and we can ignore it
+            $idx == $#string or next;
             print_debug("Got & line continuation");
             $hasAmpersand = 1;
             # Buffer the line details as we can't print out yet
@@ -602,8 +608,6 @@ sub processSubroutineDefinition {
                 }
             }
             $lelement = $p; # Take a note of the array element for comparison, ignoring & and ()
-        } # End of if $p eq "&" conditional
-    }
         }
     } # End of for loop over @string
 
