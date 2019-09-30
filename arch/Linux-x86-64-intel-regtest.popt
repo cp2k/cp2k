@@ -1,7 +1,8 @@
 # Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206 
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
 #              Intel MPI, MKL, Libint 2.5.0, Libxc 4.3.4, libxsmm 1.13, ELPA 2019.05.001, PLUMED 2.5.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2019)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2019)
 
 include      $(MPI_PATH)/plumed/2.5.2/lib/plumed/src/lib/Plumed.inc.static
 
