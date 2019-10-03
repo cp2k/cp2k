@@ -46,6 +46,7 @@ MODULE pwdft_environment
    USE sirius_interface,                ONLY: cp_sirius_create_env,&
                                               cp_sirius_energy_force,&
                                               cp_sirius_update_context
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

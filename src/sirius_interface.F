@@ -575,12 +575,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
       TYPE(C_PTR)                                        :: gs_handler
       TYPE(pwdft_energy_type), POINTER                   :: energy
-
+      TYPE(qs_subsys_type), POINTER                      :: qs_subsys
+      TYPE(cell_type), POINTER                           :: my_cell
+      TYPE(virial_type), POINTER                         :: virial
       CPASSERT(ASSOCIATED(pwdft_env))
 
       gs_handler = C_NULL_PTR
 
-      CALL pwdft_env_get(pwdft_env=pwdft_env, gs_handler=gs_handler)
+      CALL pwdft_env_get(pwdft_env=pwdft_env, qs_subsys=qs_subsys, gs_handler=gs_handler)
+      ! i need to retrieve the volume of the unit cell for the stress tensor
+      CALL qs_subsys_get(qs_subsys, cell=my_cell)
+
       CALL sirius_find_ground_state(gs_handler)
       CALL pwdft_env_get(pwdft_env=pwdft_env, energy=energy)
       etotal = 0.0_C_DOUBLE
@@ -606,8 +611,11 @@ CONTAINS
 
          cstress = 0.0_C_DOUBLE
          CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
-         stress(1:3, 1:3) = cstress(1:3, 1:3)
-         CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
+         ! I need to multiply by the volume because of course they work with wrong units
+         CALL cp_subsys_get(subsys, virial=virial)
+         stress(1:3, 1:3) = cstress(1:3, 1:3) * my_cell.deth
+         pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
+         virial%pv_numer(1;3,1:3) = stress(1:3, 1:3)
       ENDIF
    END SUBROUTINE cp_sirius_energy_force
 
