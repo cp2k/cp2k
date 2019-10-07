@@ -670,7 +670,8 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, work, c_diff, ncol=nrow)
 
          ALLOCATE (scaling(nrow))
-         WHERE (tmp_evals .NE. 0.0_dp) scaling = 1.0_dp/tmp_evals
+         scaling = 0.0_dp
+         WHERE (ABS(tmp_evals) > 1.0E-8_dp) scaling = 1.0_dp/tmp_evals
          CALL cp_fm_column_scale(c_diff, scaling)
 
 !        Normalize with the metric: c_diff * G * c_diff = +- 1
@@ -805,7 +806,7 @@ CONTAINS
 !  Computing the needed scaling
       ALLOCATE (diag(nvals))
       CALL cp_fm_get_diag(fm_norm, diag)
-      WHERE (diag .NE. 0.0_dp) diag = 1.0_dp/SQRT(ABS(diag))
+      WHERE (ABS(diag) > 1.0E-8_dp) diag = 1.0_dp/SQRT(ABS(diag))
 
       nscal = SIZE(scaling)
       scaling(1:nscal) = diag(1:nscal)
@@ -1621,15 +1622,15 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: ab_list, ac_list, sab_orb
+         POINTER                                         :: ab_list, ac_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (basis_set_ri, basis_set_orb, ac_list, ab_list, qs_kind_set, para_env, sab_orb)
+      NULLIFY (basis_set_ri, basis_set_orb, ac_list, ab_list, qs_kind_set, para_env)
 
       CALL timeset(routineN, handle)
 
 !  Take what we need from the qs_env
-      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, para_env=para_env, sab_orb=sab_orb)
+      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, para_env=para_env)
 
 !  Build the basis set lists
       ALLOCATE (basis_set_ri(nkind))
@@ -1640,10 +1641,13 @@ CONTAINS
 !  Get the optimized distribution 2d for theses integrals (and store it in xas_tdp_env)
       ALLOCATE (exat(1))
       exat(1) = ex_atom
+      CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
       CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, xas_tdp_control%x_op, &
                                qs_env, excited_atoms=exat, x_range=xas_tdp_control%x_range)
-      CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_ex, sab_orb, ac_list, basis_set_orb, &
+
+      CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_ex, ab_list, ac_list, basis_set_orb, &
                              basis_set_orb, basis_set_ri, qs_env)
+      CALL release_sab(ab_list)
       CALL release_sab(ac_list)
 
 !  Build the ab and ac centers neighbor lists based on the optimize distribution

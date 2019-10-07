@@ -874,7 +874,7 @@ CONTAINS
       TYPE(distribution_2d_type), POINTER                :: opt_dist2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: ab_list, ac_list, sab_orb, sab_ri
+         POINTER                                         :: ab_list, ac_list, sab_ri
       TYPE(o3c_container_type), POINTER                  :: o3c
       TYPE(o3c_iterator_type)                            :: o3c_iterator
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -882,7 +882,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (qs_kind_set, basis_set_ri, basis_set_orb, ac_list, rho, rho_ao, sab_ri, ri_mats)
-      NULLIFY (o3c, tvec, particle_set, para_env, all_ri_atoms, sab_orb, overlap)
+      NULLIFY (o3c, tvec, particle_set, para_env, all_ri_atoms, overlap)
       NULLIFY (blacs_env, pblock, pblockt, ab_list, opt_dist2d, rho_redist)
 
       !Idea: We don't do a full RI here as it would be too expensive in many ways (inversion of a
@@ -897,7 +897,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, nkind=nkind, sab_orb=sab_orb, qs_kind_set=qs_kind_set, rho=rho, &
+      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, rho=rho, &
                       natom=natom, particle_set=particle_set, &
                       para_env=para_env, blacs_env=blacs_env)
       nspins = xas_atom_env%nspins
@@ -950,10 +950,12 @@ CONTAINS
 
       !Get the optimal distribution_2d for the overlap integrals (abc), centers c on excited atoms
       !and their neighbors defined by RI_RADIUS
+      CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
       CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
                                qs_env, excited_atoms=all_ri_atoms)
-      CALL get_opt_3c_dist2d(opt_dist2d, sab_orb, ac_list, basis_set_orb, basis_set_orb, &
+      CALL get_opt_3c_dist2d(opt_dist2d, ab_list, ac_list, basis_set_orb, basis_set_orb, &
                              basis_set_ri, qs_env)
+      CALL release_sab(ab_list)
       CALL release_sab(ac_list)
 
       !get the ab and ac neighbor lists based on the optimized distribution

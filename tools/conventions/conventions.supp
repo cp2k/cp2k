@@ -90,6 +90,7 @@ cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
 cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon"
+cp_fm_diag.F: Routine PDSYEVR called with an implicit interface.
 cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy"
@@ -263,7 +264,6 @@ topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule"
 topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
 topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb"
-xas_tdp_utils.F: Routine PDSYEVR called with an implicit interface.
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"

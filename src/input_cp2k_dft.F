@@ -7888,7 +7888,7 @@ CONTAINS
                           description="XAS simulations using linear-response TDDFT. Excitation from "// &
                           "specified core orbitals are considered one at a time. In case of high "// &
                           "symmetry structures, donor core orbitals should be localized.", &
-                          n_keywords=12, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=13, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7942,6 +7942,19 @@ CONTAINS
                                         "Spin-conserving excitations on top of open-shell ground state", &
                                         "Spin-flip excitation on top of open-shell ground state"), &
                           enum_i_vals=(/tddfpt_singlet, tddfpt_triplet, tddfpt_spin_cons, tddfpt_spin_flip/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_PGF_XAS", &
+                          variants=s2a("EPS_PGF", "EPS_PGF_XAS_TDP"), &
+                          description="The threshold used to determine the spacial extent of all "// &
+                          "primitive Gaussian functions used for the construction "// &
+                          "of neighbor lists in the XAS_TDP method. "// &
+                          "By default, takes the value of QS%EPS_PGF_ORB. Useful if "// &
+                          "the former value is tiny due to possible ground state HFX "// &
+                          "contributions.", &
+                          usage="EPS_PGS_XAS {real}", &
+                          type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8272,7 +8285,7 @@ CONTAINS
                           "are kept for contraction, as the latter operation can be "// &
                           "expensive (especially for large basis sets )."// &
                           "If |(ab|c)| < EPS_SCREENNING, it is discarded.", &
-                          default_r_val=0.0_dp, &
+                          default_r_val=1.0E-10_dp, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)

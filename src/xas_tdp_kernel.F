@@ -618,8 +618,8 @@ CONTAINS
       blk_size => donor_state%blk_size
 
       !compute the off-diag spin-conserving only if not TDA and anything that is spin-conserving
-      do_off_sc = (.NOT. xas_tdp_control%tamm_dancoff) .AND. (xas_tdp_control%do_spin_cons &
-                                                              .OR. xas_tdp_control%do_singlet .OR. xas_tdp_control%do_triplet)
+      do_off_sc = (.NOT. xas_tdp_control%tamm_dancoff) .AND. &
+                  (xas_tdp_control%do_spin_cons .OR. xas_tdp_control%do_singlet .OR. xas_tdp_control%do_triplet)
 
       ! Need the once contracted integrals (aI|P)
       CALL contract_o3c_int(contr1_int, "EXCHANGE", donor_state, xas_tdp_env, xas_tdp_control, qs_env)
@@ -1072,9 +1072,9 @@ CONTAINS
       num_pe = para_env%num_pe
 
       !Allocate a pointer array which will point on the block => we won't need to send more than
-      !nblk**2/(2*num_pe) message per processor (only look at upper diagonal, blocks well distributed)
-      ALLOCATE (send_buff(nblk**2/(2*num_pe)+1), recv_buff(nblk**2/(2*num_pe)+1))
-      ALLOCATE (send_req(nblk**2/(2*num_pe)+1), recv_req(nblk**2/(2*num_pe)+1))
+      !nblk**2/num_pe message per processor (assumes blocks well distributed)
+      ALLOCATE (send_buff(nblk**2/num_pe+1), recv_buff(nblk**2/num_pe+1))
+      ALLOCATE (send_req(nblk**2/num_pe+1), recv_req(nblk**2/num_pe+1))
       is = 0; ir = 0
 
       !Iterate over input matrix

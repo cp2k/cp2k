@@ -344,50 +344,63 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_o3c_libint_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: egfa, egfb, egfc, handle, ibasis, ikind, imax, iset, jkind, jset, kkind, kset, &
-         m_max, maxli, maxlj, maxlk, mepos, ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, &
-         nspin, nthread, sgfa, sgfb, sgfc, unit_id
+      INTEGER :: egfa, egfb, egfc, handle, i, ibasis, ikind, ilist, imax, iset, jkind, jset, &
+         kkind, kset, m_max, max_nset, maxli, maxlj, maxlk, mepos, nbasis, ncoa, ncob, ncoc, ni, &
+         nj, nk, nseta, nsetb, nsetc, nspin, nthread, sgfa, sgfb, sgfc, unit_id
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfc
       LOGICAL                                            :: do_screen
-      REAL(dp)                                           :: my_eps_screen, my_omega, my_r_cutoff
+      REAL(dp)                                           :: max_val, my_eps_screen, my_omega, &
+                                                            my_r_cutoff
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: max_contr, max_contra, max_contrb, &
+                                                            max_contrc
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: sabc
       REAL(dp), DIMENSION(3)                             :: ri, rij, rik, rj, rk
       REAL(dp), DIMENSION(:, :), POINTER                 :: sphi_a, sphi_b, sphi_c, tvec, zeta, &
                                                             zetb, zetc
       REAL(dp), DIMENSION(:, :, :), POINTER              :: iabc
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, &
-                                                            basis_set_list_c
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_c
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list, basis_set_list_a, &
+                                                            basis_set_list_b, basis_set_list_c
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set, basis_set_a, basis_set_b, &
+                                                            basis_set_c
       TYPE(o3c_iterator_type)                            :: o3c_iterator
 
       NULLIFY (basis_set_list_a, basis_set_list_b, basis_set_list_c, basis_set_a, basis_set_b)
       NULLIFY (basis_set_c, iabc, tvec, first_sgfa, first_sgfb, first_sgfc, la_max, la_min, lb_max)
       NULLIFY (lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
+      NULLIFY (basis_set, basis_set_list)
 
       CALL timeset(routineN, handle)
 
       CALL get_o3c_container(o3c, nspin=nspin, basis_set_list_a=basis_set_list_a, &
                              basis_set_list_b=basis_set_list_b, basis_set_list_c=basis_set_list_c)
 
-      !Need the max l for each basis for libint
+      !Need the max l for each basis for libint (and overall max #of sets for screening)
+      nbasis = SIZE(basis_set_list_a)
+      max_nset = 0
       maxli = 0
-      DO ibasis = 1, SIZE(basis_set_list_a)
-         CALL get_gto_basis_set(gto_basis_set=basis_set_list_a(ibasis)%gto_basis_set, maxl=imax)
+      DO ibasis = 1, nbasis
+         CALL get_gto_basis_set(gto_basis_set=basis_set_list_a(ibasis)%gto_basis_set, &
+                                maxl=imax, nset=iset)
          maxli = MAX(maxli, imax)
+         max_nset = MAX(max_nset, iset)
       END DO
       maxlj = 0
-      DO ibasis = 1, SIZE(basis_set_list_b)
-         CALL get_gto_basis_set(gto_basis_set=basis_set_list_b(ibasis)%gto_basis_set, maxl=imax)
+      DO ibasis = 1, nbasis
+         CALL get_gto_basis_set(gto_basis_set=basis_set_list_b(ibasis)%gto_basis_set, &
+                                maxl=imax, nset=iset)
          maxlj = MAX(maxlj, imax)
+         max_nset = MAX(max_nset, iset)
       END DO
       maxlk = 0
-      DO ibasis = 1, SIZE(basis_set_list_c)
-         CALL get_gto_basis_set(gto_basis_set=basis_set_list_c(ibasis)%gto_basis_set, maxl=imax)
+      DO ibasis = 1, nbasis
+         CALL get_gto_basis_set(gto_basis_set=basis_set_list_c(ibasis)%gto_basis_set, &
+                                maxl=imax, nset=iset)
          maxlk = MAX(maxlk, imax)
+         max_nset = MAX(max_nset, iset)
       END DO
       m_max = maxli+maxlj+maxlk
 
@@ -429,13 +442,14 @@ CONTAINS
       CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (nthread,o3c_iterator,nspin,basis_set_list_a, basis_set_list_b,basis_set_list_c, &
-!$OMP         maxli,maxlj,maxlk,my_r_cutoff,my_omega,ncoset,op,do_screen,my_eps_screen) &
+!$OMP SHARED (nthread,o3c_iterator,nspin,basis_set_list_a, basis_set_list_b,basis_set_list_c,nbasis,&
+!$OMP         maxli,maxlj,maxlk,my_r_cutoff,my_omega,ncoset,op,do_screen,my_eps_screen,max_nset) &
 !$OMP PRIVATE (basis_set_a,basis_set_b,basis_set_c,mepos,ikind,jkind,kkind,iabc,tvec,rij,rik, &
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,zeta,iset,ni,ri,ncoa,sgfa,egfa,sphi_a,&
 !$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,zetb,jset,nj,rj,ncob,sgfb,egfb,sphi_b,&
 !$OMP          first_sgfc,lc_max,lc_min,npgfc,nsetc,nsgfc,zetc,kset,nk,rk,ncoc,sgfc,egfc,sphi_c,&
-!$OMP          sabc,lib)
+!$OMP          sabc,lib,max_contra,max_contrb,max_contrc,ibasis,i,basis_set,basis_set_list,ilist,&
+!$OMP          max_contr,max_val)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -443,6 +457,45 @@ CONTAINS
       !each thread needs its own lib because internal parameters could change at different rates
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
+
+      !get the max_contraction values before we loop, on each thread => least amount of computation
+      !and false sharing
+      IF (do_screen) THEN
+
+         !Allocate max_contraction arrays such that we have a specific value for each set/kind
+         ALLOCATE (max_contr(max_nset, nbasis), max_contra(max_nset, nbasis), &
+                   max_contrb(max_nset, nbasis), max_contrc(max_nset, nbasis))
+
+         !Not the most elegent, but better than copying 3 times the same
+         DO ilist = 1, 3
+
+            IF (ilist == 1) basis_set_list => basis_set_list_a
+            IF (ilist == 2) basis_set_list => basis_set_list_b
+            IF (ilist == 3) basis_set_list => basis_set_list_c
+
+            max_contr = 0.0_dp
+
+            DO ibasis = 1, nbasis
+               basis_set => basis_set_list(ibasis)%gto_basis_set
+
+               DO iset = 1, basis_set%nset
+
+                  ncoa = basis_set%npgf(iset)*ncoset(basis_set%lmax(iset))
+                  sgfa = basis_set%first_sgf(1, iset)
+                  egfa = sgfa+basis_set%nsgf_set(iset)-1
+
+                  max_contr(iset, ibasis) = &
+                     MAXVAL((/(SUM(ABS(basis_set%sphi(1:ncoa, i))), i=sgfa, egfa)/))
+
+               END DO !iset
+            END DO !ibasis
+
+            IF (ilist == 1) max_contra(:, :) = max_contr(:, :)
+            IF (ilist == 2) max_contrb(:, :) = max_contr(:, :)
+            IF (ilist == 3) max_contrc(:, :) = max_contr(:, :)
+         END DO !ilist
+         DEALLOCATE (max_contr)
+      END IF !do_screen
 
       DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
 
@@ -520,7 +573,9 @@ CONTAINS
                                    rk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
 
                   IF (do_screen) THEN
-                     IF (MAXVAL(ABS(sabc)) < my_eps_screen) THEN
+                     max_val = MAXVAL(ABS(sabc))*max_contra(iset, ikind)*max_contrb(jset, jkind) &
+                               *max_contrc(kset, kkind)
+                     IF (max_val < my_eps_screen) THEN
                         DEALLOCATE (sabc)
                         CYCLE
                      END IF
