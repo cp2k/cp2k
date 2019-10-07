@@ -96,8 +96,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: first_sgf, last_sgf, nsgf, nmao
-      TYPE(gto_basis_set_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: basis
+      TYPE(gto_basis_set_p_type), DIMENSION(:), OPTIONAL :: basis
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
          routineP = moduleN//':'//routineN

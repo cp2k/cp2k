@@ -38,7 +38,8 @@ MODULE basis_set_container_types
                                                ri_hxc_basis = 111, &
                                                ri_k_basis = 112, &
                                                ri_xas_basis = 113, &
-                                               aux_fit_soft_basis = 114
+                                               aux_fit_soft_basis = 114, &
+                                               ri_hfx_basis = 115
 ! **************************************************************************************************
    TYPE basis_set_container_type
       PRIVATE
@@ -99,6 +100,8 @@ CONTAINS
          basis_type_nr = ri_aux_basis
       CASE ("RI_HXC")
          basis_type_nr = ri_hxc_basis
+      CASE ("RI_HFX")
+         basis_type_nr = ri_hfx_basis
       CASE ("RI_K")
          basis_type_nr = ri_k_basis
       CASE ("LRI_AUX")

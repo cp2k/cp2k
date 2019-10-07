@@ -1,0 +1,87 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME BASIS_MOLOPT
+        POTENTIAL_FILE_NAME GTH_POTENTIALS
+        AUTO_BASIS RI_HFX SMALL
+        LSD
+        &MGRID
+            CUTOFF 100
+            REL_CUTOFF 30
+        &END MGRID
+        &QS
+            METHOD GPW
+            EPS_PGF_ORB 1.0E-12
+            EPS_FILTER_MATRIX 0.0e0
+        &END QS
+        &AUXILIARY_DENSITY_MATRIX_METHOD
+            METHOD BASIS_PROJECTION
+            ADMM_PURIFICATION_METHOD MO_DIAG
+        &END
+        &POISSON
+            PERIODIC NONE
+            PSOLVER MT
+        &END
+        &SCF
+            EPS_SCF 1.0E-6
+            SCF_GUESS ATOMIC
+            MAX_SCF 10
+            &OT ON
+            &END
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL
+                &PBE
+                    SCALE_X 0.75
+                    SCALE_C 1.0
+                &END
+            &END XC_FUNCTIONAL
+            &HF
+                &RI
+                &END
+                &SCREENING
+                    EPS_SCHWARZ 1.0E-6
+                    SCREEN_ON_INITIAL_P FALSE
+                &END
+                &MEMORY
+                    MAX_MEMORY 900
+                    EPS_STORAGE_SCALING 0.1
+                &END
+                &INTERACTION_POTENTIAL
+                    POTENTIAL_TYPE COULOMB
+                &END
+                FRACTION 0.25
+            &END
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 8.0 8.0 8.0
+            PERIODIC NONE
+        &END CELL
+        &COORD
+            C       0.0000 	0.0000 	0.0000
+            H       0.0000 	1.0728 	0.0000
+            H       0.9291 	-0.5364 0.0000
+            H      -0.9291 -0.5364 0.0000
+        &END COORD
+        &KIND H
+            BASIS_SET ORB TZV2P-MOLOPT-GTH
+            BASIS_SET AUX_FIT SZV-MOLOPT-GTH
+            POTENTIAL GTH-PBE-q1
+        &END KIND
+        &KIND C
+            BASIS_SET ORB TZV2P-MOLOPT-GTH
+            BASIS_SET AUX_FIT SZV-MOLOPT-GTH
+            POTENTIAL GTH-PBE-q4
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT CH3-BP-MO_DIAG
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+    &TIMINGS
+        THRESHOLD 0.000000001
+    &END
+&END GLOBAL

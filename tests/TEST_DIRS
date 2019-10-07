@@ -264,3 +264,4 @@ QS/regtest-ri-laplace-mp2-cubic                             libint
 QS/regtest-dm-ls-scf-4
 QS/regtest-almo-trustr
 QS/regtest-nlmo
+QS/regtest-hfx-ri                                           libint

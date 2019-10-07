@@ -1,0 +1,67 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME GTH_BASIS_SETS
+        POTENTIAL_FILE_NAME GTH_POTENTIALS
+        AUTO_BASIS RI_HFX SMALL
+        LSD
+        &MGRID
+            CUTOFF 300
+            REL_CUTOFF 50
+        &END MGRID
+        &QS
+            METHOD GPW
+            EPS_DEFAULT 1.0E-12
+            EPS_PGF_ORB 1.0E-16
+            EPS_FILTER_MATRIX 0.0e0
+        &END QS
+        &POISSON
+            PERIODIC NONE
+            PSOLVER MT
+        &END
+        &SCF
+            EPS_SCF 1.0E-06
+            SCF_GUESS ATOMIC
+            MAX_SCF 50
+            &OT ON
+                PRECONDITIONER FULL_ALL
+            &END
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL NONE
+            &END XC_FUNCTIONAL
+            &HF
+                &RI
+                &END
+                &INTERACTION_POTENTIAL
+                    POTENTIAL_TYPE COULOMB
+                &END
+            &END
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 8.0 8.0 8.0
+            PERIODIC NONE
+        &END CELL
+        &COORD
+            C       0.0000 	0.0000 	0.0000
+            H       0.0000 	1.0728 	0.0000
+            H       0.9291 	-0.5364 0.0000
+            H      -0.9291 -0.5364 0.0000
+        &END COORD
+        &KIND H
+            BASIS_SET ORB TZV2P-GTH
+            POTENTIAL GTH-PBE-q1
+        &END KIND
+        &KIND C
+            BASIS_SET ORB TZV2P-GTH
+            POTENTIAL GTH-PBE-q4
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT CH3-TZV2P-converged
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL

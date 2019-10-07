@@ -2806,6 +2806,8 @@ CONTAINS
                   bstring = "LRI Basis Set"
                CASE ("RI_XAS")
                   bstring = "RI XAS Basis Set"
+               CASE ("RI_HFX")
+                  bstring = "RI HFX Basis Set"
                END SELECT
 
                CALL write_orb_basis_set(tmp_basis, output_unit, bstring)
@@ -2994,6 +2996,8 @@ CONTAINS
                      bstring = "Auxiliary Fit Basis Set"
                   CASE ("LRI_AUX")
                      bstring = "LRI Basis Set"
+                  CASE ("RI_HFX")
+                     bstring = "RI HFX Basis Set"
                   END SELECT
 
                   CALL write_gto_basis_set(tmp_basis, output_unit, bstring)

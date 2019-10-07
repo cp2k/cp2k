@@ -157,7 +157,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE basis_set_list_setup(basis_set_list, basis_type, qs_kind_set)
 
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_set_list
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 

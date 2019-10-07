@@ -44,6 +44,7 @@ MODULE qs_initial_guess
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: atomic_guess,&
                                               core_guess,&
                                               history_guess,&
@@ -52,6 +53,7 @@ MODULE qs_initial_guess
                                               random_guess,&
                                               restart_guess,&
                                               sparse_guess
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -143,9 +145,10 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
                                                             sort_kind
-      LOGICAL                                            :: did_guess, do_kpoints, do_std_diag, &
-                                                            exist, has_unit_metric, &
-                                                            natom_mismatch, need_wm, ofgpw
+      LOGICAL                                            :: did_guess, do_hfx_ri_mo, do_kpoints, &
+                                                            do_std_diag, exist, has_unit_metric, &
+                                                            natom_mismatch, need_mos, need_wm, &
+                                                            ofgpw
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: buff, buff2
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: checksum, eps, length, maxocc, occ, &
@@ -167,6 +170,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mo_dbcsr, mo_tmp_dbcsr
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array, mos_last_converged
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -208,7 +212,8 @@ CONTAINS
                       kpoints=kpoints, &
                       rho=rho, &
                       nelectron_spin=nelectron_spin, &
-                      para_env=para_env)
+                      para_env=para_env, &
+                      x_data=x_data)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
@@ -237,6 +242,15 @@ CONTAINS
       ofgpw = dft_control%qs_control%ofgpw
       density_guess = scf_control%density_guess
       do_std_diag = .FALSE.
+
+      do_hfx_ri_mo = .FALSE.
+      IF (ASSOCIATED(x_data)) do_hfx_ri_mo = x_data(1, 1)%do_hfx_ri .AND. x_data(1, 1)%ri_data%flavor == ri_mo
+      IF (ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
+
+      need_mos = scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr .OR. &
+                 (scf_env%method == block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
+                 .OR. dft_control%do_admm .OR. scf_env%method == block_davidson_diag_method_nr &
+                 .OR. do_hfx_ri_mo
 
       safe_density_guess = atomic_guess
       IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
@@ -614,10 +628,8 @@ CONTAINS
             IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr)) THEN
                ! get orbitals later
             ELSE
-               IF (ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
-               IF (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr .OR. &
-                   (scf_env%method == block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
-                   .OR. dft_control%do_admm .OR. scf_env%method == block_davidson_diag_method_nr) THEN
+               IF (need_mos) THEN
+
                   IF (dft_control%restricted .AND. (ispin == 2)) THEN
                      CALL mo_set_restrict(mo_array)
                   ELSE
@@ -993,9 +1005,7 @@ CONTAINS
          DO ispin = 1, nspin
             ! The orbital transformation method (OT) requires not only an
             ! initial density matrix, but also an initial wavefunction (MO set)
-            IF (ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
-            IF (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr .OR. &
-                (scf_env%method == block_krylov_diag_method_nr .AND. .NOT. do_std_diag)) THEN
+            IF (need_mos) THEN
                IF (dft_control%restricted .AND. (ispin == 2)) THEN
                   CALL mo_set_restrict(mo_array)
                ELSE

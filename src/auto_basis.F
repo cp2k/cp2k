@@ -47,13 +47,15 @@ CONTAINS
 !> \param qs_kind ...
 !> \param basis_cntrl ...
 !> \param basis_sort ...
+!> \param basis_type ...
 !> \date    01.11.2017
 !> \author  JGH
 ! **************************************************************************************************
-   SUBROUTINE create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, basis_cntrl, basis_sort)
+   SUBROUTINE create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, basis_cntrl, basis_type, basis_sort)
       TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN)                                :: basis_cntrl
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
       INTEGER, INTENT(IN), OPTIONAL                      :: basis_sort
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_aux_basis_set', &
@@ -84,7 +86,11 @@ CONTAINS
       !
       CPASSERT(.NOT. ASSOCIATED(ri_aux_basis_set))
       NULLIFY (orb_basis_set)
-      CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
+      IF (.NOT. PRESENT(basis_type)) THEN
+         CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
+      ELSE
+         CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type=basis_type)
+      ENDIF
       IF (ASSOCIATED(orb_basis_set)) THEN
          CALL get_basis_keyfigures(orb_basis_set, lmax, zmin, zmax, zeff)
          !Note: RI basis coud require lmax up to 2*orb_lmax. This ensures that all orbital pointers
