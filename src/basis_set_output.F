@@ -61,8 +61,8 @@ CONTAINS
       INTEGER, SAVE                                      :: ncalls = 0
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, orb_basis, &
-                                                            ri_aux_basis, ri_hxc_basis, &
-                                                            ri_xas_basis
+                                                            ri_aux_basis, ri_hfx_basis, &
+                                                            ri_hxc_basis, ri_xas_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -93,6 +93,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind, basis_set=orb_basis, basis_type="ORB")
          CALL get_qs_kind(qs_kind, basis_set=ri_aux_basis, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind, basis_set=ri_hxc_basis, basis_type="RI_HXC")
+         CALL get_qs_kind(qs_kind, basis_set=ri_hfx_basis, basis_type="RI_HFX")
          CALL get_qs_kind(qs_kind, basis_set=lri_aux_basis, basis_type="LRI_AUX")
          CALL get_qs_kind(qs_kind, basis_set=aux_fit_basis, basis_type="AUX_FIT")
          CALL get_qs_kind(qs_kind, basis_set=ri_xas_basis, basis_type="RI_XAS")
@@ -121,6 +122,10 @@ CONTAINS
                bname = "local_ri_xas"
                CALL basis_out(ri_xas_basis, element_symbol, bname, iunit)
             END IF
+            IF (ASSOCIATED(ri_hfx_basis)) THEN
+               bname = "local_ri_hfx"
+               CALL basis_out(ri_hfx_basis, element_symbol, bname, iunit)
+            ENDIF
          ENDIF
       END DO
 

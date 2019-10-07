@@ -254,7 +254,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, method_id, natom, nkind
+      INTEGER                                            :: ikind, method_id, nkind
       LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
                                                             do_kpoints, is_semi, mp2_present, &
                                                             my_qmmm, qmmm_decoupl, silent, &
@@ -273,6 +273,7 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, et_coupling_section, &
                                                             hfx_section, kpoint_section, &
                                                             mp2_section, transport_section
@@ -396,12 +397,11 @@ CONTAINS
       do_hfx = .FALSE.
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
       CALL section_vals_get(hfx_section, explicit=do_hfx)
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, scf_control=scf_control)
       IF (do_hfx) THEN
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
-         natom = SIZE(particle_set)
-         CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set, &
-                         qs_kind_set, dft_control, my_cell)
+         CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
+                         qs_kind_set, particle_set, dft_control, my_cell, do_ot=scf_control%use_ot)
       END IF
 
       mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
@@ -415,14 +415,14 @@ CONTAINS
          CALL section_vals_get(hfx_section, explicit=do_exx)
          IF (do_exx) THEN
             ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
-            natom = SIZE(particle_set)
 
             ! do_exx in call of hfx_create decides whether to go without ADMM (do_exx=.TRUE.) or with
             ! ADMM (do_exx=.FALSE.)
             CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=do_admm_rpa)
 
-            CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set, &
-                            qs_kind_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa))
+            CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, atomic_kind_set, &
+                            qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa), &
+                            do_ot=scf_control%use_ot)
 
          END IF
       END IF
@@ -506,7 +506,7 @@ CONTAINS
          maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, &
          nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
-      LOGICAL :: all_potential_present, be_silent, do_kpoints, do_wfc_im_time, e1terms, &
+      LOGICAL :: all_potential_present, be_silent, do_kpoints, do_wfc_im_time, do_ri_hfx, e1terms, &
          has_unit_metric, lribas, mp2_present, orb_gradient
       REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
                                                             verlet_skin, zeff_correction
@@ -793,6 +793,26 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      CALL section_vals_val_get(qs_env%input, "DFT%XC%HF%RI%_SECTION_PARAMETERS_", l_val=do_ri_hfx)
+      IF (do_ri_hfx) THEN
+         CALL get_qs_env(qs_env, nkind=nkind)
+         DO ikind = 1, nkind
+            NULLIFY (ri_hfx_basis)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=ri_hfx_basis, &
+                             basis_type="RI_HFX")
+            IF (.NOT. (ASSOCIATED(ri_hfx_basis))) THEN
+               CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
+               IF (dft_control%do_admm) THEN
+                  CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx, basis_type="AUX_FIT")
+               ELSE
+                  CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx)
+               ENDIF
+               CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HFX")
+            END IF
+         END DO
+      ENDIF
 
       IF (dft_control%qs_control%method_id == do_method_rigpw) THEN
          ! Check if RI_HXC basis is available, auto-generate if needed

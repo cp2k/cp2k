@@ -14,6 +14,7 @@ MODULE input_cp2k_hfx
                                               Guidon2009
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
+                                              high_print_level,&
                                               medium_print_level
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
@@ -37,6 +38,7 @@ MODULE input_cp2k_hfx
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_hfx'
+   INTEGER, PARAMETER, PUBLIC                 :: ri_mo = 1, ri_pmat = 2
 
    PUBLIC :: create_hfx_section
 
@@ -119,6 +121,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_hf_memory_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_hf_ri_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -477,5 +483,122 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_hf_memory_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_hf_ri_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_ri_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      NULLIFY (keyword, print_key)
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="RI", &
+                          description="Parameters for RI method in HFX (experimental, forces not yet implemented).")
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="controls the activation of RI", &
+                          usage="&RI T", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          description="Filter threshold for DBCSR tensors.", &
+                          default_r_val=1.0E-09_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
+                          description="The range parameter for the short range operator (in 1/a0). "// &
+                          "Default is OMEGA from INTERACTION_POTENTIAL. ", &
+                          default_r_val=0.0_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
+                          description="The cutoff radius (in Angstrom) for the truncated Coulomb operator. "// &
+                          "Default is CUTOFF_RADIUS from INTERACTION_POTENTIAL. ", &
+                          default_r_val=0.0_dp, &
+                          repeats=.FALSE., &
+                          unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RI_METRIC", &
+                          description="The type of RI operator. "// &
+                          "Default is POTENTIAL_TYPE from INTERACTION_POTENTIAL. "// &
+                          "The standard "// &
+                          "Coulomb operator cannot be used in periodic systems.", &
+                          usage="OPERATOR {string}", &
+                          repeats=.FALSE., &
+                          default_i_val=0, &
+                          enum_c_vals=s2a("HFX", "COULOMB", "IDENTITY", "TRUNCATED", "SHORTRANGE"), &
+                          enum_desc=s2a("Same as HFX operator", &
+                                        "Standard Coulomb operator: 1/r", &
+                                        "Overlap", &
+                                        "Truncated Coulomb operator: 1/r if (r<R_c), 0 otherwise ", &
+                                        "Short range: erfc(omega*r)/r"), &
+                          enum_i_vals=(/0, do_potential_coulomb, do_potential_id, do_potential_truncated, &
+                                        do_potential_short/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_2C_INV", &
+                          description="Perform an accuracy check on the inverse/sqrt of the 2-center integral matrix.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SQRT_ORDER", &
+                          description="Order of the iteration method for the calculation of "// &
+                          "the sqrt of 2-center integral matrix.", &
+                          default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_LANCZOS", &
+                          description="Threshold used for lanczos estimates.", &
+                          default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_PGF_ORB", &
+                          description="Sets precision of the integral tensors.", &
+                          default_r_val=1.0E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_LANCZOS", &
+                          description="Maximum number of lanczos iterations.", &
+                          usage="MAX_ITER_LANCZOS ", default_i_val=128)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RI_FLAVOR", &
+                          description="Flavor of RI: how to contract 3-center integrals", &
+                          enum_c_vals=s2a("MO", "RHO"), &
+                          enum_desc=s2a("MO coefficients", "density matrix"), &
+                          enum_i_vals=(/ri_mo, ri_pmat/), &
+                          default_i_val=ri_mo)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_INFO", &
+                                       description="Controls the printing of DBCSR tensor log in RI HFX.", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE
 
 END MODULE input_cp2k_hfx

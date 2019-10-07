@@ -35,12 +35,14 @@ MODULE hfx_admm_utils
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE external_potential_types,        ONLY: copy_potential
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
@@ -345,6 +347,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -358,9 +361,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (auxbas_pw_pool, dft_control, force, hfx_sections, input, &
-               para_env, poisson_env, pw_env, virial, &
-               matrix_ks_im, matrix_ks_orb, rho_ao_orb, &
-               matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx)
+               para_env, poisson_env, pw_env, virial, matrix_ks_im, &
+               matrix_ks_orb, rho_ao_orb, matrix_h, matrix_ks_aux_fit, &
+               matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -375,6 +378,12 @@ CONTAINS
                       matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, &
                       s_mstruct_changed=s_mstruct_changed, &
                       x_data=x_data)
+
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env=qs_env, mos_aux_fit=mo_array)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, mos=mo_array)
+      ENDIF
 
       nspins = dft_control%nspins
       nimages = dft_control%nimages
@@ -433,12 +442,33 @@ CONTAINS
          CALL qs_rho_get(rho_struct=rho_orb, rho_ao_kp=rho_ao_orb)
          ! Finally the real hfx calulation
          ehfx = 0.0_dp
-         DO ispin = 1, mspin
-            CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
-                                       para_env, s_mstruct_changed, irep, distribute_fock_matrix, &
-                                       ispin=ispin)
-            ehfx = ehfx + eh1
-         END DO
+
+         IF (x_data(irep, 1)%do_hfx_ri .AND. calculate_forces) THEN
+            CPABORT("RI forces not yet implemented in HFX")
+         ENDIF
+
+         IF (x_data(irep, 1)%do_hfx_ri) THEN
+            CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
+                                  mo_array, rho_ao_orb, &
+                                  s_mstruct_changed, nspins, &
+                                  x_data(irep, 1)%general_parameter%fraction)
+            IF (dft_control%do_admm) THEN
+               !for ADMMS, we need the exchange matrix k(d) for both spins
+
+               DO ispin = 1, mspin
+                  CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
+                                  name="HF exch. part of matrix_ks_aux_fit for ADMMS")
+               ENDDO
+            END IF
+         ELSE
+
+            DO ispin = 1, mspin
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
+                                          para_env, s_mstruct_changed, irep, distribute_fock_matrix, &
+                                          ispin=ispin)
+               ehfx = ehfx + eh1
+            END DO
+         ENDIF
 
          IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
             !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
@@ -487,12 +517,29 @@ CONTAINS
             rho_ao_orb(1:ns, 1:1) => rho_ao_1d(1:ns)
 
             ehfxrt = 0.0_dp
-            DO ispin = 1, mspin
-               CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
-                                          para_env, .FALSE., irep, distribute_fock_matrix, &
-                                          ispin=ispin)
-               ehfxrt = ehfxrt + eh1
-            END DO
+
+            IF (x_data(irep, 1)%do_hfx_ri) THEN
+               CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
+                                     mo_array, rho_ao_orb, &
+                                     .FALSE., nspins, &
+                                     x_data(irep, 1)%general_parameter%fraction)
+               IF (dft_control%do_admm) THEN
+                  !for ADMMS, we need the exchange matrix k(d) for both spins
+
+                  DO ispin = 1, mspin
+                     CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
+                                     name="HF exch. part of matrix_ks_aux_fit for ADMMS")
+                  ENDDO
+               END IF
+
+            ELSE
+               DO ispin = 1, mspin
+                  CALL integrate_four_center(qs_env, x_data, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
+                                             para_env, .FALSE., irep, distribute_fock_matrix, &
+                                             ispin=ispin)
+                  ehfxrt = ehfxrt + eh1
+               END DO
+            ENDIF
 
             IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
                NULLIFY (rho_ao_resp)

@@ -498,7 +498,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_subgroup', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, natom
+      INTEGER                                            :: handle
       LOGICAL                                            :: do_hfx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell
@@ -530,9 +530,8 @@ CONTAINS
 
       IF (do_hfx) THEN
          ! Retrieve particle_set and atomic_kind_set
-         natom = SIZE(particle_set)
-         CALL hfx_create(x_data, para_env_sub, hfx_section, natom, atomic_kind_set, &
-                         qs_kind_set, dft_control, my_cell, do_exx=.TRUE.)
+         CALL hfx_create(x_data, para_env_sub, hfx_section, atomic_kind_set, &
+                         qs_kind_set, particle_set, dft_control, my_cell, do_exx=.TRUE.)
       END IF
 
       CALL timestop(handle)

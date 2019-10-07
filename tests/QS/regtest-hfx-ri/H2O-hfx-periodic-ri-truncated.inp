@@ -1,0 +1,71 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME GTH_BASIS_SETS
+        POTENTIAL_FILE_NAME GTH_POTENTIALS
+        AUTO_BASIS RI_HFX SMALL ! RI basis for HFX
+        &MGRID
+            CUTOFF 300
+            REL_CUTOFF 50
+        &END MGRID
+        &SCF
+            EPS_SCF 1.0E-06
+            SCF_GUESS ATOMIC
+            MAX_SCF 5
+            &OT ON
+                PRECONDITIONER FULL_ALL
+            &END
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL NONE
+            &END XC_FUNCTIONAL
+            &HF
+                &SCREENING
+                    EPS_SCHWARZ 1.0E-05 ! affects screening in RI
+                    SCREEN_ON_INITIAL_P F
+                &END
+                &RI
+                    CUTOFF_RADIUS 1.5
+                    EPS_FILTER 1.0E-06
+                    EPS_PGF_ORB 1.0E-04
+                &END
+                &INTERACTION_POTENTIAL
+                    POTENTIAL_TYPE TRUNCATED
+                    CUTOFF_RADIUS 2.5
+                &END
+            &END
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 5.0 5.0 5.0
+        &END CELL
+        &COORD
+            O        -4.1351226463        5.6217295343        4.1734819049
+            H        -3.6794166617        5.9133996620        3.3765746437
+            H        -4.8659807993        5.0922120122        3.8367105410
+            O        -1.7983928770        5.3062005829        2.0727136006
+            H        -1.6607899469        5.2055648779        3.0234478427
+            H        -0.9276058519        5.1612802270        1.6955450552
+            O        -2.2646350383        4.0331276465        4.5923016340
+            H        -3.1433583151        3.6906167747        4.3955272151
+            H        -2.4411678963        4.7660987493        5.1927846386
+            O        -4.0009595153        4.1282630654        2.1317813827
+            H        -3.7707244776        4.7370476195        1.4220619137
+            H        -3.1779329744        3.6585072483        2.3046406277
+        &END COORD
+        &KIND H
+            BASIS_SET DZVP-GTH
+            POTENTIAL GTH-PBE-q1
+        &END KIND
+        &KIND O
+            BASIS_SET DZVP-GTH
+            POTENTIAL GTH-PBE-q6
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT H2O-ri-trunc
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL

@@ -1,0 +1,65 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+        POTENTIAL_FILE_NAME POTENTIAL
+        AUTO_BASIS RI_HFX MEDIUM
+        &MGRID
+            CUTOFF 100
+            REL_CUTOFF 30
+        &END MGRID
+        &QS
+            METHOD GAPW
+        &END QS
+        &POISSON
+            PERIODIC NONE
+            PSOLVER MT
+        &END
+        &SCF
+            EPS_SCF 1.0E-6
+            SCF_GUESS ATOMIC
+            MAX_SCF 50
+            &OT
+                PRECONDITIONER FULL_ALL
+            &END
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL NONE
+            &END XC_FUNCTIONAL
+            &HF
+                &RI
+                &END
+                &SCREENING
+                    EPS_SCHWARZ 1.0E-10
+                &END
+                &MEMORY
+                    MAX_MEMORY  10
+                &END
+            &END
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 5.0 5.0 5.0
+            PERIODIC NONE
+        &END CELL
+        &COORD
+            O   0.000000    0.000000   -0.065587
+            H   0.000000   -0.757136    0.520545
+            H   0.000000    0.757136    0.520545
+        &END COORD
+        &KIND H
+            BASIS_SET 6-31Gxx
+            POTENTIAL ALL
+        &END KIND
+        &KIND O
+            BASIS_SET 6-31Gxx
+            POTENTIAL ALL
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT H2O-hfx-coulomb
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL

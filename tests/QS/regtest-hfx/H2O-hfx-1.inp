@@ -24,10 +24,10 @@
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-10 
+          EPS_SCHWARZ 1.0E-10
         &END
         &MEMORY
-          MAX_MEMORY  10 
+          MAX_MEMORY  10
         &END
       &END
     &END XC
