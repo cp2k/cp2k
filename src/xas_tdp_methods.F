@@ -81,6 +81,7 @@ MODULE xas_tdp_methods
                                               evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_loc_methods,                  ONLY: centers_spreads_berry,&
@@ -230,12 +231,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(donor_state_type), POINTER                    :: current_state
+      TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
 
       NULLIFY (xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
-      NULLIFY (xas_atom_env, dft_control, matrix_ks, admm_env)
+      NULLIFY (xas_atom_env, dft_control, matrix_ks, admm_env, qs_kind_set, tmp_basis)
 
 !  Initialization
       output_unit = cp_logger_get_default_io_unit()
@@ -487,6 +490,15 @@ CONTAINS
          END DO
       END IF
 
+!  Return to initial basis set radii
+      IF (xas_tdp_control%eps_pgf > 0.0_dp) THEN
+         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+         DO ikind = 1, SIZE(atomic_kind_set)
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="ORB")
+            CALL init_interaction_radii_orb_basis(tmp_basis, eps_pgf_orb=dft_control%qs_control%eps_pgf_orb)
+         END DO
+      END IF
+
 !  Clean-up
       CALL xas_tdp_env_release(xas_tdp_env)
 
@@ -522,14 +534,16 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_type), POINTER                        :: dummy_section
       TYPE(section_vals_type), POINTER                   :: loc_section, xas_tdp_section
 
-      NULLIFY (xas_tdp_section, at_kind_set, ind_of_kind, dft_control)
+      NULLIFY (xas_tdp_section, at_kind_set, ind_of_kind, dft_control, qs_kind_set, tmp_basis)
       NULLIFY (qs_loc_env, loc_section, mos, particle_set, rho, rho_ao, mo_evals, cell)
       NULLIFY (mo_coeff, matrix_ks, admm_env, dummy_section)
 
@@ -665,6 +679,18 @@ CONTAINS
 
          DO ispin = 1, dft_control%nspins
             CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
+         END DO
+      END IF
+
+!  In case of externally imposed EPS_PGF_XAS, need to update ORB and RI_XAS interaction radii
+      IF (xas_tdp_control%eps_pgf > 0.0_dp) THEN
+         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+
+         DO i = 1, SIZE(qs_kind_set)
+            CALL get_qs_kind(qs_kind_set(i), basis_set=tmp_basis, basis_type="ORB")
+            CALL init_interaction_radii_orb_basis(tmp_basis, eps_pgf_orb=xas_tdp_control%eps_pgf)
+            CALL get_qs_kind(qs_kind_set(i), basis_set=tmp_basis, basis_type="RI_XAS")
+            CALL init_interaction_radii_orb_basis(tmp_basis, eps_pgf_orb=xas_tdp_control%eps_pgf)
          END DO
       END IF
 
@@ -887,13 +913,14 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: tmpStr
       CHARACTER(LEN=20*default_string_length)            :: reference
       INTEGER                                            :: i, il, irep, nrep
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input, libxc_fun, xc_fun, xc_functionals
 
-      NULLIFY (input, xc_functionals, libxc_fun, xc_fun)
+      NULLIFY (input, xc_functionals, libxc_fun, xc_fun, dft_control)
 
       IF (ou .LE. 0) RETURN
 
-      CALL get_qs_env(qs_env, input=input)
+      CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
 
       !Reference calculation
       IF (xas_tdp_control%do_uks) THEN
@@ -929,6 +956,15 @@ CONTAINS
       IF (xas_tdp_control%do_quad) THEN
          WRITE (UNIT=ou, FMT="(T3,A)") &
             "XAS_TDP| Transition Quadrupole: On"
+      END IF
+
+      !EPS_PGF
+      IF (xas_tdp_control%eps_pgf > 0.0_dp) THEN
+         WRITE (UNIT=ou, FMT="(T3,A,ES7.1)") &
+            "XAS_TDP| EPS_PGF_XAS: ", xas_tdp_control%eps_pgf
+      ELSE
+         WRITE (UNIT=ou, FMT="(T3,A,ES7.1,A)") &
+            "XAS_TDP| EPS_PGF_XAS: ", dft_control%qs_control%eps_pgf_orb, " (= EPS_PGF_ORB)"
       END IF
 
       !Grid info
@@ -1695,7 +1731,7 @@ CONTAINS
    SUBROUTINE print_checks(xas_tdp_env, xas_tdp_control, qs_env)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER                :: xaS_tdp_control
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'print_checks', routineP = moduleN//':'//routineN
