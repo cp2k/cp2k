@@ -1310,12 +1310,12 @@ CONTAINS
                END DO
             END IF
 
-!$OMP CRITICAL(mat_aIb)
+!$OMP CRITICAL(mat_aIb_critical)
             CALL dbcsr_get_block_p(matrix=mat_aIb, row=irow, col=icol, BLOCK=pblock, found=found)
             IF (found) THEN
                CALL daxpy(s1*s2, 1.0_dp, work(:, :), 1, pblock(:, :), 1)
             END IF
-!$OMP END CRITICAL(mat_aIb)
+!$OMP END CRITICAL(mat_aIb_critical)
             DEALLOCATE (work)
          END IF ! icol == atom_k
 
@@ -1339,12 +1339,12 @@ CONTAINS
                END DO
             END IF
 
-!$OMP CRITICAL(mat_bIa)
+!$OMP CRITICAL(mat_bIa_critical)
             CALL dbcsr_get_block_p(matrix=mat_bIa, row=irow, col=icol, BLOCK=pblock, found=found)
             IF (found) THEN
                CALL daxpy(s1*s2, 1.0_dp, work(:, :), 1, pblock(:, :), 1)
             END IF
-!$OMP END CRITICAL(mat_bIa)
+!$OMP END CRITICAL(mat_bIa_critical)
             DEALLOCATE (work)
          END IF !irow == atom_k
 
