@@ -5,18 +5,17 @@
        PROCESSING_UNIT cpu
        STD_EVP_SOLVER_TYPE lapack
        GEN_EVP_SOLVER_TYPE lapack
-       VERBOSITY 1
-       CYCLIC_BLOCK_SIZE 32
+       VERBOSITY 2
     &END CONTROL
     &PARAMETERS
        ELECTRONIC_STRUCTURE_METHOD  pseudopotential
-       SMEARING_WIDTH 0.01
+       SMEARING_WIDTH 0.025
        USE_SYMMETRY true
-       NUM_MAG_DIMS 3
-       SPIN_ORBIT true
+       NUM_MAG_DIMS 0
+       NUM_FV_STATES 40
        GK_CUTOFF 6.0
        PW_CUTOFF 20.00
-       ENERGY_TOL 1e-10
+       ENERGY_TOL 1e-8
        POTENTIAL_TOL 1e-8
        NUM_DFT_ITER 100
        NGRIDK 2 2 2
@@ -29,6 +28,7 @@
        CONVERGE_BY_ENERGY 1
     &END ITERATIVE_SOLVER
     &MIXER
+       BETA 0.95
        TYPE broyden1
        MAX_HISTORY 8
     &END MIXER
@@ -48,21 +48,30 @@
 
   &SUBSYS
     &CELL
-      A [bohr] -3.85500000000000000000 0.0 3.85500000000000000000
-      B [bohr] 0.0 3.85500000000000000000 3.85500000000000000000
-      C [bohr] -3.85500000000000000000 3.85500000000000000000 0.0
+      A [bohr] 7.260327248 0.0 0.0
+      B [bohr] 0.0 7.260327248 0.0
+      C [bohr] 0.0 0.0 7.260327248
     &END CELL
     &COORD
       SCALED
-      Au 0.0  0.0  0.0
+      V 0.0  0.0  0.0
+      Sr 0.5 0.5 0.5
+      O 0.5 0.0 0.0
+      O 0.0 0.5 0.0
+      O 0.0 0.0 0.5
     &END COORD
-    &KIND Au
-      POTENTIAL UPF Au-sp_r.upf.json
+    &KIND Sr
+      POTENTIAL UPF sr_lda_v1.uspp.F.UPF.json
+    &END KIND
+    &KIND O
+      POTENTIAL UPF o_lda_v1.2.uspp.F.UPF.json
+    &END KIND
+    &KIND V
+      POTENTIAL UPF v_lda_v1.4.uspp.F.UPF.json
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
   PROJECT Gold
   PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
 &END GLOBAL
