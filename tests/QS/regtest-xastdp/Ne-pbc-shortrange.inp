@@ -1,6 +1,7 @@
 &GLOBAL
   PROJECT Ne-pbc-shortrange
   PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
 &END GLOBAL
 &FORCE_EVAL
   METHOD Quickstep
