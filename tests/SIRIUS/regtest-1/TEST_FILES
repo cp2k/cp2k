@@ -11,4 +11,7 @@
 # fully test non colinear magnetism with spin orbit coupling
 Au.inp                                      85    1.0E-5           -147.17103162
 Fe.inp                                      85    1.0E-5           -253.17958057
+He-full-potential.inp                       85    1.0E-5           -2.8347354724
+SrVO.inp                                    85    1.0E-5           -312.75346010 
+
 #EOF
