@@ -219,13 +219,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iatom, iw, natom
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: force, stress
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: force
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
       TYPE(cell_type), POINTER                           :: my_cell
       TYPE(virial_type), POINTER                         :: virial
-
+      REAL(KIND=dp), DIMENSION(1:3, 1:3)                 :: stress
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(pwdft_env))

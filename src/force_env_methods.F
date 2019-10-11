@@ -260,7 +260,11 @@ CONTAINS
          CASE (use_qs_force)
             CALL qs_calc_energy_force(force_env%qs_env, calculate_forces, energy_consistency, linres_run)
          CASE (use_pwdft_force)
-            CALL pwdft_calc_energy_force(force_env%pwdft_env, calculate_forces, .NOT. virial%pv_numer .AND. calculate_stress_tensor)
+            if (virial%pv_availability && calculate_stress_tensor) then
+               CALL pwdft_calc_energy_force(force_env%pwdft_env, calculate_forces, .NOT. virial%pv_numer)
+            else
+               CALL pwdft_calc_energy_force(force_env%pwdft_env, calculate_forces, false)
+            end if
          CASE (use_eip_force)
             IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                CALL eip_lenosky(force_env%eip_env)
