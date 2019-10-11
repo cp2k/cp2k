@@ -2,8 +2,10 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver="6.3.0"
-sirius_sha256="c957f17dfc502606a7f651f91d730d9e6ba4d2845194ea6a22f1d528d52a300e"
+sirius_ver="6.4.1"
+sirius_sha256="86f25c71517952a63e92e0a9bcf66d27e4afb2b0d67cf84af480f116b8e7f53c"
+
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -61,7 +63,10 @@ case "$with_sirius" in
         require_env GSL_INCLUDE_DIR
         require_env GSL_LIBRARY
         require_env GSL_CBLAS_LIBRARY
-
+        require_env SpFFT_ROOT
+        require_env SpFFT_CFLAGS
+        require_env SpFFT_LDFLAGS
+        require_env SpFFT_LIBS
         ARCH=`arch`
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
         if [ "$ARCH" = "ppc64le" ]; then
@@ -82,16 +87,15 @@ case "$with_sirius" in
             if [ -f SIRIUS-${sirius_ver}.tar.gz ] ; then
                 echo "sirius_${sirius_ver}.tar.gz is found"
             else
-
                 download_pkg ${DOWNLOADER_FLAGS} ${sirius_sha256} \
                              "https://github.com/electronic-structure/SIRIUS/archive/v${sirius_ver}.tar.gz" \
                              -o SIRIUS-${sirius_ver}.tar.gz
             fi
+
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
             tar -xzf SIRIUS-${sirius_ver}.tar.gz
             cd SIRIUS-${sirius_ver}
-            cd src && sed -i -e "s/desciption/description/g" options.json && cd ..
             rm -Rf build
             mkdir build
             cd build
@@ -121,17 +125,12 @@ case "$with_sirius" in
                 COMPILATION_OPTIONS="-DUSE_MKL=ON -DUSE_SCALAPACK=ON $COMPILATION_OPTIONS"
             fi
 
-            echo "cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                  -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
-                  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
-                  -DCMAKE_CXX_COMPILER=mpic++ \
-                  -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .."
-
              cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                  -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
-                  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
-                  -DCMAKE_CXX_COMPILER=mpic++ \
-                  -DCMAKE_C_COMPILER=mpicc \
+                   -DCMAKE_SpFFTDIR=${SpFFT_ROOT} \
+                   -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
+                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
+                   -DCMAKE_CXX_COMPILER=mpic++ \
+                   -DCMAKE_C_COMPILER=mpicc \
                   ${COMPILATION_OPTIONS} .. > compile.log 2>&1
              make -j $NPROCS -C src >> compile.log 2>&1
 
@@ -149,6 +148,7 @@ case "$with_sirius" in
                 mkdir build-cuda
                 cd build-cuda
                 cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+                      -DCMAKE_SpFFTDIR=${SpFFT_ROOT} \
                       -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
@@ -198,6 +198,10 @@ case "$with_sirius" in
         require_env LIBVDWXC_CFLAGS
         require_env LIBVDWXC_LDFLAGS
         require_env LIBVDWXC_LIBS
+        require_env SpFFT_ROOT
+        require_env SpFFT_CFLAGS
+        require_env SpFFT_LDFLAGS
+        require_env SpFFT_LIBS
 
         check_lib -lsirius "sirius"
         add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
