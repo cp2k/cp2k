@@ -50,6 +50,7 @@ MODULE xas_tdp_atom
                                               lebedev_grid
    USE mathconstants,                   ONLY: dfac,&
                                               pi
+   USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_comm_free,&
                                               mp_comm_split_direct,&
@@ -1199,9 +1200,9 @@ CONTAINS
                IF (do_gga) THEN
 
                   DO dir = 1, 3
-                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, dir, start+iso:start+iso), na, &
+                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, start+iso:start+iso, dir), na, &
                                 dgr1(:, start+iso:start+iso), nr, 0.0_dp, dso(:, :, dir, start_pgf+iso), na)
-                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, dir, start+iso:start+iso), na, &
+                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, start+iso:start+iso, dir), na, &
                                 dgr2(:, start+iso:start+iso), nr, 1.0_dp, dso(:, :, dir, start_pgf+iso), na)
                   END DO
                END IF
@@ -1717,9 +1718,9 @@ CONTAINS
          ALLOCATE (xas_atom_env%gr(ikind)%array(nr, nsotot))
          xas_atom_env%ga(ikind)%array = 0.0_dp; xas_atom_env%gr(ikind)%array = 0.0_dp
          IF (do_gga) THEN
-            ALLOCATE (xas_atom_env%dga1(ikind)%array(na, 3, nsotot))
+            ALLOCATE (xas_atom_env%dga1(ikind)%array(na, nsotot, 3))
             ALLOCATE (xas_atom_env%dgr1(ikind)%array(nr, nsotot))
-            ALLOCATE (xas_atom_env%dga2(ikind)%array(na, 3, nsotot))
+            ALLOCATE (xas_atom_env%dga2(ikind)%array(na, nsotot, 3))
             ALLOCATE (xas_atom_env%dgr2(ikind)%array(nr, nsotot))
             xas_atom_env%dga1(ikind)%array = 0.0_dp; xas_atom_env%dgr1(ikind)%array = 0.0_dp
             xas_atom_env%dga2(ikind)%array = 0.0_dp; xas_atom_env%dgr2(ikind)%array = 0.0_dp
@@ -1753,8 +1754,8 @@ CONTAINS
 
                      !angular part of the gradient
                      DO dir = 1, 3
-                        dga1(1:na, dir, starti+iso) = dslm_dxyz(dir, 1:na, iso)
-                        dga2(1:na, dir, starti+iso) = harmonics%a(dir, 1:na)*slm(1:na, iso)
+                        dga1(1:na, starti+iso, dir) = dslm_dxyz(dir, 1:na, iso)
+                        dga2(1:na, starti+iso, dir) = harmonics%a(dir, 1:na)*slm(1:na, iso)
                      END DO
                   END IF
 
@@ -1963,9 +1964,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_gga_fxc', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: dir, er, handle, i, ipgf, iset, iso, &
-                                                            jpgf, jset, jso, maxso, na, nr, nset, &
-                                                            nsgf, nsotot, sr, starti, startj, ub
+      INTEGER                                            :: dir, er, handle, i, jpgf, jset, jso, &
+                                                            maxso, na, nr, nset, nsgf, nsoi, &
+                                                            nsotot, sr, startj, ub
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: int_sgf, res, so, work
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: dso
@@ -1977,8 +1978,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (grid_atom, ri_basis, qs_kind_set, ga, gr, dgr1, dgr2, dga1, dga2, lmax, lmin, npgf)
-      NULLIFY (weight, ri_sphi_so)
+      NULLIFY (grid_atom, ri_basis, qs_kind_set, ga, gr, dgr1, dgr2, lmax, lmin, npgf)
+      NULLIFY (weight, ri_sphi_so, dga1, dga2)
 
       !Startegy: we need to compute <phi_i|fxc|phij>, most of existing application of the 2nd
       !          functional derivative involve the response density, and the expression of the
@@ -2014,10 +2015,10 @@ CONTAINS
       !Point to the precomputed so
       ga => xas_atom_env%ga(ikind)%array
       gr => xas_atom_env%gr(ikind)%array
-      dga1 => xas_atom_env%dga1(ikind)%array
-      dga2 => xas_atom_env%dga2(ikind)%array
       dgr1 => xas_atom_env%dgr1(ikind)%array
       dgr2 => xas_atom_env%dgr2(ikind)%array
+      dga1 => xas_atom_env%dga1(ikind)%array
+      dga2 => xas_atom_env%dga2(ikind)%array
 
       !Before integration, wanna pre-divide all relevant derivastives by the nrom of the gradient
       CALL divide_by_norm_drho(deriv_set, rho_set, lsd=.TRUE.)
@@ -2029,8 +2030,6 @@ CONTAINS
 
       ALLOCATE (so(na, nr))
       ALLOCATE (dso(na, nr, 3))
-      ALLOCATE (work(na, 1))
-      ALLOCATE (res(1, 1))
 
       ALLOCATE (vxc(ub))
       ALLOCATE (vxg(ub))
@@ -2055,61 +2054,56 @@ CONTAINS
 
                !dso
                DO dir = 1, 3
-                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, dir, startj+jso:startj+jso), &
+                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, startj+jso:startj+jso, dir), &
                              na, dgr1(:, startj+jso:startj+jso), nr, 0.0_dp, dso(:, :, dir), na)
-                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, dir, startj+jso:startj+jso), &
+                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, startj+jso:startj+jso, dir), &
                              na, dgr2(:, startj+jso:startj+jso), nr, 1.0_dp, dso(:, :, dir), na)
                END DO !dir
 
                !Perform the first integration (analytically)
                CALL get_vxc_vxg(vxc, vxg, so, dso, na, sr, er, rho_set, deriv_set, weight)
 
-               !Now loop over the sphi_i (LHS) so and integrate for the second time
-               DO iset = 1, nset
-                  DO ipgf = 1, npgf(iset)
-                     starti = (iset-1)*maxso+(ipgf-1)*nsoset(lmax(iset))
-                     DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
+               !For a given phi_j, compute the second integration with all phi_i at once
+               !=> allows for efficient gemm to take place
+               !kernl is symmetric => avoid double computing
+               nsoi = startj+jso
+               ALLOCATE (res(nsoi, nsoi), work(na, nsoi))
+               res = 0.0_dp; work = 0.0_dp
 
-                        !Kernel integral is symmetric, avoid double computing
-                        IF (starti+iso > startj+jso) CYCLE
+               DO i = 1, ub
 
-                        DO i = 1, ub
+                  !integrate so*Vxc and store in the int_so
+                  CALL dgemm('N', 'N', na, nsoi, nr, 1.0_dp, vxc(i)%array(:, :), na, &
+                             gr(:, 1:nsoi), nr, 0.0_dp, work, na)
+                  CALL dgemm('T', 'N', nsoi, nsoi, na, 1.0_dp, work, na, &
+                             ga(:, 1:nsoi), na, 0.0_dp, res, nsoi)
+                  int_so(i)%array(1:nsoi, startj+jso) = get_diag(res)
 
-                           ! integrate so*Vxc and store in the int_so
-                           CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, vxc(i)%array(:, :), na, &
-                                      gr(:, starti+iso:starti+iso), nr, 0.0_dp, work, na)
-                           CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, &
-                                      ga(:, starti+iso:starti+iso), na, 0.0_dp, res, 1)
-                           int_so(i)%array(starti+iso, startj+jso) = res(1, 1)
+                  DO dir = 1, 3
 
-                           ! integrate and sum up Vxg*dso
-                           DO dir = 1, 3
-                              CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, vxg(i)%array(:, :, dir), na, &
-                                         dgr1(:, starti+iso:starti+iso), nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, &
-                                         dga1(:, dir, starti+iso:starti+iso), na, 0.0_dp, res, 1)
-                              int_so(i)%array(starti+iso, startj+jso) = &
-                                 int_so(i)%array(starti+iso, startj+jso)+res(1, 1)
+                     ! integrate and sum up Vxg*dso
+                     CALL dgemm('N', 'N', na, nsoi, nr, 1.0_dp, vxg(i)%array(:, :, dir), na, &
+                                dgr1(:, 1:nsoi), nr, 0.0_dp, work, na)
+                     CALL dgemm('T', 'N', nsoi, nsoi, na, 1.0_dp, work, na, &
+                                dga1(:, 1:nsoi, dir), na, 0.0_dp, res, nsoi)
+                     CALL daxpy(nsoi, 1.0_dp, get_diag(res), 1, int_so(i)%array(1:nsoi, startj+jso), 1)
 
-                              CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, vxg(i)%array(:, :, dir), na, &
-                                         dgr2(:, starti+iso:starti+iso), nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, &
-                                         dga2(:, dir, starti+iso:starti+iso), na, 0.0_dp, res, 1)
-                              int_so(i)%array(starti+iso, startj+jso) = &
-                                 int_so(i)%array(starti+iso, startj+jso)+res(1, 1)
-                           END DO
+                     CALL dgemm('N', 'N', na, nsoi, nr, 1.0_dp, vxg(i)%array(:, :, dir), na, &
+                                dgr2(:, 1:nsoi), nr, 0.0_dp, work, na)
+                     CALL dgemm('T', 'N', nsoi, nsoi, na, 1.0_dp, work, na, &
+                                dga2(:, 1:nsoi, dir), na, 0.0_dp, res, nsoi)
+                     CALL daxpy(nsoi, 1.0_dp, get_diag(res), 1, int_so(i)%array(1:nsoi, startj+jso), 1)
 
-                           !symmetry
-                           int_so(i)%array(startj+jso, starti+iso) = int_so(i)%array(starti+iso, startj+jso)
+                  END DO
 
-                        END DO !i
+                  !symmetry
+                  int_so(i)%array(startj+jso, 1:nsoi) = int_so(i)%array(1:nsoi, startj+jso)
 
-                     END DO !iso
-                  END DO !ipgf
-               END DO !iset
+               END DO !i
+               DEALLOCATE (res, work)
 
             END DO !jso
-         END DO !ipgf
+         END DO !jpgf
       END DO !jset
 
       !Contract into sgf and add to already computed LDA part of int_fxc
