@@ -206,26 +206,27 @@ CONTAINS
 !> \brief Calculate energy and forces within the PWDFT/SIRIUS code
 !> \param pwdft_env The pwdft environment to retain
 !> \param calculate_forces ...
+!> \param calculate_stress ...
 !> \par History
 !>      03.2018 initial create
 !> \author JHU
 ! **************************************************************************************************
-      SUBROUTINE pwdft_calc_energy_force(pwdft_env, calculate_forces, calculate_stress)
+   SUBROUTINE pwdft_calc_energy_force(pwdft_env, calculate_forces, calculate_stress)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-      LOGICAL, INTENT(IN)                                :: calculate_stress
+      LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_calc_energy_force', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iatom, iw, natom
+      REAL(KIND=dp), DIMENSION(1:3, 1:3)                 :: stress
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: force
+      TYPE(cell_type), POINTER                           :: my_cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
-      TYPE(cell_type), POINTER                           :: my_cell
       TYPE(virial_type), POINTER                         :: virial
-      REAL(KIND=dp), DIMENSION(1:3, 1:3)                 :: stress
+
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -256,15 +257,15 @@ CONTAINS
          CALL pwdft_env_get(pwdft_env=pwdft_env, forces=force)
          CALL qs_subsys_get(qs_subsys, particle_set=particle_set, natom=natom)
          DO iatom = 1, natom
-            particle_set(iatom)%f(1:3) = - force(iatom, 1:3)
+            particle_set(iatom)%f(1:3) = -force(iatom, 1:3)
          END DO
       END IF
 
-      IF (calculate_stress) then
+      IF (calculate_stress) THEN
          ! i need to retrieve the volume of the unit cell for the stress tensor
          CALL qs_subsys_get(qs_subsys, cell=my_cell, virial=virial)
          CALL pwdft_env_get(pwdft_env=pwdft_env, stress=stress)
-         virial%pv_virial(1:3, 1:3) = - stress(1:3 , 1:3) * my_cell%deth
+         virial%pv_virial(1:3, 1:3) = -stress(1:3, 1:3)*my_cell%deth
       END IF
 
       CALL timestop(handle)

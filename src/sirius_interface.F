@@ -557,6 +557,7 @@ CONTAINS
 !> \brief ...
 !> \param pwdft_env ...
 !> \param calculate_forces ...
+!> \param calculate_stress ...
 !> \param
 !> \par History
 !>      07.2018 start the Sirius library
@@ -565,8 +566,8 @@ CONTAINS
    SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress)
       TYPE(pwdft_environment_type), INTENT(INOUT), &
          POINTER                                         :: pwdft_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-      LOGICAL, INTENT(IN)                                :: calculate_stress
+      LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress
+
       INTEGER                                            :: n1, n2
       REAL(KIND=C_DOUBLE)                                :: etotal
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: cforces
