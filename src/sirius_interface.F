@@ -557,16 +557,16 @@ CONTAINS
 !> \brief ...
 !> \param pwdft_env ...
 !> \param calculate_forces ...
-!> \param calculate_stress ...
+!> \param calculate_stress_tensor ...
 !> \param
 !> \par History
 !>      07.2018 start the Sirius library
 !> \author JHU
 ! **************************************************************************************************
-   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress)
+   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress_tensor)
       TYPE(pwdft_environment_type), INTENT(INOUT), &
          POINTER                                         :: pwdft_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress
+      LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress_tensor
 
       INTEGER                                            :: n1, n2
       REAL(KIND=C_DOUBLE)                                :: etotal
@@ -606,7 +606,7 @@ CONTAINS
          DEALLOCATE (cforces)
       ENDIF
 
-      IF (calculate_stress) THEN
+      IF (calculate_stress_tensor) THEN
          cstress = 0.0_C_DOUBLE
          CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
          stress(1:3, 1:3) = cstress(1:3, 1:3)
@@ -661,13 +661,15 @@ CONTAINS
 !> \brief Empty implementation in case SIRIUS is not compiled in.
 !> \param pwdft_env ...
 !> \param calculate_forces ...
+!> \param calculate_stress ...
 ! **************************************************************************************************
-   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces)
+   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      LOGICAL                                            :: calculate_forces
+      LOGICAL                                            :: calculate_forces, calculate_stress
 
       MARK_USED(pwdft_env)
       MARK_USED(calculate_forces)
+      MARK_USED(calculate_stress)
       CPABORT("Sirius library is missing")
    END SUBROUTINE cp_sirius_energy_force
 

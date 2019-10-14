@@ -12,9 +12,9 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_SpFFT" ] && rm "${BUILDDIR}/setup_SpFFT"
 
-[ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
+! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-echo "test ${with_spfft}"
+
 case "$with_spfft" in
     __INSTALL__)
         echo "==================== Installing spfft ===================="
@@ -27,9 +27,9 @@ case "$with_spfft" in
                 echo "SpFFT-${spfft_ver}.tar.gz is found"
             else
                 wget "https://github.com/eth-cscs/SpFFT/archive/v0.9.7.tar.gz" -O SpFFT-${spfft_ver}.tar.gz
-                #                download_pkg ${DOWNLOADER_FLAGS} ${spfft_sha256} \
-#                             "https://github.com/eth-cscs/SpFFT/archive/v0.9.7.tar.gz"
-                             #                             "https://www.cp2k.org/static/downloads/SpFFT-${SpFFT_ver}.tar.gz"
+   #                             download_pkg ${DOWNLOADER_FLAGS} ${spfft_sha256} \
+   #                          "https://github.com/eth-cscs/SpFFT/archive/v0.9.7.tar.gz"
+   #                                                       "https://www.cp2k.org/static/downloads/SpFFT-${SpFFT_ver}.tar.gz"
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d SpFFT-${spfft_ver} ] && rm -rf SpFFT-${spfft_ver}
@@ -38,8 +38,8 @@ case "$with_spfft" in
             mkdir build-cpu
             cd build-cpu
             cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON ..
-            make -j $NPROCS > make.log 2>&1
-            make -j $NPROCS install > install.log 2>&1
+            make -j $NPROCS #> make.log 2>&1
+            make -j $NPROCS install #> install.log 2>&1
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
             if [ "$ENABLE_CUDA" = "__TRUE__" ] ; then
@@ -53,7 +53,7 @@ case "$with_spfft" in
                 [ -f src/libspfft.a ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
             fi
         fi
-
+        SPFFT_ROOT="${pkg_install_dir}"
         SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
         SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         SPFFT_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"

@@ -128,6 +128,9 @@ RUN ./scripts/install_hdf5.sh && rm -rf ./build
 COPY ./scripts/install_libvdwxc.sh ./scripts/
 RUN ./scripts/install_libvdwxc.sh && rm -rf ./build
 
+COPY ./scripts/install_spfft.sh ./scripts/
+RUN ./scripts/install_spfft.sh && rm -rf ./build 
+
 COPY ./scripts/install_sirius.sh ./scripts/
 RUN ./scripts/install_sirius.sh && rm -rf ./build
 

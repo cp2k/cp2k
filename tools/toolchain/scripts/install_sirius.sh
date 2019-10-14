@@ -63,10 +63,10 @@ case "$with_sirius" in
         require_env GSL_INCLUDE_DIR
         require_env GSL_LIBRARY
         require_env GSL_CBLAS_LIBRARY
-        require_env SpFFT_ROOT
-        require_env SpFFT_CFLAGS
-        require_env SpFFT_LDFLAGS
-        require_env SpFFT_LIBS
+        require_env SPFFT_ROOT
+        require_env SPFFT_CFLAGS
+        require_env SPFFT_LDFLAGS
+        require_env SPFFT_LIBS
         ARCH=`arch`
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
         if [ "$ARCH" = "ppc64le" ]; then
@@ -124,13 +124,16 @@ case "$with_sirius" in
             if [ -n "$MKL_LIBS" ] ; then
                 COMPILATION_OPTIONS="-DUSE_MKL=ON -DUSE_SCALAPACK=ON $COMPILATION_OPTIONS"
             fi
+            ls -l ${INSTALLDIR}/SpFFT-0.9.7/lib/cmake
+            CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:${INSTALLDIR}/SpFFT-0.9.7/lib/cmake
 
              cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                   -DCMAKE_SpFFTDIR=${SpFFT_ROOT} \
+                   -DSpFFT_DIR="${INSTALLDIR}/SpFFT-0.9.7/lib/cmake/SpFFT" \
                    -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                    -DCMAKE_CXX_COMPILER=mpic++ \
                    -DCMAKE_C_COMPILER=mpicc \
+                   -DPYTHON2=ON \
                   ${COMPILATION_OPTIONS} .. > compile.log 2>&1
              make -j $NPROCS -C src >> compile.log 2>&1
 
@@ -148,11 +151,12 @@ case "$with_sirius" in
                 mkdir build-cuda
                 cd build-cuda
                 cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                      -DCMAKE_SpFFTDIR=${SpFFT_ROOT} \
+                      -DSpFFT_DIR="${INSTALLDIR}/SpFFT-0.9.7/lib/cmake/SpFFT" \
                       -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
                       -DGPU_MODEL=P100 \
+                      -DPYTHON2=ON \
                       -DCMAKE_CXX_COMPILER=mpic++ \
                       -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
                 make -j $NPROCS -C src >> compile.log 2>&1
@@ -198,10 +202,10 @@ case "$with_sirius" in
         require_env LIBVDWXC_CFLAGS
         require_env LIBVDWXC_LDFLAGS
         require_env LIBVDWXC_LIBS
-        require_env SpFFT_ROOT
-        require_env SpFFT_CFLAGS
-        require_env SpFFT_LDFLAGS
-        require_env SpFFT_LIBS
+        require_env SPFFT_ROOT
+        require_env SPFFT_CFLAGS
+        require_env SPFFT_LDFLAGS
+        require_env SPFFT_LIBS
 
         check_lib -lsirius "sirius"
         add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
