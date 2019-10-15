@@ -296,6 +296,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
+      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_template
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
@@ -793,20 +794,12 @@ CONTAINS
             CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
             ! 1) create t_3c_overl_int
-            nimg = dft_control%nimages
-            ALLOCATE (t_3c_overl_int(nimg, nimg))
 
-            CALL create_tensor_O_3c(t_3c_overl_int(1, 1), pgrid_t3c_overl, &
+            CALL create_tensor_O_3c(t_3c_overl_int_template, pgrid_t3c_overl, &
                                     sizes_AO, sizes_AO, sizes_RI, &
                                     nl_3c=nl_3c, qs_env=qs_env, &
                                     basis_ao_1=basis_set_ao, basis_ao_2=basis_set_ao, basis_RI=basis_set_ri_aux, &
                                     do_kpoints=do_kpoints_cubic_RPA)
-
-            DO i = 1, SIZE(t_3c_overl_int, 1)
-               DO j = 1, SIZE(t_3c_overl_int, 2)
-                  IF (i > 1 .OR. j > 1) CALL dbcsr_t_create(t_3c_overl_int(1, 1), t_3c_overl_int(i, j))
-               ENDDO
-            ENDDO
 
             ! init k points
             IF (do_kpoints_cubic_RPA) THEN
@@ -815,7 +808,21 @@ CONTAINS
                CALL kpoint_init_cell_index(kpoints, nl_3c%jk_list, para_env, dft_control)
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                   "3C_OVERLAP_INTEGRALS_INFO| Number of periodic images considered:", dft_control%nimages
+
+               nimg = dft_control%nimages
+            ELSE
+               nimg = 1
             ENDIF
+
+            ALLOCATE (t_3c_overl_int(nimg, nimg))
+
+            DO i = 1, SIZE(t_3c_overl_int, 1)
+               DO j = 1, SIZE(t_3c_overl_int, 2)
+                  CALL dbcsr_t_create(t_3c_overl_int_template, t_3c_overl_int(i, j))
+               ENDDO
+            ENDDO
+
+            CALL dbcsr_t_destroy(t_3c_overl_int_template)
 
             ! split blocks to improve load balancing for tensor contraction
             sqrt_max_bsize = qs_env%mp2_env%ri_rpa_im_time%max_bsize_sqrt
