@@ -32,6 +32,7 @@ MODULE rpa_rse
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
+                                              dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_set,&
@@ -113,7 +114,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_ao, fm_ao_mo, fm_P_mu_nu, &
                                                             fm_P_mu_nu_beta, fm_X_mo, &
                                                             fm_X_mo_beta, fm_XC_mo, fm_XC_mo_beta
-      TYPE(dbcsr_p_type)                                 :: P_mu_nu
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu, matrix_s, rho_ao
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
@@ -166,10 +166,6 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix, sab_orb)
          CALL dbcsr_set(mat_mu_nu(ispin)%matrix, 0.0_dp)
       END DO
-
-      ALLOCATE (P_mu_nu%matrix)
-      CALL dbcsr_copy(P_mu_nu%matrix, rho_ao(1)%matrix, name="P_mu_nu")
-      CALL dbcsr_set(P_mu_nu%matrix, 0.0_dp)
 
       ! Dense (full) matrices
       NULLIFY (fm_P_mu_nu, fm_struct_tmp)
@@ -228,13 +224,13 @@ CONTAINS
       IF (.NOT. beta) THEN
          CALL exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                     hfx_sections, n_rep_hf, &
-                                    rho, mat_mu_nu, fm_P_mu_nu, P_mu_nu, &
+                                    rho, mat_mu_nu, fm_P_mu_nu, &
                                     fm_ao, fm_X_mo, fm_ao_mo, &
                                     mp2_env%ri_mp2%free_hfx_buffer)
       ELSE
          CALL exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                     hfx_sections, n_rep_hf, &
-                                    rho, mat_mu_nu, fm_P_mu_nu_beta, P_mu_nu, &
+                                    rho, mat_mu_nu, fm_P_mu_nu_beta, &
                                     fm_ao, fm_X_mo, fm_ao_mo, &
                                     mp2_env%ri_mp2%free_hfx_buffer, &
                                     fm_X_mo_beta, fm_P_mu_nu_beta, mo_coeff_beta)
@@ -358,8 +354,6 @@ CONTAINS
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
       ENDDO
       DEALLOCATE (mat_mu_nu)
-      CALL dbcsr_release(P_mu_nu%matrix)
-      DEALLOCATE (P_mu_nu%matrix)
       IF (beta) THEN
          CALL cp_fm_release(fm_X_mo_beta)
          CALL cp_fm_release(fm_XC_mo_beta)
@@ -381,7 +375,6 @@ CONTAINS
 !> \param rho_work ...
 !> \param mat_mu_nu ...
 !> \param fm_P_mu_nu ...
-!> \param P_mu_nu ...
 !> \param fm_X_ao ...
 !> \param fm_X_mo ...
 !> \param fm_X_ao_mo ...
@@ -392,7 +385,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                     hfx_sections, n_rep_hf, &
-                                    rho_work, mat_mu_nu, fm_P_mu_nu, P_mu_nu, &
+                                    rho_work, mat_mu_nu, fm_P_mu_nu, &
                                     fm_X_ao, fm_X_mo, fm_X_ao_mo, &
                                     recalc_hfx_integrals, fm_X_mo_beta, &
                                     fm_P_mu_nu_beta, mo_coeff_beta)
@@ -404,9 +397,7 @@ CONTAINS
       INTEGER                                            :: n_rep_hf
       TYPE(qs_rho_type), POINTER                         :: rho_work
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu
-      TYPE(cp_fm_type), POINTER                          :: fm_P_mu_nu
-      TYPE(dbcsr_p_type)                                 :: P_mu_nu
-      TYPE(cp_fm_type), POINTER                          :: fm_X_ao, fm_X_mo, fm_X_ao_mo
+      TYPE(cp_fm_type), POINTER                          :: fm_P_mu_nu, fm_X_ao, fm_X_mo, fm_X_ao_mo
       LOGICAL, OPTIONAL                                  :: recalc_hfx_integrals
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_X_mo_beta, fm_P_mu_nu_beta, &
                                                             mo_coeff_beta
@@ -414,10 +405,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, irep, ns
+      INTEGER                                            :: handle, irep, is, ns
       LOGICAL                                            :: alpha_beta, my_recalc_hfx_integrals
       REAL(KIND=dp)                                      :: ehfx
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: P_mu_nu, rho_work_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
 
       CALL timeset(routineN, handle)
@@ -425,24 +416,25 @@ CONTAINS
       alpha_beta = .FALSE.
       IF (PRESENT(mo_coeff_beta)) alpha_beta = .TRUE.
 
-      NULLIFY (rho_work_ao)
-
       my_recalc_hfx_integrals = .FALSE.
       IF (PRESENT(recalc_hfx_integrals)) my_recalc_hfx_integrals = recalc_hfx_integrals
 
-      CALL get_qs_env(qs_env)
+      CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
+      ns = SIZE(rho_work_ao)
+      NULLIFY (P_mu_nu)
+      CALL dbcsr_allocate_matrix_set(P_mu_nu, ns)
+      DO is = 1, ns
+         CALL dbcsr_init_p(P_mu_nu(is)%matrix)
+         CALL dbcsr_create(P_mu_nu(is)%matrix, template=rho_work_ao(1)%matrix)
+         CALL dbcsr_copy(P_mu_nu(is)%matrix, rho_work_ao(1)%matrix)
+         CALL dbcsr_set(P_mu_nu(is)%matrix, 0.0_dp)
+      ENDDO
 
       ! copy fm into DBCSR
-      CALL dbcsr_set(P_mu_nu%matrix, 0.0_dp)
-      CALL copy_fm_to_dbcsr(fm_P_mu_nu, P_mu_nu%matrix, keep_sparsity=.TRUE.)
-
-      CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
-      CALL dbcsr_set(rho_work_ao(1)%matrix, 0.0_dp)
-      CALL dbcsr_copy(rho_work_ao(1)%matrix, P_mu_nu%matrix)
+      CALL copy_fm_to_dbcsr(fm_P_mu_nu, P_mu_nu(1)%matrix, keep_sparsity=.TRUE.)
 
       DO irep = 1, n_rep_hf
-         ns = SIZE(rho_work_ao)
-         rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
+         rho_ao_2d(1:ns, 1:1) => P_mu_nu(1:ns)
          ns = SIZE(mat_mu_nu)
          mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
          CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
@@ -465,18 +457,12 @@ CONTAINS
 
       ! Beta spin
       IF (alpha_beta) THEN
-         CALL dbcsr_set(P_mu_nu%matrix, 0.0_dp)
-         CALL copy_fm_to_dbcsr(fm_P_mu_nu_beta, P_mu_nu%matrix, keep_sparsity=.TRUE.)
-         CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
-         CALL dbcsr_set(rho_work_ao(1)%matrix, 0.0_dp)
-         CALL dbcsr_copy(rho_work_ao(1)%matrix, P_mu_nu%matrix)
+         CALL copy_fm_to_dbcsr(fm_P_mu_nu_beta, P_mu_nu(1)%matrix, keep_sparsity=.TRUE.)
 
          CALL dbcsr_set(mat_mu_nu(1)%matrix, 0.0_dp)
 
          DO irep = 1, n_rep_hf
-            ns = SIZE(rho_work_ao)
-            rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
-            ns = SIZE(mat_mu_nu)
+            rho_ao_2d(1:ns, 1:1) => P_mu_nu(1:ns)
             mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
             my_recalc_hfx_integrals = .FALSE.
             CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
@@ -498,6 +484,13 @@ CONTAINS
                       fm_X_ao_mo, mo_coeff_beta, 1.0_dp, fm_X_mo_beta)
 
       ENDIF
+
+      ! Release dbcsr objects
+      DO is = 1, SIZE(P_mu_nu)
+         CALL dbcsr_release(P_mu_nu(is)%matrix)
+         DEALLOCATE (P_mu_nu(is)%matrix)
+      ENDDO
+      DEALLOCATE (P_mu_nu)
 
       CALL timestop(handle)
 
