@@ -538,7 +538,7 @@ CONTAINS
       INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, max_set, n_rep_hf, &
          n_threads, natom, natom_a, natom_b, nkind, nseta, nsetb, pbc_shells, storage_id
       INTEGER, DIMENSION(:), POINTER                     :: atom2kind, kind_of
-      LOGICAL                                            :: logic_val, my_do_exx
+      LOGICAL                                            :: do_ri, logic_val, my_do_exx
       REAL(dp)                                           :: real_val
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(section_vals_type), POINTER                   :: hf_pbc_section, hf_sub_section, &
@@ -555,6 +555,10 @@ CONTAINS
       CALL section_vals_get(hfx_section, n_repetition=n_rep_hf)
       n_threads = 1
 !$    n_threads = omp_get_max_threads()
+
+      CALL section_vals_val_get(hfx_section, "RI%_SECTION_PARAMETERS_", l_val=do_ri)
+      IF (do_ri) n_threads = 1 ! RI implementation does not use threads
+
       ALLOCATE (x_data(n_rep_hf, n_threads))
       DO i_thread = 1, n_threads
          DO irep = 1, n_rep_hf
@@ -1467,8 +1471,7 @@ CONTAINS
 !! There might be 2 hf sections
 
       n_rep_hf = x_data(1, 1)%n_rep_hf
-      n_threads = 1
-!$    n_threads = omp_get_max_threads()
+      n_threads = SIZE(x_data, 2)
 
       IF (x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
           x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
