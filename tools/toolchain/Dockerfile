@@ -22,6 +22,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     nano \
     pkg-config \
     python \
+    python3 \
     unzip \
     wget \
     xxd \
