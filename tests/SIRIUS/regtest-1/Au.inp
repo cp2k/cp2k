@@ -11,7 +11,7 @@
     &PARAMETERS
        ELECTRONIC_STRUCTURE_METHOD  pseudopotential
        SMEARING_WIDTH 0.01
-       USE_SYMMETRY true
+       USE_SYMMETRY false
        NUM_MAG_DIMS 3
        SPIN_ORBIT true
        GK_CUTOFF 6.0
@@ -31,7 +31,8 @@
     &MIXER
        TYPE broyden1
        MAX_HISTORY 8
-    &END MIXER
+       BETA 0.6
+  &END MIXER
   &END PW_DFT
     &DFT
       &XC
