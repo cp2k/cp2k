@@ -221,7 +221,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: submat_blk_size
       LOGICAL                                            :: do_coul, do_hfx, do_os, do_sc, do_sf, &
                                                             do_sg, do_tda, do_tp, do_xc
-      REAL(dp)                                           :: sx
+      REAL(dp)                                           :: eps_filter, sx
       TYPE(dbcsr_distribution_type), POINTER             :: submat_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ex_ker, xc_ker
       TYPE(dbcsr_type)                                   :: matrix_a, matrix_a_sf, matrix_b, proj_Q, &
@@ -246,6 +246,7 @@ CONTAINS
       do_coul = xas_tdp_control%do_coulomb
       do_tda = xas_tdp_control%tamm_dancoff
       sx = xas_tdp_control%sx
+      eps_filter = xas_tdp_control%eps_filter
       IF (do_sc) THEN
          ALLOCATE (donor_state%sc_matrix_tdp)
          sc_matrix_tdp => donor_state%sc_matrix_tdp
@@ -323,8 +324,8 @@ CONTAINS
             IF (do_hfx) CALL dbcsr_add(sc_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
 
             ! The product with the Q projector
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sc_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sc_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sc_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sc_matrix_tdp, filter_eps=eps_filter)
 
          END IF !do_sc
 
@@ -337,8 +338,8 @@ CONTAINS
             IF (do_hfx) CALL dbcsr_add(sf_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
 
             ! Take the product with the (spin-flip) Q projector
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q_sf, sf_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q_sf, 0.0_dp, sf_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q_sf, sf_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q_sf, 0.0_dp, sf_matrix_tdp, filter_eps=eps_filter)
 
          END IF !do_sf
 
@@ -352,8 +353,8 @@ CONTAINS
             IF (do_hfx) CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) ! scaled hfx
 
             ! Take the product with the Q projector:
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sg_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sg_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sg_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sg_matrix_tdp, filter_eps=eps_filter)
 
          END IF !do_sg (TDA)
 
@@ -366,8 +367,8 @@ CONTAINS
             IF (do_hfx) CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) ! scaled hfx
 
             ! Take the product with the Q projector:
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tp_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, tp_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tp_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, tp_matrix_tdp, filter_eps=eps_filter)
 
          END IF !do_tp (TDA)
 
@@ -376,7 +377,7 @@ CONTAINS
          ! In the case of full-TDDFT, the problem is turned Hermitian with the help of auxiliary
          ! matrices AUX = (A-D+E)^(+-0.5) that are stored in donor_state
          CALL build_aux_matrix(1.0E-8_dp, sx, matrix_a, matrix_d, matrix_e_sc, do_hfx, proj_Q, &
-                               work, donor_state, qs_env)
+                               work, donor_state, eps_filter, qs_env)
 
          IF (do_sc) THEN !full-TDDFT open-shell spin-conserving
 
@@ -394,13 +395,15 @@ CONTAINS
             END IF
 
             ! Take the product with the Q projector
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sc_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sc_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sc_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sc_matrix_tdp, filter_eps=eps_filter)
 
             ! Take the product with the inverse metric
             ! M <= G^-1 * M * G^-1
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, sc_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, work, donor_state%metric(2)%matrix, 0.0_dp, sc_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, sc_matrix_tdp, &
+                                0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, work, donor_state%metric(2)%matrix, 0.0_dp, &
+                                sc_matrix_tdp, filter_eps=eps_filter)
 
          END IF
 
@@ -420,13 +423,15 @@ CONTAINS
             END IF
 
             ! Take the product with the Q projector
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sg_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sg_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sg_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, sg_matrix_tdp, filter_eps=eps_filter)
 
             ! Take the product with the inverse metric
             ! M <= G^-1 * M * G^-1
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, sg_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, work, donor_state%metric(2)%matrix, 0.0_dp, sg_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, sg_matrix_tdp, &
+                                0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, work, donor_state%metric(2)%matrix, 0.0_dp, &
+                                sg_matrix_tdp, filter_eps=eps_filter)
 
          END IF ! singlets
 
@@ -445,13 +450,15 @@ CONTAINS
             END IF
 
             ! Take the product with the Q projector
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tp_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, tp_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tp_matrix_tdp, 0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, tp_matrix_tdp, filter_eps=eps_filter)
 
             ! Take the product with the inverse metric
             ! M <= G^-1 * M * G^-1
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tp_matrix_tdp, 0.0_dp, work)
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, work, donor_state%metric(2)%matrix, 0.0_dp, tp_matrix_tdp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tp_matrix_tdp, &
+                                0.0_dp, work, filter_eps=eps_filter)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, work, donor_state%metric(2)%matrix, 0.0_dp, &
+                                tp_matrix_tdp, filter_eps=eps_filter)
 
          END IF ! triplets
 
@@ -566,7 +573,8 @@ CONTAINS
          CALL dbcsr_create(matrix=sps, template=matrix_tdp, matrix_type="S")
 
          CALL dbcsr_add_on_diag(proj_Q, -1.0_dp) ! -SP
-         CALL dbcsr_multiply('N', 'N', -1.0_dp, proj_Q, donor_state%metric(1)%matrix, 0.0_dp, sps)
+         CALL dbcsr_multiply('N', 'N', -1.0_dp, proj_Q, donor_state%metric(1)%matrix, &
+                             0.0_dp, sps, filter_eps=xas_tdp_control%eps_filter)
 
          shift = 2.0_dp*MAXVAL(ABS(donor_state%energy_evals))
          CALL dbcsr_add(sps, matrix_tdp, shift, 1.0_dp) ! store it in sps not to mess-up matrix_tdp
@@ -650,8 +658,10 @@ CONTAINS
 !        Need to multiply the current matrix_tdp with the auxiliary matrix
 !        tmp_mat =  (A-D+E)^0.5 * M * (A-D+E)^0.5
          CALL dbcsr_create(matrix=tmp_mat, template=matrix_tdp, matrix_type="N")
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, matrix_tdp, 0.0_dp, tmp_mat)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, tmp_mat, donor_state%matrix_aux, 0.0_dp, tmp_mat)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, matrix_tdp, &
+                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, tmp_mat, donor_state%matrix_aux, &
+                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
 
 !        Get the matrix as a fm
          CALL copy_dbcsr_to_fm(tmp_mat, rhs_matrix)
@@ -666,7 +676,8 @@ CONTAINS
 !        Retrive c_diff = (c^+ - c^-) for normalization
 !        (c^+ - c^-) = 1/omega^2 * M * (A-D+E)^0.5 * work
          CALL cp_fm_create(c_diff, fm_struct)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%matrix_aux, 0.0_dp, tmp_mat)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%matrix_aux, &
+                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, work, c_diff, ncol=nrow)
 
          ALLOCATE (scaling(nrow))
@@ -684,8 +695,10 @@ CONTAINS
 
 !        Get c_sum = (c^+ + c^-), which appears in all transition density related expressions
 !        c_sum = -1/omega G^-1 * (A-D+E) * (c^+ - c^-)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, donor_state%matrix_aux, 0.0_dp, tmp_mat)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat, 0.0_dp, tmp_mat)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, donor_state%matrix_aux, &
+                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat, &
+                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, c_diff, c_sum, ncol=nrow)
          WHERE (tmp_evals .NE. 0) scaling = -1.0_dp/tmp_evals
          CALL cp_fm_column_scale(c_sum, scaling)
@@ -910,8 +923,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_q_projector', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, iblk, imo, ispin, jblk, nblk_row, &
-                                                            ndo_mo, nspins
+      INTEGER                                            :: blk, handle, iblk, imo, ispin, jblk, &
+                                                            nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_q, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
       REAL(dp), DIMENSION(:), POINTER                    :: work_block
@@ -920,6 +933,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: one_sp
 
       NULLIFY (work_block, one_sp, row_blk_size, dist_q, blk_size_q)
+
+      CALL timeset(routineN, handle)
 
 !  Initialization
       nspins = 1; IF (do_os) nspins = 2
@@ -967,6 +982,8 @@ CONTAINS
 
       CALL dbcsr_finalize(proj_Q)
 
+      CALL timestop(handle)
+
    END SUBROUTINE get_q_projector
 
 ! **************************************************************************************************
@@ -994,8 +1011,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_gs_contribution', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, iblk, imo, ispin, jblk, nblk_row, &
-                                                            ndo_mo, nspins
+      INTEGER                                            :: blk, handle, iblk, imo, ispin, jblk, &
+                                                            nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_a, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
       REAL(dp), DIMENSION(:), POINTER                    :: energy_evals, work_block
@@ -1009,6 +1026,8 @@ CONTAINS
 
       !  Note: matrix A is symmetric and block diagonal. If ADMM, the ks matrix is the total one,
       !        and it is corrected for eigenvalues (done at xas_tdp_init)
+
+      CALL timeset(routineN, handle)
 
 !  Initialization
       nspins = 1; IF (do_os) nspins = 2
@@ -1101,6 +1120,8 @@ CONTAINS
       CALL dbcsr_release(work_matrix)
       DEALLOCATE (m_ks)
 
+      CALL timestop(handle)
+
    END SUBROUTINE build_gs_contribution
 
 ! **************************************************************************************************
@@ -1122,8 +1143,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_metric', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, i, iblk, jblk, nao, nblk_row, &
-                                                            ndo_mo, nspins
+      INTEGER                                            :: blk, handle, i, iblk, jblk, nao, &
+                                                            nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_g, row_blk_size
       LOGICAL                                            :: found_block, my_do_inv
       REAL(dp), DIMENSION(:), POINTER                    :: work_block
@@ -1135,6 +1156,8 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_sinv
 
       NULLIFY (matrix_s, row_blk_size, work_block, para_env, blacs_env, dist_g, blk_size_g)
+
+      CALL timeset(routineN, handle)
 
 !  Initilization
       nspins = 1; IF (do_os) nspins = 2
@@ -1222,6 +1245,8 @@ CONTAINS
          CALL dbcsr_release(matrix_sinv)
       END IF !do_inv
 
+      CALL timestop(handle)
+
    END SUBROUTINE build_metric
 
 ! **************************************************************************************************
@@ -1236,16 +1261,18 @@ CONTAINS
 !> \param proj_Q ...
 !> \param work ...
 !> \param donor_state ...
+!> \param eps_filter for the dbcsr multiplication
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE build_aux_matrix(threshold, sx, matrix_a, matrix_d, matrix_e, do_hfx, proj_Q, &
-                               work, donor_state, qs_env)
+                               work, donor_state, eps_filter, qs_env)
 
       REAL(dp), INTENT(IN)                               :: threshold, sx
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a, matrix_d, matrix_e
       LOGICAL, INTENT(IN)                                :: do_hfx
       TYPE(dbcsr_type), INTENT(INOUT)                    :: proj_Q, work
       TYPE(donor_state_type), POINTER                    :: donor_state
+      REAL(dp), INTENT(IN)                               :: eps_filter
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_aux_matrix', &
@@ -1270,8 +1297,8 @@ CONTAINS
       END IF
 
       ! Take the product with the Q projector:
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tmp_mat, 0.0_dp, work)
-      CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, tmp_mat)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tmp_mat, 0.0_dp, work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, work, proj_Q, 0.0_dp, tmp_mat, filter_eps=eps_filter)
 
       ! Actually computing and storing the auxiliary matrix
       ALLOCATE (donor_state%matrix_aux)
@@ -2109,7 +2136,7 @@ CONTAINS
                                                             row_dist, row_dist_new
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: do_roks, do_uks
-      REAL(dp)                                           :: gs_sum, soc
+      REAL(dp)                                           :: eps_filter, gs_sum, soc
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: diag, tmp_evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: domo_soc_x, domo_soc_y, domo_soc_z, &
                                                             gsex_block
@@ -2156,6 +2183,7 @@ CONTAINS
       orb_soc_z => xas_tdp_env%orb_soc(3)%matrix
       do_roks = xas_tdp_control%do_roks
       do_uks = xas_tdp_control%do_uks
+      eps_filter = xas_tdp_control%eps_filter
 
       ! For the GS coeffs, we use the same structure both for ROKS and UKS here => allows us to write
       ! general code later on, and not use IF (do_roks) statements every second line
@@ -2383,12 +2411,13 @@ CONTAINS
 !  - sum_k,l,sigma <psi^0_k,sigma|SOC|psi^0_l,sigma> * <psi^Isc_l,sigma|psi^Jsc_k,sigma>
 
       !Same spin integration => only SOC_z matters, and the contribution is purely imaginary
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_sc, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_sc, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       !the overlap as well
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sc, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sc, 0.0_dp, dbcsr_work, &
+                          filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
       CALL os_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_z, pref_diaga=1.0_dp, &
                                 pref_diagb=-1.0_dp, pref_tracea=-1.0_dp, pref_traceb=1.0_dp, &
@@ -2404,12 +2433,13 @@ CONTAINS
 !  - sum_k,l,sigma <psi^0_k,sigma|SOC|psi^0_l,sigma> * <psi^Isf_l,tau|psi^Jsf_k,tau> , tau != sigma
 
       !Same spin integration => only SOC_z matters, and the contribution is purely imaginary
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_sf, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_sf, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       !the overlap as well
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, &
+                          dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
       !note: the different prefactors are derived from the fact that because of spin-flip, we have
       !alpha-gs and beta-lr interaction
@@ -2429,12 +2459,13 @@ CONTAINS
       tas(2) = ndo_mo+1; tbs(2) = 1
 
       !the overlap
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, &
+                          dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
       !start with the imaginary contribution
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_sf, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_sf, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL os_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_x, pref_diaga=1.0_dp, &
                                 pref_diagb=1.0_dp, pref_tracea=-1.0_dp, pref_traceb=-1.0_dp, &
@@ -2445,8 +2476,8 @@ CONTAINS
                               s_firstcol=1, t_firstrow=2, t_firstcol=1+nsc+1)
 
       !follow up with the real contribution
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_sf, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_sf, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL os_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_y, pref_diaga=1.0_dp, &
                                 pref_diagb=-1.0_dp, pref_tracea=1.0_dp, pref_traceb=-1.0_dp, &
@@ -2537,7 +2568,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist, row_dist_new
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
-      REAL(dp)                                           :: soc_gst, sqrt2
+      REAL(dp)                                           :: eps_filter, soc_gst, sqrt2
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: diag, tmp_evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: domo_soc_x, domo_soc_y, domo_soc_z, &
                                                             gstp_block
@@ -2586,6 +2617,7 @@ CONTAINS
       !by construction nsg == ntp, keep those separate for more code clarity though
       CPASSERT(nsg == ntp)
       nex = nsg
+      eps_filter = xas_tdp_control%eps_filter
 
 !  Creating the real part and imaginary part of the final SOC fm
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
@@ -2745,12 +2777,13 @@ CONTAINS
 
       !Now do the singlet-triplet SOC
       !start by computing the singlet-triplet overlap
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_tp, 0.0_dp, &
+                          dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
       !singlet-triplet with Ms=+-1, imaginary part
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_x, &
                                  pref_trace=-1.0_dp, pref_overall=-0.5_dp*sqrt2)
@@ -2768,8 +2801,8 @@ CONTAINS
                               t_firstcol=1+nsg+2*ntp+1)
 
       !singlet-triplet with Ms=+-1, real part
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_y, &
                                  pref_trace=-1.0_dp, pref_overall=-0.5_dp*sqrt2)
@@ -2786,8 +2819,8 @@ CONTAINS
                               t_firstcol=1+nsg+2*ntp+1)
 
       !singlet-triplet with Ms=0, purely imaginary
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_z, &
                                  pref_trace=-1.0_dp, pref_overall=1.0_dp)
@@ -2800,12 +2833,13 @@ CONTAINS
 
       !Now the triplet-triplet SOC
       !start by computing the overlap
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_tp, 0.0_dp, &
+                          dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
       !Ms=0 to Ms=+-1 SOC, imaginary part
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_x, &
                                  pref_trace=1.0_dp, pref_overall=-0.5_dp*sqrt2)
@@ -2824,8 +2858,8 @@ CONTAINS
                               t_firstcol=1+nsg+ntp+1)
 
       !Ms=0 to Ms=+-1 SOC, real part
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_y, &
                                  pref_trace=1.0_dp, pref_overall=0.5_dp*sqrt2)
@@ -2844,8 +2878,8 @@ CONTAINS
                               t_firstcol=1+nsg+ntp+1)
 
       !Ms=1 to Ms=1 and Ms=-1 to Ms=-1 SOC, purely imaginary
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_tp, 0.0_dp, dbcsr_work)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_prod)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_z, &
                                  pref_trace=1.0_dp, pref_overall=1.0_dp)
@@ -2922,19 +2956,22 @@ CONTAINS
 !>                  format in the ROKS case (see include_os_soc routine)
 !> \param dbcsr_soc_package inhertited from the main SOC routine
 !> \param donor_state ...
+!> \param eps_filter ...
 !> \param qs_env ...
 !> \note The ordering of the AMEWs is consistent with SOC and is gs, sc, sf
 !>       We assume that the operator is spin-independent => only <0|0>, <0|sc>, <sc|sc> and <sf|sf>
 !>       yield non-zero matrix elements
 !>       Only for open-shell calculations
 ! **************************************************************************************************
-   SUBROUTINE get_os_amew_op(amew_op, ao_op, gs_coeffs, dbcsr_soc_package, donor_state, qs_env)
+   SUBROUTINE get_os_amew_op(amew_op, ao_op, gs_coeffs, dbcsr_soc_package, donor_state, &
+                             eps_filter, qs_env)
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: amew_op
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ao_op
       TYPE(cp_fm_type), POINTER                          :: gs_coeffs
       TYPE(dbcsr_soc_package_type)                       :: dbcsr_soc_package
       TYPE(donor_state_type), POINTER                    :: donor_state
+      REAL(dp), INTENT(IN)                               :: eps_filter
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_os_amew_op', routineP = moduleN//':'//routineN
@@ -3091,12 +3128,13 @@ CONTAINS
 
          !  The spin-conserving/spin-conserving operator
          !overlap
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sc, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sc, 0.0_dp, &
+                             dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
          !operator in SC LR-orbital basis
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sc, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sc, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
          CALL os_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_op, pref_diaga=1.0_dp, &
                                    pref_diagb=1.0_dp, pref_tracea=-1.0_dp, pref_traceb=-1.0_dp, &
@@ -3108,12 +3146,13 @@ CONTAINS
 
          !  The spin-flip/spin-flip operator
          !overlap
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, &
+                             dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
          !operator in SF LR-orbital basis
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sf, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_prod)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sf, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
          !need to reorganize the domo_op array by swapping the alpha-alpha and the beta-beta quarter
          tmp(1:ndo_mo, 1:ndo_mo) = domo_op(ndo_mo+1:ndo_so, ndo_mo+1:ndo_so)
@@ -3153,18 +3192,20 @@ CONTAINS
 !> \param ao_op the operator in the basis of the atomic orbitals
 !> \param dbcsr_soc_package inherited from the main SOC routine
 !> \param donor_state ...
+!> \param eps_filter for dbcsr multiplication
 !> \param qs_env ...
 !> \note The ordering of the AMEWs is consistent with SOC and is gs, sg, tp(-1), tp(0). tp(+1)
 !>       We assume that the operator is spin-independent => only <0|0>, <0|S>, <S|S> and <T|T>
 !>       yield non-zero matrix elements
 !>       Only for spin-restricted calculations
 ! **************************************************************************************************
-   SUBROUTINE get_rcs_amew_op(amew_op, ao_op, dbcsr_soc_package, donor_state, qs_env)
+   SUBROUTINE get_rcs_amew_op(amew_op, ao_op, dbcsr_soc_package, donor_state, eps_filter, qs_env)
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: amew_op
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ao_op
       TYPE(dbcsr_soc_package_type)                       :: dbcsr_soc_package
       TYPE(donor_state_type), POINTER                    :: donor_state
+      REAL(dp), INTENT(IN)                               :: eps_filter
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_rcs_amew_op', &
@@ -3290,12 +3331,13 @@ CONTAINS
 
          ! do the singlet-singlet components
          !start with the overlap
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sg, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sg, 0.0_dp, &
+                             dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
          !then the operator in the LR orbital basis
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sg, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sg, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
          !use the soc routine, it is compatible
          CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_op, pref_trace=-1.0_dp, &
@@ -3307,12 +3349,13 @@ CONTAINS
 
          ! compute the triplet-triplet components
          !the overlap
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_tp, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_ovlp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_tp, 0.0_dp, &
+                             dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_tp, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
          !the operator in the LR orbital basis
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sg, 0.0_dp, dbcsr_work)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, ao_op_i, dbcsr_sg, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sg, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
          CALL rcs_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_op, pref_trace=-1.0_dp, &
                                     pref_overall=1.0_dp, pref_diags=gsgs_op(i), symmetric=.TRUE.)
@@ -3586,9 +3629,10 @@ CONTAINS
       !get the dipole in the AMEW basis
       IF (do_os) THEN
          CALL get_os_amew_op(amew_dip, xas_tdp_env%dipmat, gs_coeffs, dbcsr_soc_package, &
-                             donor_state, qs_env)
+                             donor_state, xas_tdp_control%eps_filter, qs_env)
       ELSE
-         CALL get_rcs_amew_op(amew_dip, xas_tdp_env%dipmat, dbcsr_soc_package, donor_state, qs_env)
+         CALL get_rcs_amew_op(amew_dip, xas_tdp_env%dipmat, dbcsr_soc_package, donor_state, &
+                              xas_tdp_control%eps_filter, qs_env)
       END IF
 
       DO i = 1, 3 !cartesian coord x, y, z
@@ -3697,9 +3741,10 @@ CONTAINS
       !get the quadrupole in the AMEWs basis
       IF (do_os) THEN
          CALL get_os_amew_op(amew_quad, xas_tdp_env%quadmat, gs_coeffs, dbcsr_soc_package, &
-                             donor_state, qs_env)
+                             donor_state, xas_tdp_control%eps_filter, qs_env)
       ELSE
-         CALL get_rcs_amew_op(amew_quad, xas_tdp_env%quadmat, dbcsr_soc_package, donor_state, qs_env)
+         CALL get_rcs_amew_op(amew_quad, xas_tdp_env%quadmat, dbcsr_soc_package, donor_state, &
+                              xas_tdp_control%eps_filter, qs_env)
       END IF
 
       DO i = 1, 6 ! x2, xy, xz, y2, yz, z2

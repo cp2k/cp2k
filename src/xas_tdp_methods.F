@@ -779,13 +779,13 @@ CONTAINS
 !     In the case of spin-restricted calculations, rho_ao includes double occupency => 0.5 prefactor
       fact = -0.5_dp; IF (do_os) fact = -1.0_dp
       CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, rho_ao(1)%matrix, 0.0_dp, &
-                          xas_tdp_env%q_projector(1)%matrix)
+                          xas_tdp_env%q_projector(1)%matrix, filter_eps=xas_tdp_control%eps_filter)
       CALL dbcsr_add_on_diag(xas_tdp_env%q_projector(1)%matrix, 1.0_dp)
       CALL dbcsr_finalize(xas_tdp_env%q_projector(1)%matrix)
 
       IF (do_os) THEN
          CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, rho_ao(2)%matrix, 0.0_dp, &
-                             xas_tdp_env%q_projector(2)%matrix)
+                             xas_tdp_env%q_projector(2)%matrix, filter_eps=xas_tdp_control%eps_filter)
          CALL dbcsr_add_on_diag(xas_tdp_env%q_projector(2)%matrix, 1.0_dp)
          CALL dbcsr_finalize(xas_tdp_env%q_projector(2)%matrix)
       END IF
@@ -966,6 +966,10 @@ CONTAINS
          WRITE (UNIT=ou, FMT="(T3,A,ES7.1,A)") &
             "XAS_TDP| EPS_PGF_XAS: ", dft_control%qs_control%eps_pgf_orb, " (= EPS_PGF_ORB)"
       END IF
+
+      !EPS_FILTER
+      WRITE (UNIT=ou, FMT="(T3,A,ES7.1)") &
+         "XAS_TDP| EPS_FILTER: ", xas_tdp_control%eps_filter
 
       !Grid info
       IF (xas_tdp_control%do_soc .OR. xas_tdp_control%do_xc) THEN
