@@ -593,6 +593,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_BLOCK_SIZE", &
+                          description="Maximum block size in one dimension for sparse tensors. ", &
+                          default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_INFO", &
                                        description="Controls the printing of DBCSR tensor log in RI HFX.", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")

@@ -37,11 +37,14 @@ MODULE hfx_types
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: dbcsr_type_real_8
-   USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, &
-        dbcsr_t_distribution_type, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
-        dbcsr_t_pgrid_type, dbcsr_t_type
+   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
+                                              dbcsr_t_distribution_destroy,&
+                                              dbcsr_t_distribution_new,&
+                                              dbcsr_t_distribution_type,&
+                                              dbcsr_t_pgrid_create,&
+                                              dbcsr_t_pgrid_destroy,&
+                                              dbcsr_t_pgrid_type,&
+                                              dbcsr_t_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -77,10 +80,12 @@ MODULE hfx_types
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_tensors_types,                ONLY: cyclic_tensor_dist,&
+   USE qs_tensors_types,                ONLY: create_3c_tensor,&
+                                              cyclic_tensor_dist,&
                                               distribution_3d_create,&
                                               distribution_3d_destroy,&
-                                              distribution_3d_type
+                                              distribution_3d_type,&
+                                              split_block_sizes
    USE string_utilities,                ONLY: compress
    USE t_c_g0,                          ONLY: free_C0
 
@@ -357,7 +362,7 @@ MODULE hfx_types
       ! input parameters
       REAL(KIND=dp) :: filter_eps, eps_schwarz, &
                        eps_lanczos, eps_pgf_orb
-      INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr
+      INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr, max_bsize
       LOGICAL :: check_2c_inv
 
       TYPE(libint_potential_type) :: ri_metric
@@ -369,17 +374,29 @@ MODULE hfx_types
       ! process grid used for any 3c tensors
       TYPE(dbcsr_t_pgrid_type) :: pgrid
 
-      ! distributions for (RI | AO AO) 3c integral tensor
+      ! distributions for (RI | AO AO) 3c integral tensor (non split)
+      !INTEGER, DIMENSION(:), ALLOCATABLE :: dist_AO_1, dist_AO_2, dist_RI
+      TYPE(distribution_3d_type)                         :: dist_3d
+      TYPE(dbcsr_t_distribution_type)                    :: dist
+
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist1_AO_1, dist1_AO_2, dist1_RI
-      TYPE(distribution_3d_type)                         :: dist1_3d
-      TYPE(dbcsr_t_distribution_type)                    :: dist1
-
-      ! distribution for (AO | RI AO) 3c integral tensor
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist2_AO_1, dist2_AO_2, dist2_RI
+      INTEGER, DIMENSION(:), ALLOCATABLE :: dist3_AO_1, dist3_AO_2, dist3_RI
 
-      ! 3c integral tensor in ( AO | RI AO) format
-      TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_ctr, &
-                                                            t_3c_int
+      ! block sizes for RI and AO tensor dimensions (split)
+      INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split
+
+      ! Note: changed static DIMENSION(1,1) of dbcsr_t_type to allocatables as workaround for gfortran 8.3.0,
+      ! with static dimension gfortran gets stuck during compilation
+
+      ! 3c integral tensor in (AO RI | AO) format for contraction
+      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_1
+
+      ! 3c integral tensor in ( AO | RI AO) format for contraction
+      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_2
+
+      ! 3c integral tensor in ( RI | AO AO ) format for contraction
+      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_3
 
       ! need section only for output handling, section should have a print_key subsection
       TYPE(section_vals_type), POINTER                   :: ri_section => NULL()
@@ -990,6 +1007,7 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "MAX_ITER_LANCZOS", i_val=ri_data%max_iter_lanczos)
       CALL section_vals_val_get(ri_section, "RI_FLAVOR", i_val=ri_data%flavor)
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
+      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE", i_val=ri_data%max_bsize)
 
       IF (ri_data%flavor == ri_mo .AND. .NOT. do_ot) THEN
          CPABORT("RI_FLAVOR MO is not consistent with density mixing. Either use OT or RI_FLAVOR RHO.")
@@ -1044,11 +1062,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: basis_cntrl
 
       INTEGER                                            :: ikind, mp_comm_3d, natom, nkind
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_AO_1, dist_AO_2, dist_RI, sizes_AO, &
-                                                            sizes_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_AO_1, dist_AO_2, dist_RI
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
-      TYPE(dbcsr_t_distribution_type)                    :: dist_3c
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
@@ -1103,59 +1119,54 @@ CONTAINS
       pdims = 0
       CALL mp_cart_create(para_env%group, 3, pdims, pcoord, mp_comm_3d)
 
-      ALLOCATE (sizes_RI(natom), sizes_AO(natom))
+      ALLOCATE (ri_data%bsizes_RI(natom))
+      ALLOCATE (ri_data%bsizes_AO(natom))
       ALLOCATE (basis_set_RI(nkind), basis_set_AO(nkind))
       CALL basis_set_list_setup(basis_set_RI, ri_data%ri_basis_type, qs_kind_set)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=basis_set_RI)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=ri_data%bsizes_RI, basis=basis_set_RI)
       CALL basis_set_list_setup(basis_set_AO, ri_data%orb_basis_type, qs_kind_set)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_AO)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=ri_data%bsizes_AO, basis=basis_set_AO)
 
       ALLOCATE (dist_RI(natom))
       ALLOCATE (dist_AO_1(natom))
       ALLOCATE (dist_AO_2(natom))
-      CALL cyclic_tensor_dist(natom, pdims(1), sizes_RI, dist_RI)
-      CALL cyclic_tensor_dist(natom, pdims(2), sizes_AO, dist_AO_1)
-      CALL cyclic_tensor_dist(natom, pdims(3), sizes_AO, dist_AO_2)
+      CALL cyclic_tensor_dist(natom, pdims(1), ri_data%bsizes_RI, dist_RI)
+      CALL cyclic_tensor_dist(natom, pdims(2), ri_data%bsizes_AO, dist_AO_1)
+      CALL cyclic_tensor_dist(natom, pdims(3), ri_data%bsizes_AO, dist_AO_2)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_ao_1, dist_ao_2, nkind, particle_set, &
                                   mp_comm_3d, own_comm=.TRUE.)
 
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid)
 
-      ALLOCATE (ri_data%dist1_ri, SOURCE=dist_RI)
-      ALLOCATE (ri_data%dist1_ao_1, SOURCE=dist_ao_1)
-      ALLOCATE (ri_data%dist1_ao_2, SOURCE=dist_ao_2)
-      ri_data%dist1_3d = dist_3d
+      ri_data%dist_3d = dist_3d
 
-      CALL cyclic_tensor_dist(natom, pdims(1), sizes_AO, dist_AO_1)
-      CALL cyclic_tensor_dist(natom, pdims(2), sizes_RI, dist_RI)
-      CALL cyclic_tensor_dist(natom, pdims(3), sizes_AO, dist_AO_2)
+      CALL dbcsr_t_distribution_new(ri_data%dist, ri_data%pgrid, &
+                                    dist_RI, dist_AO_1, dist_AO_2)
 
-      ALLOCATE (ri_data%dist2_ao_1, SOURCE=dist_ao_1)
-      ALLOCATE (ri_data%dist2_ao_2, SOURCE=dist_ao_2)
-      ALLOCATE (ri_data%dist2_ri, SOURCE=dist_RI)
-
-      CALL dbcsr_t_distribution_new(ri_data%dist1, ri_data%pgrid, &
-                                    ri_data%dist1_RI, ri_data%dist1_ao_1, ri_data%dist1_ao_2)
+      DEALLOCATE (dist_AO_1, dist_AO_2, dist_RI)
 
       ! initialize tensors expressed in basis representation
-      IF (ri_data%flavor == ri_mo) THEN
-         CALL dbcsr_t_distribution_new(dist_3c, ri_data%pgrid, &
-                                       ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2)
-         CALL dbcsr_t_create(ri_data%t_3c_int_ctr(1, 1), "(AO | RI AO)", dist_3c, [1], [2, 3], &
-                             dbcsr_type_real_8, sizes_AO, sizes_RI, sizes_AO)
+      ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
 
-         CALL dbcsr_t_distribution_destroy(dist_3c)
-      ELSEIF (ri_data%flavor == ri_pmat) THEN
-         CALL dbcsr_t_distribution_new(dist_3c, ri_data%pgrid, &
-                                       ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2)
-         CALL dbcsr_t_create(ri_data%t_3c_int_ctr(1, 1), "(AO RI | AO)", dist_3c, [1, 2], [3], &
-                             dbcsr_type_real_8, sizes_AO, sizes_RI, sizes_AO)
-         CALL dbcsr_t_distribution_destroy(dist_3c)
-         CALL dbcsr_t_distribution_new(dist_3c, ri_data%pgrid, &
-                                       ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2)
-         CALL dbcsr_t_create(ri_data%t_3c_int(1, 1), "(AO | RI AO)", dist_3c, [1], [2, 3], &
-                             dbcsr_type_real_8, sizes_AO, sizes_RI, sizes_AO)
-         CALL dbcsr_t_distribution_destroy(dist_3c)
+      CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_split, ri_data%max_bsize)
+      CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_split, ri_data%max_bsize)
+
+      CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2, &
+                            ri_data%pgrid, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                            [1], [2, 3], name="(AO | RI AO)")
+
+      ALLOCATE (ri_data%t_3c_int_ctr_3(1, 1))
+      CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2, &
+                            ri_data%pgrid, ri_data%bsizes_RI, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                            [1], [2, 3], name="(RI | AO AO)")
+
+      IF (ri_data%flavor == ri_pmat) THEN
+
+         ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
+
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
+                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
+                               [1, 2], [3], name="(AO RI | AO)")
       ENDIF
 
    END SUBROUTINE
@@ -1170,13 +1181,18 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
-      DEALLOCATE (ri_data%dist1_AO_1, ri_data%dist1_AO_2, ri_data%dist2_AO_1, ri_data%dist2_AO_2, &
-                  ri_data%dist1_RI, ri_data%dist2_RI)
-      CALL distribution_3d_destroy(ri_data%dist1_3d)
-      CALL dbcsr_t_distribution_destroy(ri_data%dist1)
-      CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr(1, 1))
+      DEALLOCATE (ri_data%dist2_RI, ri_data%dist2_AO_1, ri_data%dist2_AO_2)
+      DEALLOCATE (ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2)
+      CALL distribution_3d_destroy(ri_data%dist_3d)
+      CALL dbcsr_t_distribution_destroy(ri_data%dist)
+      CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
+      DEALLOCATE (ri_data%t_3c_int_ctr_2)
+      CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_3(1, 1))
+      DEALLOCATE (ri_data%t_3c_int_ctr_3)
       IF (ri_data%flavor == ri_pmat) THEN
-         CALL dbcsr_t_destroy(ri_data%t_3c_int(1, 1))
+         CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
+         DEALLOCATE (ri_data%t_3c_int_ctr_1)
+         DEALLOCATE (ri_data%dist1_RI, ri_data%dist1_AO_1, ri_data%dist1_AO_2)
       ENDIF
 
       NULLIFY (logger)
