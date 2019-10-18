@@ -11,6 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2009-05-12
+!> - Generalized sm_fm_mulitply for matrices w/ different row/col block size (A. Bussy, 11.2018)
 ! **************************************************************************************************
 MODULE cp_dbcsr_operations
    USE mathlib,                         ONLY: lcm, gcd
@@ -567,7 +568,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, &
                                                             col_blk_size_right_out, row_blk_size,&
                                                             !row_cluster, col_cluster,&
-                                                            row_dist, col_dist
+                                                            row_dist, col_dist, col_blk_size
       TYPE(dbcsr_type)                                   :: in, out
       REAL(dp)                                           :: my_alpha, my_beta
       TYPE(dbcsr_distribution_type)                       :: dist, dist_right_in, product_dist
@@ -597,11 +598,11 @@ CONTAINS
       !   'alpha',my_alpha,'beta',my_beta
 
       IF (ncol .GT. 0 .AND. k_out .GT. 0 .AND. k_in .GT. 0) THEN
-         CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size, distribution=dist)
+         CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size, distribution=dist)
          CALL dbcsr_create_dist_r_unrot(dist_right_in, dist, k_in, col_blk_size_right_in)
 
          CALL dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
-                              row_blk_size, col_blk_size_right_in, nze=0)
+                              col_blk_size, col_blk_size_right_in, nze=0)
 
          CALL dbcsr_distribution_get(dist, row_dist=row_dist)
          CALL dbcsr_distribution_get(dist_right_in, col_dist=col_dist)

@@ -14,6 +14,7 @@
 !>      bohr        : Conversion factor [Angstrom] -> [Bohr]
 !>      boltzmann   : Boltzmann constant [J/K]
 !>      c_light     : Speed of light in vacuum [m/s]
+!>      c_light_au  : Speed of light in vacuum [a.u.]
 !>      e_charge    : Elementary charge [C]
 !>      e_mass      : Electron mass [kg]
 !>      e_gfactor   : Electron g factor [ ]
@@ -71,7 +72,7 @@ MODULE physcon
 
    PRIVATE
 
-   PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann, &
+   PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann, c_light_au, &
              debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar, &
              hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton, &
              p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers
@@ -83,6 +84,8 @@ MODULE physcon
    ! Exact constants
    ! Speed of light in vacuum [m/s]
    REAL(KIND=dp), PARAMETER :: c_light = 299792458.0_dp
+   ! Speed of light in vacuum, in atomic units (=1/a_fine)
+   REAL(KIND=dp), PARAMETER :: c_light_au = 137.035999679_dp
 
    ! Magnetic constant or permeability of vacuum [N/A**2]
    REAL(KIND=dp), PARAMETER :: mu_perm = 4.0_dp*pi*1.0E-7_dp

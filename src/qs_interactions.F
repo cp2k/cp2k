@@ -98,14 +98,15 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
-         harris_basis, lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, ri_basis, soft_basis
+         harris_basis, lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, ri_basis, &
+         ri_xas_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
       NULLIFY (all_potential, gth_potential, sgp_potential, orb_basis_set, aux_basis_set, soft_basis, &
-               lri_basis, mao_basis, paw_proj_set, harris_basis)
+               lri_basis, mao_basis, paw_proj_set, harris_basis, ri_xas_basis)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
@@ -125,6 +126,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=harris_basis, basis_type="HARRIS")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_gw_basis, basis_type="AUX_GW")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_xas_basis, basis_type="RI_XAS")
          CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
@@ -327,6 +329,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(ri_basis)) THEN
             CALL init_interaction_radii_orb_basis(ri_basis, qs_control%eps_pgf_orb)
+         END IF
+         IF (ASSOCIATED(ri_xas_basis)) THEN
+            CALL init_interaction_radii_orb_basis(ri_xas_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the paw projector basis function radii

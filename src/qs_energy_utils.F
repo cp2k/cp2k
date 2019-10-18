@@ -56,6 +56,7 @@ MODULE qs_energy_utils
    USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE scf_control_types,               ONLY: scf_control_type
    USE xas_methods,                     ONLY: xas
+   USE xas_tdp_methods,                 ONLY: xas_tdp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -288,6 +289,10 @@ CONTAINS
       !Properties
       IF (dft_control%do_xas_calculation) THEN
          CALL xas(qs_env, dft_control)
+      END IF
+
+      IF (dft_control%do_xas_tdp_calculation) THEN
+         CALL xas_tdp(qs_env)
       END IF
 
       ! Compute Linear Response properties as post-scf

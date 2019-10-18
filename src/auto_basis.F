@@ -23,6 +23,7 @@ MODULE auto_basis
                                               gamma1,&
                                               pi,&
                                               rootpi
+   USE orbital_pointers,                ONLY: init_orbital_pointers
    USE periodic_table,                  ONLY: get_ptable_info
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
@@ -84,6 +85,9 @@ CONTAINS
       CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
       IF (ASSOCIATED(orb_basis_set)) THEN
          CALL get_basis_keyfigures(orb_basis_set, lmax, zmin, zmax, zeff)
+         !Note: RI basis coud require lmax up to 2*orb_lmax. This ensures that all orbital pointers
+         !      are properly initialized before building the basis
+         CALL init_orbital_pointers(2*lmax)
          CALL get_basis_products(lmax, zmin, zmax, zeff, pmin, pmax, peff)
          CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
          CALL get_ptable_info(element_symbol, ielement=z)

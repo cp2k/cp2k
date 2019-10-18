@@ -111,7 +111,7 @@ MODULE qs_loc_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
 ! *** Public ***
-   PUBLIC ::  qs_loc_driver, qs_print_cubes
+   PUBLIC ::  qs_loc_driver, qs_print_cubes, centers_spreads_berry
 
 CONTAINS
 

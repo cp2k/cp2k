@@ -45,15 +45,18 @@
 !
 !   Joost VandeVondele and Manuel Guidon, Nov 2008.
 ! instead of a module one could use: INTEGER, PARAMETER ::  dp=KIND(0.0D0)
+!
+! History: -05.2019 Added a get_maxl_init function to get current status of nderiv_init and moved
+!           the file to common (made it accessible from aobasis, same place as gamma.F) A. Bussy
 
 MODULE t_c_g0
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: t_c_g0_n, init, free_C0
+   PUBLIC :: t_c_g0_n, init, free_C0, get_lmax_init
    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, SAVE :: C0
    INTEGER, PARAMETER :: degree = 13
    REAL(KIND=dp), PARAMETER :: target_error = 0.100000E-08
@@ -1439,4 +1442,19 @@ CONTAINS
          RES(K) = RES(K)+DOT_PRODUCT(T1(0:0), C0(105:105, K))*T2(13)
       ENDDO
    END SUBROUTINE PD2VAL
+
+! **************************************************************************************************
+!> \brief Returns the value of nderiv_init so that one can check if opening the potential file is
+!>        worhtwhile
+!> \return ...
+!> \author A. Bussy, 05.2019
+! **************************************************************************************************
+   FUNCTION get_lmax_init() RESULT(lmax_init)
+
+      INTEGER                                            :: lmax_init
+
+      lmax_init = nderiv_init
+
+   END FUNCTION get_lmax_init
+
 END MODULE t_c_g0

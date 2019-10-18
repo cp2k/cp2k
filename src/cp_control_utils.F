@@ -206,6 +206,8 @@ CONTAINS
                dft_control%auto_basis_lri_aux = isize
             CASE ("RI_HXC")
                dft_control%auto_basis_ri_hxc = isize
+            CASE ("RI_XAS")
+               dft_control%auto_basis_ri_xas = isize
             CASE DEFAULT
                CPWARN("Unknown basis type in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
             END SELECT
@@ -360,6 +362,14 @@ CONTAINS
          ! Override with section parameter
          CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
                                    l_val=dft_control%do_xas_calculation)
+      END IF
+
+      tmp_section => section_vals_get_subs_vals(dft_section, "XAS_TDP")
+      CALL section_vals_get(tmp_section, explicit=dft_control%do_xas_tdp_calculation)
+      IF (dft_control%do_xas_tdp_calculation) THEN
+         ! Override with section parameter
+         CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
+                                   l_val=dft_control%do_xas_tdp_calculation)
       END IF
 
       ! Read the finite field input section
@@ -705,7 +715,6 @@ CONTAINS
       CALL section_vals_val_get(qs_section, "CLUSTER_EMBED_SUBSYS", l_val=qs_control%cluster_embed_subsys)
       CALL section_vals_val_get(qs_section, "HIGH_LEVEL_EMBED_SUBSYS", l_val=qs_control%high_level_embed_subsys)
       CALL section_vals_val_get(qs_section, "DFET_EMBEDDED", l_val=qs_control%dfet_embedded)
-      CALL section_vals_val_get(qs_section, "DMFET_EMBEDDED", l_val=qs_control%dmfet_embedded)
 
       ! Integers gapw
       CALL section_vals_val_get(qs_section, "LMAXN1", i_val=qs_control%gapw_control%lmax_sphere)

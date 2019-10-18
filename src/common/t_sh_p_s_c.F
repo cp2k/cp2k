@@ -23,10 +23,12 @@
 !
 !
 !   Joost VandeVondele and Manuel Guidon, Nov 2008.
+!
+! History: -09.2019 Moved the file to common (together with gamma.F and t_c_g0.F) A.Bussy
 MODULE t_sh_p_s_c
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

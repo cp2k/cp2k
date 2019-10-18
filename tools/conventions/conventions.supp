@@ -90,6 +90,7 @@ cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
 cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon"
+cp_fm_diag.F: Routine PDSYEVR called with an implicit interface.
 cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy"
