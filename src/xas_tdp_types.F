@@ -68,6 +68,7 @@ MODULE xas_tdp_types
 !> \param x_omega the range parameter in the short range interation erfc(omega*r)/r
 !> \param eps_range the threshold to determine the effective range of the short range operator
 !> \param eps_pgf the threshold to determine the extent of all pgf in the method
+!> \param eps_filter threshold for dbcsr operations
 !> \param ri_radius the radius of the sphere defining the neighbors in the RI projection of the dens
 !> \param tamm_dancoff whether the calculations should be done in the Tamm-Dancoff approximation
 !> \param do_quad whther the electric quadrupole transition moments should be computed
@@ -103,6 +104,7 @@ MODULE xas_tdp_types
       REAL(dp)                                :: eps_range
       REAL(dp)                                :: eps_screen
       REAL(dp)                                :: eps_pgf
+      REAL(dp)                                :: eps_filter
       INTEGER                                 :: x_op
       CHARACTER(len=default_string_length)    :: x_t_c_filename
       REAL(dp)                                :: ri_radius
@@ -348,6 +350,7 @@ CONTAINS
       xas_tdp_control%eps_range = 1.0E-6_dp
       xas_tdp_control%eps_screen = 1.0E-10_dp
       xas_tdp_control%eps_pgf = -1.0_dp
+      xas_tdp_control%eps_filter = 1.0E-10_dp
       xas_tdp_control%ri_radius = 0.0_dp
       xas_tdp_control%x_op = do_potential_coulomb
       xas_tdp_control%x_t_c_filename = " "
@@ -445,6 +448,8 @@ CONTAINS
 
       CALL section_vals_val_get(xas_tdp_section, "EPS_PGF_XAS", n_rep_val=nrep)
       IF (nrep > 0) CALL section_vals_val_get(xas_tdp_section, "EPS_PGF_XAS", r_val=xas_tdp_control%eps_pgf)
+
+      CALL section_vals_val_get(xas_tdp_section, "EPS_FILTER", r_val=xas_tdp_control%eps_filter)
 
       CALL section_vals_val_get(xas_tdp_section, "GRID", n_rep_val=nrep)
 

@@ -249,7 +249,8 @@ CONTAINS
       ELSE
          quadrants = [.TRUE., .FALSE., .FALSE.]
       END IF
-      CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+      CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                          eps_filter=xas_tdp_control%eps_filter)
       CALL dbcsr_finalize(work_mat)
 
       !Create the symmetric kernel matrix and redistribute work_mat into it
@@ -321,7 +322,8 @@ CONTAINS
          ! by the alpha part of rhs_int
          CALL copy_ri_contr_int(lhs_int(1:ndo_mo), rhs_int(1:ndo_mo))
          CALL ri_all_blocks_mm(lhs_int(1:ndo_mo), xas_tdp_env%ri_fxc(ri_atom, 1)%array)
-         CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
 
          ! alpha-beta spin quadrant (upper-right)
          quadrants = [.FALSE., .TRUE., .FALSE.]
@@ -330,7 +332,7 @@ CONTAINS
          CALL copy_ri_contr_int(lhs_int(1:ndo_mo), rhs_int(1:ndo_mo))
          CALL ri_all_blocks_mm(lhs_int(1:ndo_mo), xas_tdp_env%ri_fxc(ri_atom, 2)%array)
          CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
-                             quadrants, qs_env)
+                             quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter)
 
          ! beta-beta spin quadrant (lower-right)
          quadrants = [.FALSE., .FALSE., .TRUE.]
@@ -339,7 +341,7 @@ CONTAINS
          CALL copy_ri_contr_int(lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo))
          CALL ri_all_blocks_mm(lhs_int(ndo_mo+1:2*ndo_mo), xas_tdp_env%ri_fxc(ri_atom, 3)%array)
          CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
-                             quadrants, qs_env)
+                             quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter)
 
       ELSE IF (xas_tdp_control%do_roks) THEN
 
@@ -352,7 +354,8 @@ CONTAINS
          !Copy the LHS and multiply by alpha-alpha kernel
          CALL copy_ri_contr_int(lhs_int, rhs_int)
          CALL ri_all_blocks_mm(lhs_int, xas_tdp_env%ri_fxc(ri_atom, 1)%array)
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
 
          ! alpha-beta kernel in the upper-right quadrant
          quadrants = [.FALSE., .TRUE., .FALSE.]
@@ -360,7 +363,8 @@ CONTAINS
          !Copy LHS and multiply by the alpha-beta kernel
          CALL copy_ri_contr_int(lhs_int, rhs_int)
          CALL ri_all_blocks_mm(lhs_int, xas_tdp_env%ri_fxc(ri_atom, 2)%array)
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
 
          ! beta-beta kernel in the lower-right quadrant
          quadrants = [.FALSE., .FALSE., .TRUE.]
@@ -368,7 +372,8 @@ CONTAINS
          !Copy the LHS and multiply by the beta-beta kernel
          CALL copy_ri_contr_int(lhs_int, rhs_int)
          CALL ri_all_blocks_mm(lhs_int, xas_tdp_env%ri_fxc(ri_atom, 3)%array)
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
 
       END IF
       CALL dbcsr_finalize(work_mat)
@@ -444,12 +449,13 @@ CONTAINS
 
          ! alpha-alpha spin quadrant (upper-lefet)
          quadrants = [.TRUE., .FALSE., .FALSE.]
-         CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
 
          ! beta-beta spin quadrant (lower-right)
          quadrants = [.FALSE., .FALSE., .TRUE.]
          CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
-                             quadrants, qs_env)
+                             quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter)
 
       ELSE IF (xas_tdp_control%do_roks) THEN
 
@@ -457,7 +463,8 @@ CONTAINS
          ! But NOT the alpha-beta quadrant because of delta_sigma,tau
 
          quadrants = [.TRUE., .FALSE., .TRUE.]
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
 
       END IF
       CALL dbcsr_finalize(work_mat)
@@ -534,7 +541,8 @@ CONTAINS
 
          ! Compute the final LHS RHS product => spin-restricted, only upper-left quadrant
          quadrants = [.TRUE., .FALSE., .FALSE.]
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
          CALL dbcsr_finalize(work_mat)
 
          !Create the symmetric kernel matrix and redistribute work_mat into it
@@ -556,7 +564,8 @@ CONTAINS
 
          ! Compute the final LHS RHS product => spin-restricted, only upper-left quadrant
          quadrants = [.TRUE., .FALSE., .FALSE.]
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter)
          CALL dbcsr_finalize(work_mat)
 
          !Create the symmetric kernel matrix and redistribute work_mat into it
@@ -865,22 +874,24 @@ CONTAINS
          !In ROKS, the donor MOs for each spin are the same => copy the product in both the
          !alpha-alpha and the beta-beta quadrants
          quadrants = [.TRUE., .FALSE., .TRUE.]
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, mo_transpose=.TRUE.)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter, mo_transpose=.TRUE.)
 
       ELSE IF (do_uks) THEN
          !In UKS, the donor MOs are possibly different for each spin => start with the
          !alpha-alpha product and the perform the beta-beta product separately
          quadrants = [.TRUE., .FALSE., .FALSE.]
          CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(1:ndo_mo), quadrants, &
-                             qs_env, mo_transpose=.TRUE.)
+                             qs_env, eps_filter=xas_tdp_control%eps_filter, mo_transpose=.TRUE.)
 
          quadrants = [.FALSE., .FALSE., .TRUE.]
          CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
-                             quadrants, qs_env, mo_transpose=.TRUE.)
+                             quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter, mo_transpose=.TRUE.)
       ELSE
          !In the restricted closed-shell case, only have one spin and a single qudarant
          quadrants = [.TRUE., .FALSE., .FALSE.]
-         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, mo_transpose=.TRUE.)
+         CALL ri_int_product(work_mat, lhs_int, rhs_int, quadrants, qs_env, &
+                             eps_filter=xas_tdp_control%eps_filter, mo_transpose=.TRUE.)
       END IF
       CALL dbcsr_finalize(work_mat)
 
@@ -1436,18 +1447,20 @@ CONTAINS
 !> \param rhs_int the right-hand side contracted integrals
 !> \param quadrants on which quadrant(s) on the kernel matrix the product is stored
 !> \param qs_env ...
+!> \param eps_filter filter for dbcsr matrix multiplication
 !> \param mo_transpose whether the MO blocks should be transpose, i.e. (aI|Jb) => (aJ|Ib)
 !> \note It is assumed that the kerenl matrix is NOT symmetric
 !>       There are three quadrants, corresponding to 1: the upper-left (diagonal), 2: the
 !>       upper-right (off-diagonal) and 3: the lower-right (diagonal).
 !>       Need to finalize the kernel matrix after calling this routine (possibly multiple times)
 ! **************************************************************************************************
-   SUBROUTINE ri_int_product(kernel, lhs_int, rhs_int, quadrants, qs_env, mo_transpose)
+   SUBROUTINE ri_int_product(kernel, lhs_int, rhs_int, quadrants, qs_env, eps_filter, mo_transpose)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: kernel
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: lhs_int, rhs_int
       LOGICAL, DIMENSION(3), INTENT(IN)                  :: quadrants
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(dp), INTENT(IN), OPTIONAL                     :: eps_filter
       LOGICAL, INTENT(IN), OPTIONAL                      :: mo_transpose
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ri_int_product', routineP = moduleN//':'//routineN
@@ -1486,7 +1499,7 @@ CONTAINS
 
             ! Take the product lhs*rhs^T
             CALL dbcsr_multiply('N', 'T', 1.0_dp, lhs_int(i)%matrix, rhs_int(j)%matrix, &
-                                0.0_dp, prod)
+                                0.0_dp, prod, filter_eps=eps_filter)
 
             ! Loop over blocks of prod and fill kernel matrix => ok cuz same (but replicated) dist
             CALL dbcsr_iterator_start(iter, prod)

@@ -7958,6 +7958,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          variants=s2a("EPS_FILTER_MATRIX"), &
+                          description="The threshold used for sparse matrix operations", &
+                          usage="EPS_FILTER {real}", &
+                          type_of_var=real_t, &
+                          default_r_val=1.0E-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
                           variants=(/"DIP_FORM"/), &
                           description="Type of integral to get the oscillator strengths "// &
