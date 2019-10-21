@@ -34,10 +34,11 @@ See [installation instructions](./INSTALL.md)
 ## Directory organization
 
 * [`arch`](./arch): Collection of definitions for different architectures and compilers
+* [`benchmarks`](./tests): Inputs for benchmarks
 * [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
 * [`exts`](./exts): Access to external libraries via GIT submodules
 * [`src`](./src): The source code
-* [`tests`](./tests): Inputs for regression tests
+* [`tests`](./tests): Inputs for tests and regression tests
 * [`tools`](./tools): Mixed collection of useful scripts related to cp2k
 
 Additional directories created during build process:

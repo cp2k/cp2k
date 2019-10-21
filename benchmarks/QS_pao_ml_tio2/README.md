@@ -1,15 +1,26 @@
+# Quickstep Polarized Atomic Orbital - TiO2 (Regression Tests)
+
 Large scale benchmark for PAO ML (and/or LS DFT in general).
 
-Bunzip2 all files, have BASIS_MOLOPT GTH_POTENTIALS available (from cp2k/data).
+## How to Run the Benchmark
 
-For tuning etc purpose the length of the full benchmark can be reduced by changing:
-- reducing the number of MD steps (STEPS 20 -> STEPS 5)
-- doing only an energy calculation (RUN_TYPE MD -> RUN_TYPE ENERGY)
-- doing an energy calculation with few SCF steps (MAX_SCF 50 -> MAX_SCF 5)
+Bunzip2 all files, have [`BASIS_MOLOPT`](../../..//data/BASIS_MOLOPT) [`GTH_POTENTIALS`](../../..//data/GTH_POTENTIALS) available (from cp2k/data).
 
-Reference energies and timings (using CP2K svn:17405, Piz Daint, Cray XC30, 1024 nodes, SB + K20X, +- 8Gb mem used per node)
+For tuning purposes, the length of the full benchmark can be reduced in the following ways:
 
---- output  file  (last column timings per step)
+- by reducing the number of MD steps (STEPS 20 -> STEPS 5)
+- by doing only an energy calculation (RUN_TYPE MD -> RUN_TYPE ENERGY)
+- by doing an energy calculation with few SCF steps (MAX_SCF 50 -> MAX_SCF 5)
+
+## Results Archive
+
+Reference energies and timings using CP2K svn:17405, Piz Daint, Cray XC30, 1024 nodes, SB + K20X, +- 8Gb mem used per node
+
+### Output File
+
+(last column timings per step)
+
+```
 > grep SCF out | head -n 10
  ------------------------------ Linear scaling SCF -----------------------------
  SCF     1   -552962.443966503   -552962.443966503   28.188702
@@ -21,9 +32,11 @@ Reference energies and timings (using CP2K svn:17405, Piz Daint, Cray XC30, 1024
  SCF     7   -554873.984235220      -356.189891734   17.914532
  SCF     8   -554915.784987915       -41.800752695   38.287248
  SCF     9   -554918.728930513       -44.744695293   14.047717
+```
 
+### MD Energy File
 
--------------------- MD energy file
+```
 > cat pao_ml_md-1.ener
 #     Step Nr.          Time[fs]        Kin.[a.u.]          Temp[K]            Pot.[a.u.]        Cons Qty[a.u.]        UsedTime[s]
          0            0.000000       110.495412573       300.000000000   -554937.745690580   -554827.250278007         0.000000000
@@ -47,10 +60,11 @@ Reference energies and timings (using CP2K svn:17405, Piz Daint, Cray XC30, 1024
         18            9.000000       104.007271910       282.384407159   -554931.375035372   -554827.367763462       364.628673398
         19            9.500000       105.405738067       286.181305486   -554932.815285468   -554827.409547401       365.768221021
         20           10.000000       102.522367308       278.352824576   -554929.882289568   -554827.359922261       364.275226861
+```
 
+### Timings
 
--------------------------
-
+```
  SUBROUTINE                       CALLS  ASD         SELF TIME        TOTAL TIME
                                 MAXIMUM       AVERAGE  MAXIMUM  AVERAGE  MAXIMUM
  CP2K                                 1  1.0    0.182    0.228 8802.156 8802.158
@@ -95,4 +109,4 @@ Reference energies and timings (using CP2K svn:17405, Piz Daint, Cray XC30, 1024
  dbcsr_new_transposed              3211 11.1    9.536   10.585  333.787  347.908
  rs_distribute_matrix               554 12.2   26.205   29.397  187.192  341.592
  dbcsr_redistribute                2470 12.3   31.904   35.233  319.945  334.210
-
+```
