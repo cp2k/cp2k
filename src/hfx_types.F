@@ -375,9 +375,8 @@ MODULE hfx_types
       TYPE(dbcsr_t_pgrid_type) :: pgrid
 
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
-      !INTEGER, DIMENSION(:), ALLOCATABLE :: dist_AO_1, dist_AO_2, dist_RI
-      TYPE(distribution_3d_type)                         :: dist_3d
-      TYPE(dbcsr_t_distribution_type)                    :: dist
+      TYPE(distribution_3d_type) :: dist_3d
+      TYPE(dbcsr_t_distribution_type) :: dist
 
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist1_AO_1, dist1_AO_2, dist1_RI
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist2_AO_1, dist2_AO_2, dist2_RI
@@ -399,10 +398,10 @@ MODULE hfx_types
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_3
 
       ! need section only for output handling, section should have a print_key subsection
-      TYPE(section_vals_type), POINTER                   :: ri_section => NULL()
+      TYPE(section_vals_type), POINTER :: ri_section => NULL()
 
       ! types of primary and auxiliary basis
-      CHARACTER(len=default_string_length)    :: orb_basis_type, ri_basis_type
+      CHARACTER(len=default_string_length) :: orb_basis_type, ri_basis_type
    END TYPE
 
 ! **************************************************************************************************

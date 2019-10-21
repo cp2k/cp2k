@@ -22,7 +22,7 @@ MODULE hfx_ri
         dbcsr_scalar, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
         dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
+        dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
         dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_mp_environ_pgrid, &
         dbcsr_t_nd_mp_comm, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -95,9 +95,12 @@ CONTAINS
 
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int_1)
 
+      CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1), move_data=.TRUE.)
+      CALL dbcsr_t_destroy(t_3c_int_1(1, 1))
+
       IF (.NOT. ri_data%same_op) THEN
          CALL dbcsr_create(t_2c_op_RI_inv(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
-         threshold = MAX(ri_data%filter_eps, 1.0e-12_dp) ! see admm_methods
+         threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
          CALL invert_hotelling(t_2c_op_RI_inv(1), t_2c_op_RI(1), threshold=threshold, silent=.TRUE.)
          IF (ri_data%check_2c_inv) THEN
             CALL check_inverse(t_2c_op_RI_inv(1), t_2c_op_RI(1), unit_nr)
@@ -137,19 +140,17 @@ CONTAINS
       CALL dbcsr_t_copy_matrix_to_tensor(t_2c_int_mat(1), t_2c_int(1))
       CALL dbcsr_release(t_2c_int_mat(1))
 
-      CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1))
-      CALL dbcsr_t_destroy(t_3c_int_1(1, 1))
-
       CALL dbcsr_t_create(ri_data%t_3c_int_ctr_3(1, 1), t_3c_int_2_ctr(1, 1), name="(RI | AO AO)")
       CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), t_2c_int(1), ri_data%t_3c_int_ctr_3(1, 1), &
                             dbcsr_scalar(0.0_dp), t_3c_int_2_ctr(1, 1), &
                             contract_1=[1], notcontract_1=[2], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                            unit_nr=unit_nr)
+                            unit_nr=unit_nr, move_data=.TRUE.)
+      CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
 
-      CALL dbcsr_t_copy(t_3c_int_2_ctr(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3])
+      CALL dbcsr_t_copy(t_3c_int_2_ctr(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_2_ctr(1, 1))
 
       CALL timestop(handle)
@@ -291,12 +292,6 @@ CONTAINS
                                    "HFX_2c_nl_pot", &
                                    qs_env, sym_ij=.TRUE., &
                                    dist_2d=dist_2d)
-      IF (.NOT. ri_data%same_op) THEN
-         CALL build_2c_neighbor_lists(nl_2c_RI, basis_set_RI, basis_set_RI, ri_data%ri_metric, &
-                                      "HFX_2c_nl_RI", &
-                                      qs_env, sym_ij=.TRUE., &
-                                      dist_2d=dist_2d)
-      ENDIF
 
       CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
       ALLOCATE (row_bsize(SIZE(sizes_RI)))
@@ -307,9 +302,6 @@ CONTAINS
       CALL dbcsr_create(t_2c_int_pot(1), "(R|P)", dbcsr_dist, dbcsr_type_symmetric, &
                         row_bsize, col_bsize, reuse_arrays=.TRUE.)
 
-      IF (.NOT. ri_data%same_op) THEN
-         CALL dbcsr_create(t_2c_int_RI(1), template=t_2c_int_pot(1), matrix_type=dbcsr_type_symmetric)
-      ENDIF
       CALL dbcsr_distribution_release(dbcsr_dist)
 
       CALL build_2c_integrals(t_2c_int_pot, ri_data%filter_eps, qs_env, nl_2c_pot, basis_set_RI, basis_set_RI, &
@@ -318,6 +310,12 @@ CONTAINS
       CALL release_neighbor_list_sets(nl_2c_pot)
 
       IF (.NOT. ri_data%same_op) THEN
+         CALL build_2c_neighbor_lists(nl_2c_RI, basis_set_RI, basis_set_RI, ri_data%ri_metric, &
+                                      "HFX_2c_nl_RI", &
+                                      qs_env, sym_ij=.TRUE., &
+                                      dist_2d=dist_2d)
+
+         CALL dbcsr_create(t_2c_int_RI(1), template=t_2c_int_pot(1), matrix_type=dbcsr_type_symmetric)
          CALL build_2c_integrals(t_2c_int_RI, ri_data%filter_eps, qs_env, nl_2c_RI, basis_set_RI, basis_set_RI, &
                                  ri_data%ri_metric)
          CALL release_neighbor_list_sets(nl_2c_RI)
@@ -363,7 +361,8 @@ CONTAINS
       IF (ri_data%same_op) t_2c_op_RI(1) = t_2c_op_pot(1)
 
       CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1))
-      CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3])
+      CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
+      CALL dbcsr_t_destroy(t_3c_int_1(1, 1))
 
       CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
       threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
@@ -373,11 +372,13 @@ CONTAINS
       IF (ri_data%check_2c_inv) THEN
          CALL check_inverse(t_2c_int_mat(1), t_2c_op_RI(1), unit_nr)
       ENDIF
+
       IF (ri_data%same_op) THEN
          CALL dbcsr_release(t_2c_op_pot(1))
       ELSE
          CALL dbcsr_create(t_2c_tmp(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(t_2c_tmp_2(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_release(t_2c_op_RI(1))
          CALL dbcsr_multiply('N', 'N', 1.0_dp, t_2c_int_mat(1), t_2c_op_pot(1), 0.0_dp, t_2c_tmp(1), &
                              filter_eps=ri_data%filter_eps)
 
@@ -389,8 +390,6 @@ CONTAINS
          t_2c_int_mat(1) = t_2c_tmp_2(1)
       ENDIF
 
-      IF (.NOT. ri_data%same_op) CALL dbcsr_release(t_2c_op_RI(1))
-
       CALL dbcsr_t_create(t_2c_int_mat(1), t_2c_int(1), name="(RI|RI)")
       CALL dbcsr_t_copy_matrix_to_tensor(t_2c_int_mat(1), t_2c_int(1))
       CALL dbcsr_release(t_2c_int_mat(1))
@@ -401,16 +400,13 @@ CONTAINS
                             contract_1=[2], notcontract_1=[1], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                            unit_nr=unit_nr)
-      CALL dbcsr_t_destroy(t_3c_int_1(1, 1))
+                            unit_nr=unit_nr, move_data=.TRUE.)
+      CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
 
-      IF (ri_data%flavor == ri_mo) THEN
-         CALL dbcsr_t_copy(t_3c_int_2(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3])
-      ELSEIF (ri_data%flavor == ri_pmat) THEN
-         CALL dbcsr_t_copy(t_3c_int_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3])
+      IF (ri_data%flavor == ri_pmat) THEN
+         CALL dbcsr_t_copy(t_3c_int_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
       ENDIF
-
       CALL dbcsr_t_destroy(t_3c_int_2(1, 1))
 
       CALL timestop(handle)
@@ -590,7 +586,8 @@ CONTAINS
 
          CALL dbcsr_t_create(mo_coeff(ispin), mo_coeff_t, name="MO coeffs")
          CALL dbcsr_t_copy_matrix_to_tensor(mo_coeff(ispin), mo_coeff_t)
-         CALL dbcsr_t_copy(mo_coeff_t, mo_coeff_t_split)
+         CALL dbcsr_t_copy(mo_coeff_t, mo_coeff_t_split, move_data=.TRUE.)
+         CALL dbcsr_t_destroy(mo_coeff_t)
 
          bounds(1, 1) = 1
          bounds(2, 1) = homo(ispin)
@@ -607,7 +604,9 @@ CONTAINS
          CALL dbcsr_t_destroy(mo_coeff_t_split)
 
          ! note: this copy should not involve communication (same block sizes and same 3d distribution)
-         CALL dbcsr_t_copy(t_3c_int_ctr(1, 1), t_3c_int_ctr_opt(1, 1))
+         CALL dbcsr_t_copy(t_3c_int_ctr(1, 1), t_3c_int_ctr_opt(1, 1), move_data=.TRUE.)
+         CALL dbcsr_t_destroy(t_3c_int_ctr(1, 1))
+
          CALL dbcsr_t_copy(t_3c_int_ctr_opt(1, 1), t_3c_int_ctr_opt_copy(1, 1))
 
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), t_3c_int_ctr_opt(1, 1), t_3c_int_ctr_opt_copy(1, 1), &
@@ -615,17 +614,15 @@ CONTAINS
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr)
+                               unit_nr=unit_nr, move_data=.TRUE.)
 
-         CALL dbcsr_t_copy(ks_t_split, ks_t)
-         CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
-
-         CALL dbcsr_t_destroy(mo_coeff_t)
-         CALL dbcsr_t_destroy(t_3c_int_ctr(1, 1))
          CALL dbcsr_t_destroy(t_3c_int_ctr_opt(1, 1))
          CALL dbcsr_t_destroy(t_3c_int_ctr_opt_copy(1, 1))
-         CALL dbcsr_t_destroy(ks_t)
+
+         CALL dbcsr_t_copy(ks_t_split, ks_t, move_data=.TRUE.)
          CALL dbcsr_t_destroy(ks_t_split)
+         CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
+         CALL dbcsr_t_destroy(ks_t)
       ENDDO
 
       CALL timestop(handle)
@@ -685,7 +682,7 @@ CONTAINS
                                unit_nr=unit_nr)
 
          CALL dbcsr_t_create(ri_data%t_3c_int_ctr_1(1, 1), t_3c_2(1, 1))
-         CALL dbcsr_t_copy(t_3c_1(1, 1), t_3c_2(1, 1))
+         CALL dbcsr_t_copy(t_3c_1(1, 1), t_3c_2(1, 1), move_data=.TRUE.)
 
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), ri_data%t_3c_int_ctr_1(1, 1), t_3c_2(1, 1), &
                                dbcsr_scalar(0.0_dp), ks_t, &
@@ -697,6 +694,7 @@ CONTAINS
          CALL dbcsr_t_destroy(t_3c_2(1, 1))
 
          CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
+         CALL dbcsr_t_clear(ks_t)
 
       ENDDO
 
