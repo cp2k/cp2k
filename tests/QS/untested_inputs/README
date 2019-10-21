@@ -1,3 +1,0 @@
-This directory contains input files, which have a more meaningfull setup compared to the regtests, but that are not
-checked at every single commit about syntax, possible keyword changes. Checks are done at a very unregular interval of
-time. It may be possible that cp2k may have problem in digesting them.
