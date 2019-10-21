@@ -1,8 +1,9 @@
 # STMV benchmark
 
-This benchmark test the performance of CP2K to run calculations of the electronic strcture of relatively complex systems containing a million atoms. The input is based on [earlier work](https://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00398) where the electronic structure of the STMV virus was simulated based on DFT and subsystem DFT. Here, instead, the xTB tight-binding method is employed. The input is realistic in its input settings and might be useful to set up similar systems.
+This benchmark test the performance of CP2K to run calculations of the electronic structure of relatively complex systems containing a million atoms. The input is based on [earlier work](https://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00398) where the electronic structure of the STMV virus was simulated based on DFT and subsystem DFT. Here, instead, the xTB tight-binding method is employed. The input is realistic in its input settings and might be useful to set up similar systems.
 
 ## Properties of the benchmark
+
 The benchmark exercises in particular the sparse matrix handling and linear scaling algorithms in CP2K. It performs 1 step of geometry optimization, so requires SCF, energy and force calculations. Some properties are computed as well. Given the xTB method, relatively small block sizes dominate in the sparse matrix multiplication.
 
 ## Typical timings and setup
@@ -180,6 +181,7 @@ and DBCSR statistics
 ```
 
 ## Key output elements
+
 SCF cycles output looks like
 ```
  ------------------------------ Linear scaling SCF -----------------------------
@@ -213,7 +215,7 @@ SCF cycles output looks like
  SCF    28  -2034225.361724817        -5.409269375  106.903410
  SCF    29  -2034226.617073632        -1.255348816  312.159937
  SCF    30  -2034226.664080255        -1.302355439   74.832404
- SCF not converged! 
+ SCF not converged!
  SCF     1  -2034504.114579430      -102.226643770  294.428820
  SCF     2  -2034582.030317720      -180.142382059   59.509095
  SCF     3  -2034669.633673732      -267.745738071   67.661870
