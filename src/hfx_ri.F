@@ -23,8 +23,8 @@ MODULE hfx_ri
         dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
-        dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_mp_environ_pgrid, &
-        dbcsr_t_nd_mp_comm, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_nd_mp_comm, &
+        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: hfx_ri_type
    USE input_cp2k_hfx,                  ONLY: ri_mo,&
@@ -49,7 +49,8 @@ MODULE hfx_ri
                                               build_2c_neighbor_lists,&
                                               build_3c_integrals,&
                                               build_3c_neighbor_lists,&
-                                              neighbor_list_3c_destroy
+                                              neighbor_list_3c_destroy,&
+                                              tensor_change_pgrid
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
                                               neighbor_list_3c_type,&
@@ -82,6 +83,7 @@ CONTAINS
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: threshold
+      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type), DIMENSION(1)                   :: t_2c_int
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_1, t_3c_int_2_ctr
       TYPE(dbcsr_type), DIMENSION(1)                     :: t_2c_int_mat, t_2c_op_pot, &
@@ -91,9 +93,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (pgrid_opt)
+
       unit_nr = ri_data%unit_nr
 
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int_1)
+
+      IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
+                                                                ri_data%pgrid_3, nodata=.TRUE., unit_nr=unit_nr)
 
       CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1), move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_1(1, 1))
@@ -146,12 +153,22 @@ CONTAINS
                             contract_1=[1], notcontract_1=[2], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                            unit_nr=unit_nr, move_data=.TRUE.)
+                            unit_nr=unit_nr, move_data=.TRUE., &
+                            pgrid_opt_2=pgrid_opt)
       CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
 
+      IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), ri_data%pgrid_2, &
+                                                                nodata=.TRUE., unit_nr=unit_nr)
       CALL dbcsr_t_copy(t_3c_int_2_ctr(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_2_ctr(1, 1))
+
+      CPASSERT(ASSOCIATED(pgrid_opt))
+      IF (ASSOCIATED(ri_data%pgrid_3)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_3)
+         DEALLOCATE (ri_data%pgrid_3)
+      ENDIF
+      ri_data%pgrid_3 => pgrid_opt
 
       CALL timestop(handle)
 
@@ -347,6 +364,7 @@ CONTAINS
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: threshold
+      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type), DIMENSION(1)                   :: t_2c_int
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_1, t_3c_int_2
       TYPE(dbcsr_type), DIMENSION(1)                     :: t_2c_int_mat, t_2c_op_pot, t_2c_op_RI, &
@@ -354,11 +372,18 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (pgrid_opt)
+
       unit_nr = ri_data%unit_nr
 
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int_1)
 
       IF (ri_data%same_op) t_2c_op_RI(1) = t_2c_op_pot(1)
+
+      IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
+                                                                ri_data%pgrid_3, nodata=.TRUE., unit_nr=unit_nr)
+      IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
+                                                                ri_data%pgrid_2, nodata=.TRUE., unit_nr=unit_nr)
 
       CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
@@ -400,13 +425,21 @@ CONTAINS
                             contract_1=[2], notcontract_1=[1], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                            unit_nr=unit_nr, move_data=.TRUE.)
+                            unit_nr=unit_nr, move_data=.TRUE., &
+                            pgrid_opt_2=pgrid_opt)
       CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
 
-      IF (ri_data%flavor == ri_pmat) THEN
-         CALL dbcsr_t_copy(t_3c_int_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
+      CPASSERT(ASSOCIATED(pgrid_opt))
+      IF (ASSOCIATED(ri_data%pgrid_3)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_3)
+         DEALLOCATE (ri_data%pgrid_3)
       ENDIF
+      ri_data%pgrid_3 => pgrid_opt
+
+      IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), ri_data%pgrid_1, &
+                                                                nodata=.TRUE., unit_nr=unit_nr)
+      CALL dbcsr_t_copy(t_3c_int_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_2(1, 1))
 
       CALL timestop(handle)
@@ -531,9 +564,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, mo_bsizes
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: bounds
       INTEGER, DIMENSION(2)                              :: pdims_2d
-      INTEGER, DIMENSION(3)                              :: pcoord, pdims
       TYPE(dbcsr_distribution_type)                      :: ks_dist
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
+      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid, pgrid_opt
       TYPE(dbcsr_t_type)                                 :: ks_t, ks_t_split, mo_coeff_t, &
                                                             mo_coeff_t_split
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_ctr, t_3c_int_ctr_opt, &
@@ -541,25 +574,36 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (pgrid_opt)
+
       CPASSERT(SIZE(ks_matrix, 2) == 1)
 
       unit_nr = ri_data%unit_nr
 
-      IF (geometry_did_change) CALL hfx_ri_pre_scf_mo(qs_env, ri_data)
-
-      CALL dbcsr_t_mp_environ_pgrid(ri_data%pgrid, pdims, pcoord)
+      IF (geometry_did_change) THEN
+         CALL hfx_ri_pre_scf_mo(qs_env, ri_data)
+      ELSE
+         IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
+                                                                   ri_data%pgrid_2, unit_nr=unit_nr)
+      ENDIF
 
       ALLOCATE (bounds(2, 1))
       DO ispin = 1, nspins
          CALL dbcsr_get_info(mo_coeff(ispin), nfullcols_total=n_mos)
          CALL split_block_sizes([n_mos], mo_bsizes, ri_data%max_bsize)
 
-         CALL create_3c_tensor(t_3c_int_ctr(1, 1), dist1, dist2, dist3, ri_data%pgrid, &
+         IF (ASSOCIATED(ri_data%pgrid_2)) THEN
+            pgrid => ri_data%pgrid_2
+         ELSE
+            pgrid => ri_data%pgrid
+         ENDIF
+
+         CALL create_3c_tensor(t_3c_int_ctr(1, 1), dist1, dist2, dist3, pgrid, &
                                mo_bsizes, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], name="(MO | RI AO)")
 
          DEALLOCATE (dist1, dist2, dist3)
-         CALL create_3c_tensor(t_3c_int_ctr_opt(1, 1), dist1, dist2, dist3, ri_data%pgrid, &
+         CALL create_3c_tensor(t_3c_int_ctr_opt(1, 1), dist1, dist2, dist3, pgrid, &
                                mo_bsizes, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1, 2], [3], name="(MO RI | AO)")
          DEALLOCATE (dist1, dist2, dist3)
@@ -603,18 +647,22 @@ CONTAINS
 
          CALL dbcsr_t_destroy(mo_coeff_t_split)
 
-         ! note: this copy should not involve communication (same block sizes and same 3d distribution)
+         ! note: this copy should not involve communication (same block sizes, same 3d distribution on same process grid)
          CALL dbcsr_t_copy(t_3c_int_ctr(1, 1), t_3c_int_ctr_opt(1, 1), move_data=.TRUE.)
          CALL dbcsr_t_destroy(t_3c_int_ctr(1, 1))
 
          CALL dbcsr_t_copy(t_3c_int_ctr_opt(1, 1), t_3c_int_ctr_opt_copy(1, 1))
 
+         ! process grid is optimized for this contraction
+         ! note: we can not use a different process grid for previous contraction because communication-less
+         ! copy is preferred
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), t_3c_int_ctr_opt(1, 1), t_3c_int_ctr_opt_copy(1, 1), &
                                dbcsr_scalar(0.0_dp), ks_t_split, &
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr, move_data=.TRUE.)
+                               unit_nr=unit_nr, move_data=.TRUE., &
+                               pgrid_opt_1=pgrid_opt)
 
          CALL dbcsr_t_destroy(t_3c_int_ctr_opt(1, 1))
          CALL dbcsr_t_destroy(t_3c_int_ctr_opt_copy(1, 1))
@@ -623,6 +671,19 @@ CONTAINS
          CALL dbcsr_t_destroy(ks_t_split)
          CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
          CALL dbcsr_t_destroy(ks_t)
+
+         IF (ispin == nspins) THEN
+            CPASSERT(ASSOCIATED(pgrid_opt))
+            IF (ASSOCIATED(ri_data%pgrid_2)) THEN
+               CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2)
+               DEALLOCATE (ri_data%pgrid_2)
+            ENDIF
+            ri_data%pgrid_2 => pgrid_opt
+         ELSE
+            CALL dbcsr_t_pgrid_destroy(pgrid_opt)
+            DEALLOCATE (pgrid_opt)
+         ENDIF
+
       ENDDO
 
       CALL timestop(handle)
@@ -653,10 +714,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, unit_nr
+      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type)                                 :: ks_t, rho_ao_t
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_1, t_3c_2
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (pgrid_opt)
 
       ! get a useful output_unit
 
@@ -664,7 +728,14 @@ CONTAINS
 
       CPASSERT(SIZE(ks_matrix, 2) == 1)
 
-      IF (geometry_did_change) CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
+      IF (geometry_did_change) THEN
+         CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
+      ELSE
+         IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
+                                                                   ri_data%pgrid_2, unit_nr=unit_nr)
+         IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), &
+                                                                   ri_data%pgrid_1, unit_nr=unit_nr)
+      ENDIF
 
       CALL dbcsr_t_create(ri_data%t_3c_int_ctr_2(1, 1), t_3c_1(1, 1))
 
@@ -679,22 +750,40 @@ CONTAINS
                                contract_1=[2], notcontract_1=[1], &
                                contract_2=[1], notcontract_2=[2, 3], &
                                map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr)
+                               unit_nr=unit_nr, &
+                               pgrid_opt_2=pgrid_opt)
 
          CALL dbcsr_t_create(ri_data%t_3c_int_ctr_1(1, 1), t_3c_2(1, 1))
          CALL dbcsr_t_copy(t_3c_1(1, 1), t_3c_2(1, 1), move_data=.TRUE.)
+         CALL dbcsr_t_clear(t_3c_1(1, 1))
 
+         CPASSERT(ASSOCIATED(pgrid_opt))
+         IF (ASSOCIATED(ri_data%pgrid_2)) THEN
+            CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2)
+            DEALLOCATE (ri_data%pgrid_2)
+         ENDIF
+         ri_data%pgrid_2 => pgrid_opt
+
+         NULLIFY (pgrid_opt)
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), ri_data%t_3c_int_ctr_1(1, 1), t_3c_2(1, 1), &
                                dbcsr_scalar(0.0_dp), ks_t, &
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr)
+                               unit_nr=unit_nr, &
+                               pgrid_opt_1=pgrid_opt)
 
          CALL dbcsr_t_destroy(t_3c_2(1, 1))
 
          CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
          CALL dbcsr_t_clear(ks_t)
+
+         CPASSERT(ASSOCIATED(pgrid_opt))
+         IF (ASSOCIATED(ri_data%pgrid_1)) THEN
+            CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_1)
+            DEALLOCATE (ri_data%pgrid_1)
+         ENDIF
+         ri_data%pgrid_1 => pgrid_opt
 
       ENDDO
 
