@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-spfft_ver="0.9.7"
-spfft_sha256="f3a6b33d1dc5eca1244ac6ba0d083749d054398679c6c392bb2b3646f2fca828"
+spfft_ver="0.9.8"
+spfft_sha256="e47989bcc9ca5cec424504f84ff75d5a09b2063ee0d50e537baf85d3629b15f8"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -26,7 +26,7 @@ case "$with_spfft" in
             if [ -f SpFFT-${spfft_ver}.tar.gz ] ; then
                 echo "SpFFT-${spfft_ver}.tar.gz is found"
             else
-                wget "https://github.com/eth-cscs/SpFFT/archive/v0.9.7.tar.gz" -O SpFFT-${spfft_ver}.tar.gz
+                wget "https://github.com/eth-cscs/SpFFT/archive/v${spfft_ver}.tar.gz" -O SpFFT-${spfft_ver}.tar.gz
    #                             download_pkg ${DOWNLOADER_FLAGS} ${spfft_sha256} \
    #                          "https://github.com/eth-cscs/SpFFT/archive/v0.9.7.tar.gz"
    #                                                       "https://www.cp2k.org/static/downloads/SpFFT-${SpFFT_ver}.tar.gz"
@@ -101,7 +101,7 @@ export SPFFT_LIBRARY="-lspfft"
 export SPFFT_ROOT="$pkg_install_dir"
 export SPFFT_INCLUDE_DIR="$pkg_install_dir/include"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
-
+export SPFFT_VERSION=${spfft-ver}
 export CP_LIBS="IF_MPI(IF_OMP(${SPFFT_LIBS}|)|) \${CP_LIBS}"
 EOF
     cat "${BUILDDIR}/setup_spfft" >> $SETUPFILE

@@ -124,11 +124,11 @@ case "$with_sirius" in
             if [ -n "$MKL_LIBS" ] ; then
                 COMPILATION_OPTIONS="-DUSE_MKL=ON -DUSE_SCALAPACK=ON $COMPILATION_OPTIONS"
             fi
-            ls -l ${INSTALLDIR}/SpFFT-0.9.7/lib/cmake
-            CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:${INSTALLDIR}/SpFFT-0.9.7/lib/cmake
+
+            CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:${SPFFT_ROOT}/lib/cmake
 
              cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                   -DSpFFT_DIR="${INSTALLDIR}/SpFFT-0.9.7/lib/cmake/SpFFT" \
+                   -DSpFFT_DIR="${SPFFT_ROOT}/lib/cmake/SpFFT" \
                    -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                    -DCMAKE_CXX_COMPILER=mpic++ \
@@ -151,7 +151,7 @@ case "$with_sirius" in
                 mkdir build-cuda
                 cd build-cuda
                 cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                      -DSpFFT_DIR="${INSTALLDIR}/SpFFT-0.9.7/lib/cmake/SpFFT" \
+                      -DSpFFT_DIR="${SPFFT_ROOT}/lib/cmake/SpFFT" \
                       -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
