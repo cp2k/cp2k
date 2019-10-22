@@ -371,8 +371,8 @@ MODULE hfx_types
 
       LOGICAL :: same_op ! whether RI operator is same as HF potential
 
-      ! process grid used for any 3c tensors
-      TYPE(dbcsr_t_pgrid_type) :: pgrid
+      ! default process grid used for 3c tensors
+      TYPE(dbcsr_t_pgrid_type), POINTER :: pgrid => NULL()
 
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
       TYPE(distribution_3d_type) :: dist_3d
@@ -390,12 +390,15 @@ MODULE hfx_types
 
       ! 3c integral tensor in (AO RI | AO) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_1
+      TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_1 => NULL()
 
       ! 3c integral tensor in ( AO | RI AO) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_2
+      TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_2 => NULL()
 
       ! 3c integral tensor in ( RI | AO AO ) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_3
+      TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_3 => NULL()
 
       ! need section only for output handling, section should have a print_key subsection
       TYPE(section_vals_type), POINTER :: ri_section => NULL()
@@ -1135,6 +1138,7 @@ CONTAINS
       CALL distribution_3d_create(dist_3d, dist_RI, dist_ao_1, dist_ao_2, nkind, particle_set, &
                                   mp_comm_3d, own_comm=.TRUE.)
 
+      ALLOCATE (ri_data%pgrid)
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid)
 
       ri_data%dist_3d = dist_3d
@@ -1179,7 +1183,23 @@ CONTAINS
 
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
+      IF (ASSOCIATED(ri_data%pgrid)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
+         DEALLOCATE (ri_data%pgrid)
+      ENDIF
+      IF (ASSOCIATED(ri_data%pgrid_1)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_1)
+         DEALLOCATE (ri_data%pgrid_1)
+      ENDIF
+      IF (ASSOCIATED(ri_data%pgrid_2)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2)
+         DEALLOCATE (ri_data%pgrid_2)
+      ENDIF
+      IF (ASSOCIATED(ri_data%pgrid_3)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_3)
+         DEALLOCATE (ri_data%pgrid_3)
+      ENDIF
+
       DEALLOCATE (ri_data%dist2_RI, ri_data%dist2_AO_1, ri_data%dist2_AO_2)
       DEALLOCATE (ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2)
       CALL distribution_3d_destroy(ri_data%dist_3d)
