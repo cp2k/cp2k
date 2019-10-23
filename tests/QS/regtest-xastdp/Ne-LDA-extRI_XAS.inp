@@ -1,7 +1,6 @@
 &GLOBAL
-  PROJECT Ne-HF-extRI_XAS
+  PROJECT Ne-LDA-extRI_XAS
   PRINT_LEVEL LOW
-  RUN_TYPE ENERGY
 &END GLOBAL
 &FORCE_EVAL
   METHOD Quickstep
@@ -19,10 +18,8 @@
     &END
 
     &XC
-      &XC_FUNCTIONAL NONE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
-      &HF
-      &END HF
     &END XC
 
     &XAS_TDP
@@ -34,11 +31,14 @@
       &END DONOR_STATES
 
       TAMM_DANCOFF 
+      GRID Ne 250 250
 
       &KERNEL
-         &EXACT_EXCHANGE
-            OPERATOR COULOMB
-         &END EXACT_EXCHANGE
+         &XC_FUNCTIONAL
+            &LIBXC
+               FUNCTIONAL LDA_XC_TETER93
+            &END LIBXC
+         &END XC_FUNCTIONAL
       &END KERNEL
 
       &DIAGONALIZATION
