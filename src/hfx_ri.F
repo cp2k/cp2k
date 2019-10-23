@@ -165,8 +165,6 @@ CONTAINS
       CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
 
-      IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), ri_data%pgrid_2, &
-                                                                nodata=.TRUE., unit_nr=unit_nr)
       CALL dbcsr_t_copy(t_3c_int_2_ctr(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_2_ctr(1, 1))
       CALL dbcsr_t_filter(ri_data%t_3c_int_ctr_2(1, 1), ri_data%filter_eps)
@@ -592,7 +590,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims_2d
       TYPE(dbcsr_distribution_type)                      :: ks_dist
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
-      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid, pgrid_opt
+      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid
       TYPE(dbcsr_t_type)                                 :: ks_t, ks_t_split, mo_coeff_t, &
                                                             mo_coeff_t_split
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_ctr, t_3c_int_ctr_opt, &
@@ -600,17 +598,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (pgrid_opt)
-
       CPASSERT(SIZE(ks_matrix, 2) == 1)
 
       unit_nr = ri_data%unit_nr
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_mo(qs_env, ri_data)
-      ELSE
-         IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
-                                                                   ri_data%pgrid_2, unit_nr=unit_nr)
       ENDIF
 
       ALLOCATE (bounds(2, 1))
@@ -694,8 +687,7 @@ CONTAINS
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr, move_data=.TRUE., &
-                               pgrid_opt_1=pgrid_opt)
+                               unit_nr=unit_nr, move_data=.TRUE.)
          CALL timestop(handle2)
 
          CALL dbcsr_t_destroy(t_3c_int_ctr_opt(1, 1))
@@ -706,18 +698,6 @@ CONTAINS
          CALL dbcsr_t_filter(ks_t, ri_data%filter_eps)
          CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
          CALL dbcsr_t_destroy(ks_t)
-
-         IF (ispin == nspins) THEN
-            CPASSERT(ASSOCIATED(pgrid_opt))
-            IF (ASSOCIATED(ri_data%pgrid_2)) THEN
-               CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2)
-               DEALLOCATE (ri_data%pgrid_2)
-            ENDIF
-            ri_data%pgrid_2 => pgrid_opt
-         ELSE
-            CALL dbcsr_t_pgrid_destroy(pgrid_opt)
-            DEALLOCATE (pgrid_opt)
-         ENDIF
 
       ENDDO
 

@@ -69,7 +69,8 @@ MODULE hfx_types
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
-   USE message_passing,                 ONLY: mp_cart_create
+   USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_environ
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset,&
                                               nso
@@ -392,7 +393,7 @@ MODULE hfx_types
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_1
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_1 => NULL()
 
-      ! 3c integral tensor in ( AO | RI AO) format for contraction
+      ! 3c integral tensor in ( AO | RI AO) format for contraction (also used for (MO RI AO) tensor)
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_2
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_2 => NULL()
 
@@ -1063,10 +1064,12 @@ CONTAINS
       TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: basis_cntrl
 
-      INTEGER                                            :: ikind, mp_comm_3d, natom, nkind
+      INTEGER                                            :: ikind, iproc, mp_comm_3d, natom, nkind, &
+                                                            nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_AO_1, dist_AO_2, dist_RI
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
+      TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
@@ -1154,8 +1157,23 @@ CONTAINS
       CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_split, ri_data%max_bsize)
       CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_split, ri_data%max_bsize)
 
+      IF (ri_data%flavor == ri_mo) THEN
+         CALL mp_environ(nproc, iproc, para_env%group)
+         ALLOCATE (ri_data%pgrid_2)
+         ! we distribute (MO RI AO) tensor over RI index only due to 2 reasons:
+         ! - MO index is small and should not be distributed, RI index is the largest
+         ! - we change representation from (MO | RI AO) -> (MO RI | AO) and both tensors should have
+         !   same process grid (communication-less copy). Also tensor contraction algorithm requires that
+         !   tensors are distributed mainly in the combined index.
+         pdims = [1, nproc, 1]
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_2)
+         pgrid => ri_data%pgrid_2
+      ELSE
+         pgrid => ri_data%pgrid
+      ENDIF
+
       CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2, &
-                            ri_data%pgrid, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                            pgrid, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                             [1], [2, 3], name="(AO | RI AO)")
 
       ALLOCATE (ri_data%t_3c_int_ctr_3(1, 1))
