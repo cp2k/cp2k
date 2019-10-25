@@ -2,7 +2,7 @@
 
 This directory contains input files for CP2K's tests and regression tests.
 
-For documentation on CP2K's input files, please refer to the [Input Reference Manual](https://manual.cp2k.org/).
+Automatic test results are collected on [CP2K's dashboard](https://dashboard.cp2k.org) for different machines. For documentation on CP2K's input files, please refer to the [Input Reference Manual](https://manual.cp2k.org/).
 
 **Note:** the test names make common use of acronyms. For explanations, please refer to the [Glossary of Acronyms and Abbreviations](https://www.cp2k.org/acronyms).
 
