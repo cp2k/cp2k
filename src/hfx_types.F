@@ -361,7 +361,7 @@ MODULE hfx_types
 
    TYPE hfx_ri_type
       ! input parameters
-      REAL(KIND=dp) :: filter_eps, eps_schwarz, &
+      REAL(KIND=dp) :: filter_eps, filter_eps_int, eps_schwarz, &
                        eps_lanczos, eps_pgf_orb
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr, max_bsize
       LOGICAL :: check_2c_inv
@@ -986,6 +986,7 @@ CONTAINS
       ri_data%eps_schwarz = x_data%screening_parameter%eps_schwarz
 
       CALL section_vals_val_get(ri_section, "EPS_FILTER", r_val=ri_data%filter_eps)
+      CALL section_vals_val_get(ri_section, "EPS_FILTER_INT", r_val=ri_data%filter_eps_int)
 
       ASSOCIATE (ri_metric=>ri_data%ri_metric, hfx_pot=>ri_data%hfx_pot)
          CALL section_vals_val_get(ri_section, "RI_METRIC", i_val=ri_metric%potential_type, explicit=explicit)
@@ -1105,7 +1106,7 @@ CONTAINS
          IF (hfx_pot%potential_type == do_potential_short) THEN
             ! need a more accurate threshold for determining 2-center integral operator range
             ! because stability of matrix inversion/sqrt is sensitive to this
-            CALL erfc_cutoff(ri_data%eps_schwarz, hfx_pot%omega, hfx_pot%cutoff_radius)
+            CALL erfc_cutoff(ri_data%filter_eps_int, hfx_pot%omega, hfx_pot%cutoff_radius)
          ENDIF
          ! determine whether RI metric is same operator as used in HFX
          same_op = ri_metric%potential_type == hfx_pot%potential_type
