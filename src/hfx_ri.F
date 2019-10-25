@@ -113,7 +113,8 @@ CONTAINS
       IF (.NOT. ri_data%same_op) THEN
          CALL dbcsr_create(t_2c_op_RI_inv(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
          threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
-         CALL invert_hotelling(t_2c_op_RI_inv(1), t_2c_op_RI(1), threshold=threshold, silent=.TRUE.)
+         CALL invert_hotelling(t_2c_op_RI_inv(1), t_2c_op_RI(1), threshold=threshold, silent=.FALSE.)
+
          IF (ri_data%check_2c_inv) THEN
             CALL check_inverse(t_2c_op_RI_inv(1), t_2c_op_RI(1), unit_nr)
          ENDIF
@@ -407,7 +408,7 @@ CONTAINS
       CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
       threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
       CALL invert_hotelling(t_2c_int_mat(1), t_2c_op_RI(1), &
-                            threshold=threshold, silent=.TRUE.)
+                            threshold=threshold, silent=.FALSE.)
 
       IF (ri_data%check_2c_inv) THEN
          CALL check_inverse(t_2c_int_mat(1), t_2c_op_RI(1), unit_nr)
