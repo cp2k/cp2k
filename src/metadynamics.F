@@ -13,6 +13,7 @@ MODULE metadynamics
    USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger
    USE bibliography, ONLY: VandenCic2006
 #if defined (__PLUMED2)
+   USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE, C_CHAR
    USE cell_types, ONLY: cell_type, &
       pbc_cp2k_plumed_getset_cell
 #else
@@ -77,6 +78,44 @@ MODULE metadynamics
    PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar
    PUBLIC :: metadyn_initialise_plumed, metadyn_finalise_plumed
 
+#if defined (__PLUMED2)
+   INTERFACE
+      FUNCTION plumed_installed() RESULT(res) BIND(C, name="plumed_installed")
+         IMPORT :: C_INT
+         INTEGER(KIND=C_INT)  :: res
+      END FUNCTION plumed_installed
+
+      SUBROUTINE plumed_gcreate() BIND(C, name="plumed_gcreate")
+      END SUBROUTINE plumed_gcreate
+
+      SUBROUTINE plumed_gfinalize() BIND(C, name="plumed_gfinalize")
+      END SUBROUTINE plumed_gfinalize
+
+      SUBROUTINE plumed_gcmd_int(key, value) BIND(C, name="plumed_gcmd")
+         IMPORT :: C_CHAR, C_INT
+         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: key
+         INTEGER(KIND=C_INT)                      :: value
+      END SUBROUTINE plumed_gcmd_int
+
+      SUBROUTINE plumed_gcmd_double(key, value) BIND(C, name="plumed_gcmd")
+         IMPORT :: C_CHAR, C_DOUBLE
+         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: key
+         REAL(KIND=C_DOUBLE)                      :: value
+      END SUBROUTINE plumed_gcmd_double
+
+      SUBROUTINE plumed_gcmd_doubles(key, value) BIND(C, name="plumed_gcmd")
+         IMPORT :: C_CHAR, C_DOUBLE
+         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: key
+         REAL(KIND=C_DOUBLE), DIMENSION(*)        :: value
+      END SUBROUTINE plumed_gcmd_doubles
+
+      SUBROUTINE plumed_gcmd_char(key, value) BIND(C, name="plumed_gcmd")
+         IMPORT :: C_CHAR
+         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: key, value
+      END SUBROUTINE plumed_gcmd_char
+   END INTERFACE
+#endif
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -121,23 +160,23 @@ CONTAINS
 
       MARK_USED(itimes)
 #if defined (__PLUMED2)
-      CALL plumed_f_installed(plumedavailable)
+      plumedavailable = plumed_installed()
 
       IF (plumedavailable <= 0) THEN
          CPABORT("NO PLUMED IN YOUR LD_LIBRARY_PATH?")
       ELSE
-         CALL plumed_f_gcreate()
-         IF (cp2k_is_parallel) CALL plumed_f_gcmd("setMPIFComm"//CHAR(0), force_env%para_env%group)
-         CALL plumed_f_gcmd("setRealPrecision"//CHAR(0), 8)
-         CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0), kjmol) ! Hartree to kjoule/mol
-         CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0), angstrom*0.1_dp) ! Bohr to nm
-         CALL plumed_f_gcmd("setMDTimeUnits"//CHAR(0), picoseconds) !  atomic units to ps
-         CALL plumed_f_gcmd("setPlumedDat"//CHAR(0), force_env%meta_env%plumed_input_file//CHAR(0))
-         CALL plumed_f_gcmd("setLogFile"//CHAR(0), "PLUMED.OUT"//CHAR(0))
-         CALL plumed_f_gcmd("setNatoms"//CHAR(0), natom_plumed)
-         CALL plumed_f_gcmd("setMDEngine"//CHAR(0), "cp2k"//CHAR(0))
-         CALL plumed_f_gcmd("setTimestep"//CHAR(0), timestep_plumed)
-         CALL plumed_f_gcmd("init"//CHAR(0), 0)
+         CALL plumed_gcreate()
+         IF (cp2k_is_parallel) CALL plumed_gcmd_int("setMPIFComm"//CHAR(0), force_env%para_env%group)
+         CALL plumed_gcmd_int("setRealPrecision"//CHAR(0), 8)
+         CALL plumed_gcmd_double("setMDEnergyUnits"//CHAR(0), kjmol) ! Hartree to kjoule/mol
+         CALL plumed_gcmd_double("setMDLengthUnits"//CHAR(0), angstrom*0.1_dp) ! Bohr to nm
+         CALL plumed_gcmd_double("setMDTimeUnits"//CHAR(0), picoseconds) !  atomic units to ps
+         CALL plumed_gcmd_char("setPlumedDat"//CHAR(0), force_env%meta_env%plumed_input_file//CHAR(0))
+         CALL plumed_gcmd_char("setLogFile"//CHAR(0), "PLUMED.OUT"//CHAR(0))
+         CALL plumed_gcmd_int("setNatoms"//CHAR(0), natom_plumed)
+         CALL plumed_gcmd_char("setMDEngine"//CHAR(0), "cp2k"//CHAR(0))
+         CALL plumed_gcmd_double("setTimestep"//CHAR(0), timestep_plumed)
+         CALL plumed_gcmd_int("init"//CHAR(0), 0)
       END IF
 #endif
 
@@ -164,7 +203,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 #if defined (__PLUMED2)
-      CALL plumed_f_gfinalize()
+      CALL plumed_gfinalize()
 #endif
 
       CALL timestop(handle)
@@ -256,23 +295,23 @@ CONTAINS
 
             CALL force_env_get(force_env, potential_energy=stpcfg)
 
-            CALL plumed_f_gcmd("setStep"//CHAR(0), plumed_itimes)
-            CALL plumed_f_gcmd("setPositionsX"//CHAR(0), pos_plumed_x(:))
-            CALL plumed_f_gcmd("setPositionsY"//CHAR(0), pos_plumed_y(:))
-            CALL plumed_f_gcmd("setPositionsZ"//CHAR(0), pos_plumed_z(:))
-            CALL plumed_f_gcmd("setMasses"//CHAR(0), mass_plumed(:))
-            CALL plumed_f_gcmd("setBox"//CHAR(0), celltbt)
-            CALL plumed_f_gcmd("setVirial"//CHAR(0), plu_vir) ! PluMed Output, NOT ACTUALLY USED !
-            CALL plumed_f_gcmd("setEnergy"//CHAR(0), stpcfg)
-            CALL plumed_f_gcmd("setForcesX"//CHAR(0), force_plumed_x(:)) ! PluMed Output !
-            CALL plumed_f_gcmd("setForcesY"//CHAR(0), force_plumed_y(:)) ! PluMed Output !
-            CALL plumed_f_gcmd("setForcesZ"//CHAR(0), force_plumed_z(:)) ! PluMed Output !
+            CALL plumed_gcmd_int("setStep"//CHAR(0), plumed_itimes)
+            CALL plumed_gcmd_doubles("setPositionsX"//CHAR(0), pos_plumed_x(:))
+            CALL plumed_gcmd_doubles("setPositionsY"//CHAR(0), pos_plumed_y(:))
+            CALL plumed_gcmd_doubles("setPositionsZ"//CHAR(0), pos_plumed_z(:))
+            CALL plumed_gcmd_doubles("setMasses"//CHAR(0), mass_plumed(:))
+            CALL plumed_gcmd_doubles("setBox"//CHAR(0), celltbt)
+            CALL plumed_gcmd_doubles("setVirial"//CHAR(0), plu_vir) ! PluMed Output, NOT ACTUALLY USED !
+            CALL plumed_gcmd_double("setEnergy"//CHAR(0), stpcfg)
+            CALL plumed_gcmd_doubles("setForcesX"//CHAR(0), force_plumed_x(:)) ! PluMed Output !
+            CALL plumed_gcmd_doubles("setForcesY"//CHAR(0), force_plumed_y(:)) ! PluMed Output !
+            CALL plumed_gcmd_doubles("setForcesZ"//CHAR(0), force_plumed_z(:)) ! PluMed Output !
 
-            CALL plumed_f_gcmd("prepareCalc"//CHAR(0), 0)
-            CALL plumed_f_gcmd("prepareDependencies"//CHAR(0), 0)
-            CALL plumed_f_gcmd("shareData"//CHAR(0), 0)
+            CALL plumed_gcmd_int("prepareCalc"//CHAR(0), 0)
+            CALL plumed_gcmd_int("prepareDependencies"//CHAR(0), 0)
+            CALL plumed_gcmd_int("shareData"//CHAR(0), 0)
 
-            CALL plumed_f_gcmd("performCalc"//CHAR(0), 0)
+            CALL plumed_gcmd_int("performCalc"//CHAR(0), 0)
 
             DO i_part = 1, natom_plumed
                subsys%particles%els(i_part)%f(1) = subsys%particles%els(i_part)%f(1)+force_plumed_x(i_part)
