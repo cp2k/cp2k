@@ -363,7 +363,7 @@ MODULE hfx_types
       ! input parameters
       REAL(KIND=dp) :: filter_eps, filter_eps_int, eps_schwarz, &
                        eps_lanczos, eps_pgf_orb
-      INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr, max_bsize
+      INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr, max_bsize, t2c_method
       LOGICAL :: check_2c_inv
 
       TYPE(libint_potential_type) :: ri_metric
@@ -1004,6 +1004,8 @@ CONTAINS
             ri_metric%cutoff_radius = hfx_pot%cutoff_radius
          ENDIF
       END ASSOCIATE
+
+      CALL section_vals_val_get(ri_section, "2C_MATRIX_FUNCTIONS", i_val=ri_data%t2c_method)
 
       CALL section_vals_val_get(ri_section, "CHECK_2C_INV", l_val=ri_data%check_2c_inv)
       CALL section_vals_val_get(ri_section, "SQRT_ORDER", i_val=ri_data%t2c_sqrt_order)
