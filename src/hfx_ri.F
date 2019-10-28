@@ -11,10 +11,15 @@ MODULE hfx_ri
 
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
+                                              cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_func,                   ONLY: cp_dbcsr_matrix_function
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_dist2d_to_dist
    USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, &
@@ -27,6 +32,8 @@ MODULE hfx_ri
         dbcsr_t_nd_mp_comm, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: hfx_ri_type
+   USE input_constants,                 ONLY: hfx_ri_do_2c_diag,&
+                                              hfx_ri_do_2c_iter
    USE input_cp2k_hfx,                  ONLY: ri_mo,&
                                               ri_pmat
    USE iterate_matrix,                  ONLY: invert_hotelling,&
@@ -83,6 +90,8 @@ CONTAINS
 
       INTEGER                                            :: handle, handle2, unit_nr
       REAL(KIND=dp)                                      :: threshold
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type), DIMENSION(1)                   :: t_2c_int
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_1, t_3c_int_2_ctr
@@ -97,7 +106,10 @@ CONTAINS
 
       unit_nr = ri_data%unit_nr
 
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+
       CALL timeset(routineN//"_int", handle2)
+
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int_1)
 
       IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
@@ -111,40 +123,60 @@ CONTAINS
 
       CALL timeset(routineN//"_2c", handle2)
       IF (.NOT. ri_data%same_op) THEN
-         CALL dbcsr_create(t_2c_op_RI_inv(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
-         threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
-         CALL invert_hotelling(t_2c_op_RI_inv(1), t_2c_op_RI(1), threshold=threshold, silent=.FALSE.)
+         SELECT CASE (ri_data%t2c_method)
+         CASE (hfx_ri_do_2c_iter)
+            CALL dbcsr_create(t_2c_op_RI_inv(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
+            threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
+            CALL invert_hotelling(t_2c_op_RI_inv(1), t_2c_op_RI(1), threshold=threshold, silent=.FALSE.)
+         CASE (hfx_ri_do_2c_diag)
+            CALL dbcsr_copy(t_2c_op_RI_inv(1), t_2c_op_RI(1))
+            CALL cp_dbcsr_cholesky_decompose(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env)
+            CALL cp_dbcsr_cholesky_invert(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         END SELECT
 
          IF (ri_data%check_2c_inv) THEN
             CALL check_inverse(t_2c_op_RI_inv(1), t_2c_op_RI(1), unit_nr)
          ENDIF
+
          CALL dbcsr_release(t_2c_op_RI(1))
 
-         CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_create(t_2c_op_pot_sqrt_inv(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
-         CALL matrix_sqrt_newton_schulz(t_2c_op_pot_sqrt(1), t_2c_op_pot_sqrt_inv(1), t_2c_op_pot(1), &
-                                        ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
-                                        ri_data%max_iter_lanczos)
-         IF (ri_data%check_2c_inv) THEN
-            CALL check_sqrt(t_2c_op_pot(1), t_2c_op_pot_sqrt(1), t_2c_op_pot_sqrt_inv(1), unit_nr)
-         ENDIF
-         CALL dbcsr_release(t_2c_op_pot_sqrt_inv(1))
+         SELECT CASE (ri_data%t2c_method)
+         CASE (hfx_ri_do_2c_iter)
+            CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
+            CALL dbcsr_create(t_2c_op_pot_sqrt_inv(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
+            CALL matrix_sqrt_newton_schulz(t_2c_op_pot_sqrt(1), t_2c_op_pot_sqrt_inv(1), t_2c_op_pot(1), &
+                                           ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
+                                           ri_data%max_iter_lanczos)
+            IF (ri_data%check_2c_inv) THEN
+               CALL check_sqrt(t_2c_op_pot(1), t_2c_op_pot_sqrt(1), t_2c_op_pot_sqrt_inv(1), unit_nr)
+            ENDIF
+            CALL dbcsr_release(t_2c_op_pot_sqrt_inv(1))
+         CASE (hfx_ri_do_2c_diag)
+            CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
 
+            CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_sqrt, t_2c_op_pot_sqrt(1), para_env=para_env, blacs_env=blacs_env)
+         END SELECT
          CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_multiply("N", "N", 1.0_dp, t_2c_op_RI_inv(1), t_2c_op_pot_sqrt(1), &
                              0.0_dp, t_2c_int_mat(1), filter_eps=ri_data%filter_eps)
          CALL dbcsr_release(t_2c_op_RI_inv(1))
          CALL dbcsr_release(t_2c_op_pot_sqrt(1))
       ELSE
-         CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
-         CALL matrix_sqrt_newton_schulz(t_2c_op_pot_sqrt(1), t_2c_int_mat(1), t_2c_op_pot(1), &
-                                        ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
-                                        ri_data%max_iter_lanczos)
-         IF (ri_data%check_2c_inv) THEN
-            CALL check_sqrt(t_2c_op_pot(1), t_2c_op_pot_sqrt(1), t_2c_int_mat(1), unit_nr)
-         ENDIF
-         CALL dbcsr_release(t_2c_op_pot_sqrt(1))
+         SELECT CASE (ri_data%t2c_method)
+         CASE (hfx_ri_do_2c_iter)
+            CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
+            CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
+            CALL matrix_sqrt_newton_schulz(t_2c_op_pot_sqrt(1), t_2c_int_mat(1), t_2c_op_pot(1), &
+                                           ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
+                                           ri_data%max_iter_lanczos)
+            IF (ri_data%check_2c_inv) THEN
+               CALL check_sqrt(t_2c_op_pot(1), t_2c_op_pot_sqrt(1), t_2c_int_mat(1), unit_nr)
+            ENDIF
+            CALL dbcsr_release(t_2c_op_pot_sqrt(1))
+         CASE (hfx_ri_do_2c_diag)
+            CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_invsqrt, t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
+         END SELECT
       ENDIF
 
       CALL dbcsr_release(t_2c_op_pot(1))
@@ -374,6 +406,8 @@ CONTAINS
 
       INTEGER                                            :: handle, handle2, unit_nr
       REAL(KIND=dp)                                      :: threshold
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type), DIMENSION(1)                   :: t_2c_int
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_1, t_3c_int_2
@@ -385,6 +419,8 @@ CONTAINS
       NULLIFY (pgrid_opt)
 
       unit_nr = ri_data%unit_nr
+
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
 
       CALL timeset(routineN//"_int", handle2)
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int_1)
@@ -407,8 +443,16 @@ CONTAINS
       CALL timeset(routineN//"_2c", handle2)
       CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
       threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
-      CALL invert_hotelling(t_2c_int_mat(1), t_2c_op_RI(1), &
-                            threshold=threshold, silent=.FALSE.)
+
+      SELECT CASE (ri_data%t2c_method)
+      CASE (hfx_ri_do_2c_iter)
+         CALL invert_hotelling(t_2c_int_mat(1), t_2c_op_RI(1), &
+                               threshold=threshold, silent=.FALSE.)
+      CASE (hfx_ri_do_2c_diag)
+         CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_RI(1))
+         CALL cp_dbcsr_cholesky_decompose(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
+         CALL cp_dbcsr_cholesky_invert(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+      END SELECT
 
       IF (ri_data%check_2c_inv) THEN
          CALL check_inverse(t_2c_int_mat(1), t_2c_op_RI(1), unit_nr)
@@ -821,5 +865,29 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Function for calculating sqrt of a matrix
+!> \param values ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION my_sqrt(values)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
+      REAL(KIND=dp), DIMENSION(SIZE(values))             :: my_sqrt
+
+      my_sqrt = SQRT(values)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief Function for calculation inverse sqrt of a matrix
+!> \param values ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION my_invsqrt(values)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
+      REAL(KIND=dp), DIMENSION(SIZE(values))             :: my_invsqrt
+
+      my_invsqrt = SQRT(1.0_dp/values)
+   END FUNCTION
 
 END MODULE
