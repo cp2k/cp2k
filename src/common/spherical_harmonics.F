@@ -1469,8 +1469,14 @@ CONTAINS
       CASE DEFAULT
          mm = ABS(m)
          IF (mm > l) CPABORT("m out of bounds")
-         ! dPlm(x) = (1-x^2) * Plm+1(x) + (1-x^2)^(m-1) * m * x * Plm(x)
-         CPABORT("l > 6 dplm not implemented")
+
+         !From Wikipedia: dPlm(x) = -(l+1)x/(x^2-1)*Plm(x) + (l-m+1)/(x^2-1)Pl+1m(x)
+         IF (ABS(x)-1.0_dp < EPSILON(1.0_dp)) THEN
+            dplm = 0.0_dp
+         ELSE
+            dplm = -REAL(l+1, dp)*x/(x**2-1.0_dp)*legendre(x, l, m) &
+                   +REAL(l-m+1, dp)/(x**2-1.0_dp)*legendre(x, l+1, m)
+         END IF
       END SELECT
 
    END FUNCTION dlegendre

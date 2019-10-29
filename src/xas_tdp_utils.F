@@ -79,10 +79,13 @@ MODULE xas_tdp_utils
         tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_len, &
         xas_tdp_diag_std, xas_tdp_diag_syevr
    USE input_section_types,             ONLY: section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
+   USE machine,                         ONLY: m_memory_details
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
-   USE message_passing,                 ONLY: mp_sum,&
+   USE message_passing,                 ONLY: mp_min,&
+                                              mp_sum,&
                                               mp_sync
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
@@ -130,7 +133,7 @@ MODULE xas_tdp_utils
    PUBLIC :: setup_xas_tdp_prob, solve_xas_tdp_prob, build_xas_tdp_3c_nl, &
              compute_ri_coulomb2_int, include_rcs_soc, include_os_soc, &
              compute_ri_o3c_coulomb, compute_ri_o3c_exchange, build_xas_tdp_ovlp_nl, &
-             compute_ri_exchange2_int, get_opt_3c_dist2d
+             compute_ri_exchange2_int, get_opt_3c_dist2d, get_o3c_memory
 
    !A helper type for SOC
    TYPE dbcsr_soc_package_type
@@ -1706,6 +1709,89 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_ri_o3c_exchange
+
+! **************************************************************************************************
+!> \brief Estimates the memory cost of an o3c based on the incoming ab and ac lists. Also returns
+!>        the total amount of free memory in the system
+!> \param o3c_mem the amount of memory that will be taken by the o3c
+!> \param free_mem the total amount of free memeory left
+!> \param ab_list ...
+!> \param ac_list ...
+!> \param basis_set_a ...
+!> \param basis_set_b ...
+!> \param basis_set_c ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE get_o3c_memory(o3c_mem, free_mem, ab_list, ac_list, basis_set_a, basis_set_b, &
+                             basis_set_c, qs_env)
+
+      INTEGER(int_8), INTENT(INOUT)                      :: o3c_mem, free_mem
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: ab_list, ac_list
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_a, basis_set_b, basis_set_c
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_o3c_memory', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ikind, jkind, kkind, mepos, &
+                                                            nsgfa, nsgfb, nsgfc, nthread
+      INTEGER(int_8)                                     :: m1, m2, m3, m4, m5, m6
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(o3c_container_type), POINTER                  :: o3c
+      TYPE(o3c_iterator_type)                            :: o3c_iterator
+
+      NULLIFY (o3c, para_env)
+
+      CALL timeset(routineN, handle)
+
+      !Idea: go over the o3c and count the number of nsgf^3. This times 64 gives the amount of
+      !      bits that will be used. At the same time, querry the system for the remaining available
+      !      memory
+
+      !o3c memory
+      CALL get_qs_env(qs_env, para_env=para_env)
+
+      ALLOCATE (o3c)
+      CALL init_o3c_container(o3c, 1, basis_set_a, basis_set_b, basis_set_c, ab_list, ac_list)
+      o3c_mem = 0
+
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+      CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (nthread,o3c_iterator,basis_set_a,basis_set_b,basis_set_c) &
+!$OMP PRIVATE(mepos,ikind,jkind,kkind,nsgfa,nsgfb,nsgfc) &
+!$OMP REDUCTION(+:o3c_mem)
+
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
+      DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
+         CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, ikind=ikind, jkind=jkind, kkind=kkind)
+
+         nsgfa = basis_set_a(ikind)%gto_basis_set%nsgf
+         nsgfb = basis_set_b(jkind)%gto_basis_set%nsgf
+         nsgfc = basis_set_c(kkind)%gto_basis_set%nsgf
+
+         o3c_mem = o3c_mem+nsgfa*nsgfb*nsgfc
+
+      END DO
+!$OMP END PARALLEL
+      CALL o3c_iterator_release(o3c_iterator)
+      CALL release_o3c_container(o3c)
+      DEALLOCATE (o3c)
+
+      CALL mp_sum(o3c_mem, para_env%group)
+      o3c_mem = o3c_mem*8 !8 bytes, double precision
+
+      !System free memory (take minimum for safety)
+      CALL m_memory_details(m1, free_mem, m2, m3, m4, m5, m6)
+      CALL mp_min(free_mem, para_env%group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_o3c_memory
 
 ! **************************************************************************************************
 !> \brief Returns an optimized distribution_2d for the given neighbor lists based on an evaluation
