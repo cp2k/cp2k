@@ -58,14 +58,14 @@ EOF
             # library
             cd libxsmm-${libxsmm_ver}
             make -j $NPROCS \
-                 MALLOC=0 SYM=1 \
+                 MALLOC=0 \
                  CXX=$CXX \
                  CC=$CC \
                  FC=$FC \
                  PREFIX=${pkg_install_dir} \
                  > make.log 2>&1
             make -j $NPROCS \
-                 MALLOC=0 SYM=1 \
+                 MALLOC=0 \
                  CXX=$CXX \
                  CC=$CC \
                  FC=$FC \
