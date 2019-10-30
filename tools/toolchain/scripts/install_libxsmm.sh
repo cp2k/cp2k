@@ -2,10 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-#TODO: Remove valgrind suppressions below after upgrading to next release.
-# For details see: https://github.com/hfp/libxsmm/issues/298 .
-libxsmm_ver="1.13"
-libxsmm_sha256="47c034e169820a9633770eece0e0fdd8d4a744e09b81da2af8c2608a4625811e"
+libxsmm_ver="1.14"
+libxsmm_sha256="9c0af4509ea341d1ee2c6c19fc6f19289318c3bd4b17844efeb9e7f9691abf76"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -60,12 +58,14 @@ EOF
             # library
             cd libxsmm-${libxsmm_ver}
             make -j $NPROCS \
+                 MALLOC=0 \
                  CXX=$CXX \
                  CC=$CC \
                  FC=$FC \
                  PREFIX=${pkg_install_dir} \
                  > make.log 2>&1
             make -j $NPROCS \
+                 MALLOC=0 \
                  CXX=$CXX \
                  CC=$CC \
                  FC=$FC \
@@ -119,24 +119,6 @@ export CP_LIBS="\${LIBXSMM_LIBS} \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
-
-# ----------------------------------------------------------------------
-# Suppress reporting of known problems
-# ----------------------------------------------------------------------
-cat <<EOF >> ${INSTALLDIR}/valgrind.supp
-{
-   <FalsePositiveLibxsmm1>
-   Memcheck:Cond
-   ...
-   fun:libxsmm_otrans
-}
-{
-   <FalsePositiveLibxsmm2>
-   Memcheck:Value8
-   ...
-   fun:libxsmm_otrans
-}
-EOF
 
 # update toolchain environment
 load "${BUILDDIR}/setup_libxsmm"

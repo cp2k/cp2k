@@ -639,7 +639,7 @@ if [ $ENABLE_TSAN = "__TRUE__" ] ; then
         [ "$with_reflapack" = "__DONTUSE__" ] && with_reflapack="__INSTALL__"
         export FAST_MATH_MODE=reflapack
     fi
-    echo "TSAN is enabled, canoot use libsmm"
+    echo "TSAN is enabled, cannot use libsmm"
     with_libsmm="__DONTUSE__"
 fi
 
