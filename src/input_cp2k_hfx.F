@@ -570,8 +570,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CHECK_2C_INV", &
-                          description="Perform an accuracy check on the inverse/sqrt of the 2-center integral matrix.", &
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_2C_MATRIX", &
+                          description="Report accuracy for the inverse/sqrt of the 2-center integral matrix.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
