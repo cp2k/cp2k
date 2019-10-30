@@ -50,7 +50,8 @@ MODULE hfx_types
    USE input_constants,                 ONLY: &
         do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
-        do_potential_short, do_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces
+        do_potential_short, do_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces, &
+        hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
    USE input_cp2k_hfx,                  ONLY: ri_mo,&
                                               ri_pmat
    USE input_section_types,             ONLY: section_vals_get,&
@@ -363,7 +364,7 @@ MODULE hfx_types
       ! input parameters
       REAL(KIND=dp) :: filter_eps, filter_eps_int, eps_schwarz, &
                        eps_lanczos, eps_pgf_orb
-      INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr, max_bsize, t2c_method
+      INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, max_bsize, t2c_method
       LOGICAL :: check_2c_inv
 
       TYPE(libint_potential_type) :: ri_metric
@@ -401,8 +402,10 @@ MODULE hfx_types
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_3
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_3 => NULL()
 
-      ! need section only for output handling, section should have a print_key subsection
-      TYPE(section_vals_type), POINTER :: ri_section => NULL()
+      ! optional: sections for output handling
+      ! alternatively set unit_nr_dbcsr (for logging tensor operations) and unit_nr (for general
+      ! output) directly
+      TYPE(section_vals_type), POINTER :: ri_section => NULL(), hfx_section => NULL()
 
       ! types of primary and auxiliary basis
       CHARACTER(len=default_string_length) :: orb_basis_type, ri_basis_type
@@ -930,8 +933,9 @@ CONTAINS
             IF (actual_x_data%do_hfx_ri) THEN
                CPASSERT(PRESENT(do_ot))
                ALLOCATE (actual_x_data%ri_data)
-               CALL hfx_ri_init_read_input(actual_x_data%ri_data, actual_x_data, hfx_section, hf_sub_section, qs_kind_set, &
-                                           particle_set, dft_control, para_env, irep, do_ot)
+               CALL hfx_ri_init_read_input_from_hfx(actual_x_data%ri_data, actual_x_data, hfx_section, &
+                                                    hf_sub_section, qs_kind_set, &
+                                                    particle_set, dft_control, para_env, irep, do_ot)
 
             ENDIF
          END DO
@@ -945,7 +949,7 @@ CONTAINS
    END SUBROUTINE hfx_create
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Read RI input and initialize RI data for use within Hartree-Fock
 !> \param ri_data ...
 !> \param x_data ...
 !> \param hfx_section ...
@@ -957,8 +961,8 @@ CONTAINS
 !> \param irep ...
 !> \param do_ot ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_ri_init_read_input(ri_data, x_data, hfx_section, ri_section, qs_kind_set, &
-                                     particle_set, dft_control, para_env, irep, do_ot)
+   SUBROUTINE hfx_ri_init_read_input_from_hfx(ri_data, x_data, hfx_section, ri_section, qs_kind_set, &
+                                              particle_set, dft_control, para_env, irep, do_ot)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(hfx_type), INTENT(INOUT)                      :: x_data
       TYPE(section_vals_type), POINTER                   :: hfx_section, ri_section
@@ -969,11 +973,17 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: irep
       LOGICAL, INTENT(IN)                                :: do_ot
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input_from_hfx', &
+         routineP = moduleN//':'//routineN
+
       CHARACTER(LEN=512)                                 :: error_msg
-      CHARACTER(LEN=default_path_length)                 :: char_val
-      LOGICAL                                            :: explicit
+      CHARACTER(LEN=default_path_length)                 :: char_val, t_c_filename
+      CHARACTER(LEN=default_string_length)               :: orb_basis_type, ri_basis_type
+      INTEGER                                            :: handle, unit_nr, unit_nr_dbcsr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: hf_sub_section
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (hf_sub_section)
 
@@ -983,7 +993,82 @@ CONTAINS
          hfx_pot%cutoff_radius = x_data%potential_parameter%cutoff_radius
       END ASSOCIATE
       ri_data%ri_section => ri_section
+      ri_data%hfx_section => hfx_section
       ri_data%eps_schwarz = x_data%screening_parameter%eps_schwarz
+
+      logger => cp_get_default_logger()
+      unit_nr_dbcsr = cp_print_key_unit_nr(logger, ri_data%ri_section, "RI_INFO", &
+                                           extension=".dbcsrLog")
+
+      unit_nr = cp_print_key_unit_nr(logger, ri_data%hfx_section, "HF_INFO", &
+                                     extension=".scfLog")
+
+      hf_sub_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL", i_rep_section=irep)
+      CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val)
+      CALL compress(char_val, .TRUE.)
+
+      IF (.NOT. file_exists(char_val)) THEN
+         WRITE (error_msg, '(A,A,A)') "File not found. Please check T_C_G_DATA "// &
+            "in the INTERACTION_POTENTIAL section"
+         CPABORT(error_msg)
+      ELSE
+         t_c_filename = char_val
+      END IF
+
+      IF (dft_control%do_admm) THEN
+         orb_basis_type = "AUX_FIT"
+      ELSE
+         orb_basis_type = "ORB"
+      ENDIF
+
+      ri_basis_type = "RI_HFX"
+
+      CALL hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, particle_set, &
+                                  orb_basis_type, ri_basis_type, dft_control%auto_basis_ri_hfx, &
+                                  para_env, unit_nr, unit_nr_dbcsr, &
+                                  t_c_filename=t_c_filename)
+
+      IF (ri_data%flavor == ri_mo .AND. .NOT. do_ot) THEN
+         CPABORT("RI_FLAVOR MO is not consistent with density mixing. Either use OT or RI_FLAVOR RHO.")
+      ENDIF
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief General routine for reading input of RI section and initializing RI data
+!> \param ri_data ...
+!> \param ri_section ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param orb_basis_type ...
+!> \param ri_basis_type ...
+!> \param auto_basis_cntrl ...
+!> \param para_env ...
+!> \param unit_nr unit number of general output
+!> \param unit_nr_dbcsr unit number for logging DBCSR tensor operations
+!> \param t_c_filename ...
+! **************************************************************************************************
+   SUBROUTINE hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, &
+                                     particle_set, orb_basis_type, ri_basis_type, auto_basis_cntrl, para_env, &
+                                     unit_nr, unit_nr_dbcsr, t_c_filename)
+      TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
+      TYPE(section_vals_type), POINTER                   :: ri_section
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      CHARACTER(LEN=*), INTENT(IN)                       :: orb_basis_type, ri_basis_type
+      INTEGER, INTENT(IN)                                :: auto_basis_cntrl
+      TYPE(cp_para_env_type)                             :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr, unit_nr_dbcsr
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      LOGICAL                                            :: explicit
+
+      CALL timeset(routineN, handle)
 
       CALL section_vals_val_get(ri_section, "EPS_FILTER", r_val=ri_data%filter_eps)
       CALL section_vals_val_get(ri_section, "EPS_FILTER_INT", r_val=ri_data%filter_eps_int)
@@ -1007,7 +1092,7 @@ CONTAINS
 
       CALL section_vals_val_get(ri_section, "2C_MATRIX_FUNCTIONS", i_val=ri_data%t2c_method)
 
-      CALL section_vals_val_get(ri_section, "CHECK_2C_INV", l_val=ri_data%check_2c_inv)
+      CALL section_vals_val_get(ri_section, "CHECK_2C_MATRIX", l_val=ri_data%check_2c_inv)
       CALL section_vals_val_get(ri_section, "SQRT_ORDER", i_val=ri_data%t2c_sqrt_order)
       CALL section_vals_val_get(ri_section, "EPS_LANCZOS", r_val=ri_data%eps_lanczos)
       CALL section_vals_val_get(ri_section, "MAX_ITER_LANCZOS", i_val=ri_data%max_iter_lanczos)
@@ -1015,40 +1100,20 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE", i_val=ri_data%max_bsize)
 
-      IF (ri_data%flavor == ri_mo .AND. .NOT. do_ot) THEN
-         CPABORT("RI_FLAVOR MO is not consistent with density mixing. Either use OT or RI_FLAVOR RHO.")
+      ri_data%orb_basis_type = orb_basis_type
+      ri_data%ri_basis_type = ri_basis_type
+
+      IF (PRESENT(t_c_filename)) THEN
+         ri_data%ri_metric%filename = t_c_filename
+         ri_data%hfx_pot%filename = t_c_filename
       ENDIF
 
-      IF (dft_control%do_admm) THEN
-         ri_data%orb_basis_type = "AUX_FIT"
-      ELSE
-         ri_data%orb_basis_type = "ORB"
-      ENDIF
+      ri_data%unit_nr_dbcsr = unit_nr_dbcsr
+      ri_data%unit_nr = unit_nr
 
-      ri_data%ri_basis_type = "RI_HFX"
+      CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, para_env, auto_basis_cntrl)
 
-      IF (ri_data%ri_metric%potential_type == do_potential_truncated .OR. &
-          ri_data%hfx_pot%potential_type == do_potential_truncated) THEN
-         hf_sub_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL", i_rep_section=irep)
-         CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val)
-         CALL compress(char_val, .TRUE.)
-         ! ** Check if file is there
-         IF (.NOT. file_exists(char_val)) THEN
-            WRITE (error_msg, '(A,A,A)') "RI hfx calculation with truncated RI metric requested. The file containing "// &
-               "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "// &
-               "in the INTERACTION_POTENTIAL section"
-            CPABORT(error_msg)
-         ELSE
-            ri_data%ri_metric%filename = char_val
-            ri_data%hfx_pot%filename = char_val
-         END IF
-      END IF
-
-      logger => cp_get_default_logger()
-      ri_data%unit_nr = cp_print_key_unit_nr(logger, ri_data%ri_section, "RI_INFO", &
-                                             extension=".dbcsrLog")
-
-      CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, para_env, dft_control%auto_basis_ri_hfx)
+      CALL timestop(handle)
 
    END SUBROUTINE
 
@@ -1067,8 +1132,10 @@ CONTAINS
       TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: basis_cntrl
 
-      INTEGER                                            :: ikind, iproc, mp_comm_3d, natom, nkind, &
-                                                            nproc
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ikind, iproc, mp_comm_3d, natom, &
+                                                            nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_AO_1, dist_AO_2, dist_RI
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
@@ -1078,6 +1145,8 @@ CONTAINS
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (ri_aux_basis_set, qs_kind)
 
@@ -1192,6 +1261,7 @@ CONTAINS
                                ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
                                [1, 2], [3], name="(AO RI | AO)")
       ENDIF
+      CALL timestop(handle)
 
    END SUBROUTINE
 
@@ -1202,7 +1272,12 @@ CONTAINS
    SUBROUTINE hfx_ri_release(ri_data)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_release', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
       TYPE(cp_logger_type), POINTER                      :: logger
+
+      CALL timeset(routineN, handle)
 
       IF (ASSOCIATED(ri_data%pgrid)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
@@ -1235,12 +1310,18 @@ CONTAINS
          DEALLOCATE (ri_data%dist1_RI, ri_data%dist1_AO_1, ri_data%dist1_AO_2)
       ENDIF
 
-      NULLIFY (logger)
       IF (ASSOCIATED(ri_data%ri_section)) THEN
          logger => cp_get_default_logger()
-         CALL cp_print_key_finished_output(ri_data%unit_nr, logger, ri_data%ri_section, &
+         CALL cp_print_key_finished_output(ri_data%unit_nr_dbcsr, logger, ri_data%ri_section, &
                                            "RI_INFO")
       ENDIF
+      IF (ASSOCIATED(ri_data%hfx_section)) THEN
+         logger => cp_get_default_logger()
+         CALL cp_print_key_finished_output(ri_data%unit_nr, logger, ri_data%hfx_section, &
+                                           "HF_INFO")
+      ENDIF
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -2338,8 +2419,18 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T3, A, T78, A)") &
                "HFX_RI_INFO| RI flavor: ", "RHO"
          END SELECT
+         SELECT CASE (ri_data%t2c_method)
+         CASE (hfx_ri_do_2c_iter)
+            WRITE (UNIT=iw, FMT="(T3, A, T69, A)") &
+               "HFX_RI_INFO| Matrix SQRT/INV", "DBCSR / iter"
+         CASE (hfx_ri_do_2c_diag)
+            WRITE (UNIT=iw, FMT="(T3, A, T65, A)") &
+               "HFX_RI_INFO| Matrix SQRT/INV", "Scalapack / diag"
+         END SELECT
          WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
             "HFX_RI_INFO| EPS_FILTER", ri_data%filter_eps
+         WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
+            "HFX_RI_INFO| EPS_FILTER for 2-center integrals", ri_data%filter_eps_int
          WRITE (UNIT=iw, FMT="((T3, A, T73, ES8.1))") &
             "HFX_INFO| EPS_SCHWARZ:     ", ri_data%eps_schwarz
       ENDIF

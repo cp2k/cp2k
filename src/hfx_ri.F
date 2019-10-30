@@ -38,7 +38,8 @@ MODULE hfx_ri
                                               ri_pmat
    USE iterate_matrix,                  ONLY: invert_hotelling,&
                                               matrix_sqrt_newton_schulz
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -88,7 +89,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_mo', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, unit_nr
+      INTEGER                                            :: handle, handle2, unit_nr, unit_nr_dbcsr
       REAL(KIND=dp)                                      :: threshold
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -104,6 +105,7 @@ CONTAINS
 
       NULLIFY (pgrid_opt)
 
+      unit_nr_dbcsr = ri_data%unit_nr_dbcsr
       unit_nr = ri_data%unit_nr
 
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
@@ -113,7 +115,7 @@ CONTAINS
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int_1)
 
       IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
-                                                                ri_data%pgrid_3, nodata=.TRUE., unit_nr=unit_nr)
+                                                                ri_data%pgrid_3, nodata=.TRUE., unit_nr=unit_nr_dbcsr)
 
       CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1), move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_1(1, 1))
@@ -135,7 +137,7 @@ CONTAINS
          END SELECT
 
          IF (ri_data%check_2c_inv) THEN
-            CALL check_inverse(t_2c_op_RI_inv(1), t_2c_op_RI(1), unit_nr)
+            CALL check_inverse(t_2c_op_RI_inv(1), t_2c_op_RI(1), unit_nr=unit_nr)
          ENDIF
 
          CALL dbcsr_release(t_2c_op_RI(1))
@@ -147,15 +149,16 @@ CONTAINS
             CALL matrix_sqrt_newton_schulz(t_2c_op_pot_sqrt(1), t_2c_op_pot_sqrt_inv(1), t_2c_op_pot(1), &
                                            ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
                                            ri_data%max_iter_lanczos)
-            IF (ri_data%check_2c_inv) THEN
-               CALL check_sqrt(t_2c_op_pot(1), t_2c_op_pot_sqrt(1), t_2c_op_pot_sqrt_inv(1), unit_nr)
-            ENDIF
+
             CALL dbcsr_release(t_2c_op_pot_sqrt_inv(1))
          CASE (hfx_ri_do_2c_diag)
             CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
 
             CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_sqrt, t_2c_op_pot_sqrt(1), para_env=para_env, blacs_env=blacs_env)
          END SELECT
+         IF (ri_data%check_2c_inv) THEN
+            CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt=t_2c_op_pot_sqrt(1), unit_nr=unit_nr)
+         ENDIF
          CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_multiply("N", "N", 1.0_dp, t_2c_op_RI_inv(1), t_2c_op_pot_sqrt(1), &
                              0.0_dp, t_2c_int_mat(1), filter_eps=ri_data%filter_eps)
@@ -169,14 +172,14 @@ CONTAINS
             CALL matrix_sqrt_newton_schulz(t_2c_op_pot_sqrt(1), t_2c_int_mat(1), t_2c_op_pot(1), &
                                            ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
                                            ri_data%max_iter_lanczos)
-            IF (ri_data%check_2c_inv) THEN
-               CALL check_sqrt(t_2c_op_pot(1), t_2c_op_pot_sqrt(1), t_2c_int_mat(1), unit_nr)
-            ENDIF
             CALL dbcsr_release(t_2c_op_pot_sqrt(1))
          CASE (hfx_ri_do_2c_diag)
             CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_invsqrt, t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
          END SELECT
+         IF (ri_data%check_2c_inv) THEN
+            CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt_inv=t_2c_int_mat(1), unit_nr=unit_nr)
+         ENDIF
       ENDIF
 
       CALL dbcsr_release(t_2c_op_pot(1))
@@ -193,7 +196,7 @@ CONTAINS
                             contract_1=[1], notcontract_1=[2], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                            unit_nr=unit_nr, move_data=.TRUE., &
+                            unit_nr=unit_nr_dbcsr, move_data=.TRUE., &
                             pgrid_opt_2=pgrid_opt)
       CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
@@ -218,14 +221,23 @@ CONTAINS
 !> \brief ...
 !> \param matrix_1 ...
 !> \param matrix_2 ...
+!> \param name ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE check_inverse(matrix_1, matrix_2, unit_nr)
+   SUBROUTINE check_inverse(matrix_1, matrix_2, name, unit_nr)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_1, matrix_2
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
       INTEGER, INTENT(IN)                                :: unit_nr
 
+      CHARACTER(len=default_string_length)               :: name_prv
       REAL(KIND=dp)                                      :: error, frob_matrix, frob_matrix_base
       TYPE(dbcsr_type)                                   :: matrix_tmp
+
+      IF (PRESENT(name)) THEN
+         name_prv = name
+      ELSE
+         CALL dbcsr_get_info(matrix_1, name=name_prv)
+      ENDIF
 
       CALL dbcsr_create(matrix_tmp, template=matrix_1)
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_1, matrix_2, &
@@ -235,9 +247,10 @@ CONTAINS
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
       error = frob_matrix/frob_matrix_base
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) "Error for (inv(K)*K-I)", error
+         WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T73,ES8.1)") &
+            "HFX_RI_INFO| Error for INV(", TRIM(name_prv), "):", error
       ENDIF
-      CPASSERT(error < 1.0E-08_dp)
+
       CALL dbcsr_release(matrix_tmp)
    END SUBROUTINE
 
@@ -246,30 +259,48 @@ CONTAINS
 !> \param matrix ...
 !> \param matrix_sqrt ...
 !> \param matrix_sqrt_inv ...
+!> \param name ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE check_sqrt(matrix, matrix_sqrt, matrix_sqrt_inv, unit_nr)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix, matrix_sqrt, matrix_sqrt_inv
+   SUBROUTINE check_sqrt(matrix, matrix_sqrt, matrix_sqrt_inv, name, unit_nr)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_sqrt, matrix_sqrt_inv
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
       INTEGER, INTENT(IN)                                :: unit_nr
 
+      CHARACTER(len=default_string_length)               :: name_prv
       REAL(KIND=dp)                                      :: frob_matrix
-      TYPE(dbcsr_type)                                   :: matrix_sqrt_2, matrix_tmp
+      TYPE(dbcsr_type)                                   :: matrix_copy, matrix_tmp
 
-      CALL dbcsr_create(matrix_tmp, template=matrix_sqrt)
-      CALL dbcsr_copy(matrix_sqrt_2, matrix_sqrt)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt, matrix_sqrt_2, &
-                          0.0_dp, matrix_tmp)
-      CALL dbcsr_add(matrix_tmp, matrix, 1.0_dp, -1.0_dp)
-      frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) "Error for (K^(1/2)*K^(1/2) - K)", frob_matrix
+      IF (PRESENT(name)) THEN
+         name_prv = name
+      ELSE
+         CALL dbcsr_get_info(matrix, name=name_prv)
+      ENDIF
+      IF (PRESENT(matrix_sqrt)) THEN
+         CALL dbcsr_create(matrix_tmp, template=matrix)
+         CALL dbcsr_copy(matrix_copy, matrix_sqrt)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt, matrix_copy, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_add(matrix_tmp, matrix, 1.0_dp, -1.0_dp)
+         frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
+         IF (unit_nr > 0) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T73,ES8.1)") &
+               "HFX_RI_INFO| Error for SQRT(", TRIM(name_prv), "):", frob_matrix
+         ENDIF
+         CALL dbcsr_release(matrix_tmp)
+         CALL dbcsr_release(matrix_copy)
       ENDIF
 
-      CPASSERT(frob_matrix < 1.0E-08_dp)
-      CALL dbcsr_release(matrix_tmp)
-      CALL dbcsr_release(matrix_sqrt_2)
-
-      CALL check_inverse(matrix_sqrt_inv, matrix_sqrt, unit_nr)
+      IF (PRESENT(matrix_sqrt_inv)) THEN
+         CALL dbcsr_create(matrix_tmp, template=matrix)
+         CALL dbcsr_copy(matrix_copy, matrix_sqrt_inv)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix_copy, &
+                             0.0_dp, matrix_tmp)
+         CALL check_inverse(matrix_tmp, matrix, name="SQRT("//TRIM(name_prv)//")", unit_nr=unit_nr)
+         CALL dbcsr_release(matrix_tmp)
+         CALL dbcsr_release(matrix_copy)
+      ENDIF
 
    END SUBROUTINE
 
@@ -356,7 +387,7 @@ CONTAINS
       row_bsize(:) = sizes_RI
       col_bsize(:) = sizes_RI
 
-      CALL dbcsr_create(t_2c_int_pot(1), "(R|P)", dbcsr_dist, dbcsr_type_symmetric, &
+      CALL dbcsr_create(t_2c_int_pot(1), "(R|P) HFX", dbcsr_dist, dbcsr_type_symmetric, &
                         row_bsize, col_bsize, reuse_arrays=.TRUE.)
 
       CALL dbcsr_distribution_release(dbcsr_dist)
@@ -372,8 +403,7 @@ CONTAINS
                                       qs_env, sym_ij=.TRUE., &
                                       dist_2d=dist_2d)
 
-         CALL dbcsr_create(t_2c_int_RI(1), template=t_2c_int_pot(1), matrix_type=dbcsr_type_symmetric)
-
+         CALL dbcsr_create(t_2c_int_RI(1), template=t_2c_int_pot(1), matrix_type=dbcsr_type_symmetric, name="(R|P) RI")
          CALL build_2c_integrals(t_2c_int_RI, ri_data%filter_eps_int, qs_env, nl_2c_RI, basis_set_RI, basis_set_RI, &
                                  ri_data%ri_metric)
 
@@ -404,7 +434,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_Pmat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, unit_nr
+      INTEGER                                            :: handle, handle2, unit_nr, unit_nr_dbcsr
       REAL(KIND=dp)                                      :: threshold
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -418,6 +448,7 @@ CONTAINS
 
       NULLIFY (pgrid_opt)
 
+      unit_nr_dbcsr = ri_data%unit_nr_dbcsr
       unit_nr = ri_data%unit_nr
 
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
@@ -428,9 +459,9 @@ CONTAINS
       IF (ri_data%same_op) t_2c_op_RI(1) = t_2c_op_pot(1)
 
       IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
-                                                                ri_data%pgrid_3, nodata=.TRUE., unit_nr=unit_nr)
+                                                                ri_data%pgrid_3, nodata=.TRUE., unit_nr=unit_nr_dbcsr)
       IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
-                                                                ri_data%pgrid_2, nodata=.TRUE., unit_nr=unit_nr)
+                                                                ri_data%pgrid_2, nodata=.TRUE., unit_nr=unit_nr_dbcsr)
 
       CALL dbcsr_t_copy(t_3c_int_1(1, 1), ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_filter(ri_data%t_3c_int_ctr_3(1, 1), ri_data%filter_eps)
@@ -455,7 +486,7 @@ CONTAINS
       END SELECT
 
       IF (ri_data%check_2c_inv) THEN
-         CALL check_inverse(t_2c_int_mat(1), t_2c_op_RI(1), unit_nr)
+         CALL check_inverse(t_2c_int_mat(1), t_2c_op_RI(1), unit_nr=unit_nr)
       ENDIF
 
       IF (ri_data%same_op) THEN
@@ -488,7 +519,7 @@ CONTAINS
                             contract_1=[2], notcontract_1=[1], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                            unit_nr=unit_nr, move_data=.TRUE., &
+                            unit_nr=unit_nr_dbcsr, move_data=.TRUE., &
                             pgrid_opt_2=pgrid_opt)
       CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
       CALL dbcsr_t_destroy(t_2c_int(1))
@@ -501,7 +532,7 @@ CONTAINS
       ri_data%pgrid_3 => pgrid_opt
 
       IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), ri_data%pgrid_1, &
-                                                                nodata=.TRUE., unit_nr=unit_nr)
+                                                                nodata=.TRUE., unit_nr=unit_nr_dbcsr)
       CALL dbcsr_t_copy(t_3c_int_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
       CALL dbcsr_t_destroy(t_3c_int_2(1, 1))
       CALL dbcsr_t_filter(ri_data%t_3c_int_ctr_1(1, 1), ri_data%filter_eps)
@@ -631,7 +662,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: comm_2d, handle, handle2, ispin, n_mos, &
-                                                            unit_nr
+                                                            unit_nr_dbcsr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, mo_bsizes
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: bounds
       INTEGER, DIMENSION(2)                              :: pdims_2d
@@ -647,7 +678,7 @@ CONTAINS
 
       CPASSERT(SIZE(ks_matrix, 2) == 1)
 
-      unit_nr = ri_data%unit_nr
+      unit_nr_dbcsr = ri_data%unit_nr_dbcsr
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_mo(qs_env, ri_data)
@@ -711,7 +742,7 @@ CONTAINS
                                map_1=[1], map_2=[2, 3], &
                                bounds_2=bounds, &
                                filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr)
+                               unit_nr=unit_nr_dbcsr)
          CALL timestop(handle2)
 
          CALL dbcsr_t_destroy(mo_coeff_t_split)
@@ -734,7 +765,7 @@ CONTAINS
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr, move_data=.TRUE.)
+                               unit_nr=unit_nr_dbcsr, move_data=.TRUE.)
          CALL timestop(handle2)
 
          CALL dbcsr_t_destroy(t_3c_int_ctr_opt(1, 1))
@@ -775,7 +806,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_Pmat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, ispin, unit_nr
+      INTEGER                                            :: handle, handle2, ispin, unit_nr_dbcsr
       TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type)                                 :: ks_t, rho_ao_t
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_1, t_3c_2
@@ -786,7 +817,7 @@ CONTAINS
 
       ! get a useful output_unit
 
-      unit_nr = ri_data%unit_nr
+      unit_nr_dbcsr = ri_data%unit_nr_dbcsr
 
       CPASSERT(SIZE(ks_matrix, 2) == 1)
 
@@ -794,9 +825,9 @@ CONTAINS
          CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
       ELSE
          IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
-                                                                   ri_data%pgrid_2, unit_nr=unit_nr)
+                                                                   ri_data%pgrid_2, unit_nr=unit_nr_dbcsr)
          IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), &
-                                                                   ri_data%pgrid_1, unit_nr=unit_nr)
+                                                                   ri_data%pgrid_1, unit_nr=unit_nr_dbcsr)
       ENDIF
 
       CALL dbcsr_t_create(ri_data%t_3c_int_ctr_2(1, 1), t_3c_1(1, 1))
@@ -813,7 +844,7 @@ CONTAINS
                                contract_1=[2], notcontract_1=[1], &
                                contract_2=[1], notcontract_2=[2, 3], &
                                map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr, &
+                               unit_nr=unit_nr_dbcsr, &
                                pgrid_opt_2=pgrid_opt)
 
          CALL timestop(handle2)
@@ -840,7 +871,7 @@ CONTAINS
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr, &
+                               unit_nr=unit_nr_dbcsr, &
                                pgrid_opt_1=pgrid_opt)
          CALL timestop(handle2)
 
