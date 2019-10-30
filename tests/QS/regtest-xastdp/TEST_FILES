@@ -10,7 +10,7 @@ H2O-B3LYP-full-restart.inp                             0
 #Checking the non-zero RI_REGION for better density projection
 C2H2-PBE-ri_region.inp                                 88      1e-06           269.849841
 #Checking truncated and shortrange operators for exchange in PBCs
-Ne-pbc-shortrange.inp                                  88      1e-06           890.347478
+Ne-pbc-shortrange.inp                                  88      1e-06           890.494623
 Ne-pbc-truncated.inp                                   88      1e-06           890.773794
 #Checking the use of pseudo-potential and ADMM
 SiH4-PBE0-admm-pseudo.inp                              88      1e-06           146.188189

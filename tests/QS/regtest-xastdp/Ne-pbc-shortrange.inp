@@ -19,9 +19,14 @@
          &LIBXC
             FUNCTIONAL LDA_C_VWN
          &END LIBXC
+         !Range separated, need 100% of long-range and 75% of short range LDA exchange
+         !Long-range obtained by substracting short-range from normal => end up with -0.25 scale
+         &LIBXC
+            FUNCTIONAL LDA_X
+         &END LIBXC 
          &LIBXC
             FUNCTIONAL LDA_X_ERF
-            SCALE 0.75
+            SCALE -0.25
             PARAMETERS 0.6
          &END LIBXC
       &END XC_FUNCTIONAL
