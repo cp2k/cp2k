@@ -23,6 +23,6 @@ echo "Running ${TESTNAME} on Branch ${GIT_BRANCH} (ref: ${GIT_REF})..."
 set -o xtrace
 
 # SYS_PTRACE needed by LeakSanitizer.
-docker run -i --init --rm --cap-add=SYS_PTRACE \
+${DOCKER:-docker} run -i --init --rm --cap-add=SYS_PTRACE \
     -e "GIT_BRANCH=${GIT_BRANCH}" -e "GIT_REF=${GIT_REF}" \
     "$@" "img_cp2k_test_${TESTNAME}"
