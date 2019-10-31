@@ -20,7 +20,7 @@ for VERSION in 'popt' 'psmp' 'ssmp' ; do
 done
 
 echo -e '\n========== Running Scaling Test =========='
-cd ./tests/QS/benchmark
-../../../tools/regtesting/test_scaling.py 15.0 ../../../exe/local/ H2O-32.inp -550.50556087853511
+cd ./benchmarks/QS
+../../tools/regtesting/test_scaling.py 15.0 ../../exe/local/ H2O-32.inp -550.50556087853511
 
 #EOF
