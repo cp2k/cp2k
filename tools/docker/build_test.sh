@@ -14,6 +14,6 @@ shift
 echo "Building ${TESTNAME} ..."
 
 set -x
-docker build -t "img_cp2k_test_${TESTNAME}" "$@" -f "Dockerfile.test_${TESTNAME}" .
+${DOCKER:-docker} build -t "img_cp2k_test_${TESTNAME}" "$@" -f "Dockerfile.test_${TESTNAME}" .
 
 #EOF
