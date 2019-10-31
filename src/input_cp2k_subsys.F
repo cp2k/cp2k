@@ -1168,7 +1168,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_TYPE", &
-                          description="The type of this kinds pseudopotential.", &
+                          description="The type of this kinds pseudopotential (ECP, ALL, GTH, UPS).", &
                           usage="POTENTIAL_TYPE <TYPE>", default_c_val="", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
