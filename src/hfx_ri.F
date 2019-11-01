@@ -134,6 +134,7 @@ CONTAINS
             CALL dbcsr_copy(t_2c_op_RI_inv(1), t_2c_op_RI(1))
             CALL cp_dbcsr_cholesky_decompose(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env)
             CALL cp_dbcsr_cholesky_invert(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+            CALL dbcsr_filter(t_2c_op_RI_inv(1), ri_data%filter_eps)
          END SELECT
 
          IF (ri_data%check_2c_inv) THEN
@@ -155,6 +156,7 @@ CONTAINS
             CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
 
             CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_sqrt, t_2c_op_pot_sqrt(1), para_env=para_env, blacs_env=blacs_env)
+            CALL dbcsr_filter(t_2c_op_pot(1), ri_data%filter_eps)
          END SELECT
          IF (ri_data%check_2c_inv) THEN
             CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt=t_2c_op_pot_sqrt(1), unit_nr=unit_nr)
@@ -176,6 +178,7 @@ CONTAINS
          CASE (hfx_ri_do_2c_diag)
             CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_invsqrt, t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
+            CALL dbcsr_filter(t_2c_op_pot(1), ri_data%filter_eps)
          END SELECT
          IF (ri_data%check_2c_inv) THEN
             CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt_inv=t_2c_int_mat(1), unit_nr=unit_nr)
@@ -483,6 +486,7 @@ CONTAINS
          CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_RI(1))
          CALL cp_dbcsr_cholesky_decompose(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
          CALL cp_dbcsr_cholesky_invert(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL dbcsr_filter(t_2c_int_mat(1), ri_data%filter_eps)
       END SELECT
 
       IF (ri_data%check_2c_inv) THEN
