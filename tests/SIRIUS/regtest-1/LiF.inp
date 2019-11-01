@@ -5,36 +5,35 @@
        PROCESSING_UNIT cpu
        STD_EVP_SOLVER_TYPE lapack
        GEN_EVP_SOLVER_TYPE lapack
-       VERBOSITY 1
-       CYCLIC_BLOCK_SIZE 32
+       VERBOSITY 2
     &END CONTROL
     &PARAMETERS
        ELECTRONIC_STRUCTURE_METHOD  pseudopotential
-       SMEARING_WIDTH 0.01
-       USE_SYMMETRY false
-       NUM_MAG_DIMS 3
-       SPIN_ORBIT true
+       SMEARING_WIDTH 0.025
+       USE_SYMMETRY true
+       NUM_MAG_DIMS 0
        GK_CUTOFF 6.0
        PW_CUTOFF 20.00
-       ENERGY_TOL 1e-10
+       ENERGY_TOL 1e-6
        POTENTIAL_TOL 1e-8
        NUM_DFT_ITER 100
        NGRIDK 2 2 2
     &END PARAMETERS
     &ITERATIVE_SOLVER
-       ENERGY_TOLERANCE 1e-5
+       ENERGY_TOLERANCE 1e-2
+       RESIDUAL_TOLERANCE 1e-6
        NUM_STEPS 20
        SUBSPACE_SIZE 4
        TYPE davidson
        CONVERGE_BY_ENERGY 1
     &END ITERATIVE_SOLVER
     &MIXER
+       BETA 0.75
        TYPE broyden1
        MAX_HISTORY 8
-       BETA 0.6
-  &END MIXER
+    &END MIXER
   &END PW_DFT
-    &DFT
+  &DFT
       &XC
          &XC_FUNCTIONAL
             &LIBXC
@@ -49,21 +48,24 @@
 
   &SUBSYS
     &CELL
-      A [bohr] -3.85500000000000000000 0.0 3.85500000000000000000
-      B [bohr] 0.0 3.85500000000000000000 3.85500000000000000000
-      C [bohr] -3.85500000000000000000 3.85500000000000000000 0.0
+      A [bohr] 0.0 3.80402 3.80402
+      B [bohr] 3.80402 0.0 3.80402
+      C [bohr] 3.80402 3.80402 0.0
     &END CELL
     &COORD
       SCALED
-      Au 0.0  0.0  0.0
+        Li 0.0 0.0 0.0
+        F 0.5 0.5 0.5
     &END COORD
-    &KIND Au
-      POTENTIAL UPF Au-sp_r.upf.json
+    &KIND Li
+      POTENTIAL UPF "Li.pz-s-kjpaw_psl.0.2.1.UPF.json"
+    &END KIND
+    &KIND F
+      POTENTIAL UPF "F.pz-n-kjpaw_psl.0.1.UPF.json"
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT Gold
+  PROJECT NiO
   PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
 &END GLOBAL

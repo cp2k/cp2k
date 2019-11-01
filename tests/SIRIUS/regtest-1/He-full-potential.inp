@@ -5,34 +5,39 @@
        PROCESSING_UNIT cpu
        STD_EVP_SOLVER_TYPE lapack
        GEN_EVP_SOLVER_TYPE lapack
-       VERBOSITY 1
-       CYCLIC_BLOCK_SIZE 32
+       VERBOSITY 2
     &END CONTROL
     &PARAMETERS
-       ELECTRONIC_STRUCTURE_METHOD  pseudopotential
-       SMEARING_WIDTH 0.01
-       USE_SYMMETRY false
-       NUM_MAG_DIMS 3
-       SPIN_ORBIT true
-       GK_CUTOFF 6.0
+       ELECTRONIC_STRUCTURE_METHOD  full_potential_lapwlo
+       SMEARING_WIDTH 0.05
+       USE_SYMMETRY true
+       NUM_MAG_DIMS 0
+       NUM_FV_STATES 40
+       AW_CUTOFF 8.0
        PW_CUTOFF 20.00
-       ENERGY_TOL 1e-10
-       POTENTIAL_TOL 1e-8
-       NUM_DFT_ITER 100
-       NGRIDK 2 2 2
+       AUTO_RMT 0
+       ENERGY_TOL 1e-7
+       POTENTIAL_TOL 1e-7
+       NUM_DFT_ITER 20
+       NGRIDK 1 1 1
+       MOLECULE true
+       lmax_apw 8
+       lmax_pot 8
+       lmax_rho 8
     &END PARAMETERS
     &ITERATIVE_SOLVER
-       ENERGY_TOLERANCE 1e-5
-       NUM_STEPS 20
-       SUBSPACE_SIZE 4
+       ENERGY_TOLERANCE 1e-4
+       RESIDUAL_TOLERANCE 1e-5
+       NUM_STEPS 8
+       SUBSPACE_SIZE 8
        TYPE davidson
-       CONVERGE_BY_ENERGY 1
+       CONVERGE_BY_ENERGY 0
     &END ITERATIVE_SOLVER
     &MIXER
+       BETA 0.95
        TYPE broyden1
        MAX_HISTORY 8
-       BETA 0.6
-  &END MIXER
+    &END MIXER
   &END PW_DFT
     &DFT
       &XC
@@ -49,21 +54,21 @@
 
   &SUBSYS
     &CELL
-      A [bohr] -3.85500000000000000000 0.0 3.85500000000000000000
-      B [bohr] 0.0 3.85500000000000000000 3.85500000000000000000
-      C [bohr] -3.85500000000000000000 3.85500000000000000000 0.0
+      A [bohr] 10.0 0.0 0.0
+      B [bohr] 0 10.0 0.0
+      C [bohr] 0.0 0.0 10.0
     &END CELL
     &COORD
       SCALED
-      Au 0.0  0.0  0.0
+        He 0.0 0.0 0.0
     &END COORD
-    &KIND Au
-      POTENTIAL UPF Au-sp_r.upf.json
+    &KIND He
+      POTENTIAL UPF "He.json"
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT Gold
+  PROJECT He-full-potential
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
 &END GLOBAL

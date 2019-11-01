@@ -225,6 +225,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-hdf5             Enable the hdf5 library (used by the sirius library)
                           Default = install
+  --with-spfft            Enable the spare fft used in SIRIUS (hard dependency)
+                          Default = install
 
 FURTHER INSTRUCTIONS
 
@@ -261,7 +263,7 @@ tool_list="valgrind cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa plumed \
-          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
+          spfft ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 
@@ -304,6 +306,7 @@ with_spglib="__INSTALL__"
 with_hdf5="__INSTALL__"
 with_elpa="__INSTALL__"
 with_libvdwxc="__INSTALL__"
+with_spfft=__INSTALL__
 
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
@@ -603,6 +606,9 @@ while [ $# -ge 1 ] ; do
         --with-libvdwxc*)
             with_libvdwxc=$(read_with $1)
             ;;
+        --with-spfft*)
+            with_spfft=$(read_with $1)
+            ;;
         --help*)
             show_help
             exit 0
@@ -668,6 +674,10 @@ if [ $MPI_MODE = no ] ; then
     if [ "$with_sirius" != "__DONTUSE__" ] ; then
         echo "Not using MPI, so sirius is disabled"
         with_sirius="__DONTUSE__"
+    fi
+    if [ "$with_spfft" != "__DONTUSE__" ] ; then
+        echo "Not using MPI, so spfft is disabled"
+        with_spfft="__DONTUSE__"
     fi
 else
     # if gcc is installed, then mpi needs to be installed too
@@ -740,6 +750,10 @@ fi
 
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
 if [ "$with_sirius" = "__INSTALL__" ] ; then
+    if [ "$with_spfft" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working spfft library use --with-spfft option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
     if [ "$with_gsl" = "__DONTUSE__" ] ; then
         report_error "For SIRIUS to work you need a working gsl library use --with-gsl option to specify if you wish to install the library or specify its location."
         exit 1
@@ -761,7 +775,6 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
         exit 1
     fi
 fi
-
 
 # ------------------------------------------------------------------------
 # Preliminaries
@@ -916,6 +929,7 @@ else
     ./scripts/install_openmpi.sh
     ./scripts/install_mathlibs.sh
     ./scripts/install_fftw.sh
+    ./scripts/install_spfft.sh
     ./scripts/install_libint.sh
     ./scripts/install_libxc.sh
     ./scripts/install_libsmm.sh

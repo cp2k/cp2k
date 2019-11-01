@@ -46,6 +46,7 @@ MODULE pwdft_environment
    USE sirius_interface,                ONLY: cp_sirius_create_env,&
                                               cp_sirius_energy_force,&
                                               cp_sirius_update_context
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -185,14 +186,14 @@ CONTAINS
       CALL write_symmetry(particle_set, my_cell, subsys_section)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " ==================================", " SIRIUS INIT", &
+         WRITE (iw, '(A,A,A)') " ==================================", " SIRIUS INIT ", &
             "================================="
       END IF
       ! Sirius initialization
       CALL cp_sirius_create_env(pwdft_env)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " ==================================", " SIRIUS INIT FINISHED ", &
+         WRITE (iw, '(A,A,A)') " =========================", " SIRIUS INIT FINISHED ", &
             "================================="
       END IF
       IF (iw > 0) CALL m_flush(iw)
@@ -205,22 +206,26 @@ CONTAINS
 !> \brief Calculate energy and forces within the PWDFT/SIRIUS code
 !> \param pwdft_env The pwdft environment to retain
 !> \param calculate_forces ...
+!> \param calculate_stress ...
 !> \par History
 !>      03.2018 initial create
 !> \author JHU
 ! **************************************************************************************************
-   SUBROUTINE pwdft_calc_energy_force(pwdft_env, calculate_forces)
+   SUBROUTINE pwdft_calc_energy_force(pwdft_env, calculate_forces, calculate_stress)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
+      LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_calc_energy_force', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iatom, iw, natom
+      REAL(KIND=dp), DIMENSION(1:3, 1:3)                 :: stress
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: force
+      TYPE(cell_type), POINTER                           :: my_cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -239,13 +244,13 @@ CONTAINS
       CALL cp_sirius_update_context(pwdft_env)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " =============================", " SIRIUS UPDATE CONTEXT FINISHED", &
+         WRITE (iw, '(A,A,A)') " ====================", " SIRIUS UPDATE CONTEXT FINISHED", &
             "============================"
       END IF
       IF (iw > 0) CALL m_flush(iw)
 
       ! calculate energy and forces/stress
-      CALL cp_sirius_energy_force(pwdft_env, calculate_forces)
+      CALL cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress)
 
       IF (calculate_forces) THEN
          CALL pwdft_env_get(pwdft_env=pwdft_env, qs_subsys=qs_subsys)
@@ -254,6 +259,13 @@ CONTAINS
          DO iatom = 1, natom
             particle_set(iatom)%f(1:3) = -force(iatom, 1:3)
          END DO
+      END IF
+
+      IF (calculate_stress) THEN
+         ! i need to retrieve the volume of the unit cell for the stress tensor
+         CALL qs_subsys_get(qs_subsys, cell=my_cell, virial=virial)
+         CALL pwdft_env_get(pwdft_env=pwdft_env, stress=stress)
+         virial%pv_virial(1:3, 1:3) = -stress(1:3, 1:3)*my_cell%deth
       END IF
 
       CALL timestop(handle)

@@ -190,12 +190,12 @@ CONTAINS
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("parameters"))
-         CALL section_vals_val_get(pwdft_sub_section, "k_grid", i_vals=kk)
+         CALL section_vals_val_get(pwdft_sub_section, "ngridk", i_vals=kk)
          k_grid(1) = kk(1)
          k_grid(2) = kk(2)
          k_grid(3) = kk(3)
 
-         CALL section_vals_val_get(pwdft_sub_section, "k_shift", i_vals=kk)
+         CALL section_vals_val_get(pwdft_sub_section, "shiftk", i_vals=kk)
          k_shift(1) = kk(1)
          k_shift(2) = kk(2)
          k_shift(3) = kk(3)
@@ -557,15 +557,16 @@ CONTAINS
 !> \brief ...
 !> \param pwdft_env ...
 !> \param calculate_forces ...
+!> \param calculate_stress_tensor ...
 !> \param
 !> \par History
 !>      07.2018 start the Sirius library
 !> \author JHU
 ! **************************************************************************************************
-   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces)
+   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress_tensor)
       TYPE(pwdft_environment_type), INTENT(INOUT), &
          POINTER                                         :: pwdft_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
+      LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress_tensor
 
       INTEGER                                            :: n1, n2
       REAL(KIND=C_DOUBLE)                                :: etotal
@@ -603,12 +604,15 @@ CONTAINS
          ! cp2k : forces(atoms, coordinates)
          forces = -TRANSPOSE(cforces(:, :))
          DEALLOCATE (cforces)
+      ENDIF
 
+      IF (calculate_stress_tensor) THEN
          cstress = 0.0_C_DOUBLE
          CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
          stress(1:3, 1:3) = cstress(1:3, 1:3)
          CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
       ENDIF
+
    END SUBROUTINE cp_sirius_energy_force
 
 END MODULE sirius_interface
@@ -657,13 +661,15 @@ CONTAINS
 !> \brief Empty implementation in case SIRIUS is not compiled in.
 !> \param pwdft_env ...
 !> \param calculate_forces ...
+!> \param calculate_stress ...
 ! **************************************************************************************************
-   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces)
+   SUBROUTINE cp_sirius_energy_force(pwdft_env, calculate_forces, calculate_stress)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      LOGICAL                                            :: calculate_forces
+      LOGICAL                                            :: calculate_forces, calculate_stress
 
       MARK_USED(pwdft_env)
       MARK_USED(calculate_forces)
+      MARK_USED(calculate_stress)
       CPABORT("Sirius library is missing")
    END SUBROUTINE cp_sirius_energy_force
 

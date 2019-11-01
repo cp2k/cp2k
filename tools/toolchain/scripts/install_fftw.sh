@@ -42,9 +42,9 @@ case "$with_fftw" in
             if [ "$MPI_MODE" != "no" ] ; then
                 # fftw has mpi support but not compiled by default. so compile it if we build with mpi.
                 # it will create a second library to link with if needed
-                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-mpi > configure.log 2>&1
+                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-mpi --enable-shared > configure.log 2>&1
             else
-                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp > configure.log 2>&1
+                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-shared > configure.log 2>&1
             fi
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
