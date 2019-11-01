@@ -307,7 +307,7 @@ with_hdf5="__INSTALL__"
 with_elpa="__INSTALL__"
 with_libvdwxc="__INSTALL__"
 with_spfft=__INSTALL__
-#with_cosma="__DONTUSE__"
+
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
 with_mpich=__SYSTEM__
@@ -609,9 +609,6 @@ while [ $# -ge 1 ] ; do
         --with-spfft*)
             with_spfft=$(read_with $1)
             ;;
-        --with-cosma*)
-            with_cosma=$(read_with $1)
-            ;;
         --help*)
             show_help
             exit 0
@@ -681,10 +678,6 @@ if [ $MPI_MODE = no ] ; then
     if [ "$with_spfft" != "__DONTUSE__" ] ; then
         echo "Not using MPI, so spfft is disabled"
         with_spfft="__DONTUSE__"
-    fi
-    if [ "$with_cosma" != "__DONTUSE__" ] ; then
-        echo "Not using MPI, so cosma is disabled"
-        with_cosma="__DONTUSE__"
     fi
 else
     # if gcc is installed, then mpi needs to be installed too
@@ -941,7 +934,6 @@ else
     ./scripts/install_libxc.sh
     ./scripts/install_libsmm.sh
     ./scripts/install_libxsmm.sh
-#    ./scripts/install_cosma.sh
     ./scripts/install_scalapack.sh
     ./scripts/install_elpa.sh
     ./scripts/install_ptscotch.sh
