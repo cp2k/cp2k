@@ -20,7 +20,7 @@ fi
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/aiida-cp2k/
 git pull
-pip install ./[pre-commit,test]
+pip3 install ./[pre-commit,test]
 
 echo -e "\n========== Configuring AiiDA =========="
 AS_UBUNTU_USER="sudo -u ubuntu -H"
