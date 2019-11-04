@@ -219,6 +219,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL dbcsr_get_default_config(use_mempools_cpu=ldefault)
+      CALL keyword_create(keyword, __LOCATION__, name="use_mempools_cpu", &
+                          description="Enable memory pools on the CPU.", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       !---------------------------------------------------------------------------
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="ACC", &
@@ -366,6 +373,9 @@ CONTAINS
 
       CALL section_vals_val_get(dbcsr_section, "multrec_limit", i_val=ival)
       CALL dbcsr_set_config(multrec_limit=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "use_mempools_cpu", l_val=lval)
+      CALL dbcsr_set_config(use_mempools_cpu=lval)
 
       CALL section_vals_val_get(dbcsr_section, "ACC%priority_streams", i_val=ival)
       CALL dbcsr_set_config(accdrv_priority_streams=ival)
