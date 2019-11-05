@@ -26,10 +26,10 @@ case "$with_spfft" in
             if [ -f SpFFT-${spfft_ver}.tar.gz ] ; then
                 echo "SpFFT-${spfft_ver}.tar.gz is found"
             else
-                wget "https://github.com/eth-cscs/SpFFT/archive/v${spfft_ver}.tar.gz" -O SpFFT-${spfft_ver}.tar.gz
-   #                             download_pkg ${DOWNLOADER_FLAGS} ${spfft_sha256} \
-   #                          "https://github.com/eth-cscs/SpFFT/archive/v0.9.7.tar.gz"
-   #                                                       "https://www.cp2k.org/static/downloads/SpFFT-${SpFFT_ver}.tar.gz"
+                download_pkg ${DOWNLOADER_FLAGS} ${spfft_sha256} \
+                             "https://github.com/eth-cscs/SpFFT/archive/v${spfft_ver}.tar.gz" \
+                              -o SpFFT-${spfft_ver}.tar.gz
+
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d SpFFT-${spfft_ver} ] && rm -rf SpFFT-${spfft_ver}
@@ -37,16 +37,16 @@ case "$with_spfft" in
             cd SpFFT-${spfft_ver}
             mkdir build-cpu
             cd build-cpu
-            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON ..
-            make -j $NPROCS #> make.log 2>&1
-            make -j $NPROCS install #> install.log 2>&1
+            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON .. > cmake.log 2>&1
+            make -j $NPROCS > make.log 2>&1
+            make -j $NPROCS install > install.log 2>&1
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
             if [ "$ENABLE_CUDA" = "__TRUE__" ] ; then
                 [ -d build-cuda ] && rm -rf "build-cuda"
                 mkdir build-cuda
                 cd build-cuda
-                cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON -DSPFFT_GPU_BACKEND=CUDA ..
+                cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON -DSPFFT_GPU_BACKEND=CUDA .. > cmake.log 2>&1
                 make -j $NPROCS > make.log 2>&1
                 install -d ${pkg_install_dir}/lib/cuda
                 [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
