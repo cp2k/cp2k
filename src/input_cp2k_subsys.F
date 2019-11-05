@@ -1074,9 +1074,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BASIS_SET", &
-                          description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST)"// &
-                   "Defaults are set for TYPE {ORB} and FORM {GTO}. Possible values for TYPE are {ORB, AUX, RI_AUX, LRI, ...}. "// &
-                         "Possible values for FORM are {GTO, STO}. Where STO results in a GTO expansion of a Slater type basis."// &
+                          description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST). "// &
+                          "Defaults are set for TYPE {ORB} and FORM {GTO}. Possible values for TYPE are "// &
+                          "{ORB, AUX, RI_AUX, LRI, ...}. Possible values for "// &
+                          "FORM are {GTO, STO}. Where STO results in a GTO expansion of a Slater type basis."// &
                           "If a value for FORM is given, also TYPE has to be set explicitly.", &
                           usage="BASIS_SET [type] [form] DZVP", type_of_var=char_t, default_c_vals=(/" ", " ", " "/), &
                           citations=(/VandeVondele2005a, VandeVondele2007/), &
@@ -1123,7 +1124,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ELEC_CONF", &
                           description="Specifies the electronic configuration used in construction the "// &
-                          "atomic initial guess (see the pseudo potential file for the default values.", &
+                          "atomic initial guess (see the pseudo potential file for the default values).", &
                           usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -1168,7 +1169,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_TYPE", &
-                          description="The type of this kinds pseudopotential.", &
+                          description="The type of this kinds pseudopotential (ECP, ALL, GTH, UPS).", &
                           usage="POTENTIAL_TYPE <TYPE>", default_c_val="", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1197,7 +1198,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="HARD_EXP_RADIUS", &
                           description="The region where the hard density is supposed to be confined"// &
-                          "(GAPW)(in Bohr, default is 1.2 for H and 1.512 otherwise)", &
+                          " (GAPW) (in Bohr, default is 1.2 for H and 1.512 otherwise)", &
                           usage="HARD_EXP_RADIUS 0.9", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1212,7 +1213,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RHO0_EXP_RADIUS", &
                           description="the radius which defines the atomic region where "// &
                           "the hard compensation density is confined."// &
-                          "should be less than HARD_EXP_RADIUS (GAPW)(Bohr, default equals HARD_EXP_RADIUS)", &
+                          "should be less than HARD_EXP_RADIUS (GAPW) (Bohr, default equals HARD_EXP_RADIUS)", &
                           usage="RHO_EXP_RADIUS 0.9", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1268,8 +1269,8 @@ CONTAINS
       ! Logicals
       CALL keyword_create(keyword, __LOCATION__, name="SE_P_ORBITALS_ON_H", &
                           description="Forces the usage of p-orbitals on H for SEMI-EMPIRICAL calculations. "// &
-                          " This keyword applies only when the KIND is specifying an Hydrogen element. In all "// &
-                          " other cases is simply ignored. ", &
+                          " This keyword applies only when the KIND is specifying an Hydrogen element."// &
+                          " It is ignored in all other cases. ", &
                           usage="SE_P_ORBITALS_ON_H", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1297,7 +1298,7 @@ CONTAINS
                           name="FLOATING_BASIS_CENTER", &
                           description="This keyword makes all atoms of this kind "// &
                           "floating functions, i.e. without pseudo or nuclear charge"// &
-                          "which are subject to a geometry optimization in the outer SCF.", &
+                          " which are subject to a geometry optimization in the outer SCF.", &
                           usage="FLOATING_BASIS_CENTER", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -1307,7 +1308,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="NO_OPTIMIZE", &
                           description="Skip optimization of this type (used in specific basis set or"// &
-                          " potential optimization schemes", &
+                          " potential optimization schemes)", &
                           usage="NO_OPTIMIZE", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
