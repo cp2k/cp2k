@@ -20,7 +20,7 @@ fi
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/aiida-cp2k/
 git pull
-pip3 install ./[pre-commit,test]
+pip3 install ./[test]
 
 echo -e "\n========== Configuring AiiDA =========="
 AS_UBUNTU_USER="sudo -u ubuntu -H"
@@ -92,7 +92,7 @@ cd  /opt/aiida-cp2k/
 set +e # disable error trapping for remainder of script
 (
 set -e # abort on error
-$AS_UBUNTU_USER ./run_tests.sh
+$AS_UBUNTU_USER py.test
 )
 
 EXIT_CODE=$?

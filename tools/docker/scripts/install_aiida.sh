@@ -20,7 +20,7 @@ rm -rf /var/lib/apt/lists/*
 # install dependencies of aiida-cp2k
 cd /opt/
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git
-pip3 install --quiet ./aiida-cp2k/[pre-commit,test]
+pip3 install --quiet ./aiida-cp2k/[test]
 pip3 uninstall --quiet --yes aiida-cp2k
 
 # create ubuntu user with sudo powers
