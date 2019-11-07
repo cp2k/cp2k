@@ -585,7 +585,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Nested Monte Carlo (NMC), do several Markov Chain Monte Carlo steps
 !>        usually using the approximate potential, could be also Hybrid MC.
-!>        The amount of steps are predefinded by the user, but should be huge
+!>        The amount of steps are predefined by the user, but should be huge
 !>        enough to reach the equilibrium state for this potential
 !> \param conf ...
 !> \param env_id ...

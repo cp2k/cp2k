@@ -104,7 +104,7 @@ OPTIONS:
 
 The --enable-FEATURE options follow the rules:
   --enable-FEATURE=yes    Enable this particular feature
-  --enable-FEATHRE=no     Disable this particular feature
+  --enable-FEATURE=no     Disable this particular feature
   --enable-FEATURE        The option keyword alone is equivalent to
                           --enable-FEATURE=yes
 

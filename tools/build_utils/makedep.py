@@ -26,10 +26,10 @@ def main(out_fn, project_name, mod_format, mode, archive_ext, src_dir, src_files
     src_files = [normpath(path.join(src_dir, f)) for f in src_files]
 
     if mod_format not in ("lower", "upper", "no"):
-        error('Module filename format must be eighter of "lower", "upper", or "no".')
+        error('Module filename format must be either of "lower", "upper", or "no".')
 
     if mode not in ("normal", "hackdep", "mod_compiler"):
-        error('Mode must be eighter of "normal", "hackdep", or "mod_compiler".')
+        error('Mode must be either of "normal", "hackdep", or "mod_compiler".')
 
     for fn in src_files:
         if not fn.startswith("/"):
