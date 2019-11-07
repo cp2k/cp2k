@@ -517,9 +517,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_INT", &
-                          description="Filter threshold for 2c integrals. Should be tighter than EPS_FILTER.", &
-                          default_r_val=1.0E-10_dp)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_2C", &
+                          description="Filter threshold for 2c integrals. Default should be kept.", &
+                          default_r_val=1.0E-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_MO", &
+                          description="Filter threshold for contraction of 3-center integrals with MOs. "// &
+                          "Default should be kept.", &
+                          default_r_val=1.0E-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -611,7 +618,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_BLOCK_SIZE", &
-                          description="Maximum block size in one dimension for sparse tensors. ", &
+                          description="Maximum block size in one dimension for sparse tensors. Blocking affects load balancing.", &
+                          default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_BLOCK_SIZE_MO", &
+                          description="Maximum block size for molecular orbitals. "// &
+                          "Blocking affects parallelization strategy and load balancing.", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
