@@ -21,19 +21,21 @@ SUBROUTINE ${prefix}$_sort(arr, n, indices)
    integer, DIMENSION(1:n), INTENT(INOUT)   :: indices
 
    INTEGER                                  :: i
-   ${type}$, POINTER                        :: tmp_arr(:)
-   INTEGER, POINTER                         :: tmp_idx(:)
+   ${type}$, ALLOCATABLE                    :: tmp_arr(:)
+   INTEGER, ALLOCATABLE                     :: tmp_idx(:)
 
-   IF (n == 0) RETURN ! for some reason this is a frequent case in cp2k
+   IF (1 < n) THEN
+      ! scratch space used during the merge step
+      ALLOCATE(tmp_arr((n+1)/2), tmp_idx((n+1)/2))
 
-   ! scratch space used during the merge step
-   ALLOCATE(tmp_arr((size(arr)+1)/2), tmp_idx((size(arr)+1)/2))
+      indices = (/ (i, i = 1, n) /)
 
-   indices = (/ (i, i = 1, size(arr)) /)
+      CALL ${prefix}$_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
 
-   CALL ${prefix}$_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
-
-   DEALLOCATE(tmp_arr, tmp_idx)
+      DEALLOCATE(tmp_arr,tmp_idx)
+   ELSE IF (0 < n) THEN ! can be a frequent case in cp2k
+      indices(1) = 1
+   ENDIF
 
 END SUBROUTINE ${prefix}$_sort
 
