@@ -34,8 +34,8 @@
           PARAMETRIZATION revPBE
           SCALE_C 0.0
         &END PBE
-        &VWN
-        &END VWN
+        &PW92
+        &END PW92
       &END XC_FUNCTIONAL
       &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL NON_LOCAL
