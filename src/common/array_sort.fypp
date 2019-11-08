@@ -24,7 +24,7 @@ SUBROUTINE ${prefix}$_sort(arr, n, indices)
    ${type}$, ALLOCATABLE                    :: tmp_arr(:)
    INTEGER, ALLOCATABLE                     :: tmp_idx(:)
 
-   IF (1 < n) THEN
+   IF (n > 1) THEN
       ! scratch space used during the merge step
       ALLOCATE(tmp_arr((n+1)/2), tmp_idx((n+1)/2))
 
@@ -33,7 +33,7 @@ SUBROUTINE ${prefix}$_sort(arr, n, indices)
       CALL ${prefix}$_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
 
       DEALLOCATE(tmp_arr,tmp_idx)
-   ELSE IF (0 < n) THEN ! can be a frequent case in cp2k
+   ELSE IF (n > 0) THEN ! can be a frequent case in cp2k
       indices(1) = 1
    ENDIF
 
