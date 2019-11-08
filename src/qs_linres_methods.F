@@ -676,7 +676,10 @@ CONTAINS
 
       IF (linres_control%do_kernel) THEN
 
-         ! build DM
+         ! build DM, refill p1, build_dm_response keeps sparse structure
+         DO ispin = 1, nspins
+            CALL dbcsr_copy(p_env%p1(ispin)%matrix, matrix_s(1)%matrix)
+         ENDDO
          CALL build_dm_response(c0, v, p_env%p1)
          DO ispin = 1, nspins
             CALL dbcsr_filter(p_env%p1(ispin)%matrix, linres_control%eps_filter)
