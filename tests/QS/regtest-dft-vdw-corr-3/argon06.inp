@@ -24,8 +24,8 @@
         &LIBXC
           FUNCTIONAL XC_GGA_X_RPW86
         &END LIBXC
-        &VWN
-        &END VWN
+        &PW92
+        &END PW92
       &END XC_FUNCTIONAL
       &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL NON_LOCAL
