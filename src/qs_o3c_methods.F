@@ -371,7 +371,8 @@ CONTAINS
       NULLIFY (basis_set_list_a, basis_set_list_b, basis_set_list_c, basis_set_a, basis_set_b)
       NULLIFY (basis_set_c, iabc, tvec, first_sgfa, first_sgfb, first_sgfc, la_max, la_min, lb_max)
       NULLIFY (lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
-      NULLIFY (basis_set, basis_set_list)
+      NULLIFY (basis_set, basis_set_list, set_radius_a, set_radius_b, &
+               set_radius_c)
 
       CALL timeset(routineN, handle)
 
@@ -445,8 +446,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,o3c_iterator,nspin,basis_set_list_a, basis_set_list_b,basis_set_list_c,nbasis,&
-!$OMP         maxli,maxlj,maxlk,potential_parameter,ncoset,do_screen,my_eps_screen,max_nset,&
-!$OMP         screen_radius) &
+!$OMP         maxli,maxlj,maxlk,potential_parameter,ncoset,do_screen,my_eps_screen,max_nset,screen_radius) &
 !$OMP PRIVATE (basis_set_a,basis_set_b,basis_set_c,mepos,ikind,jkind,kkind,iabc,tvec,rij,rik,rjk,dij,dik,djk,&
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,zeta,iset,ni,ri,ncoa,sgfa,egfa,sphi_a,rpgf_a,&
 !$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,zetb,jset,nj,rj,ncob,sgfb,egfb,sphi_b,rpgf_b,&
@@ -522,7 +522,7 @@ CONTAINS
          zeta => basis_set_a%zet
          rpgf_a => basis_set_a%pgf_radius
          set_radius_a => basis_set_a%set_radius
-         ! center B basis_set_a
+         ! center B
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
          lb_min => basis_set_b%lmin

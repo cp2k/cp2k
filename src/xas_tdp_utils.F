@@ -20,9 +20,7 @@ MODULE xas_tdp_utils
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
-   USE constants_operator,              ONLY: operator_coulomb,&
-                                              operator_truncated,&
-                                              operator_verfc
+   USE constants_operator,              ONLY: operator_coulomb
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
@@ -81,7 +79,12 @@ MODULE xas_tdp_utils
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE libint_2c_3c,                    ONLY: eri_2center
+   USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
+                                              cp_libint_init_2eri,&
+                                              cp_libint_set_contrdepth,&
+                                              cp_libint_t,&
+                                              libint_potential_type
    USE machine,                         ONLY: m_memory_details
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
@@ -1338,8 +1341,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the two-center Exchange integral needed for the RI in kernel calculation. Stores
-!>        the integrals (P|Q)^-1 in the xas_tdp_env as global (small) arrays. Does that for a given
-!>        excited kind
+!>        the integrals in the xas_tdp_env as global (small) arrays. Does that for a given excited
+!>        kind. The quantity stored is M^-1 (P|Q) M^-1, where M is the RI metric. If the metric is
+!>        the same as the exchange potential, then we end up with the V-approximation (P|Q)^-1
 !> \param ex_kind ...
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
@@ -1357,13 +1361,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_ri_exchange2_int', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: maxl, nsgf, unit_id
-      REAL(dp), DIMENSION(3)                             :: r
+      INTEGER                                            :: egfp, egfq, maxl, ncop, ncoq, nset, &
+                                                            nsgf, pset, qset, sgfp, sgfq, unit_id
+      INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf_set, nsgf_set
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf
+      REAL(dp)                                           :: r(3)
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: metric, pq, work
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf, sphi, zet
+      TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (ri_basis, qs_kind_set, para_env)
+      NULLIFY (ri_basis, qs_kind_set, para_env, lmin, lmax, npgf_set, zet, rpgf, first_sgf)
+      NULLIFY (sphi, nsgf_set)
 
 !  Initialization
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, para_env=para_env)
@@ -1373,42 +1384,123 @@ CONTAINS
 
 !  Get the RI basis of interest and its quantum numbers
       CALL get_qs_kind(qs_kind_set(ex_kind), basis_set=ri_basis, basis_type="RI_XAS")
-      CALL get_gto_basis_set(ri_basis, nsgf=nsgf, maxl=maxl)
-      ALLOCATE (xas_tdp_env%ri_inv_ex(nsgf, nsgf))
-      xas_tdp_env%ri_inv_ex = 0.0_dp
+      CALL get_gto_basis_set(ri_basis, nsgf=nsgf, maxl=maxl, npgf=npgf_set, lmin=lmin, &
+                             lmax=lmax, zet=zet, pgf_radius=rpgf, first_sgf=first_sgf, &
+                             nsgf_set=nsgf_set, sphi=sphi, nset=nset)
+      ALLOCATE (metric(nsgf, nsgf))
+      metric = 0.0_dp
 
       r = 0.0_dp
 
-      SELECT CASE (xas_tdp_control%x_op)
-      CASE (do_potential_coulomb)
-         CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=xas_tdp_env%ri_inv_ex, &
-                                      rab=r, fba=ri_basis, fbb=ri_basis, &
-                                      calculate_forces=.FALSE.)
-      CASE (do_potential_truncated)
+      !init the libint 2-center object
+      CALL cp_libint_init_2eri(lib, maxl)
+      CALL cp_libint_set_contrdepth(lib, 1)
 
-         !Make sure the operator is up to date
+      !make sure the truncted coulomb is initialized
+      IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_truncated) THEN
+
          IF (2*maxl + 1 > get_lmax_init()) THEN
             IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%x_t_c_filename)
+               CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%ri_m_potential%filename)
             END IF
             CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env%group)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
          END IF
+      END IF
 
-         CALL int_operators_r12_ab_os(r12_operator=operator_truncated, vab=xas_tdp_env%ri_inv_ex, &
-                                      rab=r, fba=ri_basis, fbb=ri_basis, &
-                                      r_cutoff=xas_tdp_control%x_range, calculate_forces=.FALSE.)
+!  Compute the RI metric
+      DO pset = 1, nset
+         ncop = npgf_set(pset)*ncoset(lmax(pset))
+         sgfp = first_sgf(1, pset)
+         egfp = sgfp + nsgf_set(pset) - 1
 
-      CASE (do_potential_short)
-         CALL int_operators_r12_ab_os(r12_operator=operator_verfc, vab=xas_tdp_env%ri_inv_ex, &
-                                      rab=r, fba=ri_basis, fbb=ri_basis, &
-                                      omega=xas_tdp_control%x_omega, calculate_forces=.FALSE.)
-      END SELECT
+         DO qset = 1, nset
+            ncoq = npgf_set(qset)*ncoset(lmax(qset))
+            sgfq = first_sgf(1, qset)
+            egfq = sgfq + nsgf_set(qset) - 1
 
-!  Inverting
-      CALL invmat_symm(xas_tdp_env%ri_inv_ex)
+            ALLOCATE (work(ncop, ncoq))
+            work = 0.0_dp
+
+            CALL eri_2center(work, lmin(pset), lmax(pset), npgf_set(pset), zet(:, pset), rpgf(:, pset), &
+                             r, lmin(qset), lmax(qset), npgf_set(qset), zet(:, qset), rpgf(:, qset), &
+                             r, 0.0_dp, lib, xas_tdp_control%ri_m_potential)
+
+            CALL ab_contract(metric(sgfp:egfp, sgfq:egfq), work, sphi(:, sgfp:), sphi(:, sgfq:), &
+                             ncop, ncoq, nsgf_set(pset), nsgf_set(qset))
+
+            DEALLOCATE (work)
+         END DO !qset
+      END DO !pset
+
+!  Inverting (to M^-1)
+      CALL invmat_symm(metric)
+
+      IF (.NOT. xas_tdp_control%do_ri_metric) THEN
+
+         !If no metric, then x_pot = ri_m_pot and (P|Q)^-1 = M^-1 (V-approximation)
+         ALLOCATE (xas_tdp_env%ri_inv_ex(nsgf, nsgf))
+         xas_tdp_env%ri_inv_ex(:, :) = metric(:, :)
+         CALL cp_libint_cleanup_2eri(lib)
+         RETURN
+
+      END IF
+
+      !make sure the truncted coulomb is initialized
+      IF (xas_tdp_control%x_potential%potential_type == do_potential_truncated) THEN
+
+         IF (2*maxl + 1 > get_lmax_init()) THEN
+            IF (para_env%mepos == 0) THEN
+               CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%x_potential%filename)
+            END IF
+            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env%group)
+            IF (para_env%mepos == 0) THEN
+               CALL close_file(unit_id)
+            END IF
+         END IF
+      END IF
+
+!  Compute the proper exchange 2-center
+      ALLOCATE (pq(nsgf, nsgf))
+      pq = 0.0_dp
+
+      DO pset = 1, nset
+         ncop = npgf_set(pset)*ncoset(lmax(pset))
+         sgfp = first_sgf(1, pset)
+         egfp = sgfp + nsgf_set(pset) - 1
+
+         DO qset = 1, nset
+            ncoq = npgf_set(qset)*ncoset(lmax(qset))
+            sgfq = first_sgf(1, qset)
+            egfq = sgfq + nsgf_set(qset) - 1
+
+            ALLOCATE (work(ncop, ncoq))
+            work = 0.0_dp
+
+            CALL eri_2center(work, lmin(pset), lmax(pset), npgf_set(pset), zet(:, pset), rpgf(:, pset), &
+                             r, lmin(qset), lmax(qset), npgf_set(qset), zet(:, qset), rpgf(:, qset), &
+                             r, 0.0_dp, lib, xas_tdp_control%x_potential)
+
+            CALL ab_contract(pq(sgfp:egfp, sgfq:egfq), work, sphi(:, sgfp:), sphi(:, sgfq:), &
+                             ncop, ncoq, nsgf_set(pset), nsgf_set(qset))
+
+            DEALLOCATE (work)
+         END DO !qset
+      END DO !pset
+
+!  Compute and store M^-1 (P|Q) M^-1
+      ALLOCATE (xas_tdp_env%ri_inv_ex(nsgf, nsgf))
+      xas_tdp_env%ri_inv_ex = 0.0_dp
+
+      CALL dgemm('N', 'N', nsgf, nsgf, nsgf, 1.0_dp, metric, nsgf, pq, nsgf, &
+                 0.0_dp, xas_tdp_env%ri_inv_ex, nsgf)
+      CALL dgemm('N', 'N', nsgf, nsgf, nsgf, 1.0_dp, xas_tdp_env%ri_inv_ex, nsgf, metric, nsgf, &
+                 0.0_dp, pq, nsgf)
+      xas_tdp_env%ri_inv_ex(:, :) = pq(:, :)
+
+      CALL cp_libint_cleanup_2eri(lib)
 
    END SUBROUTINE compute_ri_exchange2_int
 
@@ -1632,7 +1724,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the RI exchange 3-center integrals (ab|c), where c is from the RI_XAS basis and
-!>        centered on excited atoms and kind
+!>        centered on excited atoms and kind. The operator used is that of the RI metric
 !> \param ex_atom the excited atom on which the third center is
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
@@ -1654,7 +1746,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
-      TYPE(libint_potential_type)                        :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1676,8 +1767,9 @@ CONTAINS
       ALLOCATE (exat(1))
       exat(1) = ex_atom
       CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, xas_tdp_control%x_op, &
-                               qs_env, excited_atoms=exat, x_range=xas_tdp_control%x_range)
+      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, &
+                               xas_tdp_control%ri_m_potential%potential_type, qs_env, &
+                               excited_atoms=exat, x_range=xas_tdp_control%ri_m_potential%cutoff_radius)
 
       CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_ex, ab_list, ac_list, basis_set_orb, &
                              basis_set_orb, basis_set_ri, qs_env)
@@ -1687,19 +1779,17 @@ CONTAINS
 !  Build the ab and ac centers neighbor lists based on the optimize distribution
       CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, &
                                  ext_dist2d=xas_tdp_env%opt_dist2d_ex)
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, xas_tdp_control%x_op, &
-                               qs_env, excited_atoms=exat, x_range=xas_tdp_control%x_range, &
+      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, &
+                               xas_tdp_control%ri_m_potential%potential_type, qs_env, &
+                               excited_atoms=exat, x_range=xas_tdp_control%ri_m_potential%cutoff_radius, &
                                ext_dist2d=xas_tdp_env%opt_dist2d_ex)
 
 !  Allocate, init and compute the integrals.
       ALLOCATE (xas_tdp_env%ri_o3c_ex)
       CALL init_o3c_container(xas_tdp_env%ri_o3c_ex, 1, basis_set_orb, basis_set_orb, &
                               basis_set_ri, ab_list, ac_list)
-      pot%potential_type = xas_tdp_control%x_op
-      pot%cutoff_radius = xas_tdp_control%x_range
-      pot%omega = xas_tdp_control%x_omega
-      pot%filename = xas_tdp_control%x_t_c_filename
-      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_ex, potential_parameter=pot, &
+      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_ex, &
+                                          potential_parameter=xas_tdp_control%ri_m_potential, &
                                           para_env=para_env, eps_screen=xas_tdp_control%eps_screen)
 
 ! Clean-up
