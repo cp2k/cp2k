@@ -161,8 +161,10 @@ CONTAINS
       helium%energy_inst(e_id_kinetic) = (en-pot+kin)/n
       helium%energy_inst(e_id_interact) = interac
       helium%energy_inst(e_id_thermo) = (en+kin)/n+helium%e_corr
-      helium%energy_inst(e_id_virial) = 0.0_dp !(en+vkin)/n+helium%e_corr
-      helium%energy_inst(e_id_total) = (en+vkin)/n+helium%e_corr
+      helium%energy_inst(e_id_virial) = vkin ! 0.0_dp at the moment
+      helium%energy_inst(e_id_total) = helium%energy_inst(e_id_thermo)
+      ! Once vkin is properly implemented, switch to:
+      ! helium%energy_inst(e_id_total) = (en+vkin)/n+helium%e_corr
 
       RETURN
    END SUBROUTINE helium_calc_energy
