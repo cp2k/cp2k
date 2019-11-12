@@ -24,6 +24,7 @@ MODULE xas_tdp_types
                                               dbcsr_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
+   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_short, do_potential_truncated, tddfpt_singlet, &
         tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_vel, xas_tdp_by_index, &
@@ -62,10 +63,9 @@ MODULE xas_tdp_types
 !> \param do_xc wheter xc functional(s) is(are) included
 !> \param do_coulomb whether the coulomb kernel is computed, .FLASE. if no xc nor hfx => normal dft
 !> \param sx the scaling applied to exact exchange
-!> \param x_op the operator used for exact exchange (Coulomb, TC, SR)
-!> \param x_range the range for exact exchane operator (truncated coulomb or SR)
-!> \param x_t_c_filename the file where the parameters for the TC operator should be read
-!> \param x_omega the range parameter in the short range interation erfc(omega*r)/r
+!> \param x_potential the potential used for exact exchange (incl. cutoff, t_c_file, omega)
+!> \param ri_m_potential the potential used for exact exchange RI metric
+!> \param do_ri_metric whther a metric is used fir the RI
 !> \param eps_range the threshold to determine the effective range of the short range operator
 !> \param eps_pgf the threshold to determine the extent of all pgf in the method
 !> \param eps_filter threshold for dbcsr operations
@@ -99,18 +99,17 @@ MODULE xas_tdp_types
       INTEGER                                 :: batch_size
       REAL(dp)                                :: e_range
       REAL(dp)                                :: sx
-      REAL(dp)                                :: x_range
-      REAL(dp)                                :: x_omega
       REAL(dp)                                :: eps_range
       REAL(dp)                                :: eps_screen
       REAL(dp)                                :: eps_pgf
       REAL(dp)                                :: eps_filter
-      INTEGER                                 :: x_op
-      CHARACTER(len=default_string_length)    :: x_t_c_filename
+      TYPE(hfx_potential_type)                :: x_potential
+      TYPE(hfx_potential_type)                :: ri_m_potential
       REAL(dp)                                :: ri_radius
       LOGICAL                                 :: do_hfx
       LOGICAL                                 :: do_xc
       LOGICAL                                 :: do_coulomb
+      LOGICAL                                 :: do_ri_metric
       LOGICAL                                 :: check_only
       LOGICAL                                 :: tamm_dancoff
       LOGICAL                                 :: do_quad
@@ -150,6 +149,7 @@ MODULE xas_tdp_types
 !>        based on basis functions of the RI_XAS basis for that kind
 !> \param ri_inv_ex the inverse exchange RI integral (P|Q)^-1, updated for each excited kind
 !>        based on basis functions of the RI_XAS basis for that kind, and with the exchange operator
+!>        Optionally, if a RI metric is present, contains M^-1 (P|Q) M^-1
 !> \param q_projector the projector on the unperturbed, unoccupied ground state as a dbcsr matrix,
 !>        for each spin
 !> \param dipmat the dbcsr matrices containing the dipole in x,y,z directions evaluated on the
@@ -344,16 +344,21 @@ CONTAINS
       xas_tdp_control%do_hfx = .FALSE.
       xas_tdp_control%do_xc = .FALSE.
       xas_tdp_control%do_coulomb = .TRUE.
+      xas_tdp_control%do_ri_metric = .FALSE.
       xas_tdp_control%sx = 1.0_dp
-      xas_tdp_control%x_range = 0.0_dp
-      xas_tdp_control%x_omega = 0.0_dp
       xas_tdp_control%eps_range = 1.0E-6_dp
       xas_tdp_control%eps_screen = 1.0E-10_dp
       xas_tdp_control%eps_pgf = -1.0_dp
       xas_tdp_control%eps_filter = 1.0E-10_dp
       xas_tdp_control%ri_radius = 0.0_dp
-      xas_tdp_control%x_op = do_potential_coulomb
-      xas_tdp_control%x_t_c_filename = " "
+      xas_tdp_control%x_potential%potential_type = do_potential_coulomb
+      xas_tdp_control%x_potential%cutoff_radius = 0.0_dp
+      xas_tdp_control%x_potential%omega = 0.0_dp
+      xas_tdp_control%x_potential%filename = " "
+      xas_tdp_control%ri_m_potential%potential_type = do_potential_coulomb
+      xas_tdp_control%ri_m_potential%cutoff_radius = 0.0_dp
+      xas_tdp_control%ri_m_potential%omega = 0.0_dp
+      xas_tdp_control%ri_m_potential%filename = " "
       xas_tdp_control%check_only = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
       xas_tdp_control%do_quad = .FALSE.
@@ -542,36 +547,73 @@ CONTAINS
       xas_tdp_control%ri_radius = bohr*xas_tdp_control%ri_radius
 
       IF (xas_tdp_control%do_hfx) THEN
+         !The main exact echange potential and related params
          CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%SCALE", &
                                    r_val=xas_tdp_control%sx)
-         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OPERATOR", &
-                                   i_val=xas_tdp_control%x_op)
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%POTENTIAL_TYPE", &
+                                   i_val=xas_tdp_control%x_potential%potential_type)
          !truncated Coulomb
-         IF (xas_tdp_control%x_op == do_potential_truncated) THEN
+         IF (xas_tdp_control%x_potential%potential_type == do_potential_truncated) THEN
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%T_C_G_DATA", &
-                                      c_val=xas_tdp_control%x_t_c_filename)
-            IF (.NOT. file_exists(xas_tdp_control%x_t_c_filename)) THEN
+                                      c_val=xas_tdp_control%x_potential%filename)
+            IF (.NOT. file_exists(xas_tdp_control%x_potential%filename)) THEN
                CPABORT("Could not find provided T_C_G_DATA file.")
             END IF
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%CUTOFF_RADIUS", &
-                                      r_val=xas_tdp_control%x_range)
+                                      r_val=xas_tdp_control%x_potential%cutoff_radius)
             !store the range in bohrs
-            xas_tdp_control%x_range = bohr*xas_tdp_control%x_range
+            xas_tdp_control%x_potential%cutoff_radius = bohr*xas_tdp_control%x_potential%cutoff_radius
          END IF
 
          !short range erfc
-         IF (xas_tdp_control%x_op == do_potential_short) THEN
+         IF (xas_tdp_control%x_potential%potential_type == do_potential_short) THEN
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OMEGA", &
-                                      r_val=xas_tdp_control%x_omega)
+                                      r_val=xas_tdp_control%x_potential%omega)
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%EPS_RANGE", &
                                       r_val=xas_tdp_control%eps_range)
             !get the effective range (omega in 1/a0, range in a0)
-            CALL erfc_cutoff(xas_tdp_control%eps_range, xas_tdp_control%x_omega, xas_tdp_control%x_range)
+            CALL erfc_cutoff(xas_tdp_control%eps_range, xas_tdp_control%x_potential%omega, &
+                             xas_tdp_control%x_potential%cutoff_radius)
 
          END IF
 
          CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%EPS_SCREENING", &
                                    r_val=xas_tdp_control%eps_screen)
+         !The RI metric stuff
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%_SECTION_PARAMETERS_", &
+                                   l_val=xas_tdp_control%do_ri_metric)
+         IF (xas_tdp_control%do_ri_metric) THEN
+
+            CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%POTENTIAL_TYPE", &
+                                      i_val=xas_tdp_control%ri_m_potential%potential_type)
+            !truncated Coulomb
+            IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_truncated) THEN
+               CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%T_C_G_DATA", &
+                                         c_val=xas_tdp_control%ri_m_potential%filename)
+               IF (.NOT. file_exists(xas_tdp_control%ri_m_potential%filename)) THEN
+                  CPABORT("Could not find provided T_C_G_DATA file.")
+               END IF
+               CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%CUTOFF_RADIUS", &
+                                         r_val=xas_tdp_control%ri_m_potential%cutoff_radius)
+               !store the range in bohrs
+               xas_tdp_control%ri_m_potential%cutoff_radius = bohr*xas_tdp_control%ri_m_potential%cutoff_radius
+            END IF
+
+            !short range erfc
+            IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_short) THEN
+               CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%OMEGA", &
+                                         r_val=xas_tdp_control%ri_m_potential%omega)
+               !get the effective range (omega in 1/a0, range in a0)
+               CALL erfc_cutoff(xas_tdp_control%eps_range, xas_tdp_control%ri_m_potential%omega, &
+                                xas_tdp_control%ri_m_potential%cutoff_radius)
+
+            END IF
+         ELSE
+            !No defined metric, V-approximation, set all ri_m_potential params to those of x_pot
+            xas_tdp_control%ri_m_potential = xas_tdp_control%x_potential
+
+         END IF
+
       END IF
 
       IF ((.NOT. xas_tdp_control%do_xc) .AND. (.NOT. xas_tdp_control%do_hfx)) THEN

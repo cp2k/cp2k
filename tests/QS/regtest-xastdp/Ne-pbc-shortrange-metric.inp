@@ -1,0 +1,100 @@
+&GLOBAL
+  PROJECT Ne-pbc-shortrange-metric
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    AUTO_BASIS RI_XAS MEDIUM
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &XC
+      &XC_FUNCTIONAL 
+         &LIBXC
+            FUNCTIONAL LDA_C_VWN
+         &END LIBXC
+         !Range separated, need 100% of long-range and 75% of short range LDA exchange
+         !Long-range obtained by substracting short-range from normal => end up with -0.25 scale
+         &LIBXC
+            FUNCTIONAL LDA_X
+         &END LIBXC 
+         &LIBXC
+            FUNCTIONAL LDA_X_ERF
+            SCALE -0.25
+            PARAMETERS 0.6
+         &END LIBXC
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.25
+         &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE SHORTRANGE
+            OMEGA 0.6
+         &END INTERACTION_POTENTIAL
+      &END HF
+    &END XC
+
+    &XAS_TDP
+      &DONOR_STATES
+         DEFINE_EXCITED BY_INDEX
+         AT_LIST 1 
+         STATE_TYPES 1s
+         N_SEARCH 8
+         LOCALIZE
+      &END DONOR_STATES
+
+      TAMM_DANCOFF 
+      GRID Ne 150 150
+      N_EXCITED 10
+
+      &KERNEL
+         &XC_FUNCTIONAL 
+            &LIBXC
+               FUNCTIONAL LDA_C_VWN
+            &END LIBXC
+            &LIBXC
+               FUNCTIONAL LDA_X_ERF
+               SCALE 0.75
+               PARAMETERS 0.6
+            &END LIBXC
+         &END XC_FUNCTIONAL
+
+         &EXACT_EXCHANGE
+            FRACTION 0.25
+            OPERATOR SHORTRANGE
+            OMEGA 0.6
+            EPS_SCREENING 1.0E-8
+            &RI_METRIC
+               OPERATOR SHORTRANGE
+               OMEGA 1.0
+            &END RI_METRIC
+         &END EXACT_EXCHANGE
+      &END KERNEL
+
+    &END XAS_TDP
+
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      Ne 0.0 0.0 0.0
+      Ne 3.0 0.0 0.0
+      Ne 0.0 3.0 0.0
+      Ne 0.0 0.0 3.0
+      Ne 3.0 3.0 0.0
+      Ne 3.0 0.0 3.0
+      Ne 0.0 3.0 3.0
+      Ne 3.0 3.0 3.0
+    &END COORD
+    &KIND Ne
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

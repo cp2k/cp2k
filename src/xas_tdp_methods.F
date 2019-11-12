@@ -56,10 +56,10 @@ MODULE xas_tdp_methods
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: &
-        do_loc_none, do_potential_coulomb, do_potential_short, do_potential_truncated, &
-        op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
-        tddfpt_triplet, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, xas_dip_vel, &
-        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_diag_syevr
+        do_loc_none, do_potential_coulomb, do_potential_id, do_potential_short, &
+        do_potential_truncated, op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, &
+        tddfpt_spin_flip, tddfpt_triplet, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, &
+        xas_dip_vel, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_diag_syevr
    USE input_cp2k_dft,                  ONLY: create_localize_section
    USE input_section_types,             ONLY: &
         section_release, section_type, section_vals_create, section_vals_duplicate, &
@@ -118,8 +118,8 @@ MODULE xas_tdp_methods
    USE xas_tdp_types,                   ONLY: &
         donor_state_create, donor_state_type, free_ds_memory, free_exat_memory, &
         read_xas_tdp_control, set_donor_state, set_xas_tdp_env, xas_atom_env_create, &
-        xas_atom_env_release, xas_atom_env_type, xas_tdp_control_create, xas_tdp_control_type, &
-        xas_tdp_env_create, xas_tdp_env_release, xas_tdp_env_type
+        xas_atom_env_release, xas_atom_env_type, xas_tdp_control_create, xas_tdp_control_release, &
+        xas_tdp_control_type, xas_tdp_env_create, xas_tdp_env_release, xas_tdp_env_type
    USE xas_tdp_utils,                   ONLY: compute_ri_coulomb2_int,&
                                               compute_ri_exchange2_int,&
                                               compute_ri_o3c_coulomb,&
@@ -501,6 +501,7 @@ CONTAINS
 
 !  Clean-up
       CALL xas_tdp_env_release(xas_tdp_env)
+      CALL xas_tdp_control_release(xas_tdp_control)
 
    END SUBROUTINE xas_tdp_core
 
@@ -551,10 +552,8 @@ CONTAINS
       xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL xas_tdp_control_create(dft_control%xas_tdp_control)
-      CALL read_xas_tdp_control(dft_control%xas_tdp_control, xas_tdp_section)
-
-      xas_tdp_control => dft_control%xas_tdp_control
+      CALL xas_tdp_control_create(xas_tdp_control)
+      CALL read_xas_tdp_control(xas_tdp_control, xas_tdp_section)
 
 !  Check the qs_env for a LSD/ROKS calculation
       IF (dft_control%uks) xas_tdp_control%do_uks = .TRUE.
@@ -842,7 +841,7 @@ CONTAINS
 
       !PB only available without exact exchange
       IF (xas_tdp_control%is_periodic .AND. xas_tdp_control%do_hfx &
-          .AND. xas_tdp_control%x_op == do_potential_coulomb) THEN
+          .AND. xas_tdp_control%x_potential%potential_type == do_potential_coulomb) THEN
          CPABORT("XAS TDP with Coulomb operator for exact exchange only supports non-periodic BCs")
       END IF
 
@@ -1021,27 +1020,54 @@ CONTAINS
       !HFX kernel
       IF (xas_tdp_control%do_hfx) THEN
          WRITE (UNIT=ou, FMT="(/,T3,A,/,/,T3,A,F5.3)") &
-            "XAS_TDP| Exat Exchange Kernel: On ", &
+            "XAS_TDP| Exact Exchange Kernel: Yes ", &
             "EXACT_EXCHANGE| Scale: ", xas_tdp_control%sx
-         IF (xas_tdp_control%x_op == do_potential_coulomb) THEN
+         IF (xas_tdp_control%x_potential%potential_type == do_potential_coulomb) THEN
             WRITE (UNIT=ou, FMT="(T3,A)") &
-               "EXACT_EXCHANGE| Operator : Coulomb"
-         ELSE IF (xas_tdp_control%x_op == do_potential_truncated) THEN
+               "EXACT_EXCHANGE| Potential : Coulomb"
+         ELSE IF (xas_tdp_control%x_potential%potential_type == do_potential_truncated) THEN
             WRITE (UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,A)") &
-               "EXACT_EXCHANGE| Operator: Truncated Coulomb", &
-               "EXACT_EXCHANGE| Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
-               "EXACT_EXCHANGE| T_C_G_DATA: ", xas_tdp_control%x_t_c_filename
-         ELSE IF (xas_tdp_control%x_op == do_potential_short) THEN
+               "EXACT_EXCHANGE| Potential: Truncated Coulomb", &
+               "EXACT_EXCHANGE| Range: ", xas_tdp_control%x_potential%cutoff_radius*angstrom, ", (Ang)", &
+               "EXACT_EXCHANGE| T_C_G_DATA: ", TRIM(xas_tdp_control%x_potential%filename)
+         ELSE IF (xas_tdp_control%x_potential%potential_type == do_potential_short) THEN
             WRITE (UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,F5.2,A,/,T3,A,ES7.1)") &
-               "EXACT_EXCHANGE| Operator: Short Range", &
-               "EXACT_EXCHANGE| Omega: ", xas_tdp_control%x_omega, ", (1/a0)", &
-               "EXACT_EXCHANGE| Effective Range: ", xas_tdp_control%x_range*angstrom, ", (Ang)", &
+               "EXACT_EXCHANGE| Potential: Short Range", &
+               "EXACT_EXCHANGE| Omega: ", xas_tdp_control%x_potential%omega, ", (1/a0)", &
+               "EXACT_EXCHANGE| Effective Range: ", xas_tdp_control%x_potential%cutoff_radius*angstrom, ", (Ang)", &
                "EXACT_EXCHANGE| EPS_RANGE: ", xas_tdp_control%eps_range
          END IF
          IF (xas_tdp_control%eps_screen > 1.0E-16) THEN
             WRITE (UNIT=ou, FMT="(T3,A,ES7.1)") &
                "EXACT_EXCHANGE| EPS_SCREENING: ", xas_tdp_control%eps_screen
          END IF
+
+         !RI metric
+         IF (xas_tdp_control%do_ri_metric) THEN
+
+            WRITE (UNIT=ou, FMT="(/,T3,A)") &
+               "EXACT_EXCHANGE| Using a RI metric"
+            IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_id) THEN
+               WRITE (UNIT=ou, FMT="(T3,A)") &
+                  "EXACT_EXCHANGE RI_METRIC| Potential : Overlap"
+            ELSE IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_truncated) THEN
+               WRITE (UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,A)") &
+                  "EXACT_EXCHANGE RI_METRIC| Potential: Truncated Coulomb", &
+                  "EXACT_EXCHANGE RI_METRIC| Range: ", xas_tdp_control%ri_m_potential%cutoff_radius &
+                  *angstrom, ", (Ang)", &
+                  "EXACT_EXCHANGE RI_METRIC| T_C_G_DATA: ", TRIM(xas_tdp_control%ri_m_potential%filename)
+            ELSE IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_short) THEN
+               WRITE (UNIT=ou, FMT="(T3,A,/,T3,A,F5.2,A,/,T3,A,F5.2,A,/,T3,A,ES7.1)") &
+                  "EXACT_EXCHANGE RI_METRIC| Potential: Short Range", &
+                  "EXACT_EXCHANGE RI_METRIC| Omega: ", xas_tdp_control%ri_m_potential%omega, ", (1/a0)", &
+                  "EXACT_EXCHANGE RI_METRIC| Effective Range: ", &
+                  xas_tdp_control%ri_m_potential%cutoff_radius*angstrom, ", (Ang)", &
+                  "EXACT_EXCHANGE RI_METRIC| EPS_RANGE: ", xas_tdp_control%eps_range
+            END IF
+         END IF
+      ELSE
+         WRITE (UNIT=ou, FMT="(/,T3,A,/)") &
+            "XAS_TDP| Exact Exchange Kernel: No "
       END IF
 
    END SUBROUTINE print_info
