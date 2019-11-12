@@ -202,13 +202,6 @@ CONTAINS
                ! Accumulate statistics if we are in the Z-sector:
                IF (helium%worm_is_closed) THEN
                   nstat = nstat+1
-
-                  CALL helium_calc_energy(helium, pint_env)
-                  helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
-
-                  CALL helium_calc_plength(helium)
-                  helium%plength_avrg(:) = helium%plength_avrg(:)+helium%plength_inst(:)
-
                   IF (helium%solute_present) THEN
                      IF (helium%get_helium_forces == helium_forces_average) THEN
                         !TODO needs proper averaging!
@@ -253,13 +246,6 @@ CONTAINS
             ! Accumulate statistics if we are in closed configurations (which we always are)
             nstat = nstat+1
             ntot = ntot+1
-
-            CALL helium_calc_energy(helium, pint_env)
-            helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
-
-            CALL helium_calc_plength(helium)
-            helium%plength_avrg(:) = helium%plength_avrg(:)+helium%plength_inst(:)
-
             IF (helium%solute_present) THEN
                IF (helium%get_helium_forces == helium_forces_average) THEN
                   ! TODO: needs proper averaging
@@ -276,6 +262,14 @@ CONTAINS
       helium%num_accepted(2, 1) = ncentratt+nstagatt+nopenatt+ncloseatt+nswapatt+ &
                                   nmoveheadatt+nmovetailatt+ncrawlfwdatt+ncrawlbwdatt
       helium%worm_nstat = nstat
+
+      ! Calculate energy and permutation path length
+      ! Multiply times helium%worm_nstat for consistent averaging in helium_sampling
+      CALL helium_calc_energy(helium, pint_env)
+      helium%energy_avrg(:) = helium%energy_inst(:)*REAL(helium%worm_nstat, dp)
+
+      CALL helium_calc_plength(helium)
+      helium%plength_avrg(:) = helium%plength_inst(:)*REAL(helium%worm_nstat, dp)
 
       ! Calculate last_force
       IF (helium%solute_present) THEN

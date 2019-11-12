@@ -11,9 +11,9 @@ w512_pint_qtb_fp0.inp                                  9      3e-12             
 w512_pint_qtb_fp1.inp                                  9      3e-11             3.1102704018032394
 w512_pint_qtb_fp1-1.restart                            9      4e-10             8.5170440538048666
 centroid_velocity_init.inp                             9    1.0E-14            0.32999751991202331
-he32_density.inp                                      40      2e-14       -6.8432379611995943E-005
-he32_only_worm.inp                                    40      1e-11       -7.1964673900364254E-005
-he32_only_worm_restart.inp                            40      1e-11       -7.0863224005139337E-005
+he32_density.inp                                      40      2e-14       -2.1415575929544138E-005
+he32_only_worm.inp                                    40      1e-11        3.2848032583585659E-004
+he32_only_worm_restart.inp                            40      1e-11        3.1056893819001927E-004
 water-in-helium-worm.inp                               9      1e-11       -4.2435303435780906E-004
 water-in-helium-striding.inp                           9      1e-11        9.2149634888323367E-002
 #EOF
