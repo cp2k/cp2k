@@ -1,7 +1,8 @@
 # Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
-#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206 
-#              Intel MPI, MKL, Libint 2.5.0, Libxc 4.3.4, libxsmm 1.13, ELPA 2019.05.001, PLUMED 2.5.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2019)
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
+#              Intel MPI, MKL, Libint 2.5.0, Libxc 4.3.4, libxsmm 1.14, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2019)
 
 include      $(MPI_PATH)/plumed/2.5.2/lib/plumed/src/lib/Plumed.inc.static
 
@@ -13,15 +14,17 @@ LIBINT_INC  = $(INTEL_PATH)/libint/2.5.0-lmax-4/include
 LIBINT_LIB  = $(INTEL_PATH)/libint/2.5.0-lmax-4/lib
 LIBXC_INC   = $(INTEL_PATH)/libxc/4.3.4/include
 LIBXC_LIB   = $(INTEL_PATH)/libxc/4.3.4/lib
-LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.13/include
-LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.13/lib
+LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.14/include
+LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.14/lib
+SPGLIB_INC  = $(INTEL_PATH)/spglib/1.12.2/include
+SPGLIB_LIB  = $(INTEL_PATH)/spglib/1.12.2/lib
 
 CC          = mpiicc
 FC          = mpiifort
 LD          = mpiifort
 AR          = ar -r
 DFLAGS      = -D__ELPA -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
-              -D__MKL -D__MPI_VERSION=3 -D__PLUMED2 -D__MAX_CONTR=4 \
+              -D__MKL -D__MPI_VERSION=3 -D__PLUMED2 -D__SPGLIB -D__MAX_CONTR=4 \
               -D__parallel -D__SCALAPACK -D__CHECK_DIAG
 CFLAGS      = $(DFLAGS) -O2 -fopenmp -xHost
 FCFLAGS     = $(CFLAGS)
@@ -35,11 +38,12 @@ FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 LDFLAGS     = $(FCFLAGS) -static-intel -static_mpi
 LDFLAGS_C   = $(FCFLAGS) -static-intel -nofor_main
 MKL_LIB     = ${MKLROOT}/lib/intel64
-LIBS        = $(PLUMED_DEPENDENCIES) -lgsl -lgslcblas -lz
-LIBS       += $(ELPA_LIB)/libelpa_openmp.a -lstdc++
+LIBS        = $(PLUMED_DEPENDENCIES) $(GSL_LIBRARY_DIR)/libgsl.a $(GSL_LIBRARY_DIR)/libgslcblas.a $(LIBPATH)/libz.a
+LIBS       += $(ELPA_LIB)/libelpa_openmp.a
 LIBS       += $(LIBXC_LIB)/libxcf03.a $(LIBXC_LIB)/libxc.a
 LIBS       += $(LIBINT_LIB)/libint2.a
 LIBS       += $(LIBXSMM_LIB)/libxsmmf.a $(LIBXSMM_LIB)/libxsmm.a
+LIBS       += $(SPGLIB_LIB)/libsymspg.a
 LIBS       += $(MKL_LIB)/libmkl_scalapack_lp64.a \
               -Wl,--start-group \
               $(MKL_LIB)/libmkl_intel_lp64.a \
@@ -47,6 +51,7 @@ LIBS       += $(MKL_LIB)/libmkl_scalapack_lp64.a \
               $(MKL_LIB)/libmkl_core.a \
               ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a \
               -Wl,--end-group
+LIBS       += $(GCC_LIBRARY_DIR)/libstdc++.a
 
 # Required due to memory leak that occurs if high optimisations are used
 mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
