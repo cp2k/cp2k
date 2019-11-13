@@ -133,7 +133,6 @@ case "$with_sirius" in
                    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                    -DCMAKE_CXX_COMPILER=mpic++ \
                    -DCMAKE_C_COMPILER=mpicc \
-                   -DPYTHON2=ON \
                   ${COMPILATION_OPTIONS} .. > compile.log 2>&1
              make -j $NPROCS -C src >> compile.log 2>&1
 
@@ -156,7 +155,6 @@ case "$with_sirius" in
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
                       -DGPU_MODEL=P100 \
-                      -DPYTHON2=ON \
                       -DCMAKE_CXX_COMPILER=mpic++ \
                       -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
                 make -j $NPROCS -C src >> compile.log 2>&1
