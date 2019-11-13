@@ -350,7 +350,7 @@ CONTAINS
                                    "HFX_3c_nl", &
                                    qs_env, op_pos=1, sym_jk=.TRUE.)
 
-      CALL build_3c_integrals(t_3c_int, ri_data%filter_eps, qs_env, nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, &
+      CALL build_3c_integrals(t_3c_int, ri_data%filter_eps_3c, qs_env, nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, &
                               ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1)
 
       CALL neighbor_list_3c_destroy(nl_3c)

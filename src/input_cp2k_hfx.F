@@ -523,6 +523,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_3C", &
+                          description="Filter threshold for 3c integrals, limiting memory consumption "// &
+                          "of 3-center integral storage. Can be set looser than EPS_FILTER.", &
+                          default_r_val=1.0E-07_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_MO", &
                           description="Filter threshold for contraction of 3-center integrals with MOs. "// &
                           "Default should be kept.", &
