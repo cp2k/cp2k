@@ -186,8 +186,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3c", handle2)
-      CALL dbcsr_t_copy(ri_data%t_3c_int(1, 1), ri_data%t_3c_int_ctr_4(1, 1), move_data=.TRUE.)
-      CALL dbcsr_t_filter(ri_data%t_3c_int_ctr_4(1, 1), ri_data%filter_eps)
+      CALL dbcsr_t_copy(ri_data%t_3c_int(1, 1), ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
+      CALL dbcsr_t_filter(ri_data%t_3c_int_ctr_1(1, 1), ri_data%filter_eps)
       CALL dbcsr_t_destroy(ri_data%t_3c_int(1, 1))
       DEALLOCATE (ri_data%t_3c_int)
       CALL timestop(handle2)
@@ -351,7 +351,8 @@ CONTAINS
                                    qs_env, op_pos=1, sym_jk=.TRUE.)
 
       CALL build_3c_integrals(t_3c_int, ri_data%filter_eps_3c, qs_env, nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, &
-                              ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1)
+                              ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1, &
+                              desymmetrize=ri_data%flavor == ri_pmat)
 
       CALL neighbor_list_3c_destroy(nl_3c)
 
@@ -653,7 +654,8 @@ CONTAINS
       TYPE(dbcsr_t_type)                                 :: ks_t, ks_t_split, mo_coeff_t, &
                                                             mo_coeff_t_split
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_ctr_KS, t_3c_ctr_KS_copy, &
-                                                            t_3c_ctr_RI, t_3c_int_mo, t_3c_int_mo_2
+                                                            t_3c_ctr_RI, t_3c_int_mo_1, &
+                                                            t_3c_int_mo_2, t_3c_int_mo_3
 
       CALL timeset(routineN, handle)
 
@@ -687,12 +689,19 @@ CONTAINS
          pdims = [nproc/pdim_mo, pdim_mo, 1]
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_2)
 
-         CALL create_3c_tensor(t_3c_int_mo(1, 1), dist1, dist2, dist3, ri_data%pgrid_4, &
-                               ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, mo_bsizes, &
-                               [1, 2], [3], name="(RI AO | MO)")
+         CALL create_3c_tensor(t_3c_int_mo_1(1, 1), dist1, dist2, dist3, ri_data%pgrid_1, &
+                               ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, mo_bsizes, &
+                               [1, 2], [3], name="(AO RI | MO)")
 
          DEALLOCATE (dist1, dist2, dist3)
-         CALL create_3c_tensor(t_3c_int_mo_2(1, 1), dist1, dist2, dist3, pgrid_2, &
+
+         CALL create_3c_tensor(t_3c_int_mo_2(1, 1), dist1, dist2, dist3, ri_data%pgrid_2, &
+                               mo_bsizes, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                               [1], [2, 3], "(MO | RI AO)")
+
+         DEALLOCATE (dist1, dist2, dist3)
+
+         CALL create_3c_tensor(t_3c_int_mo_3(1, 1), dist1, dist2, dist3, pgrid_2, &
                                ri_data%bsizes_RI_split, mo_bsizes, ri_data%bsizes_AO_split, &
                                [1], [2, 3], name="(RI | MO AO)")
 
@@ -717,7 +726,7 @@ CONTAINS
                                name="(AO | AO)")
          DEALLOCATE (dist1, dist2)
 
-         CALL create_2c_tensor(mo_coeff_t_split, dist1, dist2, pgrid_2d, ri_data%bsizes_AO, mo_bsizes, &
+         CALL create_2c_tensor(mo_coeff_t_split, dist1, dist2, pgrid_2d, ri_data%bsizes_AO_split, mo_bsizes, &
                                name="(AO | MO)")
 
          DEALLOCATE (dist1, dist2)
@@ -732,35 +741,61 @@ CONTAINS
          bounds(1, 1) = 1
          bounds(2, 1) = homo(ispin)
 
-         CALL timeset(routineN//"_MOx3C", handle2)
-         CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_t_split, ri_data%t_3c_int_ctr_4(1, 1), &
-                               dbcsr_scalar(0.0_dp), t_3c_int_mo(1, 1), &
+         CALL timeset(routineN//"_MOx3C_R", handle2)
+         CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_t_split, ri_data%t_3c_int_ctr_1(1, 1), &
+                               dbcsr_scalar(0.0_dp), t_3c_int_mo_1(1, 1), &
                                contract_1=[1], notcontract_1=[2], &
                                contract_2=[3], notcontract_2=[1, 2], &
                                map_1=[3], map_2=[1, 2], &
                                bounds_2=bounds, &
-                               filter_eps=ri_data%filter_eps_mo, &
+                               filter_eps=ri_data%filter_eps_mo/2, &
                                unit_nr=unit_nr_dbcsr, &
-                               move_data=.TRUE.)
+                               move_data=.FALSE.)
+
+         CALL timestop(handle2)
+         CALL timeset(routineN//"_copy_1", handle2)
+         CALL dbcsr_t_copy(t_3c_int_mo_1(1, 1), t_3c_int_mo_3(1, 1), order=[3, 1, 2], move_data=.TRUE.)
+         CALL dbcsr_t_destroy(t_3c_int_mo_1(1, 1))
+         CALL timestop(handle2)
+
+         CALL timeset(routineN//"_copy_symm", handle2)
+         CALL dbcsr_t_copy(ri_data%t_3c_int_ctr_1(1, 1), ri_data%t_3c_int_ctr_2(1, 1), move_data=.TRUE.)
+         CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_1(1, 1))
+         CALL timestop(handle2)
+
+         CALL timeset(routineN//"_MOx3C_L", handle2)
+         CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_t_split, ri_data%t_3c_int_ctr_2(1, 1), &
+                               dbcsr_scalar(0.0_dp), t_3c_int_mo_2(1, 1), &
+                               contract_1=[1], notcontract_1=[2], &
+                               contract_2=[1], notcontract_2=[2, 3], &
+                               map_1=[1], map_2=[2, 3], &
+                               bounds_2=bounds, &
+                               filter_eps=ri_data%filter_eps_mo/2, &
+                               unit_nr=unit_nr_dbcsr, &
+                               move_data=.FALSE.)
+         CALL timestop(handle2)
+         CALL timeset(routineN//"_copy_1", handle2)
+         CALL dbcsr_t_copy(t_3c_int_mo_2(1, 1), t_3c_int_mo_3(1, 1), order=[2, 1, 3], summation=.TRUE., move_data=.TRUE.)
+         CALL dbcsr_t_filter(t_3c_int_mo_3(1, 1), ri_data%filter_eps_mo)
+         CALL dbcsr_t_destroy(t_3c_int_mo_2(1, 1))
+         CALL timestop(handle2)
+
+         CALL timeset(routineN//"_copy_symm", handle2)
+         CALL dbcsr_t_copy(ri_data%t_3c_int_ctr_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), move_data=.TRUE.)
+         CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_2(1, 1))
          CALL timestop(handle2)
 
          CALL dbcsr_t_destroy(mo_coeff_t_split)
 
-         CALL timeset(routineN//"_copy_1", handle2)
-         CALL dbcsr_t_copy(t_3c_int_mo(1, 1), t_3c_int_mo_2(1, 1), order=[1, 3, 2], move_data=.TRUE.)
-
-         CALL dbcsr_t_destroy(t_3c_int_mo(1, 1))
-         CALL timestop(handle2)
-
          CALL timeset(routineN//"_RIx3C", handle2)
-         CALL dbcsr_t_create(t_3c_int_mo_2(1, 1), t_3c_ctr_RI(1, 1), name="(RI | MO AO)")
-         CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), ri_data%t_2c_int(1), t_3c_int_mo_2(1, 1), &
+         CALL dbcsr_t_create(t_3c_int_mo_3(1, 1), t_3c_ctr_RI(1, 1), name="(RI | MO AO)")
+         CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), ri_data%t_2c_int(1), t_3c_int_mo_3(1, 1), &
                                dbcsr_scalar(0.0_dp), t_3c_ctr_RI(1, 1), &
                                contract_1=[1], notcontract_1=[2], &
                                contract_2=[1], notcontract_2=[2, 3], &
                                map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
                                unit_nr=unit_nr_dbcsr)
-         CALL dbcsr_t_destroy(t_3c_int_mo_2(1, 1))
+         CALL dbcsr_t_destroy(t_3c_int_mo_3(1, 1))
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_copy_2", handle2)
