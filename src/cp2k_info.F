@@ -225,9 +225,6 @@ CONTAINS
 #if defined __HAS_NO_CUDA_STREAM_PRIORITIES
       flags = TRIM(flags)//" has_no_cuda_stream_priorities"
 #endif
-#if defined __HAS_NO_MPI_MOD
-      flags = TRIM(flags)//" has_no_mpi_mod"
-#endif
 #if defined __MAX_CONTR
       CALL integer_to_string(__MAX_CONTR, tmp_str)
       flags = TRIM(flags)//" max_contr="//TRIM(tmp_str)
