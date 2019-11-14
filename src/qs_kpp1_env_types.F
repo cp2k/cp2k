@@ -60,6 +60,8 @@ MODULE qs_kpp1_env_types
       TYPE(pw_p_type), DIMENSION(:, :), POINTER :: drho_r
       TYPE(xc_derivative_set_type), POINTER :: deriv_set
       TYPE(xc_rho_set_type), POINTER        :: rho_set
+      TYPE(xc_derivative_set_type), POINTER :: deriv_set_admm
+      TYPE(xc_rho_set_type), POINTER        :: rho_set_admm
       INTEGER, DIMENSION(:, :), POINTER :: spin_pot
       LOGICAL, DIMENSION(:, :), POINTER :: grad_pot
       LOGICAL, DIMENSION(:), POINTER :: ndiag_term
@@ -94,7 +96,7 @@ CONTAINS
 
       IF (ASSOCIATED(kpp1_env)) THEN
          CPASSERT(kpp1_env%ref_count > 0)
-         kpp1_env%ref_count = kpp1_env%ref_count - 1
+         kpp1_env%ref_count = kpp1_env%ref_count-1
          IF (kpp1_env%ref_count < 1) THEN
             IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
                DO ispin = 1, SIZE(kpp1_env%v_rspace)
@@ -120,6 +122,14 @@ CONTAINS
             IF (ASSOCIATED(kpp1_env%rho_set)) THEN
                CALL xc_rho_set_release(kpp1_env%rho_set)
                NULLIFY (kpp1_env%rho_set)
+            END IF
+            IF (ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
+               CALL xc_dset_release(kpp1_env%deriv_set_admm)
+               NULLIFY (kpp1_env%deriv_set_admm)
+            END IF
+            IF (ASSOCIATED(kpp1_env%rho_set_admm)) THEN
+               CALL xc_rho_set_release(kpp1_env%rho_set_admm)
+               NULLIFY (kpp1_env%rho_set_admm)
             END IF
             IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
                DEALLOCATE (kpp1_env%spin_pot)
@@ -150,7 +160,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(kpp1_env%ref_count > 0)
-      kpp1_env%ref_count = kpp1_env%ref_count + 1
+      kpp1_env%ref_count = kpp1_env%ref_count+1
    END SUBROUTINE kpp1_retain
 
 END MODULE qs_kpp1_env_types
