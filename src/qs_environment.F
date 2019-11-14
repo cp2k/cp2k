@@ -254,7 +254,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, method_id, nkind
+      INTEGER                                            :: ikind, method_id, nelectron_total, nkind
       LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
                                                             do_kpoints, is_semi, mp2_present, &
                                                             my_qmmm, qmmm_decoupl, silent, &
@@ -397,11 +397,12 @@ CONTAINS
       do_hfx = .FALSE.
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
       CALL section_vals_get(hfx_section, explicit=do_hfx)
-      CALL get_qs_env(qs_env, dft_control=dft_control, scf_control=scf_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, scf_control=scf_control, nelectron_total=nelectron_total)
       IF (do_hfx) THEN
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
-                         qs_kind_set, particle_set, dft_control, my_cell, do_ot=scf_control%use_ot)
+                         qs_kind_set, particle_set, dft_control, my_cell, do_ot=scf_control%use_ot, &
+                         nelectron_total=nelectron_total)
       END IF
 
       mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
@@ -422,7 +423,7 @@ CONTAINS
 
             CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, atomic_kind_set, &
                             qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa), &
-                            do_ot=scf_control%use_ot)
+                            do_ot=scf_control%use_ot, nelectron_total=nelectron_total)
 
          END IF
       END IF
