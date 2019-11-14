@@ -4,12 +4,12 @@ Hybrid benchmark for RI-MP2 and RI-dRPA.
 
 ## Description
 
-This benchmark is a single-point energy calculation using 2nd order Møller-Plesset perturbation theory (MP2) with the Resolution-of-the-Identity approximation to calculate the exchange-correlation energy.
+This benchmark is a single-point energy calculation using 2nd order Moeller-Plesset perturbation theory (MP2) with the Resolution-of-the-Identity approximation to calculate the exchange-correlation energy.
 
 ## Description of Input Files
 
 - [`H2O-64-PBE-TZ.inp`](H2O-64-PBE-TZ.inp): needed to generate an initial wfn for the SCF runs
-- [`H2O-64-RI-MP2-TZ.inp`](H2O-64-RI-MP2-TZ.inp): actual RI-MP2 benchmark: the system consists of 64 water molecules in a 12.4 Å³ cell. This is exactly the same system as used in the [Quickstep H2O-64](../../QS/H2O-64.inp) benchmark but using a much more accurate model, which is around 100 times more computationally demanding than standard DFT calculations.
+- [`H2O-64-RI-MP2-TZ.inp`](H2O-64-RI-MP2-TZ.inp): actual RI-MP2 benchmark: the system consists of 64 water molecules in a 12.4 cubic angstrom cell. This is exactly the same system as used in the [Quickstep H2O-64](../../QS/H2O-64.inp) benchmark but using a much more accurate model, which is around 100 times more computationally demanding than standard DFT calculations.
 - [`H2O-64-RI-dRPA-TZ.inp`](H2O-64-RI-dRPA-TZ.inp): actual RI-dRPA benchmark
 
 ## Additional files
