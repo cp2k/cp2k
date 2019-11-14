@@ -29,3 +29,14 @@ In particular the RI-MP2 and RI-dRPA inputs are suitable for being used with 2 t
 1) run `H2O-128-PBE-TZ.inp`, this will generate the file `H2O-128-PBE-TZ-RESTART.wfn`, necessary for the other two runs.
 3) run `H2O-128-RI-dRPA-TZ.inp` for RI-dRPA
 
+## Results
+
+### Results on Piz Daint, CSCS
+
+| Input File             | Date       | CP2K Git SHA | Number of nodes | Node Configuration  | Runtime |
+| ---------------------- | ---------- | ------------:| ---------------:| ------------------- | ------- |
+| H2O-128-PBE-TZ.inp     | 2019-08-19 | 4519a8ad7    | 4 nodes         | 12 MPI x 1 OMP      | ~2 min  |
+| H2O-128-RI-dRPA-TZ.inp | 2019-08-19 | 4519a8ad7    | 128 nodes       | 2 MPI x 6 OMP       | 80 min  |
+
+*) The timings have been obtained on CRAY-XC50 (PizDaint@CSCS, GPU partition)
+
