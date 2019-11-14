@@ -58,3 +58,12 @@ The best configurations are shown below. Click the links under "Detailed Results
 
 *) The timings have been obtained on CRAY-XE6 (MonteRosa@CSCS)
 
+### Results on Piz Daint, CSCS
+
+| Input File            | Date       | CP2K Git SHA | Number of nodes | Node Configuration  | Runtime |
+| --------------------- | ---------- | ------------:| ---------------:| ------------------- | ------- |
+| H2O-64-PBE-TZ.inp     | 2019-08-07 | 4519a8ad7    | 4 nodes         | 12 MPI x 1 OMP      | 69 s    |
+| H2O-64-RI-dRPA-TZ.inp | 2019-08-07 | 4519a8ad7    | 128 nodes       | 2 MPI x 6 OMP       | 455 s   |
+
+*) The timings have been obtained on CRAY-XC50 (PizDaint@CSCS, GPU partition)
+
