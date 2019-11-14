@@ -32,8 +32,8 @@ MODULE message_passing
 #define __MPI_VERSION 3
 #endif
 
-#if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
-  USE mpi  ! compiler *errors* mean mpi installation and fortran compiler mismatch: see INSTALL (-D__HAS_NO_MPI_MOD)
+#if defined(__parallel)
+  USE mpi
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
 !              we do not quite know what is in the module, so we can not include any....
 !              to nevertheless get checking for what is included, we use the mpi module without use clause, getting all there is
@@ -61,16 +61,11 @@ MODULE message_passing
 
    ! parameters that might be needed
 #if defined(__parallel)
-#if defined(__HAS_NO_MPI_MOD)
-   INCLUDE "mpif.h"
-#endif
    INTEGER, PARAMETER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
    INTEGER, PARAMETER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
    INTEGER, PARAMETER     :: MP_STD_HALF_REAL = MPI_REAL
    INTEGER, PARAMETER     :: MP_STD_HALF_COMPLEX = MPI_COMPLEX
-#endif
 
-#ifdef __parallel
    LOGICAL, PARAMETER :: cp2k_is_parallel = .TRUE.
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = MPI_ANY_TAG
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = MPI_ANY_SOURCE
