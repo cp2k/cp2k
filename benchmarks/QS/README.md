@@ -6,15 +6,15 @@ Ab-initio molecular dynamics of liquid water using the Born-Oppenheimer approach
 
 ## Benchmarks
 
-- [`H2O-32.inp`](H2O-32.inp): a system of 32 water molecules (96 atoms, 256 electrons) in a 9.9 Å³ cell and MD is run for 10 steps
-- [`H2O-64.inp`](H2O-64.inp): a system of 64 water molecules (192 atoms, 512 electrons) in a 12.4 Å³ cell and MD is run for 10 steps
-- [`H2O-128.inp`](H2O-128.inp): a system of 128 water molecules (384 atoms, 1'024 electrons) in a 15.6 Å³ cell and MD is run for 10 steps
-- [`H2O-256.inp`](`H2O-256.inp`): a system of 256 water molecules (768 atoms, 2'048 electrons) in a 19.7 Å³ cell and MD is run for 10 steps
-- [`H2O-512.inp`](`H2O-512.inp`): a system of 512 water molecules (1'536 atoms, 4'096 electrons) in a 24.9 Å³ cell and MD is run for 10 steps
-- [`H2O-1024.inp`](`H2O-1024.inp`): a system of 1'024 water molecules (3'072 atoms, 8'192 electrons) in a 31.3 Å³ cell and MD is run for 10 steps
-- [`H2O-2048.inp`](`H2O-2048.inp`): a system of 2'048 water molecules (6'144 atoms, 16'384 electrons) in a 39.5 Å³ cell and MD is run for 10 steps
-- [`H2O-4096.inp`](`H2O-4096.inp`): a system of 4'096 water molecules (12'288 atoms, 32'768 electrons) in a 49.7 Å³ cell and MD is run for 10 steps
-- [`H2O-8192.inp`](`H2O-8192.inp`): a system of 8'192 water molecules (24'576 atoms, 65'536 electrons) in a 62.7 Å³ cell and MD is run for 10 steps
+- [`H2O-32.inp`](H2O-32.inp): a system of 32 water molecules (96 atoms, 256 electrons) in a 9.9 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-64.inp`](H2O-64.inp): a system of 64 water molecules (192 atoms, 512 electrons) in a 12.4 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-128.inp`](H2O-128.inp): a system of 128 water molecules (384 atoms, 1'024 electrons) in a 15.6 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-256.inp`](`H2O-256.inp`): a system of 256 water molecules (768 atoms, 2'048 electrons) in a 19.7 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-512.inp`](`H2O-512.inp`): a system of 512 water molecules (1'536 atoms, 4'096 electrons) in a 24.9 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-1024.inp`](`H2O-1024.inp`): a system of 1'024 water molecules (3'072 atoms, 8'192 electrons) in a 31.3 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-2048.inp`](`H2O-2048.inp`): a system of 2'048 water molecules (6'144 atoms, 16'384 electrons) in a 39.5 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-4096.inp`](`H2O-4096.inp`): a system of 4'096 water molecules (12'288 atoms, 32'768 electrons) in a 49.7 cubic angstrom cell and MD is run for 10 steps
+- [`H2O-8192.inp`](`H2O-8192.inp`): a system of 8'192 water molecules (24'576 atoms, 65'536 electrons) in a 62.7 cubic angstrom cell and MD is run for 10 steps
 
 
 ## Results

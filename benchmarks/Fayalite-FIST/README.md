@@ -2,7 +2,7 @@
 
 ## Description
 
-This is a short molecular dynamics run of 1'000 time steps in a NPT ensemble at 300K. It consists of 28'000 atoms - a 103 supercell with 28 atoms of iron silicate (Fe2SiO4, also known as Fayalite) per unit cell. The simulation employs a classical potential (Morse with a hard-core repulsive term and 5.5 Å cutoff) with long-range electrostatics using Smoothed Particle Mesh Ewald (SPME) summation. While CP2K does support classical potentials via the Frontiers In Simulation Technology (FIST) module, this is not a typical calculation for CP2K but is included to give an impression of the performance difference between machines for the MM part of a QM/MM calculation.
+This is a short molecular dynamics run of 1'000 time steps in a NPT ensemble at 300K. It consists of 28'000 atoms - a 103 supercell with 28 atoms of iron silicate (Fe2SiO4, also known as Fayalite) per unit cell. The simulation employs a classical potential (Morse with a hard-core repulsive term and 5.5 angstrom cutoff) with long-range electrostatics using Smoothed Particle Mesh Ewald (SPME) summation. While CP2K does support classical potentials via the Frontiers In Simulation Technology (FIST) module, this is not a typical calculation for CP2K but is included to give an impression of the performance difference between machines for the MM part of a QM/MM calculation.
 
 ## Benchmarks
 

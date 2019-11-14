@@ -4,7 +4,7 @@ Hybrid benchmark for RI-MP2 and RI-dRPA (32-H2O-TZ).
 
 ## Description
 
-This benchmark is a single-point energy calculation using 2nd order Møller-Plesset perturbation theory (MP2) with the Resolution-of-the-Identity approximation to calculate the exchange-correlation energy.
+This benchmark is a single-point energy calculation using 2nd order Moeller-Plesset perturbation theory (MP2) with the Resolution-of-the-Identity approximation to calculate the exchange-correlation energy.
 
 ## Description of Input Files
 

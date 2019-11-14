@@ -10,9 +10,9 @@ The problem size can be tuned by the parameter `NREP` in the input file, whereby
 
 ## Files Description
 
-- [H2O-dft-ls.inp](H2O-dft-ls.inp) (NREP=6): H20 density functional theory linear scaling consisting of 20'736 atoms in a 59 Å³ box (6'912 water molecules in total). An LDA functional is used with a DZVP MOLOPT basis set and a 300 Ry cut-off. 
-- [H2O-dft-ls.NREP4.inp](H2O-dft-ls.NREP4.inp): H20 density functional theory linear scaling consisting of 6'144 atoms in a 39 Å³ box (2'048 water molecules in total). An LDA functional is used with a DZVP MOLOPT basis set and a 300 Ry cut-off. 
-- [H2O-dft-ls.NREP2.inp](H2O-dft-ls.NREP2.inp): H20 density functional theory linear scaling consisting of 6'144 atoms in a 39 Å³ box (2'048 water molecules in total). An LDA functional is used with a DZVP MOLOPT basis set and a 300 Ry cut-off (a smaller version of the H2O-dft-ls benchmark, with NREP=2, meant to run on 1 node).
+- [H2O-dft-ls.inp](H2O-dft-ls.inp) (NREP=6): H20 density functional theory linear scaling consisting of 20'736 atoms in a 59 cubic angstrom box (6'912 water molecules in total). An LDA functional is used with a DZVP MOLOPT basis set and a 300 Ry cut-off.
+- [H2O-dft-ls.NREP4.inp](H2O-dft-ls.NREP4.inp): H20 density functional theory linear scaling consisting of 6'144 atoms in a 39 cubic angstrom box (2'048 water molecules in total). An LDA functional is used with a DZVP MOLOPT basis set and a 300 Ry cut-off.
+- [H2O-dft-ls.NREP2.inp](H2O-dft-ls.NREP2.inp): H20 density functional theory linear scaling consisting of 6'144 atoms in a 39 cubic angstrom box (2'048 water molecules in total). An LDA functional is used with a DZVP MOLOPT basis set and a 300 Ry cut-off (a smaller version of the H2O-dft-ls benchmark, with NREP=2, meant to run on 1 node).
 - [TiO2.inp](TiO2.inp)
 - [amorph.inp](amorph.inp)
 
