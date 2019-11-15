@@ -220,21 +220,32 @@ def prettifyFile(
                     inbuf.close()
                     inbuf = outbuf
 
+            normalize_use_succeeded = True
+
             if normalize_use:
                 outbuf = StringIO()
-                normalizeFortranFile.rewriteFortranFile(
-                    inbuf,
-                    outbuf,
-                    indent,
-                    decl_linelength,
-                    decl_offset,
-                    orig_filename=filename,
-                )
-                outbuf.seek(0)
-                inbuf.close()
-                inbuf = outbuf
+                try:
+                    normalizeFortranFile.rewriteFortranFile(
+                        inbuf,
+                        outbuf,
+                        indent,
+                        decl_linelength,
+                        decl_offset,
+                        orig_filename=filename,
+                    )
+                except normalizeFortranFile.InputStreamError as exc:
+                    logger.error(
+                        "normalizeFortranFile could not parse file, file is not normalized"
+                    )
+                    outbuf.close()
+                    inbuf.seek(0)
+                    normalize_use_succeeded = False
+                else:
+                    outbuf.seek(0)
+                    inbuf.close()
+                    inbuf = outbuf
 
-            if upcase_keywords:
+            if upcase_keywords and normalize_use_succeeded:
                 outbuf = StringIO()
                 upcaseKeywords(inbuf, outbuf, upcase_omp)
                 outbuf.seek(0)
