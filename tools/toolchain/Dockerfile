@@ -7,27 +7,9 @@ USER root
 
 # Installs complete toolchain including packages which are skipped by default.
 
-# install Ubuntu packages
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
-    ca-certificates \
-    g++ \
-    git \
-    less \
-    libtool \
-    make \
-    nano \
-    pkg-config \
-    python \
-    python3 \
-    unzip \
-    wget \
-    xxd \
-    zlib1g-dev \
-   && rm -rf /var/lib/apt/lists/*
+# install Ubuntu packages.
+COPY ./install_requirements.sh .
+RUN ./install_requirements.sh
 
 # copy helper scripts
 WORKDIR /opt/cp2k-toolchain
@@ -47,12 +29,6 @@ RUN ./install_cp2k_toolchain.sh  \
     --libint-lmax=${LIBINT_LMAX} \
     --dry-run
 
-COPY ./scripts/install_valgrind.sh ./scripts/
-RUN ./scripts/install_valgrind.sh && rm -rf ./build
-
-COPY ./scripts/install_cmake.sh ./scripts/
-RUN ./scripts/install_cmake.sh && rm -rf ./build
-
 COPY ./scripts/install_gcc.sh ./scripts/
 RUN ./scripts/install_gcc.sh && rm -rf ./build
 
@@ -61,6 +37,12 @@ COPY ./scripts/get_openblas_arch.sh \
      ./scripts/openblas-0.3.6-disable-avx512.patch \
      ./scripts/
 RUN ./scripts/setup_buildtools.sh && rm -rf ./build
+
+COPY ./scripts/install_cmake.sh ./scripts/
+RUN ./scripts/install_cmake.sh && rm -rf ./build
+
+COPY ./scripts/install_valgrind.sh ./scripts/
+RUN ./scripts/install_valgrind.sh && rm -rf ./build
 
 COPY ./scripts/install_mpich.sh ./scripts/
 RUN ./scripts/install_mpich.sh && rm -rf ./build
