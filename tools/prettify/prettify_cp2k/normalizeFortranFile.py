@@ -18,8 +18,10 @@ USE_PARSE_RE = re.compile(
     r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
     flags=re.IGNORECASE,
 )
-commonUsesRe = re.compile('^#include *"([^"]*(cp_common_uses.f90|base_uses.f90))"')
-localNameRe = re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
+COMMON_USES_RE = re.compile('^#include *"([^"]*(cp_common_uses.f90|base_uses.f90))"')
+LOCAL_NAME_RE = re.compile(
+    " *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$"
+)
 VAR_DECL_RE = re.compile(
     r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",
     re.IGNORECASE,
@@ -30,6 +32,58 @@ DECL_OFFSET = 50
 
 OMP_DIR_RE = re.compile(r"^\s*(!\$omp)", re.IGNORECASE)
 OMP_RE = re.compile(r"^\s*(!\$)", re.IGNORECASE)
+
+FCT_RE = re.compile(
+    r"^([^\"'!]* )?FUNCTION\s+\w+\s*(\(.*\))?(\s*RESULT\s*\(\w+\))?\s*;?\s*$",
+    re.IGNORECASE,
+)
+
+SUBR_RE = re.compile(
+    r"^([^\"'!]* )?SUBROUTINE\s+\w+\s*(\(.*\))?\s*;?\s*$", re.IGNORECASE
+)
+
+END_RE = re.compile(r" *end\s*(?:subroutine|function)", re.IGNORECASE)
+START_ROUTINE_RE = re.compile(
+    r"^([^\"'!]* )?(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?",
+    re.IGNORECASE,
+)  # $
+typeBeginRe = re.compile(
+    r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)[,( ]",
+    re.IGNORECASE,
+)
+attributeRe = re.compile(
+    r" *, *(?P<attribute>[a-zA-Z_0-9]+) *(?:\( *(?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *",
+    re.IGNORECASE,
+)
+IGNORE_RE = re.compile(r" *(?:|implicit +none *)$", re.IGNORECASE)
+INTERFACE_START_RE = re.compile(r" *interface *$", re.IGNORECASE)
+INTERFACE_END_RE = re.compile(r" *end +interface *$", re.IGNORECASE)
+
+INCLUDE_RE = re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$", re.IGNORECASE)
+
+CONTAINS_RE = re.compile(r" *contains *$", re.IGNORECASE)
+
+NON_WORD_RE = re.compile(r"(\(/|/\)|[^-+a-zA-Z0-9_.])")
+
+STR_RE = re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
+
+COMMENT_TO_REMOVE_RE = re.compile(
+    r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",
+    re.IGNORECASE,
+)
+
+MODULE_N_RE = re.compile(
+    r".*:: *moduleN *= *(['\"])[a-zA-Z_0-9]+\1", flags=re.IGNORECASE
+)
+
+MODULE_RE = re.compile(
+    r" *(?:module|program) +(?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
+    flags=re.IGNORECASE,
+)
+
+
+class InputStreamError(Exception):
+    pass
 
 
 class CharFilter(object):
@@ -148,10 +202,10 @@ class InputStream(object):
                 # FIXME: does not handle line continuation of
                 # omp conditional fortran statements
                 # starting with an ampersand.
-                raise SyntaxError("unexpected line format:" + repr(line))
+                raise InputStreamError("unexpected line format:" + repr(line))
             if m.group("preprocessor"):
                 if len(lines) > 1:
-                    raise SyntaxError(
+                    raise InputStreamError(
                         "continuation to a preprocessor line not supported "
                         + repr(line)
                     )
@@ -181,31 +235,6 @@ def parseRoutine(inFile):
     """Parses a routine"""
     logger = logging.getLogger("prettify-logger")
 
-    FCT_RE = re.compile(
-        r"^([^\"'!]* )?FUNCTION\s+\w+\s*(\(.*\))?(\s*RESULT\s*\(\w+\))?\s*;?\s*$",
-        re.IGNORECASE,
-    )
-
-    SUBR_RE = re.compile(
-        r"^([^\"'!]* )?SUBROUTINE\s+\w+\s*(\(.*\))?\s*;?\s*$", re.IGNORECASE
-    )
-
-    endRe = re.compile(r" *end\s*(?:subroutine|function)", re.IGNORECASE)
-    startRoutineRe = re.compile(
-        r"^([^\"'!]* )?(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?",
-        re.IGNORECASE,
-    )  # $
-    typeBeginRe = re.compile(
-        r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)[,( ]",
-        re.IGNORECASE,
-    )
-    attributeRe = re.compile(
-        r" *, *(?P<attribute>[a-zA-Z_0-9]+) *(?:\( *(?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *",
-        re.IGNORECASE,
-    )
-    ignoreRe = re.compile(r" *(?:|implicit +none *)$", re.IGNORECASE)
-    interfaceStartRe = re.compile(r" *interface *$", re.IGNORECASE)
-    interfaceEndRe = re.compile(r" *end +interface *$", re.IGNORECASE)
     routine = {
         "preRoutine": [],
         "core": [],
@@ -225,7 +254,6 @@ def parseRoutine(inFile):
         "interfaceCount": 0,
         "use": [],
     }
-    includeRe = re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$", re.IGNORECASE)
     stream = InputStream(inFile)
     while 1:
         (jline, _, lines) = stream.nextFortranLine()
@@ -234,7 +262,7 @@ def parseRoutine(inFile):
         if FCT_RE.match(jline) or SUBR_RE.match(jline):
             break
         routine["preRoutine"].extend(lines)
-        m = includeRe.match(lines[0])
+        m = INCLUDE_RE.match(lines[0])
         if m:
             try:
                 subF = open(m.group("file"), "r")
@@ -256,7 +284,7 @@ def parseRoutine(inFile):
                     traceback.print_exc()
     if jline:
         routine["begin"] = lines
-        m = startRoutineRe.match(jline)
+        m = START_ROUTINE_RE.match(jline)
         if not m or m.span()[1] != len(jline):
             raise SyntaxError("unexpected subroutine start format:" + repr(lines))
         routine["name"] = m.group("name")
@@ -276,7 +304,7 @@ def parseRoutine(inFile):
             break
         if lines[0].lower().startswith("#include"):
             break
-        if not ignoreRe.match(jline):
+        if not IGNORE_RE.match(jline):
             if typeBeginRe.match(jline):
                 if routine["postDeclComments"]:
                     routine["declComments"].extend(routine["postDeclComments"])
@@ -337,12 +365,12 @@ def parseRoutine(inFile):
                             )
                         break
                 routine["parsedDeclarations"].append(decl)
-            elif interfaceStartRe.match(jline):
+            elif INTERFACE_START_RE.match(jline):
                 istart = lines
                 interfaceDeclFile = StringIO()
                 while 1:
                     (jline, _, lines) = stream.nextFortranLine()
-                    if interfaceEndRe.match(jline):
+                    if INTERFACE_END_RE.match(jline):
                         iend = lines
                         break
                     interfaceDeclFile.writelines(lines)
@@ -385,17 +413,16 @@ def parseRoutine(inFile):
             routine["preDeclComments"].append("".join(lines))
         else:
             routine["postDeclComments"].append(comments)
-    containsRe = re.compile(r" *contains *$", re.IGNORECASE)
 
     while len(lines) > 0:
-        if endRe.match(jline):
+        if END_RE.match(jline):
             routine["end"] = lines
             break
         routine["strippedCore"].append(jline)
         routine["core"].append("".join(lines))
-        if containsRe.match(lines[0]):
+        if CONTAINS_RE.match(lines[0]):
             break
-        m = includeRe.match(lines[0])
+        m = INCLUDE_RE.match(lines[0])
         if m:
             try:
                 subF = open(m.group("file"), "r")
@@ -549,8 +576,6 @@ def writeInCols(dLine, indentCol, maxCol, indentAtt, file):
     The '&' of the continuation line is at maxCol.
     indentAtt is the actual intent, and the new indent is returned"""
 
-    strRe = re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
-    nonWordRe = re.compile(r"(\(/|/\)|[^-+a-zA-Z0-9_.])")
     maxSize = maxCol - indentCol - 1
     tol = min(maxSize / 6, 6) + indentCol
     for fragment in dLine:
@@ -562,10 +587,10 @@ def writeInCols(dLine, indentCol, maxCol, indentAtt, file):
             file.write(fragment.lstrip())
             indentAtt = indentCol + len(fragment.lstrip())
         else:
-            sPieces = strRe.split(fragment)
+            sPieces = STR_RE.split(fragment)
             for sPiece in sPieces:
                 if sPiece and (not (sPiece[0] == '"' or sPiece[0] == "'")):
-                    subPieces = nonWordRe.split(sPiece)
+                    subPieces = NON_WORD_RE.split(sPiece)
                 else:
                     subPieces = [sPiece]
                 for subPiece in subPieces:
@@ -670,18 +695,13 @@ def cleanDeclarations(routine):
     logger = logging.getLogger("prettify-logger")
 
     global R_VAR
-    containsRe = re.compile(r" *contains *$", re.IGNORECASE)
     if routine["core"]:
-        if containsRe.match(routine["core"][-1]):
+        if CONTAINS_RE.match(routine["core"][-1]):
             logger.debug(
                 "routine %s contains other routines\ndeclarations not cleaned\n"
                 % (routine["name"])
             )
             return
-    commentToRemoveRe = re.compile(
-        r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",
-        re.IGNORECASE,
-    )
     nullifyRe = re.compile(
         r" *nullify *\(([^()]+)\) *\n?", re.IGNORECASE | re.MULTILINE
     )
@@ -832,7 +852,7 @@ def cleanDeclarations(routine):
 
         newDecl = StringIO()
         for comment in routine["preDeclComments"]:
-            if not commentToRemoveRe.match(comment):
+            if not COMMENT_TO_REMOVE_RE.match(comment):
                 newDecl.write(comment)
         newDecl.writelines(routine["use"])
         writeDeclarations(argDecl, newDecl)
@@ -846,7 +866,7 @@ def cleanDeclarations(routine):
             newDecl.write("\n")
         wrote = 0
         for comment in routine["declComments"]:
-            if comment.strip() and not commentToRemoveRe.match(comment):
+            if comment.strip() and not COMMENT_TO_REMOVE_RE.match(comment):
                 newDecl.write(comment.strip())
                 newDecl.write("\n")
                 wrote = 1
@@ -869,7 +889,7 @@ def cleanDeclarations(routine):
                 comment_start += 1
 
         for comment in routine["postDeclComments"][comment_start:]:
-            if not commentToRemoveRe.match(comment):
+            if not COMMENT_TO_REMOVE_RE.match(comment):
                 newDecl.write(comment)
                 newDecl.write("\n")
         routine["declarations"][0] += newDecl.getvalue()
@@ -978,7 +998,7 @@ def parseUse(inFile):
         elif jline and not jline.isspace():
             break
         else:
-            if comments and commonUsesRe.match(comments):
+            if comments and COMMON_USES_RE.match(comments):
                 commonUses += "".join(lines)
             elif len(modules) == 0:
                 preComments.append(("".join(lines)))
@@ -1095,7 +1115,7 @@ def prepareImplicitUses(modules):
         m_att = mods[m_name]
         if "only" in m.keys():
             for k in m["only"]:
-                m = localNameRe.match(k)
+                m = LOCAL_NAME_RE.match(k)
                 if not m:
                     raise SyntaxError("could not parse use only:" + repr(k))
                 impAtt = m.group("localName").lower()
@@ -1125,7 +1145,7 @@ def cleanUse(modulesDict, rest, implicitUses=None):
         elif "only" in modules[i].keys():
             els = modules[i]["only"]
             for j in range(len(els) - 1, -1, -1):
-                m = localNameRe.match(els[j])
+                m = LOCAL_NAME_RE.match(els[j])
                 if not m:
                     raise SyntaxError("could not parse use only:" + repr(els[j]))
                 impAtt = m.group("localName").lower()
@@ -1152,11 +1172,8 @@ def cleanUse(modulesDict, rest, implicitUses=None):
 
 def resetModuleN(moduleName, lines):
     "resets the moduleN variable to the module name in the lines lines"
-    moduleNRe = re.compile(
-        r".*:: *moduleN *= *(['\"])[a-zA-Z_0-9]+\1", flags=re.IGNORECASE
-    )
     for i in range(len(lines)):
-        lines[i] = moduleNRe.sub(
+        lines[i] = MODULE_N_RE.sub(
             " " * INDENT_SIZE
             + "CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '"
             + moduleName
@@ -1181,10 +1198,6 @@ def rewriteFortranFile(
     DECL_OFFSET = decl_offset
     DECL_LINELENGTH = decl_linelength
 
-    moduleRe = re.compile(
-        r" *(?:module|program) +(?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
-        flags=re.IGNORECASE,
-    )
     coreLines = []
     while 1:
         line = inFile.readline()
@@ -1193,7 +1206,7 @@ def rewriteFortranFile(
         if line[0] == "#":
             coreLines.append(line)
         outFile.write(line)
-        m = moduleRe.match(line)
+        m = MODULE_RE.match(line)
         if m:
             if not orig_filename:
                 orig_filename = inFile.name
@@ -1219,7 +1232,7 @@ def rewriteFortranFile(
         rest = "".join(coreLines)
         nonStPrep = 0
         for line in modulesDict["origLines"]:
-            if re.search("^#", line) and not commonUsesRe.match(line):
+            if re.search("^#", line) and not COMMON_USES_RE.match(line):
                 logger.debug("noMatch " + repr(line) + "\n")  # what does it mean?
                 nonStPrep = 1
         if nonStPrep:
@@ -1231,7 +1244,7 @@ def rewriteFortranFile(
             implicitUses = None
             if modulesDict["commonUses"]:
                 try:
-                    inc_fn = commonUsesRe.match(modulesDict["commonUses"]).group(1)
+                    inc_fn = COMMON_USES_RE.match(modulesDict["commonUses"]).group(1)
                     inc_absfn = os.path.join(os.path.dirname(orig_filename), inc_fn)
                     f = open(inc_absfn, "r")
                     implicitUsesRaw = parseUse(f)
