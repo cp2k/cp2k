@@ -127,7 +127,7 @@ CONTAINS
 
       ! add a new task to the list of tasks with that key
       IF (hash_table%obj%table(islot)%key == EMPTY_KEY) THEN
-         hash_table%obj%nelements = hash_table%obj%nelements+1
+         hash_table%obj%nelements = hash_table%obj%nelements + 1
          hash_table%obj%table(islot)%key = key
       END IF
 
@@ -168,7 +168,7 @@ CONTAINS
 
       ! book keeping stuff
       hash_table%obj%ref_count = 1
-      hash_table%obj%id_nr = last_nl_hash_table_id+1
+      hash_table%obj%id_nr = last_nl_hash_table_id + 1
       last_nl_hash_table_id = hash_table%obj%id_nr
    END SUBROUTINE nl_hash_table_create
 
@@ -341,7 +341,7 @@ CONTAINS
       IF (ASSOCIATED(hash_table%obj)) THEN
          check_ok = hash_table%obj%ref_count > 0
          CPASSERT(check_ok)
-         hash_table%obj%ref_count = hash_table%obj%ref_count-1
+         hash_table%obj%ref_count = hash_table%obj%ref_count - 1
          IF (hash_table%obj%ref_count == 0) THEN
             hash_table%obj%ref_count = 1
             IF (ASSOCIATED(hash_table%obj%table)) THEN
@@ -403,7 +403,7 @@ CONTAINS
       END DO
 
       ! if unsuccessful, search from 1 to guess
-      DO islot = 1, guess-1
+      DO islot = 1, guess - 1
          IF ((hash_table%obj%table(islot)%key == key) .OR. &
              (hash_table%obj%table(islot)%key == EMPTY_KEY)) RETURN
       END DO
@@ -429,7 +429,7 @@ CONTAINS
       prime_8 = INT(hash_table%obj%prime, int_8)
 
       ! IAND with nmax-1 is equivalent to MOD nmax if nmax is alway a power of 2.
-      hash_8 = IAND(key*prime_8, nmax_8-1)+1_int_8
+      hash_8 = IAND(key*prime_8, nmax_8 - 1) + 1_int_8
       hash = INT(hash_8)
    END FUNCTION nl_hash_table_hash_function
 

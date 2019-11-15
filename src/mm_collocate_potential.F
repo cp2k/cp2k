@@ -88,26 +88,26 @@ CONTAINS
       CALL return_cube(cube_info, radius, lb_cube, ub_cube, sphere_bounds)
 
       IF (ALL(n_rep_real == 0)) THEN
-         cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1, :)
-         zub = MIN(bo(2, 3), cubecenter(3)+ub_cube(3))
-         zlb = MAX(bo(1, 3), cubecenter(3)+lb_cube(3))
-         yub = MIN(bo(2, 2), cubecenter(2)+ub_cube(2))
-         ylb = MAX(bo(1, 2), cubecenter(2)+lb_cube(2))
-         xub = MIN(bo(2, 1), cubecenter(1)+ub_cube(1))
-         xlb = MAX(bo(1, 1), cubecenter(1)+lb_cube(1))
+         cubecenter(:) = FLOOR(rpl(:)/dr(:)) + gbo(1, :)
+         zub = MIN(bo(2, 3), cubecenter(3) + ub_cube(3))
+         zlb = MAX(bo(1, 3), cubecenter(3) + lb_cube(3))
+         yub = MIN(bo(2, 2), cubecenter(2) + ub_cube(2))
+         ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
+         xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
+         xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
          IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) RETURN
          DO ig = zlb, zub
-            rpg = REAL(ig-gbo(1, 3), dp)*dr(3)-rpl(3)
+            rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
             zap = EXP(-zetp*rpg**2)
             zdat(ig) = scale*W*zap
          ENDDO
          DO ig = ylb, yub
-            rpg = REAL(ig-gbo(1, 2), dp)*dr(2)-rpl(2)
+            rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
             yap = EXP(-zetp*rpg**2)
             ydat(ig) = yap
          ENDDO
          DO ig = xlb, xub
-            rpg = REAL(ig-gbo(1, 1), dp)*dr(1)-rpl(1)
+            rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
             xap = EXP(-zetp*rpg**2)
             xdat(ig) = xap
          ENDDO
@@ -119,27 +119,27 @@ CONTAINS
                my_shift(2) = mm_cell%hmat(2, 2)*REAL(iy, KIND=dp)
                DO ix = -n_rep_real(1), n_rep_real(1)
                   my_shift(1) = mm_cell%hmat(1, 1)*REAL(ix, KIND=dp)
-                  rpl = rp+my_shift(:)
-                  cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1, :)
-                  zub = MIN(bo(2, 3), cubecenter(3)+ub_cube(3))
-                  zlb = MAX(bo(1, 3), cubecenter(3)+lb_cube(3))
-                  yub = MIN(bo(2, 2), cubecenter(2)+ub_cube(2))
-                  ylb = MAX(bo(1, 2), cubecenter(2)+lb_cube(2))
-                  xub = MIN(bo(2, 1), cubecenter(1)+ub_cube(1))
-                  xlb = MAX(bo(1, 1), cubecenter(1)+lb_cube(1))
+                  rpl = rp + my_shift(:)
+                  cubecenter(:) = FLOOR(rpl(:)/dr(:)) + gbo(1, :)
+                  zub = MIN(bo(2, 3), cubecenter(3) + ub_cube(3))
+                  zlb = MAX(bo(1, 3), cubecenter(3) + lb_cube(3))
+                  yub = MIN(bo(2, 2), cubecenter(2) + ub_cube(2))
+                  ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
+                  xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
+                  xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
                   IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) CYCLE
                   DO ig = zlb, zub
-                     rpg = REAL(ig-gbo(1, 3), dp)*dr(3)-rpl(3)
+                     rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
                      zap = EXP(-zetp*rpg**2)
                      zdat(ig) = scale*W*zap
                   ENDDO
                   DO ig = ylb, yub
-                     rpg = REAL(ig-gbo(1, 2), dp)*dr(2)-rpl(2)
+                     rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
                      yap = EXP(-zetp*rpg**2)
                      ydat(ig) = yap
                   ENDDO
                   DO ig = xlb, xub
-                     rpg = REAL(ig-gbo(1, 1), dp)*dr(1)-rpl(1)
+                     rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
                      xap = EXP(-zetp*rpg**2)
                      xdat(ig) = xap
                   ENDDO
@@ -212,28 +212,28 @@ CONTAINS
       CALL return_cube(cube_info, radius, lb_cube, ub_cube, sphere_bounds)
 
       IF (ALL(n_rep_real == 0)) THEN
-         cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1, :)
-         zub = MIN(bo(2, 3), cubecenter(3)+ub_cube(3))
-         zlb = MAX(bo(1, 3), cubecenter(3)+lb_cube(3))
-         yub = MIN(bo(2, 2), cubecenter(2)+ub_cube(2))
-         ylb = MAX(bo(1, 2), cubecenter(2)+lb_cube(2))
-         xub = MIN(bo(2, 1), cubecenter(1)+ub_cube(1))
-         xlb = MAX(bo(1, 1), cubecenter(1)+lb_cube(1))
+         cubecenter(:) = FLOOR(rpl(:)/dr(:)) + gbo(1, :)
+         zub = MIN(bo(2, 3), cubecenter(3) + ub_cube(3))
+         zlb = MAX(bo(1, 3), cubecenter(3) + lb_cube(3))
+         yub = MIN(bo(2, 2), cubecenter(2) + ub_cube(2))
+         ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
+         xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
+         xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
          IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) RETURN
          DO ig = zlb, zub
-            rpg = REAL(ig-gbo(1, 3), dp)*dr(3)-rpl(3)
+            rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
             zap = EXP(-zetp*rpg**2)
             zdat(1, ig) = scale*W*zap
             zdat(2, ig) = rpg*zdat(1, ig)*zetp*2.0_dp
          ENDDO
          DO ig = ylb, yub
-            rpg = REAL(ig-gbo(1, 2), dp)*dr(2)-rpl(2)
+            rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
             yap = EXP(-zetp*rpg**2)
             ydat(1, ig) = yap
             ydat(2, ig) = rpg*ydat(1, ig)*zetp*2.0_dp
          ENDDO
          DO ig = xlb, xub
-            rpg = REAL(ig-gbo(1, 1), dp)*dr(1)-rpl(1)
+            rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
             xap = EXP(-zetp*rpg**2)
             xdat(1, ig) = xap
             xdat(2, ig) = rpg*xdat(1, ig)*zetp*2.0_dp
@@ -246,29 +246,29 @@ CONTAINS
                my_shift(2) = mm_cell%hmat(2, 2)*REAL(iy, KIND=dp)
                DO ix = -n_rep_real(1), n_rep_real(1)
                   my_shift(1) = mm_cell%hmat(1, 1)*REAL(ix, KIND=dp)
-                  rpl = rp+my_shift(:)
-                  cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1, :)
-                  zub = MIN(bo(2, 3), cubecenter(3)+ub_cube(3))
-                  zlb = MAX(bo(1, 3), cubecenter(3)+lb_cube(3))
-                  yub = MIN(bo(2, 2), cubecenter(2)+ub_cube(2))
-                  ylb = MAX(bo(1, 2), cubecenter(2)+lb_cube(2))
-                  xub = MIN(bo(2, 1), cubecenter(1)+ub_cube(1))
-                  xlb = MAX(bo(1, 1), cubecenter(1)+lb_cube(1))
+                  rpl = rp + my_shift(:)
+                  cubecenter(:) = FLOOR(rpl(:)/dr(:)) + gbo(1, :)
+                  zub = MIN(bo(2, 3), cubecenter(3) + ub_cube(3))
+                  zlb = MAX(bo(1, 3), cubecenter(3) + lb_cube(3))
+                  yub = MIN(bo(2, 2), cubecenter(2) + ub_cube(2))
+                  ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
+                  xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
+                  xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
                   IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) CYCLE
                   DO ig = zlb, zub
-                     rpg = REAL(ig-gbo(1, 3), dp)*dr(3)-rpl(3)
+                     rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
                      zap = EXP(-zetp*rpg**2)
                      zdat(1, ig) = scale*W*zap
                      zdat(2, ig) = rpg*zdat(1, ig)*zetp*2.0_dp
                   ENDDO
                   DO ig = ylb, yub
-                     rpg = REAL(ig-gbo(1, 2), dp)*dr(2)-rpl(2)
+                     rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
                      yap = EXP(-zetp*rpg**2)
                      ydat(1, ig) = yap
                      ydat(2, ig) = rpg*ydat(1, ig)*zetp*2.0_dp
                   ENDDO
                   DO ig = xlb, xub
-                     rpg = REAL(ig-gbo(1, 1), dp)*dr(1)-rpl(1)
+                     rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
                      xap = EXP(-zetp*rpg**2)
                      xdat(1, ig) = xap
                      xdat(2, ig) = rpg*xdat(1, ig)*zetp*2.0_dp

@@ -219,7 +219,7 @@ CONTAINS
          ALLOCATE (new_point)
 
          ! training-point input, calculate descriptor only on one rank
-         IF (MOD(iatom-1, para_env%num_pe) == para_env%mepos) THEN
+         IF (MOD(iatom - 1, para_env%num_pe) == para_env%mepos) THEN
             CALL pao_ml_calc_descriptor(pao, &
                                         my_particle_set, &
                                         qs_kind_set, &
@@ -237,7 +237,7 @@ CONTAINS
 
          ! add to linked list
          ikind = kindsmap(atom2kind(iatom))
-         training_lists(ikind)%npoints = training_lists(ikind)%npoints+1
+         training_lists(ikind)%npoints = training_lists(ikind)%npoints + 1
          new_point%next => training_lists(ikind)%head
          training_lists(ikind)%head => new_point
       ENDDO
@@ -367,11 +367,11 @@ CONTAINS
          DO i = 1, npoints
             IF (ALLOCATED(cur_point%input)) THEN
                training_matrix%inputs(:, i) = cur_point%input(:)
-               ninputs = ninputs+1
+               ninputs = ninputs + 1
             ENDIF
             IF (ALLOCATED(cur_point%output)) THEN
                training_matrix%outputs(:, i) = cur_point%output(:)
-               noutputs = noutputs+1
+               noutputs = noutputs + 1
             ENDIF
             ! advance to next entry and deallocate the current one
             prev_point => cur_point
@@ -423,7 +423,7 @@ CONTAINS
 
          ! substract prior from all training points
          DO i = 1, npoints
-            training_matrix%outputs(:, i) = training_matrix%outputs(:, i)-training_matrix%prior
+            training_matrix%outputs(:, i) = training_matrix%outputs(:, i) - training_matrix%prior
          ENDDO
       ENDDO
 
@@ -560,7 +560,7 @@ CONTAINS
          DEALLOCATE (descriptor)
 
          !add prior
-         block_X(:, 1) = block_X(:, 1)+pao%ml_training_matrices(ikind)%prior
+         block_X(:, 1) = block_X(:, 1) + pao%ml_training_matrices(ikind)%prior
       ENDDO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL

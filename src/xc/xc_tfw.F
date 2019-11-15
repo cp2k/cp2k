@@ -146,7 +146,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=r13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL tfw_init(epsilon_rho)
 
       ALLOCATE (s(npoints))
@@ -272,7 +272,7 @@ CONTAINS
                           rhob=rho(2)%array, norm_drhoa=norm_drho(1)%array, &
                           norm_drhob=norm_drho(2)%array, rho_cutoff=epsilon_rho, &
                           local_bounds=bo)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL tfw_init(epsilon_rho)
 
       ALLOCATE (s(npoints))
@@ -363,7 +363,7 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_0(ip) = e_0(ip)+flda*r13(ip)*r13(ip)*rho(ip)+fvw*s(ip)
+            e_0(ip) = e_0(ip) + flda*r13(ip)*r13(ip)*rho(ip) + fvw*s(ip)
 
          END IF
 
@@ -398,8 +398,8 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_rho(ip) = e_rho(ip)+f*r13(ip)*r13(ip)-fvw*s(ip)/rho(ip)
-            e_ndrho(ip) = e_ndrho(ip)+2.0_dp*fvw*grho(ip)/rho(ip)
+            e_rho(ip) = e_rho(ip) + f*r13(ip)*r13(ip) - fvw*s(ip)/rho(ip)
+            e_ndrho(ip) = e_ndrho(ip) + 2.0_dp*fvw*grho(ip)/rho(ip)
 
          END IF
 
@@ -436,9 +436,9 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_rho_rho(ip) = e_rho_rho(ip)+f/r13(ip)+2.0_dp*fvw*s(ip)/(rho(ip)*rho(ip))
-            e_rho_ndrho(ip) = e_rho_ndrho(ip)-2.0_dp*fvw*grho(ip)/(rho(ip)*rho(ip))
-            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip)+2.0_dp*fvw/rho(ip)
+            e_rho_rho(ip) = e_rho_rho(ip) + f/r13(ip) + 2.0_dp*fvw*s(ip)/(rho(ip)*rho(ip))
+            e_rho_ndrho(ip) = e_rho_ndrho(ip) - 2.0_dp*fvw*grho(ip)/(rho(ip)*rho(ip))
+            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2.0_dp*fvw/rho(ip)
 
          END IF
 
@@ -476,12 +476,12 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_rho_rho_rho(ip) = e_rho_rho_rho(ip)+f/(r13(ip)*rho(ip)) &
-                                -6.0_dp*fvw*s(ip)/(rho(ip)*rho(ip)*rho(ip))
+            e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f/(r13(ip)*rho(ip)) &
+                                - 6.0_dp*fvw*s(ip)/(rho(ip)*rho(ip)*rho(ip))
             e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip) &
-                                  +4.0_dp*fvw*grho(ip)/(rho(ip)*rho(ip)*rho(ip))
+                                  + 4.0_dp*fvw*grho(ip)/(rho(ip)*rho(ip)*rho(ip))
             e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip) &
-                                    -2.0_dp*fvw/(rho(ip)*rho(ip))
+                                    - 2.0_dp*fvw/(rho(ip)*rho(ip))
          END IF
 
       END DO
@@ -509,7 +509,7 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rhoa(ip) > eps_rho) THEN
-            e_0(ip) = e_0(ip)+flsd*r13a(ip)*r13a(ip)*rhoa(ip)+fvw*sa(ip)
+            e_0(ip) = e_0(ip) + flsd*r13a(ip)*r13a(ip)*rhoa(ip) + fvw*sa(ip)
          END IF
 
       END DO
@@ -542,8 +542,8 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rhoa(ip) > eps_rho) THEN
-            e_rho(ip) = e_rho(ip)+f*r13a(ip)*r13a(ip)-fvw*sa(ip)/rhoa(ip)
-            e_ndrho(ip) = e_ndrho(ip)+2.0_dp*fvw*grhoa(ip)/rhoa(ip)
+            e_rho(ip) = e_rho(ip) + f*r13a(ip)*r13a(ip) - fvw*sa(ip)/rhoa(ip)
+            e_ndrho(ip) = e_ndrho(ip) + 2.0_dp*fvw*grhoa(ip)/rhoa(ip)
          END IF
 
       END DO
@@ -579,10 +579,10 @@ CONTAINS
 
          IF (rhoa(ip) > eps_rho) THEN
             e_rho_rho(ip) = e_rho_rho(ip) &
-                            +f/r13a(ip)+2.0_dp*fvw*sa(ip)/(rhoa(ip)*rhoa(ip))
+                            + f/r13a(ip) + 2.0_dp*fvw*sa(ip)/(rhoa(ip)*rhoa(ip))
             e_rho_ndrho(ip) = e_rho_ndrho(ip) &
-                              -2.0_dp*fvw*grhoa(ip)/(rhoa(ip)*rhoa(ip))
-            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip)+2.0_dp*fvw/rhoa(ip)
+                              - 2.0_dp*fvw*grhoa(ip)/(rhoa(ip)*rhoa(ip))
+            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2.0_dp*fvw/rhoa(ip)
          END IF
 
       END DO
@@ -619,12 +619,12 @@ CONTAINS
 
          IF (rhoa(ip) > eps_rho) THEN
             e_rho_rho_rho(ip) = e_rho_rho_rho(ip) &
-                                +f/(r13a(ip)*rhoa(ip)) &
-                                -6.0_dp*fvw*sa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+                                + f/(r13a(ip)*rhoa(ip)) &
+                                - 6.0_dp*fvw*sa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
             e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip) &
-                                  +4.0_dp*fvw*grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+                                  + 4.0_dp*fvw*grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
             e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip) &
-                                    -2.0_dp*fvw/(rhoa(ip)*rhoa(ip))
+                                    - 2.0_dp*fvw/(rhoa(ip)*rhoa(ip))
          END IF
 
       END DO

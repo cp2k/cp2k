@@ -53,7 +53,7 @@ MODULE xc_perdew86
                                d = 0.472_dp, &
                                pc1 = 0.001667_dp, &
                                pc2 = 0.002568_dp, &
-                               pci = pc1+pc2
+                               pci = pc1 + pc2
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86'
 
 CONTAINS
@@ -145,7 +145,7 @@ CONTAINS
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=rho_cutoff, &
                           drho_cutoff=drho_cutoff)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL p86_init(rho_cutoff)
       m = ABS(order)
 
@@ -236,10 +236,10 @@ CONTAINS
             r = rs(ip)
             x = r*frs
             or = 1.0_dp/rho(ip)
-            cr = pc1+(pc2+a*r+b*r*r)/(1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r)
+            cr = pc1 + (pc2 + a*r + b*r*r)/(1.0_dp + c*r + d*r*r + 1.e4_dp*b*r*r*r)
             phi = fpe*pci/cr*g*SQRT(x)*or
             ep = EXP(-phi)
-            e_0(ip) = e_0(ip)+x*or*g*g*cr*ep
+            e_0(ip) = e_0(ip) + x*or*g*g*cr*ep
          END IF
 
       END DO
@@ -274,19 +274,19 @@ CONTAINS
             r = rs(ip)
             x = r*frs
             or = 1.0_dp/rho(ip)
-            p = pc2+a*r+b*r*r
-            dpv = a+2.0_dp*b*r
-            q = 1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r
-            dq = c+2.0_dp*d*r+3.e4_dp*b*r*r
-            cr = pc1+p/q
-            dcr = (dpv*q-p*dq)/(q*q)*(-f13*r*or)
+            p = pc2 + a*r + b*r*r
+            dpv = a + 2.0_dp*b*r
+            q = 1.0_dp + c*r + d*r*r + 1.e4_dp*b*r*r*r
+            dq = c + 2.0_dp*d*r + 3.e4_dp*b*r*r
+            cr = pc1 + p/q
+            dcr = (dpv*q - p*dq)/(q*q)*(-f13*r*or)
             dphig = fpe*pci/cr*SQRT(x)*or
             phi = dphig*g
-            dphir = -phi*(dcr/cr+f76*or)
+            dphir = -phi*(dcr/cr + f76*or)
             ep = EXP(-phi)
             ff = x*or*g*ep
-            e_rho(ip) = e_rho(ip)+ff*g*dcr-ff*g*cr*dphir-ff*g*cr*f43*or
-            e_ndrho(ip) = e_ndrho(ip)+ff*cr*(2.0_dp-g*dphig)
+            e_rho(ip) = e_rho(ip) + ff*g*dcr - ff*g*cr*dphir - ff*g*cr*f43*or
+            e_ndrho(ip) = e_ndrho(ip) + ff*cr*(2.0_dp - g*dphig)
          END IF
 
       END DO
@@ -325,32 +325,32 @@ CONTAINS
             r = rs(ip)
             x = r*frs
             or = 1.0_dp/rho(ip)
-            p = pc2+a*r+b*r*r
-            dpv = a+2.0_dp*b*r
+            p = pc2 + a*r + b*r*r
+            dpv = a + 2.0_dp*b*r
             d2p = 2.0_dp*b
-            q = 1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r
-            dq = c+2.0_dp*d*r+3.e4_dp*b*r*r
-            d2q = 2.0_dp*d+6.e4_dp*b*r
-            cr = pc1+p/q
-            dcr = (dpv*q-p*dq)/(q*q)*(-f13*r*or)
-            d2cr = (d2p*q*q-p*q*d2q-2*dpv*dq*q+2*p*dq*dq)/(q*q*q)*(f13*r*or)**2+ &
-                   (dpv*q-p*dq)/(q*q)*f13*f43*r*or*or
+            q = 1.0_dp + c*r + d*r*r + 1.e4_dp*b*r*r*r
+            dq = c + 2.0_dp*d*r + 3.e4_dp*b*r*r
+            d2q = 2.0_dp*d + 6.e4_dp*b*r
+            cr = pc1 + p/q
+            dcr = (dpv*q - p*dq)/(q*q)*(-f13*r*or)
+            d2cr = (d2p*q*q - p*q*d2q - 2*dpv*dq*q + 2*p*dq*dq)/(q*q*q)*(f13*r*or)**2 + &
+                   (dpv*q - p*dq)/(q*q)*f13*f43*r*or*or
             dphig = fpe*pci/cr*SQRT(x)*or
             phi = dphig*g
-            dphir = -phi*(dcr/cr+f76*or)
-            d2phir = -dphir*(dcr/cr+f76*or)- &
-                     phi*((d2cr*cr-dcr*dcr)/(cr*cr)-f76*or*or)
-            dphigr = -dphig*(dcr/cr+f76*or)
+            dphir = -phi*(dcr/cr + f76*or)
+            d2phir = -dphir*(dcr/cr + f76*or) - &
+                     phi*((d2cr*cr - dcr*dcr)/(cr*cr) - f76*or*or)
+            dphigr = -dphig*(dcr/cr + f76*or)
             ep = EXP(-phi)
-            e_rho_rho(ip) = e_rho_rho(ip)+x*or*ep*g*g* &
-                            (-f43*or*dcr+d2cr-dcr*dphir+ &
-                             f43*or*cr*dphir-dcr*dphir-cr*d2phir+cr*dphir*dphir+ &
-                             f43*or*(7.*f13*or*cr-dcr+cr*dphir))
-            e_rho_ndrho(ip) = e_rho_ndrho(ip)+x*or*ep*g* &
-                              (-2*f43*cr*or+2*dcr-2*cr*dphir+f43*or*g*cr*dphig- &
-                               g*dcr*dphig+g*cr*dphir*dphig-g*cr*dphigr)
-            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip)+x*or*ep*cr* &
-                                (2.0_dp-4.0_dp*g*dphig+g*g*dphig*dphig)
+            e_rho_rho(ip) = e_rho_rho(ip) + x*or*ep*g*g* &
+                            (-f43*or*dcr + d2cr - dcr*dphir + &
+                             f43*or*cr*dphir - dcr*dphir - cr*d2phir + cr*dphir*dphir + &
+                             f43*or*(7.*f13*or*cr - dcr + cr*dphir))
+            e_rho_ndrho(ip) = e_rho_ndrho(ip) + x*or*ep*g* &
+                              (-2*f43*cr*or + 2*dcr - 2*cr*dphir + f43*or*g*cr*dphig - &
+                               g*dcr*dphig + g*cr*dphir*dphig - g*cr*dphigr)
+            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + x*or*ep*cr* &
+                                (2.0_dp - 4.0_dp*g*dphig + g*g*dphig*dphig)
          END IF
 
       END DO
@@ -392,60 +392,60 @@ CONTAINS
             r = rs(ip)
             x = r*frs
             or = 1.0_dp/rho(ip)
-            p = pc2+a*r+b*r*r
-            dpv = a+2.0_dp*b*r
+            p = pc2 + a*r + b*r*r
+            dpv = a + 2.0_dp*b*r
             d2p = 2.0_dp*b
-            q = 1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r
-            dq = c+2.0_dp*d*r+3.e4_dp*b*r*r
-            d2q = 2.0_dp*d+6.e4*b*r
+            q = 1.0_dp + c*r + d*r*r + 1.e4_dp*b*r*r*r
+            dq = c + 2.0_dp*d*r + 3.e4_dp*b*r*r
+            d2q = 2.0_dp*d + 6.e4*b*r
             d3q = 6.e4*b
             pq = p/q
-            dpq = (dpv*q-p*dq)/(q*q)
-            d2pq = (d2p*q*q-2*dpv*dq*q+2*p*dq*dq-p*d2q*q)/(q*q*q)
-            d3pq = -(3*d2p*dq*q*q-6*dpv*dq*dq*q+3*dpv*d2q*q*q+6*p*dq*dq*dq-6*p*dq*d2q*q &
-                     +p*d3q*q*q)/(q*q*q*q)
-            cr = pc1+pq
+            dpq = (dpv*q - p*dq)/(q*q)
+            d2pq = (d2p*q*q - 2*dpv*dq*q + 2*p*dq*dq - p*d2q*q)/(q*q*q)
+            d3pq = -(3*d2p*dq*q*q - 6*dpv*dq*dq*q + 3*dpv*d2q*q*q + 6*p*dq*dq*dq - 6*p*dq*d2q*q &
+                     + p*d3q*q*q)/(q*q*q*q)
+            cr = pc1 + pq
             dcr = dpq*(-f13*r*or)
-            d2cr = d2pq*f13*f13*r*r*or*or+dpq*f13*f43*r*or*or
-            d3cr = d3pq*(-f13*r*or)**3+3*d2pq*(-f13*f13*f43*r*r*or*or*or)+ &
+            d2cr = d2pq*f13*f13*r*r*or*or + dpq*f13*f43*r*or*or
+            d3cr = d3pq*(-f13*r*or)**3 + 3*d2pq*(-f13*f13*f43*r*r*or*or*or) + &
                    dpq*(-f13*f43*f13*7*r*or*or*or)
             oz = SQRT(x)*or/cr
-            dz = dcr/cr+f76*or
-            d2z = d2cr/cr+2*f76*dcr/cr*or+f76/6.*or*or
-            d3z = d3cr/cr+3*f76*d2cr/cr*or+3*f76/6.*dcr/cr*or*or-5*f76/36.*or*or*or
+            dz = dcr/cr + f76*or
+            d2z = d2cr/cr + 2*f76*dcr/cr*or + f76/6.*or*or
+            d3z = d3cr/cr + 3*f76*d2cr/cr*or + 3*f76/6.*dcr/cr*or*or - 5*f76/36.*or*or*or
             dphig = fpe*pci*oz
             phi = dphig*g
             dphir = -phi*dz
             dphigr = -dphig*dz
-            d2phir = -phi*(d2z-2*dz*dz)
-            d3phir = -phi*(d3z-6*d2z*dz+6*dz*dz*dz)
-            d2phirg = -dphigr*dz- &
-                      dphig*((d2cr*cr-dcr*dcr)/(cr*cr)-f76*or*or)
+            d2phir = -phi*(d2z - 2*dz*dz)
+            d3phir = -phi*(d3z - 6*d2z*dz + 6*dz*dz*dz)
+            d2phirg = -dphigr*dz - &
+                      dphig*((d2cr*cr - dcr*dcr)/(cr*cr) - f76*or*or)
             ep = EXP(-phi)
             e_rho_rho_rho(ip) = e_rho_rho_rho(ip) &
-                                +g*g*x*or*ep*(-280./27.*or*or*or*cr+3*28./9.*or*or*dcr+ &
-                                              3*28./9.*or*or*cr*(-dphir)-4*or*d2cr-8*or*dcr*(-dphir)- &
-                                              4*or*cr*(-d2phir+dphir*dphir)+d3cr+3*d2cr*(-dphir)+ &
-                                              3*dcr*(-d2phir+dphir*dphir)+cr*(-d3phir+3*dphir*d2phir- &
-                                                                              dphir**3))
+                                + g*g*x*or*ep*(-280./27.*or*or*or*cr + 3*28./9.*or*or*dcr + &
+                                               3*28./9.*or*or*cr*(-dphir) - 4*or*d2cr - 8*or*dcr*(-dphir) - &
+                                               4*or*cr*(-d2phir + dphir*dphir) + d3cr + 3*d2cr*(-dphir) + &
+                                               3*dcr*(-d2phir + dphir*dphir) + cr*(-d3phir + 3*dphir*d2phir - &
+                                                                                   dphir**3))
             e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip) &
-                                  +2.*x*or*ep*g*(-f43*or*dcr+d2cr-dcr*dphir+ &
-                                                 f43*or*cr*dphir-dcr*dphir-cr*d2phir+cr*dphir*dphir+ &
-                                                 f43*or*(7.*f13*or*cr-dcr+cr*dphir))- &
-                                  dphig*x*or*ep*g*g*(-f43*or*dcr+d2cr-dcr*dphir+ &
-                                                     f43*or*cr*dphir-dcr*dphir-cr*d2phir+cr*dphir*dphir+ &
-                                                     f43*or*(7.*f13*or*cr-dcr+cr*dphir))+ &
-                                  x*or*ep*g*g*(-dcr*dphigr+f43*or*cr*dphigr-dcr*dphigr-cr*d2phirg+ &
-                                               2.*cr*dphigr*dphir+f43*or*cr*dphigr)
+                                  + 2.*x*or*ep*g*(-f43*or*dcr + d2cr - dcr*dphir + &
+                                                  f43*or*cr*dphir - dcr*dphir - cr*d2phir + cr*dphir*dphir + &
+                                                  f43*or*(7.*f13*or*cr - dcr + cr*dphir)) - &
+                                  dphig*x*or*ep*g*g*(-f43*or*dcr + d2cr - dcr*dphir + &
+                                                     f43*or*cr*dphir - dcr*dphir - cr*d2phir + cr*dphir*dphir + &
+                                                     f43*or*(7.*f13*or*cr - dcr + cr*dphir)) + &
+                                  x*or*ep*g*g*(-dcr*dphigr + f43*or*cr*dphigr - dcr*dphigr - cr*d2phirg + &
+                                               2.*cr*dphigr*dphir + f43*or*cr*dphigr)
             e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip) &
-                                    +x*or*ep*(-2*f43*cr*or+2*dcr-2*cr*dphir+f43*or*g*cr*dphig- &
-                                              g*dcr*dphig+g*cr*dphir*dphig-g*cr*dphigr)+ &
-                                    x*or*ep*g*(-2*cr*dphigr+f43*or*cr*dphig- &
-                                               dcr*dphig+cr*dphir*dphig+g*cr*dphigr*dphig-cr*dphigr)- &
-                                    x*or*ep*g*dphig*(-2*f43*cr*or+2*dcr-2*cr*dphir+f43*or*g*cr*dphig- &
-                                                     g*dcr*dphig+g*cr*dphir*dphig-g*cr*dphigr)
+                                    + x*or*ep*(-2*f43*cr*or + 2*dcr - 2*cr*dphir + f43*or*g*cr*dphig - &
+                                               g*dcr*dphig + g*cr*dphir*dphig - g*cr*dphigr) + &
+                                    x*or*ep*g*(-2*cr*dphigr + f43*or*cr*dphig - &
+                                               dcr*dphig + cr*dphir*dphig + g*cr*dphigr*dphig - cr*dphigr) - &
+                                    x*or*ep*g*dphig*(-2*f43*cr*or + 2*dcr - 2*cr*dphir + f43*or*g*cr*dphig - &
+                                                     g*dcr*dphig + g*cr*dphir*dphig - g*cr*dphigr)
             e_ndrho_ndrho_ndrho(ip) = e_ndrho_ndrho_ndrho(ip) &
-                                      +x*or*ep*cr*dphig*(-6.0_dp+6.0_dp*g*dphig-g*g*dphig*dphig)
+                                      + x*or*ep*cr*dphig*(-6.0_dp + 6.0_dp*g*dphig - g*g*dphig*dphig)
          END IF
 
       END DO

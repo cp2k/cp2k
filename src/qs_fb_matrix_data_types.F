@@ -115,7 +115,7 @@ CONTAINS
          CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, RESHAPE(blk, (/nrows*ncols/)))
       ELSE
          old_nblks = matrix_data%obj%nblks
-         matrix_data%obj%nblks = old_nblks+1
+         matrix_data%obj%nblks = old_nblks + 1
          ii = matrix_data%obj%nblks
          ! resize lds if necessary
          IF (SIZE(matrix_data%obj%lds) .LT. ii) THEN
@@ -177,7 +177,7 @@ CONTAINS
                                nencode=nencode)
       ! book keeping stuff
       matrix_data%obj%ref_count = 1
-      matrix_data%obj%id_nr = last_fb_matrix_data_id+1
+      matrix_data%obj%id_nr = last_fb_matrix_data_id + 1
       last_fb_matrix_data_id = matrix_data%obj%id_nr
    END SUBROUTINE fb_matrix_data_create
 
@@ -299,7 +299,7 @@ CONTAINS
       IF (ASSOCIATED(matrix_data%obj)) THEN
          check_ok = matrix_data%obj%ref_count > 0
          CPASSERT(check_ok)
-         matrix_data%obj%ref_count = matrix_data%obj%ref_count-1
+         matrix_data%obj%ref_count = matrix_data%obj%ref_count - 1
          IF (matrix_data%obj%ref_count == 0) THEN
             matrix_data%obj%ref_count = 1
             IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
@@ -336,7 +336,7 @@ CONTAINS
       CPASSERT(check_ok)
       check_ok = matrix_data%obj%ref_count > 0
       CPASSERT(check_ok)
-      matrix_data%obj%ref_count = matrix_data%obj%ref_count+1
+      matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
    END SUBROUTINE fb_matrix_data_retain
 
 ! **************************************************************************************************
@@ -400,7 +400,7 @@ CONTAINS
       row_8 = INT(row, int_8)
       col_8 = INT(col, int_8)
       nencode_8 = INT(nencode, int_8)
-      pair_ind = (row_8-1_int_8)*nencode_8+(col_8-1_int_8)+1
+      pair_ind = (row_8 - 1_int_8)*nencode_8 + (col_8 - 1_int_8) + 1
    END FUNCTION fb_matrix_data_encode_pair
 
 END MODULE qs_fb_matrix_data_types

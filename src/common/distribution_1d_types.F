@@ -112,7 +112,7 @@ CONTAINS
       IF (PRESENT(n_lists)) my_n_lists = n_lists
 
       ALLOCATE (distribution_1d)
-      distribution_1d_last_id_nr = distribution_1d_last_id_nr+1
+      distribution_1d_last_id_nr = distribution_1d_last_id_nr + 1
       distribution_1d%id_nr = distribution_1d_last_id_nr
 
       distribution_1d%ref_count = 1
@@ -162,7 +162,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(distribution_1d))
       CPASSERT(distribution_1d%ref_count > 0)
-      distribution_1d%ref_count = distribution_1d%ref_count+1
+      distribution_1d%ref_count = distribution_1d%ref_count + 1
    END SUBROUTINE distribution_1d_retain
 
 ! **************************************************************************************************
@@ -184,7 +184,7 @@ CONTAINS
 
       IF (ASSOCIATED(distribution_1d)) THEN
          CPASSERT(distribution_1d%ref_count > 0)
-         distribution_1d%ref_count = distribution_1d%ref_count-1
+         distribution_1d%ref_count = distribution_1d%ref_count - 1
          IF (distribution_1d%ref_count == 0) THEN
             DEALLOCATE (distribution_1d%n_el)
 

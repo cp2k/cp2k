@@ -174,7 +174,7 @@ CONTAINS
 
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
 
-         rcc = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+         rcc = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
          IF (rcc > 1.e-6_dp) THEN
             fac = 1._dp
             IF (iatom == jatom) fac = 0.5_dp
@@ -209,25 +209,25 @@ CONTAINS
             ELSE
                fdb = 0.0_dp
             END IF
-            egcp = egcp+fac*(fda+fdb)
+            egcp = egcp + fac*(fda + fdb)
             IF (verbose) THEN
-               egcpat(iatom) = egcpat(iatom)+fac*fda
-               egcpat(jatom) = egcpat(jatom)+fac*fdb
-               ngcpat(iatom) = ngcpat(iatom)+1
-               ngcpat(jatom) = ngcpat(jatom)+1
+               egcpat(iatom) = egcpat(iatom) + fac*fda
+               egcpat(jatom) = egcpat(jatom) + fac*fdb
+               ngcpat(iatom) = ngcpat(iatom) + 1
+               ngcpat(jatom) = ngcpat(jatom) + 1
             END IF
             IF (calculate_forces) THEN
-               fdij = -fac*(fda+fdb)*(gcp_env%alpha*gcp_env%beta*rcc**(gcp_env%beta-1.0_dp)*rij(1:3)/rcc)
+               fdij = -fac*(fda + fdb)*(gcp_env%alpha*gcp_env%beta*rcc**(gcp_env%beta - 1.0_dp)*rij(1:3)/rcc)
                IF (sqa > 1.e-12_dp) THEN
-                  fdij = fdij+0.25_dp*fac*fdb/(sqa*sqa)*dsint(1:3)
+                  fdij = fdij + 0.25_dp*fac*fdb/(sqa*sqa)*dsint(1:3)
                END IF
                IF (sqb > 1.e-12_dp) THEN
-                  fdij = fdij+0.25_dp*fac*fda/(sqb*sqb)*dsint(1:3)
+                  fdij = fdij + 0.25_dp*fac*fda/(sqb*sqb)*dsint(1:3)
                END IF
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
-               force(ikind)%gcp(:, atom_a) = force(ikind)%gcp(:, atom_a)-fdij(:)
-               force(jkind)%gcp(:, atom_b) = force(jkind)%gcp(:, atom_b)+fdij(:)
+               force(ikind)%gcp(:, atom_a) = force(ikind)%gcp(:, atom_a) - fdij(:)
+               force(jkind)%gcp(:, atom_b) = force(jkind)%gcp(:, atom_b) + fdij(:)
                IF (use_virial) THEN
                   CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rij)
                END IF
@@ -237,8 +237,8 @@ CONTAINS
                END IF
             END IF
             IF (atenergy) THEN
-               atener(iatom) = atener(iatom)+fda*fac
-               atener(jatom) = atener(jatom)+fdb*fac
+               atener(iatom) = atener(iatom) + fda*fac
+               atener(jatom) = atener(jatom) + fdb*fac
             END IF
          END IF
       END DO
@@ -274,7 +274,7 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             fdij(1:3) = force(ikind)%gcp(:, atom_a)
             CALL mp_sum(fdij, para_env%group)
-            gnorm = gnorm+SUM(ABS(fdij))
+            gnorm = gnorm + SUM(ABS(fdij))
             IF (unit_nr > 0) WRITE (unit_nr, "(i5,i7,3F20.14)") iatom, ikind, fdij
          END DO
          IF (unit_nr > 0) THEN
@@ -283,12 +283,12 @@ CONTAINS
             WRITE (unit_nr, *)
          END IF
          IF (use_virial) THEN
-            dvirial = virial%pv_virial-dvirial
+            dvirial = virial%pv_virial - dvirial
             CALL mp_sum(dvirial, para_env%group)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) " Stress Tensor (gCP)"
                WRITE (unit_nr, "(3G20.12)") dvirial
-               WRITE (unit_nr, *) "  Tr(P)/3 :  ", (dvirial(1, 1)+dvirial(2, 2)+dvirial(3, 3))/3._dp
+               WRITE (unit_nr, *) "  Tr(P)/3 :  ", (dvirial(1, 1) + dvirial(2, 2) + dvirial(3, 3))/3._dp
                WRITE (unit_nr, *)
             END IF
          END IF

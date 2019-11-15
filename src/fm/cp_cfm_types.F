@@ -142,7 +142,7 @@ CONTAINS
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)
-      last_cfm_id_nr = last_cfm_id_nr+1
+      last_cfm_id_nr = last_cfm_id_nr + 1
       matrix%id_nr = last_cfm_id_nr
       matrix%ref_count = 1
       matrix%print_count = 0
@@ -176,7 +176,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
-      matrix%ref_count = matrix%ref_count+1
+      matrix%ref_count = matrix%ref_count + 1
    END SUBROUTINE cp_cfm_retain
 
 ! **************************************************************************************************
@@ -190,7 +190,7 @@ CONTAINS
 
       IF (ASSOCIATED(matrix)) THEN
          CPASSERT(matrix%ref_count > 0)
-         matrix%ref_count = matrix%ref_count-1
+         matrix%ref_count = matrix%ref_count - 1
          IF (matrix%ref_count < 1) THEN
             IF (ASSOCIATED(matrix%local_data)) THEN
                DEALLOCATE (matrix%local_data)
@@ -238,13 +238,13 @@ CONTAINS
 
          DO WHILE (irow_local <= nrow_local .AND. icol_local <= ncol_local)
             IF (row_indices(irow_local) < col_indices(icol_local)) THEN
-               irow_local = irow_local+1
+               irow_local = irow_local + 1
             ELSE IF (row_indices(irow_local) > col_indices(icol_local)) THEN
-               icol_local = icol_local+1
+               icol_local = icol_local + 1
             ELSE
                matrix%local_data(irow_local, icol_local) = beta
-               irow_local = irow_local+1
-               icol_local = icol_local+1
+               irow_local = irow_local + 1
+               icol_local = icol_local + 1
             END IF
          END DO
 #else
@@ -423,8 +423,8 @@ CONTAINS
          IF (PRESENT(n_rows)) end_row_global = n_rows
          IF (PRESENT(n_cols)) end_col_global = n_cols
 
-         end_row_global = end_row_global+start_row_global-1
-         end_col_global = end_col_global+start_col_global-1
+         end_row_global = end_row_global + start_row_global - 1
+         end_col_global = end_col_global + start_col_global - 1
 
          CALL cp_cfm_get_info(matrix=fm, &
                               nrow_global=nrow_global, ncol_global=ncol_global, &
@@ -448,7 +448,7 @@ CONTAINS
          DO end_row_local = start_row_local, nrow_local
             IF (row_indices(end_row_local) > end_row_global) EXIT
          END DO
-         end_row_local = end_row_local-1
+         end_row_local = end_row_local - 1
 
          DO start_col_local = 1, ncol_local
             IF (col_indices(start_col_local) >= start_col_global) EXIT
@@ -457,7 +457,7 @@ CONTAINS
          DO end_col_local = start_col_local, ncol_local
             IF (col_indices(end_col_local) > end_col_global) EXIT
          END DO
-         end_col_local = end_col_local-1
+         end_col_local = end_col_local - 1
 
          para_env => fm%matrix_struct%para_env
          local_data => fm%local_data
@@ -471,16 +471,16 @@ CONTAINS
 
          IF (tr_a) THEN
             DO j = start_col_local, end_col_local
-               this_col = col_indices(j)-start_col_global+1
+               this_col = col_indices(j) - start_col_global + 1
                DO i = start_row_local, end_row_local
-                  target_m(this_col, row_indices(i)-start_row_global+1) = local_data(i, j)
+                  target_m(this_col, row_indices(i) - start_row_global + 1) = local_data(i, j)
                END DO
             END DO
          ELSE
             DO j = start_col_local, end_col_local
-               this_col = col_indices(j)-start_col_global+1
+               this_col = col_indices(j) - start_col_global + 1
                DO i = start_row_local, end_row_local
-                  target_m(row_indices(i)-start_row_global+1, this_col) = local_data(i, j)
+                  target_m(row_indices(i) - start_row_global + 1, this_col) = local_data(i, j)
                END DO
             END DO
          END IF
@@ -563,8 +563,8 @@ CONTAINS
       IF (PRESENT(n_rows)) end_row_global = n_rows
       IF (PRESENT(n_cols)) end_col_global = n_cols
 
-      end_row_global = end_row_global+start_row_global-1
-      end_col_global = end_col_global+start_col_global-1
+      end_row_global = end_row_global + start_row_global - 1
+      end_col_global = end_col_global + start_col_global - 1
 
       CALL cp_cfm_get_info(matrix=matrix, &
                            nrow_global=nrow_global, ncol_global=ncol_global, &
@@ -582,7 +582,7 @@ CONTAINS
       DO end_row_local = start_row_local, nrow_local
          IF (row_indices(end_row_local) > end_row_global) EXIT
       END DO
-      end_row_local = end_row_local-1
+      end_row_local = end_row_local - 1
 
       DO start_col_local = 1, ncol_local
          IF (col_indices(start_col_local) >= start_col_global) EXIT
@@ -591,40 +591,40 @@ CONTAINS
       DO end_col_local = start_col_local, ncol_local
          IF (col_indices(end_col_local) > end_col_global) EXIT
       END DO
-      end_col_local = end_col_local-1
+      end_col_local = end_col_local - 1
 
       local_data => matrix%local_data
 
       IF (al == z_one .AND. be == z_zero) THEN
          IF (tr_a) THEN
             DO j = start_col_local, end_col_local
-               this_col = col_indices(j)-start_col_global+1
+               this_col = col_indices(j) - start_col_global + 1
                DO i = start_row_local, end_row_local
-                  local_data(i, j) = new_values(this_col, row_indices(i)-start_row_global+1)
+                  local_data(i, j) = new_values(this_col, row_indices(i) - start_row_global + 1)
                END DO
             END DO
          ELSE
             DO j = start_col_local, end_col_local
-               this_col = col_indices(j)-start_col_global+1
+               this_col = col_indices(j) - start_col_global + 1
                DO i = start_row_local, end_row_local
-                  local_data(i, j) = new_values(row_indices(i)-start_row_global+1, this_col)
+                  local_data(i, j) = new_values(row_indices(i) - start_row_global + 1, this_col)
                END DO
             END DO
          END IF
       ELSE
          IF (tr_a) THEN
             DO j = start_col_local, end_col_local
-               this_col = col_indices(j)-start_col_global+1
+               this_col = col_indices(j) - start_col_global + 1
                DO i = start_row_local, end_row_local
-                  local_data(i, j) = al*new_values(this_col, row_indices(i)-start_row_global+1)+ &
+                  local_data(i, j) = al*new_values(this_col, row_indices(i) - start_row_global + 1) + &
                                      be*local_data(i, j)
                END DO
             END DO
          ELSE
             DO j = start_col_local, end_col_local
-               this_col = col_indices(j)-start_col_global+1
+               this_col = col_indices(j) - start_col_global + 1
                DO i = start_row_local, end_row_local
-                  local_data(i, j) = al*new_values(row_indices(i)-start_row_global+1, this_col)+ &
+                  local_data(i, j) = al*new_values(row_indices(i) - start_row_global + 1, this_col) + &
                                      be*local_data(i, j)
                END DO
             END DO
@@ -825,8 +825,8 @@ CONTAINS
 #if defined(__SCALAPACK)
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
-      DO i = 0, ncol-1
-         CALL pzcopy(n, a(1, 1), 1, ss+i, desca, 1, b(1, 1), 1, ts+i, descb, 1)
+      DO i = 0, ncol - 1
+         CALL pzcopy(n, a(1, 1), 1, ss + i, desca, 1, b(1, 1), 1, ts + i, descb, 1)
       END DO
 #else
       CALL zcopy(ncol*n, a(1, ss), 1, b(1, ts), 1)
@@ -956,7 +956,7 @@ CONTAINS
              (SIZE(rmat, 2) .NE. SIZE(zmat, 2))) THEN
             CPABORT("size of local_data of msourcer differ to mtarget")
          END IF
-         mode = mode+1
+         mode = mode + 1
       ELSE
          NULLIFY (rmat)
       END IF
@@ -967,7 +967,7 @@ CONTAINS
              (SIZE(imat, 2) .NE. SIZE(zmat, 2))) THEN
             CPABORT("size of local_data of msourcei differ to mtarget")
          END IF
-         mode = mode+2
+         mode = mode + 2
       ELSE
          NULLIFY (imat)
       END IF
@@ -1030,7 +1030,7 @@ CONTAINS
          k = 0
          DO j = 1, ncol_local_send
             DO i = 1, nrow_local_send
-               k = k+1
+               k = k + 1
                info%send_buf(k) = source%local_data(i, j)
             END DO
          END DO
@@ -1062,12 +1062,12 @@ CONTAINS
          END IF
 
          ! Map the rank in the source/dest communicator to the global rank
-         ALLOCATE (all_ranks(0:global_size-1))
+         ALLOCATE (all_ranks(0:global_size - 1))
 
          CALL mp_allgather(send_rank, all_ranks, global_comm)
          IF (ASSOCIATED(destination)) THEN
-            ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null)-1))
-            DO i = 0, global_size-1
+            ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
+            DO i = 0, global_size - 1
                IF (all_ranks(i) .NE. mp_proc_null) THEN
                   source2global(all_ranks(i)) = i
                END IF
@@ -1076,8 +1076,8 @@ CONTAINS
 
          CALL mp_allgather(recv_rank, all_ranks, global_comm)
          IF (ASSOCIATED(source)) THEN
-            ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null)-1))
-            DO i = 0, global_size-1
+            ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
+            DO i = 0, global_size - 1
                IF (all_ranks(i) .NE. mp_proc_null) THEN
                   dest2global(all_ranks(i)) = i
                END IF
@@ -1118,8 +1118,8 @@ CONTAINS
          IF (global_rank == 0) THEN
             CALL mp_waitall(recv_req(1:4))
             ! Now we know the process decomposition, we can allocate the arrays to hold the blacs2mpi mapping
-            ALLOCATE (info%src_blacs2mpi(0:src_num_pe(1)-1, 0:src_num_pe(2)-1), &
-                      dest_blacs2mpi(0:dest_num_pe(1)-1, 0:dest_num_pe(2)-1))
+            ALLOCATE (info%src_blacs2mpi(0:src_num_pe(1) - 1, 0:src_num_pe(2) - 1), &
+                      dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1))
             CALL mp_irecv(info%src_blacs2mpi, mp_any_source, global_comm, recv_req(5), tag=src_tag)
             CALL mp_irecv(dest_blacs2mpi, mp_any_source, global_comm, recv_req(6), tag=dest_tag)
          END IF
@@ -1148,8 +1148,8 @@ CONTAINS
          info%src_num_pe(1:2) = src_num_pe(1:2)
          info%nblock_src(1:2) = src_block(1:2)
          IF (global_rank /= 0) THEN
-            ALLOCATE (info%src_blacs2mpi(0:src_num_pe(1)-1, 0:src_num_pe(2)-1), &
-                      dest_blacs2mpi(0:dest_num_pe(1)-1, 0:dest_num_pe(2)-1))
+            ALLOCATE (info%src_blacs2mpi(0:src_num_pe(1) - 1, 0:src_num_pe(2) - 1), &
+                      dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1))
          END IF
          CALL mp_bcast(info%src_blacs2mpi, 0, global_comm)
          CALL mp_bcast(dest_blacs2mpi, 0, global_comm)
@@ -1181,7 +1181,7 @@ CONTAINS
             info%recv_row_indices => recv_row_indices
             nrow_block_src = src_block(1)
             ncol_block_src = src_block(2)
-            ALLOCATE (recv_count(0:send_size-1), info%recv_disp(0:send_size-1), info%recv_request(0:send_size-1))
+            ALLOCATE (recv_count(0:send_size - 1), info%recv_disp(0:send_size - 1), info%recv_request(0:send_size - 1))
 
             ! Determine the recv counts, allocate the receive buffers, call mpi_irecv for all the non-zero sized receives
             nrow_local_recv = recv_dist%nrow_locals(recv_dist%context%mepos(1))
@@ -1193,17 +1193,17 @@ CONTAINS
             DO i = 1, nrow_local_recv
                ! For each local row we will receive, we look up its global row (in recv_row_indices),
                ! then work out which row block it comes from, and which process row that row block comes from.
-               src_p(i) = MOD(((recv_row_indices(i)-1)/nrow_block_src), src_num_pe(1))
+               src_p(i) = MOD(((recv_row_indices(i) - 1)/nrow_block_src), src_num_pe(1))
             END DO
             DO j = 1, ncol_local_recv
                ! Similarly for the columns
-               src_q(j) = MOD(((recv_col_indices(j)-1)/ncol_block_src), src_num_pe(2))
+               src_q(j) = MOD(((recv_col_indices(j) - 1)/ncol_block_src), src_num_pe(2))
             END DO
             ! src_p/q now contains the process row/column ID that will send data to that row/column
 
-            DO q = 0, src_num_pe(2)-1
+            DO q = 0, src_num_pe(2) - 1
                ncols = COUNT(src_q .EQ. q)
-               DO p = 0, src_num_pe(1)-1
+               DO p = 0, src_num_pe(1) - 1
                   nrows = COUNT(src_p .EQ. p)
                   ! Use the send_dist here as we are looking up the processes where the data comes from
                   recv_count(info%src_blacs2mpi(p, q)) = nrows*ncols
@@ -1215,14 +1215,14 @@ CONTAINS
             !     this prevents the need for a rectangular array where not all elements will be populated
             ALLOCATE (info%recv_buf(SUM(recv_count(:))))
             info%recv_disp(0) = 0
-            DO i = 1, send_size-1
-               info%recv_disp(i) = info%recv_disp(i-1)+recv_count(i-1)
+            DO i = 1, send_size - 1
+               info%recv_disp(i) = info%recv_disp(i - 1) + recv_count(i - 1)
             END DO
 
             ! Issue receive calls on ranks which expect data
-            DO k = 0, send_size-1
+            DO k = 0, send_size - 1
                IF (recv_count(k) .GT. 0) THEN
-                  CALL mp_irecv(info%recv_buf(info%recv_disp(k)+1:info%recv_disp(k)+recv_count(k)), &
+                  CALL mp_irecv(info%recv_buf(info%recv_disp(k) + 1:info%recv_disp(k) + recv_count(k)), &
                                 source2global(k), global_comm, info%recv_request(k))
                ELSE
                   info%recv_request(k) = mp_request_null
@@ -1237,7 +1237,7 @@ CONTAINS
                                   col_indices=send_col_indices)
             nrow_block_dest = dest_block(1)
             ncol_block_dest = dest_block(2)
-            ALLOCATE (send_count(0:recv_size-1), send_disp(0:recv_size-1), info%send_request(0:recv_size-1))
+            ALLOCATE (send_count(0:recv_size - 1), send_disp(0:recv_size - 1), info%send_request(0:recv_size - 1))
 
             ! Determine the send counts, allocate the send buffers
             nrow_local_send = send_dist%nrow_locals(send_dist%context%mepos(1))
@@ -1249,16 +1249,16 @@ CONTAINS
 
             DO i = 1, nrow_local_send
                ! Use the send_dist%row_indices() here (we are looping over the local rows we will send)
-               dest_p(i) = MOD(((send_row_indices(i)-1)/nrow_block_dest), dest_num_pe(1))
+               dest_p(i) = MOD(((send_row_indices(i) - 1)/nrow_block_dest), dest_num_pe(1))
             END DO
             DO j = 1, ncol_local_send
-               dest_q(j) = MOD(((send_col_indices(j)-1)/ncol_block_dest), dest_num_pe(2))
+               dest_q(j) = MOD(((send_col_indices(j) - 1)/ncol_block_dest), dest_num_pe(2))
             END DO
             ! dest_p/q now contain the process row/column ID that will receive data from that row/column
 
-            DO q = 0, dest_num_pe(2)-1
+            DO q = 0, dest_num_pe(2) - 1
                ncols = COUNT(dest_q .EQ. q)
-               DO p = 0, dest_num_pe(1)-1
+               DO p = 0, dest_num_pe(1) - 1
                   nrows = COUNT(dest_p .EQ. p)
                   send_count(dest_blacs2mpi(p, q)) = nrows*ncols
                END DO
@@ -1268,27 +1268,27 @@ CONTAINS
             ! Allocate the send buffer using send_count -- and calculate the offset into the buffer for each process
             ALLOCATE (info%send_buf(SUM(send_count(:))))
             send_disp(0) = 0
-            DO k = 1, recv_size-1
-               send_disp(k) = send_disp(k-1)+send_count(k-1)
+            DO k = 1, recv_size - 1
+               send_disp(k) = send_disp(k - 1) + send_count(k - 1)
             END DO
 
             ! Loop over the smat, pack the send buffers
             send_count(:) = 0
             DO j = 1, ncol_local_send
                ! Use send_col_indices and row_indices here, as we are looking up the global row/column number of local rows.
-               dest_q_j = MOD(((send_col_indices(j)-1)/ncol_block_dest), dest_num_pe(2))
+               dest_q_j = MOD(((send_col_indices(j) - 1)/ncol_block_dest), dest_num_pe(2))
                DO i = 1, nrow_local_send
-                  dest_p_i = MOD(((send_row_indices(i)-1)/nrow_block_dest), dest_num_pe(1))
+                  dest_p_i = MOD(((send_row_indices(i) - 1)/nrow_block_dest), dest_num_pe(1))
                   mpi_rank = dest_blacs2mpi(dest_p_i, dest_q_j)
-                  send_count(mpi_rank) = send_count(mpi_rank)+1
-                  info%send_buf(send_disp(mpi_rank)+send_count(mpi_rank)) = source%local_data(i, j)
+                  send_count(mpi_rank) = send_count(mpi_rank) + 1
+                  info%send_buf(send_disp(mpi_rank) + send_count(mpi_rank)) = source%local_data(i, j)
                END DO
             END DO
 
             ! For each non-zero send_count, call mpi_isend
-            DO k = 0, recv_size-1
+            DO k = 0, recv_size - 1
                IF (send_count(k) .GT. 0) THEN
-                  CALL mp_isend(info%send_buf(send_disp(k)+1:send_disp(k)+send_count(k)), &
+                  CALL mp_isend(info%send_buf(send_disp(k) + 1:send_disp(k) + send_count(k)), &
                                 dest2global(k), global_comm, info%send_request(k))
                ELSE
                   info%send_request(k) = mp_request_null
@@ -1332,7 +1332,7 @@ CONTAINS
          k = 0
          DO j = 1, SIZE(destination%local_data, 2)
             DO i = 1, SIZE(destination%local_data, 1)
-               k = k+1
+               k = k + 1
                destination%local_data(i, j) = info%send_buf(k)
             END DO
          END DO
@@ -1348,20 +1348,20 @@ CONTAINS
 
          nj = info%nlocal_recv(2)
          ni = info%nlocal_recv(1)
-         ALLOCATE (recv_count(0:info%send_size-1), src_p_i(ni))
+         ALLOCATE (recv_count(0:info%send_size - 1), src_p_i(ni))
          ! Loop over the rmat, filling it in with data from the recv buffers
          ! (here the block sizes, num_pes refer to the distribution of the source matrix)
          recv_count(:) = 0
          DO i = 1, ni
-            src_p_i(i) = MOD(((recv_row_indices(i)-1)/info%nblock_src(1)), info%src_num_pe(1))
+            src_p_i(i) = MOD(((recv_row_indices(i) - 1)/info%nblock_src(1)), info%src_num_pe(1))
          END DO
 
          DO j = 1, nj
-            src_q_j = MOD(((recv_col_indices(j)-1)/info%nblock_src(2)), info%src_num_pe(2))
+            src_q_j = MOD(((recv_col_indices(j) - 1)/info%nblock_src(2)), info%src_num_pe(2))
             DO i = 1, ni
                mpi_rank = info%src_blacs2mpi(src_p_i(i), src_q_j)
-               recv_count(mpi_rank) = recv_count(mpi_rank)+1
-               destination%local_data(i, j) = info%recv_buf(info%recv_disp(mpi_rank)+recv_count(mpi_rank))
+               recv_count(mpi_rank) = recv_count(mpi_rank) + 1
+               destination%local_data(i, j) = info%recv_buf(info%recv_disp(mpi_rank) + recv_count(mpi_rank))
             END DO
          END DO
 

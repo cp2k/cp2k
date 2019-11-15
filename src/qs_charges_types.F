@@ -100,7 +100,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qs_charges))
       CPASSERT(qs_charges%ref_count > 0)
-      qs_charges%ref_count = qs_charges%ref_count+1
+      qs_charges%ref_count = qs_charges%ref_count + 1
    END SUBROUTINE qs_charges_retain
 
 ! **************************************************************************************************
@@ -118,7 +118,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_charges)) THEN
          CPASSERT(qs_charges%ref_count > 0)
-         qs_charges%ref_count = qs_charges%ref_count-1
+         qs_charges%ref_count = qs_charges%ref_count - 1
          IF (qs_charges%ref_count < 1) THEN
             DEALLOCATE (qs_charges%total_rho1_hard)
             DEALLOCATE (qs_charges%total_rho1_soft)

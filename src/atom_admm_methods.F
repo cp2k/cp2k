@@ -99,7 +99,7 @@ CONTAINS
                                 i_val=xc_funct_no_shortcut)
       ifun = 0
       DO
-         ifun = ifun+1
+         ifun = ifun + 1
          xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
          CALL section_vals_remove_values(xc_fun)
@@ -191,7 +191,7 @@ CONTAINS
                   ref_energy = atom_trace(ref_k, ref_orbs%pmata)
                   ref_k = 0.0_dp
                   CALL eeri_contract(ref_k, ref_int%eeri, ref_orbs%pmatb, ref_basis%nbas)
-                  ref_energy = ref_energy+atom_trace(ref_k, ref_orbs%pmatb)
+                  ref_energy = ref_energy + atom_trace(ref_k, ref_orbs%pmatb)
                CASE (do_rohf_atom)
                   CPABORT("ADMM not available")
                CASE DEFAULT
@@ -257,12 +257,12 @@ CONTAINS
                                    atom%state%maxl_occ, atom%state%maxn_occ)
                   CALL atom_denmat(admm1_orbs%pmatb, admm1_orbs%wfnb, admm_basis%nbas, atom%state%occb, &
                                    atom%state%maxl_occ, atom%state%maxn_occ)
-                  admm1_orbs%pmat = admm1_orbs%pmata+admm1_orbs%pmatb
+                  admm1_orbs%pmat = admm1_orbs%pmata + admm1_orbs%pmatb
                   CALL atom_denmat(admm2_orbs%pmata, admm2_orbs%wfna, admm_basis%nbas, atom%state%occa, &
                                    atom%state%maxl_occ, atom%state%maxn_occ)
                   CALL atom_denmat(admm2_orbs%pmatb, admm2_orbs%wfnb, admm_basis%nbas, atom%state%occb, &
                                    atom%state%maxl_occ, atom%state%maxn_occ)
-                  admm2_orbs%pmat = admm2_orbs%pmata+admm2_orbs%pmatb
+                  admm2_orbs%pmat = admm2_orbs%pmata + admm2_orbs%pmatb
                   elref = atom_trace(ref_int%ovlp, ref_orbs%pmata)
                   el2 = atom_trace(admm_int%ovlp, admm2_orbs%pmata)
                   xsi = elref/el2
@@ -273,7 +273,7 @@ CONTAINS
                   xsi = elref/el2
                   admmq_orbs%pmatb = xsi*admm2_orbs%pmatb
                   admmq_orbs%wfnb = SQRT(xsi)*admm2_orbs%wfnb
-                  admmq_orbs%pmat = admmq_orbs%pmata+admmq_orbs%pmatb
+                  admmq_orbs%pmat = admmq_orbs%pmata + admmq_orbs%pmatb
                   el1 = atom_trace(admm_int%ovlp, admm1_orbs%pmat)
                   el2 = atom_trace(admm_int%ovlp, admm2_orbs%pmat)
                   elq = atom_trace(admm_int%ovlp, admmq_orbs%pmat)
@@ -284,19 +284,19 @@ CONTAINS
                   admm1_k_energy = atom_trace(admm1_k, admm1_orbs%pmata)
                   admm1_k = 0.0_dp
                   CALL eeri_contract(admm1_k, admm_int%eeri, admm1_orbs%pmatb, admm_basis%nbas)
-                  admm1_k_energy = admm1_k_energy+atom_trace(admm1_k, admm1_orbs%pmatb)
+                  admm1_k_energy = admm1_k_energy + atom_trace(admm1_k, admm1_orbs%pmatb)
                   admm2_k = 0.0_dp
                   CALL eeri_contract(admm2_k, admm_int%eeri, admm2_orbs%pmata, admm_basis%nbas)
                   admm2_k_energy = atom_trace(admm2_k, admm2_orbs%pmata)
                   admm2_k = 0.0_dp
                   CALL eeri_contract(admm2_k, admm_int%eeri, admm2_orbs%pmatb, admm_basis%nbas)
-                  admm2_k_energy = admm2_k_energy+atom_trace(admm2_k, admm2_orbs%pmatb)
+                  admm2_k_energy = admm2_k_energy + atom_trace(admm2_k, admm2_orbs%pmatb)
                   admmq_k = 0.0_dp
                   CALL eeri_contract(admmq_k, admm_int%eeri, admmq_orbs%pmata, admm_basis%nbas)
                   admmq_k_energy = atom_trace(admmq_k, admmq_orbs%pmata)
                   admmq_k = 0.0_dp
                   CALL eeri_contract(admmq_k, admm_int%eeri, admmq_orbs%pmatb, admm_basis%nbas)
-                  admmq_k_energy = admmq_k_energy+atom_trace(admmq_k, admmq_orbs%pmatb)
+                  admmq_k_energy = admmq_k_energy + atom_trace(admmq_k, admmq_orbs%pmatb)
                END IF
                DEALLOCATE (lamat)
                !
@@ -355,54 +355,54 @@ CONTAINS
                   WRITE (iw, "(' Norm of ADMM Basis projection ',T61,F20.10)") el2/elref
                   WRITE (iw, "(' Reference Exchange Energy [Hartree]',T61,F20.10)") ref_energy
                   ! ADMM1
-                  dxk = ref_energy-admm1_k_energy
+                  dxk = ref_energy - admm1_k_energy
                   WRITE (iw, "(A,F20.10,T60,A,F13.10)") " ADMM1 METHOD: Energy ", admm1_k_energy, &
                      " Error: ", dxk
-                  dxc = fexc_pbex_ref-fexc_pbex_admm1
+                  dxc = fexc_pbex_ref - fexc_pbex_admm1
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "PBEX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
-                  dxc = fexc_optx_ref-fexc_optx_admm1
+                     " Error: ", dxk - dxc
+                  dxc = fexc_optx_ref - fexc_optx_admm1
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "OPTX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                   dxc = dfexc_admm1
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "LINX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                   ! ADMM2
-                  dxk = ref_energy-admm2_k_energy
+                  dxk = ref_energy - admm2_k_energy
                   WRITE (iw, "(A,F20.10,T60,A,F13.10)") " ADMM2 METHOD: Energy ", admm2_k_energy, &
                      " Error: ", dxk
-                  dxc = fexc_pbex_ref-fexc_pbex_admm2
+                  dxc = fexc_pbex_ref - fexc_pbex_admm2
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "PBEX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
-                  dxc = fexc_optx_ref-fexc_optx_admm2
+                     " Error: ", dxk - dxc
+                  dxc = fexc_optx_ref - fexc_optx_admm2
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "OPTX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                   dxc = dfexc_admm2
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "LINX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                   ! ADMMQ
-                  dxk = ref_energy-admmq_k_energy
+                  dxk = ref_energy - admmq_k_energy
                   WRITE (iw, "(A,F20.10,T60,A,F13.10)") " ADMMQ METHOD: Energy ", admmq_k_energy, &
                      " Error: ", dxk
-                  dxc = fexc_pbex_ref-fexc_pbex_admmq
+                  dxc = fexc_pbex_ref - fexc_pbex_admmq
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "PBEX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
-                  dxc = fexc_optx_ref-fexc_optx_admmq
+                     " Error: ", dxk - dxc
+                  dxc = fexc_optx_ref - fexc_optx_admmq
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "OPTX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                   dxc = dfexc_admmq
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "LINX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                   ! ADMMS
-                  dxk = ref_energy-admmq_k_energy
+                  dxk = ref_energy - admmq_k_energy
                   WRITE (iw, "(A,F20.10,T60,A,F13.10)") " ADMMS METHOD: Energy ", admmq_k_energy, &
                      " Error: ", dxk
-                  dxc = fexc_pbex_ref-fexc_pbex_admmq*xsi**(2._dp/3._dp)
+                  dxc = fexc_pbex_ref - fexc_pbex_admmq*xsi**(2._dp/3._dp)
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "PBEX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
-                  dxc = fexc_optx_ref-fexc_optx_admmq*xsi**(2._dp/3._dp)
+                     " Error: ", dxk - dxc
+                  dxc = fexc_optx_ref - fexc_optx_admmq*xsi**(2._dp/3._dp)
                   WRITE (iw, "(T10,A,F12.6,F12.3,'%',T60,A,F13.10)") "OPTX Correction  ", dxc, dxc/dxk*100._dp, &
-                     " Error: ", dxk-dxc
+                     " Error: ", dxk - dxc
                END IF
                !
                DEALLOCATE (admm1_k, admm2_k, admmq_k)
@@ -457,7 +457,7 @@ CONTAINS
             DO j = 1, n
                lamat(i, j) = 0.0_dp
                DO k = 1, n
-                  lamat(i, j) = lamat(i, j)+vmat(i, k)*w(k)*vmat(j, k)
+                  lamat(i, j) = lamat(i, j) + vmat(i, k)*w(k)*vmat(j, k)
                END DO
             END DO
          END DO

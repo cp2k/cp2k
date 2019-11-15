@@ -87,7 +87,7 @@ CONTAINS
       CALL compute_exponential(exp_H_new, propagator_matrix, rtp_control, rtp)
 
       DO i = 1, SIZE(mos_new)/2
-         re = 2*i-1
+         re = 2*i - 1
          im = 2*i
 
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=nmo)
@@ -160,7 +160,7 @@ CONTAINS
       CALL dbcsr_create(tmp_im, template=propagator_matrix(1)%matrix, matrix_type="N")
 
       DO i = 1, SIZE(exp_H_new)/2
-         re = 2*i-1
+         re = 2*i - 1
          im = 2*i
          !Save some work by computing the first half of the propagation only once in case of ETRS
          !For EM this matrix has to be the initial matrix, thus a copy is enough
@@ -234,7 +234,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspin
-         re = ispin*2-1
+         re = ispin*2 - 1
          im = ispin*2
          IF (rtp_control%fixed_ions .AND. .NOT. rtp%do_hfx) THEN
             CALL arnoldi(mos_old(re:im), mos_new(re:im), &
@@ -284,7 +284,7 @@ CONTAINS
                    rho_next=rho_next)
 
       DO ispin = 1, SIZE(propagator_matrix)/2
-         re = 2*ispin-1
+         re = 2*ispin - 1
          im = 2*ispin
 
          IF (rtp%iter == 1) THEN
@@ -363,7 +363,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, SIZE(propagator)/2
-         re = 2*ispin-1
+         re = 2*ispin - 1
          im = 2*ispin
 
          SELECT CASE (rtp_control%mat_exp)
@@ -418,7 +418,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       DO ispin = 1, SIZE(propagator)/2
-         re = 2*ispin-1
+         re = 2*ispin - 1
          im = 2*ispin
          IF (rtp_control%fixed_ions .AND. .NOT. rtp%do_hfx) THEN
             CALL taylor_only_imaginary_dbcsr(propagator(re:im), propagator_matrix(im)%matrix, &

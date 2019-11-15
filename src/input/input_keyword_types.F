@@ -191,16 +191,16 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(keyword))
       ALLOCATE (keyword)
       keyword%ref_count = 1
-      last_keyword_id = last_keyword_id+1
+      last_keyword_id = last_keyword_id + 1
       keyword%id_nr = last_keyword_id
       NULLIFY (keyword%unit)
       keyword%location = location
 
       IF (PRESENT(variants)) THEN
-         ALLOCATE (keyword%names(SIZE(variants)+1))
+         ALLOCATE (keyword%names(SIZE(variants) + 1))
          keyword%names(1) = name
          DO i = 1, SIZE(variants)
-            keyword%names(i+1) = variants(i)
+            keyword%names(i + 1) = variants(i)
          END DO
       ELSE
          ALLOCATE (keyword%names(1))
@@ -399,7 +399,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(keyword))
       CPASSERT(keyword%ref_count > 0)
-      keyword%ref_count = keyword%ref_count+1
+      keyword%ref_count = keyword%ref_count + 1
    END SUBROUTINE keyword_retain
 
 ! **************************************************************************************************
@@ -415,7 +415,7 @@ CONTAINS
 
       IF (ASSOCIATED(keyword)) THEN
          CPASSERT(keyword%ref_count > 0)
-         keyword%ref_count = keyword%ref_count-1
+         keyword%ref_count = keyword%ref_count - 1
          IF (keyword%ref_count == 0) THEN
             DEALLOCATE (keyword%names)
             DEALLOCATE (keyword%description)
@@ -578,12 +578,12 @@ CONTAINS
                   l = 17
                   DO i = 1, SIZE(keyword%enum%c_vals)
                      c_string = keyword%enum%c_vals(i)
-                     IF (l+LEN_TRIM(c_string) > 72 .AND. l > 14) THEN
+                     IF (l + LEN_TRIM(c_string) > 72 .AND. l > 14) THEN
                         WRITE (unit_nr, "(/,'    ')", advance='NO')
                         l = 4
                      END IF
                      WRITE (unit_nr, "(' ',a)", advance='NO') TRIM(c_string)
-                     l = LEN_TRIM(c_string)+3
+                     l = LEN_TRIM(c_string) + 3
                   END DO
                   WRITE (unit_nr, "()")
                END IF
@@ -640,10 +640,10 @@ CONTAINS
       ! Indentation for current level, next level, etc.
 
       l0 = level
-      l1 = level+1
-      l2 = level+2
-      l3 = level+3
-      l4 = level+4
+      l1 = level + 1
+      l2 = level + 2
+      l3 = level + 3
+      l4 = level + 4
 
       IF (keyword%repeats) THEN
          repeats = "yes"
@@ -822,16 +822,16 @@ CONTAINS
       DO i = 1, SIZE(keyword%names)
          imatch = typo_match(TRIM(keyword%names(i)), TRIM(unknown_string))
          IF (imatch > 0) THEN
-            imatch = imatch+bonus
+            imatch = imatch + bonus
             WRITE (line, '(T2,A)') " keyword "//TRIM(keyword%names(i))//" in section "//TRIM(location_string)
             imax = SIZE(matching_rank, 1)
-            irank = imax+1
+            irank = imax + 1
             DO k = imax, 1, -1
                IF (imatch > matching_rank(k)) irank = k
             ENDDO
             IF (irank <= imax) THEN
-               matching_rank(irank+1:imax) = matching_rank(irank:imax-1)
-               matching_string(irank+1:imax) = matching_string(irank:imax-1)
+               matching_rank(irank + 1:imax) = matching_rank(irank:imax - 1)
+               matching_string(irank + 1:imax) = matching_string(irank:imax - 1)
                matching_rank(irank) = imatch
                matching_string(irank) = line
             ENDIF
@@ -841,18 +841,18 @@ CONTAINS
             DO j = 1, SIZE(keyword%enum%c_vals)
                imatch = typo_match(TRIM(keyword%enum%c_vals(j)), TRIM(unknown_string))
                IF (imatch > 0) THEN
-                  imatch = imatch+bonus
+                  imatch = imatch + bonus
                   WRITE (line, '(T2,A)') " enum "//TRIM(keyword%enum%c_vals(j))// &
                      " in section "//TRIM(location_string)// &
                      " for keyword "//TRIM(keyword%names(i))
                   imax = SIZE(matching_rank, 1)
-                  irank = imax+1
+                  irank = imax + 1
                   DO k = imax, 1, -1
                      IF (imatch > matching_rank(k)) irank = k
                   ENDDO
                   IF (irank <= imax) THEN
-                     matching_rank(irank+1:imax) = matching_rank(irank:imax-1)
-                     matching_string(irank+1:imax) = matching_string(irank:imax-1)
+                     matching_rank(irank + 1:imax) = matching_rank(irank:imax - 1)
+                     matching_string(irank + 1:imax) = matching_string(irank:imax - 1)
                      matching_rank(irank) = imatch
                      matching_string(irank) = line
                   ENDIF

@@ -114,7 +114,7 @@ CONTAINS
          Ndim = SIZE(radius)
          Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
             Found = .FALSE.
-            Loop_on_found_values: DO J = 1, SIZE(radius)-1
+            Loop_on_found_values: DO J = 1, SIZE(radius) - 1
                IF (mm_el_pot_radius(i) .EQ. radius(j)) THEN
                   Found = .TRUE.
                   EXIT Loop_on_found_values
@@ -124,24 +124,24 @@ CONTAINS
                Ndim = SIZE(radius)
                radius(Ndim) = mm_el_pot_radius(i)
                c_radius(Ndim) = mm_el_pot_radius_corr(i)
-               Ndim = Ndim+1
+               Ndim = Ndim + 1
                CALL REALLOCATE(radius, 1, Ndim)
                CALL REALLOCATE(c_radius, 1, Ndim)
             END IF
          END DO Loop_on_all_values
          !
-         IF (Ndim-1 > 0) THEN
-            CALL REALLOCATE(radius, 1, Ndim-1)
-            CALL REALLOCATE(c_radius, 1, Ndim-1)
-         ELSE IF (Ndim-1 == 0) THEN
+         IF (Ndim - 1 > 0) THEN
+            CALL REALLOCATE(radius, 1, Ndim - 1)
+            CALL REALLOCATE(c_radius, 1, Ndim - 1)
+         ELSE IF (Ndim - 1 == 0) THEN
             DEALLOCATE (radius)
             DEALLOCATE (c_radius)
          ELSE
             CPABORT("")
          END IF
          !
-         ALLOCATE (qmmm_gaussian_fns(Ndim-1))
-         DO I = 1, Ndim-1
+         ALLOCATE (qmmm_gaussian_fns(Ndim - 1))
+         DO I = 1, Ndim - 1
             NULLIFY (qmmm_gaussian_fns(I)%pgf)
             ALLOCATE (qmmm_gaussian_fns(I)%pgf)
             NULLIFY (qmmm_gaussian_fns(I)%pgf%Ak)

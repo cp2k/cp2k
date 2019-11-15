@@ -166,8 +166,8 @@ CONTAINS
 
          CALL dbcsr_add(matrix_out, matrix_temp, 1.0_dp, 1.0_dp)
 
-         offset(1) = offset(1)+submatrix_size(1)
-         offset(2) = offset(2)+submatrix_size(2)
+         offset(1) = offset(1) + submatrix_size(1)
+         offset(2) = offset(2) + submatrix_size(2)
 
       ENDDO
 
@@ -225,13 +225,13 @@ CONTAINS
          add_blocks_before(dimen) = 0
          add_blocks_after = 0
          start_index = 1
-         trailing_size = matrix_size(dimen)-offset(dimen)-submatrix_size(dimen)
+         trailing_size = matrix_size(dimen) - offset(dimen) - submatrix_size(dimen)
          IF (offset(dimen) .GT. 0) THEN
-            add_blocks_before(dimen) = add_blocks_before(dimen)+1
+            add_blocks_before(dimen) = add_blocks_before(dimen) + 1
             start_index = 2
          ENDIF
          IF (trailing_size .GT. 0) THEN
-            add_blocks_after = add_blocks_after+1
+            add_blocks_after = add_blocks_after + 1
          ENDIF
 
          IF (dimen == 1) THEN !rows
@@ -243,7 +243,7 @@ CONTAINS
          ENDIF
          nblocks = SIZE(blk_sizes) ! number of blocks in the small matrix
 
-         nblocks_new = nblocks+add_blocks_before(dimen)+add_blocks_after
+         nblocks_new = nblocks + add_blocks_before(dimen) + add_blocks_after
          ALLOCATE (block_sizes_new(nblocks_new))
          ALLOCATE (distr_new_array(nblocks_new))
          !IF (ASSOCIATED(cluster_distr)) THEN
@@ -256,8 +256,8 @@ CONTAINS
             !cluster_distr_new(1) = 0
             !END IF
          ENDIF
-         block_sizes_new(start_index:nblocks+start_index-1) = blk_sizes(1:nblocks)
-         distr_new_array(start_index:nblocks+start_index-1) = blk_distr(1:nblocks)
+         block_sizes_new(start_index:nblocks + start_index - 1) = blk_sizes(1:nblocks)
+         distr_new_array(start_index:nblocks + start_index - 1) = blk_distr(1:nblocks)
          !IF (ASSOCIATED(cluster_distr)) THEN
          !cluster_distr_new(start_index:nblocks+start_index-1) = cluster_distr(1:nblocks)
          !END IF
@@ -313,8 +313,8 @@ CONTAINS
          ! to work
          NULLIFY (p_new_block)
          CALL dbcsr_reserve_block2d(matrix_new, &
-                                    iblock_row+add_blocks_before(1), &
-                                    iblock_col+add_blocks_before(2), &
+                                    iblock_row + add_blocks_before(1), &
+                                    iblock_col + add_blocks_before(2), &
                                     p_new_block)
 
          CPASSERT(ASSOCIATED(p_new_block))

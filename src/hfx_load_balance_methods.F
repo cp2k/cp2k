@@ -218,7 +218,7 @@ CONTAINS
 !$OMP MASTER
          CALL timeset(routineN//"_range", handle_range)
 
-         nblocks = MAX((natom+block_size-1)/block_size, 1)
+         nblocks = MAX((natom + block_size - 1)/block_size, 1)
          ALLOCATE (blocks_guess(nblocks))
          ALLOCATE (tmp_blocks(natom))
          ALLOCATE (tmp_blocks2(natom))
@@ -244,15 +244,15 @@ CONTAINS
          total_block_self_cost = 0
 
          DO i = 1, nblocks
-            total_block_self_cost = total_block_self_cost+blocks_guess(i)%cost
+            total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
          END DO
 
          CALL mp_sum(total_block_self_cost, para_env%group)
 
          objective_block_size = load_balance_parameter%block_size
-         objective_nblocks = MAX((natom+objective_block_size-1)/objective_block_size, 1)
+         objective_nblocks = MAX((natom + objective_block_size - 1)/objective_block_size, 1)
 
-         self_cost_per_block = (total_block_self_cost+objective_nblocks-1)/(objective_nblocks)
+         self_cost_per_block = (total_block_self_cost + objective_nblocks - 1)/(objective_nblocks)
 
          DO i = 1, nblocks
             tmp_blocks2(i) = blocks_guess(i)
@@ -261,18 +261,18 @@ CONTAINS
          optimized = .FALSE.
          i = 0
          DO WHILE (.NOT. optimized)
-            i = i+1
+            i = i + 1
             current_block_id = 0
             changed = .FALSE.
             DO atom_block = 1, nblocks
-               current_block_id = current_block_id+1
+               current_block_id = current_block_id + 1
                iatom_start = tmp_blocks2(atom_block)%istart
                iatom_end = tmp_blocks2(atom_block)%iend
-               IF (tmp_blocks2(atom_block)%cost > 1.5_dp*self_cost_per_block .AND. iatom_end-iatom_start > 0) THEN
+               IF (tmp_blocks2(atom_block)%cost > 1.5_dp*self_cost_per_block .AND. iatom_end - iatom_start > 0) THEN
                   changed = .TRUE.
                   new_iatom_start = iatom_start
-                  new_iatom_end = (iatom_end-iatom_start+1)/2+iatom_start-1
-                  new_jatom_start = new_iatom_end+1
+                  new_iatom_end = (iatom_end - iatom_start + 1)/2 + iatom_start - 1
+                  new_jatom_start = new_iatom_end + 1
                   new_jatom_end = iatom_end
                   tmp_blocks(current_block_id)%istart = new_iatom_start
                   tmp_blocks(current_block_id)%iend = new_iatom_end
@@ -287,7 +287,7 @@ CONTAINS
                                                       cell, &
                                                       do_p_screening, map_atom_to_kind_atom, eval_type, &
                                                       log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
-                  current_block_id = current_block_id+1
+                  current_block_id = current_block_id + 1
                   tmp_blocks(current_block_id)%istart = new_jatom_start
                   tmp_blocks(current_block_id)%iend = new_jatom_end
                   tmp_blocks(current_block_id)%cost = estimate_block_cost( &
@@ -321,18 +321,18 @@ CONTAINS
          non_empty_blocks = 0
          DO atom_block = 1, nblocks
             IF (tmp_blocks(atom_block)%istart == 0) CYCLE
-            non_empty_blocks = non_empty_blocks+1
+            non_empty_blocks = non_empty_blocks + 1
          END DO
 
          ALLOCATE (rcount(ncpu))
          rcount = 0
-         rcount(para_env%mepos+1) = non_empty_blocks
+         rcount(para_env%mepos + 1) = non_empty_blocks
          CALL mp_sum(rcount, para_env%group)
 
          ! ** sum all non_empty_blocks
          total_blocks = 0
          DO i = 1, ncpu
-            total_blocks = total_blocks+rcount(i)
+            total_blocks = total_blocks + rcount(i)
          END DO
 
          ! ** calculate offsets
@@ -340,7 +340,7 @@ CONTAINS
          rcount(:) = rcount(:)*3
          rdispl(1) = 0
          DO i = 2, ncpu
-            rdispl(i) = rdispl(i-1)+rcount(i-1)
+            rdispl(i) = rdispl(i - 1) + rcount(i - 1)
          END DO
 
          ALLOCATE (buffer_in(3*non_empty_blocks))
@@ -348,10 +348,10 @@ CONTAINS
          non_empty_blocks = 0
          DO atom_block = 1, nblocks
             IF (tmp_blocks(atom_block)%istart == 0) CYCLE
-            buffer_in(non_empty_blocks*3+1) = tmp_blocks(atom_block)%istart
-            buffer_in(non_empty_blocks*3+2) = tmp_blocks(atom_block)%iend
-            buffer_in(non_empty_blocks*3+3) = tmp_blocks(atom_block)%cost
-            non_empty_blocks = non_empty_blocks+1
+            buffer_in(non_empty_blocks*3 + 1) = tmp_blocks(atom_block)%istart
+            buffer_in(non_empty_blocks*3 + 2) = tmp_blocks(atom_block)%iend
+            buffer_in(non_empty_blocks*3 + 3) = tmp_blocks(atom_block)%cost
+            non_empty_blocks = non_empty_blocks + 1
          END DO
 
          nblocks = total_blocks
@@ -364,9 +364,9 @@ CONTAINS
          CALL mp_allgather(buffer_in, buffer_out, rcount, rdispl, para_env%group)
 
          DO i = 1, nblocks
-            tmp_blocks2(i)%istart = INT(buffer_out((i-1)*3+1))
-            tmp_blocks2(i)%iend = INT(buffer_out((i-1)*3+2))
-            tmp_blocks2(i)%cost = buffer_out((i-1)*3+3)
+            tmp_blocks2(i)%istart = INT(buffer_out((i - 1)*3 + 1))
+            tmp_blocks2(i)%iend = INT(buffer_out((i - 1)*3 + 2))
+            tmp_blocks2(i)%cost = buffer_out((i - 1)*3 + 3)
          END DO
 
          ! ** Now we sort the blocks
@@ -469,19 +469,19 @@ CONTAINS
 !$OMP BARRIER
 
          cost_per_core = 0_int_8
-         my_process_id = para_env%mepos*n_threads+i_thread
+         my_process_id = para_env%mepos*n_threads + i_thread
          nblocks = load_balance_parameter%nblocks
 
-         DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4-1, n_processes
+         DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4 - 1, n_processes
 
-            latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8)))+1
+            latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8))) + 1
             tmp_block = atom_block/nblocks
-            katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+            katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             IF (latom_block < katom_block) CYCLE
             tmp_block = tmp_block/nblocks
-            jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+            jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             tmp_block = tmp_block/nblocks
-            iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+            iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             IF (jatom_block < iatom_block) CYCLE
 
             iatom_start = x_data%blocks(iatom_block)%istart
@@ -500,30 +500,30 @@ CONTAINS
                                  pmax_block(latom_block, iatom_block), &
                                  pmax_block(katom_block, jatom_block))
             CASE (hfx_do_eval_forces)
-               pmax_blocks = MAX(pmax_block(katom_block, iatom_block)+ &
+               pmax_blocks = MAX(pmax_block(katom_block, iatom_block) + &
                                  pmax_block(latom_block, jatom_block), &
-                                 pmax_block(latom_block, iatom_block)+ &
+                                 pmax_block(latom_block, iatom_block) + &
                                  pmax_block(katom_block, jatom_block))
             END SELECT
 
-            IF (2.0_dp*coeffs_kind_max0+pmax_blocks < log10_eps_schwarz) CYCLE
+            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             cost_per_core = cost_per_core &
-                            +estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
-                                                 iatom_start, iatom_end, jatom_start, jatom_end, &
-                                                 katom_start, katom_end, latom_start, latom_end, &
-                                                 particle_set, &
-                                                 coeffs_set, coeffs_kind, &
-                                                 is_assoc_atomic_block_global, do_periodic, &
-                                                 kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                 cell, &
-                                                 do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                 log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+                            + estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                  iatom_start, iatom_end, jatom_start, jatom_end, &
+                                                  katom_start, katom_end, latom_start, latom_end, &
+                                                  particle_set, &
+                                                  coeffs_set, coeffs_kind, &
+                                                  is_assoc_atomic_block_global, do_periodic, &
+                                                  kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                  cell, &
+                                                  do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                  log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
 
          END DO ! atom_block
 
          nbins = load_balance_parameter%nbins
-         cost_per_bin = (cost_per_core+nbins-1)/(nbins)
+         cost_per_bin = (cost_per_core + nbins - 1)/(nbins)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -567,19 +567,19 @@ CONTAINS
          global_quartet_counter = 0
          local_quartet_counter = 0
          last_bin_needs_to_be_filled = .FALSE.
-         DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4-1, n_processes
-            latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8)))+1
+         DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4 - 1, n_processes
+            latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8))) + 1
             tmp_block = atom_block/nblocks
-            katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+            katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             IF (latom_block < katom_block) CYCLE
             tmp_block = tmp_block/nblocks
-            jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+            jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             tmp_block = tmp_block/nblocks
-            iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+            iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
             IF (jatom_block < iatom_block) CYCLE
 
-            distribution_counter_end = distribution_counter_end+1
-            global_quartet_counter = global_quartet_counter+1
+            distribution_counter_end = distribution_counter_end + 1
+            global_quartet_counter = global_quartet_counter + 1
             last_bin_needs_to_be_filled = .TRUE.
 
             IF (binned_dist(ibin)%istart == -1_int_8) binned_dist(ibin)%istart = atom_block
@@ -600,36 +600,36 @@ CONTAINS
                                  pmax_block(latom_block, iatom_block), &
                                  pmax_block(katom_block, jatom_block))
             CASE (hfx_do_eval_forces)
-               pmax_blocks = MAX(pmax_block(katom_block, iatom_block)+ &
+               pmax_blocks = MAX(pmax_block(katom_block, iatom_block) + &
                                  pmax_block(latom_block, jatom_block), &
-                                 pmax_block(latom_block, iatom_block)+ &
+                                 pmax_block(latom_block, iatom_block) + &
                                  pmax_block(katom_block, jatom_block))
             END SELECT
 
-            IF (2.0_dp*coeffs_kind_max0+pmax_blocks < log10_eps_schwarz) CYCLE
+            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             current_cost = current_cost &
-                           +estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
-                                                iatom_start, iatom_end, jatom_start, jatom_end, &
-                                                katom_start, katom_end, latom_start, latom_end, &
-                                                particle_set, &
-                                                coeffs_set, coeffs_kind, &
-                                                is_assoc_atomic_block_global, do_periodic, &
-                                                kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                cell, &
-                                                do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+                           + estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                 iatom_start, iatom_end, jatom_start, jatom_end, &
+                                                 katom_start, katom_end, latom_start, latom_end, &
+                                                 particle_set, &
+                                                 coeffs_set, coeffs_kind, &
+                                                 is_assoc_atomic_block_global, do_periodic, &
+                                                 kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                 cell, &
+                                                 do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                 log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
 
             IF (current_cost >= cost_per_bin) THEN
                IF (ibin == nbins) THEN
-                  binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets+ &
-                                                              distribution_counter_end-distribution_counter_start+1
+                  binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
+                                                              distribution_counter_end - distribution_counter_start + 1
                ELSE
-                  binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+                  binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
                END IF
-               binned_dist(ibin)%cost = binned_dist(ibin)%cost+current_cost
-               ibin = MIN(ibin+1, nbins)
-               distribution_counter_start = distribution_counter_end+1
+               binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_cost
+               ibin = MIN(ibin + 1, nbins)
+               distribution_counter_start = distribution_counter_end + 1
                current_cost = 0
                last_bin_needs_to_be_filled = .FALSE.
             END IF
@@ -643,18 +643,18 @@ CONTAINS
 !$OMP BARRIER
          !! Fill the last bin if necessary
          IF (last_bin_needs_to_be_filled) THEN
-            binned_dist(ibin)%cost = binned_dist(ibin)%cost+current_cost
+            binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_cost
             IF (ibin == nbins) THEN
-               binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets+ &
-                                                           distribution_counter_end-distribution_counter_start+1
+               binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
+                                                           distribution_counter_end - distribution_counter_start + 1
             ELSE
-               binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+               binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
             END IF
          END IF
 
          !! Sanity-Check
          DO ibin = 1, nbins
-            local_quartet_counter = local_quartet_counter+binned_dist(ibin)%number_of_atom_quartets
+            local_quartet_counter = local_quartet_counter + binned_dist(ibin)%number_of_atom_quartets
          END DO
 !$OMP BARRIER
 !$OMP MASTER
@@ -663,9 +663,9 @@ CONTAINS
 !$OMP END MASTER
 !$OMP BARRIER
 !$OMP ATOMIC
-         shm_local_quartet_counter = shm_local_quartet_counter+local_quartet_counter
+         shm_local_quartet_counter = shm_local_quartet_counter + local_quartet_counter
 !$OMP ATOMIC
-         shm_global_quartet_counter = shm_global_quartet_counter+global_quartet_counter
+         shm_global_quartet_counter = shm_global_quartet_counter + global_quartet_counter
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -688,9 +688,9 @@ CONTAINS
          cost_matrix = 0
 !$OMP END MASTER
 !$OMP BARRIER
-         icpu = para_env%mepos+1
+         icpu = para_env%mepos + 1
          DO i = 1, nbins
-            cost_matrix((icpu-1)*nbins*n_threads+i_thread*nbins+i) = binned_dist(i)%cost
+            cost_matrix((icpu - 1)*nbins*n_threads + i_thread*nbins + i) = binned_dist(i)%cost
          END DO
          mepos = para_env%mepos
 !$OMP BARRIER
@@ -702,18 +702,18 @@ CONTAINS
          ALLOCATE (sendbuffer(nbins*n_threads))
          ALLOCATE (recbuffer(nbins*n_threads))
 
-         sendbuffer = cost_matrix(mepos*nbins*n_threads+1:mepos*nbins*n_threads+nbins*n_threads)
+         sendbuffer = cost_matrix(mepos*nbins*n_threads + 1:mepos*nbins*n_threads + nbins*n_threads)
 
-         dest = MODULO(mepos+1, ncpu)
-         source = MODULO(mepos-1, ncpu)
-         DO icpu = 0, ncpu-1
-            IF (icpu .NE. ncpu-1) THEN
+         dest = MODULO(mepos + 1, ncpu)
+         source = MODULO(mepos - 1, ncpu)
+         DO icpu = 0, ncpu - 1
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
             ENDIF
-            data_from = MODULO(mepos-icpu, ncpu)
-            cost_matrix(data_from*nbins*n_threads+1:data_from*nbins*n_threads+nbins*n_threads) = sendbuffer
-            IF (icpu .NE. ncpu-1) THEN
+            data_from = MODULO(mepos - icpu, ncpu)
+            cost_matrix(data_from*nbins*n_threads + 1:data_from*nbins*n_threads + nbins*n_threads) = sendbuffer
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
             ENDIF
             swapbuffer => sendbuffer
@@ -754,8 +754,8 @@ CONTAINS
          full_dist(:, :)%time_forces = 0.0_dp
 !$OMP END MASTER
 !$OMP BARRIER
-         mepos = para_env%mepos+1
-         full_dist((mepos-1)*n_threads+i_thread+1, :) = binned_dist(:)
+         mepos = para_env%mepos + 1
+         full_dist((mepos - 1)*n_threads + i_thread + 1, :) = binned_dist(:)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -764,31 +764,31 @@ CONTAINS
          mepos = para_env%mepos
          DO j = 1, n_threads
             DO i = 1, nbins
-               sendbuffer((j-1)*3*nbins+(i-1)*3+1) = full_dist(mepos*n_threads+j, i)%istart
-               sendbuffer((j-1)*3*nbins+(i-1)*3+2) = full_dist(mepos*n_threads+j, i)%number_of_atom_quartets
-               sendbuffer((j-1)*3*nbins+(i-1)*3+3) = full_dist(mepos*n_threads+j, i)%cost
+               sendbuffer((j - 1)*3*nbins + (i - 1)*3 + 1) = full_dist(mepos*n_threads + j, i)%istart
+               sendbuffer((j - 1)*3*nbins + (i - 1)*3 + 2) = full_dist(mepos*n_threads + j, i)%number_of_atom_quartets
+               sendbuffer((j - 1)*3*nbins + (i - 1)*3 + 3) = full_dist(mepos*n_threads + j, i)%cost
             END DO
          END DO
 
          ! sync before/after ring of isendrecv
          CALL mp_sync(para_env%group)
-         dest = MODULO(mepos+1, ncpu)
-         source = MODULO(mepos-1, ncpu)
-         DO icpu = 0, ncpu-1
-            IF (icpu .NE. ncpu-1) THEN
+         dest = MODULO(mepos + 1, ncpu)
+         source = MODULO(mepos - 1, ncpu)
+         DO icpu = 0, ncpu - 1
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
             ENDIF
-            data_from = MODULO(mepos-icpu, ncpu)
+            data_from = MODULO(mepos - icpu, ncpu)
             DO j = 1, n_threads
                DO i = 1, nbins
-                  full_dist(data_from*n_threads+j, i)%istart = sendbuffer((j-1)*3*nbins+(i-1)*3+1)
-                  full_dist(data_from*n_threads+j, i)%number_of_atom_quartets = sendbuffer((j-1)*3*nbins+(i-1)*3+2)
-                  full_dist(data_from*n_threads+j, i)%cost = sendbuffer((j-1)*3*nbins+(i-1)*3+3)
+                  full_dist(data_from*n_threads + j, i)%istart = sendbuffer((j - 1)*3*nbins + (i - 1)*3 + 1)
+                  full_dist(data_from*n_threads + j, i)%number_of_atom_quartets = sendbuffer((j - 1)*3*nbins + (i - 1)*3 + 2)
+                  full_dist(data_from*n_threads + j, i)%cost = sendbuffer((j - 1)*3*nbins + (i - 1)*3 + 3)
                END DO
             END DO
 
-            IF (icpu .NE. ncpu-1) THEN
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
             ENDIF
             swapbuffer => sendbuffer
@@ -815,18 +815,18 @@ CONTAINS
 
          DO icpu = 1, n_processes
             DO i = 1, nbins
-               mepos = my_process_id+1
-               IF (shm_distribution_vector((icpu-1)*nbins+i) == mepos) THEN
+               mepos = my_process_id + 1
+               IF (shm_distribution_vector((icpu - 1)*nbins + i) == mepos) THEN
                   tmp_dist(tmp_pos(mepos)) = full_dist(icpu, i)
-                  tmp_pos(mepos) = tmp_pos(mepos)+1
+                  tmp_pos(mepos) = tmp_pos(mepos) + 1
                END IF
             END DO
          END DO
 
          !! Assign the load to each process
          NULLIFY (ptr_to_tmp_dist)
-         mepos = my_process_id+1
-         ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
+         mepos = my_process_id + 1
+         ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos) - 1)
          SELECT CASE (eval_type)
          CASE (hfx_do_eval_energy)
             CALL hfx_set_distr_energy(ptr_to_tmp_dist, x_data)
@@ -993,20 +993,20 @@ CONTAINS
       nQ = numBins/q
 
       ! calc own position in P-Q-processor grid (PQ-grid is column-major)
-      pidx = MODULO(INT(my_process_id), INT(p))+1
-      qidx = my_process_id/p+1
+      pidx = MODULO(INT(my_process_id), INT(p)) + 1
+      qidx = my_process_id/p + 1
 
-      sizeP = SUM(blocksize((nP*(pidx-1)+1):(nP*pidx)))
-      sizeQ = SUM(blocksize((nQ*(qidx-1)+1):(nQ*qidx)))
+      sizeP = SUM(blocksize((nP*(pidx - 1) + 1):(nP*pidx)))
+      sizeQ = SUM(blocksize((nQ*(qidx - 1) + 1):(nQ*qidx)))
 
-      sumP = SUM(blocksize(1:(nP*(pidx-1))))
-      sumQ = SUM(blocksize(1:(nQ*(qidx-1))))
+      sumP = SUM(blocksize(1:(nP*(pidx - 1))))
+      sumQ = SUM(blocksize(1:(nQ*(qidx - 1))))
 
       ALLOCATE (p_atom_blocks(sizeP))
       ALLOCATE (q_atom_blocks(sizeQ))
 
-      p_atom_blocks(:) = permute((sumP+1):(sumP+sizeP))
-      q_atom_blocks(:) = permute((sumQ+1):(sumQ+sizeQ))
+      p_atom_blocks(:) = permute((sumP + 1):(sumP + sizeP))
+      q_atom_blocks(:) = permute((sumQ + 1):(sumQ + sizeQ))
 
       ! from here on, we are actually finished, each process has been
       ! assigned a (p_atom_blocks,q_atom_blocks) pair list.
@@ -1021,9 +1021,9 @@ CONTAINS
 
             !       get corresponding 4D block indices out of our own P-Q-block
             latom_block = MODULO(q_atom_blocks(j), nblocks)
-            iatom_block = q_atom_blocks(j)/nblocks+1
+            iatom_block = q_atom_blocks(j)/nblocks + 1
             jatom_block = MODULO(p_atom_blocks(i), nblocks)
-            katom_block = p_atom_blocks(i)/nblocks+1
+            katom_block = p_atom_blocks(i)/nblocks + 1
 
             !       symmetry checks.
             IF (latom_block < katom_block) CYCLE
@@ -1046,33 +1046,33 @@ CONTAINS
                                  pmax_block(latom_block, iatom_block), &
                                  pmax_block(katom_block, jatom_block))
             CASE (hfx_do_eval_forces)
-               pmax_blocks = MAX(pmax_block(katom_block, iatom_block)+ &
+               pmax_blocks = MAX(pmax_block(katom_block, iatom_block) + &
                                  pmax_block(latom_block, jatom_block), &
-                                 pmax_block(latom_block, iatom_block)+ &
+                                 pmax_block(latom_block, iatom_block) + &
                                  pmax_block(katom_block, jatom_block))
             END SELECT
 
             !       screening.
-            IF (2.0_dp*coeffs_kind_max0+pmax_blocks < log10_eps_schwarz) CYCLE
+            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             !       estimate the cost of this atom_block.
-            local_cost = local_cost+estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, &
-                                                        set_list_kl, &
-                                                        iatom_start, iatom_end, jatom_start, jatom_end, &
-                                                        katom_start, katom_end, latom_start, latom_end, &
-                                                        particle_set, &
-                                                        coeffs_set, coeffs_kind, &
-                                                        is_assoc_atomic_block_global, do_periodic, &
-                                                        kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                        cell, &
-                                                        do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                        log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+            local_cost = local_cost + estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, &
+                                                          set_list_kl, &
+                                                          iatom_start, iatom_end, jatom_start, jatom_end, &
+                                                          katom_start, katom_end, latom_start, latom_end, &
+                                                          particle_set, &
+                                                          coeffs_set, coeffs_kind, &
+                                                          is_assoc_atomic_block_global, do_periodic, &
+                                                          kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                          cell, &
+                                                          do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                          log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
          END DO
       END DO
 
       ALLOCATE (local_cost_vector(n_processes))
       local_cost_vector = 0
-      local_cost_vector(my_process_id+1) = local_cost
+      local_cost_vector(my_process_id + 1) = local_cost
       CALL mp_sum(local_cost_vector, para_env%group)
 
       mean = SUM(local_cost_vector)/n_processes
@@ -1135,7 +1135,7 @@ CONTAINS
          IF (MODULO(N, k) == 0) THEN
             p = k
          END IF
-         k = k+1
+         k = k + 1
       END DO
       q = N/p
 
@@ -1147,9 +1147,9 @@ CONTAINS
 
       DO WHILE (b .NE. 0)
          IF (a > b) THEN
-            a = a-b
+            a = a - b
          ELSE
-            b = b-a
+            b = b - a
          END IF
       END DO
       ! gcd(p,q) is now saved in a
@@ -1266,34 +1266,34 @@ CONTAINS
       cost_vector = 0.0_dp
 
 !   loop over local atom_blocks.
-      DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4-1, n_processes
+      DO atom_block = my_process_id, INT(nblocks, KIND=int_8)**4 - 1, n_processes
 
 !       get corresponding 4D block indices
-         latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8)))+1
+         latom_block = INT(MODULO(atom_block, INT(nblocks, KIND=int_8))) + 1
          tmp_block = atom_block/nblocks
-         katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+         katom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
          IF (latom_block < katom_block) CYCLE
          tmp_block = tmp_block/nblocks
-         jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+         jatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
          tmp_block = tmp_block/nblocks
-         iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8)))+1
+         iatom_block = INT(MODULO(tmp_block, INT(nblocks, KIND=int_8))) + 1
          IF (jatom_block < iatom_block) CYCLE
 
 !       get 2D indices of this atom_block (with permutation applied)
 !       for this, we need to invert the permutation, this means
 !       find position in permutation vector where value==idx
 
-         row = (katom_block-1)*nblocks+jatom_block
+         row = (katom_block - 1)*nblocks + jatom_block
          inv_perm = 1
          DO WHILE (permute(inv_perm) .NE. row)
-            inv_perm = inv_perm+1
+            inv_perm = inv_perm + 1
          END DO
          row = inv_perm
 
-         col = (iatom_block-1)*nblocks+latom_block
+         col = (iatom_block - 1)*nblocks + latom_block
          inv_perm = 1
          DO WHILE (permute(inv_perm) .NE. col)
-            inv_perm = inv_perm+1
+            inv_perm = inv_perm + 1
          END DO
          col = inv_perm
 
@@ -1318,14 +1318,14 @@ CONTAINS
                               pmax_block(latom_block, iatom_block), &
                               pmax_block(katom_block, jatom_block))
          CASE (hfx_do_eval_forces)
-            pmax_blocks = MAX(pmax_block(katom_block, iatom_block)+ &
+            pmax_blocks = MAX(pmax_block(katom_block, iatom_block) + &
                               pmax_block(latom_block, jatom_block), &
-                              pmax_block(latom_block, iatom_block)+ &
+                              pmax_block(latom_block, iatom_block) + &
                               pmax_block(katom_block, jatom_block))
          END SELECT
 
 !       screening.
-         IF (2.0_dp*coeffs_kind_max0+pmax_blocks < log10_eps_schwarz) CYCLE
+         IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
 !       every second recursion step, compute row sum instead of column sum
 
@@ -1348,7 +1348,7 @@ CONTAINS
                                            do_p_screening, map_atom_to_kind_atom, eval_type, &
                                            log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
 
-         cost_vector(idx) = cost_vector(idx)+partialcost
+         cost_vector(idx) = cost_vector(idx) + partialcost
       END DO ! atom_block
 
 !   sum costvector over all processes
@@ -1357,7 +1357,7 @@ CONTAINS
 !   calculate next prime factor of nProc
       nBins = 2
       DO WHILE (MODULO(INT(nProc), INT(nBins)) .NE. 0)
-         nBins = nBins+1
+         nBins = nBins + 1
       END DO
 
       nProc = nProc/nBins
@@ -1365,7 +1365,7 @@ CONTAINS
 ! ... do the binning...
 
       ALLOCATE (localblocksize(nBins))
-      CALL hfx_permute_binning(nBins, cost_vector(blockstart:blockend), blockend-blockstart+1, bin_perm, localblocksize)
+      CALL hfx_permute_binning(nBins, cost_vector(blockstart:blockend), blockend - blockstart + 1, bin_perm, localblocksize)
 
 !... and update the permutation vector
 
@@ -1376,11 +1376,11 @@ CONTAINS
       IF (nProc > 1) THEN
          ALLOCATE (ithblocksize(nProc))
          DO i = 1, nBins
-            startoffset = SUM(localblocksize(1:(i-1)))
-            endoffset = SUM(localblocksize(1:i))-1
+            startoffset = SUM(localblocksize(1:(i - 1)))
+            endoffset = SUM(localblocksize(1:i)) - 1
 
-            CALL hfx_recursive_permute(ithblocksize, blockstart+startoffset, blockstart+endoffset, nProc, &
-                                       permute, step+1, &
+            CALL hfx_recursive_permute(ithblocksize, blockstart + startoffset, blockstart + endoffset, nProc, &
+                                       permute, step + 1, &
                                        my_process_id, n_processes, nblocks, &
                                        natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
                                        particle_set, &
@@ -1390,7 +1390,7 @@ CONTAINS
                                        cell, x_data, para_env, pmax_block, &
                                        do_p_screening, map_atom_to_kind_atom, eval_type, &
                                        log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
-            blocksize(((i-1)*nProc+1):(i*nProc)) = ithblocksize
+            blocksize(((i - 1)*nProc + 1):(i*nProc)) = ithblocksize
          END DO
          DEALLOCATE (ithblocksize)
       ELSE
@@ -1442,8 +1442,8 @@ CONTAINS
       DO i = maxbinsize, 1, -1
          IF (vec(i) == 0) THEN
             ! spread zero-cost col/rows evenly among procs
-            mod_idx = MODULO(i, nBins)+1 !(note the fortran offset by one!)
-            block_count(mod_idx) = block_count(mod_idx)+1
+            mod_idx = MODULO(i, nBins) + 1 !(note the fortran offset by one!)
+            block_count(mod_idx) = block_count(mod_idx) + 1
             bin(mod_idx, block_count(mod_idx)) = idx(i)
          ELSE
             ! sort the bins so that the one with the lowest cost is at the
@@ -1452,8 +1452,8 @@ CONTAINS
             block_count = block_count(bin_idx)
             bin = bin(bin_idx, :)
 
-            bincosts(1) = bincosts(1)+vec(i)
-            block_count(1) = block_count(1)+1
+            bincosts(1) = bincosts(1) + vec(i)
+            block_count(1) = block_count(1) + 1
             bin(1, block_count(1)) = idx(i)
          END IF
       END DO
@@ -1462,9 +1462,9 @@ CONTAINS
       offset = 0
       DO i = 1, nBins
          DO j = 1, block_count(i)
-            perm(offset+j) = bin(i, j)
+            perm(offset + j) = bin(i, j)
          END DO
-         offset = offset+block_count(i)
+         offset = offset + block_count(i)
       END DO
 
    END SUBROUTINE hfx_permute_binning
@@ -1534,7 +1534,7 @@ CONTAINS
          DEALLOCATE (tmp_dist)
       ELSE
          mepos = para_env%mepos
-         my_process_id = para_env%mepos*n_threads+i_thread
+         my_process_id = para_env%mepos*n_threads + i_thread
          nbins = load_balance_parameter%nbins
 !$OMP MASTER
          ALLOCATE (bin_histogram(n_processes, 2))
@@ -1547,16 +1547,16 @@ CONTAINS
          CASE (hfx_do_eval_forces)
             my_bin_size = SIZE(x_data%distribution_forces)
          END SELECT
-         bin_histogram(my_process_id+1, 1) = my_bin_size
+         bin_histogram(my_process_id + 1, 1) = my_bin_size
 !$OMP BARRIER
 !$OMP MASTER
          CALL mp_sum(bin_histogram(:, 1), para_env%group)
          bin_histogram(1, 2) = bin_histogram(1, 1)
          DO iprocess = 2, n_processes
-            bin_histogram(iprocess, 2) = bin_histogram(iprocess-1, 2)+bin_histogram(iprocess, 1)
+            bin_histogram(iprocess, 2) = bin_histogram(iprocess - 1, 2) + bin_histogram(iprocess, 1)
          END DO
 
-         max_bin_size = MAXVAL(bin_histogram(para_env%mepos*n_threads+1:para_env%mepos*n_threads+n_threads, 1))
+         max_bin_size = MAXVAL(bin_histogram(para_env%mepos*n_threads + 1:para_env%mepos*n_threads + n_threads, 1))
          CALL mp_max(max_bin_size, para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
@@ -1576,7 +1576,7 @@ CONTAINS
                SELECT CASE (eval_type)
                CASE (hfx_do_eval_energy)
                   IF (.NOT. load_balance_parameter%rtp_redistribute) THEN
-                     binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf+ &
+                     binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
                                                    binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
                   ELSE
                      binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
@@ -1595,10 +1595,10 @@ CONTAINS
          ALLOCATE (recbuffer(max_bin_size*n_threads))
 !$OMP END MASTER
 !$OMP BARRIER
-         my_global_start_idx = bin_histogram(my_process_id+1, 2)-my_bin_size
-         icpu = para_env%mepos+1
+         my_global_start_idx = bin_histogram(my_process_id + 1, 2) - my_bin_size
+         icpu = para_env%mepos + 1
          DO i = 1, my_bin_size
-            cost_matrix(my_global_start_idx+i) = binned_dist(i)%cost
+            cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
          END DO
 
          mepos = para_env%mepos
@@ -1607,26 +1607,26 @@ CONTAINS
          ALLOCATE (bins_per_rank(ncpu))
          bins_per_rank = 0
          DO icpu = 1, ncpu
-            bins_per_rank(icpu) = SUM(bin_histogram((icpu-1)*n_threads+1:(icpu-1)*n_threads+n_threads, 1))
+            bins_per_rank(icpu) = SUM(bin_histogram((icpu - 1)*n_threads + 1:(icpu - 1)*n_threads + n_threads, 1))
          END DO
-         sendbuffer(1:bins_per_rank(para_env%mepos+1)) = &
-            cost_matrix(my_global_start_idx+1:my_global_start_idx+bins_per_rank(para_env%mepos+1))
+         sendbuffer(1:bins_per_rank(para_env%mepos + 1)) = &
+            cost_matrix(my_global_start_idx + 1:my_global_start_idx + bins_per_rank(para_env%mepos + 1))
 
-         dest = MODULO(mepos+1, ncpu)
-         source = MODULO(mepos-1, ncpu)
+         dest = MODULO(mepos + 1, ncpu)
+         source = MODULO(mepos - 1, ncpu)
          ! sync before/after ring of isendrecv
          CALL mp_sync(para_env%group)
-         DO icpu = 0, ncpu-1
-            IF (icpu .NE. ncpu-1) THEN
+         DO icpu = 0, ncpu - 1
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
             ENDIF
-            data_from = MODULO(mepos-icpu, ncpu)
-            start_idx = SUM(bins_per_rank(1:data_from+1))-bins_per_rank(data_from+1)+1
-            end_idx = start_idx+bins_per_rank(data_from+1)-1
-            cost_matrix(start_idx:end_idx) = sendbuffer(1:end_idx-start_idx+1)
+            data_from = MODULO(mepos - icpu, ncpu)
+            start_idx = SUM(bins_per_rank(1:data_from + 1)) - bins_per_rank(data_from + 1) + 1
+            end_idx = start_idx + bins_per_rank(data_from + 1) - 1
+            cost_matrix(start_idx:end_idx) = sendbuffer(1:end_idx - start_idx + 1)
 
-            IF (icpu .NE. ncpu-1) THEN
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
             ENDIF
             swapbuffer => sendbuffer
@@ -1656,8 +1656,8 @@ CONTAINS
 !$OMP END MASTER
 
 !$OMP BARRIER
-         mepos = para_env%mepos+1
-         full_dist((mepos-1)*n_threads+i_thread+1, 1:my_bin_size) = binned_dist(1:my_bin_size)
+         mepos = para_env%mepos + 1
+         full_dist((mepos - 1)*n_threads + i_thread + 1, 1:my_bin_size) = binned_dist(1:my_bin_size)
 !$OMP BARRIER
 !$OMP MASTER
          ALLOCATE (sendbuffer(3*max_bin_size*n_threads))
@@ -1665,30 +1665,30 @@ CONTAINS
          mepos = para_env%mepos
          DO j = 1, n_threads
             DO i = 1, max_bin_size
-               sendbuffer((j-1)*3*max_bin_size+(i-1)*3+1) = full_dist(mepos*n_threads+j, i)%istart
-               sendbuffer((j-1)*3*max_bin_size+(i-1)*3+2) = full_dist(mepos*n_threads+j, i)%number_of_atom_quartets
-               sendbuffer((j-1)*3*max_bin_size+(i-1)*3+3) = full_dist(mepos*n_threads+j, i)%cost
+               sendbuffer((j - 1)*3*max_bin_size + (i - 1)*3 + 1) = full_dist(mepos*n_threads + j, i)%istart
+               sendbuffer((j - 1)*3*max_bin_size + (i - 1)*3 + 2) = full_dist(mepos*n_threads + j, i)%number_of_atom_quartets
+               sendbuffer((j - 1)*3*max_bin_size + (i - 1)*3 + 3) = full_dist(mepos*n_threads + j, i)%cost
             END DO
          END DO
-         dest = MODULO(mepos+1, ncpu)
-         source = MODULO(mepos-1, ncpu)
+         dest = MODULO(mepos + 1, ncpu)
+         source = MODULO(mepos - 1, ncpu)
          ! sync before/after ring of isendrecv
          CALL mp_sync(para_env%group)
-         DO icpu = 0, ncpu-1
-            IF (icpu .NE. ncpu-1) THEN
+         DO icpu = 0, ncpu - 1
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
             ENDIF
-            data_from = MODULO(mepos-icpu, ncpu)
+            data_from = MODULO(mepos - icpu, ncpu)
             DO j = 1, n_threads
                DO i = 1, max_bin_size
-                  full_dist(data_from*n_threads+j, i)%istart = sendbuffer((j-1)*3*max_bin_size+(i-1)*3+1)
-                  full_dist(data_from*n_threads+j, i)%number_of_atom_quartets = sendbuffer((j-1)*3*max_bin_size+(i-1)*3+2)
-                  full_dist(data_from*n_threads+j, i)%cost = sendbuffer((j-1)*3*max_bin_size+(i-1)*3+3)
+                  full_dist(data_from*n_threads + j, i)%istart = sendbuffer((j - 1)*3*max_bin_size + (i - 1)*3 + 1)
+                  full_dist(data_from*n_threads + j, i)%number_of_atom_quartets = sendbuffer((j - 1)*3*max_bin_size + (i - 1)*3 + 2)
+                  full_dist(data_from*n_threads + j, i)%cost = sendbuffer((j - 1)*3*max_bin_size + (i - 1)*3 + 3)
                END DO
             END DO
 
-            IF (icpu .NE. ncpu-1) THEN
+            IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
             ENDIF
             swapbuffer => sendbuffer
@@ -1712,20 +1712,20 @@ CONTAINS
          tmp_dist(:)%time_other_scf = 0.0_dp
          tmp_dist(:)%time_forces = 0.0_dp
 
-         mepos = my_process_id+1
+         mepos = my_process_id + 1
          DO icpu = 1, n_processes
             DO i = 1, bin_histogram(icpu, 1)
-               IF (shm_distribution_vector(bin_histogram(icpu, 2)-bin_histogram(icpu, 1)+i) == mepos) THEN
+               IF (shm_distribution_vector(bin_histogram(icpu, 2) - bin_histogram(icpu, 1) + i) == mepos) THEN
                   tmp_dist(tmp_pos(mepos)) = full_dist(icpu, i)
-                  tmp_pos(mepos) = tmp_pos(mepos)+1
+                  tmp_pos(mepos) = tmp_pos(mepos) + 1
                END IF
             END DO
          END DO
 
          !! Assign the load to each process
          NULLIFY (ptr_to_tmp_dist)
-         mepos = my_process_id+1
-         ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
+         mepos = my_process_id + 1
+         ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos) - 1)
          SELECT CASE (eval_type)
          CASE (hfx_do_eval_energy)
             CALL hfx_set_distr_energy(ptr_to_tmp_dist, x_data)
@@ -1780,11 +1780,11 @@ CONTAINS
 
       estimate1 = estimate_basic(p1)
       estimate2 = estimate_basic(p2)
-      mu = LOG(ABS(1.0E6_dp*p3(1))+1)
+      mu = LOG(ABS(1.0E6_dp*p3(1)) + 1)
       sigma = p3(2)*0.1_dp*mu
-      switch = 1.0_dp/(1.0_dp+EXP((LOG(estimate1)-mu)/sigma))
-      estimate = estimate1*(1.0_dp-switch)+estimate2*switch
-      res = INT(estimate*0.001_dp, KIND=int_8)+1
+      switch = 1.0_dp/(1.0_dp + EXP((LOG(estimate1) - mu)/sigma))
+      estimate = estimate1*(1.0_dp - switch) + estimate2*switch
+      res = INT(estimate*0.001_dp, KIND=int_8) + 1
 
    CONTAINS
 
@@ -1804,9 +1804,9 @@ CONTAINS
          p9 = p(9); p10 = p(10); p11 = p(11); p12 = p(12)
          res = poly2(nsa, p1, p2, p3)*poly2(nsb, p1, p2, p3)*poly2(nsc, p1, p2, p3)*poly2(nsd, p1, p2, p3)* &
                poly2(npgfa, p4, p5, p6)*poly2(npgfb, p4, p5, p6)*poly2(npgfc, p4, p5, p6)* &
-               poly2(npgfd, p4, p5, p6)*EXP(-p7*ratio+p8*ratio**2)+ &
-               1000.0_dp*p9+poly2(nsa, p10, p11, p12)*poly2(nsb, p10, p11, p12)*poly2(nsc, p10, p11, p12)*poly2(nsd, p10, p11, p12)
-         res = 1+ABS(res)
+               poly2(npgfd, p4, p5, p6)*EXP(-p7*ratio + p8*ratio**2) + &
+              1000.0_dp*p9 + poly2(nsa, p10, p11, p12)*poly2(nsb, p10, p11, p12)*poly2(nsc, p10, p11, p12)*poly2(nsd, p10, p11, p12)
+         res = 1 + ABS(res)
       END FUNCTION estimate_basic
 
 ! **************************************************************************************************
@@ -1821,7 +1821,7 @@ CONTAINS
       INTEGER                                            :: x
       REAL(KIND=dp)                                      :: a0, a1, a2
 
-         poly2 = a0+a1*x+a2*x*x
+         poly2 = a0 + a1*x + a2*x*x
       END FUNCTION poly2
 
    END FUNCTION cost_model
@@ -1885,8 +1885,8 @@ CONTAINS
          END IF
          DO j = 1, MIN(i, nstep)
             itmp = tmp_cpu_index(j)
-            distribution_vector(tmp_index(i-j+1)) = itmp
-            my_cost_cpu(itmp) = my_cost_cpu(itmp)+bin_costs(tmp_index(i-j+1))
+            distribution_vector(tmp_index(i - j + 1)) = itmp
+            my_cost_cpu(itmp) = my_cost_cpu(itmp) + bin_costs(tmp_index(i - j + 1))
          ENDDO
       ENDDO
 
@@ -1919,7 +1919,7 @@ CONTAINS
       INTEGER(int_8)                                     :: min_ij
 
       min_ij = MIN(i, j)
-      get_1D_idx = min_ij*N+MAX(i, j)-(min_ij-1)*min_ij/2-N
+      get_1D_idx = min_ij*N + MAX(i, j) - (min_ij - 1)*min_ij/2 - N
 
    END FUNCTION get_1D_idx
 
@@ -2041,8 +2041,8 @@ CONTAINS
             katom = list_kl%elements(i_list_kl)%pair(1)
             latom = list_kl%elements(i_list_kl)%pair(2)
 
-            IF (.NOT. (katom+latom <= iatom+jatom)) CYCLE
-            IF (((iatom+jatom) .EQ. (katom+latom)) .AND. (katom < iatom)) CYCLE
+            IF (.NOT. (katom + latom <= iatom + jatom)) CYCLE
+            IF (((iatom + jatom) .EQ. (katom + latom)) .AND. (katom < iatom)) CYCLE
 
             IF (eval_type == hfx_do_eval_forces) THEN
                IF (.NOT. use_virial) THEN
@@ -2070,11 +2070,11 @@ CONTAINS
                actual_pmax_atom = 0.0_dp
             END IF
 
-            screen_kind_ij = coeffs_kind(jkind, ikind)%x(1)*rab2+ &
+            screen_kind_ij = coeffs_kind(jkind, ikind)%x(1)*rab2 + &
                              coeffs_kind(jkind, ikind)%x(2)
-            screen_kind_kl = coeffs_kind(lkind, kkind)%x(1)*rcd2+ &
+            screen_kind_kl = coeffs_kind(lkind, kkind)%x(1)*rcd2 + &
                              coeffs_kind(lkind, kkind)%x(2)
-            IF (screen_kind_ij+screen_kind_kl+actual_pmax_atom < log10_eps_schwarz) CYCLE
+            IF (screen_kind_ij + screen_kind_kl + actual_pmax_atom < log10_eps_schwarz) CYCLE
 
             IF (.NOT. (is_assoc_atomic_block_global(latom, iatom) >= 1 .AND. &
                        is_assoc_atomic_block_global(katom, iatom) >= 1 .AND. &
@@ -2094,7 +2094,7 @@ CONTAINS
                      ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(iatom), &
                                                                map_atom_to_kind_atom(katom))
-                     swap_id = swap_id+1
+                     swap_id = swap_id + 1
                   END IF
                   kind_kind_idx = INT(get_1D_idx(lkind, jkind, INT(nkind, int_8)))
                   IF (jkind >= lkind) THEN
@@ -2105,7 +2105,7 @@ CONTAINS
                      ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(jatom), &
                                                                map_atom_to_kind_atom(latom))
-                     swap_id = swap_id+2
+                     swap_id = swap_id + 2
                   END IF
                   kind_kind_idx = INT(get_1D_idx(lkind, ikind, INT(nkind, int_8)))
                   IF (ikind >= lkind) THEN
@@ -2116,7 +2116,7 @@ CONTAINS
                      ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(iatom), &
                                                                map_atom_to_kind_atom(latom))
-                     swap_id = swap_id+4
+                     swap_id = swap_id + 4
                   END IF
                   kind_kind_idx = INT(get_1D_idx(kkind, jkind, INT(nkind, int_8)))
                   IF (jkind >= kkind) THEN
@@ -2127,7 +2127,7 @@ CONTAINS
                      ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(jatom), &
                                                                map_atom_to_kind_atom(katom))
-                     swap_id = swap_id+8
+                     swap_id = swap_id + 8
                   END IF
                CASE (hfx_do_eval_forces)
                   swap_id = 16
@@ -2140,7 +2140,7 @@ CONTAINS
                      ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(iatom), &
                                                                map_atom_to_kind_atom(katom))
-                     swap_id = swap_id+1
+                     swap_id = swap_id + 1
                   END IF
                   kind_kind_idx = INT(get_1D_idx(lkind, jkind, INT(nkind, int_8)))
                   IF (jkind >= lkind) THEN
@@ -2151,7 +2151,7 @@ CONTAINS
                      ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(jatom), &
                                                                map_atom_to_kind_atom(latom))
-                     swap_id = swap_id+2
+                     swap_id = swap_id + 2
                   END IF
                   kind_kind_idx = INT(get_1D_idx(lkind, ikind, INT(nkind, int_8)))
                   IF (ikind >= lkind) THEN
@@ -2162,7 +2162,7 @@ CONTAINS
                      ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(iatom), &
                                                                map_atom_to_kind_atom(latom))
-                     swap_id = swap_id+4
+                     swap_id = swap_id + 4
                   END IF
                   kind_kind_idx = INT(get_1D_idx(kkind, jkind, INT(nkind, int_8)))
                   IF (jkind >= kkind) THEN
@@ -2173,7 +2173,7 @@ CONTAINS
                      ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:, :, &
                                                                map_atom_to_kind_atom(jatom), &
                                                                map_atom_to_kind_atom(katom))
-                     swap_id = swap_id+8
+                     swap_id = swap_id + 8
                   END IF
                END SELECT
             END IF
@@ -2182,29 +2182,29 @@ CONTAINS
                iset = set_list_ij(i_set_list_ij)%pair(1)
                jset = set_list_ij(i_set_list_ij)%pair(2)
 
-               max_val1 = coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2+ &
+               max_val1 = coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + &
                           coeffs_set(jset, iset, jkind, ikind)%x(2)
 
-               IF (max_val1+screen_kind_kl+actual_pmax_atom < log10_eps_schwarz) CYCLE
+               IF (max_val1 + screen_kind_kl + actual_pmax_atom < log10_eps_schwarz) CYCLE
                DO i_set_list_kl = i_set_list_kl_start, i_set_list_kl_stop
                   kset = set_list_kl(i_set_list_kl)%pair(1)
                   lset = set_list_kl(i_set_list_kl)%pair(2)
 
-                  max_val2 = max_val1+(coeffs_set(lset, kset, lkind, kkind)%x(1)*rcd2+ &
-                                       coeffs_set(lset, kset, lkind, kkind)%x(2))
+                  max_val2 = max_val1 + (coeffs_set(lset, kset, lkind, kkind)%x(1)*rcd2 + &
+                                         coeffs_set(lset, kset, lkind, kkind)%x(2))
 
-                  IF (max_val2+actual_pmax_atom < log10_eps_schwarz) CYCLE
+                  IF (max_val2 + actual_pmax_atom < log10_eps_schwarz) CYCLE
                   IF (do_p_screening) THEN
                      CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
                                        iset, jset, kset, lset, &
                                        pmax_entry, swap_id)
                      IF (eval_type == hfx_do_eval_forces) THEN
-                        pmax_entry = log_2+pmax_entry
+                        pmax_entry = log_2 + pmax_entry
                      END IF
                   ELSE
                      pmax_entry = 0.0_dp
                   END IF
-                  max_val2 = max_val2+pmax_entry
+                  max_val2 = max_val2 + pmax_entry
                   IF (max_val2 < log10_eps_schwarz) CYCLE
                   SELECT CASE (eval_type)
                   CASE (hfx_do_eval_energy)
@@ -2212,13 +2212,13 @@ CONTAINS
                                            npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                            max_val2/log10_eps_schwarz, &
                                            p1_energy, p2_energy, p3_energy)
-                     estimate_block_cost = estimate_block_cost+INT(cost_tmp, KIND=int_8)
+                     estimate_block_cost = estimate_block_cost + INT(cost_tmp, KIND=int_8)
                   CASE (hfx_do_eval_forces)
                      cost_tmp = cost_model(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                            npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                            max_val2/log10_eps_schwarz, &
                                            p1_forces, p2_forces, p3_forces)
-                     estimate_block_cost = estimate_block_cost+INT(cost_tmp, KIND=int_8)
+                     estimate_block_cost = estimate_block_cost + INT(cost_tmp, KIND=int_8)
                   END SELECT
                ENDDO ! i_set_list_kl
             ENDDO ! i_set_list_ij
@@ -2300,13 +2300,13 @@ CONTAINS
       INTEGER                                            :: atom_block, i, iatom_block, iatom_end, &
                                                             iatom_start, my_cpu_rank, ncpus
 
-      DO atom_block = 0, nblock-1
-         iatom_block = MODULO(atom_block, nblock)+1
-         iatom_start = (iatom_block-1)*block_size+1
+      DO atom_block = 0, nblock - 1
+         iatom_block = MODULO(atom_block, nblock) + 1
+         iatom_start = (iatom_block - 1)*block_size + 1
          iatom_end = MIN(iatom_block*block_size, natom)
-         blocks(atom_block+1)%istart = iatom_start
-         blocks(atom_block+1)%iend = iatom_end
-         blocks(atom_block+1)%cost = 0_int_8
+         blocks(atom_block + 1)%istart = iatom_start
+         blocks(atom_block + 1)%iend = iatom_end
+         blocks(atom_block + 1)%cost = 0_int_8
       END DO
 
       ncpus = para_env%num_pe
@@ -2370,15 +2370,15 @@ CONTAINS
 
 !$OMP MASTER
       ALLOCATE (shm_bins_per_rank(n_threads))
-      ALLOCATE (shm_displ(n_threads+1))
+      ALLOCATE (shm_displ(n_threads + 1))
 !$OMP END MASTER
 !$OMP BARRIER
 
-      shm_bins_per_rank(i_thread+1) = nbins
+      shm_bins_per_rank(i_thread + 1) = nbins
 !$OMP BARRIER
       nbins = 0
       DO i = 1, n_threads
-         nbins = nbins+shm_bins_per_rank(i)
+         nbins = nbins + shm_bins_per_rank(i)
       END DO
       my_rank = para_env%mepos
       nranks = para_env%num_pe
@@ -2388,36 +2388,36 @@ CONTAINS
       ALLOCATE (bins_per_rank(nranks))
       bins_per_rank = 0
 
-      bins_per_rank(my_rank+1) = nbins
+      bins_per_rank(my_rank + 1) = nbins
 
       CALL mp_sum(bins_per_rank, para_env%group)
 
       total_bins = 0
       DO i = 1, nranks
-         total_bins = total_bins+bins_per_rank(i)
+         total_bins = total_bins + bins_per_rank(i)
       END DO
 
       ALLOCATE (shm_cost_vector(2*total_bins))
       shm_cost_vector = -1_int_8
       shm_displ(1) = 1
       DO i = 2, n_threads
-         shm_displ(i) = shm_displ(i-1)+shm_bins_per_rank(i-1)
+         shm_displ(i) = shm_displ(i - 1) + shm_bins_per_rank(i - 1)
       END DO
-      shm_displ(n_threads+1) = nbins+1
+      shm_displ(n_threads + 1) = nbins + 1
 !$OMP END MASTER
 !$OMP BARRIER
       j = 0
       SELECT CASE (eval_type)
       CASE (hfx_do_eval_energy)
-         DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1
-            j = j+1
-            shm_cost_vector(2*(i-1)+1) = x_data%distribution_energy(j)%cost
+         DO i = shm_displ(i_thread + 1), shm_displ(i_thread + 2) - 1
+            j = j + 1
+            shm_cost_vector(2*(i - 1) + 1) = x_data%distribution_energy(j)%cost
             shm_cost_vector(2*i) = INT(x_data%distribution_energy(j)%time_first_scf*10000.0_dp, KIND=int_8)
          END DO
       CASE (hfx_do_eval_forces)
-         DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1
-            j = j+1
-            shm_cost_vector(2*(i-1)+1) = x_data%distribution_forces(j)%cost
+         DO i = shm_displ(i_thread + 1), shm_displ(i_thread + 2) - 1
+            j = j + 1
+            shm_cost_vector(2*(i - 1) + 1) = x_data%distribution_forces(j)%cost
             shm_cost_vector(2*i) = INT(x_data%distribution_forces(j)%time_forces*10000.0_dp, KIND=int_8)
          END DO
       END SELECT
@@ -2428,14 +2428,14 @@ CONTAINS
       bins_per_rank(:) = bins_per_rank(:)*2
       rdispl(1) = 0
       DO i = 2, nranks
-         rdispl(i) = rdispl(i-1)+bins_per_rank(i-1)
+         rdispl(i) = rdispl(i - 1) + bins_per_rank(i - 1)
       END DO
 
       ALLOCATE (buffer_in(2*nbins))
       ALLOCATE (buffer_out(2*total_bins))
 
       DO i = 1, nbins
-         buffer_in(2*(i-1)+1) = shm_cost_vector(2*(i-1)+1)
+         buffer_in(2*(i - 1) + 1) = shm_cost_vector(2*(i - 1) + 1)
          buffer_in(2*i) = shm_cost_vector(2*i)
       END DO
 
@@ -2462,11 +2462,11 @@ CONTAINS
          k = 0
          DO i = 1, nranks
             DO j = 1, bins_per_rank(i)/2
-               k = k+1
+               k = k + 1
                WRITE (iw, FMT="(T6,I5,T15,I5,T27,I16,T55,F19.8)") &
-                  i-1, j, buffer_out(2*(k-1)+1), REAL(buffer_out(2*k), dp)/10000.0_dp
-               summary(2*(i-1)+1) = summary(2*(i-1)+1)+buffer_out(2*(k-1)+1)
-               summary(2*i) = summary(2*i)+buffer_out(2*k)
+                  i - 1, j, buffer_out(2*(k - 1) + 1), REAL(buffer_out(2*k), dp)/10000.0_dp
+               summary(2*(i - 1) + 1) = summary(2*(i - 1) + 1) + buffer_out(2*(k - 1) + 1)
+               summary(2*i) = summary(2*i) + buffer_out(2*k)
             END DO
          END DO
 
@@ -2475,7 +2475,7 @@ CONTAINS
          min_bin = HUGE(min_bin)
          sum_bin = 0_int_8
          DO i = 1, total_bins
-            sum_bin = sum_bin+buffer_out(2*i)
+            sum_bin = sum_bin + buffer_out(2*i)
             max_bin = MAX(max_bin, buffer_out(2*i))
             min_bin = MIN(min_bin, buffer_out(2*i))
          END DO
@@ -2485,7 +2485,7 @@ CONTAINS
          min_rank = HUGE(min_rank)
          sum_rank = 0_int_8
          DO i = 1, nranks
-            sum_rank = sum_rank+summary(2*i)
+            sum_rank = sum_rank + summary(2*i)
             max_rank = MAX(max_rank, summary(2*i))
             min_rank = MIN(min_rank, summary(2*i))
          END DO
@@ -2512,7 +2512,7 @@ CONTAINS
 
          WRITE (iw, FMT="(T3,A,T35,A,T55,A,/)") "MPI RANK", "EST cost", "Processing time [s]"
          DO i = nranks, 1, -1
-            WRITE (iw, FMT="(T6,I5,T27,I16,T55,F19.8)") sort_idx(i)-1, summary(2*(sort_idx(i)-1)+1), REAL(buffer(i), dp)/10000.0_dp
+       WRITE (iw, FMT="(T6,I5,T27,I16,T55,F19.8)") sort_idx(i) - 1, summary(2*(sort_idx(i) - 1) + 1), REAL(buffer(i), dp)/10000.0_dp
          END DO
 
          DEALLOCATE (summary, buffer, sort_idx)
@@ -2545,9 +2545,9 @@ CONTAINS
 
       DO i = 1, size*10
          x = next_random_number(rng_stream)
-         idx1 = INT(x*(size+1-1))+1
+         idx1 = INT(x*(size + 1 - 1)) + 1
          x = next_random_number(rng_stream)
-         idx2 = INT(x*(size+1-1))+1
+         idx2 = INT(x*(size + 1 - 1)) + 1
 
          tmp = array(idx1)
          array(idx1) = array(idx2)

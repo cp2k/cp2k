@@ -126,7 +126,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(results)) THEN
          CPASSERT(results%ref_count > 0)
-         results%ref_count = results%ref_count-1
+         results%ref_count = results%ref_count - 1
          IF (results%ref_count == 0) THEN
             ! Description
             IF (ASSOCIATED(results%result_label)) THEN
@@ -190,7 +190,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(results))
       CPASSERT(results%ref_count > 0)
-      results%ref_count = results%ref_count+1
+      results%ref_count = results%ref_count + 1
    END SUBROUTINE cp_result_retain
 
 ! **************************************************************************************************

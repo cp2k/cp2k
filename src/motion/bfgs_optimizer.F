@@ -72,14 +72,14 @@ MODULE bfgs_optimizer
    USE particle_list_types,             ONLY: particle_list_type
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
-  PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 #include "gopt_f77_methods.h"
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
-  LOGICAL, PARAMETER                   :: debug_this_module = .TRUE.
+   LOGICAL, PARAMETER                   :: debug_this_module = .TRUE.
 
-  PUBLIC :: geoopt_bfgs
+   PUBLIC :: geoopt_bfgs
 
 CONTAINS
 
@@ -92,7 +92,7 @@ CONTAINS
 !> \param gopt_env ...
 !> \param x0 ...
 ! **************************************************************************************************
-  RECURSIVE SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,geo_section,gopt_env,x0)
+   RECURSIVE SUBROUTINE geoopt_bfgs(force_env, gopt_param, globenv, geo_section, gopt_env, x0)
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
@@ -124,268 +124,268 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: print_key, root_section
 
-    NULLIFY(logger, g, blacs_env)
-    logger       => cp_get_default_logger()
-    para_env     => force_env%para_env
-    root_section => force_env%root_section
-    t_old=m_walltime()
+      NULLIFY (logger, g, blacs_env)
+      logger => cp_get_default_logger()
+      para_env => force_env%para_env
+      root_section => force_env%root_section
+      t_old = m_walltime()
 
-    CALL timeset(routineN,handle)
-    CALL section_vals_val_get(geo_section,"BFGS%TRUST_RADIUS",r_val=rad)
-    print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART")
-    ionode      = para_env%mepos==para_env%source
-    maxiter     = gopt_param%max_iter
-    conv        = .FALSE.
-    rat         = 0.0_dp
-    wildcard    = " BFGS"
+      CALL timeset(routineN, handle)
+      CALL section_vals_val_get(geo_section, "BFGS%TRUST_RADIUS", r_val=rad)
+      print_key => section_vals_get_subs_vals(geo_section, "BFGS%RESTART")
+      ionode = para_env%mepos == para_env%source
+      maxiter = gopt_param%max_iter
+      conv = .FALSE.
+      rat = 0.0_dp
+      wildcard = " BFGS"
 
-    ! Stop if not yet implemented
-    SELECT CASE (gopt_env%type_id)
-    CASE (default_ts_method_id)
-       CPABORT("BFGS method not yet working with DIMER")
-    END SELECT
+      ! Stop if not yet implemented
+      SELECT CASE (gopt_env%type_id)
+      CASE (default_ts_method_id)
+         CPABORT("BFGS method not yet working with DIMER")
+      END SELECT
 
-    CALL section_vals_val_get(geo_section,"BFGS%USE_RAT_FUN_OPT",l_val=use_rfo)
-    CALL section_vals_val_get(geo_section,"BFGS%USE_MODEL_HESSIAN",l_val=use_mod_hes)
-    CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest)
-    output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
-                                       extension=".geoLog")
-    IF (output_unit > 0) THEN
-       IF (use_rfo) THEN
-          WRITE (UNIT=output_unit, FMT="(/,T2,A,T78,A3)") &
-             "BFGS| Use rational function optimization for step estimation: ", "YES"
-       ELSE
-          WRITE (UNIT=output_unit, FMT="(/,T2,A,T78,A3)") &
-             "BFGS| Use rational function optimization for step estimation: ", " NO"
-       END IF
-       IF (use_mod_hes) THEN
-          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
-             "BFGS| Use model Hessian for initial guess: ", "YES"
-       ELSE
-          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
-             "BFGS| Use model Hessian for initial guess: ", " NO"
-       END IF
-       IF (hesrest) THEN
-          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
-             "BFGS| Restart Hessian: ", "YES"
-       ELSE
-          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
-             "BFGS| Restart Hessian: ", " NO"
-       END IF
-       WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.3)") &
-          "BFGS| Trust radius: ", rad
-    END IF
+      CALL section_vals_val_get(geo_section, "BFGS%USE_RAT_FUN_OPT", l_val=use_rfo)
+      CALL section_vals_val_get(geo_section, "BFGS%USE_MODEL_HESSIAN", l_val=use_mod_hes)
+      CALL section_vals_val_get(geo_section, "BFGS%RESTART_HESSIAN", l_val=hesrest)
+      output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%PROGRAM_RUN_INFO", &
+                                         extension=".geoLog")
+      IF (output_unit > 0) THEN
+         IF (use_rfo) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,T78,A3)") &
+               "BFGS| Use rational function optimization for step estimation: ", "YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,T78,A3)") &
+               "BFGS| Use rational function optimization for step estimation: ", " NO"
+         END IF
+         IF (use_mod_hes) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "BFGS| Use model Hessian for initial guess: ", "YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "BFGS| Use model Hessian for initial guess: ", " NO"
+         END IF
+         IF (hesrest) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "BFGS| Restart Hessian: ", "YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "BFGS| Restart Hessian: ", " NO"
+         END IF
+         WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.3)") &
+            "BFGS| Trust radius: ", rad
+      END IF
 
-    ndf   = SIZE(x0)
-    nfree = gopt_env%nfree
-    IF(ndf > 3000)&
-       CALL cp_warn(__LOCATION__,&
-            "The dimension of the Hessian matrix ("//&
-            TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "//&
-            "The diagonalisation of the full Hessian  matrix needed for BFGS "//&
-            "is computationally expensive. You should consider to use the linear "//&
-            "scaling variant L-BFGS instead.")
+      ndf = SIZE(x0)
+      nfree = gopt_env%nfree
+      IF (ndf > 3000) &
+         CALL cp_warn(__LOCATION__, &
+                      "The dimension of the Hessian matrix ("// &
+                      TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "// &
+                      "The diagonalisation of the full Hessian  matrix needed for BFGS "// &
+                      "is computationally expensive. You should consider to use the linear "// &
+                      "scaling variant L-BFGS instead.")
 
-    ! Initialize hessian (hes = unitary matrix or model hessian )
-    CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
-                             globenv%blacs_repeatable)
-    CALL cp_fm_struct_create(fm_struct_hes,para_env=para_env,context=blacs_env, &
-         nrow_global=ndf,ncol_global=ndf)
-    CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat")
-    CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp")
-    CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat")
-    ALLOCATE (eigval(ndf))
-    eigval(:) = 0.0_dp
+      ! Initialize hessian (hes = unitary matrix or model hessian )
+      CALL cp_blacs_env_create(blacs_env, para_env, globenv%blacs_grid_layout, &
+                               globenv%blacs_repeatable)
+      CALL cp_fm_struct_create(fm_struct_hes, para_env=para_env, context=blacs_env, &
+                               nrow_global=ndf, ncol_global=ndf)
+      CALL cp_fm_create(hess_mat, fm_struct_hes, name="hess_mat")
+      CALL cp_fm_create(hess_tmp, fm_struct_hes, name="hess_tmp")
+      CALL cp_fm_create(eigvec_mat, fm_struct_hes, name="eigvec_mat")
+      ALLOCATE (eigval(ndf))
+      eigval(:) = 0.0_dp
 
-    CALL force_env_get(force_env=force_env,subsys=subsys)
-    CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
-    IF (use_mod_hes) THEN
-       IF (shell_present) THEN
-          CALL cp_warn(__LOCATION__,&
-             "No model Hessian is available for core-shell models. "//&
-             "A unit matrix is used as the initial Hessian.")
-          use_mod_hes = .FALSE.
-       END IF
-       IF (gopt_env%type_id == default_cell_method_id) THEN
-          CALL cp_warn(__LOCATION__,&
-             "No model Hessian is available for cell optimizations. "//&
-             "A unit matrix is used as the initial Hessian.")
-          use_mod_hes = .FALSE.
-       END IF
-    END IF
+      CALL force_env_get(force_env=force_env, subsys=subsys)
+      CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els, shell_present=shell_present)
+      IF (use_mod_hes) THEN
+         IF (shell_present) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "No model Hessian is available for core-shell models. "// &
+                         "A unit matrix is used as the initial Hessian.")
+            use_mod_hes = .FALSE.
+         END IF
+         IF (gopt_env%type_id == default_cell_method_id) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "No model Hessian is available for cell optimizations. "// &
+                         "A unit matrix is used as the initial Hessian.")
+            use_mod_hes = .FALSE.
+         END IF
+      END IF
 
-    IF (use_mod_hes) THEN
-       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp)
-       CALL construct_initial_hess(gopt_env%force_env,hess_mat)
-       CALL cp_fm_to_fm(hess_mat,hess_tmp)
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info)
-       ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
-       IF(info/=0) THEN
-          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
-          IF (output_unit > 0) WRITE(output_unit,*) &
-             "BFGS: Matrix diagonalization failed, using unity as model Hessian."
-       ELSE
-          DO its=1,SIZE(eigval)
-            IF(eigval(its).LT.0.1_dp)eigval(its)=0.1_dp
-          END DO
-          CALL cp_fm_to_fm(eigvec_mat,hess_tmp)
-          CALL cp_fm_column_scale(eigvec_mat,eigval)
-          CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat)
-       ENDIF
-    ELSE
-       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
-    END IF
-
-    ALLOCATE (xold(ndf))
-    xold(:) = x0(:)
-
-    ALLOCATE (g(ndf))
-    g(:) = 0.0_dp
-
-    ALLOCATE (gold(ndf))
-    gold(:) = 0.0_dp
-
-    ALLOCATE (dx(ndf))
-    dx(:) = 0.0_dp
-
-    ALLOCATE (dg(ndf))
-    dg(:) = 0.0_dp
-
-    ALLOCATE (work(ndf))
-    work(:) = 0.0_dp
-
-    ALLOCATE (dr(ndf))
-    dr(:) = 0.0_dp
-
-    ! Geometry optimization starts now
-    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr)
-    CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
-
-    ! Calculate Energy & Gradients
-    CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-                    .FALSE., gopt_env%force_env%para_env)
-
-    ! Print info at time 0
-    emin = etot
-    t_now=m_walltime()
-    t_diff=t_now-t_old
-    t_old=t_now
-    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, used_time=t_diff)
-    DO its = iter_nr+1, maxiter
-       CALL cp_iterate(logger%iter_info,last=(its==maxiter))
-       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its)
-       CALL gopt_f_ii(its, output_unit)
-
-       ! Hessian update/restarting
-       IF (((its-iter_nr) == 1).AND.hesrest) THEN
-          IF (ionode) THEN
-             CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename)
-             CALL open_file(file_name=hes_filename,file_status="OLD",&
-                  file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
-          END IF
-          CALL cp_fm_read_unformatted(hess_mat,hesunit_read)
-          IF (ionode) CALL close_file(unit_number=hesunit_read)
-       ELSE
-          IF( (its-iter_nr) > 1 ) THEN
-            DO indf = 1, ndf
-               dx(indf) = x0(indf) - xold(indf)
-               dg(indf) =  g(indf) - gold(indf)
+      IF (use_mod_hes) THEN
+         CALL cp_fm_set_all(hess_mat, alpha=zero, beta=0.00_dp)
+         CALL construct_initial_hess(gopt_env%force_env, hess_mat)
+         CALL cp_fm_to_fm(hess_mat, hess_tmp)
+         CALL choose_eigv_solver(hess_tmp, eigvec_mat, eigval, info=info)
+         ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
+         IF (info /= 0) THEN
+            CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+            IF (output_unit > 0) WRITE (output_unit, *) &
+               "BFGS: Matrix diagonalization failed, using unity as model Hessian."
+         ELSE
+            DO its = 1, SIZE(eigval)
+               IF (eigval(its) .LT. 0.1_dp) eigval(its) = 0.1_dp
             END DO
+            CALL cp_fm_to_fm(eigvec_mat, hess_tmp)
+            CALL cp_fm_column_scale(eigvec_mat, eigval)
+            CALL cp_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, hess_mat)
+         ENDIF
+      ELSE
+         CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+      END IF
 
-            CALL bfgs(ndf,dx,dg,hess_mat,work,para_env)
+      ALLOCATE (xold(ndf))
+      xold(:) = x0(:)
 
-            !Possibly dump the Hessian file
-            IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))THEN
-               CALL write_bfgs_hessian(geo_section,hess_mat,logger)
+      ALLOCATE (g(ndf))
+      g(:) = 0.0_dp
+
+      ALLOCATE (gold(ndf))
+      gold(:) = 0.0_dp
+
+      ALLOCATE (dx(ndf))
+      dx(:) = 0.0_dp
+
+      ALLOCATE (dg(ndf))
+      dg(:) = 0.0_dp
+
+      ALLOCATE (work(ndf))
+      work(:) = 0.0_dp
+
+      ALLOCATE (dr(ndf))
+      dr(:) = 0.0_dp
+
+      ! Geometry optimization starts now
+      CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
+      CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
+
+      ! Calculate Energy & Gradients
+      CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                      .FALSE., gopt_env%force_env%para_env)
+
+      ! Print info at time 0
+      emin = etot
+      t_now = m_walltime()
+      t_diff = t_now - t_old
+      t_old = t_now
+      CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, used_time=t_diff)
+      DO its = iter_nr + 1, maxiter
+         CALL cp_iterate(logger%iter_info, last=(its == maxiter))
+         CALL section_vals_val_set(geo_section, "STEP_START_VAL", i_val=its)
+         CALL gopt_f_ii(its, output_unit)
+
+         ! Hessian update/restarting
+         IF (((its - iter_nr) == 1) .AND. hesrest) THEN
+            IF (ionode) THEN
+               CALL section_vals_val_get(geo_section, "BFGS%RESTART_FILE_NAME", c_val=hes_filename)
+               CALL open_file(file_name=hes_filename, file_status="OLD", &
+                              file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
+            END IF
+            CALL cp_fm_read_unformatted(hess_mat, hesunit_read)
+            IF (ionode) CALL close_file(unit_number=hesunit_read)
+         ELSE
+            IF ((its - iter_nr) > 1) THEN
+               DO indf = 1, ndf
+                  dx(indf) = x0(indf) - xold(indf)
+                  dg(indf) = g(indf) - gold(indf)
+               END DO
+
+               CALL bfgs(ndf, dx, dg, hess_mat, work, para_env)
+
+               !Possibly dump the Hessian file
+               IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+                  CALL write_bfgs_hessian(geo_section, hess_mat, logger)
+               ENDIF
             ENDIF
-          ENDIF
-       END IF
+         END IF
 
-       ! Setting the present positions & gradients as old
-       xold(:) = x0
-       gold(:) = g
+         ! Setting the present positions & gradients as old
+         xold(:) = x0
+         gold(:) = g
 
-       ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
-       CALL cp_fm_to_fm(hess_mat,hess_tmp)
+         ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
+         CALL cp_fm_to_fm(hess_mat, hess_tmp)
 
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info)
+         CALL choose_eigv_solver(hess_tmp, eigvec_mat, eigval, info=info)
 
-       ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
-       IF (info /= 0) THEN
-          IF (output_unit > 0) WRITE(output_unit,*) &
-             "BFGS: Matrix diagonalization failed, resetting Hessian to unity."
-          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
-          CALL cp_fm_to_fm(hess_mat,hess_tmp)
-          CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval)
-       END IF
+         ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
+         IF (info /= 0) THEN
+            IF (output_unit > 0) WRITE (output_unit, *) &
+               "BFGS: Matrix diagonalization failed, resetting Hessian to unity."
+            CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+            CALL cp_fm_to_fm(hess_mat, hess_tmp)
+            CALL choose_eigv_solver(hess_tmp, eigvec_mat, eigval)
+         END IF
 
-       IF (use_rfo) THEN
-          CALL set_hes_eig(ndf,eigval,work)
-          dx(:) = eigval
-          CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env)
-       END IF
-       CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo)
-       CALL trust_radius(ndf,step,rad,rat,dr,output_unit)
+         IF (use_rfo) THEN
+            CALL set_hes_eig(ndf, eigval, work)
+            dx(:) = eigval
+            CALL rat_fun_opt(ndf, dg, eigval, work, eigvec_mat, g, para_env)
+         END IF
+         CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
+         CALL trust_radius(ndf, step, rad, rat, dr, output_unit)
 
-       ! Update the atomic positions
-       x0 = x0 + dr
+         ! Update the atomic positions
+         x0 = x0 + dr
 
-       CALL energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env)
-       eold = etot
+         CALL energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
+         eold = etot
 
-       ! Energy & Gradients at new step
-       CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-                       .FALSE., gopt_env%force_env%para_env)
-       ediff = etot - eold
+         ! Energy & Gradients at new step
+         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                         .FALSE., gopt_env%force_env%para_env)
+         ediff = etot - eold
 
-       ! check for an external exit command
-       CALL external_control(should_stop,"GEO",globenv=globenv)
-       IF(should_stop) EXIT
+         ! check for an external exit command
+         CALL external_control(should_stop, "GEO", globenv=globenv)
+         IF (should_stop) EXIT
 
-       ! Some IO and Convergence check
-       t_now=m_walltime()
-       t_diff=t_now-t_old
-       t_old=t_now
-       CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit,&
-            eold, emin, wildcard, gopt_param, ndf, dr, g, conv, pred, rat,&
-            step, rad, used_time=t_diff)
+         ! Some IO and Convergence check
+         t_now = m_walltime()
+         t_diff = t_now - t_old
+         t_old = t_now
+         CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit, &
+                        eold, emin, wildcard, gopt_param, ndf, dr, g, conv, pred, rat, &
+                        step, rad, used_time=t_diff)
 
-       IF (conv.OR.(its==maxiter)) EXIT
-       IF (etot < emin) emin = etot
-       IF (use_rfo) CALL update_trust_rad(rat,rad,step,ediff)
-    END DO
+         IF (conv .OR. (its == maxiter)) EXIT
+         IF (etot < emin) emin = etot
+         IF (use_rfo) CALL update_trust_rad(rat, rad, step, ediff)
+      END DO
 
-    IF (its == maxiter .AND. (.NOT.conv))THEN
-       CALL print_geo_opt_nc(gopt_env, output_unit)
-    END IF
+      IF (its == maxiter .AND. (.NOT. conv)) THEN
+         CALL print_geo_opt_nc(gopt_env, output_unit)
+      END IF
 
-    ! Write final  information, if converged
-    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0)
-    CALL write_bfgs_hessian(geo_section,hess_mat,logger)
-    CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
-         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
+      ! Write final  information, if converged
+      CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)
+      CALL write_bfgs_hessian(geo_section, hess_mat, logger)
+      CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
+                              gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
-    CALL cp_fm_struct_release(fm_struct_hes)
-    CALL cp_fm_release(hess_mat)
-    CALL cp_fm_release(eigvec_mat)
-    CALL cp_fm_release(hess_tmp)
+      CALL cp_fm_struct_release(fm_struct_hes)
+      CALL cp_fm_release(hess_mat)
+      CALL cp_fm_release(eigvec_mat)
+      CALL cp_fm_release(hess_tmp)
 
-    CALL cp_blacs_env_release(blacs_env)
-    DEALLOCATE (xold)
-    DEALLOCATE (g)
-    DEALLOCATE (gold)
-    DEALLOCATE (dx)
-    DEALLOCATE (dg)
-    DEALLOCATE (eigval)
-    DEALLOCATE (work)
-    DEALLOCATE (dr)
+      CALL cp_blacs_env_release(blacs_env)
+      DEALLOCATE (xold)
+      DEALLOCATE (g)
+      DEALLOCATE (gold)
+      DEALLOCATE (dx)
+      DEALLOCATE (dg)
+      DEALLOCATE (eigval)
+      DEALLOCATE (work)
+      DEALLOCATE (dr)
 
-    CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
-         "PRINT%PROGRAM_RUN_INFO")
-    CALL timestop(handle)
+      CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
+                                        "PRINT%PROGRAM_RUN_INFO")
+      CALL timestop(handle)
 
-  END SUBROUTINE geoopt_bfgs
+   END SUBROUTINE geoopt_bfgs
 
 ! **************************************************************************************************
 !> \brief ...
@@ -397,7 +397,7 @@ CONTAINS
 !> \param g ...
 !> \param para_env ...
 ! **************************************************************************************************
-  SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env)
+   SUBROUTINE rat_fun_opt(ndf, dg, eigval, work, eigvec_mat, g, para_env)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: dg(ndf), eigval(ndf), work(ndf)
@@ -416,146 +416,146 @@ CONTAINS
                                                             ln, lp, ssize, step, stol
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    stol  = 1.0E-8_dp
-    ssize = 0.2_dp
-    maxit = 999
-    fail  = .FALSE.
-    bisec = .FALSE.
+      stol = 1.0E-8_dp
+      ssize = 0.2_dp
+      maxit = 999
+      fail = .FALSE.
+      bisec = .FALSE.
 
-    dg=0._dp
+      dg = 0._dp
 
-    CALL cp_fm_get_info(eigvec_mat,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
+      CALL cp_fm_get_info(eigvec_mat, row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
 
-    DO i=1,nrow_local
-       j=row_indices(i)
-       DO k=1,ncol_local
-          l=col_indices(k)
-          dg(l)=dg(l)+local_data(i,k)*g(j)
-       END DO
-    END DO
-    CALL mp_sum(dg,para_env%group)
+      DO i = 1, nrow_local
+         j = row_indices(i)
+         DO k = 1, ncol_local
+            l = col_indices(k)
+            dg(l) = dg(l) + local_data(i, k)*g(j)
+         END DO
+      END DO
+      CALL mp_sum(dg, para_env%group)
 
-    set = .FALSE.
+      set = .FALSE.
 
-    DO
+      DO
 
 !   calculating Lamda
 
-      lp = 0.0_dp
-      iref = 1
-      ln = 0.0_dp
-      IF(eigval(iref) < 0.0_dp )ln = eigval(iref) - 0.01_dp
+         lp = 0.0_dp
+         iref = 1
+         ln = 0.0_dp
+         IF (eigval(iref) < 0.0_dp) ln = eigval(iref) - 0.01_dp
 
-      iter = 0
-      DO
-         iter = iter + 1
-         fun = 0.0_dp
-         fung = 0.0_dp
-         DO indf = 1, ndf
-            fun = fun + dg(indf)**2/(ln-eigval(indf))
-            fung = fung - dg(indf)**2 /(ln-eigval(indf)**2)
+         iter = 0
+         DO
+            iter = iter + 1
+            fun = 0.0_dp
+            fung = 0.0_dp
+            DO indf = 1, ndf
+               fun = fun + dg(indf)**2/(ln - eigval(indf))
+               fung = fung - dg(indf)**2/(ln - eigval(indf)**2)
+            END DO
+            fun = fun - ln
+            fung = fung - one
+            step = fun/fung
+            ln = ln - step
+            IF (ABS(step) < stol) GOTO 200
+            IF (iter >= maxit) EXIT
          END DO
-         fun = fun - ln
-         fung = fung - one
-         step = fun/fung
-         ln = ln - step
-         IF(ABS(step) < stol )GOTO 200
-         IF(iter >= maxit)EXIT
-      END DO
-100   CONTINUE
-      bisec = .TRUE.
-      iter = 0
-      maxit = 9999
-      lam1 = 0.0_dp
-      IF(eigval(iref) < 0.0_dp )lam1 = eigval(iref) - 0.01_dp
-      fun1 = 0.0_dp
-      DO indf = 1, ndf
-        fun1 = fun1 + dg(indf)**2 / (lam1-eigval(indf))
-      END DO
-      fun1 = fun1 - lam1
-      step = ABS(lam1)/1000.0_dp
-      IF(step < ssize) step = ssize
-      DO
-         iter = iter + 1
-         IF(iter > maxit)THEN
-           ln = 0.0_dp
-           lp = 0.0_dp
-           fail = .TRUE.
-           GOTO 300
-         END IF
-         fun2 = 0.0_dp
-         lam2 = lam1 - iter * step
+100      CONTINUE
+         bisec = .TRUE.
+         iter = 0
+         maxit = 9999
+         lam1 = 0.0_dp
+         IF (eigval(iref) < 0.0_dp) lam1 = eigval(iref) - 0.01_dp
+         fun1 = 0.0_dp
          DO indf = 1, ndf
-           fun2 = fun2 + eigval(indf)**2 / (lam2 - eigval(indf))
+            fun1 = fun1 + dg(indf)**2/(lam1 - eigval(indf))
          END DO
-         fun2 = fun2 - lam2
-         IF(fun2*fun1 < 0.0_dp )THEN
-           iter = 0
-           DO
-             iter = iter + 1
-             IF(iter > maxit)THEN
+         fun1 = fun1 - lam1
+         step = ABS(lam1)/1000.0_dp
+         IF (step < ssize) step = ssize
+         DO
+            iter = iter + 1
+            IF (iter > maxit) THEN
                ln = 0.0_dp
                lp = 0.0_dp
                fail = .TRUE.
                GOTO 300
-             END IF
-             step = (lam1+lam2)/2
-             fun3 = 0.0_dp
-             DO indf = 1, ndf
-              fun3 = fun3 + dg(indf)**2/(step-eigval(indf))
-             END DO
-             fun3 = fun3 - step
+            END IF
+            fun2 = 0.0_dp
+            lam2 = lam1 - iter*step
+            DO indf = 1, ndf
+               fun2 = fun2 + eigval(indf)**2/(lam2 - eigval(indf))
+            END DO
+            fun2 = fun2 - lam2
+            IF (fun2*fun1 < 0.0_dp) THEN
+               iter = 0
+               DO
+                  iter = iter + 1
+                  IF (iter > maxit) THEN
+                     ln = 0.0_dp
+                     lp = 0.0_dp
+                     fail = .TRUE.
+                     GOTO 300
+                  END IF
+                  step = (lam1 + lam2)/2
+                  fun3 = 0.0_dp
+                  DO indf = 1, ndf
+                     fun3 = fun3 + dg(indf)**2/(step - eigval(indf))
+                  END DO
+                  fun3 = fun3 - step
 
-             IF( ABS(step-lam2) < stol)THEN
-               ln = step
-               GOTO 200
-             END IF
+                  IF (ABS(step - lam2) < stol) THEN
+                     ln = step
+                     GOTO 200
+                  END IF
 
-             IF( fun3 * fun1 < stol )THEN
-                lam2 = step
-             ELSE
-                lam1 = step
-             END IF
-           END DO
+                  IF (fun3*fun1 < stol) THEN
+                     lam2 = step
+                  ELSE
+                     lam1 = step
+                  END IF
+               END DO
+            END IF
+         END DO
+
+200      CONTINUE
+         IF ((ln > eigval(iref)) .OR. ((ln > 0.0_dp) .AND. &
+                                       (eigval(iref) > 0.0_dp))) THEN
+
+            IF (.NOT. bisec) GOTO 100
+            ln = 0.0_dp
+            lp = 0.0_dp
+            fail = .TRUE.
          END IF
-     END DO
 
-200  CONTINUE
-     IF( (ln > eigval(iref)).OR. ( (ln > 0.0_dp) .AND. &
-              (eigval(iref) > 0.0_dp) ) )THEN
+300      CONTINUE
 
-         IF(.NOT. bisec)GOTO 100
-         ln = 0.0_dp
-         lp = 0.0_dp
-         fail = .TRUE.
-     END IF
+         IF (fail .AND. .NOT. set) THEN
+            set = .TRUE.
+            DO indf = 1, ndf
+               eigval(indf) = eigval(indf)*work(indf)
+            END DO
+            CYCLE
+         END IF
 
-300  CONTINUE
+         IF (.NOT. set) THEN
+            work(1:ndf) = one
+         ENDIF
 
-     IF(fail .AND. .NOT. set )THEN
-        set = .TRUE.
-        DO indf = 1, ndf
-           eigval(indf) = eigval(indf) * work(indf)
-        END DO
-        CYCLE
-     END IF
+         DO indf = 1, ndf
+            eigval(indf) = eigval(indf) - ln
+         END DO
+         EXIT
+      END DO
 
-     IF(.NOT. set) THEN
-        work(1:ndf)=one
-     ENDIF
+      CALL timestop(handle)
 
-     DO indf = 1, ndf
-       eigval(indf) = eigval(indf) - ln
-     END DO
-     EXIT
-     END DO
-
-     CALL timestop(handle)
-
-  END SUBROUTINE  rat_fun_opt
+   END SUBROUTINE rat_fun_opt
 
 ! **************************************************************************************************
 !> \brief ...
@@ -566,7 +566,7 @@ CONTAINS
 !> \param work ...
 !> \param para_env ...
 ! **************************************************************************************************
-  SUBROUTINE bfgs(ndf,dx,dg,hess_mat,work,para_env)
+   SUBROUTINE bfgs(ndf, dx, dg, hess_mat, work, para_env)
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: dx(ndf), dg(ndf)
       TYPE(cp_fm_type), POINTER                          :: hess_mat
@@ -582,39 +582,39 @@ CONTAINS
       REAL(KIND=dp)                                      :: DDOT, dxw, gdx
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_hes
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_hes,nrow_local=nrow_local,ncol_local=ncol_local)
+      CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_hes, nrow_local=nrow_local, ncol_local=ncol_local)
 
-    work=zero
-    DO i=1,nrow_local
-       j=row_indices(i)
-       DO k=1,ncol_local
-          l=col_indices(k)
-          work(j)=work(j)+local_hes(i,k)*dx(l)
-       END DO
-    END DO
+      work = zero
+      DO i = 1, nrow_local
+         j = row_indices(i)
+         DO k = 1, ncol_local
+            l = col_indices(k)
+            work(j) = work(j) + local_hes(i, k)*dx(l)
+         END DO
+      END DO
 
-    CALL mp_sum(work,para_env%group)
+      CALL mp_sum(work, para_env%group)
 
-    gdx = DDOT(ndf,dg,1,dx,1)
-    gdx = one/gdx
-    dxw = DDOT(ndf,dx,1,work,1)
-    dxw = one/dxw
+      gdx = DDOT(ndf, dg, 1, dx, 1)
+      gdx = one/gdx
+      dxw = DDOT(ndf, dx, 1, work, 1)
+      dxw = one/dxw
 
-    DO i=1,nrow_local
-       j=row_indices(i)
-       DO k=1,ncol_local
-          l=col_indices(k)
-          local_hes(i,k)=local_hes(i,k)+gdx*dg(j)*dg(l) -&
-                                        dxw*work(j)*work(l)
-       END DO
-    END DO
+      DO i = 1, nrow_local
+         j = row_indices(i)
+         DO k = 1, ncol_local
+            l = col_indices(k)
+            local_hes(i, k) = local_hes(i, k) + gdx*dg(j)*dg(l) - &
+                              dxw*work(j)*work(l)
+         END DO
+      END DO
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE bfgs
+   END SUBROUTINE bfgs
 
 ! **************************************************************************************************
 !> \brief ...
@@ -622,7 +622,7 @@ CONTAINS
 !> \param eigval ...
 !> \param work ...
 ! **************************************************************************************************
-  SUBROUTINE set_hes_eig(ndf,eigval,work)
+   SUBROUTINE set_hes_eig(ndf, eigval, work)
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf), work(ndf)
 
@@ -633,39 +633,39 @@ CONTAINS
       INTEGER                                            :: handle, indf
       LOGICAL                                            :: neg
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-     DO indf = 1, ndf
-       IF(eigval(indf) < 0.0_dp )neg = .TRUE.
-       IF(eigval(indf) > 1000.0_dp)eigval(indf) = 1000.0_dp
-    END DO
-    DO indf = 1, ndf
-       IF( eigval(indf) < 0.0_dp ) THEN
-          IF(eigval(indf) < max_neg)THEN
-             eigval(indf) = max_neg
-          ELSE IF(eigval(indf) > - min_eig )THEN
-             eigval(indf) = - min_eig
-          END IF
-       ELSE IF(eigval(indf) < 1000.0_dp)THEN
-          IF(eigval(indf) < min_eig)THEN
-             eigval(indf) = min_eig
-          ELSE IF(eigval(indf) > max_pos)THEN
-             eigval(indf) = max_pos
-          END IF
-       END IF
-     END DO
+      DO indf = 1, ndf
+         IF (eigval(indf) < 0.0_dp) neg = .TRUE.
+         IF (eigval(indf) > 1000.0_dp) eigval(indf) = 1000.0_dp
+      END DO
+      DO indf = 1, ndf
+         IF (eigval(indf) < 0.0_dp) THEN
+            IF (eigval(indf) < max_neg) THEN
+               eigval(indf) = max_neg
+            ELSE IF (eigval(indf) > -min_eig) THEN
+               eigval(indf) = -min_eig
+            END IF
+         ELSE IF (eigval(indf) < 1000.0_dp) THEN
+            IF (eigval(indf) < min_eig) THEN
+               eigval(indf) = min_eig
+            ELSE IF (eigval(indf) > max_pos) THEN
+               eigval(indf) = max_pos
+            END IF
+         END IF
+      END DO
 
-     DO indf = 1, ndf
-       IF( eigval(indf) < 0.0_dp )THEN
-         work(indf) = - one
-       ELSE
-         work(indf) =  one
-       END IF
-     END DO
+      DO indf = 1, ndf
+         IF (eigval(indf) < 0.0_dp) THEN
+            work(indf) = -one
+         ELSE
+            work(indf) = one
+         END IF
+      END DO
 
-     CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE set_hes_eig
+   END SUBROUTINE set_hes_eig
 
 ! **************************************************************************************************
 !> \brief ...
@@ -678,7 +678,7 @@ CONTAINS
 !> \param para_env ...
 !> \param use_rfo ...
 ! **************************************************************************************************
-  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo)
+   SUBROUTINE geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf)
@@ -695,43 +695,43 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: tmp
 
-    CALL cp_fm_to_fm(eigvec_mat,hess_tmp)
-    IF(use_rfo)THEN
-       DO indf=1,ndf
-         eigval(indf) = one/eigval(indf)
-       END DO
-    ELSE
-       DO indf=1,ndf
-          eigval(indf) = one/MAX(0.0001_dp,eigval(indf))
-       END DO
-    END IF
+      CALL cp_fm_to_fm(eigvec_mat, hess_tmp)
+      IF (use_rfo) THEN
+         DO indf = 1, ndf
+            eigval(indf) = one/eigval(indf)
+         END DO
+      ELSE
+         DO indf = 1, ndf
+            eigval(indf) = one/MAX(0.0001_dp, eigval(indf))
+         END DO
+      END IF
 
-    CALL cp_fm_column_scale(hess_tmp,eigval)
-    CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct)
-    CALL cp_fm_create(tmp, matrix_struct ,name="tmp")
+      CALL cp_fm_column_scale(hess_tmp, eigval)
+      CALL cp_fm_get_info(eigvec_mat, matrix_struct=matrix_struct)
+      CALL cp_fm_create(tmp, matrix_struct, name="tmp")
 
-    CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,tmp)
+      CALL cp_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, tmp)
 
-    CALL cp_fm_transpose(tmp,hess_tmp)
-    CALL cp_fm_release(tmp)
+      CALL cp_fm_transpose(tmp, hess_tmp)
+      CALL cp_fm_release(tmp)
 
 !    ** New step **
 
-    CALL cp_fm_get_info(hess_tmp,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
+      CALL cp_fm_get_info(hess_tmp, row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
 
-    dr=0.0_dp
-    DO i=1,nrow_local
-       j=row_indices(i)
-       DO k=1,ncol_local
-          l=col_indices(k)
-          dr(j)=dr(j)-local_data(i,k)*g(l)
-       END DO
-    END DO
+      dr = 0.0_dp
+      DO i = 1, nrow_local
+         j = row_indices(i)
+         DO k = 1, ncol_local
+            l = col_indices(k)
+            dr(j) = dr(j) - local_data(i, k)*g(l)
+         END DO
+      END DO
 
-    CALL mp_sum(dr,para_env%group)
+      CALL mp_sum(dr, para_env%group)
 
-  END SUBROUTINE geoopt_get_step
+   END SUBROUTINE geoopt_get_step
 
 ! **************************************************************************************************
 !> \brief ...
@@ -742,7 +742,7 @@ CONTAINS
 !> \param dr ...
 !> \param output_unit ...
 ! **************************************************************************************************
-  SUBROUTINE trust_radius(ndf,step,rad,rat,dr,output_unit)
+   SUBROUTINE trust_radius(ndf, step, rad, rat, dr, output_unit)
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: step, rad, rat, dr(ndf)
       INTEGER, INTENT(IN)                                :: output_unit
@@ -753,24 +753,24 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: scal
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    step = MAXVAL(ABS(dr))
-    scal = MAX(one,rad/step)
+      step = MAXVAL(ABS(dr))
+      scal = MAX(one, rad/step)
 
-    IF( step > rad )THEN
-       rat = rad / step
-       CALL DSCAL(ndf,rat,dr,1)
-       step = rad
-       IF(output_unit>0) THEN
-         WRITE(unit=output_unit,FMT="(/,T2,A,F8.5)") &
-             " Step is scaled; Scaling factor = ", rat
-         CALL m_flush(output_unit)
-       ENDIF
-    END IF
-    CALL timestop(handle)
+      IF (step > rad) THEN
+         rat = rad/step
+         CALL DSCAL(ndf, rat, dr, 1)
+         step = rad
+         IF (output_unit > 0) THEN
+            WRITE (unit=output_unit, FMT="(/,T2,A,F8.5)") &
+               " Step is scaled; Scaling factor = ", rat
+            CALL m_flush(output_unit)
+         ENDIF
+      END IF
+      CALL timestop(handle)
 
-  END SUBROUTINE trust_radius
+   END SUBROUTINE trust_radius
 
 ! **************************************************************************************************
 !> \brief ...
@@ -783,7 +783,7 @@ CONTAINS
 !> \param pred ...
 !> \param para_env ...
 ! **************************************************************************************************
-  SUBROUTINE energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env)
+   SUBROUTINE energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
@@ -802,29 +802,29 @@ CONTAINS
       REAL(KIND=dp)                                      :: DDOT, ener1, ener2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    ener1 = DDOT(ndf,g,1,dr,1)
+      ener1 = DDOT(ndf, g, 1, dr, 1)
 
-    CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
+      CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
 
-    work=zero
-    DO i=1,nrow_local
-       j=row_indices(i)
-       DO k=1,ncol_local
-          l=col_indices(k)
-          work(j)=work(j)+local_data(i,k)*dr(l)
-       END DO
-    END DO
+      work = zero
+      DO i = 1, nrow_local
+         j = row_indices(i)
+         DO k = 1, ncol_local
+            l = col_indices(k)
+            work(j) = work(j) + local_data(i, k)*dr(l)
+         END DO
+      END DO
 
-    CALL mp_sum(work,para_env%group)
-    ener2 = DDOT(ndf,dr,1,work,1)
-    pred  = ener1 + 0.5_dp * ener2
-    conv = .FALSE.
-    CALL timestop(handle)
+      CALL mp_sum(work, para_env%group)
+      ener2 = DDOT(ndf, dr, 1, work, 1)
+      pred = ener1 + 0.5_dp*ener2
+      conv = .FALSE.
+      CALL timestop(handle)
 
-  END SUBROUTINE energy_predict
+   END SUBROUTINE energy_predict
 
 ! **************************************************************************************************
 !> \brief ...
@@ -833,7 +833,7 @@ CONTAINS
 !> \param step ...
 !> \param ediff ...
 ! **************************************************************************************************
-   SUBROUTINE update_trust_rad(rat,rad,step,ediff)
+   SUBROUTINE update_trust_rad(rat, rad, step, ediff)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: rat, rad, step, ediff
 
@@ -843,67 +843,67 @@ CONTAINS
 
       INTEGER                                            :: handle
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    IF( rat > 4.0_dp )THEN
-      IF( ediff < 0.0_dp)THEN
-        rad = step * 0.5_dp
+      IF (rat > 4.0_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step*0.5_dp
+         ELSE
+            rad = step*0.25_dp
+         END IF
+      ELSE IF (rat > 2.0_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step*0.75_dp
+         ELSE
+            rad = step*0.5_dp
+         END IF
+      ELSE IF (rat > 4.0_dp/3.0_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step
+         ELSE
+            rad = step*0.75_dp
+         END IF
+      ELSE IF (rat > 10.0_dp/9.0_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step*1.25_dp
+         ELSE
+            rad = step
+         END IF
+      ELSE IF (rat > 0.9_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step*1.5_dp
+         ELSE
+            rad = step*1.25_dp
+         END IF
+      ELSE IF (rat > 0.75_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step*1.25_dp
+         ELSE
+            rad = step
+         END IF
+      ELSE IF (rat > 0.5_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step
+         ELSE
+            rad = step*0.75_dp
+         END IF
+      ELSE IF (rat > 0.25_dp) THEN
+         IF (ediff < 0.0_dp) THEN
+            rad = step*0.75_dp
+         ELSE
+            rad = step*0.5_dp
+         END IF
+      ELSE IF (ediff < 0.0_dp) THEN
+         rad = step*0.5_dp
       ELSE
-        rad = step * 0.25_dp
+         rad = step*0.25_dp
       END IF
-    ELSE IF ( rat > 2.0_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step * 0.75_dp
-      ELSE
-        rad = step * 0.5_dp
-      END IF
-    ELSE IF ( rat > 4.0_dp/3.0_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step
-      ELSE
-        rad = step * 0.75_dp
-      END IF
-    ELSE IF (rat > 10.0_dp/9.0_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step * 1.25_dp
-      ELSE
-        rad = step
-      END IF
-    ELSE IF( rat > 0.9_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step * 1.5_dp
-      ELSE
-        rad = step * 1.25_dp
-      END IF
-    ELSE IF( rat > 0.75_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step * 1.25_dp
-      ELSE
-        rad = step
-      END IF
-    ELSE IF( rat > 0.5_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step
-      ELSE
-        rad = step * 0.75_dp
-      END IF
-    ELSE IF( rat > 0.25_dp )THEN
-      IF( ediff < 0.0_dp )THEN
-        rad = step * 0.75_dp
-      ELSE
-        rad = step * 0.5_dp
-      END IF
-    ELSE IF( ediff < 0.0_dp )THEN
-        rad = step * 0.5_dp
-    ELSE
-        rad = step * 0.25_dp
-    END IF
 
-    rad = MAX(rad,min_trust)
-    rad = MIN(rad,max_trust)
-    CALL timestop(handle)
+      rad = MAX(rad, min_trust)
+      rad = MIN(rad, max_trust)
+      CALL timestop(handle)
 
-  END SUBROUTINE update_trust_rad
+   END SUBROUTINE update_trust_rad
 
 ! **************************************************************************************************
 
@@ -913,7 +913,7 @@ CONTAINS
 !> \param hess_mat ...
 !> \param logger ...
 ! **************************************************************************************************
-   SUBROUTINE write_bfgs_hessian(geo_section,hess_mat,logger)
+   SUBROUTINE write_bfgs_hessian(geo_section, hess_mat, logger)
 
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(cp_fm_type), POINTER                          :: hess_mat
@@ -924,19 +924,19 @@ CONTAINS
 
       INTEGER                                            :: handle, hesunit
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
-           extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
-           file_position="REWIND")
+      hesunit = cp_print_key_unit_nr(logger, geo_section, "BFGS%RESTART", &
+                                     extension=".Hessian", file_form="UNFORMATTED", file_action="WRITE", &
+                                     file_position="REWIND")
 
-    CALL cp_fm_write_unformatted(hess_mat,hesunit)
+      CALL cp_fm_write_unformatted(hess_mat, hesunit)
 
-    CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART")
+      CALL cp_print_key_finished_output(hesunit, logger, geo_section, "BFGS%RESTART")
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE write_bfgs_hessian
+   END SUBROUTINE write_bfgs_hessian
 ! **************************************************************************************************
 
 ! **************************************************************************************************
@@ -944,7 +944,7 @@ CONTAINS
 !> \param force_env ...
 !> \param hess_mat ...
 ! **************************************************************************************************
-  SUBROUTINE construct_initial_hess(force_env,hess_mat)
+   SUBROUTINE construct_initial_hess(force_env, hess_mat)
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(cp_fm_type), POINTER                          :: hess_mat
@@ -965,97 +965,97 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
 
-     CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell)
-     CALL cp_subsys_get(subsys,&
-                 particles=particles)
+      CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
+      CALL cp_subsys_get(subsys, &
+                         particles=particles)
 
-     alpha(1,:)=(/1._dp,0.3949_dp,0.3949_dp/)
-     alpha(2,:)=(/0.3494_dp,0.2800_dp,0.2800_dp/)
-     alpha(3,:)=(/0.3494_dp,0.2800_dp,0.1800_dp/)
+      alpha(1, :) = (/1._dp, 0.3949_dp, 0.3949_dp/)
+      alpha(2, :) = (/0.3494_dp, 0.2800_dp, 0.2800_dp/)
+      alpha(3, :) = (/0.3494_dp, 0.2800_dp, 0.1800_dp/)
 
-     r0(1,:)=(/1.35_dp,2.10_dp,2.53_dp/)
-     r0(2,:)=(/2.10_dp,2.87_dp,3.40_dp/)
-     r0(3,:)=(/2.53_dp,3.40_dp,3.40_dp/)
+      r0(1, :) = (/1.35_dp, 2.10_dp, 2.53_dp/)
+      r0(2, :) = (/2.10_dp, 2.87_dp, 3.40_dp/)
+      r0(3, :) = (/2.53_dp, 3.40_dp, 3.40_dp/)
 
-     CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
-            local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
-     natom=particles%n_els
-     ALLOCATE(at_row(natom))
-     ALLOCATE(rho_ij(natom,natom))
-     ALLOCATE(d_ij(natom,natom))
-     ALLOCATE(r_ij(natom,natom,3))
-     ALLOCATE(fixed(3,natom))
-     fixed=1.0_dp
-     CALL fix_atom_control( force_env,fixed)
-     DO i=1,3
-        CALL mp_min(fixed(i,:),hess_mat%matrix_struct%para_env%group)
-     END DO
-     rho_ij=0
+      CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
+      natom = particles%n_els
+      ALLOCATE (at_row(natom))
+      ALLOCATE (rho_ij(natom, natom))
+      ALLOCATE (d_ij(natom, natom))
+      ALLOCATE (r_ij(natom, natom, 3))
+      ALLOCATE (fixed(3, natom))
+      fixed = 1.0_dp
+      CALL fix_atom_control(force_env, fixed)
+      DO i = 1, 3
+         CALL mp_min(fixed(i, :), hess_mat%matrix_struct%para_env%group)
+      END DO
+      rho_ij = 0
       !XXXX insert proper rows !XXX
-     at_row=3
-     DO i=1,natom
-         CALL get_atomic_kind(atomic_kind=particles%els(i)%atomic_kind,z=z)
-         IF(z.LE.10)at_row(i)=2
-         IF(z.LE.2)at_row(i)=1
-     END DO
-    DO i=2,natom
-        iat_row=at_row(i)
-        DO j=1,i-1
-           jat_row=at_row(j)
-           !pbc for a distance vector
-           r_ij(j,i,:)=pbc(particles%els(i)%r,particles%els(j)%r,cell)
-           r_ij(i,j,:)=-r_ij(j,i,:)
-           d_ij(j,i)=SQRT(DOT_PRODUCT(r_ij(j,i,:),r_ij(j,i,:)))
-           d_ij(i,j)=d_ij(j,i)
-           rho_ij(j,i)=EXP(alpha(jat_row,iat_row)*(r0(jat_row,iat_row)**2-d_ij(j,i)**2))
-           rho_ij(i,j)=rho_ij(j,i)
-        END DO
-     END DO
-     DO i=1,ncol_local
-        iglobal=col_indices(i)
-        iind=MOD(iglobal-1,3)+1
-        iat_col=(iglobal+2)/3
-        IF(iat_col.GT.natom)CYCLE
-        DO j=1,nrow_local
-           jglobal=row_indices(j)
-           jind=MOD(jglobal-1,3)+1
-           iat_row=(jglobal+2)/3 
-           IF(iat_row.GT.natom)CYCLE
-           IF(iat_row.NE.iat_col)THEN
-               IF(d_ij(iat_row,iat_col).LT.6.0_dp)&
-               local_data(j,i)=local_data(j,i)+&
-                     angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
-           ELSE
-               local_data(j,i)=local_data(j,i)+&
-                     angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
-           END IF
-           IF(iat_col.NE.iat_row)THEN
-               IF(d_ij(iat_row,iat_col).LT.6.0_dp) &
-               local_data(j,i)=local_data(j,i)-&
-                               dist_second_deriv(r_ij(iat_col,iat_row,:),&
-                               iind,jind,d_ij(iat_row,iat_col),rho_ij(iat_row,iat_col))
-           ELSE
-              DO k=1,natom
-                 IF(k==iat_col)CYCLE
-                 IF(d_ij(iat_row,k).LT.6.0_dp) &
-                 local_data(j,i)=local_data(j,i)+&
-                               dist_second_deriv(r_ij(iat_col,k,:),&
-                               iind,jind,d_ij(iat_row,k),rho_ij(iat_row,k))
-              END DO
-           END IF
-           IF(fixed(jind,iat_row).LT.0.5_dp.OR.fixed(iind,iat_col).LT.0.5_dp)THEN
-              local_data(j,i)=0.0_dp
-              IF(jind==iind.AND.iat_row==iat_col)local_data(j,i)=1.0_dp
-           END IF 
-        END DO
-     END DO
-     DEALLOCATE(fixed)
-     DEALLOCATE(rho_ij)
-     DEALLOCATE(d_ij)
-     DEALLOCATE(r_ij)
-     DEALLOCATE(at_row)
+      at_row = 3
+      DO i = 1, natom
+         CALL get_atomic_kind(atomic_kind=particles%els(i)%atomic_kind, z=z)
+         IF (z .LE. 10) at_row(i) = 2
+         IF (z .LE. 2) at_row(i) = 1
+      END DO
+      DO i = 2, natom
+         iat_row = at_row(i)
+         DO j = 1, i - 1
+            jat_row = at_row(j)
+            !pbc for a distance vector
+            r_ij(j, i, :) = pbc(particles%els(i)%r, particles%els(j)%r, cell)
+            r_ij(i, j, :) = -r_ij(j, i, :)
+            d_ij(j, i) = SQRT(DOT_PRODUCT(r_ij(j, i, :), r_ij(j, i, :)))
+            d_ij(i, j) = d_ij(j, i)
+            rho_ij(j, i) = EXP(alpha(jat_row, iat_row)*(r0(jat_row, iat_row)**2 - d_ij(j, i)**2))
+            rho_ij(i, j) = rho_ij(j, i)
+         END DO
+      END DO
+      DO i = 1, ncol_local
+         iglobal = col_indices(i)
+         iind = MOD(iglobal - 1, 3) + 1
+         iat_col = (iglobal + 2)/3
+         IF (iat_col .GT. natom) CYCLE
+         DO j = 1, nrow_local
+            jglobal = row_indices(j)
+            jind = MOD(jglobal - 1, 3) + 1
+            iat_row = (jglobal + 2)/3
+            IF (iat_row .GT. natom) CYCLE
+            IF (iat_row .NE. iat_col) THEN
+               IF (d_ij(iat_row, iat_col) .LT. 6.0_dp) &
+                  local_data(j, i) = local_data(j, i) + &
+                                     angle_second_deriv(r_ij, d_ij, rho_ij, iind, jind, iat_col, iat_row, natom)
+            ELSE
+               local_data(j, i) = local_data(j, i) + &
+                                  angle_second_deriv(r_ij, d_ij, rho_ij, iind, jind, iat_col, iat_row, natom)
+            END IF
+            IF (iat_col .NE. iat_row) THEN
+               IF (d_ij(iat_row, iat_col) .LT. 6.0_dp) &
+                  local_data(j, i) = local_data(j, i) - &
+                                     dist_second_deriv(r_ij(iat_col, iat_row, :), &
+                                                       iind, jind, d_ij(iat_row, iat_col), rho_ij(iat_row, iat_col))
+            ELSE
+               DO k = 1, natom
+                  IF (k == iat_col) CYCLE
+                  IF (d_ij(iat_row, k) .LT. 6.0_dp) &
+                     local_data(j, i) = local_data(j, i) + &
+                                        dist_second_deriv(r_ij(iat_col, k, :), &
+                                                          iind, jind, d_ij(iat_row, k), rho_ij(iat_row, k))
+               END DO
+            END IF
+            IF (fixed(jind, iat_row) .LT. 0.5_dp .OR. fixed(iind, iat_col) .LT. 0.5_dp) THEN
+               local_data(j, i) = 0.0_dp
+               IF (jind == iind .AND. iat_row == iat_col) local_data(j, i) = 1.0_dp
+            END IF
+         END DO
+      END DO
+      DEALLOCATE (fixed)
+      DEALLOCATE (rho_ij)
+      DEALLOCATE (d_ij)
+      DEALLOCATE (r_ij)
+      DEALLOCATE (at_row)
 
-  END SUBROUTINE  construct_initial_hess
+   END SUBROUTINE construct_initial_hess
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1066,13 +1066,13 @@ CONTAINS
 !> \param rho ...
 !> \return ...
 ! **************************************************************************************************
-  FUNCTION dist_second_deriv(r1,i,j,d,rho)  RESULT(deriv)
+   FUNCTION dist_second_deriv(r1, i, j, d, rho) RESULT(deriv)
       REAL(KIND=dp), DIMENSION(3)                        :: r1
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: d, rho, deriv
 
-      deriv=0.45_dp*rho*(r1(i)*r1(j))/d**2
-  END FUNCTION
+      deriv = 0.45_dp*rho*(r1(i)*r1(j))/d**2
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1086,108 +1086,108 @@ CONTAINS
 !> \param natom ...
 !> \return ...
 ! **************************************************************************************************
-  FUNCTION angle_second_deriv(r_ij,d_ij,rho_ij,idir,jdir,iat_der,jat_der,natom) RESULT(deriv)
+   FUNCTION angle_second_deriv(r_ij, d_ij, rho_ij, idir, jdir, iat_der, jat_der, natom) RESULT(deriv)
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: r_ij
       REAL(KIND=dp), DIMENSION(:, :)                     :: d_ij, rho_ij
       INTEGER                                            :: idir, jdir, iat_der, jat_der, natom
       REAL(KIND=dp)                                      :: deriv
 
       INTEGER                                            :: i, iat, idr, j, jat, jdr
-      REAL(KIND=dp)                                      :: d12, d23, d31, D_mat(3,2), denom1, &
+      REAL(KIND=dp)                                      :: d12, d23, d31, D_mat(3, 2), denom1, &
                                                             denom2, denom3, ka1, ka2, ka3, rho12, &
                                                             rho23, rho31, rsst1, rsst2, rsst3
       REAL(KIND=dp), DIMENSION(3)                        :: r12, r23, r31
 
-     deriv=0._dp
-     IF(iat_der==jat_der)THEN
-        DO i=1,natom-1
-           IF(rho_ij(iat_der,i).LT.0.00001)CYCLE
-           DO j=i+1,natom
-              IF(rho_ij(iat_der,j).LT.0.00001)CYCLE
-              IF(i==iat_der.OR.j==iat_der)CYCLE
-              IF(iat_der.LT.i.OR.iat_der.GT.j)THEN
-                 r12=r_ij(iat_der,i,:); r23=r_ij(i,j,:); r31=r_ij(j,iat_der,:)
-                 d12=d_ij(iat_der,i); d23=d_ij(i,j); d31=d_ij(j,iat_der)
-                 rho12=rho_ij(iat_der,i); rho23=rho_ij(i,j); rho31=rho_ij(j,iat_der)
-              ELSE
-                 r12=r_ij(iat_der,j,:); r23=r_ij(j,i,:); r31=r_ij(i,iat_der,:)
-                 d12=d_ij(iat_der,j); d23=d_ij(j,i); d31=d_ij(i,iat_der)
-                 rho12=rho_ij(iat_der,j); rho23=rho_ij(j,i); rho31=rho_ij(i,iat_der)
-              END IF
-              ka1=0.15_dp*rho12*rho23; ka2=0.15_dp*rho23*rho31; ka3=0.15_dp*rho31*rho12
-              rsst1=DOT_PRODUCT(r12,r23);rsst2=DOT_PRODUCT(r23,r31);rsst3=DOT_PRODUCT(r31,r12)
-              denom1=1.0_dp-rsst1**2/(d12**2*d23**2); denom2=1.0_dp-rsst2**2/(d23**2*d31**2)
-              denom3=1.0_dp-rsst3**2/(d31**2*d12**2)
-              denom1=SIGN(1.0_dp,denom1)*MAX(ABS(denom1),0.01_dp)
-              denom2=SIGN(1.0_dp,denom2)*MAX(ABS(denom2),0.01_dp)
-              denom3=SIGN(1.0_dp,denom3)*MAX(ABS(denom3),0.01_dp)
-              D_mat(1,1)=r23(idir)/(d12*d23)-rsst1*r12(idir)/(d12**3*d23)
-              D_mat(1,2)=r23(jdir)/(d12*d23)-rsst1*r12(jdir)/(d12**3*d23)
-              D_mat(2,1)=-r23(idir)/(d23*d31)+rsst2*r31(idir)/(d23*d31**3)
-              D_mat(2,2)=-r23(jdir)/(d23*d31)+rsst2*r31(jdir)/(d23*d31**3)
-              D_mat(3,1)=(r31(idir)-r12(idir))/(d31*d12)+rsst3*r31(idir)/(d31**3*d12)-&
-                                                         rsst3*r12(idir)/(d31*d12**3)
-              D_mat(3,2)=(r31(jdir)-r12(jdir))/(d31*d12)+rsst3*r31(jdir)/(d31**3*d12)-&
-                                                         rsst3*r12(jdir)/(d31*d12**3)
-              IF(ABS(denom1).LE.0.011_dp)D_mat(1,1)=0.0_dp
-              IF(ABS(denom2).LE.0.011_dp)D_mat(2,1)=0.0_dp
-              IF(ABS(denom3).LE.0.011_dp)D_mat(3,1)=0.0_dp
-              deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
-                    ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
-                    ka3*D_mat(3,1)*D_mat(3,2)/denom3
+      deriv = 0._dp
+      IF (iat_der == jat_der) THEN
+         DO i = 1, natom - 1
+            IF (rho_ij(iat_der, i) .LT. 0.00001) CYCLE
+            DO j = i + 1, natom
+               IF (rho_ij(iat_der, j) .LT. 0.00001) CYCLE
+               IF (i == iat_der .OR. j == iat_der) CYCLE
+               IF (iat_der .LT. i .OR. iat_der .GT. j) THEN
+                  r12 = r_ij(iat_der, i, :); r23 = r_ij(i, j, :); r31 = r_ij(j, iat_der, :)
+                  d12 = d_ij(iat_der, i); d23 = d_ij(i, j); d31 = d_ij(j, iat_der)
+                  rho12 = rho_ij(iat_der, i); rho23 = rho_ij(i, j); rho31 = rho_ij(j, iat_der)
+               ELSE
+                  r12 = r_ij(iat_der, j, :); r23 = r_ij(j, i, :); r31 = r_ij(i, iat_der, :)
+                  d12 = d_ij(iat_der, j); d23 = d_ij(j, i); d31 = d_ij(i, iat_der)
+                  rho12 = rho_ij(iat_der, j); rho23 = rho_ij(j, i); rho31 = rho_ij(i, iat_der)
+               END IF
+               ka1 = 0.15_dp*rho12*rho23; ka2 = 0.15_dp*rho23*rho31; ka3 = 0.15_dp*rho31*rho12
+               rsst1 = DOT_PRODUCT(r12, r23); rsst2 = DOT_PRODUCT(r23, r31); rsst3 = DOT_PRODUCT(r31, r12)
+               denom1 = 1.0_dp - rsst1**2/(d12**2*d23**2); denom2 = 1.0_dp - rsst2**2/(d23**2*d31**2)
+               denom3 = 1.0_dp - rsst3**2/(d31**2*d12**2)
+               denom1 = SIGN(1.0_dp, denom1)*MAX(ABS(denom1), 0.01_dp)
+               denom2 = SIGN(1.0_dp, denom2)*MAX(ABS(denom2), 0.01_dp)
+               denom3 = SIGN(1.0_dp, denom3)*MAX(ABS(denom3), 0.01_dp)
+               D_mat(1, 1) = r23(idir)/(d12*d23) - rsst1*r12(idir)/(d12**3*d23)
+               D_mat(1, 2) = r23(jdir)/(d12*d23) - rsst1*r12(jdir)/(d12**3*d23)
+               D_mat(2, 1) = -r23(idir)/(d23*d31) + rsst2*r31(idir)/(d23*d31**3)
+               D_mat(2, 2) = -r23(jdir)/(d23*d31) + rsst2*r31(jdir)/(d23*d31**3)
+               D_mat(3, 1) = (r31(idir) - r12(idir))/(d31*d12) + rsst3*r31(idir)/(d31**3*d12) - &
+                             rsst3*r12(idir)/(d31*d12**3)
+               D_mat(3, 2) = (r31(jdir) - r12(jdir))/(d31*d12) + rsst3*r31(jdir)/(d31**3*d12) - &
+                             rsst3*r12(jdir)/(d31*d12**3)
+               IF (ABS(denom1) .LE. 0.011_dp) D_mat(1, 1) = 0.0_dp
+               IF (ABS(denom2) .LE. 0.011_dp) D_mat(2, 1) = 0.0_dp
+               IF (ABS(denom3) .LE. 0.011_dp) D_mat(3, 1) = 0.0_dp
+               deriv = deriv + ka1*D_mat(1, 1)*D_mat(1, 2)/denom1 + &
+                       ka2*D_mat(2, 1)*D_mat(2, 2)/denom2 + &
+                       ka3*D_mat(3, 1)*D_mat(3, 2)/denom3
 
-           END DO
-        END DO
-     ELSE
-        DO i=1,natom
-           IF(i==iat_der.OR.i==jat_der)CYCLE
-           IF(jat_der.LT.iat_der)THEN
-              iat=jat_der; jat=iat_der; idr=jdir; jdr=idir
-           ELSE
-              iat=iat_der; jat=jat_der; idr=idir; jdr=jdir
-           END IF
-           IF(jat.LT.i.OR.iat.GT.i)THEN
-              r12=r_ij(iat,jat,:); r23=r_ij(jat,i,:); r31=r_ij(i,iat,:)
-              d12=d_ij(iat,jat); d23=d_ij(jat,i); d31=d_ij(i,iat)
-              rho12=rho_ij(iat,jat); rho23=rho_ij(jat,i); rho31=rho_ij(i,iat)
-           ELSE
-              r12=r_ij(iat,i,:); r23=r_ij(i,jat,:); r31=r_ij(jat,iat,:)
-              d12=d_ij(iat,i); d23=d_ij(i,jat); d31=d_ij(jat,iat)
-              rho12=rho_ij(iat,i); rho23=rho_ij(i,jat); rho31=rho_ij(jat,iat)
-           END IF
-           ka1=0.15_dp*rho12*rho23; ka2=0.15_dp*rho23*rho31; ka3=0.15_dp*rho31*rho12
-           rsst1=DOT_PRODUCT(r12,r23);rsst2=DOT_PRODUCT(r23,r31);rsst3=DOT_PRODUCT(r31,r12)
-           denom1=1.0_dp-rsst1**2/(d12**2*d23**2); denom2=1.0_dp-rsst2**2/(d23**2*d31**2)
-           denom3=1.0_dp-rsst3**2/(d31**2*d12**2)
-           denom1=SIGN(1.0_dp,denom1)*MAX(ABS(denom1),0.01_dp)
-           denom2=SIGN(1.0_dp,denom2)*MAX(ABS(denom2),0.01_dp)
-           denom3=SIGN(1.0_dp,denom3)*MAX(ABS(denom3),0.01_dp)
-           D_mat(1,1)=r23(idr)/(d12*d23)-rsst1*r12(idr)/(d12**3*d23)
-           D_mat(2,1)=-r23(idr)/(d23*d31)+rsst2*r31(idr)/(d23*d31**3)
-           D_mat(3,1)=(r31(idr)-r12(idr))/(d31*d12)+rsst3*r31(idr)/(d31**3*d12)-&
-                                                         rsst3*r12(idr)/(d31*d12**3)
-           IF(jat.LT.i.OR.iat.GT.i)THEN
-              D_mat(1,2)=(r12(jdr)-r23(jdr))/(d12*d23)+rsst1*r12(jdr)/(d12**3*d23)-&
-                                                       rsst1*r23(jdr)/(d12*d23**3)
-              D_mat(2,2)=r31(jdr)/(d23*d31)-rsst2*r23(jdr)/(d23**3*d31)
-              D_mat(3,2)=-r31(jdr)/(d31*d12)+rsst3*r12(jdr)/(d31*d12**3)
-           ELSE
-              D_mat(1,2)=-r12(jdr)/(d12*d23)+rsst1*r23(jdr)/(d12*d23**3)
-              D_mat(2,2)=(r23(jdr)-r31(jdr))/(d23*d31)+rsst2*r23(jdr)/(d23**3*d31)-&
-                                                       rsst2*r31(jdr)/(d23*d31**3)
-              D_mat(3,2)=r12(jdr)/(d31*d12)-rsst3*r31(jdr)/(d31**3*d12)
-           END IF
-           IF(ABS(denom1).LE.0.011_dp)D_mat(1,1)=0.0_dp
-           IF(ABS(denom2).LE.0.011_dp)D_mat(2,1)=0.0_dp
-           IF(ABS(denom3).LE.0.011_dp)D_mat(3,1)=0.0_dp
+            END DO
+         END DO
+      ELSE
+         DO i = 1, natom
+            IF (i == iat_der .OR. i == jat_der) CYCLE
+            IF (jat_der .LT. iat_der) THEN
+               iat = jat_der; jat = iat_der; idr = jdir; jdr = idir
+            ELSE
+               iat = iat_der; jat = jat_der; idr = idir; jdr = jdir
+            END IF
+            IF (jat .LT. i .OR. iat .GT. i) THEN
+               r12 = r_ij(iat, jat, :); r23 = r_ij(jat, i, :); r31 = r_ij(i, iat, :)
+               d12 = d_ij(iat, jat); d23 = d_ij(jat, i); d31 = d_ij(i, iat)
+               rho12 = rho_ij(iat, jat); rho23 = rho_ij(jat, i); rho31 = rho_ij(i, iat)
+            ELSE
+               r12 = r_ij(iat, i, :); r23 = r_ij(i, jat, :); r31 = r_ij(jat, iat, :)
+               d12 = d_ij(iat, i); d23 = d_ij(i, jat); d31 = d_ij(jat, iat)
+               rho12 = rho_ij(iat, i); rho23 = rho_ij(i, jat); rho31 = rho_ij(jat, iat)
+            END IF
+            ka1 = 0.15_dp*rho12*rho23; ka2 = 0.15_dp*rho23*rho31; ka3 = 0.15_dp*rho31*rho12
+            rsst1 = DOT_PRODUCT(r12, r23); rsst2 = DOT_PRODUCT(r23, r31); rsst3 = DOT_PRODUCT(r31, r12)
+            denom1 = 1.0_dp - rsst1**2/(d12**2*d23**2); denom2 = 1.0_dp - rsst2**2/(d23**2*d31**2)
+            denom3 = 1.0_dp - rsst3**2/(d31**2*d12**2)
+            denom1 = SIGN(1.0_dp, denom1)*MAX(ABS(denom1), 0.01_dp)
+            denom2 = SIGN(1.0_dp, denom2)*MAX(ABS(denom2), 0.01_dp)
+            denom3 = SIGN(1.0_dp, denom3)*MAX(ABS(denom3), 0.01_dp)
+            D_mat(1, 1) = r23(idr)/(d12*d23) - rsst1*r12(idr)/(d12**3*d23)
+            D_mat(2, 1) = -r23(idr)/(d23*d31) + rsst2*r31(idr)/(d23*d31**3)
+            D_mat(3, 1) = (r31(idr) - r12(idr))/(d31*d12) + rsst3*r31(idr)/(d31**3*d12) - &
+                          rsst3*r12(idr)/(d31*d12**3)
+            IF (jat .LT. i .OR. iat .GT. i) THEN
+               D_mat(1, 2) = (r12(jdr) - r23(jdr))/(d12*d23) + rsst1*r12(jdr)/(d12**3*d23) - &
+                             rsst1*r23(jdr)/(d12*d23**3)
+               D_mat(2, 2) = r31(jdr)/(d23*d31) - rsst2*r23(jdr)/(d23**3*d31)
+               D_mat(3, 2) = -r31(jdr)/(d31*d12) + rsst3*r12(jdr)/(d31*d12**3)
+            ELSE
+               D_mat(1, 2) = -r12(jdr)/(d12*d23) + rsst1*r23(jdr)/(d12*d23**3)
+               D_mat(2, 2) = (r23(jdr) - r31(jdr))/(d23*d31) + rsst2*r23(jdr)/(d23**3*d31) - &
+                             rsst2*r31(jdr)/(d23*d31**3)
+               D_mat(3, 2) = r12(jdr)/(d31*d12) - rsst3*r31(jdr)/(d31**3*d12)
+            END IF
+            IF (ABS(denom1) .LE. 0.011_dp) D_mat(1, 1) = 0.0_dp
+            IF (ABS(denom2) .LE. 0.011_dp) D_mat(2, 1) = 0.0_dp
+            IF (ABS(denom3) .LE. 0.011_dp) D_mat(3, 1) = 0.0_dp
 
-           deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
-                 ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
-                 ka3*D_mat(3,1)*D_mat(3,2)/denom3
+            deriv = deriv + ka1*D_mat(1, 1)*D_mat(1, 2)/denom1 + &
+                    ka2*D_mat(2, 1)*D_mat(2, 2)/denom2 + &
+                    ka3*D_mat(3, 1)*D_mat(3, 2)/denom3
          END DO
       END IF
-      deriv=0.25_dp*deriv
+      deriv = 0.25_dp*deriv
 
-  END FUNCTION angle_second_deriv
+   END FUNCTION angle_second_deriv
 
 END MODULE bfgs_optimizer

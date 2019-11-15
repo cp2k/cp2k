@@ -75,7 +75,7 @@ CONTAINS
 
       derivative%ref_count = 1
       derivative%id_nr = derivative_id_nr
-      derivative_id_nr = derivative_id_nr+1
+      derivative_id_nr = derivative_id_nr + 1
       CALL standardize_derivative_desc(desc, my_desc)
       CALL create_split_derivative_desc(my_desc, derivative%split_desc)
       derivative%desc = my_desc
@@ -98,7 +98,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(deriv))
       CPASSERT(deriv%ref_count > 0)
-      deriv%ref_count = deriv%ref_count+1
+      deriv%ref_count = deriv%ref_count + 1
    END SUBROUTINE xc_derivative_retain
 
 ! **************************************************************************************************
@@ -118,7 +118,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(derivative))
       CPASSERT(derivative%ref_count >= 1)
 
-      derivative%ref_count = derivative%ref_count-1
+      derivative%ref_count = derivative%ref_count - 1
       IF (derivative%ref_count == 0) THEN
          IF (PRESENT(pw_pool)) THEN
             IF (ASSOCIATED(pw_pool)) THEN

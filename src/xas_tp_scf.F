@@ -222,7 +222,7 @@ CONTAINS
          exit_loop = .FALSE.
          IF (output_unit > 0) CALL m_flush(output_unit)
 
-         iter_count = iter_count+1
+         iter_count = iter_count + 1
          CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_count)
 
          ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
@@ -265,8 +265,8 @@ CONTAINS
             energy%kTS = 0.0_dp
             energy%efermi = 0.0_dp
             DO ispin = 1, nspin
-               energy%kTS = energy%kTS+mos(ispin)%mo_set%kTS
-               energy%efermi = energy%efermi+mos(ispin)%mo_set%mu
+               energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
+               energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
             ENDDO
             energy%efermi = energy%efermi/REAL(nspin, KIND=dp)
 
@@ -295,8 +295,8 @@ CONTAINS
             WRITE (UNIT=output_unit, &
                    FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)") &
                iter_count, TRIM(scf_env%iter_method), &
-               scf_env%iter_param, t2-t1, scf_env%iter_delta, energy%total, &
-               energy%total-energy%tot_old
+               scf_env%iter_param, t2 - t1, scf_env%iter_delta, energy%total, &
+               energy%total - energy%tot_old
          END IF
          energy%tot_old = energy%total
 
@@ -521,7 +521,7 @@ CONTAINS
 
             rc(1:3) = centers_wfn(1:3, istate)
             rac = pbc(ra, rc, cell)
-            dist = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
+            dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
 
             IF (dist < 1.0_dp) THEN
                CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, istate, &
@@ -530,10 +530,10 @@ CONTAINS
                DO i = 1, SIZE(stogto_overlap(my_kind)%array, 1)
                   component = 0.0_dp
                   DO j = 1, SIZE(stogto_overlap(my_kind)%array, 2)
-                     isgf = first_sgf(iatom)+j-1
-                     component = component+stogto_overlap(my_kind)%array(i, j)*vecbuffer(1, isgf)
+                     isgf = first_sgf(iatom) + j - 1
+                     component = component + stogto_overlap(my_kind)%array(i, j)*vecbuffer(1, isgf)
                   END DO ! j size
-                  sto_state_overlap = sto_state_overlap+ &
+                  sto_state_overlap = sto_state_overlap + &
                                       component*component
                END DO ! i size
 
@@ -611,9 +611,9 @@ CONTAINS
          ENDDO
          IF (nvirtual2 .GT. 0) THEN
             CALL cp_fm_to_fm(uno_orbs, all_vectors, ncol=nvirtual2, &
-                             source_start=1, target_start=1+nmo)
+                             source_start=1, target_start=1 + nmo)
             DO istate = 1, nvirtual2
-               all_evals(istate+nmo) = uno_evals(istate)
+               all_evals(istate + nmo) = uno_evals(istate)
             END DO
          END IF
       END IF

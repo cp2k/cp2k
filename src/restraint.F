@@ -123,35 +123,35 @@ CONTAINS
          molecule_kind => molecule_kind_set(ikind)
          CALL get_molecule_kind(molecule_kind, fixd_list=fixd_list)
          IF (fixd_list(ii)%restraint%active) THEN
-            n_restraint = n_restraint+1
+            n_restraint = n_restraint + 1
             iparticle = fixd_list(ii)%fixd
             k0 = fixd_list(ii)%restraint%k0
             targ = fixd_list(ii)%coord
             rab = 0.0_dp
-            SELECT CASE (fixd_list (ii)%itype)
+            SELECT CASE (fixd_list(ii)%itype)
             CASE (use_perd_x)
-               rab(1) = particle_set(iparticle)%r(1)-targ(1)
+               rab(1) = particle_set(iparticle)%r(1) - targ(1)
             CASE (use_perd_y)
-               rab(2) = particle_set(iparticle)%r(2)-targ(2)
+               rab(2) = particle_set(iparticle)%r(2) - targ(2)
             CASE (use_perd_z)
-               rab(3) = particle_set(iparticle)%r(3)-targ(3)
+               rab(3) = particle_set(iparticle)%r(3) - targ(3)
             CASE (use_perd_xy)
-               rab(1) = particle_set(iparticle)%r(1)-targ(1)
-               rab(2) = particle_set(iparticle)%r(2)-targ(2)
+               rab(1) = particle_set(iparticle)%r(1) - targ(1)
+               rab(2) = particle_set(iparticle)%r(2) - targ(2)
             CASE (use_perd_xz)
-               rab(1) = particle_set(iparticle)%r(1)-targ(1)
-               rab(3) = particle_set(iparticle)%r(3)-targ(3)
+               rab(1) = particle_set(iparticle)%r(1) - targ(1)
+               rab(3) = particle_set(iparticle)%r(3) - targ(3)
             CASE (use_perd_yz)
-               rab(2) = particle_set(iparticle)%r(2)-targ(2)
-               rab(3) = particle_set(iparticle)%r(3)-targ(3)
+               rab(2) = particle_set(iparticle)%r(2) - targ(2)
+               rab(3) = particle_set(iparticle)%r(3) - targ(3)
             CASE (use_perd_xyz)
-               rab = particle_set(iparticle)%r-targ
+               rab = particle_set(iparticle)%r - targ
             END SELECT
             rab2 = DOT_PRODUCT(rab, rab)
             ! Energy
-            energy_fixd = energy_fixd+k0*rab2
+            energy_fixd = energy_fixd + k0*rab2
             ! Forces
-            force(:, iparticle) = force(:, iparticle)-2.0_dp*k0*rab
+            force(:, iparticle) = force(:, iparticle) - 2.0_dp*k0*rab
          END IF
       END DO
       CALL release_local_fixd_list(lfixd_list)
@@ -171,17 +171,17 @@ CONTAINS
                                    ng4x6_restraint=n4x6con_restraint)
             ! 3x3
             IF (n3x3con_restraint /= 0) THEN
-               n_restraint = n_restraint+n3x3con_restraint
+               n_restraint = n_restraint + n3x3con_restraint
                CALL restraint_3x3_int(molecule, particle_set, energy_3x3, force)
             ENDIF
             ! 4x6
             IF (n4x6con_restraint /= 0) THEN
-               n_restraint = n_restraint+n4x6con_restraint
+               n_restraint = n_restraint + n4x6con_restraint
                CALL restraint_4x6_int(molecule, particle_set, energy_4x6, force)
             ENDIF
             ! collective variables
             IF (ncolv%nrestraint /= 0) THEN
-               n_restraint = n_restraint+ncolv%nrestraint
+               n_restraint = n_restraint + ncolv%nrestraint
                CALL restraint_colv_int(molecule, particle_set, cell, energy_colv, force)
             ENDIF
          END DO
@@ -201,21 +201,21 @@ CONTAINS
          IF (gci%nrestraint > 0) THEN
             ! 3x3
             IF (gci%ng3x3_restraint /= 0) THEN
-               n_restraint = n_restraint+gci%ng3x3_restraint
+               n_restraint = n_restraint + gci%ng3x3_restraint
                CALL restraint_3x3_ext(gci, particle_set, energy_3x3, force)
             ENDIF
             ! 4x6
             IF (gci%ng4x6_restraint /= 0) THEN
-               n_restraint = n_restraint+gci%ng4x6_restraint
+               n_restraint = n_restraint + gci%ng4x6_restraint
                CALL restraint_4x6_ext(gci, particle_set, energy_4x6, force)
             ENDIF
             ! collective variables
             IF (gci%ncolv%nrestraint /= 0) THEN
-               n_restraint = n_restraint+gci%ncolv%nrestraint
+               n_restraint = n_restraint + gci%ncolv%nrestraint
                CALL restraint_colv_ext(gci, particle_set, cell, energy_colv, force)
             ENDIF
             DO iparticle = 1, SIZE(particle_set)
-               particle_set(iparticle)%f = particle_set(iparticle)%f+force(:, iparticle)
+               particle_set(iparticle)%f = particle_set(iparticle)%f + force(:, iparticle)
             END DO
          END IF
       END IF
@@ -223,9 +223,9 @@ CONTAINS
 
       ! Store restraint energies
       CALL force_env_get(force_env=force_env, additional_potential=extended_energies)
-      extended_energies = extended_energies+energy_3x3+ &
-                          energy_fixd+ &
-                          energy_4x6+ &
+      extended_energies = extended_energies + energy_3x3 + &
+                          energy_fixd + &
+                          energy_4x6 + &
                           energy_colv
       CALL force_env_set(force_env=force_env, additional_potential=extended_energies)
       CALL timestop(handle)
@@ -456,26 +456,26 @@ CONTAINS
 
       DO iconst = 1, ng3x3
          IF (.NOT. g3x3_list(iconst)%restraint%active) CYCLE
-         index_a = g3x3_list(iconst)%a+first_atom-1
-         index_b = g3x3_list(iconst)%b+first_atom-1
-         index_c = g3x3_list(iconst)%c+first_atom-1
-         r0_12(:) = particle_set(index_a)%r-particle_set(index_b)%r
-         r0_13(:) = particle_set(index_a)%r-particle_set(index_c)%r
-         r0_23(:) = particle_set(index_b)%r-particle_set(index_c)%r
+         index_a = g3x3_list(iconst)%a + first_atom - 1
+         index_b = g3x3_list(iconst)%b + first_atom - 1
+         index_c = g3x3_list(iconst)%c + first_atom - 1
+         r0_12(:) = particle_set(index_a)%r - particle_set(index_b)%r
+         r0_13(:) = particle_set(index_a)%r - particle_set(index_c)%r
+         r0_23(:) = particle_set(index_b)%r - particle_set(index_c)%r
 
          rab = SQRT(DOT_PRODUCT(r0_12, r0_12))
          rac = SQRT(DOT_PRODUCT(r0_13, r0_13))
          rbc = SQRT(DOT_PRODUCT(r0_23, r0_23))
-         tab = rab-g3x3_list(ng3x3)%dab
-         tac = rac-g3x3_list(ng3x3)%dac
-         tbc = rbc-g3x3_list(ng3x3)%dbc
+         tab = rab - g3x3_list(ng3x3)%dab
+         tac = rac - g3x3_list(ng3x3)%dac
+         tbc = rbc - g3x3_list(ng3x3)%dbc
          k = g3x3_list(iconst)%restraint%k0
          ! Update Energy
-         energy = energy+k*(tab**2+tac**2+tbc**2)
+         energy = energy + k*(tab**2 + tac**2 + tbc**2)
          ! Update Forces
-         force(:, index_a) = force(:, index_a)-2.0_dp*k*(r0_12/rab*tab+r0_13/rac*tac)
-         force(:, index_b) = force(:, index_b)-2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc)
-         force(:, index_c) = force(:, index_c)-2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc)
+         force(:, index_a) = force(:, index_a) - 2.0_dp*k*(r0_12/rab*tab + r0_13/rac*tac)
+         force(:, index_b) = force(:, index_b) - 2.0_dp*k*(-r0_12/rab*tab + r0_23/rbc*tbc)
+         force(:, index_c) = force(:, index_c) - 2.0_dp*k*(-r0_13/rac*tac - r0_23/rbc*tbc)
          ! Fixed atoms
          IF (ASSOCIATED(fixd_list)) THEN
             IF (SIZE(fixd_list) > 0) THEN
@@ -521,16 +521,16 @@ CONTAINS
 
       DO iconst = 1, ng4x6
          IF (.NOT. g4x6_list(iconst)%restraint%active) CYCLE
-         index_a = g4x6_list(iconst)%a+first_atom-1
-         index_b = g4x6_list(iconst)%b+first_atom-1
-         index_c = g4x6_list(iconst)%c+first_atom-1
-         index_d = g4x6_list(iconst)%d+first_atom-1
-         r0_12(:) = particle_set(index_a)%r-particle_set(index_b)%r
-         r0_13(:) = particle_set(index_a)%r-particle_set(index_c)%r
-         r0_14(:) = particle_set(index_a)%r-particle_set(index_d)%r
-         r0_23(:) = particle_set(index_b)%r-particle_set(index_c)%r
-         r0_24(:) = particle_set(index_b)%r-particle_set(index_d)%r
-         r0_34(:) = particle_set(index_c)%r-particle_set(index_d)%r
+         index_a = g4x6_list(iconst)%a + first_atom - 1
+         index_b = g4x6_list(iconst)%b + first_atom - 1
+         index_c = g4x6_list(iconst)%c + first_atom - 1
+         index_d = g4x6_list(iconst)%d + first_atom - 1
+         r0_12(:) = particle_set(index_a)%r - particle_set(index_b)%r
+         r0_13(:) = particle_set(index_a)%r - particle_set(index_c)%r
+         r0_14(:) = particle_set(index_a)%r - particle_set(index_d)%r
+         r0_23(:) = particle_set(index_b)%r - particle_set(index_c)%r
+         r0_24(:) = particle_set(index_b)%r - particle_set(index_d)%r
+         r0_34(:) = particle_set(index_c)%r - particle_set(index_d)%r
 
          rab = SQRT(DOT_PRODUCT(r0_12, r0_12))
          rac = SQRT(DOT_PRODUCT(r0_13, r0_13))
@@ -539,21 +539,21 @@ CONTAINS
          rbd = SQRT(DOT_PRODUCT(r0_24, r0_24))
          rcd = SQRT(DOT_PRODUCT(r0_34, r0_34))
 
-         tab = rab-g4x6_list(ng4x6)%dab
-         tac = rac-g4x6_list(ng4x6)%dac
-         tad = rad-g4x6_list(ng4x6)%dad
-         tbc = rbc-g4x6_list(ng4x6)%dbc
-         tbd = rbd-g4x6_list(ng4x6)%dbd
-         tcd = rcd-g4x6_list(ng4x6)%dcd
+         tab = rab - g4x6_list(ng4x6)%dab
+         tac = rac - g4x6_list(ng4x6)%dac
+         tad = rad - g4x6_list(ng4x6)%dad
+         tbc = rbc - g4x6_list(ng4x6)%dbc
+         tbd = rbd - g4x6_list(ng4x6)%dbd
+         tcd = rcd - g4x6_list(ng4x6)%dcd
 
          k = g4x6_list(iconst)%restraint%k0
          ! Update Energy
-         energy = energy+k*(tab**2+tac**2+tad**2+tbc**2+tbd**2+tcd**2)
+         energy = energy + k*(tab**2 + tac**2 + tad**2 + tbc**2 + tbd**2 + tcd**2)
          ! Update Forces
-         force(:, index_a) = force(:, index_a)-2.0_dp*k*(r0_12/rab*tab+r0_13/rac*tac+r0_14/rad*tad)
-         force(:, index_b) = force(:, index_b)-2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc+r0_24/rbd*tbd)
-         force(:, index_c) = force(:, index_c)-2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc+r0_34/rcd*tcd)
-         force(:, index_d) = force(:, index_d)-2.0_dp*k*(-r0_14/rad*tad-r0_24/rbd*tbd-r0_34/rcd*tcd)
+         force(:, index_a) = force(:, index_a) - 2.0_dp*k*(r0_12/rab*tab + r0_13/rac*tac + r0_14/rad*tad)
+         force(:, index_b) = force(:, index_b) - 2.0_dp*k*(-r0_12/rab*tab + r0_23/rbc*tbc + r0_24/rbd*tbd)
+         force(:, index_c) = force(:, index_c) - 2.0_dp*k*(-r0_13/rac*tac - r0_23/rbc*tbc + r0_34/rcd*tcd)
+         force(:, index_d) = force(:, index_d) - 2.0_dp*k*(-r0_14/rad*tad - r0_24/rbd*tbd - r0_34/rcd*tcd)
          ! Fixed atoms
          IF (ASSOCIATED(fixd_list)) THEN
             IF (SIZE(fixd_list) > 0) THEN
@@ -605,11 +605,11 @@ CONTAINS
          targ = colv_list(iconst)%expected_value
          tab = diff_colvar(lcolv(iconst)%colvar, targ)
          ! Update Energy
-         energy = energy+k*tab**2
+         energy = energy + k*tab**2
          ! Update Forces
          DO iatm = 1, SIZE(lcolv(iconst)%colvar%i_atom)
             ind = lcolv(iconst)%colvar%i_atom(iatm)
-            force(:, ind) = force(:, ind)-2.0_dp*k*tab*lcolv(iconst)%colvar%dsdr(:, iatm)
+            force(:, ind) = force(:, ind) - 2.0_dp*k*tab*lcolv(iconst)%colvar%dsdr(:, iatm)
          END DO
       END DO
 

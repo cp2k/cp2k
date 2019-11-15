@@ -52,7 +52,7 @@ CONTAINS
       WRITE (UNIT=iw, FMT="(A,T44,A37)") &
          "  **** **  *******  **  PROGRAM STARTED IN ", ADJUSTR(cwd(1:37))
       DO l = 38, LEN_TRIM(cwd), 37
-         WRITE (UNIT=iw, FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd), l+36))
+         WRITE (UNIT=iw, FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd), l + 36))
       END DO
 
    END SUBROUTINE cp2k_header
@@ -81,7 +81,7 @@ CONTAINS
       WRITE (UNIT=iw, FMT="(A,T44,A37)") &
          "  **** **  *******  **  PROGRAM STOPPED IN ", ADJUSTR(cwd(1:37))
       DO l = 38, LEN_TRIM(cwd), 37
-         WRITE (UNIT=iw, FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd), l+36))
+         WRITE (UNIT=iw, FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd), l + 36))
       END DO
    END SUBROUTINE cp2k_footer
 

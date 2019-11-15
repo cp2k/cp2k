@@ -245,17 +245,17 @@ CONTAINS
          nomo = NINT(mo_set%nelectron/mo_set%maxocc)
          mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
       ELSE
-         nomo = INT(mo_set%nelectron/mo_set%maxocc)+1
+         nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
          ! Initialize MO occupations
-         mo_set%occupation_numbers(1:nomo-1) = mo_set%maxocc
-         mo_set%occupation_numbers(nomo) = mo_set%nelectron-(nomo-1)*mo_set%maxocc
+         mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc
+         mo_set%occupation_numbers(nomo) = mo_set%nelectron - (nomo - 1)*mo_set%maxocc
       END IF
 
       CPASSERT(nmo >= nomo)
       CPASSERT((SIZE(mo_set%occupation_numbers) == nmo))
 
       mo_set%homo = nomo
-      mo_set%lfomo = nomo+1
+      mo_set%lfomo = nomo + 1
       mo_set%mu = mo_set%eigenvalues(nomo)
 
    END SUBROUTINE init_mo_set

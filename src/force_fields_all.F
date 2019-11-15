@@ -165,21 +165,21 @@ CONTAINS
             ELSE
                DO j = 1, nbond
                   atm_a = bond_list(j)%a
-                  atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_a)
                   atm_b = bond_list(j)%b
-                  atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_b)
                   found = .FALSE.
-                  DO k = 1, j-1
+                  DO k = 1, j - 1
                      atm_a = bond_list(k)%a
-                     atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_a2)
                      atm_b = bond_list(k)%b
-                     atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_b2)
                      IF ((((name_atm_a) == (name_atm_a2)) .AND. &
@@ -192,7 +192,7 @@ CONTAINS
                      END IF
                   END DO
                   IF (.NOT. found) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      map_bond_kind(j) = counter
                   END IF
                END DO
@@ -262,29 +262,29 @@ CONTAINS
             ELSE
                DO j = 1, nbend
                   atm_a = bend_list(j)%a
-                  atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_a)
                   atm_b = bend_list(j)%b
-                  atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_b)
                   atm_c = bend_list(j)%c
-                  atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_c)
                   found = .FALSE.
-                  DO k = 1, j-1
+                  DO k = 1, j - 1
                      atm_a = bend_list(k)%a
-                     atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_a2)
                      atm_b = bend_list(k)%b
-                     atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_b2)
                      atm_c = bend_list(k)%c
-                     atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_c2)
                      IF ((((name_atm_a) == (name_atm_a2)) .AND. &
@@ -299,7 +299,7 @@ CONTAINS
                      END IF
                   END DO
                   IF (.NOT. found) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      map_bend_kind(j) = counter
                   END IF
                END DO
@@ -361,29 +361,29 @@ CONTAINS
             counter = 0
             DO j = 1, nub
                atm_a = ub_list(j)%a
-               atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_a)
                atm_b = ub_list(j)%b
-               atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_b)
                atm_c = ub_list(j)%c
-               atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_c)
                found = .FALSE.
-               DO k = 1, j-1
+               DO k = 1, j - 1
                   atm_a = ub_list(k)%a
-                  atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_a2)
                   atm_b = ub_list(k)%b
-                  atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_b2)
                   atm_c = ub_list(k)%c
-                  atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_c2)
                   IF ((((name_atm_a) == (name_atm_a2)) .AND. &
@@ -398,7 +398,7 @@ CONTAINS
                   END IF
                END DO
                IF (.NOT. found) THEN
-                  counter = counter+1
+                  counter = counter + 1
                   map_ub_kind(j) = counter
                END IF
             END DO
@@ -468,37 +468,37 @@ CONTAINS
             ELSE
                DO j = 1, ntorsion
                   atm_a = torsion_list(j)%a
-                  atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_a)
                   atm_b = torsion_list(j)%b
-                  atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_b)
                   atm_c = torsion_list(j)%c
-                  atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_c)
                   atm_d = torsion_list(j)%d
-                  atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_d)
                   found = .FALSE.
-                  DO k = 1, j-1
+                  DO k = 1, j - 1
                      atm_a = torsion_list(k)%a
-                     atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_a2)
                      atm_b = torsion_list(k)%b
-                     atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_b2)
                      atm_c = torsion_list(k)%c
-                     atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_c2)
                      atm_d = torsion_list(k)%d
-                     atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_d2)
                      IF ((((name_atm_a) == (name_atm_a2)) .AND. &
@@ -515,7 +515,7 @@ CONTAINS
                      END IF
                   END DO
                   IF (.NOT. found) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      map_torsion_kind(j) = counter
                   END IF
                END DO
@@ -587,37 +587,37 @@ CONTAINS
             ELSE
                DO j = 1, nimpr
                   atm_a = impr_list(j)%a
-                  atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_a)
                   atm_b = impr_list(j)%b
-                  atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_b)
                   atm_c = impr_list(j)%c
-                  atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_c)
                   atm_d = impr_list(j)%d
-                  atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_d)
                   found = .FALSE.
-                  DO k = 1, j-1
+                  DO k = 1, j - 1
                      atm_a = impr_list(k)%a
-                     atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_a2)
                      atm_b = impr_list(k)%b
-                     atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_b2)
                      atm_c = impr_list(k)%c
-                     atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_c2)
                      atm_d = impr_list(k)%d
-                     atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_d2)
                      IF ((((name_atm_a) == (name_atm_a2)) .AND. &
@@ -634,7 +634,7 @@ CONTAINS
                      END IF
                   END DO
                   IF (.NOT. found) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      map_impr_kind(j) = counter
                   END IF
                END DO
@@ -708,37 +708,37 @@ CONTAINS
             ELSE
                DO j = 1, nopbend
                   atm_a = opbend_list(j)%a
-                  atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_a)
                   atm_b = opbend_list(j)%b
-                  atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_b)
                   atm_c = opbend_list(j)%c
-                  atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_c)
                   atm_d = opbend_list(j)%d
-                  atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                  atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        name=name_atm_d)
                   found = .FALSE.
-                  DO k = 1, j-1
+                  DO k = 1, j - 1
                      atm_a = opbend_list(k)%a
-                     atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_a2)
                      atm_b = opbend_list(k)%b
-                     atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_b2)
                      atm_c = opbend_list(k)%c
-                     atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_c2)
                      atm_d = opbend_list(k)%d
-                     atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                     atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                           name=name_atm_d2)
                      IF ((((name_atm_a) == (name_atm_a2)) .AND. &
@@ -755,7 +755,7 @@ CONTAINS
                      END IF
                   END DO
                   IF (.NOT. found) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      map_opbend_kind(j) = counter
                   END IF
                END DO
@@ -825,11 +825,11 @@ CONTAINS
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
          DO j = 1, nbond
             atm_a = bond_list(j)%a
-            atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_a)
             atm_b = bond_list(j)%b
-            atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_b)
             found = .FALSE.
@@ -845,7 +845,7 @@ CONTAINS
                   bond_list(j)%bond_kind%k(1) = gro_info%bond_k(itype)
                   bond_list(j)%bond_kind%r0 = gro_info%bond_r0(itype)
                ELSE
-                  itype = itype-k
+                  itype = itype - k
                   bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
                   bond_list(j)%bond_kind%r0 = gro_info%solvent_r0(itype)
                END IF
@@ -975,15 +975,15 @@ CONTAINS
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
          DO j = 1, nbend
             atm_a = bend_list(j)%a
-            atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_a)
             atm_b = bend_list(j)%b
-            atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_b)
             atm_c = bend_list(j)%c
-            atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_c)
             found = .FALSE.
@@ -1149,15 +1149,15 @@ CONTAINS
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
          DO j = 1, nub
             atm_a = ub_list(j)%a
-            atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_a)
             atm_b = ub_list(j)%b
-            atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_b)
             atm_c = ub_list(j)%c
-            atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_c)
             found = .FALSE.
@@ -1293,19 +1293,19 @@ CONTAINS
          DO j = 1, ntorsion
             IF (torsion_list(j)%torsion_kind%id_type == do_ff_undef) THEN
                atm_a = torsion_list(j)%a
-               atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_a)
                atm_b = torsion_list(j)%b
-               atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_b)
                atm_c = torsion_list(j)%c
-               atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_c)
                atm_d = torsion_list(j)%d
-               atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+               atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                     name=name_atm_d)
                found = .FALSE.
@@ -1353,7 +1353,7 @@ CONTAINS
                           ((chm_info%torsion_b(k)) == (name_atm_c)) .AND. &
                           ((chm_info%torsion_c(k)) == (name_atm_b)) .AND. &
                           ((chm_info%torsion_d(k)) == (name_atm_a)))) THEN
-                        imul = torsion_list(j)%torsion_kind%nmul+1
+                        imul = torsion_list(j)%torsion_kind%nmul + 1
                         CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
@@ -1376,7 +1376,7 @@ CONTAINS
                              ((chm_info%torsion_b(k)) == (name_atm_c)) .AND. &
                              ((chm_info%torsion_c(k)) == (name_atm_b)) .AND. &
                              ((chm_info%torsion_d(k)) == ("X")))) THEN
-                           imul = torsion_list(j)%torsion_kind%nmul+1
+                           imul = torsion_list(j)%torsion_kind%nmul + 1
                            CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
                            CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
                            CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
@@ -1402,7 +1402,7 @@ CONTAINS
                           ((amb_info%torsion_b(k)) == (name_atm_c)) .AND. &
                           ((amb_info%torsion_c(k)) == (name_atm_b)) .AND. &
                           ((amb_info%torsion_d(k)) == (name_atm_a)))) THEN
-                        imul = torsion_list(j)%torsion_kind%nmul+1
+                        imul = torsion_list(j)%torsion_kind%nmul + 1
                         CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
@@ -1425,7 +1425,7 @@ CONTAINS
                              ((amb_info%torsion_b(k)) == (name_atm_c)) .AND. &
                              ((amb_info%torsion_c(k)) == (name_atm_b)) .AND. &
                              ((amb_info%torsion_d(k)) == ("X")))) THEN
-                           imul = torsion_list(j)%torsion_kind%nmul+1
+                           imul = torsion_list(j)%torsion_kind%nmul + 1
                            CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
                            CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
                            CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
@@ -1451,7 +1451,7 @@ CONTAINS
                           ((inp_info%torsion_b(k)) == (name_atm_c)) .AND. &
                           ((inp_info%torsion_c(k)) == (name_atm_b)) .AND. &
                           ((inp_info%torsion_d(k)) == (name_atm_a)))) THEN
-                        imul = torsion_list(j)%torsion_kind%nmul+1
+                        imul = torsion_list(j)%torsion_kind%nmul + 1
                         CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
@@ -1556,19 +1556,19 @@ CONTAINS
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
          DO j = 1, nimpr
             atm_a = impr_list(j)%a
-            atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_a)
             atm_b = impr_list(j)%b
-            atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_b)
             atm_c = impr_list(j)%c
-            atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_c)
             atm_d = impr_list(j)%d
-            atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_d)
             found = .FALSE.
@@ -1748,19 +1748,19 @@ CONTAINS
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
          DO j = 1, nopbend
             atm_a = opbend_list(j)%a
-            atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_a)
             atm_b = opbend_list(j)%b
-            atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_b + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_b)
             atm_c = opbend_list(j)%c
-            atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_c + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_c)
             atm_d = opbend_list(j)%d
-            atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+            atomic_kind => particle_set(atm_d + first - 1)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=name_atm_d)
             found = .FALSE.
@@ -1915,7 +1915,7 @@ CONTAINS
                DO j = 1, SIZE(inp_info%nonbonded%pot)
                   IF (atmname == inp_info%nonbonded%pot(j)%pot%at1 .OR. &
                       atmname == inp_info%nonbonded%pot(j)%pot%at2) THEN
-                     SELECT CASE (inp_info%nonbonded%pot (j)%pot%type (1))
+                     SELECT CASE (inp_info%nonbonded%pot(j)%pot%type(1))
                      CASE (ea_type, tersoff_type, siepmann_type)
                         ! Charge is zero for EAM, TERSOFF and SIEPMANN  type potential
                         ! Do nothing..
@@ -2031,7 +2031,7 @@ CONTAINS
             DO j = 1, SIZE(inp_info%shell_list)
                IF ((inp_info%shell_list(j)%atm_name) == atmname) THEN
                   is_shell = .TRUE.
-                  cs_charge = inp_info%shell_list(j)%shell%charge_core+ &
+                  cs_charge = inp_info%shell_list(j)%shell%charge_core + &
                               inp_info%shell_list(j)%shell%charge_shell
                   charge = 0.0_dp
                   IF (found) THEN
@@ -2054,7 +2054,7 @@ CONTAINS
                DO j = 1, SIZE(inp_info%nonbonded%pot)
                   IF (atmname == inp_info%nonbonded%pot(j)%pot%at1 .OR. &
                       atmname == inp_info%nonbonded%pot(j)%pot%at2) THEN
-                     SELECT CASE (inp_info%nonbonded%pot (j)%pot%type (1))
+                     SELECT CASE (inp_info%nonbonded%pot(j)%pot%type(1))
                      CASE (ea_type, tersoff_type, siepmann_type, quip_type)
                         ! Charge is zero for EAM, TERSOFF and SIEPMANN type potential
                         ! Do nothing..
@@ -2104,9 +2104,9 @@ CONTAINS
          ! Sum up total charges for IO
          IF (found) THEN
             IF (is_shell) THEN
-               charge_tot = charge_tot+atomic_kind%natom*cs_charge
+               charge_tot = charge_tot + atomic_kind%natom*cs_charge
             ELSE
-               charge_tot = charge_tot+atomic_kind%natom*charge
+               charge_tot = charge_tot + atomic_kind%natom*charge
             END IF
          END IF
       END DO
@@ -2296,7 +2296,7 @@ CONTAINS
                         CALL issue_duplications(found, "Damping", atm_name1)
                         found = .TRUE.
 
-                        SELECT CASE (TRIM (inp_info%damping_list (i)%dtype))
+                        SELECT CASE (TRIM(inp_info%damping_list(i)%dtype))
                         CASE ('TANG-TOENNIES')
                            damping%damp(k)%itype = tang_toennies
                         CASE DEFAULT
@@ -2403,7 +2403,7 @@ CONTAINS
                   IF (.NOT. ASSOCIATED(shell)) THEN
                      CALL shell_create(shell)
                   END IF
-                  nshell_tot = nshell_tot+natom
+                  nshell_tot = nshell_tot + natom
                   shell%charge_core = inp_info%shell_list(j)%shell%charge_core
                   shell%charge_shell = inp_info%shell_list(j)%shell%charge_shell
                   shell%massfrac = inp_info%shell_list(j)%shell%massfrac
@@ -2413,7 +2413,7 @@ CONTAINS
                   shell%max_dist = inp_info%shell_list(j)%shell%max_dist
                   shell%shell_cutoff = inp_info%shell_list(j)%shell%shell_cutoff
                   shell%mass_shell = shell%massfrac*atmmass
-                  shell%mass_core = atmmass-shell%mass_shell
+                  shell%mass_core = atmmass - shell%mass_shell
                   CALL issue_duplications(found_shell, "Shell", atmname)
                   found_shell = .TRUE.
                   CALL set_atomic_kind(atomic_kind=atomic_kind, &
@@ -2444,7 +2444,7 @@ CONTAINS
             atomic_kind => particle_set(i)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
             IF (is_a_shell) THEN
-               counter = counter+1
+               counter = counter + 1
                particle_set(i)%shell_index = counter
                shell_particle_set(counter)%shell_index = counter
                shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
@@ -2496,19 +2496,19 @@ CONTAINS
                atomic_kind => particle_set(j)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
                IF (is_a_shell) THEN
-                  counter = counter+1
-                  shell_list_tmp(counter) = j-first+1
+                  counter = counter + 1
+                  shell_list_tmp(counter) = j - first + 1
                   first_shell = MIN(first_shell, MAX(1, particle_set(j)%shell_index))
                END IF
             END DO ! j atom in molecule_kind i, molecule 1 of the molecule_list
             IF (counter /= 0) THEN
                ! Setup of fist_shell and last_shell for all molecules..
                DO j = 1, SIZE(molecule_list)
-                  last_shell = first_shell+counter-1
+                  last_shell = first_shell + counter - 1
                   molecule => molecule_set(molecule_list(j))
                   molecule%first_shell = first_shell
                   molecule%last_shell = last_shell
-                  first_shell = last_shell+1
+                  first_shell = last_shell + 1
                END DO
                ! Setup of shell_list
                CALL get_molecule_kind(molecule_kind=molecule_kind, shell_list=shell_list)
@@ -2518,7 +2518,7 @@ CONTAINS
                ALLOCATE (shell_list(counter))
                DO j = 1, counter
                   shell_list(j)%a = shell_list_tmp(j)
-                  atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
+                  atomic_kind => particle_set(shell_list_tmp(j) + first - 1)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, name=atmname, shell=shell)
                   CALL uppercase(atmname)
                   shell_list(j)%name = atmname
@@ -2527,10 +2527,10 @@ CONTAINS
                CALL set_molecule_kind(molecule_kind=molecule_kind, nshell=counter, shell_list=shell_list)
             END IF
             DEALLOCATE (shell_list_tmp)
-            n = n+nmol*counter
+            n = n + nmol*counter
          END DO ! i molecule kind
       END IF
-      CPASSERT(first_shell-1 == nshell_tot)
+      CPASSERT(first_shell - 1 == nshell_tot)
       CPASSERT(n == nshell_tot)
       CALL timestop(handle2)
 
@@ -2674,7 +2674,7 @@ CONTAINS
                END IF
             END IF
             IF (ii /= 0 .AND. jj /= 0) THEN
-               rmin = rmin2_a+rmin2_b
+               rmin = rmin2_a + rmin2_b
                ! ABS to allow for mixing the two different sign conventions for epsilon
                epsilon0 = SQRT(ABS(epsilon_a*epsilon_b))
                CALL pair_potential_lj_create(pot%set(1)%lj)
@@ -2712,7 +2712,7 @@ CONTAINS
                   END DO
                END IF
                IF (ii /= 0 .AND. jj /= 0) THEN
-                  rmin = rmin2_a+rmin2_b
+                  rmin = rmin2_a + rmin2_b
                   ! ABS to allow for mixing the two different sign conventions for epsilon
                   epsilon0 = SQRT(ABS(epsilon_a*epsilon_b))
                   CALL pair_potential_lj_create(pot%set(1)%lj)
@@ -2763,8 +2763,8 @@ CONTAINS
             ! nonbonded interactions
             IF (use_qmmm_ff) THEN
                match_names = 0
-               IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names+1
-               IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names+1
+               IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names + 1
+               IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names + 1
                IF (match_names == 1) THEN
                   IF (ASSOCIATED(qmmm_env%inp_info%nonbonded14)) THEN
                      DO k = 1, SIZE(qmmm_env%inp_info%nonbonded14%pot)
@@ -2937,7 +2937,7 @@ CONTAINS
                END DO
 
                IF (ii /= 0 .AND. jj /= 0) THEN
-                  rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
+                  rmin = chm_info%nonbond_rmin2(ii) + chm_info%nonbond_rmin2(jj)
                   epsilon0 = SQRT(chm_info%nonbond_eps(ii)* &
                                   chm_info%nonbond_eps(jj))
                   CALL pair_potential_lj_create(pot%set(1)%lj)
@@ -2969,7 +2969,7 @@ CONTAINS
                END DO
 
                IF (ii /= 0 .AND. jj /= 0) THEN
-                  rmin = amb_info%nonbond_rmin2(ii)+amb_info%nonbond_rmin2(jj)
+                  rmin = amb_info%nonbond_rmin2(ii) + amb_info%nonbond_rmin2(jj)
                   epsilon0 = SQRT(amb_info%nonbond_eps(ii)*amb_info%nonbond_eps(jj))
                   CALL pair_potential_lj_create(pot%set(1)%lj)
                   pot%type = lj_charmm_type
@@ -3085,8 +3085,8 @@ CONTAINS
             ! nonbonded interactions
             IF (use_qmmm_ff) THEN
                match_names = 0
-               IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names+1
-               IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names+1
+               IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names + 1
+               IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names + 1
                IF (match_names == 1) THEN
                   IF (ASSOCIATED(qmmm_env%inp_info%nonbonded)) THEN
                      DO k = 1, SIZE(qmmm_env%inp_info%nonbonded%pot)
@@ -3267,8 +3267,8 @@ CONTAINS
                   interaction_cutoffs(2, i1, i2) = potential_coulomb(rcut2, tmp, &
                                                                      1.0_dp, ewald_type, alpha, beta, 0.0_dp)
                   ! cutoff for shell-shell or ion-ion
-                  IF (mm_radius1+mm_radius2 > 0.0_dp) THEN
-                     beta = sqrthalf/SQRT(mm_radius1*mm_radius1+mm_radius2*mm_radius2)
+                  IF (mm_radius1 + mm_radius2 > 0.0_dp) THEN
+                     beta = sqrthalf/SQRT(mm_radius1*mm_radius1 + mm_radius2*mm_radius2)
                   ELSE
                      beta = 0.0_dp
                   END IF
@@ -3354,10 +3354,10 @@ CONTAINS
       fmt = 1
       my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)// &
                   '",T40,"(",A4,")")'
-      IF (PRESENT(atm2)) fmt = fmt+1
-      IF (PRESENT(atm3)) fmt = fmt+1
-      IF (PRESENT(atm4)) fmt = fmt+1
-      CALL integer_to_string(fmt-1, sfmt)
+      IF (PRESENT(atm2)) fmt = fmt + 1
+      IF (PRESENT(atm3)) fmt = fmt + 1
+      IF (PRESENT(atm4)) fmt = fmt + 1
+      CALL integer_to_string(fmt - 1, sfmt)
       IF (fmt > 1) &
          my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)// &
                      '",T40,"(",A4,'//TRIM(sfmt)//'(",",A4),")")'
@@ -3465,7 +3465,7 @@ CONTAINS
          END DO
       ENDIF
       IF (.NOT. found) THEN
-         nsize = nsize+1
+         nsize = nsize + 1
          CALL reallocate(array, 1, nsize)
          SELECT CASE (fmt)
          CASE (1)

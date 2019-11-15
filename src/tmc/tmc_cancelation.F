@@ -74,14 +74,14 @@ CONTAINS
          CASE (status_calculate_energy)
             elem%stat = status_cancel_ener
             need_to_cancel = .TRUE.
-            tmc_env%m_env%count_cancel_ener = tmc_env%m_env%count_cancel_ener+1
+            tmc_env%m_env%count_cancel_ener = tmc_env%m_env%count_cancel_ener + 1
          CASE (status_calc_approx_ener) !TODO maybe elem status for approx ener cancel
             !elem%stat = status_cancel_ener
             !need_to_cancel = .TRUE.
          CASE (status_calculate_NMC_steps, status_calculate_MD)
             elem%stat = status_cancel_nmc
             need_to_cancel = .TRUE.
-            tmc_env%m_env%count_cancel_NMC = tmc_env%m_env%count_cancel_NMC+1
+            tmc_env%m_env%count_cancel_NMC = tmc_env%m_env%count_cancel_NMC + 1
          CASE (status_accepted, status_accepted_result, status_rejected, &
                status_rejected_result, status_calculated, status_created, &
                status_cancel_nmc, status_cancel_ener, status_canceled_nmc, &

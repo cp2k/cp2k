@@ -166,7 +166,7 @@ CONTAINS
          dx = norm_ls_vec
          dx_thrs = gopt_param%cg_ls%max_step
 
-         x0 = x0+dx*ls_norm
+         x0 = x0 + dx*ls_norm
          ![NB] don't need consistent energies and forces if using only gradient
          save_consistent_energy_force = gopt_env%require_consistent_energy_force
          gopt_env%require_consistent_energy_force = .NOT. my_use_only_grad
@@ -181,7 +181,7 @@ CONTAINS
             ! per x=0; b=norm_grad1
             b = norm_grad1
             ! per x=dx; a*dx+b=norm_grad2
-            a = (norm_grad2-b)/dx
+            a = (norm_grad2 - b)/dx
             x_grad_zero = -b/a
             dx_min = x_grad_zero
          ELSE
@@ -193,8 +193,8 @@ CONTAINS
             !
             !                  - a*dx**2        + c = (opt_energy2-norm_grad2*dx)
             !                    a*dx**2            = c - (opt_energy2-norm_grad2*dx)
-            a = (c-(opt_energy2-norm_grad2*dx))/dx**2
-            b = norm_grad2-2.0_dp*a*dx
+            a = (c - (opt_energy2 - norm_grad2*dx))/dx**2
+            b = norm_grad2 - 2.0_dp*a*dx
             dx_min = 0.0_dp
             IF (a /= 0.0_dp) dx_min = -b/(2.0_dp*a)
             opt_energy = opt_energy2
@@ -203,7 +203,7 @@ CONTAINS
          ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
          ! step length
          IF (ABS(dx_min) > dx_thrs) dx_min = SIGN(1.0_dp, dx_min)*dx_thrs
-         x0 = x0+(dx_min-dx)*ls_norm
+         x0 = x0 + (dx_min - dx)*ls_norm
 
          ! Print out LS info
          IF (output_unit > 0) THEN
@@ -264,7 +264,7 @@ CONTAINS
          dx_thrs = gopt_param%cg_ls%max_step
          ! If curvature is positive let's make the largest step allowed
          IF (dimer_env%rot%curvature > 0) dx = dx_thrs
-         x0 = x0+dx*tls_norm
+         x0 = x0 + dx*tls_norm
          CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos, &
                          final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
          IF (dimer_env%rot%curvature > 0) THEN
@@ -273,15 +273,15 @@ CONTAINS
             dx_min_acc = dx
          ELSE
             ! First let's try to interpolate the minimum
-            dx_min = -opt_energy/(opt_energy2-opt_energy)*dx
+            dx_min = -opt_energy/(opt_energy2 - opt_energy)*dx
             ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
             ! step length
             dx_min_save = dx_min
             IF (ABS(dx_min) > dx_thrs) dx_min = SIGN(1.0_dp, dx_min)*dx_thrs
             dx_min_acc = dx_min
-            dx_min = dx_min-dx
+            dx_min = dx_min - dx
          END IF
-         x0 = x0+dx_min*tls_norm
+         x0 = x0 + dx_min*tls_norm
 
          ! Print out LS info
          IF (output_unit > 0) THEN
@@ -348,13 +348,13 @@ CONTAINS
                          final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
 
          curvature1 = dimer_env%rot%curvature
-         a1 = (curvature0-curvature1+b1*SIN(2.0_dp*angle))/(1.0_dp-COS(2.0_dp*angle))
-         a0 = 2.0_dp*(curvature0-a1)
+         a1 = (curvature0 - curvature1 + b1*SIN(2.0_dp*angle))/(1.0_dp - COS(2.0_dp*angle))
+         a0 = 2.0_dp*(curvature0 - a1)
          angle = 0.5_dp*ATAN(b1/a1)
-         curvature2 = a0/2.0_dp+a1*COS(2.0_dp*angle)+b1*SIN(2.0_dp*angle)
+         curvature2 = a0/2.0_dp + a1*COS(2.0_dp*angle) + b1*SIN(2.0_dp*angle)
          IF (curvature2 > curvature0) THEN
-            angle = angle+pi/2.0_dp
-            curvature2 = a0/2.0_dp+a1*COS(2.0_dp*angle)+b1*SIN(2.0_dp*angle)
+            angle = angle + pi/2.0_dp
+            curvature2 = a0/2.0_dp + a1*COS(2.0_dp*angle) + b1*SIN(2.0_dp*angle)
          END IF
          dimer_env%rot%angle2 = angle
          dimer_env%rot%curvature = curvature2
@@ -366,12 +366,12 @@ CONTAINS
          ! minimum of the rotational search (this is for print-out only)
          ALLOCATE (work(SIZE(dimer_env%nvec)))
          work = dimer_env%rot%g1
-         work = SIN(dimer_env%rot%angle1-dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1+ &
-                SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p+ &
-                (1.0_dp-COS(dimer_env%rot%angle2)-SIN(dimer_env%rot%angle2)*TAN(dimer_env%rot%angle1/2.0_dp))* &
+         work = SIN(dimer_env%rot%angle1 - dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1 + &
+                SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p + &
+                (1.0_dp - COS(dimer_env%rot%angle2) - SIN(dimer_env%rot%angle2)*TAN(dimer_env%rot%angle1/2.0_dp))* &
                 dimer_env%rot%g0
-         work = -2.0_dp*(work-dimer_env%rot%g0)
-         work = work-DOT_PRODUCT(work, dimer_env%nvec)*dimer_env%nvec
+         work = -2.0_dp*(work - dimer_env%rot%g0)
+         work = work - DOT_PRODUCT(work, dimer_env%nvec)*dimer_env%nvec
          opt_energy = SQRT(DOT_PRODUCT(work, work))
          DEALLOCATE (work)
       END IF
@@ -439,23 +439,23 @@ CONTAINS
       odim = SIZE(hist, 1)
       scale = 0.25_dp
       loc_iter = 0
-      DO WHILE (ABS(hist(odim, 3)) > rms_force*scale .OR. ABS(hist(odim, 1)-hist(odim-1, 1)) > scale*rms_dr)
+      DO WHILE (ABS(hist(odim, 3)) > rms_force*scale .OR. ABS(hist(odim, 1) - hist(odim - 1, 1)) > scale*rms_dr)
          CALL external_control(should_stop, "LINFIT", globenv=globenv)
          IF (should_stop) EXIT
          !
-         loc_iter = loc_iter+1
+         loc_iter = loc_iter + 1
          fprev = opt_energy
          xmin = FindMin(hist(:, 1), hist(:, 2), hist(:, 3))
-         CALL reallocate(hist, 1, odim+1, 1, 3)
-         hist(odim+1, 1) = xmin
-         hist(odim+1, 3) = cg_deval1d(gopt_env, xmin, pcom, xicom, opt_energy)
-         hist(odim+1, 2) = opt_energy
+         CALL reallocate(hist, 1, odim + 1, 1, 3)
+         hist(odim + 1, 1) = xmin
+         hist(odim + 1, 3) = cg_deval1d(gopt_env, xmin, pcom, xicom, opt_energy)
+         hist(odim + 1, 2) = opt_energy
          odim = SIZE(hist, 1)
       END DO
       !
       xicom = xmin*xicom
       step = xmin
-      xvec = xvec+xicom
+      xvec = xvec + xicom
       DEALLOCATE (pcom)
       DEALLOCATE (xicom)
       DEALLOCATE (hist)
@@ -524,7 +524,7 @@ CONTAINS
                              xmin, pcom, xicom, output_unit, globenv)
       xicom = xmin*xicom
       step = xmin
-      xvec = xvec+xicom
+      xvec = xvec + xicom
       DEALLOCATE (pcom)
       DEALLOCATE (xicom)
       CALL timestop(handle)
@@ -573,7 +573,7 @@ CONTAINS
          CPASSERT(.NOT. ASSOCIATED(histpoint))
          ALLOCATE (histpoint(3, 3))
       END IF
-      gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp
+      gold = (1.0_dp + SQRT(5.0_dp))/2.0_dp
       IF (hist) THEN
          histpoint(1, 1) = ax
          histpoint(1, 3) = cg_deval1d(gopt_env, ax, pcom, xicom, fa)
@@ -593,7 +593,7 @@ CONTAINS
          fb = fa
          fa = dum
       ENDIF
-      cx = bx+gold*(bx-ax)
+      cx = bx + gold*(bx - ax)
       IF (hist) THEN
          histpoint(3, 1) = cx
          histpoint(3, 3) = cg_deval1d(gopt_env, cx, pcom, xicom, fc)
@@ -606,21 +606,21 @@ CONTAINS
          CALL external_control(should_stop, "MNBRACK", globenv=globenv)
          IF (should_stop) EXIT
          !
-         r = (bx-ax)*(fb-fc)
-         q = (bx-cx)*(fb-fa)
-         u = bx-((bx-cx)*q-(bx-ax)*r)/(2.0_dp*SIGN(MAX(ABS(q-r), TINY(0.0_dp)), q-r))
-         ulim = bx+brack_limit*(cx-bx)
-         IF ((bx-u)*(u-cx) .GT. 0.0_dp) THEN
+         r = (bx - ax)*(fb - fc)
+         q = (bx - cx)*(fb - fa)
+         u = bx - ((bx - cx)*q - (bx - ax)*r)/(2.0_dp*SIGN(MAX(ABS(q - r), TINY(0.0_dp)), q - r))
+         ulim = bx + brack_limit*(cx - bx)
+         IF ((bx - u)*(u - cx) .GT. 0.0_dp) THEN
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
-               CALL reallocate(histpoint, 1, odim+1, 1, 3)
-               histpoint(odim+1, 1) = u
-               histpoint(odim+1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-               histpoint(odim+1, 2) = fu
+               CALL reallocate(histpoint, 1, odim + 1, 1, 3)
+               histpoint(odim + 1, 1) = u
+               histpoint(odim + 1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
+               histpoint(odim + 1, 2) = fu
             ELSE
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
-            loc_iter = loc_iter+1
+            loc_iter = loc_iter + 1
             IF (fu .LT. fc) THEN
                ax = bx
                fa = fb
@@ -632,69 +632,69 @@ CONTAINS
                fc = fu
                EXIT
             ENDIF
-            u = cx+gold*(cx-bx)
+            u = cx + gold*(cx - bx)
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
-               CALL reallocate(histpoint, 1, odim+1, 1, 3)
-               histpoint(odim+1, 1) = u
-               histpoint(odim+1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-               histpoint(odim+1, 2) = fu
+               CALL reallocate(histpoint, 1, odim + 1, 1, 3)
+               histpoint(odim + 1, 1) = u
+               histpoint(odim + 1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
+               histpoint(odim + 1, 2) = fu
             ELSE
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
-            loc_iter = loc_iter+1
-         ELSE IF ((cx-u)*(u-ulim) .GT. 0.) THEN
+            loc_iter = loc_iter + 1
+         ELSE IF ((cx - u)*(u - ulim) .GT. 0.) THEN
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
-               CALL reallocate(histpoint, 1, odim+1, 1, 3)
-               histpoint(odim+1, 1) = u
-               histpoint(odim+1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-               histpoint(odim+1, 2) = fu
+               CALL reallocate(histpoint, 1, odim + 1, 1, 3)
+               histpoint(odim + 1, 1) = u
+               histpoint(odim + 1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
+               histpoint(odim + 1, 2) = fu
             ELSE
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
-            loc_iter = loc_iter+1
+            loc_iter = loc_iter + 1
             IF (fu .LT. fc) THEN
                bx = cx
                cx = u
-               u = cx+gold*(cx-bx)
+               u = cx + gold*(cx - bx)
                fb = fc
                fc = fu
                IF (hist) THEN
                   odim = SIZE(histpoint, 1)
-                  CALL reallocate(histpoint, 1, odim+1, 1, 3)
-                  histpoint(odim+1, 1) = u
-                  histpoint(odim+1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-                  histpoint(odim+1, 2) = fu
+                  CALL reallocate(histpoint, 1, odim + 1, 1, 3)
+                  histpoint(odim + 1, 1) = u
+                  histpoint(odim + 1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
+                  histpoint(odim + 1, 2) = fu
                ELSE
                   fu = cg_eval1d(gopt_env, u, pcom, xicom)
                END IF
-               loc_iter = loc_iter+1
+               loc_iter = loc_iter + 1
             ENDIF
-         ELSE IF ((u-ulim)*(ulim-cx) .GE. 0.) THEN
+         ELSE IF ((u - ulim)*(ulim - cx) .GE. 0.) THEN
             u = ulim
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
-               CALL reallocate(histpoint, 1, odim+1, 1, 3)
-               histpoint(odim+1, 1) = u
-               histpoint(odim+1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-               histpoint(odim+1, 2) = fu
+               CALL reallocate(histpoint, 1, odim + 1, 1, 3)
+               histpoint(odim + 1, 1) = u
+               histpoint(odim + 1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
+               histpoint(odim + 1, 2) = fu
             ELSE
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
-            loc_iter = loc_iter+1
+            loc_iter = loc_iter + 1
          ELSE
-            u = cx+gold*(cx-bx)
+            u = cx + gold*(cx - bx)
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
-               CALL reallocate(histpoint, 1, odim+1, 1, 3)
-               histpoint(odim+1, 1) = u
-               histpoint(odim+1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-               histpoint(odim+1, 2) = fu
+               CALL reallocate(histpoint, 1, odim + 1, 1, 3)
+               histpoint(odim + 1, 1) = u
+               histpoint(odim + 1, 3) = cg_deval1d(gopt_env, u, pcom, xicom, fu)
+               histpoint(odim + 1, 2) = fu
             ELSE
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
-            loc_iter = loc_iter+1
+            loc_iter = loc_iter + 1
          ENDIF
          ax = bx
          bx = cx
@@ -774,21 +774,21 @@ CONTAINS
          CALL external_control(should_stop, "BRENT", globenv=globenv)
          IF (should_stop) EXIT
          !
-         xm = 0.5_dp*(a+b)
-         tol1 = tol*ABS(x)+zeps
+         xm = 0.5_dp*(a + b)
+         tol1 = tol*ABS(x) + zeps
          tol2 = 2.0_dp*tol1
          skip0 = .FALSE.
          skip1 = .FALSE.
-         IF (ABS(x-xm) .LE. (tol2-0.5_dp*(b-a))) EXIT
+         IF (ABS(x - xm) .LE. (tol2 - 0.5_dp*(b - a))) EXIT
          IF (ABS(e) .GT. tol1) THEN
-            d1 = 2.0_dp*(b-a)
+            d1 = 2.0_dp*(b - a)
             d2 = d1
-            IF (dw .NE. dx) d1 = (w-x)*dx/(dx-dw)
-            IF (dv .NE. dx) d2 = (v-x)*dx/(dx-dv)
-            u1 = x+d1
-            u2 = x+d2
-            ok1 = ((a-u1)*(u1-b) .GT. 0.0_dp) .AND. (dx*d1 .LE. 0.0_dp)
-            ok2 = ((a-u2)*(u2-b) .GT. 0.0_dp) .AND. (dx*d2 .LE. 0.0_dp)
+            IF (dw .NE. dx) d1 = (w - x)*dx/(dx - dw)
+            IF (dv .NE. dx) d2 = (v - x)*dx/(dx - dv)
+            u1 = x + d1
+            u2 = x + d2
+            ok1 = ((a - u1)*(u1 - b) .GT. 0.0_dp) .AND. (dx*d1 .LE. 0.0_dp)
+            ok2 = ((a - u2)*(u2 - b) .GT. 0.0_dp) .AND. (dx*d2 .LE. 0.0_dp)
             olde = e
             e = d
             IF (.NOT. (ok1 .OR. ok2)) THEN
@@ -807,28 +807,28 @@ CONTAINS
             IF (.NOT. skip0) THEN
                IF (ABS(d) .GT. ABS(0.5_dp*olde)) skip0 = .TRUE.
                IF (.NOT. skip0) THEN
-                  u = x+d
-                  IF ((u-a) .LT. tol2 .OR. (b-u) .LT. tol2) d = SIGN(tol1, xm-x)
+                  u = x + d
+                  IF ((u - a) .LT. tol2 .OR. (b - u) .LT. tol2) d = SIGN(tol1, xm - x)
                   skip1 = .TRUE.
                END IF
             END IF
          ENDIF
          IF (.NOT. skip1) THEN
             IF (dx .GE. 0.0_dp) THEN
-               e = a-x
+               e = a - x
             ELSE
-               e = b-x
+               e = b - x
             ENDIF
             d = 0.5_dp*e
          END IF
          IF (ABS(d) .GE. tol1) THEN
-            u = x+d
+            u = x + d
             du = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-            loc_iter = loc_iter+1
+            loc_iter = loc_iter + 1
          ELSE
-            u = x+SIGN(tol1, d)
+            u = x + SIGN(tol1, d)
             du = cg_deval1d(gopt_env, u, pcom, xicom, fu)
-            loc_iter = loc_iter+1
+            loc_iter = loc_iter + 1
             IF (fu .GT. fx) EXIT
          ENDIF
          IF (fu .LE. fx) THEN
@@ -859,12 +859,12 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
          WRITE (UNIT=output_unit, FMT="(T2,A,T22,A,I7,T78,A)") &
             "***", "BRENT   - NUMBER OF ENERGY EVALUATIONS : ", loc_iter, "***"
-         IF (iter == itmax+1) &
+         IF (iter == itmax + 1) &
             WRITE (UNIT=output_unit, FMT="(T2,A,T22,A,T78,A)") &
             "***", "BRENT - NUMBER OF ITERATIONS EXCEEDED ", "***"
          WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
       END IF
-      CPASSERT(iter /= itmax+1)
+      CPASSERT(iter /= itmax + 1)
       xmin = x
       dbrent = fx
       CALL timestop(handle)
@@ -897,7 +897,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (xvec(SIZE(pcom)))
-      xvec = pcom+x*xicom
+      xvec = pcom + x*xicom
       CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos, &
                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
       DEALLOCATE (xvec)
@@ -935,7 +935,7 @@ CONTAINS
 
       ALLOCATE (xvec(SIZE(pcom)))
       ALLOCATE (grad(SIZE(pcom)))
-      xvec = pcom+x*xicom
+      xvec = pcom + x*xicom
       CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos, &
                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
       my_val = DOT_PRODUCT(grad, xicom)
@@ -977,26 +977,26 @@ CONTAINS
       sum_xx = 0._dp
       min_pos = 1
       DO i = 1, np
-         sum_xx = sum_xx+x(i)**2
-         sum_x = sum_x+x(i)
+         sum_xx = sum_xx + x(i)**2
+         sum_x = sum_x + x(i)
          IF (y(min_pos) > y(i)) min_pos = i
       END DO
-      spread = SQRT(sum_xx/REAL(np, dp)-(sum_x/REAL(np, dp))**2)
+      spread = SQRT(sum_xx/REAL(np, dp) - (sum_x/REAL(np, dp))**2)
       DO i = 1, np
-         w(i) = EXP(-(REAL(np-i, dp))**2/(REAL(2*9, dp)))
-         w(i+np) = 2._dp*w(i)
+         w(i) = EXP(-(REAL(np - i, dp))**2/(REAL(2*9, dp)))
+         w(i + np) = 2._dp*w(i)
       END DO
       DO i = 1, np
          f(i, 1) = w(i)
          f(i, 2) = x(i)*w(i)
          f(i, 3) = x(i)**2*w(i)
-         f(i+np, 1) = 0
-         f(i+np, 2) = w(i+np)
-         f(i+np, 3) = 2*x(i)*w(i+np)
+         f(i + np, 1) = 0
+         f(i + np, 2) = w(i + np)
+         f(i + np, 3) = 2*x(i)*w(i + np)
       END DO
       DO i = 1, np
          b(i) = y(i)*w(i)
-         b(i+np) = dy(i)*w(i+np)
+         b(i + np) = dy(i)*w(i + np)
       END DO
       lwork = -1
       CALL dgesdd('S', SIZE(f, 1), SIZE(f, 2), f, SIZE(f, 1), diag, u, SIZE(u, 1), vt, SIZE(vt, 1), tmpw, lwork, &
@@ -1047,17 +1047,17 @@ CONTAINS
          IF (Fletcher_Reeves) THEN
             dgg = DOT_PRODUCT(xi, xi)
          ELSE
-            dgg = DOT_PRODUCT((xi+g), xi)
+            dgg = DOT_PRODUCT((xi + g), xi)
          END IF
          gam = dgg/gg
          g = h
-         h = -xi+gam*h
+         h = -xi + gam*h
       ELSE
          dimer_env => gopt_env%dimer_env
-         check = ABS(DOT_PRODUCT(g, g)-1.0_dp) < MAX(1.0E-9_dp, dimer_thrs)
+         check = ABS(DOT_PRODUCT(g, g) - 1.0_dp) < MAX(1.0E-9_dp, dimer_thrs)
          CPASSERT(check)
 
-         check = ABS(DOT_PRODUCT(xi, xi)-1.0_dp) < MAX(1.0E-9_dp, dimer_thrs)
+         check = ABS(DOT_PRODUCT(xi, xi) - 1.0_dp) < MAX(1.0E-9_dp, dimer_thrs)
          CPASSERT(check)
 
          check = ABS(DOT_PRODUCT(h, dimer_env%cg_rot%nvec_old)) < MAX(1.0E-9_dp, dimer_thrs)
@@ -1067,14 +1067,14 @@ CONTAINS
             dgg = dimer_env%cg_rot%norm_theta**2
          ELSE
             norm = dimer_env%cg_rot%norm_theta*dimer_env%cg_rot%norm_theta_old
-            dgg = dimer_env%cg_rot%norm_theta**2+DOT_PRODUCT(g, xi)*norm
+            dgg = dimer_env%cg_rot%norm_theta**2 + DOT_PRODUCT(g, xi)*norm
          END IF
          ! Compute Theta** and store it in nvec_old
-         CALL rotate_dimer(dimer_env%cg_rot%nvec_old, g, dimer_env%rot%angle2+pi/2.0_dp)
+         CALL rotate_dimer(dimer_env%cg_rot%nvec_old, g, dimer_env%rot%angle2 + pi/2.0_dp)
          gam = dgg/gg
          g = h
-         h = -xi*dimer_env%cg_rot%norm_theta+gam*dimer_env%cg_rot%norm_h*dimer_env%cg_rot%nvec_old
-         h = h-DOT_PRODUCT(h, dimer_env%nvec)*dimer_env%nvec
+         h = -xi*dimer_env%cg_rot%norm_theta + gam*dimer_env%cg_rot%norm_h*dimer_env%cg_rot%nvec_old
+         h = h - DOT_PRODUCT(h, dimer_env%nvec)*dimer_env%nvec
          norm_h = SQRT(DOT_PRODUCT(h, h))
          IF (norm_h < EPSILON(0.0_dp)) THEN
             h = 0.0_dp

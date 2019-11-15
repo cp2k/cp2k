@@ -167,7 +167,7 @@ CONTAINS
          ALLOCATE (clustered_blk_sizes(nmol))
          clustered_blk_sizes = 0
          DO iatom = 1, natom
-            clustered_blk_sizes(atom_to_cluster(iatom)) = clustered_blk_sizes(atom_to_cluster(iatom))+ &
+            clustered_blk_sizes(atom_to_cluster(iatom)) = clustered_blk_sizes(atom_to_cluster(iatom)) + &
                                                           ls_blk_sizes(iatom)
          ENDDO
          ls_blk_sizes => clustered_blk_sizes ! redirect pointer
@@ -609,7 +609,7 @@ CONTAINS
             IF (iscf .GT. MAX(ls_scf_env%mixing_store%nskip_mixing, 1)) THEN
                CALL gspace_mixing(qs_env, ls_scf_env%density_mixing_method, &
                                   ls_scf_env%mixing_store, rho, para_env, &
-                                  iscf-1)
+                                  iscf - 1)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(A57)') &
                      "*********************************************************"
@@ -618,7 +618,7 @@ CONTAINS
                      " to mix rho: method=", ls_scf_env%mixing_store%iter_method, ", iscf=", iscf
                   WRITE (unit_nr, '(A8,F5.3,A6,F5.3,A8)') &
                      " rho_nw=", ls_scf_env%mixing_store%alpha, "*rho + ", &
-                     1.0_dp-ls_scf_env%mixing_store%alpha, "*rho_old"
+                     1.0_dp - ls_scf_env%mixing_store%alpha, "*rho_old"
                   WRITE (unit_nr, '(A57)') &
                      "*********************************************************"
                ENDIF

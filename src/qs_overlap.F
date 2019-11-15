@@ -356,21 +356,21 @@ CONTAINS
          END IF
          trans = do_symmetric .AND. (iatom > jatom)
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
 
             ncoa = npgfa(iset)*ncoset(la_max(iset))
-            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
-               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
 
                ! calculate integrals and derivatives
@@ -398,8 +398,8 @@ CONTAINS
                                      trans=trans)
                   CALL force_trace(force_a, oint(:, :, 2:4), pmat, n1, n2, 3)
 !$OMP CRITICAL(forceupdate)
-                  force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a)-ff*force_a(:)
-                  force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b)+ff*force_a(:)
+                  force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a) - ff*force_a(:)
+                  force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b) + ff*force_a(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -f0, force_a, rab)
                   END IF
@@ -428,7 +428,7 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       IF (do_forces .AND. use_virial) THEN
-         virial%pv_overlap = virial%pv_virial-pv_loc
+         virial%pv_overlap = virial%pv_virial - pv_loc
       ENDIF
 
       IF (dokp) THEN
@@ -605,21 +605,21 @@ CONTAINS
          CPASSERT(found)
          trans = do_symmetric .AND. (iatom > jatom)
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
 
             ncoa = npgfa(iset)*ncoset(la_max(iset))
-            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
-               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
 
                ! calculate integrals and derivatives
@@ -799,21 +799,21 @@ CONTAINS
          END IF
          trans = do_symmetric .AND. (iatom > jatom)
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
 
             ncoa = npgfa(iset)*ncoset(la_max(iset))
-            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
-               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
 
                IF (ASSOCIATED(p_block) .AND. ((iatom /= jatom) .OR. use_virial)) THEN
@@ -827,8 +827,8 @@ CONTAINS
                                   lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                   rab, dab=drab)
                   CALL force_trace(force_a, drab, pab, n1, n2, 3)
-                  force(1:3, iatom) = force(1:3, iatom)-ff*force_a(1:3)
-                  force(1:3, jatom) = force(1:3, jatom)+ff*force_a(1:3)
+                  force(1:3, iatom) = force(1:3, iatom) - ff*force_a(1:3)
+                  force(1:3, jatom) = force(1:3, jatom) + ff*force_a(1:3)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -f0, force_a, rab)
                   END IF

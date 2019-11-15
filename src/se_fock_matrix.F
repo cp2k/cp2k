@@ -192,7 +192,7 @@ CONTAINS
          ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.
          DO ispin = 1, nspins
             CALL dbcsr_dot(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, ecoul)
-            energy%hartree = energy%hartree+ecoul
+            energy%hartree = energy%hartree + ecoul
          END DO
 !      WRITE ( *, * ) 'AFTER Hartree',  ecoul, energy%hartree
 
@@ -206,7 +206,7 @@ CONTAINS
                ! Compute QM/MM Energy
                CALL dbcsr_dot(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
                               matrix_p(ispin)%matrix, qmmm_el)
-               energy%qmmm_el = energy%qmmm_el+qmmm_el
+               energy%qmmm_el = energy%qmmm_el + qmmm_el
             END DO
          END IF
 
@@ -214,11 +214,11 @@ CONTAINS
          ! Collect all the energy terms
          energy%mulliken = 0.0_dp
          energy%exc = 0.0_dp
-         energy%total = energy%total+energy%core+ &
-                        energy%core_overlap+ &
-                        0.5_dp*energy%hartree+ &
-                        energy%qmmm_el+ &
-                        energy%dispersion+ &
+         energy%total = energy%total + energy%core + &
+                        energy%core_overlap + &
+                        0.5_dp*energy%hartree + &
+                        energy%qmmm_el + &
+                        energy%dispersion + &
                         energy%mulliken
 !      WRITE ( *, * ) ' AFTER TOTAL', energy%total
 

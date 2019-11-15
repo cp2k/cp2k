@@ -282,7 +282,7 @@ CONTAINS
       CALL get_cell(mm_cell, abc=abc_mm)
 
       IF (qmmm_env_qm%image_charge) THEN
-         IF (ANY(ABS(abc_mm-abc_qm) > 1.0E-12)) &
+         IF (ANY(ABS(abc_mm - abc_qm) > 1.0E-12)) &
             CPABORT("QM and MM box need to have the same size when using image charges")
       ENDIF
 
@@ -338,7 +338,7 @@ CONTAINS
 
       CALL section_vals_val_get(qmmm_section, "DELTA_CHARGE", i_val=delta_charge)
       CALL section_vals_val_get(force_env_section, "DFT%CHARGE", i_val=orig_charge)
-      CALL section_vals_val_set(force_env_section, "DFT%CHARGE", i_val=orig_charge+delta_charge)
+      CALL section_vals_val_set(force_env_section, "DFT%CHARGE", i_val=orig_charge + delta_charge)
 
       CALL section_vals_val_set(force_env_section, "METHOD", i_val=do_qs)
       CALL create_small_subsys(subsys_qm, &

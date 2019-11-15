@@ -275,9 +275,9 @@ CONTAINS
           PRESENT(homo_beta) .AND. &
           PRESENT(Eigenval_beta)) my_open_shell = .TRUE.
 
-      virtual = nmo-homo
+      virtual = nmo - homo
       IF (my_open_shell) THEN
-         virtual_beta = nmo-homo_beta
+         virtual_beta = nmo - homo_beta
       END IF
 
       IF (do_ri_sos_laplace_mp2) THEN
@@ -285,12 +285,12 @@ CONTAINS
          input_integ_group_size = mp2_env%ri_laplace%integ_group_size
 
          ! check the range for the minimax approximation
-         Emin = 2.0_dp*(Eigenval(homo+1)-Eigenval(homo))
-         Emax = 2.0_dp*(MAXVAL(Eigenval)-MINVAL(Eigenval))
+         Emin = 2.0_dp*(Eigenval(homo + 1) - Eigenval(homo))
+         Emax = 2.0_dp*(MAXVAL(Eigenval) - MINVAL(Eigenval))
          IF (my_open_shell) THEN
             IF (homo_beta > 0) THEN
-               Emin_beta = 2.0_dp*(Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta))
-               Emax_beta = 2.0_dp*(MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta))
+               Emin_beta = 2.0_dp*(Eigenval_beta(homo_beta + 1) - Eigenval_beta(homo_beta))
+               Emax_beta = 2.0_dp*(MAXVAL(Eigenval_beta) - MINVAL(Eigenval_beta))
                Emin = MIN(Emin, Emin_beta)
                Emax = MAX(Emax, Emax_beta)
             END IF
@@ -300,9 +300,9 @@ CONTAINS
          ierr = 0
          CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
          IF (ierr /= 0) THEN
-            jjB = num_integ_points-1
+            jjB = num_integ_points - 1
             DO iiB = 1, jjB
-               num_integ_points = num_integ_points-1
+               num_integ_points = num_integ_points - 1
                ierr = 0
                CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
                IF (ierr == 0) EXIT
@@ -342,12 +342,12 @@ CONTAINS
          mem_for_QK = REAL(dimen_RI_red, KIND=dp)*dimen_RI_red*8.0_dp/(1024_dp**2)
 
          IF (my_open_shell) THEN
-            mem_for_iaK = mem_for_iaK+REAL(homo_beta, KIND=dp)*virtual_beta*dimen_RI_red*8.0_dp/(1024_dp**2)
+            mem_for_iaK = mem_for_iaK + REAL(homo_beta, KIND=dp)*virtual_beta*dimen_RI_red*8.0_dp/(1024_dp**2)
             mem_for_QK = mem_for_QK*2.0_dp
          END IF
 
          CALL m_memory(mem)
-         mem_real = (mem+1024*1024-1)/(1024*1024)
+         mem_real = (mem + 1024*1024 - 1)/(1024*1024)
          ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
          ! has not been given back to the OS yet.
          CALL mp_min(mem_real, para_env%group)
@@ -357,7 +357,7 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
             mem_min, ' MiB'
 
-         mem_real = allowed_memory-mem_real
+         mem_real = allowed_memory - mem_real
          mem_real = MAX(mem_real, mem_min)
 
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:', &
@@ -365,7 +365,7 @@ CONTAINS
 
          mem_per_group = mem_real*para_env_sub%num_pe
 
-         needed_mem = mem_for_iaK*2.0_dp+mem_for_QK*3.0_dp
+         needed_mem = mem_for_iaK*2.0_dp + mem_for_QK*3.0_dp
 
          ! here we try to find the best rpa/laplace group size
          skip_integ_group_opt = .FALSE.
@@ -395,9 +395,9 @@ CONTAINS
 
             min_integ_group_size = MAX(1, ngroup/num_integ_points)
 
-            integ_group_size = min_integ_group_size-1
-            DO iiB = min_integ_group_size+1, ngroup
-               integ_group_size = integ_group_size+1
+            integ_group_size = min_integ_group_size - 1
+            DO iiB = min_integ_group_size + 1, ngroup
+               integ_group_size = integ_group_size + 1
 
                ! check that the ngroup is a multiple of  integ_group_size
                IF (MOD(ngroup, integ_group_size) /= 0) CYCLE
@@ -469,11 +469,11 @@ CONTAINS
       CALL timeset(routineN//"_reorder", handle2)
 
       ! create the sub_proc_map
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
-      DO i = 0, para_env_sub%num_pe-1
+      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
+      DO i = 0, para_env_sub%num_pe - 1
          sub_proc_map(i) = i
-         sub_proc_map(-i-1) = para_env_sub%num_pe-i-1
-         sub_proc_map(para_env_sub%num_pe+i) = i
+         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
+         sub_proc_map(para_env_sub%num_pe + i) = i
       END DO
 
       ! not necessary for imaginary time
@@ -510,13 +510,13 @@ CONTAINS
             CALL timeset(routineN//"_reorder_gw", handle3)
 
             CALL calculate_BIb_C_2D(BIb_C_2D_gw, BIb_C_gw, para_env_sub, dimen_nm_gw, &
-                                    gw_corr_lev_occ+gw_corr_lev_virt, nmo, gd_B_all, &
+                                    gw_corr_lev_occ + gw_corr_lev_virt, nmo, gd_B_all, &
                                     sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
 
             ! The same for open shell
             IF (my_open_shell) THEN
                CALL calculate_BIb_C_2D(BIb_C_2D_gw_beta, BIb_C_gw_beta, para_env_sub, dimen_nm_gw, &
-                                       gw_corr_lev_occ+gw_corr_lev_virt, nmo, gd_B_all, &
+                                       gw_corr_lev_occ + gw_corr_lev_virt, nmo, gd_B_all, &
                                        sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
                DEALLOCATE (BIb_C_gw_beta)
             END IF
@@ -796,7 +796,7 @@ CONTAINS
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
       my_ia_end = itmp(2)
-      my_ia_size = my_ia_end-my_ia_start+1
+      my_ia_size = my_ia_end - my_ia_start + 1
 
       CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, sizes=my_B_size, starts=my_B_virtual_start)
 
@@ -808,16 +808,16 @@ CONTAINS
 !$OMP              my_group_L_size)
       DO iiB = 1, homo
          DO jjB = 1, my_B_size
-            ia_global = (iiB-1)*virtual+my_B_virtual_start+jjB-1
+            ia_global = (iiB - 1)*virtual + my_B_virtual_start + jjB - 1
             IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
-               BIb_C_2D(ia_global-my_ia_start+1, 1:my_group_L_size) = BIb_C(1:my_group_L_size, jjB, iiB)
+               BIb_C_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = BIb_C(1:my_group_L_size, jjB, iiB)
             END IF
          END DO
       END DO
 
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
          CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
@@ -827,18 +827,18 @@ CONTAINS
          ALLOCATE (BIb_C_rec(my_group_L_size, rec_B_size, MIN(homo, occ_chunk)))
 
          DO occ_low = 1, homo, occ_chunk
-            occ_high = MIN(homo, occ_low+occ_chunk-1)
+            occ_high = MIN(homo, occ_low + occ_chunk - 1)
             CALL mp_sendrecv(BIb_C(:, :, occ_low:occ_high), proc_send, &
-                             BIb_C_rec(:, :, 1:occ_high-occ_low+1), proc_receive, &
+                             BIb_C_rec(:, :, 1:occ_high - occ_low + 1), proc_receive, &
                              para_env_sub%group)
 !$OMP          PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
 !$OMP                   SHARED(occ_low,occ_high,rec_B_size,virtual,rec_B_virtual_start,my_ia_start,my_ia_end,BIb_C_rec,BIb_C_2D,&
 !$OMP                          my_group_L_size)
             DO iiB = occ_low, occ_high
                DO jjB = 1, rec_B_size
-                  ia_global = (iiB-1)*virtual+rec_B_virtual_start+jjB-1
+                  ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
                   IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
-                     BIb_C_2D(ia_global-my_ia_start+1, 1:my_group_L_size) = BIb_C_rec(1:my_group_L_size, jjB, iiB-occ_low+1)
+                     BIb_C_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = BIb_C_rec(1:my_group_L_size, jjB, iiB - occ_low + 1)
                   END IF
                END DO
             END DO
@@ -979,9 +979,9 @@ CONTAINS
             row_col_proc_ratio = dimen_ia_for_block_size/dimen_RI
             row_col_proc_ratio = MAX(1, row_col_proc_ratio)
 
-            iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe)+1
+            iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe) + 1
             DO iproc = 1, para_env_RPA%num_pe
-               iproc_row = iproc_row-1
+               iproc_row = iproc_row - 1
                IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
             END DO
 
@@ -1034,12 +1034,12 @@ CONTAINS
       IF (.NOT. my_do_im_time) THEN
 
          ! create the RPA proc_map
-         ALLOCATE (RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe-1))
+         ALLOCATE (RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe - 1))
          RPA_proc_map = 0
-         DO i = 0, para_env_RPA%num_pe-1
+         DO i = 0, para_env_RPA%num_pe - 1
             RPA_proc_map(i) = i
-            RPA_proc_map(-i-1) = para_env_RPA%num_pe-i-1
-            RPA_proc_map(para_env_RPA%num_pe+i) = i
+            RPA_proc_map(-i - 1) = para_env_RPA%num_pe - i - 1
+            RPA_proc_map(para_env_RPA%num_pe + i) = i
          END DO
 
          CALL create_group_dist(gd_ia, my_ia_start, my_ia_end, my_ia_size, para_env_RPA)
@@ -1049,7 +1049,7 @@ CONTAINS
          ! create the info array
 
          mepos_in_RPA_group = MOD(color_sub, integ_group_size)
-         ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:integ_group_size-1))
+         ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe - 1, 0:integ_group_size - 1))
          group_grid_2_mepos = 0
          group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
          CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
@@ -1207,7 +1207,7 @@ CONTAINS
 
       ! set all virtual MO coeffs to zero
       DO irow_global = 1, nmo
-         DO icol_global = homo+1, nmo
+         DO icol_global = homo + 1, nmo
             CALL cp_fm_set_element(fm_mo_coeff_occ, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
@@ -1525,7 +1525,7 @@ CONTAINS
           PRESENT(fm_mat_Q_gemm_beta) .AND. &
           PRESENT(fm_mat_Q_beta)) my_open_shell = .TRUE.
 
-      nmo = homo+virtual
+      nmo = homo + virtual
 
       do_gw_im_time = my_do_gw .AND. do_im_time
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
@@ -1607,7 +1607,7 @@ CONTAINS
             CALL dbcsr_get_info(matrix_s(1)%matrix, &
                                 row_blk_size=prim_blk_sizes)
 
-            gw_corr_lev_tot = gw_corr_lev_occ+gw_corr_lev_virt
+            gw_corr_lev_tot = gw_corr_lev_occ + gw_corr_lev_virt
 
             IF (.NOT. do_kpoints_cubic_RPA) THEN
                IF (my_open_shell) THEN
@@ -1783,9 +1783,9 @@ CONTAINS
          IF (do_im_time) THEN
 
             IF (.NOT. do_kpoints_cubic_RPA) THEN
-               e_fermi = (Eigenval(homo)+Eigenval(homo+1))*0.5_dp
+               e_fermi = (Eigenval(homo) + Eigenval(homo + 1))*0.5_dp
                IF (my_open_shell) THEN
-                  e_fermi_beta = (Eigenval_beta(homo_beta)+Eigenval_beta(homo_beta+1))*0.5_dp
+                  e_fermi_beta = (Eigenval_beta(homo_beta) + Eigenval_beta(homo_beta + 1))*0.5_dp
                END IF
             END IF
 
@@ -1976,7 +1976,7 @@ CONTAINS
                                      local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
-               e_axk = e_axk+e_axk_corr*wj(jquad)
+               e_axk = e_axk + e_axk_corr*wj(jquad)
             ENDIF ! do_ri_axk
 
             IF (do_ri_sos_laplace_mp2) THEN
@@ -2122,7 +2122,7 @@ CONTAINS
             END IF
 
             ! if HOMO-LUMO gap differs by less than mp2_env%ri_g0w0%eps_ev_sc_iter, exit ev sc GW loop
-            IF (ABS(Eigenval(homo)-Eigenval_last(homo)-Eigenval(homo+1)+Eigenval_last(homo+1)) &
+            IF (ABS(Eigenval(homo) - Eigenval_last(homo) - Eigenval(homo + 1) + Eigenval_last(homo + 1)) &
                 < mp2_env%ri_g0w0%eps_ev_sc_iter) THEN
                EXIT
             END IF

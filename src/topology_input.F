@@ -394,23 +394,23 @@ CONTAINS
                DO jg = 1, n_rep
                   CALL section_vals_val_get(fix_atom_section, "LIST", i_rep_section=ig, &
                                             i_rep_val=jg, i_vals=tmplist)
-                  CALL reallocate(cons_info%fixed_atoms, 1, isize+SIZE(tmplist))
-                  cons_info%fixed_atoms(isize+1:isize+SIZE(tmplist)) = tmplist
-                  CALL reallocate(cons_info%fixed_restraint, 1, isize+SIZE(tmplist))
-                  CALL reallocate(cons_info%fixed_k0, 1, isize+SIZE(tmplist))
-                  CALL reallocate(cons_info%fixed_type, 1, isize+SIZE(tmplist))
-                  cons_info%fixed_type(isize+1:isize+SIZE(tmplist)) = itype
+                  CALL reallocate(cons_info%fixed_atoms, 1, isize + SIZE(tmplist))
+                  cons_info%fixed_atoms(isize + 1:isize + SIZE(tmplist)) = tmplist
+                  CALL reallocate(cons_info%fixed_restraint, 1, isize + SIZE(tmplist))
+                  CALL reallocate(cons_info%fixed_k0, 1, isize + SIZE(tmplist))
+                  CALL reallocate(cons_info%fixed_type, 1, isize + SIZE(tmplist))
+                  cons_info%fixed_type(isize + 1:isize + SIZE(tmplist)) = itype
                   isize = SIZE(cons_info%fixed_atoms)
                END DO
                !Check for restraints
-               IF ((isize-isize_old) > 0) THEN
+               IF ((isize - isize_old) > 0) THEN
                   CALL check_restraint(fix_atom_section, &
-                                       is_restraint=cons_info%fixed_restraint(isize_old+1), &
-                                       k0=cons_info%fixed_k0(isize_old+1), &
+                                       is_restraint=cons_info%fixed_restraint(isize_old + 1), &
+                                       k0=cons_info%fixed_k0(isize_old + 1), &
                                        i_rep_section=ig, &
                                        label="FIXED ATOM")
-                  cons_info%fixed_restraint(isize_old+1:isize) = cons_info%fixed_restraint(isize_old+1)
-                  cons_info%fixed_k0(isize_old+1:isize) = cons_info%fixed_k0(isize_old+1)
+                  cons_info%fixed_restraint(isize_old + 1:isize) = cons_info%fixed_restraint(isize_old + 1)
+                  cons_info%fixed_k0(isize_old + 1:isize) = cons_info%fixed_k0(isize_old + 1)
                END IF
                CALL section_vals_val_get(fix_atom_section, "MOLNAME", i_rep_section=ig, &
                                          n_rep_val=n_rep)
@@ -418,33 +418,33 @@ CONTAINS
                   DO jg = 1, n_rep
                      CALL section_vals_val_get(fix_atom_section, "MOLNAME", i_rep_section=ig, &
                                                i_rep_val=jg, c_vals=tmpstringlist)
-                     CALL reallocate(cons_info%fixed_molnames, 1, msize+SIZE(tmpstringlist, 1))
-                     CALL reallocate(cons_info%fixed_mol_type, 1, msize+SIZE(tmpstringlist, 1))
-                     CALL reallocate(cons_info%fixed_mol_restraint, 1, msize+SIZE(tmpstringlist, 1))
-                     CALL reallocate(cons_info%fixed_mol_k0, 1, msize+SIZE(tmpstringlist, 1))
-                     cons_info%fixed_molnames(msize+1:msize+SIZE(tmpstringlist, 1)) = tmpstringlist
-                     cons_info%fixed_mol_type(msize+1:msize+SIZE(tmpstringlist, 1)) = itype
+                     CALL reallocate(cons_info%fixed_molnames, 1, msize + SIZE(tmpstringlist, 1))
+                     CALL reallocate(cons_info%fixed_mol_type, 1, msize + SIZE(tmpstringlist, 1))
+                     CALL reallocate(cons_info%fixed_mol_restraint, 1, msize + SIZE(tmpstringlist, 1))
+                     CALL reallocate(cons_info%fixed_mol_k0, 1, msize + SIZE(tmpstringlist, 1))
+                     cons_info%fixed_molnames(msize + 1:msize + SIZE(tmpstringlist, 1)) = tmpstringlist
+                     cons_info%fixed_mol_type(msize + 1:msize + SIZE(tmpstringlist, 1)) = itype
                      msize = SIZE(cons_info%fixed_molnames)
                   END DO
                   ! Exclude QM or MM work only if defined MOLNAME
                   CALL reallocate(cons_info%fixed_exclude_qm, 1, msize)
                   CALL reallocate(cons_info%fixed_exclude_mm, 1, msize)
                   CALL section_vals_val_get(fix_atom_section, "EXCLUDE_QM", i_rep_section=ig, &
-                                            l_val=cons_info%fixed_exclude_qm(msize_old+1))
+                                            l_val=cons_info%fixed_exclude_qm(msize_old + 1))
                   CALL section_vals_val_get(fix_atom_section, "EXCLUDE_MM", i_rep_section=ig, &
-                                            l_val=cons_info%fixed_exclude_mm(msize_old+1))
-                  cons_info%fixed_exclude_qm(msize_old+1:msize) = cons_info%fixed_exclude_qm(msize_old+1)
-                  cons_info%fixed_exclude_mm(msize_old+1:msize) = cons_info%fixed_exclude_mm(msize_old+1)
+                                            l_val=cons_info%fixed_exclude_mm(msize_old + 1))
+                  cons_info%fixed_exclude_qm(msize_old + 1:msize) = cons_info%fixed_exclude_qm(msize_old + 1)
+                  cons_info%fixed_exclude_mm(msize_old + 1:msize) = cons_info%fixed_exclude_mm(msize_old + 1)
                END IF
                !Check for restraints
                IF (n_rep /= 0) THEN
                   CALL check_restraint(fix_atom_section, &
-                                       is_restraint=cons_info%fixed_mol_restraint(msize_old+1), &
-                                       k0=cons_info%fixed_mol_k0(msize_old+1), &
+                                       is_restraint=cons_info%fixed_mol_restraint(msize_old + 1), &
+                                       k0=cons_info%fixed_mol_k0(msize_old + 1), &
                                        i_rep_section=ig, &
                                        label="FIXED ATOM")
-                  cons_info%fixed_mol_restraint(msize_old+1:msize) = cons_info%fixed_mol_restraint(msize_old+1)
-                  cons_info%fixed_mol_k0(msize_old+1:msize) = cons_info%fixed_mol_k0(msize_old+1)
+                  cons_info%fixed_mol_restraint(msize_old + 1:msize) = cons_info%fixed_mol_restraint(msize_old + 1)
+                  cons_info%fixed_mol_k0(msize_old + 1:msize) = cons_info%fixed_mol_k0(msize_old + 1)
                END IF
                CALL section_vals_val_get(fix_atom_section, "MM_SUBSYS", i_rep_section=ig, &
                                          n_rep_val=nrep, explicit=explicit)

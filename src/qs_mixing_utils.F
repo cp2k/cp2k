@@ -205,7 +205,7 @@ CONTAINS
             DO ikind = 1, nkind
                nel = distribution_1d%n_el(ikind)
                DO iat = 1, nel
-                  ia = ia+1
+                  ia = ia + 1
                   mixing_store%atlist(ia) = distribution_1d%list(ikind)%array(iat)
                END DO
             END DO
@@ -456,13 +456,13 @@ CONTAINS
          IF (mixing_method == broyden_mixing_new_nr) THEN
             IF (.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
                ALLOCATE (mixing_store%last_res(nspins))
-               ALLOCATE (mixing_store%delta_res(nbuffer-1, nspins))
-               ALLOCATE (mixing_store%u_vec(nbuffer-1, nspins))
-               ALLOCATE (mixing_store%z_vec(nbuffer-1, nspins))
+               ALLOCATE (mixing_store%delta_res(nbuffer - 1, nspins))
+               ALLOCATE (mixing_store%u_vec(nbuffer - 1, nspins))
+               ALLOCATE (mixing_store%z_vec(nbuffer - 1, nspins))
                ALLOCATE (mixing_store%weight(nbuffer, nspins))
-               ALLOCATE (mixing_store%fmat(nbuffer-1, nbuffer-1, nspins))
+               ALLOCATE (mixing_store%fmat(nbuffer - 1, nbuffer - 1, nspins))
                DO ispin = 1, nspins
-                  DO i = 1, nbuffer-1
+                  DO i = 1, nbuffer - 1
                      NULLIFY (mixing_store%delta_res(i, ispin)%cc)
                      NULLIFY (mixing_store%u_vec(i, ispin)%cc)
                      NULLIFY (mixing_store%z_vec(i, ispin)%cc)
@@ -560,13 +560,13 @@ CONTAINS
       ig1 = 1
       IF (rho_g(1)%pw%pw_grid%have_g0) ig1 = 2
       DO ig = ig1, mixing_store%ig_max
-         mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig)+beta*beta), kmin)
+         mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta), kmin)
          mixing_store%special_metric(ig) = &
-            1.0_dp+50.0_dp/8.0_dp*( &
-            1.0_dp+COS(g_vec(1, ig))+COS(g_vec(2, ig))+COS(g_vec(3, ig))+ &
-            COS(g_vec(1, ig))*COS(g_vec(2, ig))+ &
-            COS(g_vec(2, ig))*COS(g_vec(3, ig))+ &
-            COS(g_vec(1, ig))*COS(g_vec(3, ig))+ &
+            1.0_dp + 50.0_dp/8.0_dp*( &
+            1.0_dp + COS(g_vec(1, ig)) + COS(g_vec(2, ig)) + COS(g_vec(3, ig)) + &
+            COS(g_vec(1, ig))*COS(g_vec(2, ig)) + &
+            COS(g_vec(2, ig))*COS(g_vec(3, ig)) + &
+            COS(g_vec(1, ig))*COS(g_vec(3, ig)) + &
             COS(g_vec(1, ig))*COS(g_vec(2, ig))*COS(g_vec(3, ig)))
       END DO
 
@@ -596,11 +596,11 @@ CONTAINS
       END DO
 
       IF (nspin == 2) THEN
-         mixing_store%rhoin(1)%cc = rho_g(1)%pw%cc+rho_g(2)%pw%cc
-         mixing_store%rhoin(2)%cc = rho_g(1)%pw%cc-rho_g(2)%pw%cc
+         mixing_store%rhoin(1)%cc = rho_g(1)%pw%cc + rho_g(2)%pw%cc
+         mixing_store%rhoin(2)%cc = rho_g(1)%pw%cc - rho_g(2)%pw%cc
          IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%pw%cc+rho_g(2)%pw%cc
-            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%pw%cc-rho_g(2)%pw%cc
+            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%pw%cc + rho_g(2)%pw%cc
+            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%pw%cc - rho_g(2)%pw%cc
          END IF
       END IF
 
@@ -726,9 +726,9 @@ CONTAINS
             ! fdamp/g2 varies between (bconst-1) and 0
             ! i.e. p_metric varies between bconst and 1
             ! fdamp = (bconst-1.0_dp)*g2min
-            fdamp = (bconst-1.0_dp)*g2min*g2max/(g2max-g2min*bconst)
+            fdamp = (bconst - 1.0_dp)*g2min*g2max/(g2max - g2min*bconst)
             DO ig = 1, ng
-               mixing_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig), 1.E-10_dp)
+               mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
             END DO
             IF (rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
          END IF
@@ -736,7 +736,7 @@ CONTAINS
       ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
          DO ispin = 1, nspin
             IF (.NOT. ASSOCIATED(mixing_store%u_vec(1, ispin)%cc)) THEN
-               DO ib = 1, nbuffer-1
+               DO ib = 1, nbuffer - 1
                   ALLOCATE (mixing_store%delta_res(ib, ispin)%cc(ng))
                   ALLOCATE (mixing_store%u_vec(ib, ispin)%cc(ng))
                   ALLOCATE (mixing_store%z_vec(ib, ispin)%cc(ng))
@@ -752,9 +752,9 @@ CONTAINS
                IF (g2(ig) > 1.E-10_dp) g2min = MIN(g2min, g2(ig))
             END DO
             CALL mp_min(g2min, para_env%group)
-            fdamp = (bconst-1.0_dp)*g2min
+            fdamp = (bconst - 1.0_dp)*g2min
             DO ig = 1, ng
-               mixing_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig), 1.E-10_dp)
+               mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
             END DO
             IF (rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
          END IF
@@ -764,10 +764,10 @@ CONTAINS
          END IF
          mixing_store%ig_global_index = 0
          ig_count = 0
-         DO iproc = 0, para_env%num_pe-1
+         DO iproc = 0, para_env%num_pe - 1
             IF (para_env%mepos == iproc) THEN
                DO ig = 1, ng
-                  ig_count = ig_count+1
+                  ig_count = ig_count + 1
                   mixing_store%ig_global_index(ig) = ig_count
                END DO
             END IF

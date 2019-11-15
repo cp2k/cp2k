@@ -354,7 +354,7 @@ CONTAINS
             bb = "                                                "
             WRITE (UNIT=io_unit, FMT="(/,A,T67,A14)") " xTB  parameters: ", TRIM(aname)
             IF (defined) THEN
-               m = 5-nshell
+               m = 5 - nshell
                WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.2)") "Effective core charge:", zeff
                WRITE (UNIT=io_unit, FMT="(T16,A,T71,I10)") "Number of orbitals:", natorb
                WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5(A4,I1,I2,A1))") "Basis set [nl]", bb(1:8*m), &

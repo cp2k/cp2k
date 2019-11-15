@@ -266,7 +266,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(qmmm_env))
       ALLOCATE (qmmm_env)
       qmmm_env%ref_count = 1
-      last_qmmm_env_id_nr = last_qmmm_env_id_nr+1
+      last_qmmm_env_id_nr = last_qmmm_env_id_nr + 1
       qmmm_env%id_nr = last_qmmm_env_id_nr
       NULLIFY (qmmm_env%qm_atom_index, &
                qmmm_env%qm_molecule_index, &
@@ -294,7 +294,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qmmm_env))
       CPASSERT(qmmm_env%ref_count > 0)
-      qmmm_env%ref_count = qmmm_env%ref_count+1
+      qmmm_env%ref_count = qmmm_env%ref_count + 1
    END SUBROUTINE qmmm_env_mm_retain
 
 ! **************************************************************************************************
@@ -311,7 +311,7 @@ CONTAINS
 
       IF (ASSOCIATED(qmmm_env)) THEN
          CPASSERT(qmmm_env%ref_count > 0)
-         qmmm_env%ref_count = qmmm_env%ref_count-1
+         qmmm_env%ref_count = qmmm_env%ref_count - 1
          IF (qmmm_env%ref_count == 0) THEN
             IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
                DEALLOCATE (qmmm_env%qm_atom_index)
@@ -353,7 +353,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(qmmm_env))
       ALLOCATE (qmmm_env)
       qmmm_env%ref_count = 1
-      last_qmmm_env_id_nr = last_qmmm_env_id_nr+1
+      last_qmmm_env_id_nr = last_qmmm_env_id_nr + 1
       qmmm_env%id_nr = last_qmmm_env_id_nr
       NULLIFY (qmmm_env%qm_atom_index, qmmm_env%mm_link_atoms, &
                qmmm_env%mm_atom_index, qmmm_env%mm_atom_chrg, &
@@ -400,7 +400,7 @@ CONTAINS
 
       IF (ASSOCIATED(qmmm_env)) THEN
          CPASSERT(qmmm_env%ref_count > 0)
-         qmmm_env%ref_count = qmmm_env%ref_count-1
+         qmmm_env%ref_count = qmmm_env%ref_count - 1
          IF (qmmm_env%ref_count == 0) THEN
             IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
                DEALLOCATE (qmmm_env%qm_atom_index)

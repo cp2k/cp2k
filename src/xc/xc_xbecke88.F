@@ -145,7 +145,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho_1_3, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       dummy => rho
 
@@ -288,15 +288,15 @@ CONTAINS
                t3 = my_rho_1_3*my_rho
                x = norm_drho(ii)/MAX(t3, epsilon_rho43)
                t6 = x**2
-               t10 = t2*t6+0.1e1_dp
+               t10 = t2*t6 + 0.1e1_dp
                t11 = SQRT(t10)
-               t12 = t1*x+t11
+               t12 = t1*x + t11
                t13 = LOG(t12)
-               t17 = 0.1e1_dp+0.6e1_dp*t7*x*t13
+               t17 = 0.1e1_dp + 0.6e1_dp*t7*x*t13
                t18 = 0.1e1_dp/t17
-               t21 = -c-t5*t6*t18
+               t21 = -c - t5*t6*t18
 
-               e_0(ii) = e_0(ii)+(t2*t3*t21/0.2e1_dp)*sx
+               e_0(ii) = e_0(ii) + (t2*t3*t21/0.2e1_dp)*sx
             END IF
          END DO
 
@@ -314,31 +314,31 @@ CONTAINS
                t3 = my_rho_1_3*my_rho
                x = norm_drho(ii)/t3
                t6 = x**2
-               t10 = t2*t6+0.1e1_dp
+               t10 = t2*t6 + 0.1e1_dp
                t11 = SQRT(t10)
-               t12 = t1*x+t11
+               t12 = t1*x + t11
                t13 = LOG(t12)
-               t17 = 0.1e1_dp+0.6e1_dp*t7*x*t13
+               t17 = 0.1e1_dp + 0.6e1_dp*t7*x*t13
                t18 = 0.1e1_dp/t17
-               t21 = -c-t5*t6*t18
+               t21 = -c - t5*t6*t18
 
-               e_0(ii) = e_0(ii)+(t2*t3*t21/0.2e1_dp)*sx
+               e_0(ii) = e_0(ii) + (t2*t3*t21/0.2e1_dp)*sx
 
                t23 = t2*my_rho_1_3
                t29 = 0.1e1_dp/t11
-               t31 = t1+t2*x*t29
+               t31 = t1 + t2*x*t29
                t33 = 0.1e1_dp/t12
-               t37 = 0.6e1_dp*t7*t13+0.6e1_dp*t7*x*t31*t33
+               t37 = 0.6e1_dp*t7*t13 + 0.6e1_dp*t7*x*t31*t33
                t39 = t17**2
                t40 = 0.1e1_dp/t39
-               t43 = -0.2e1_dp*t5*x*t18+t5*t6*t37*t40
+               t43 = -0.2e1_dp*t5*x*t18 + t5*t6*t37*t40
                t44 = t43*x
 
                e_rho(ii) = e_rho(ii) &
-                           -(0.2e1_dp/0.3e1_dp*t23*t44-0.2e1_dp/0.3e1_dp* &
-                             t23*t21)*sx
+                           - (0.2e1_dp/0.3e1_dp*t23*t44 - 0.2e1_dp/0.3e1_dp* &
+                              t23*t21)*sx
                e_ndrho(ii) = e_ndrho(ii) &
-                             +(t2*t43/0.2e1_dp)*sx
+                             + (t2*t43/0.2e1_dp)*sx
             END IF
 
          END DO
@@ -357,29 +357,29 @@ CONTAINS
                t3 = my_rho_1_3*my_rho
                x = norm_drho(ii)/t3
                t6 = x**2
-               t10 = t2*t6+0.1e1_dp
+               t10 = t2*t6 + 0.1e1_dp
                t11 = SQRT(t10)
-               t12 = t1*x+t11
+               t12 = t1*x + t11
                t13 = LOG(t12)
-               t17 = 0.1e1_dp+0.6e1_dp*t7*x*t13
+               t17 = 0.1e1_dp + 0.6e1_dp*t7*x*t13
                t18 = 0.1e1_dp/t17
-               t21 = -c-t5*t6*t18
+               t21 = -c - t5*t6*t18
 
                t23 = t2*my_rho_1_3
                t29 = 0.1e1_dp/t11
-               t31 = t1+t2*x*t29
+               t31 = t1 + t2*x*t29
                t33 = 0.1e1_dp/t12
-               t37 = 0.6e1_dp*t7*t13+0.6e1_dp*t7*x*t31*t33
+               t37 = 0.6e1_dp*t7*t13 + 0.6e1_dp*t7*x*t31*t33
                t39 = t17**2
                t40 = 0.1e1_dp/t39
-               t43 = -0.2e1_dp*t5*x*t18+t5*t6*t37*t40
+               t43 = -0.2e1_dp*t5*x*t18 + t5*t6*t37*t40
                t44 = t43*x
 
                e_rho(ii) = e_rho(ii) &
-                           -(0.2e1_dp/0.3e1_dp*t23*t44-0.2e1_dp/0.3e1_dp* &
-                             t23*t21)*sx
+                           - (0.2e1_dp/0.3e1_dp*t23*t44 - 0.2e1_dp/0.3e1_dp* &
+                              t23*t21)*sx
                e_ndrho(ii) = e_ndrho(ii) &
-                             +(t2*t43/0.2e1_dp)*sx
+                             + (t2*t43/0.2e1_dp)*sx
             END IF
          END DO
 
@@ -397,46 +397,46 @@ CONTAINS
                t3 = my_rho_1_3*my_rho
                x = norm_drho(ii)/t3
                t6 = x**2
-               t10 = t2*t6+0.1e1_dp
+               t10 = t2*t6 + 0.1e1_dp
                t11 = SQRT(t10)
-               t12 = t1*x+t11
+               t12 = t1*x + t11
                t13 = LOG(t12)
-               t17 = 0.1e1_dp+0.6e1_dp*t7*x*t13
+               t17 = 0.1e1_dp + 0.6e1_dp*t7*x*t13
                t18 = 0.1e1_dp/t17
-               t21 = -c-t5*t6*t18
+               t21 = -c - t5*t6*t18
 
-               e_0(ii) = e_0(ii)+(t2*t3*t21/0.2e1_dp)*sx
+               e_0(ii) = e_0(ii) + (t2*t3*t21/0.2e1_dp)*sx
 
                t23 = t2*my_rho_1_3
                t29 = 0.1e1_dp/t11
-               t31 = t1+t2*x*t29
+               t31 = t1 + t2*x*t29
                t33 = 0.1e1_dp/t12
-               t37 = 0.6e1_dp*t7*t13+0.6e1_dp*t7*x*t31*t33
+               t37 = 0.6e1_dp*t7*t13 + 0.6e1_dp*t7*x*t31*t33
                t39 = t17**2
                t40 = 0.1e1_dp/t39
-               t43 = -0.2e1_dp*t5*x*t18+t5*t6*t37*t40
+               t43 = -0.2e1_dp*t5*x*t18 + t5*t6*t37*t40
                t44 = t43*x
 
                e_rho(ii) = e_rho(ii) &
-                           -(0.2e1_dp/0.3e1_dp*t23*t44-0.2e1_dp/0.3e1_dp* &
-                             t23*t21)*sx
+                           - (0.2e1_dp/0.3e1_dp*t23*t44 - 0.2e1_dp/0.3e1_dp* &
+                              t23*t21)*sx
                e_ndrho(ii) = e_ndrho(ii) &
-                             +(t2*t43/0.2e1_dp)*sx
+                             + (t2*t43/0.2e1_dp)*sx
 
                t49 = my_rho_1_3**2
                t51 = t2/t49
                t54 = x*t40
                t64 = 0.1e1_dp/t11/t10
-               t67 = t2*t29-0.2e1_dp*t1*t6*t64
+               t67 = t2*t29 - 0.2e1_dp*t1*t6*t64
                t72 = t31**2
                t74 = t12**2
                t75 = 0.1e1_dp/t74
-               t79 = 0.12e2_dp*t7*t31*t33+0.6e1_dp*t7*x*t67*t33 &
-                     -0.6e1_dp*t7*x*t72*t75
+               t79 = 0.12e2_dp*t7*t31*t33 + 0.6e1_dp*t7*x*t67*t33 &
+                     - 0.6e1_dp*t7*x*t72*t75
                t83 = t37**2
                t86 = 0.1e1_dp/t39/t17
-               t90 = -0.2e1_dp*t5*t18+0.4e1_dp*t5*t54*t37+t5*t6* &
-                     t79*t40-0.2e1_dp*t5*t6*t83*t86
+               t90 = -0.2e1_dp*t5*t18 + 0.4e1_dp*t5*t54*t37 + t5*t6* &
+                     t79*t40 - 0.2e1_dp*t5*t6*t83*t86
                t91 = t90*t6
                t98 = 0.1e1_dp/my_rho
                t99 = t2*t98
@@ -444,12 +444,12 @@ CONTAINS
                t104 = 0.1e1_dp/t3
 
                e_rho_rho(ii) = e_rho_rho(ii) &
-                               +(0.8e1_dp/0.9e1_dp*t51*t91-0.2e1_dp/0.9e1_dp* &
-                                 t51*t44+0.2e1_dp/0.9e1_dp*t51*t21)*sx
+                               + (0.8e1_dp/0.9e1_dp*t51*t91 - 0.2e1_dp/0.9e1_dp* &
+                                  t51*t44 + 0.2e1_dp/0.9e1_dp*t51*t21)*sx
                e_ndrho_rho(ii) = e_ndrho_rho(ii) &
-                                 -(0.2e1_dp/0.3e1_dp*t99*t100)*sx
+                                 - (0.2e1_dp/0.3e1_dp*t99*t100)*sx
                e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) &
-                                   +(t2*t90*t104/0.2e1_dp)*sx
+                                   + (t2*t90*t104/0.2e1_dp)*sx
             END IF
          END DO
 
@@ -467,38 +467,38 @@ CONTAINS
                t3 = my_rho_1_3*my_rho
                x = norm_drho(ii)/t3
                t6 = x**2
-               t10 = t2*t6+0.1e1_dp
+               t10 = t2*t6 + 0.1e1_dp
                t11 = SQRT(t10)
-               t12 = t1*x+t11
+               t12 = t1*x + t11
                t13 = LOG(t12)
-               t17 = 0.1e1_dp+0.6e1_dp*t7*x*t13
+               t17 = 0.1e1_dp + 0.6e1_dp*t7*x*t13
                t18 = 0.1e1_dp/t17
-               t21 = -c-t5*t6*t18
+               t21 = -c - t5*t6*t18
 
                t23 = t2*my_rho_1_3
                t29 = 0.1e1_dp/t11
-               t31 = t1+t2*x*t29
+               t31 = t1 + t2*x*t29
                t33 = 0.1e1_dp/t12
-               t37 = 0.6e1_dp*t7*t13+0.6e1_dp*t7*x*t31*t33
+               t37 = 0.6e1_dp*t7*t13 + 0.6e1_dp*t7*x*t31*t33
                t39 = t17**2
                t40 = 0.1e1_dp/t39
-               t43 = -0.2e1_dp*t5*x*t18+t5*t6*t37*t40
+               t43 = -0.2e1_dp*t5*x*t18 + t5*t6*t37*t40
                t44 = t43*x
 
                t49 = my_rho_1_3**2
                t51 = t2/t49
                t54 = x*t40
                t64 = 0.1e1_dp/t11/t10
-               t67 = t2*t29-0.2e1_dp*t1*t6*t64
+               t67 = t2*t29 - 0.2e1_dp*t1*t6*t64
                t72 = t31**2
                t74 = t12**2
                t75 = 0.1e1_dp/t74
-               t79 = 0.12e2_dp*t7*t31*t33+0.6e1_dp*t7*x*t67*t33 &
-                     -0.6e1_dp*t7*x*t72*t75
+               t79 = 0.12e2_dp*t7*t31*t33 + 0.6e1_dp*t7*x*t67*t33 &
+                     - 0.6e1_dp*t7*x*t72*t75
                t83 = t37**2
                t86 = 0.1e1_dp/t39/t17
-               t90 = -0.2e1_dp*t5*t18+0.4e1_dp*t5*t54*t37+t5*t6* &
-                     t79*t40-0.2e1_dp*t5*t6*t83*t86
+               t90 = -0.2e1_dp*t5*t18 + 0.4e1_dp*t5*t54*t37 + t5*t6* &
+                     t79*t40 - 0.2e1_dp*t5*t6*t83*t86
                t91 = t90*t6
                t98 = 0.1e1_dp/my_rho
                t99 = t2*t98
@@ -506,12 +506,12 @@ CONTAINS
                t104 = 0.1e1_dp/t3
 
                e_rho_rho(ii) = e_rho_rho(ii) &
-                               +(0.8e1_dp/0.9e1_dp*t51*t91-0.2e1_dp/0.9e1_dp* &
-                                 t51*t44+0.2e1_dp/0.9e1_dp*t51*t21)*sx
+                               + (0.8e1_dp/0.9e1_dp*t51*t91 - 0.2e1_dp/0.9e1_dp* &
+                                  t51*t44 + 0.2e1_dp/0.9e1_dp*t51*t21)*sx
                e_ndrho_rho(ii) = e_ndrho_rho(ii) &
-                                 -(0.2e1_dp/0.3e1_dp*t99*t100)*sx
+                                 - (0.2e1_dp/0.3e1_dp*t99*t100)*sx
                e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) &
-                                   +(t2*t90*t104/0.2e1_dp)*sx
+                                   + (t2*t90*t104/0.2e1_dp)*sx
             END IF
          END DO
 
@@ -529,50 +529,50 @@ CONTAINS
                t3 = my_rho_1_3*my_rho
                x = norm_drho(ii)/t3
                t6 = x**2
-               t10 = t2*t6+0.1e1_dp
+               t10 = t2*t6 + 0.1e1_dp
                t11 = SQRT(t10)
-               t12 = t1*x+t11
+               t12 = t1*x + t11
                t13 = LOG(t12)
-               t17 = 0.1e1_dp+0.6e1_dp*t7*x*t13
+               t17 = 0.1e1_dp + 0.6e1_dp*t7*x*t13
                t18 = 0.1e1_dp/t17
-               t21 = -c-t5*t6*t18
+               t21 = -c - t5*t6*t18
 
                IF (grad_deriv >= 0) THEN
-                  e_0(ii) = e_0(ii)+(t2*t3*t21/0.2e1_dp)*sx
+                  e_0(ii) = e_0(ii) + (t2*t3*t21/0.2e1_dp)*sx
                END IF
 
                t23 = t2*my_rho_1_3
                t29 = 0.1e1_dp/t11
-               t31 = t1+t2*x*t29
+               t31 = t1 + t2*x*t29
                t33 = 0.1e1_dp/t12
-               t37 = 0.6e1_dp*t7*t13+0.6e1_dp*t7*x*t31*t33
+               t37 = 0.6e1_dp*t7*t13 + 0.6e1_dp*t7*x*t31*t33
                t39 = t17**2
                t40 = 0.1e1_dp/t39
-               t43 = -0.2e1_dp*t5*x*t18+t5*t6*t37*t40
+               t43 = -0.2e1_dp*t5*x*t18 + t5*t6*t37*t40
                t44 = t43*x
 
                IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
                   e_rho(ii) = e_rho(ii) &
-                              -(0.2e1_dp/0.3e1_dp*t23*t44-0.2e1_dp/0.3e1_dp* &
-                                t23*t21)*sx
+                              - (0.2e1_dp/0.3e1_dp*t23*t44 - 0.2e1_dp/0.3e1_dp* &
+                                 t23*t21)*sx
                   e_ndrho(ii) = e_ndrho(ii) &
-                                +(t2*t43/0.2e1_dp)*sx
+                                + (t2*t43/0.2e1_dp)*sx
                END IF
 
                t49 = my_rho_1_3**2
                t51 = t2/t49
                t54 = x*t40
                t64 = 0.1e1_dp/t11/t10
-               t67 = t2*t29-0.2e1_dp*t1*t6*t64
+               t67 = t2*t29 - 0.2e1_dp*t1*t6*t64
                t72 = t31**2
                t74 = t12**2
                t75 = 0.1e1_dp/t74
-               t79 = 0.12e2_dp*t7*t31*t33+0.6e1_dp*t7*x*t67*t33 &
-                     -0.6e1_dp*t7*x*t72*t75
+               t79 = 0.12e2_dp*t7*t31*t33 + 0.6e1_dp*t7*x*t67*t33 &
+                     - 0.6e1_dp*t7*x*t72*t75
                t83 = t37**2
                t86 = 0.1e1_dp/t39/t17
-               t90 = -0.2e1_dp*t5*t18+0.4e1_dp*t5*t54*t37+t5*t6* &
-                     t79*t40-0.2e1_dp*t5*t6*t83*t86
+               t90 = -0.2e1_dp*t5*t18 + 0.4e1_dp*t5*t54*t37 + t5*t6* &
+                     t79*t40 - 0.2e1_dp*t5*t6*t83*t86
                t91 = t90*t6
                t98 = 0.1e1_dp/my_rho
                t99 = t2*t98
@@ -581,40 +581,40 @@ CONTAINS
 
                IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
                   e_rho_rho(ii) = e_rho_rho(ii) &
-                                  +(0.8e1_dp/0.9e1_dp*t51*t91-0.2e1_dp/0.9e1_dp* &
-                                    t51*t44+0.2e1_dp/0.9e1_dp*t51*t21)*sx
+                                  + (0.8e1_dp/0.9e1_dp*t51*t91 - 0.2e1_dp/0.9e1_dp* &
+                                     t51*t44 + 0.2e1_dp/0.9e1_dp*t51*t21)*sx
                   e_ndrho_rho(ii) = e_ndrho_rho(ii) &
-                                    -(0.2e1_dp/0.3e1_dp*t99*t100)*sx
+                                    - (0.2e1_dp/0.3e1_dp*t99*t100)*sx
                   e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) &
-                                      +(t2*t90*t104/0.2e1_dp)*sx
+                                      + (t2*t90*t104/0.2e1_dp)*sx
                END IF
 
                t126 = t10**2
                t159 = t39**2
-               t164 = 0.6e1_dp*t5*t40*t37-0.12e2_dp*t5*x*t86*t83 &
-                      +0.6e1_dp*t5*t54*t79+t5*t6*(0.18e2_dp*t7*t67 &
-                                                  *t33-0.18e2_dp*t7*t72*t75+0.6e1_dp*t7*x* &
-                                                  (-0.6e1_dp*t1*t64*x+0.12e2_dp*t6*x/t11/t126) &
-                                                  *t33-0.18e2_dp*t7*x*t67*t75*t31+0.12e2_dp*t7 &
-                                                  *x*t72*t31/t74/t12)*t40-0.6e1_dp*t5*t6*t79 &
-                      *t86*t37+0.6e1_dp*t5*t6*t83*t37/t159
-               t170 = 0.8e1_dp/0.9e1_dp*t51*t164*t6+0.14e2_dp/0.9e1_dp &
+               t164 = 0.6e1_dp*t5*t40*t37 - 0.12e2_dp*t5*x*t86*t83 &
+                      + 0.6e1_dp*t5*t54*t79 + t5*t6*(0.18e2_dp*t7*t67 &
+                                                     *t33 - 0.18e2_dp*t7*t72*t75 + 0.6e1_dp*t7*x* &
+                                                     (-0.6e1_dp*t1*t64*x + 0.12e2_dp*t6*x/t11/t126) &
+                                                     *t33 - 0.18e2_dp*t7*x*t67*t75*t31 + 0.12e2_dp*t7 &
+                                                     *x*t72*t31/t74/t12)*t40 - 0.6e1_dp*t5*t6*t79 &
+                      *t86*t37 + 0.6e1_dp*t5*t6*t83*t37/t159
+               t170 = 0.8e1_dp/0.9e1_dp*t51*t164*t6 + 0.14e2_dp/0.9e1_dp &
                       *t51*t100
                t176 = t2/t49/my_rho
                t189 = my_rho**2
 
                IF (grad_deriv == -3 .OR. grad_deriv >= 3) THEN
                   e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
-                                      -(0.4e1_dp/0.3e1_dp*t170*x*t98+0.16e2_dp/0.27e2_dp &
-                                        *t176*t91-0.4e1_dp/0.27e2_dp*t176*t44+ &
-                                        0.4e1_dp/0.27e2_dp*t176*t21)*sx
+                                      - (0.4e1_dp/0.3e1_dp*t170*x*t98 + 0.16e2_dp/0.27e2_dp &
+                                         *t176*t91 - 0.4e1_dp/0.27e2_dp*t176*t44 + &
+                                         0.4e1_dp/0.27e2_dp*t176*t21)*sx
                   e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii) &
-                                        +(t170*t104)*sx
+                                        + (t170*t104)*sx
                   e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii) &
-                                          +((-0.2e1_dp/0.3e1_dp*t99*t164*x- &
-                                             0.2e1_dp/0.3e1_dp*t99*t90)*t104)*sx
+                                          + ((-0.2e1_dp/0.3e1_dp*t99*t164*x - &
+                                              0.2e1_dp/0.3e1_dp*t99*t90)*t104)*sx
                   e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii) &
-                                            +(t2*t164/t49/t189/0.2e1_dp)*sx
+                                            + (t2*t164/t49/t189/0.2e1_dp)*sx
                END IF
             END IF
          END DO
@@ -672,7 +672,7 @@ CONTAINS
                           rhob=rho(2)%array, norm_drhoa=norm_drho(1)%array, &
                           norm_drhob=norm_drho(2)%array, rho_cutoff=epsilon_rho, &
                           local_bounds=bo)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       dummy => rho(1)%array
 
@@ -854,16 +854,16 @@ CONTAINS
                t2 = x**2
                t3 = beta*t2
                t4 = beta*x
-               t5 = t2+0.1e1_dp
+               t5 = t2 + 0.1e1_dp
                t6 = SQRT(t5)
-               t7 = x+t6
+               t7 = x + t6
                t8 = LOG(t7)
-               t11 = 0.1e1_dp+0.6e1_dp*t4*t8
+               t11 = 0.1e1_dp + 0.6e1_dp*t4*t8
                t12 = 0.1e1_dp/t11
-               t14 = -c-t3*t12
+               t14 = -c - t3*t12
 
                e_0(ii) = e_0(ii) &
-                         +(t1*t14)*sx
+                         + (t1*t14)*sx
             END IF
          END DO
 
@@ -881,31 +881,31 @@ CONTAINS
                t2 = x**2
                t3 = beta*t2
                t4 = beta*x
-               t5 = t2+0.1e1_dp
+               t5 = t2 + 0.1e1_dp
                t6 = SQRT(t5)
-               t7 = x+t6
+               t7 = x + t6
                t8 = LOG(t7)
-               t11 = 0.1e1_dp+0.6e1_dp*t4*t8
+               t11 = 0.1e1_dp + 0.6e1_dp*t4*t8
                t12 = 0.1e1_dp/t11
-               t14 = -c-t3*t12
+               t14 = -c - t3*t12
 
                e_0(ii) = e_0(ii) &
-                         +(t1*t14)*sx
+                         + (t1*t14)*sx
 
                t17 = t11**2
                t18 = 0.1e1_dp/t17
                t20 = 0.1e1_dp/t6
-               t22 = 0.1e1_dp+t20*x
+               t22 = 0.1e1_dp + t20*x
                t23 = 0.1e1_dp/t7
-               t27 = 0.6e1_dp*beta*t8+0.6e1_dp*t4*t22*t23
+               t27 = 0.6e1_dp*beta*t8 + 0.6e1_dp*t4*t22*t23
                t28 = t18*t27
-               t30 = -0.2e1_dp*t4*t12+t3*t28
+               t30 = -0.2e1_dp*t4*t12 + t3*t28
 
                e_rho_spin(ii) = e_rho_spin(ii) &
-                                -(0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t30*x- &
-                                  0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t14)*sx
+                                - (0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t30*x - &
+                                   0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t14)*sx
                e_ndrho_spin(ii) = e_ndrho_spin(ii) &
-                                  +(t30)*sx
+                                  + (t30)*sx
             END IF
          END DO
 
@@ -923,34 +923,34 @@ CONTAINS
                t2 = x**2
                t3 = beta*t2
                t4 = beta*x
-               t5 = t2+0.1e1_dp
+               t5 = t2 + 0.1e1_dp
                t6 = SQRT(t5)
-               t7 = x+t6
+               t7 = x + t6
                t8 = LOG(t7)
-               t11 = 0.1e1_dp+0.6e1_dp*t4*t8
+               t11 = 0.1e1_dp + 0.6e1_dp*t4*t8
                t12 = 0.1e1_dp/t11
-               t14 = -c-t3*t12
+               t14 = -c - t3*t12
 
                IF (grad_deriv >= 0) THEN
                   e_0(ii) = e_0(ii) &
-                            +(t1*t14)*sx
+                            + (t1*t14)*sx
                END IF
 
                t17 = t11**2
                t18 = 0.1e1_dp/t17
                t20 = 0.1e1_dp/t6
-               t22 = 0.1e1_dp+t20*x
+               t22 = 0.1e1_dp + t20*x
                t23 = 0.1e1_dp/t7
-               t27 = 0.6e1_dp*beta*t8+0.6e1_dp*t4*t22*t23
+               t27 = 0.6e1_dp*beta*t8 + 0.6e1_dp*t4*t22*t23
                t28 = t18*t27
-               t30 = -0.2e1_dp*t4*t12+t3*t28
+               t30 = -0.2e1_dp*t4*t12 + t3*t28
 
                IF (grad_deriv == -1 .OR. grad_deriv >= 1) THEN
                   e_rho_spin(ii) = e_rho_spin(ii) &
-                                   -(0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t30*x- &
-                                     0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t14)*sx
+                                   - (0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t30*x - &
+                                      0.4e1_dp/0.3e1_dp*rho_1_3_spin(ii)*t14)*sx
                   e_ndrho_spin(ii) = e_ndrho_spin(ii) &
-                                     +(t30)*sx
+                                     + (t30)*sx
                END IF
 
                t35 = rho_1_3_spin(ii)**2
@@ -959,13 +959,13 @@ CONTAINS
                t43 = t27**2
                t44 = t42*t43
                t51 = 0.1e1_dp/t6/t5
-               t53 = -t51*t2+t20
+               t53 = -t51*t2 + t20
                t57 = t22**2
                t58 = t7**2
                t59 = 0.1e1_dp/t58
-               t63 = 0.12e2_dp*beta*t22*t23+0.6e1_dp*t4*t53*t23-0.6e1_dp*t4*t57*t59
+               t63 = 0.12e2_dp*beta*t22*t23 + 0.6e1_dp*t4*t53*t23 - 0.6e1_dp*t4*t57*t59
                t64 = t18*t63
-               t66 = -0.2e1_dp*beta*t12+0.4e1_dp*t4*t28-0.2e1_dp*t3*t44+t3*t64
+               t66 = -0.2e1_dp*beta*t12 + 0.4e1_dp*t4*t28 - 0.2e1_dp*t3*t44 + t3*t64
                t67 = t36*t66
                t75 = 0.1e1_dp/my_rho
                t76 = t75*t66
@@ -973,39 +973,39 @@ CONTAINS
 
                IF (grad_deriv == -2 .OR. grad_deriv >= 2) THEN
                   e_rho_rho_spin(ii) = e_rho_rho_spin(ii) &
-                                       +(0.16e2_dp/0.9e1_dp*t67*t2-0.4e1_dp/0.9e1_dp &
-                                         *t36*t30*x+0.4e1_dp/0.9e1_dp*t36*t14)*sx
+                                       + (0.16e2_dp/0.9e1_dp*t67*t2 - 0.4e1_dp/0.9e1_dp &
+                                          *t36*t30*x + 0.4e1_dp/0.9e1_dp*t36*t14)*sx
                   e_ndrho_rho_spin(ii) = e_ndrho_rho_spin(ii) &
-                                         -(0.4e1_dp/0.3e1_dp*t76*x)*sx
-                  e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii)+ &
+                                         - (0.4e1_dp/0.3e1_dp*t76*x)*sx
+                  e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii) + &
                                            (t66*t79)*sx
                END IF
 
                t87 = t17**2
                t103 = t5**2
-               t127 = 0.6e1_dp*beta*t18*t27-0.12e2_dp*t4*t44+0.6e1_dp &
-                      *t4*t64+0.6e1_dp*t3/t87*t43*t27-0.6e1_dp*t3 &
-                      *t42*t27*t63+t3*t18*(0.18e2_dp*beta*t53*t23 &
-                                           -0.18e2_dp*beta*t57*t59+0.6e1_dp*t4*(0.3e1_dp/ &
-                                                                                t6/t103*t2*x-0.3e1_dp*t51*x)*t23-0.18e2_dp* &
-                                           t4*t53*t59*t22+0.12e2_dp*t4*t57*t22/t58/t7)
-               t133 = 0.16e2_dp/0.9e1_dp*t36*t127*t2+0.28e2_dp/0.9e1_dp &
+               t127 = 0.6e1_dp*beta*t18*t27 - 0.12e2_dp*t4*t44 + 0.6e1_dp &
+                      *t4*t64 + 0.6e1_dp*t3/t87*t43*t27 - 0.6e1_dp*t3 &
+                      *t42*t27*t63 + t3*t18*(0.18e2_dp*beta*t53*t23 &
+                                             - 0.18e2_dp*beta*t57*t59 + 0.6e1_dp*t4*(0.3e1_dp/ &
+                                                                                   t6/t103*t2*x - 0.3e1_dp*t51*x)*t23 - 0.18e2_dp* &
+                                             t4*t53*t59*t22 + 0.12e2_dp*t4*t57*t22/t58/t7)
+               t133 = 0.16e2_dp/0.9e1_dp*t36*t127*t2 + 0.28e2_dp/0.9e1_dp &
                       *t67*x
                t138 = 0.1e1_dp/t35/my_rho
                t151 = my_rho**2
 
                IF (grad_deriv == -3 .OR. grad_deriv >= 3) THEN
                   e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii) &
-                                           -(0.4e1_dp/0.3e1_dp*t133*x*t75+0.32e2_dp/0.27e2_dp &
-                                             *t138*t66*t2-0.8e1_dp/0.27e2_dp*t138*t30* &
-                                             x+0.8e1_dp/0.27e2_dp*t138*t14)*sx
+                                           - (0.4e1_dp/0.3e1_dp*t133*x*t75 + 0.32e2_dp/0.27e2_dp &
+                                              *t138*t66*t2 - 0.8e1_dp/0.27e2_dp*t138*t30* &
+                                              x + 0.8e1_dp/0.27e2_dp*t138*t14)*sx
                   e_ndrho_rho_rho_spin(ii) = e_ndrho_rho_rho_spin(ii) &
-                                             +(t133*t79)*sx
+                                             + (t133*t79)*sx
                   e_ndrho_ndrho_rho_spin(ii) = e_ndrho_ndrho_rho_spin(ii) &
-                                               +((-0.4e1_dp/0.3e1_dp*t75*t127*x- &
-                                                  0.4e1_dp/0.3e1_dp*t76)*t79)*sx
+                                               + ((-0.4e1_dp/0.3e1_dp*t75*t127*x - &
+                                                   0.4e1_dp/0.3e1_dp*t76)*t79)*sx
                   e_ndrho_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_ndrho_spin(ii) &
-                                                 +(t127/t35/t151)*sx
+                                                 + (t127/t35/t151)*sx
                END IF
             END IF
          END DO

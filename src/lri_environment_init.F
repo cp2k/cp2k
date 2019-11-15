@@ -287,9 +287,9 @@ CONTAINS
          DO iat = 1, natom
             ikind = kind_of(iat)
             nribas = lri_env%ri_basis(ikind)%gto_basis_set%nsgf
-            lri_env%ri_fit%bas_ptr(1, iat) = nbas+1
-            lri_env%ri_fit%bas_ptr(2, iat) = nbas+nribas
-            nbas = nbas+nribas
+            lri_env%ri_fit%bas_ptr(1, iat) = nbas + 1
+            lri_env%ri_fit%bas_ptr(2, iat) = nbas + nribas
+            nbas = nbas + nribas
          END DO
          ! initialize vector t
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
@@ -435,7 +435,7 @@ CONTAINS
          DO ishell = 1, basis%nshell(iset)
             l = basis%l(ishell, iset)
             IF (l /= 0) CYCLE
-            expa = 0.5_dp*REAL(2*l+3, dp)
+            expa = 0.5_dp*REAL(2*l + 3, dp)
             ppl = pi**(3._dp/2._dp)
             DO isgf = basis%first_sgf(ishell, iset), basis%last_sgf(ishell, iset)
                DO ipgf = 1, basis%npgf(iset)
@@ -444,7 +444,7 @@ CONTAINS
                   DO jpgf = 1, basis%npgf(iset)
                      ccj = basis%gcc(jpgf, ishell, iset)
                      aaj = basis%zet(jpgf, iset)
-                     norm(isgf) = norm(isgf)+cci*ccj*ppl/(aai+aaj)**expa
+                     norm(isgf) = norm(isgf) + cci*ccj*ppl/(aai + aaj)**expa
                   END DO
                END DO
                norm(isgf) = 1.0_dp/SQRT(norm(isgf))
@@ -480,8 +480,8 @@ CONTAINS
       DO iset = 1, basis%nset
          DO ishell = 1, basis%nshell(iset)
             l = basis%l(ishell, iset)
-            expa = 0.5_dp*REAL(2*l+3, dp)
-            ppl = fac(2*l+2)*SQRT(pi)/2._dp**REAL(2*l+3, dp)/fac(l+1)
+            expa = 0.5_dp*REAL(2*l + 3, dp)
+            ppl = fac(2*l + 2)*SQRT(pi)/2._dp**REAL(2*l + 3, dp)/fac(l + 1)
             DO isgf = basis%first_sgf(ishell, iset), basis%last_sgf(ishell, iset)
                DO ipgf = 1, basis%npgf(iset)
                   cci = basis%gcc(ipgf, ishell, iset)
@@ -489,7 +489,7 @@ CONTAINS
                   DO jpgf = 1, basis%npgf(iset)
                      ccj = basis%gcc(jpgf, ishell, iset)
                      aaj = basis%zet(jpgf, iset)
-                     norm(isgf) = norm(isgf)+cci*ccj*ppl/(aai+aaj)**expa
+                     norm(isgf) = norm(isgf) + cci*ccj*ppl/(aai + aaj)**expa
                   END DO
                END DO
                norm(isgf) = 1.0_dp/SQRT(norm(isgf))
@@ -529,7 +529,7 @@ CONTAINS
                   cc = basis%gcc(ipgf, ishell, iset)
                   aa = basis%zet(ipgf, iset)
                   pp = (pi/aa)**(3._dp/2._dp)
-                  int_aux(isgf) = int_aux(isgf)+norm(isgf)*cc*pp
+                  int_aux(isgf) = int_aux(isgf) + norm(isgf)*cc*pp
                END DO
             END DO
          END DO
@@ -571,8 +571,8 @@ CONTAINS
                   lj = basis%l(jshell, jset)
                   IF (li == lj) THEN
                      l = li
-                     expa = 0.5_dp*REAL(2*l+3, dp)
-                     ppl = fac(2*l+2)*SQRT(pi)/2._dp**REAL(2*l+3, dp)/fac(l+1)
+                     expa = 0.5_dp*REAL(2*l + 3, dp)
+                     ppl = fac(2*l + 2)*SQRT(pi)/2._dp**REAL(2*l + 3, dp)/fac(l + 1)
                      DO isgf = basis%first_sgf(ishell, iset), basis%last_sgf(ishell, iset)
                         m_i = basis%m(isgf)
                         DO jsgf = basis%first_sgf(jshell, jset), basis%last_sgf(jshell, jset)
@@ -585,9 +585,9 @@ CONTAINS
                                  DO jpgf = 1, basis%npgf(jset)
                                     ccj = basis%gcc(jpgf, jshell, jset)
                                     aaj = basis%zet(jpgf, jset)
-                                    oo = 1._dp/(aai+aaj)**expa
+                                    oo = 1._dp/(aai + aaj)**expa
                                     norm_j = norm(jsgf)
-                                    ovlp(isgf, jsgf) = ovlp(isgf, jsgf)+norm_i*norm_j*ppl*cci*ccj*oo
+                                    ovlp(isgf, jsgf) = ovlp(isgf, jsgf) + norm_i*norm_j*ppl*cci*ccj*oo
                                  END DO
                               END DO
                            ENDIF

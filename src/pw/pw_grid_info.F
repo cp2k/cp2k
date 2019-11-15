@@ -67,8 +67,8 @@ CONTAINS
 
       IF (my_icommensurate > 1) THEN
          CPASSERT(PRESENT(ref_grid))
-         n = ref_grid%npts/2**(my_icommensurate-1)
-         CPASSERT(ALL(ref_grid%npts == n*2**(my_icommensurate-1)))
+         n = ref_grid%npts/2**(my_icommensurate - 1)
+         CPASSERT(ALL(ref_grid%npts == n*2**(my_icommensurate - 1)))
          CPASSERT(ALL(pw_grid_n_for_fft(n) == n))
       ELSE
          n = pw_grid_find_n(hmat, cutoff=cutoff, fft_usage=fft_usage, ncommensurate=ncommensurate, &
@@ -142,18 +142,18 @@ CONTAINS
                      CALL fft_radix_operations(ntest(idir), n(idir), FFT_RADIX_NEXT)
                      ! check every subgrid of n
                      subgrid_is_OK = .TRUE.
-                     DO t_icommensurate = 1, my_ncommensurate-1
-                        nsubgrid = n(idir)/2**(my_ncommensurate-t_icommensurate)
+                     DO t_icommensurate = 1, my_ncommensurate - 1
+                        nsubgrid = n(idir)/2**(my_ncommensurate - t_icommensurate)
                         CALL fft_radix_operations(nsubgrid, nsubgrid_new, FFT_RADIX_NEXT)
                         subgrid_is_OK = (nsubgrid == nsubgrid_new) .AND. &
-                                        (MODULO(n(idir), 2**(my_ncommensurate-t_icommensurate)) == 0)
+                                        (MODULO(n(idir), 2**(my_ncommensurate - t_icommensurate)) == 0)
                         IF (.NOT. subgrid_is_OK) EXIT
                      END DO
                      IF (subgrid_is_OK) THEN
                         EXIT
                      ELSE
                         ! subgrid wasn't OK, increment ntest and try again
-                        ntest(idir) = n(idir)+1
+                        ntest(idir) = n(idir) + 1
                      ENDIF
                   END DO
                END DO
@@ -162,14 +162,14 @@ CONTAINS
       ELSE
          ! without a cutoff and HALFSPACE we have to be sure that there is
          ! a negative counterpart to every g vector (-> odd number of grid points)
-         IF (odd) n = n+MOD(n+1, 2)
+         IF (odd) n = n + MOD(n + 1, 2)
 
       END IF
 
       ! final check if all went fine ...
       IF (my_ncommensurate > 0) THEN
          DO my_icommensurate = 1, my_ncommensurate
-            ftest = ANY(MODULO(n, 2**(my_ncommensurate-my_icommensurate)) .NE. 0)
+            ftest = ANY(MODULO(n, 2**(my_ncommensurate - my_icommensurate)) .NE. 0)
             CPASSERT(.NOT. ftest)
          END DO
       ENDIF
@@ -243,7 +243,7 @@ CONTAINS
          alat(i) = SUM(hmat(:, i)**2)
       ENDDO
       CPASSERT(ALL(alat /= 0._dp))
-      n = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi)+1
+      n = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi) + 1
 
    END FUNCTION pw_grid_n_from_cutoff
 
@@ -261,7 +261,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       bounds(1, :) = -npts/2
-      bounds(2, :) = bounds(1, :)+npts-1
+      bounds(2, :) = bounds(1, :) + npts - 1
 
    END FUNCTION pw_grid_bounds_from_n
 
@@ -292,21 +292,21 @@ CONTAINS
 
 ! compute 2*pi*h_inv^t*g  where g = (nmax[1],0,0)
 
-      gdum(:) = twopi*h_inv(1, :)*REAL((npts(1)-1)/2, KIND=dp)
-      length = SQRT(gdum(1)**2+gdum(2)**2+gdum(3)**2)
+      gdum(:) = twopi*h_inv(1, :)*REAL((npts(1) - 1)/2, KIND=dp)
+      length = SQRT(gdum(1)**2 + gdum(2)**2 + gdum(3)**2)
       gcut = length
 
       ! compute 2*pi*h_inv^t*g  where g = (0,nmax[2],0)
-      gdum(:) = twopi*h_inv(2, :)*REAL((npts(2)-1)/2, KIND=dp)
-      length = SQRT(gdum(1)**2+gdum(2)**2+gdum(3)**2)
+      gdum(:) = twopi*h_inv(2, :)*REAL((npts(2) - 1)/2, KIND=dp)
+      length = SQRT(gdum(1)**2 + gdum(2)**2 + gdum(3)**2)
       gcut = MIN(gcut, length)
 
       ! compute 2*pi*h_inv^t*g  where g = (0,0,nmax[3])
-      gdum(:) = twopi*h_inv(3, :)*REAL((npts(3)-1)/2, KIND=dp)
-      length = SQRT(gdum(1)**2+gdum(2)**2+gdum(3)**2)
+      gdum(:) = twopi*h_inv(3, :)*REAL((npts(3) - 1)/2, KIND=dp)
+      length = SQRT(gdum(1)**2 + gdum(2)**2 + gdum(3)**2)
       gcut = MIN(gcut, length)
 
-      cutoff = gcut-1.e-8_dp
+      cutoff = gcut - 1.e-8_dp
 
    END FUNCTION pw_find_cutoff
 

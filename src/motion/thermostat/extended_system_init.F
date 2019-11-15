@@ -135,7 +135,7 @@ CONTAINS
             ind = 0
             DO i = 1, SIZE(npt_info, 1)
                DO j = 1, SIZE(npt_info, 2)
-                  ind = ind+1
+                  ind = ind + 1
                   npt_info(i, j)%v = buffer(ind)
                END DO
             END DO
@@ -143,7 +143,7 @@ CONTAINS
             ind = 0
             DO i = 1, SIZE(npt_info, 1)
                DO j = 1, SIZE(npt_info, 2)
-                  ind = ind+1
+                  ind = ind + 1
                   npt_info(i, j)%mass = buffer(ind)
                END DO
             END DO
@@ -514,20 +514,20 @@ CONTAINS
       CASE (1)
          yosh_wt(1) = 1.0_dp
       CASE (3)
-         yosh_wt(1) = 1.0_dp/(2.0_dp-(2.0_dp)**(1.0_dp/3.0_dp))
-         yosh_wt(2) = 1.0_dp-2.0_dp*yosh_wt(1)
+         yosh_wt(1) = 1.0_dp/(2.0_dp - (2.0_dp)**(1.0_dp/3.0_dp))
+         yosh_wt(2) = 1.0_dp - 2.0_dp*yosh_wt(1)
          yosh_wt(3) = yosh_wt(1)
       CASE (5)
-         yosh_wt(1) = 1.0_dp/(4.0_dp-(4.0_dp)**(1.0_dp/3.0_dp))
+         yosh_wt(1) = 1.0_dp/(4.0_dp - (4.0_dp)**(1.0_dp/3.0_dp))
          yosh_wt(2) = yosh_wt(1)
          yosh_wt(4) = yosh_wt(1)
          yosh_wt(5) = yosh_wt(1)
-         yosh_wt(3) = 1.0_dp-4.0_dp*yosh_wt(1)
+         yosh_wt(3) = 1.0_dp - 4.0_dp*yosh_wt(1)
       CASE (7)
          yosh_wt(1) = .78451361047756_dp
          yosh_wt(2) = .235573213359357_dp
          yosh_wt(3) = -1.17767998417887_dp
-         yosh_wt(4) = 1.0_dp-2.0_dp*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
+         yosh_wt(4) = 1.0_dp - 2.0_dp*(yosh_wt(1) + yosh_wt(2) + yosh_wt(3))
          yosh_wt(5) = yosh_wt(3)
          yosh_wt(6) = yosh_wt(2)
          yosh_wt(7) = yosh_wt(1)
@@ -536,8 +536,8 @@ CONTAINS
          yosh_wt(2) = 0.554910818409783619692725006662999_dp
          yosh_wt(3) = 0.124659619941888644216504240951585_dp
          yosh_wt(4) = -0.843182063596933505315033808282941_dp
-         yosh_wt(5) = 1.0_dp-2.0_dp*(yosh_wt(1)+yosh_wt(2)+ &
-                                     yosh_wt(3)+yosh_wt(4))
+         yosh_wt(5) = 1.0_dp - 2.0_dp*(yosh_wt(1) + yosh_wt(2) + &
+                                       yosh_wt(3) + yosh_wt(4))
          yosh_wt(6) = yosh_wt(4)
          yosh_wt(7) = yosh_wt(3)
          yosh_wt(8) = yosh_wt(2)
@@ -550,8 +550,8 @@ CONTAINS
          yosh_wt(5) = -0.144485223686048e1_dp
          yosh_wt(6) = 0.253693336566229_dp
          yosh_wt(7) = 0.914844246229740_dp
-         yosh_wt(8) = 1.0_dp-2.0_dp*(yosh_wt(1)+yosh_wt(2)+ &
-                                     yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
+         yosh_wt(8) = 1.0_dp - 2.0_dp*(yosh_wt(1) + yosh_wt(2) + &
+                                       yosh_wt(3) + yosh_wt(4) + yosh_wt(5) + yosh_wt(6) + yosh_wt(7))
          yosh_wt(9) = yosh_wt(7)
          yosh_wt(10) = yosh_wt(6)
          yosh_wt(11) = yosh_wt(5)
@@ -645,36 +645,36 @@ CONTAINS
             CALL section_vals_val_get(nose_section, "COORD%_DEFAULT_KEYWORD_", r_vals=buffer)
             DO i = 1, SIZE(nhc%nvt, 2)
                ind = map_info%index(i)
-               ind = (ind-1)*nhc%nhc_len
+               ind = (ind - 1)*nhc%nhc_len
                DO j = 1, SIZE(nhc%nvt, 1)
-                  ind = ind+1
+                  ind = ind + 1
                   nhc%nvt(j, i)%eta = buffer(ind)
                END DO
             END DO
             CALL section_vals_val_get(nose_section, "VELOCITY%_DEFAULT_KEYWORD_", r_vals=buffer)
             DO i = 1, SIZE(nhc%nvt, 2)
                ind = map_info%index(i)
-               ind = (ind-1)*nhc%nhc_len
+               ind = (ind - 1)*nhc%nhc_len
                DO j = 1, SIZE(nhc%nvt, 1)
-                  ind = ind+1
+                  ind = ind + 1
                   nhc%nvt(j, i)%v = buffer(ind)
                END DO
             END DO
             CALL section_vals_val_get(nose_section, "MASS%_DEFAULT_KEYWORD_", r_vals=buffer)
             DO i = 1, SIZE(nhc%nvt, 2)
                ind = map_info%index(i)
-               ind = (ind-1)*nhc%nhc_len
+               ind = (ind - 1)*nhc%nhc_len
                DO j = 1, SIZE(nhc%nvt, 1)
-                  ind = ind+1
+                  ind = ind + 1
                   nhc%nvt(j, i)%mass = buffer(ind)
                END DO
             END DO
             CALL section_vals_val_get(nose_section, "FORCE%_DEFAULT_KEYWORD_", r_vals=buffer)
             DO i = 1, SIZE(nhc%nvt, 2)
                ind = map_info%index(i)
-               ind = (ind-1)*nhc%nhc_len
+               ind = (ind - 1)*nhc%nhc_len
                DO j = 1, SIZE(nhc%nvt, 1)
-                  ind = ind+1
+                  ind = ind + 1
                   nhc%nvt(j, i)%f = buffer(ind)
                END DO
             END DO
@@ -757,9 +757,9 @@ CONTAINS
          akin = 0.0_dp
          DO i = 1, nhc%loc_num_nhc
             DO j = 1, nhc%nhc_len
-               akin = akin+0.5_dp*(nhc%nvt(j, i)%mass* &
-                                   nhc%nvt(j, i)%v* &
-                                   nhc%nvt(j, i)%v)
+               akin = akin + 0.5_dp*(nhc%nvt(j, i)%mass* &
+                                     nhc%nvt(j, i)%v* &
+                                     nhc%nvt(j, i)%v)
             END DO
          END DO
          number = nhc%loc_num_nhc
@@ -777,8 +777,8 @@ CONTAINS
          ! initializing all of the forces on the thermostats
          DO i = 1, nhc%loc_num_nhc
             DO j = 2, nhc%nhc_len
-               nhc%nvt(j, i)%f = nhc%nvt(j-1, i)%mass*nhc%nvt(j-1, i)%v* &
-                                 nhc%nvt(j-1, i)%v-nhc%nvt(j, i)%nkt
+               nhc%nvt(j, i)%f = nhc%nvt(j - 1, i)%mass*nhc%nvt(j - 1, i)%v* &
+                                 nhc%nvt(j - 1, i)%v - nhc%nvt(j, i)%nkt
                IF (nhc%nvt(j, i)%mass > 0.0_dp) THEN
                   nhc%nvt(j, i)%f = nhc%nvt(j, i)%f/nhc%nvt(j, i)%mass
                END IF
@@ -792,9 +792,9 @@ CONTAINS
          ! Map deterministically determined random number to nhc % v
          DO i = 1, nhc%loc_num_nhc
             icount = map_info%index(i)
-            icount = (icount-1)*nhc%nhc_len
+            icount = (icount - 1)*nhc%nhc_len
             DO j = 1, nhc%nhc_len
-               icount = icount+1
+               icount = icount + 1
                nhc%nvt(j, i)%v = array_of_rn(icount)
                ! WRITE ( *, * ) 'VEL', para_env%mepos, i,j, nhc%nvt(j,i)%v
                nhc%nvt(j, i)%eta = 0.0_dp
@@ -817,8 +817,8 @@ CONTAINS
          ! initializing all of the forces on the thermostats
          DO i = 1, nhc%loc_num_nhc
             DO j = 2, nhc%nhc_len
-               nhc%nvt(j, i)%f = nhc%nvt(j-1, i)%mass*nhc%nvt(j-1, i)%v* &
-                                 nhc%nvt(j-1, i)%v-nhc%nvt(j, i)%nkt
+               nhc%nvt(j, i)%f = nhc%nvt(j - 1, i)%mass*nhc%nvt(j - 1, i)%v* &
+                                 nhc%nvt(j - 1, i)%v - nhc%nvt(j, i)%nkt
                IF (nhc%nvt(j, i)%mass > 0.0_dp) THEN
                   nhc%nvt(j, i)%f = nhc%nvt(j, i)%f/nhc%nvt(j, i)%mass
                END IF
@@ -871,15 +871,15 @@ CONTAINS
       npt(:, :)%f = 0.0_dp
       SELECT CASE (ensemble)
       CASE (npt_i_ensemble)
-         npt(:, :)%mass = REAL(nfree+3, KIND=dp)*temp_ext*tau_cell**2
+         npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2
       CASE (npt_f_ensemble)
-         npt(:, :)%mass = REAL(nfree+3, KIND=dp)*temp_ext*tau_cell**2/3.0_dp
+         npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2/3.0_dp
       CASE (nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble)
          npt(:, :)%mass = cmass
       CASE (npe_f_ensemble)
-         npt(:, :)%mass = REAL(nfree+3, KIND=dp)*temp_ext*tau_cell**2/3.0_dp
+         npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2/3.0_dp
       CASE (npe_i_ensemble)
-         npt(:, :)%mass = REAL(nfree+3, KIND=dp)*temp_ext*tau_cell**2
+         npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2
       END SELECT
       ! initializing velocities
       DO i = 1, SIZE(npt, 1)
@@ -895,7 +895,7 @@ CONTAINS
       akin = 0.0_dp
       DO i = 1, SIZE(npt, 1)
          DO j = 1, SIZE(npt, 2)
-            akin = akin+0.5_dp*(npt(j, i)%mass*npt(j, i)%v*npt(j, i)%v)
+            akin = akin + 0.5_dp*(npt(j, i)%mass*npt(j, i)%v*npt(j, i)%v)
          END DO
       END DO
 
@@ -949,8 +949,8 @@ CONTAINS
       ! assign the forces
       DO i = 1, SIZE(nhc%nvt, 2)
          DO j = 2, SIZE(nhc%nvt, 1)
-            nhc%nvt(j, i)%f = nhc%nvt(j-1, i)%mass* &
-                              nhc%nvt(j-1, i)%v**2- &
+            nhc%nvt(j, i)%f = nhc%nvt(j - 1, i)%mass* &
+                              nhc%nvt(j - 1, i)%v**2 - &
                               nhc%nvt(j, i)%nkt
             IF (nhc%nvt(j, i)%mass > 0.0_dp) THEN
                nhc%nvt(j, i)%f = nhc%nvt(j, i)%f/nhc%nvt(j, i)%mass

@@ -147,7 +147,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_get_optimal_ncpu', &
          routineP = moduleN//':'//routineN
 
-      ncpu = ((size+work_redistribute%a*work_redistribute%x-1)/ &
+      ncpu = ((size + work_redistribute%a*work_redistribute%x - 1)/ &
               (work_redistribute%a*work_redistribute%x))*work_redistribute%a
 
    END FUNCTION cp_fm_diag_get_optimal_ncpu
@@ -185,9 +185,9 @@ CONTAINS
                           nrow_block=nrow_block, ncol_block=ncol_block)
       nzero = COUNT(ncol_locals == 0)
       num_pe_old = matrix%matrix_struct%para_env%num_pe
-      ncpu = num_pe_old-nzero
+      ncpu = num_pe_old - nzero
       ! Avoid layouts with odd number of CPUs (blacs grid layout will be square)
-      IF (ncpu /= 1) ncpu = ncpu-MODULO(ncpu, 2)
+      IF (ncpu /= 1) ncpu = ncpu - MODULO(ncpu, 2)
       ! Iteratively search for the maximum number of CPUs for ELPA
       ! On each step, we test whether the blacs grid created with ncpu processes
       ! contains any columns with zero width
@@ -210,15 +210,15 @@ CONTAINS
          ! Test if there are any columns with zero width
          ! (snippet copied from cp_fm_struct.F:cp_fm_struct_create)
          nzero = 0
-         DO ipe = 0, npcol-1
+         DO ipe = 0, npcol - 1
             IF (numroc(ncol_global, ncol_block, ipe, 0, npcol) == 0) &
-               nzero = nzero+1
+               nzero = nzero + 1
          END DO
          IF (nzero == 0) THEN
             max_cpu_found = .TRUE.
          ELSE
-            ncpu = ncpu-nzero
-            IF (ncpu /= 1) ncpu = ncpu-MODULO(ncpu, 2)
+            ncpu = ncpu - nzero
+            IF (ncpu /= 1) ncpu = ncpu - MODULO(ncpu, 2)
          END IF
       END DO
       CPASSERT(ncpu .GT. 0)
@@ -334,9 +334,9 @@ CONTAINS
       IF (do_redistribute) THEN
 
          ! split comm, the first num_pe_new tasks will do the work
-         ALLOCATE (work_redistribute%group_distribution(0:num_pe_old-1))
+         ALLOCATE (work_redistribute%group_distribution(0:num_pe_old - 1))
          ALLOCATE (work_redistribute%group_partition(0:1))
-         work_redistribute%group_partition = (/num_pe_new, num_pe_old-num_pe_new/)
+         work_redistribute%group_partition = (/num_pe_new, num_pe_old - num_pe_new/)
          CALL mp_comm_split(comm=para_env%group, sub_comm=work_redistribute%subgroup, &
                             ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &
                             n_subgroups=2, group_partition=work_redistribute%group_partition)

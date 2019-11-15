@@ -236,16 +236,16 @@ CONTAINS
 #endif
 
       ! generate the mappings blacs2mpi and mpi2blacs
-      ALLOCATE (blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1, 0:blacs_env%num_pe(2)-1), &
+      ALLOCATE (blacs_env%blacs2mpi(0:blacs_env%num_pe(1) - 1, 0:blacs_env%num_pe(2) - 1), &
                 stat=stat)
       CPASSERT(stat == 0)
       blacs_env%blacs2mpi = 0
       blacs_env%blacs2mpi(blacs_env%mepos(1), blacs_env%mepos(2)) = para_env%mepos
       CALL mp_sum(blacs_env%blacs2mpi, para_env%group)
-      ALLOCATE (blacs_env%mpi2blacs(2, 0:para_env%num_pe-1))
+      ALLOCATE (blacs_env%mpi2blacs(2, 0:para_env%num_pe - 1))
       blacs_env%mpi2blacs = -1
-      DO ipcol = 0, blacs_env%num_pe(2)-1
-         DO iprow = 0, blacs_env%num_pe(1)-1
+      DO ipcol = 0, blacs_env%num_pe(2) - 1
+         DO iprow = 0, blacs_env%num_pe(1) - 1
             blacs_env%mpi2blacs(1, blacs_env%blacs2mpi(iprow, ipcol)) = iprow
             blacs_env%mpi2blacs(2, blacs_env%blacs2mpi(iprow, ipcol)) = ipcol
          END DO
@@ -267,7 +267,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(blacs_env))
       CPASSERT(blacs_env%ref_count > 0)
-      blacs_env%ref_count = blacs_env%ref_count+1
+      blacs_env%ref_count = blacs_env%ref_count + 1
    END SUBROUTINE cp_blacs_env_retain
 
 ! **************************************************************************************************
@@ -285,7 +285,7 @@ CONTAINS
 
       IF (ASSOCIATED(blacs_env)) THEN
          CPASSERT(blacs_env%ref_count > 0)
-         blacs_env%ref_count = blacs_env%ref_count-1
+         blacs_env%ref_count = blacs_env%ref_count - 1
          IF (blacs_env%ref_count < 1) THEN
             CALL cp_blacs_gridexit(blacs_env%group)
             CALL cp_para_env_release(blacs_env%para_env)

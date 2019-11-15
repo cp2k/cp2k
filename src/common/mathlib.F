@@ -118,20 +118,20 @@ CONTAINS
          END IF
       ELSE
          ! renormalized coordinate
-         u = (x-a)/(b-a)
+         u = (x - a)/(b - a)
          SELECT CASE (order)
          CASE (0)
             u2 = u*u
             u3 = u2*u
-            fx = 1._dp-10._dp*u3+15._dp*u2*u2-6._dp*u2*u3
+            fx = 1._dp - 10._dp*u3 + 15._dp*u2*u2 - 6._dp*u2*u3
          CASE (1)
             u2 = u*u
-            fx = -30._dp*u2+60._dp*u*u2-30._dp*u2*u2
-            fx = fx/(b-a)
+            fx = -30._dp*u2 + 60._dp*u*u2 - 30._dp*u2*u2
+            fx = fx/(b - a)
          CASE (2)
             u2 = u*u
-            fx = -60._dp*u+180._dp*u2-120._dp*u*u2
-            fx = fx/(b-a)**2
+            fx = -60._dp*u + 180._dp*u2 - 120._dp*u*u2
+            fx = fx/(b - a)**2
          CASE DEFAULT
             CPABORT('order not defined')
          END SELECT
@@ -207,7 +207,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: n_over_k
 
       IF ((k >= 0) .AND. (k <= n)) THEN
-         n_over_k = fac(n)/(fac(n-k)*fac(k))
+         n_over_k = fac(n)/(fac(n - k)*fac(k))
       ELSE
          n_over_k = 0.0_dp
       END IF
@@ -261,7 +261,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: cosp, cost, length_of_a, sinp
       REAL(KIND=dp), DIMENSION(3)                        :: d
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
       ! Check the length of the vector a
       IF (length_of_a > eps_geo) THEN
 
@@ -269,17 +269,17 @@ CONTAINS
 
          cosp = COS(phi)
          sinp = SIN(phi)
-         cost = 1.0_dp-cosp
+         cost = 1.0_dp - cosp
 
-         rotmat(1, 1) = d(1)*d(1)*cost+cosp
-         rotmat(1, 2) = d(1)*d(2)*cost-d(3)*sinp
-         rotmat(1, 3) = d(1)*d(3)*cost+d(2)*sinp
-         rotmat(2, 1) = d(2)*d(1)*cost+d(3)*sinp
-         rotmat(2, 2) = d(2)*d(2)*cost+cosp
-         rotmat(2, 3) = d(2)*d(3)*cost-d(1)*sinp
-         rotmat(3, 1) = d(3)*d(1)*cost-d(2)*sinp
-         rotmat(3, 2) = d(3)*d(2)*cost+d(1)*sinp
-         rotmat(3, 3) = d(3)*d(3)*cost+cosp
+         rotmat(1, 1) = d(1)*d(1)*cost + cosp
+         rotmat(1, 2) = d(1)*d(2)*cost - d(3)*sinp
+         rotmat(1, 3) = d(1)*d(3)*cost + d(2)*sinp
+         rotmat(2, 1) = d(2)*d(1)*cost + d(3)*sinp
+         rotmat(2, 2) = d(2)*d(2)*cost + cosp
+         rotmat(2, 3) = d(2)*d(3)*cost - d(1)*sinp
+         rotmat(3, 1) = d(3)*d(1)*cost - d(2)*sinp
+         rotmat(3, 2) = d(3)*d(2)*cost + d(1)*sinp
+         rotmat(3, 3) = d(3)*d(3)*cost + cosp
       ELSE
          CALL unit_matrix(rotmat)
       END IF
@@ -298,9 +298,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp)                                      :: det_a
 
-      det_a = a(1, 1)*(a(2, 2)*a(3, 3)-a(2, 3)*a(3, 2))+ &
-              a(1, 2)*(a(2, 3)*a(3, 1)-a(2, 1)*a(3, 3))+ &
-              a(1, 3)*(a(2, 1)*a(3, 2)-a(2, 2)*a(3, 1))
+      det_a = a(1, 1)*(a(2, 2)*a(3, 3) - a(2, 3)*a(3, 2)) + &
+              a(1, 2)*(a(2, 3)*a(3, 1) - a(2, 1)*a(3, 3)) + &
+              a(1, 3)*(a(2, 1)*a(3, 2) - a(2, 2)*a(3, 1))
 
    END FUNCTION det_3x3_1
 
@@ -318,9 +318,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a1, a2, a3
       REAL(KIND=dp)                                      :: det_a
 
-      det_a = a1(1)*(a2(2)*a3(3)-a3(2)*a2(3))+ &
-              a2(1)*(a3(2)*a1(3)-a1(2)*a3(3))+ &
-              a3(1)*(a1(2)*a2(3)-a2(2)*a1(3))
+      det_a = a1(1)*(a2(2)*a3(3) - a3(2)*a2(3)) + &
+              a2(1)*(a3(2)*a1(3) - a1(2)*a3(3)) + &
+              a3(1)*(a1(2)*a2(3) - a2(2)*a1(3))
 
    END FUNCTION det_3x3_2
 
@@ -381,11 +381,11 @@ CONTAINS
       ! Get the optimal work storage size
 
       IF (divide_and_conquer) THEN
-         lwork = 2*n**2+6*n+1
-         liwork = 5*n+3
+         lwork = 2*n**2 + 6*n + 1
+         liwork = 5*n + 3
       ELSE
          nb = ilaenv(1, "DSYTRD", "U", n, -1, -1, -1)
-         lwork = (nb+2)*n
+         lwork = (nb + 2)*n
       END IF
 
       ! Allocate work storage
@@ -493,17 +493,17 @@ CONTAINS
 
       det_a = 1.0_dp/det_3x3(a)
 
-      a_inv(1, 1) = (a(2, 2)*a(3, 3)-a(3, 2)*a(2, 3))*det_a
-      a_inv(2, 1) = (a(2, 3)*a(3, 1)-a(3, 3)*a(2, 1))*det_a
-      a_inv(3, 1) = (a(2, 1)*a(3, 2)-a(3, 1)*a(2, 2))*det_a
+      a_inv(1, 1) = (a(2, 2)*a(3, 3) - a(3, 2)*a(2, 3))*det_a
+      a_inv(2, 1) = (a(2, 3)*a(3, 1) - a(3, 3)*a(2, 1))*det_a
+      a_inv(3, 1) = (a(2, 1)*a(3, 2) - a(3, 1)*a(2, 2))*det_a
 
-      a_inv(1, 2) = (a(1, 3)*a(3, 2)-a(3, 3)*a(1, 2))*det_a
-      a_inv(2, 2) = (a(1, 1)*a(3, 3)-a(3, 1)*a(1, 3))*det_a
-      a_inv(3, 2) = (a(1, 2)*a(3, 1)-a(3, 2)*a(1, 1))*det_a
+      a_inv(1, 2) = (a(1, 3)*a(3, 2) - a(3, 3)*a(1, 2))*det_a
+      a_inv(2, 2) = (a(1, 1)*a(3, 3) - a(3, 1)*a(1, 3))*det_a
+      a_inv(3, 2) = (a(1, 2)*a(3, 1) - a(3, 2)*a(1, 1))*det_a
 
-      a_inv(1, 3) = (a(1, 2)*a(2, 3)-a(2, 2)*a(1, 3))*det_a
-      a_inv(2, 3) = (a(1, 3)*a(2, 1)-a(2, 3)*a(1, 1))*det_a
-      a_inv(3, 3) = (a(1, 1)*a(2, 2)-a(2, 1)*a(1, 2))*det_a
+      a_inv(1, 3) = (a(1, 2)*a(2, 3) - a(2, 2)*a(1, 3))*det_a
+      a_inv(2, 3) = (a(1, 3)*a(2, 1) - a(2, 3)*a(1, 1))*det_a
+      a_inv(3, 3) = (a(1, 1)*a(2, 2) - a(2, 1)*a(1, 2))*det_a
 
    END FUNCTION inv_3x3
 
@@ -580,12 +580,12 @@ CONTAINS
       END IF
 
       IF (my_triangle == "U") THEN
-         DO i = 1, n-1
-            a(i+1:n, i) = a(i, i+1:n)
+         DO i = 1, n - 1
+            a(i + 1:n, i) = a(i, i + 1:n)
          ENDDO
       ELSE
-         DO i = 1, n-1
-            a(i, i+1:n) = a(i+1:n, i)
+         DO i = 1, n - 1
+            a(i, i + 1:n) = a(i + 1:n, i)
          ENDDO
       ENDIF
 
@@ -744,7 +744,7 @@ CONTAINS
             old_eval_error = eval_error
             eval_error = MAXVAL(ferr)
 
-            IF (ABS(eval_error-old_eval_error) <= EPSILON(1.0_dp)) EXIT
+            IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
 
          END DO
       ENDIF
@@ -901,7 +901,7 @@ CONTAINS
          old_eval_error = eval_error
          eval_error = MAXVAL(ferr)
 
-         IF (ABS(eval_error-old_eval_error) <= EPSILON(1.0_dp)) EXIT
+         IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
 
       END DO
 
@@ -1086,16 +1086,16 @@ CONTAINS
       REAL(KIND=dp)                                      :: length_of_b, scapro
       REAL(KIND=dp), DIMENSION(3)                        :: d
 
-      length_of_b = SQRT(b(1)*b(1)+b(2)*b(2)+b(3)*b(3))
+      length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
 
       IF (length_of_b > eps_geo) THEN
 
          d(:) = b(:)/length_of_b
 
          ! Calculate the mirror image a_mirror of the vector a
-         scapro = a(1)*d(1)+a(2)*d(2)+a(3)*d(3)
+         scapro = a(1)*d(1) + a(2)*d(2) + a(3)*d(3)
 
-         a_mirror(:) = a(:)-2.0_dp*scapro*d(:)
+         a_mirror(:) = a(:) - 2.0_dp*scapro*d(:)
 
       ELSE
 
@@ -1126,7 +1126,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: length_of_b
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rotmat
 
-      length_of_b = SQRT(b(1)*b(1)+b(2)*b(2)+b(3)*b(3))
+      length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
       IF (length_of_b > eps_geo) THEN
 
          ! Build up the rotation matrix rotmat
@@ -1202,20 +1202,20 @@ CONTAINS
       n = MIN(SIZE(a, 1), SIZE(a, 2))
 
       IF (option == "lower_to_upper") THEN
-         DO i = 1, n-1
-            a(i, i+1:n) = a(i+1:n, i)
+         DO i = 1, n - 1
+            a(i, i + 1:n) = a(i + 1:n, i)
          END DO
       ELSE IF (option == "upper_to_lower") THEN
-         DO i = 1, n-1
-            a(i+1:n, i) = a(i, i+1:n)
+         DO i = 1, n - 1
+            a(i + 1:n, i) = a(i, i + 1:n)
          END DO
       ELSE IF (option == "anti_lower_to_upper") THEN
-         DO i = 1, n-1
-            a(i, i+1:n) = -a(i+1:n, i)
+         DO i = 1, n - 1
+            a(i, i + 1:n) = -a(i + 1:n, i)
          END DO
       ELSE IF (option == "anti_upper_to_lower") THEN
-         DO i = 1, n-1
-            a(i+1:n, i) = -a(i, i+1:n)
+         DO i = 1, n - 1
+            a(i + 1:n, i) = -a(i, i + 1:n)
          END DO
       ELSE
          CPABORT("Invalid option <"//TRIM(option)//"> was specified for parameter #2")
@@ -1263,9 +1263,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a, b
       REAL(KIND=dp), DIMENSION(3)                        :: c
 
-      c(1) = a(2)*b(3)-a(3)*b(2)
-      c(2) = a(3)*b(1)-a(1)*b(3)
-      c(3) = a(1)*b(2)-a(2)*b(1)
+      c(1) = a(2)*b(3) - a(3)*b(2)
+      c(2) = a(3)*b(1) - a(1)*b(3)
+      c(3) = a(1)*b(2) - a(2)*b(1)
 
    END FUNCTION vector_product
 
@@ -1349,17 +1349,17 @@ CONTAINS
       END IF
 
       IF (x < fpmin) THEN
-         ei = LOG(x)+euler
+         ei = LOG(x) + euler
       ELSE IF (x <= -LOG(EPS)) THEN
          sum1 = 0._dp
          fact = 1._dp
          DO k = 1, maxit
             fact = fact*x/REAL(k, dp)
             term = fact/REAL(k, dp)
-            sum1 = sum1+term
+            sum1 = sum1 + term
             IF (term < eps*sum1) EXIT
          END DO
-         ei = sum1+LOG(x)+euler
+         ei = sum1 + LOG(x) + euler
       ELSE
          sum1 = 0._dp
          term = 1._dp
@@ -1368,13 +1368,13 @@ CONTAINS
             term = term*REAL(k, dp)/x
             IF (term < eps) EXIT
             IF (term < prev) THEN
-               sum1 = sum1+term
+               sum1 = sum1 + term
             ELSE
-               sum1 = sum1-prev
+               sum1 = sum1 - prev
                EXIT
             END IF
          END DO
-         ei = EXP(x)*(1._dp+sum1)/x
+         ei = EXP(x)*(1._dp + sum1)/x
       END IF
 
    END FUNCTION ei
@@ -1389,15 +1389,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat1, mat2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: matmul_3x3
 
-      matmul_3x3(1, 1) = mat1(1, 1)*mat2(1, 1)+mat1(1, 2)*mat2(2, 1)+mat1(1, 3)*mat2(3, 1)
-      matmul_3x3(1, 2) = mat1(1, 1)*mat2(1, 2)+mat1(1, 2)*mat2(2, 2)+mat1(1, 3)*mat2(3, 2)
-      matmul_3x3(1, 3) = mat1(1, 1)*mat2(1, 3)+mat1(1, 2)*mat2(2, 3)+mat1(1, 3)*mat2(3, 3)
-      matmul_3x3(2, 1) = mat1(2, 1)*mat2(1, 1)+mat1(2, 2)*mat2(2, 1)+mat1(2, 3)*mat2(3, 1)
-      matmul_3x3(2, 2) = mat1(2, 1)*mat2(1, 2)+mat1(2, 2)*mat2(2, 2)+mat1(2, 3)*mat2(3, 2)
-      matmul_3x3(2, 3) = mat1(2, 1)*mat2(1, 3)+mat1(2, 2)*mat2(2, 3)+mat1(2, 3)*mat2(3, 3)
-      matmul_3x3(3, 1) = mat1(3, 1)*mat2(1, 1)+mat1(3, 2)*mat2(2, 1)+mat1(3, 3)*mat2(3, 1)
-      matmul_3x3(3, 2) = mat1(3, 1)*mat2(1, 2)+mat1(3, 2)*mat2(2, 2)+mat1(3, 3)*mat2(3, 2)
-      matmul_3x3(3, 3) = mat1(3, 1)*mat2(1, 3)+mat1(3, 2)*mat2(2, 3)+mat1(3, 3)*mat2(3, 3)
+      matmul_3x3(1, 1) = mat1(1, 1)*mat2(1, 1) + mat1(1, 2)*mat2(2, 1) + mat1(1, 3)*mat2(3, 1)
+      matmul_3x3(1, 2) = mat1(1, 1)*mat2(1, 2) + mat1(1, 2)*mat2(2, 2) + mat1(1, 3)*mat2(3, 2)
+      matmul_3x3(1, 3) = mat1(1, 1)*mat2(1, 3) + mat1(1, 2)*mat2(2, 3) + mat1(1, 3)*mat2(3, 3)
+      matmul_3x3(2, 1) = mat1(2, 1)*mat2(1, 1) + mat1(2, 2)*mat2(2, 1) + mat1(2, 3)*mat2(3, 1)
+      matmul_3x3(2, 2) = mat1(2, 1)*mat2(1, 2) + mat1(2, 2)*mat2(2, 2) + mat1(2, 3)*mat2(3, 2)
+      matmul_3x3(2, 3) = mat1(2, 1)*mat2(1, 3) + mat1(2, 2)*mat2(2, 3) + mat1(2, 3)*mat2(3, 3)
+      matmul_3x3(3, 1) = mat1(3, 1)*mat2(1, 1) + mat1(3, 2)*mat2(2, 1) + mat1(3, 3)*mat2(3, 1)
+      matmul_3x3(3, 2) = mat1(3, 1)*mat2(1, 2) + mat1(3, 2)*mat2(2, 2) + mat1(3, 3)*mat2(3, 2)
+      matmul_3x3(3, 3) = mat1(3, 1)*mat2(1, 3) + mat1(3, 2)*mat2(2, 3) + mat1(3, 3)*mat2(3, 3)
    END FUNCTION matmul_3x3
 
 ! **************************************************************************************************
@@ -1411,9 +1411,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vec
 
-      res(1) = mat(1, 1)*vec(1)+mat(1, 2)*vec(2)+mat(1, 3)*vec(3)
-      res(2) = mat(2, 1)*vec(1)+mat(2, 2)*vec(2)+mat(2, 3)*vec(3)
-      res(3) = mat(3, 1)*vec(1)+mat(3, 2)*vec(2)+mat(3, 3)*vec(3)
+      res(1) = mat(1, 1)*vec(1) + mat(1, 2)*vec(2) + mat(1, 3)*vec(3)
+      res(2) = mat(2, 1)*vec(1) + mat(2, 2)*vec(2) + mat(2, 3)*vec(3)
+      res(3) = mat(3, 1)*vec(1) + mat(3, 2)*vec(2) + mat(3, 3)*vec(3)
    END SUBROUTINE matvec_3x3
 
 ! **************************************************************************************************
@@ -1428,8 +1428,8 @@ CONTAINS
 
       dotprod_3d = &
          vec1(1)*vec2(1) &
-         +vec1(2)*vec2(2) &
-         +vec1(3)*vec2(3)
+         + vec1(2)*vec2(2) &
+         + vec1(3)*vec2(3)
    END FUNCTION dotprod_3d
 
 ! **************************************************************************************************
@@ -1473,7 +1473,7 @@ CONTAINS
       INTEGER                                            :: i, ii, nm1
       REAL(dp)                                           :: a, b, c, d, del, fact, h, psi
 
-      nm1 = n-1
+      nm1 = n - 1
 
       IF (n .LT. 0 .OR. x .LT. 0.0_dp .OR. (x .EQ. 0.0_dp .AND. (n .EQ. 0 .OR. n .EQ. 1))) THEN
          CPABORT("Invalid argument")
@@ -1482,18 +1482,18 @@ CONTAINS
       ELSE IF (x .EQ. 0.0_dp) THEN !Another special case.
          expint = 1.0_dp/nm1
       ELSE IF (x .GT. 1.0_dp) THEN !Lentz's algorithm (5.2).
-         b = x+n
+         b = x + n
          c = 1.0_dp/FPMIN
          d = 1.0_dp/b
          h = d
          DO i = 1, MAXIT
-            a = -i*(nm1+i)
-            b = b+2.0_dp
-            d = 1.0_dp/(a*d+b)
-            c = b+a/c
+            a = -i*(nm1 + i)
+            b = b + 2.0_dp
+            d = 1.0_dp/(a*d + b)
+            c = b + a/c
             del = c*d
             h = h*del
-            IF (ABS(del-1.0_dp) .LT. EPS) THEN
+            IF (ABS(del - 1.0_dp) .LT. EPS) THEN
                expint = h*EXP(-x)
                RETURN
             END IF
@@ -1503,21 +1503,21 @@ CONTAINS
          IF (nm1 .NE. 0) THEN !Set first term.
             expint = 1.0_dp/nm1
          ELSE
-            expint = -LOG(x)-euler
+            expint = -LOG(x) - euler
          END IF
          fact = 1.0_dp
          DO i = 1, MAXIT
             fact = -fact*x/i
             IF (i .NE. nm1) THEN
-               del = -fact/(i-nm1)
+               del = -fact/(i - nm1)
             ELSE
                psi = -euler !Compute I(n).
                DO ii = 1, nm1
-                  psi = psi+1.0_dp/ii
+                  psi = psi + 1.0_dp/ii
                END DO
-               del = fact*(-LOG(x)+psi)
+               del = fact*(-LOG(x) + psi)
             END IF
-            expint = expint+del
+            expint = expint + del
             IF (ABS(del) .LT. ABS(expint)*EPS) RETURN
          END DO
          CPABORT("series failed in expint")
@@ -1579,8 +1579,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(n)                        :: b, z
 
       a_max = 0.0_dp
-      DO ip = 1, n-1
-         a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
+      DO ip = 1, n - 1
+         a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip + 1:n))))
          b(ip) = a(ip, ip) ! get_diag(a)
       END DO
       b(n) = a(n, n)
@@ -1594,45 +1594,45 @@ CONTAINS
          IF (a_max < a_eps*d_min) RETURN
          tresh = MERGE(a_max, 0.0_dp, (i < 4))
          z = 0.0_dp
-         DO ip = 1, n-1
-            DO iq = ip+1, n
+         DO ip = 1, n - 1
+            DO iq = ip + 1, n
                dip = d(ip)
                diq = d(iq)
                apq = a(ip, iq)
                g = 100.0_dp*ABS(apq)
                IF (tresh < ABS(apq)) THEN
-                  h = diq-dip
-                  IF ((ABS(h)+g) .NE. ABS(h)) THEN
+                  h = diq - dip
+                  IF ((ABS(h) + g) .NE. ABS(h)) THEN
                      theta = 0.5_dp*h/apq
-                     t = 1.0_dp/(ABS(theta)+SQRT(1.0_dp+theta**2))
+                     t = 1.0_dp/(ABS(theta) + SQRT(1.0_dp + theta**2))
                      IF (theta < 0.0_dp) t = -t
                   ELSE
                      t = apq/h
                   END IF
-                  c = 1.0_dp/SQRT(1.0_dp+t**2)
+                  c = 1.0_dp/SQRT(1.0_dp + t**2)
                   s = t*c
-                  tau = s/(1.0_dp+c)
+                  tau = s/(1.0_dp + c)
                   h = t*apq
-                  z(ip) = z(ip)-h
-                  z(iq) = z(iq)+h
-                  d(ip) = dip-h
-                  d(iq) = diq+h
+                  z(ip) = z(ip) - h
+                  z(iq) = z(iq) + h
+                  d(ip) = dip - h
+                  d(iq) = diq + h
                   a(ip, iq) = 0.0_dp
-                  CALL jrotate(a(1:ip-1, ip), a(1:ip-1, iq), s, tau)
-                  CALL jrotate(a(ip, ip+1:iq-1), a(ip+1:iq-1, iq), s, tau)
-                  CALL jrotate(a(ip, iq+1:n), a(iq, iq+1:n), s, tau)
+                  CALL jrotate(a(1:ip - 1, ip), a(1:ip - 1, iq), s, tau)
+                  CALL jrotate(a(ip, ip + 1:iq - 1), a(ip + 1:iq - 1, iq), s, tau)
+                  CALL jrotate(a(ip, iq + 1:n), a(iq, iq + 1:n), s, tau)
                   CALL jrotate(v(:, ip), v(:, iq), s, tau)
                ELSE IF ((4 < i) .AND. &
-                        ((ABS(dip)+g) == ABS(dip)) .AND. &
-                        ((ABS(diq)+g) == ABS(diq))) THEN
+                        ((ABS(dip) + g) == ABS(dip)) .AND. &
+                        ((ABS(diq) + g) == ABS(diq))) THEN
                   a(ip, iq) = 0.0_dp
                END IF
             END DO
          END DO
-         b = b+z
+         b = b + z
          a_max = 0.0_dp
-         DO ip = 1, n-1
-            a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip+1:n))))
+         DO ip = 1, n - 1
+            a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip + 1:n))))
          END DO
       END DO
       WRITE (*, '(/,T2,A,/)') 'Too many iterations in jacobi'
@@ -1655,11 +1655,11 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: u, v
 
-      u = 1.0_dp-ss*tt
+      u = 1.0_dp - ss*tt
       v = ss/u
 
-      a = a*u-b*ss
-      b = b*(u+ss*v)+a*v
+      a = a*u - b*ss
+      b = b*(u + ss*v) + a*v
 
    END SUBROUTINE jrotate
 
@@ -1680,8 +1680,8 @@ CONTAINS
 
       INTEGER                                            :: i, j
 
-      DO i = 1, n-1
-         j = SUM(MINLOC(d(i:n)))+i-1
+      DO i = 1, n - 1
+         j = SUM(MINLOC(d(i:n))) + i - 1
          IF (j /= i) THEN
             CALL swap(d(i), d(j))
             CALL swap(v(:, i), v(:, j))
@@ -1771,7 +1771,7 @@ CONTAINS
 
       DO iter = 1, iterMAX
          delta_r = f0/fprime0
-         r0 = r0-delta_r
+         r0 = r0 - delta_r
          CALL eval_transc_func(r0, eps, omg, f0, fprime0)
          IF (ABS(delta_r) .LT. abstol .OR. ABS(f0) .LT. soltol) EXIT
       END DO
@@ -1792,8 +1792,8 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: r, eps, omega
       REAL(dp), INTENT(out)                              :: fn, df
 
-         fn = erfc(omega*r)-r*eps
-         df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi)-eps
+         fn = erfc(omega*r) - r*eps
+         df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi) - eps
       END SUBROUTINE eval_transc_func
    END SUBROUTINE erfc_cutoff
 

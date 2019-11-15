@@ -47,18 +47,18 @@ CONTAINS
 
       IF (ABS(x) < 8.0_dp) THEN
          y = x*x
-         bessj0 = (r1+y*(r2+y*(r3+y*(r4+y* &
-                                     (r5+y*r6)))))/(s1+y*(s2+y*(s3+y* &
-                                                                (s4+y*(s5+y*s6)))))
+         bessj0 = (r1 + y*(r2 + y*(r3 + y*(r4 + y* &
+                                           (r5 + y*r6)))))/(s1 + y*(s2 + y*(s3 + y* &
+                                                                            (s4 + y*(s5 + y*s6)))))
       ELSE
          ax = ABS(x)
          z = 8.0_dp/ax
          y = z*z
-         xx = ax-0.785398164_dp
+         xx = ax - 0.785398164_dp
          bessj0 = SQRT(0.636619772_dp/ax)*(COS(xx)* &
-                                           (p1+y*(p2+y*(p3+y*(p4+y*p5)))) &
-                                           -z*SIN(xx)*(q1+y*(q2+y*(q3+y* &
-                                                                   (q4+y*q5)))))
+                                           (p1 + y*(p2 + y*(p3 + y*(p4 + y*p5)))) &
+                                           - z*SIN(xx)*(q1 + y*(q2 + y*(q3 + y* &
+                                                                        (q4 + y*q5)))))
       END IF
 
    END FUNCTION bessj0
@@ -85,18 +85,18 @@ CONTAINS
 
       IF (ABS(x) < 8.0_dp) THEN
          y = x*x
-         bessj1 = x*(r1+y*(r2+y*(r3+y*(r4+y* &
-                                       (r5+y*r6)))))/(s1+y*(s2+y*(s3+ &
-                                                                  y*(s4+y*(s5+y*s6)))))
+         bessj1 = x*(r1 + y*(r2 + y*(r3 + y*(r4 + y* &
+                                             (r5 + y*r6)))))/(s1 + y*(s2 + y*(s3 + &
+                                                                              y*(s4 + y*(s5 + y*s6)))))
       ELSE
          ax = ABS(x)
          z = 8.0_dp/ax
          y = z*z
-         xx = ax-2.356194491_dp
+         xx = ax - 2.356194491_dp
          bessj1 = SQRT(0.636619772_dp/ax)*(COS(xx)* &
-                                           (p1+y*(p2+y*(p3+y*(p4+y*p5)))) &
-                                           -z*SIN(xx)*(q1+y*(q2+y*(q3+y* &
-                                                                   (q4+y*q5)))))*SIGN(1.0_dp, x)
+                                           (p1 + y*(p2 + y*(p3 + y*(p4 + y*p5)))) &
+                                           - z*SIN(xx)*(q1 + y*(q2 + y*(q3 + y* &
+                                                                        (q4 + y*q5)))))*SIGN(1.0_dp, x)
       END IF
    END FUNCTION bessj1
 
@@ -119,12 +119,12 @@ CONTAINS
 
       IF (x < 2.0_dp) THEN
          y = x*x/4.0_dp
-         bessk0 = (-LOG(x/2.0_dp)*bessi0(x))+(p1+y* &
-                                              (p2+y*(p3+y*(p4+y*(p5+y*(p6+y*p7))))))
+         bessk0 = (-LOG(x/2.0_dp)*bessi0(x)) + (p1 + y* &
+                                                (p2 + y*(p3 + y*(p4 + y*(p5 + y*(p6 + y*p7))))))
       ELSE
          y = (2.0_dp/x)
-         bessk0 = (EXP(-x)/SQRT(x))*(q1+y*(q2+y* &
-                                           (q3+y*(q4+y*(q5+y*(q6+y*q7))))))
+         bessk0 = (EXP(-x)/SQRT(x))*(q1 + y*(q2 + y* &
+                                             (q3 + y*(q4 + y*(q5 + y*(q6 + y*q7))))))
       END IF
 
    END FUNCTION bessk0
@@ -148,13 +148,13 @@ CONTAINS
 
       IF (x < 2.0_dp) THEN
          y = x*x/4.0_dp
-         bessk1 = (LOG(x/2.0_dp)*bessi1(x))+(1.0_dp/x)* &
-                  (p1+y*(p2+y*(p3+y*(p4+y*(p5+y* &
-                                           (p6+y*p7))))))
+         bessk1 = (LOG(x/2.0_dp)*bessi1(x)) + (1.0_dp/x)* &
+                  (p1 + y*(p2 + y*(p3 + y*(p4 + y*(p5 + y* &
+                                                   (p6 + y*p7))))))
       ELSE
          y = 2.0_dp/x
-         bessk1 = (EXP(-x)/SQRT(x))*(q1+y*(q2+y* &
-                                           (q3+y*(q4+y*(q5+y*(q6+y*q7))))))
+         bessk1 = (EXP(-x)/SQRT(x))*(q1 + y*(q2 + y* &
+                                             (q3 + y*(q4 + y*(q5 + y*(q6 + y*q7))))))
       END IF
 
    END FUNCTION bessk1
@@ -179,14 +179,14 @@ CONTAINS
 
       IF (ABS(x) < 3.75_dp) THEN
          y = (x/3.75_dp)**2
-         bessi0 = p1+y*(p2+y*(p3+y*(p4+y* &
-                                    (p5+y*(p6+y*p7)))))
+         bessi0 = p1 + y*(p2 + y*(p3 + y*(p4 + y* &
+                                          (p5 + y*(p6 + y*p7)))))
       ELSE
          ax = ABS(x)
          y = 3.75_dp/ax
-         bessi0 = (EXP(ax)/SQRT(ax))*(q1+y*(q2+y* &
-                                            (q3+y*(q4+y*(q5+y*(q6+y*(q7+y* &
-                                                                     (q8+y*q9))))))))
+         bessi0 = (EXP(ax)/SQRT(ax))*(q1 + y*(q2 + y* &
+                                              (q3 + y*(q4 + y*(q5 + y*(q6 + y*(q7 + y* &
+                                                                               (q8 + y*q9))))))))
       END IF
 
    END FUNCTION bessi0
@@ -211,14 +211,14 @@ CONTAINS
 
       IF (ABS(x) < 3.75_dp) THEN
          y = (x/3.75_dp)**2
-         bessi1 = p1+y*(p2+y*(p3+y*(p4+y* &
-                                    (p5+y*(p6+y*p7)))))
+         bessi1 = p1 + y*(p2 + y*(p3 + y*(p4 + y* &
+                                          (p5 + y*(p6 + y*p7)))))
       ELSE
          ax = ABS(x)
          y = 3.75_dp/ax
-         bessi1 = (EXP(ax)/SQRT(ax))*(q1+y*(q2+y* &
-                                            (q3+y*(q4+y*(q5+y*(q6+y*(q7+y* &
-                                                                     (q8+y*q9))))))))
+         bessi1 = (EXP(ax)/SQRT(ax))*(q1 + y*(q2 + y* &
+                                              (q3 + y*(q4 + y*(q5 + y*(q6 + y*(q7 + y* &
+                                                                               (q8 + y*q9))))))))
          IF (x < 0.0_dp) bessi1 = -bessi1
       END IF
 
@@ -247,7 +247,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(4)                        :: trig
 
       IF (x > REAL(l, KIND=dp)) THEN
-         arg = x-0.5_dp*REAL(l, KIND=dp)*pi
+         arg = x - 0.5_dp*REAL(l, KIND=dp)*pi
          trig(1) = SIN(arg)/x
          trig(2) = COS(arg)/x
          trig(3) = -trig(1)
@@ -257,16 +257,16 @@ CONTAINS
             xsq = 0.5_dp/x
             fact = 1._dp
             DO k = 1, l
-               ii = MOD(k, 4)+1
-               fact = fac(k+l)/fac(k)/fac(l-k)*xsq**k
-               bessel0 = bessel0+fact*trig(ii)
+               ii = MOD(k, 4) + 1
+               fact = fac(k + l)/fac(k)/fac(l - k)*xsq**k
+               bessel0 = bessel0 + fact*trig(ii)
             END DO
          END IF
       ELSE
          ! Taylor expansion for small arguments
          isvar = 1
          DO il = 1, l
-            isvar = isvar*(2*il+1)
+            isvar = isvar*(2*il + 1)
          END DO
          IF (l /= 0._dp) THEN
             fact = x**l/REAL(isvar, KIND=dp)
@@ -275,11 +275,11 @@ CONTAINS
          END IF
          bessel0 = fact
          xsq = -0.5_dp*x*x
-         isvar = 2*l+1
+         isvar = 2*l + 1
          DO i = 1, 1000
-            isvar = isvar+2
+            isvar = isvar + 2
             fact = fact*xsq/REAL(i*isvar, KIND=dp)
-            bessel0 = bessel0+fact
+            bessel0 = bessel0 + fact
             IF (ABS(fact) < tol) EXIT
          ENDDO
          IF (ABS(fact) > tol) CPABORT("BESSEL0 NOT CONVERGED")

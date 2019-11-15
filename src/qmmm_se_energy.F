@@ -310,7 +310,7 @@ CONTAINS
          LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
             Imm = Pot%mm_atom_index(Imp)
             IndMM = mm_atom_index(Imm)
-            r_pbc = pbc(particles_mm(IndMM)%r-particles_qm(IndQM)%r, mm_cell)
+            r_pbc = pbc(particles_mm(IndMM)%r - particles_qm(IndQM)%r, mm_cell)
             rt1 = r_pbc(1)
             rt2 = r_pbc(2)
             rt3 = r_pbc(3)
@@ -326,21 +326,21 @@ CONTAINS
                         se_int_control=se_int_control, se_taper=se_taper)
             CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag, &
                           se_int_control=se_int_control, se_taper=se_taper)
-            enuclear = enuclear+enuc
+            enuclear = enuclear + enuc
             ! Contribution to the iatom block
             ! Computation of the QMMM core matrix
             i2 = 0
             DO i1L = 1, se_kind_a%natorb
                i1 = se_orbital_pointer(i1L)
-               DO j1L = 1, i1L-1
+               DO j1L = 1, i1L - 1
                   j1 = se_orbital_pointer(j1L)
-                  i2 = i2+1
-                  h_block_a(i1, j1) = h_block_a(i1, j1)+e1b(i2)
+                  i2 = i2 + 1
+                  h_block_a(i1, j1) = h_block_a(i1, j1) + e1b(i2)
                   h_block_a(j1, i1) = h_block_a(i1, j1)
                END DO
                j1 = se_orbital_pointer(j1L)
-               i2 = i2+1
-               h_block_a(i1, j1) = h_block_a(i1, j1)+e1b(i2)
+               i2 = i2 + 1
+               h_block_a(i1, j1) = h_block_a(i1, j1) + e1b(i2)
             END DO
          END DO LoopMM
       END DO MainLoopPot

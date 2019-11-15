@@ -117,7 +117,7 @@ CONTAINS
       aa_cylindrical_nsides => poisson_params%dbc_params%aa_cylindrical_nsides
       pw_grid => pw_pool%pw_grid
       CALL setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
-      n_dbcs = n_aa_planar+n_aa_cuboidal+n_planar+SUM(aa_cylindrical_nsides)
+      n_dbcs = n_aa_planar + n_aa_cuboidal + n_planar + SUM(aa_cylindrical_nsides)
 
       SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
       CASE (MIXED_BC, MIXED_PERIODIC_BC)
@@ -134,7 +134,7 @@ CONTAINS
          DO j = 1, n_aa_planar
             ALLOCATE (dbcs(j)%dirichlet_bc)
             n_prtn = poisson_params%dbc_params%aa_planar_nprtn(:, j)
-            dbc_id = AA_PLANAR+j
+            dbc_id = AA_PLANAR + j
             v_D = poisson_params%dbc_params%aa_planar_vD(j)
             frequency = poisson_params%dbc_params%aa_planar_frequency(j)
             oscillating_fraction = poisson_params%dbc_params%aa_planar_osc_frac(j)
@@ -161,16 +161,16 @@ CONTAINS
          END DO
 
          l = n_aa_planar
-         DO j = l+1, l+n_aa_cuboidal
+         DO j = l + 1, l + n_aa_cuboidal
             ALLOCATE (dbcs(j)%dirichlet_bc)
-            n_prtn = poisson_params%dbc_params%aa_cuboidal_nprtn(:, j-l)
-            dbc_id = AA_CUBOIDAL+j-l
-            v_D = poisson_params%dbc_params%aa_cuboidal_vD(j-l)
-            frequency = poisson_params%dbc_params%aa_cuboidal_frequency(j-l)
-            oscillating_fraction = poisson_params%dbc_params%aa_cuboidal_osc_frac(j-l)
-            phase = poisson_params%dbc_params%aa_cuboidal_phase(j-l)
-            sigma = poisson_params%dbc_params%aa_cuboidal_sigma(j-l)
-            is_periodic = poisson_params%dbc_params%aa_cuboidal_is_periodic(j-l)
+            n_prtn = poisson_params%dbc_params%aa_cuboidal_nprtn(:, j - l)
+            dbc_id = AA_CUBOIDAL + j - l
+            v_D = poisson_params%dbc_params%aa_cuboidal_vD(j - l)
+            frequency = poisson_params%dbc_params%aa_cuboidal_frequency(j - l)
+            oscillating_fraction = poisson_params%dbc_params%aa_cuboidal_osc_frac(j - l)
+            phase = poisson_params%dbc_params%aa_cuboidal_phase(j - l)
+            sigma = poisson_params%dbc_params%aa_cuboidal_sigma(j - l)
+            is_periodic = poisson_params%dbc_params%aa_cuboidal_is_periodic(j - l)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
@@ -178,9 +178,9 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
             END IF
             CALL aa_cuboidal_dbc_setup(cell_xtnts, &
-                                       poisson_params%dbc_params%aa_cuboidal_xxtnt(:, j-l), &
-                                       poisson_params%dbc_params%aa_cuboidal_yxtnt(:, j-l), &
-                                       poisson_params%dbc_params%aa_cuboidal_zxtnt(:, j-l), &
+                                       poisson_params%dbc_params%aa_cuboidal_xxtnt(:, j - l), &
+                                       poisson_params%dbc_params%aa_cuboidal_yxtnt(:, j - l), &
+                                       poisson_params%dbc_params%aa_cuboidal_zxtnt(:, j - l), &
                                        sigma, v_D, oscillating_fraction, frequency, &
                                        phase, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
@@ -188,19 +188,19 @@ CONTAINS
                                         x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
 
-         l = n_aa_planar+n_aa_cuboidal
-         DO j = l+1, l+n_planar
+         l = n_aa_planar + n_aa_cuboidal
+         DO j = l + 1, l + n_planar
             ALLOCATE (dbcs(j)%dirichlet_bc)
             n_prtn = 1
-            n_prtn(1:2) = poisson_params%dbc_params%planar_nprtn(:, j-l)
-            dbc_id = PLANAR+j-l
-            v_D = poisson_params%dbc_params%planar_vD(j-l)
-            frequency = poisson_params%dbc_params%planar_frequency(j-l)
-            oscillating_fraction = poisson_params%dbc_params%planar_osc_frac(j-l)
-            phase = poisson_params%dbc_params%planar_phase(j-l)
-            sigma = poisson_params%dbc_params%planar_sigma(j-l)
-            thickness = poisson_params%dbc_params%planar_thickness(j-l)
-            is_periodic = poisson_params%dbc_params%planar_is_periodic(j-l)
+            n_prtn(1:2) = poisson_params%dbc_params%planar_nprtn(:, j - l)
+            dbc_id = PLANAR + j - l
+            v_D = poisson_params%dbc_params%planar_vD(j - l)
+            frequency = poisson_params%dbc_params%planar_frequency(j - l)
+            oscillating_fraction = poisson_params%dbc_params%planar_osc_frac(j - l)
+            phase = poisson_params%dbc_params%planar_phase(j - l)
+            sigma = poisson_params%dbc_params%planar_sigma(j - l)
+            thickness = poisson_params%dbc_params%planar_thickness(j - l)
+            is_periodic = poisson_params%dbc_params%planar_is_periodic(j - l)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
@@ -208,9 +208,9 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
             END IF
             CALL arbitrary_planar_dbc_setup(cell_xtnts, &
-                                            poisson_params%dbc_params%planar_Avtx(:, j-l), &
-                                            poisson_params%dbc_params%planar_Bvtx(:, j-l), &
-                                            poisson_params%dbc_params%planar_Cvtx(:, j-l), &
+                                            poisson_params%dbc_params%planar_Avtx(:, j - l), &
+                                            poisson_params%dbc_params%planar_Bvtx(:, j - l), &
+                                            poisson_params%dbc_params%planar_Cvtx(:, j - l), &
                                             thickness, sigma, v_D, oscillating_fraction, frequency, &
                                             phase, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
@@ -218,10 +218,10 @@ CONTAINS
                                         x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
 
-         l = n_aa_planar+n_aa_cuboidal+n_planar
+         l = n_aa_planar + n_aa_cuboidal + n_planar
          DO j = 1, n_aa_cylindrical
-            ind_start = l+1
-            ind_end = l+aa_cylindrical_nsides(j)
+            ind_start = l + 1
+            ind_end = l + aa_cylindrical_nsides(j)
 
             n_prtn = 1
             n_prtn(1:2) = poisson_params%dbc_params%aa_cylindrical_nprtn(:, j)
@@ -239,7 +239,7 @@ CONTAINS
             is_periodic = poisson_params%dbc_params%aa_cylindrical_is_periodic(j)
 
             IF (unit_nr .GT. 0) THEN
-               WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", l+j
+               WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", l + j
                WRITE (unit_nr, '(T3,A)') "POISSON|     type : axis-aligned cylindrical"
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
             END IF
@@ -249,7 +249,7 @@ CONTAINS
                                           oscillating_fraction, frequency, phase, &
                                           n_prtn, is_periodic, verbose, dbcs(ind_start:ind_end))
 
-            l = l+aa_cylindrical_nsides(j)
+            l = l + aa_cylindrical_nsides(j)
          END DO
 
       CASE (PERIODIC_BC, NEUMANN_BC)
@@ -487,14 +487,14 @@ CONTAINS
 
       SELECT CASE (parallel_plane)
       CASE (xy_plane)
-         zlb = zlb-thickness*0.5_dp
-         zub = zub+thickness*0.5_dp
+         zlb = zlb - thickness*0.5_dp
+         zub = zub + thickness*0.5_dp
       CASE (xz_plane)
-         ylb = ylb-thickness*0.5_dp
-         yub = yub+thickness*0.5_dp
+         ylb = ylb - thickness*0.5_dp
+         yub = yub + thickness*0.5_dp
       CASE (yz_plane)
-         xlb = xlb-thickness*0.5_dp
-         xub = xub+thickness*0.5_dp
+         xlb = xlb - thickness*0.5_dp
+         xub = xub + thickness*0.5_dp
       END SELECT
 
       forb_xtnt1 = xlb .LT. cell_xtnts(1, 1)
@@ -681,8 +681,8 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      D = A+(C-B)
-      AB = B-A; AC = C-A; AD = D-A; BC = C-B
+      D = A + (C - B)
+      AB = B - A; AC = C - A; AD = D - A; BC = C - B
       are_orthogonal = ABS(DOT_PRODUCT(AB, BC)/(SQRT(SUM(AB**2))*SQRT(SUM(BC**2)))) .LE. small_value
       IF (.NOT. are_orthogonal) THEN
          CALL cp_abort(__LOCATION__, "The given vertices for defining a "// &
@@ -715,14 +715,14 @@ CONTAINS
          CPABORT("The given vertices for defining a planar Dirichlet region are not coplanar.")
       END IF
 
-      cm = (A+B+C+D)/4.0_dp
-      dist1 = SUM((A-cm)**2)
-      dist2 = SUM((B-cm)**2)
-      dist3 = SUM((C-cm)**2)
-      dist4 = SUM((D-cm)**2)
-      is_rectangle = (ABS(dist1-dist2) .LE. small_value) .AND. &
-                     (ABS(dist1-dist3) .LE. small_value) .AND. &
-                     (ABS(dist1-dist4) .LE. small_value)
+      cm = (A + B + C + D)/4.0_dp
+      dist1 = SUM((A - cm)**2)
+      dist2 = SUM((B - cm)**2)
+      dist3 = SUM((C - cm)**2)
+      dist4 = SUM((D - cm)**2)
+      is_rectangle = (ABS(dist1 - dist2) .LE. small_value) .AND. &
+                     (ABS(dist1 - dist3) .LE. small_value) .AND. &
+                     (ABS(dist1 - dist4) .LE. small_value)
       IF (.NOT. is_rectangle) THEN
          CALL cp_abort(__LOCATION__, "The given vertices for defining "// &
                        "a planar Dirichlet region do not form a rectangle.")
@@ -737,14 +737,14 @@ CONTAINS
       dirichlet_bc%smoothing_width = sigma
       dirichlet_bc%n_tiles = 1
 
-      dirichlet_bc%vertices(1:3, 1) = A-0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 2) = B-0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 3) = C-0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 4) = D-0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 5) = D+0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 6) = A+0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 7) = B+0.5_dp*thickness*unit_normal
-      dirichlet_bc%vertices(1:3, 8) = C+0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 1) = A - 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 2) = B - 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 3) = C - 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 4) = D - 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 5) = D + 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 6) = A + 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 7) = B + 0.5_dp*thickness*unit_normal
+      dirichlet_bc%vertices(1:3, 8) = C + 0.5_dp*thickness*unit_normal
 
       IF ((unit_nr .GT. 0) .AND. verbose) THEN
          WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
@@ -831,9 +831,9 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      Lx = cell_xtnts(2, 1)-cell_xtnts(1, 1)
-      Ly = cell_xtnts(2, 2)-cell_xtnts(1, 2)
-      Lz = cell_xtnts(2, 3)-cell_xtnts(1, 3)
+      Lx = cell_xtnts(2, 1) - cell_xtnts(1, 1)
+      Ly = cell_xtnts(2, 2) - cell_xtnts(1, 2)
+      Lz = cell_xtnts(2, 3) - cell_xtnts(1, 3)
 
       SELECT CASE (parallel_axis)
       CASE (x_axis)
@@ -842,10 +842,10 @@ CONTAINS
                           "The length of the cylindrical Dirichlet region is larger than the "// &
                           "x range of the simulation cell.")
          END IF
-         forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 2)
-         forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 2)
-         forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 3)
-         forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 3)
+         forb_xtnt1 = base_center(1) - base_radius .LT. cell_xtnts(1, 2)
+         forb_xtnt2 = base_center(1) + base_radius .GT. cell_xtnts(2, 2)
+         forb_xtnt3 = base_center(2) - base_radius .LT. cell_xtnts(1, 3)
+         forb_xtnt4 = base_center(2) + base_radius .GT. cell_xtnts(2, 3)
          IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
             CPABORT("The cylinder does not fit entirely inside the simulation cell.")
          END IF
@@ -855,10 +855,10 @@ CONTAINS
                           "The length of the cylindrical Dirichlet region is larger than the "// &
                           "y range of the simulation cell.")
          END IF
-         forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 1)
-         forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 1)
-         forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 3)
-         forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 3)
+         forb_xtnt1 = base_center(1) - base_radius .LT. cell_xtnts(1, 1)
+         forb_xtnt2 = base_center(1) + base_radius .GT. cell_xtnts(2, 1)
+         forb_xtnt3 = base_center(2) - base_radius .LT. cell_xtnts(1, 3)
+         forb_xtnt4 = base_center(2) + base_radius .GT. cell_xtnts(2, 3)
          IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
             CPABORT("The cylinder does not fit entirely inside the simulation cell.")
          END IF
@@ -868,10 +868,10 @@ CONTAINS
                           "The length of the cylindrical Dirichlet region is larger than the "// &
                           "z range of the simulation cell.")
          END IF
-         forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 1)
-         forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 1)
-         forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 2)
-         forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 2)
+         forb_xtnt1 = base_center(1) - base_radius .LT. cell_xtnts(1, 1)
+         forb_xtnt2 = base_center(1) + base_radius .GT. cell_xtnts(2, 1)
+         forb_xtnt3 = base_center(2) - base_radius .LT. cell_xtnts(1, 2)
+         forb_xtnt4 = base_center(2) + base_radius .GT. cell_xtnts(2, 2)
          IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
             CPABORT("The cylinder does not fit entirely inside the simulation cell.")
          END IF
@@ -909,20 +909,20 @@ CONTAINS
          END IF
       END SELECT
 
-      alpha = linspace(0.0_dp, 2*pi, n_dbcs+1)
-      alpha_rotd = alpha+delta_alpha; 
+      alpha = linspace(0.0_dp, 2*pi, n_dbcs + 1)
+      alpha_rotd = alpha + delta_alpha; 
       SELECT CASE (parallel_axis)
       CASE (x_axis)
          DO j = 1, n_dbcs
-            ylb(j) = base_center(1)+h*SIN(alpha(j))
-            zlb(j) = base_center(2)+h*COS(alpha(j))
-            yub(j) = base_center(1)+h*SIN(alpha_rotd(j))
-            zub(j) = base_center(2)+h*COS(alpha_rotd(j))
+            ylb(j) = base_center(1) + h*SIN(alpha(j))
+            zlb(j) = base_center(2) + h*COS(alpha(j))
+            yub(j) = base_center(1) + h*SIN(alpha_rotd(j))
+            zub(j) = base_center(2) + h*COS(alpha_rotd(j))
          END DO
-         ylb(n_dbcs+1) = ylb(1)
-         yub(n_dbcs+1) = yub(1)
-         zlb(n_dbcs+1) = zlb(1)
-         zub(n_dbcs+1) = zub(1)
+         ylb(n_dbcs + 1) = ylb(1)
+         yub(n_dbcs + 1) = yub(1)
+         zlb(n_dbcs + 1) = zlb(1)
+         zub(n_dbcs + 1) = zub(1)
          DO j = 1, n_dbcs
             ALLOCATE (dbcs(j)%dirichlet_bc)
             dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
@@ -930,24 +930,24 @@ CONTAINS
             dbcs(j)%dirichlet_bc%osc_frac = osc_frac
             dbcs(j)%dirichlet_bc%frequency = frequency
             dbcs(j)%dirichlet_bc%phase = phase
-            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
+            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL + j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
             A = (/cntrlaxis_lb, yub(j), zub(j)/)
-            B = (/cntrlaxis_lb, ylb(j+1), zlb(j+1)/)
-            C = (/cntrlaxis_ub, ylb(j+1), zlb(j+1)/)
+            B = (/cntrlaxis_lb, ylb(j + 1), zlb(j + 1)/)
+            C = (/cntrlaxis_ub, ylb(j + 1), zlb(j + 1)/)
             D = (/cntrlaxis_ub, yub(j), zub(j)/)
-            normal_vec = vector_product((A-C), (D-B))
+            normal_vec = vector_product((A - C), (D - B))
             unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
             dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
             dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
             dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
             dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
-            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C + thickness*unit_normal
 
             dbcs(j)%dirichlet_bc%n_tiles = 1
 
@@ -966,15 +966,15 @@ CONTAINS
          END DO
       CASE (y_axis)
          DO j = 1, n_dbcs
-            xlb(j) = base_center(1)+h*SIN(alpha(j))
-            zlb(j) = base_center(2)+h*COS(alpha(j))
-            xub(j) = base_center(1)+h*SIN(alpha_rotd(j))
-            zub(j) = base_center(2)+h*COS(alpha_rotd(j))
+            xlb(j) = base_center(1) + h*SIN(alpha(j))
+            zlb(j) = base_center(2) + h*COS(alpha(j))
+            xub(j) = base_center(1) + h*SIN(alpha_rotd(j))
+            zub(j) = base_center(2) + h*COS(alpha_rotd(j))
          END DO
-         xlb(n_dbcs+1) = xlb(1)
-         xub(n_dbcs+1) = xub(1)
-         zlb(n_dbcs+1) = zlb(1)
-         zub(n_dbcs+1) = zub(1)
+         xlb(n_dbcs + 1) = xlb(1)
+         xub(n_dbcs + 1) = xub(1)
+         zlb(n_dbcs + 1) = zlb(1)
+         zub(n_dbcs + 1) = zub(1)
          DO j = 1, n_dbcs
             ALLOCATE (dbcs(j)%dirichlet_bc)
             dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
@@ -982,24 +982,24 @@ CONTAINS
             dbcs(j)%dirichlet_bc%osc_frac = osc_frac
             dbcs(j)%dirichlet_bc%frequency = frequency
             dbcs(j)%dirichlet_bc%phase = phase
-            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
+            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL + j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
             A = (/xub(j), cntrlaxis_lb, zub(j)/)
-            B = (/xlb(j+1), cntrlaxis_lb, zlb(j+1)/)
-            C = (/xlb(j+1), cntrlaxis_ub, zlb(j+1)/)
+            B = (/xlb(j + 1), cntrlaxis_lb, zlb(j + 1)/)
+            C = (/xlb(j + 1), cntrlaxis_ub, zlb(j + 1)/)
             D = (/xub(j), cntrlaxis_ub, zub(j)/)
-            normal_vec = vector_product((A-C), (D-B))
+            normal_vec = vector_product((A - C), (D - B))
             unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
             dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
             dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
             dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
             dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
-            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C + thickness*unit_normal
 
             dbcs(j)%dirichlet_bc%n_tiles = 1
 
@@ -1018,15 +1018,15 @@ CONTAINS
          END DO
       CASE (z_axis)
          DO j = 1, n_dbcs
-            xlb(j) = base_center(1)+h*SIN(alpha(j))
-            ylb(j) = base_center(2)+h*COS(alpha(j))
-            xub(j) = base_center(1)+h*SIN(alpha_rotd(j))
-            yub(j) = base_center(2)+h*COS(alpha_rotd(j))
+            xlb(j) = base_center(1) + h*SIN(alpha(j))
+            ylb(j) = base_center(2) + h*COS(alpha(j))
+            xub(j) = base_center(1) + h*SIN(alpha_rotd(j))
+            yub(j) = base_center(2) + h*COS(alpha_rotd(j))
          END DO
-         xlb(n_dbcs+1) = xlb(1)
-         xub(n_dbcs+1) = xub(1)
-         ylb(n_dbcs+1) = ylb(1)
-         yub(n_dbcs+1) = yub(1)
+         xlb(n_dbcs + 1) = xlb(1)
+         xub(n_dbcs + 1) = xub(1)
+         ylb(n_dbcs + 1) = ylb(1)
+         yub(n_dbcs + 1) = yub(1)
          DO j = 1, n_dbcs
             ALLOCATE (dbcs(j)%dirichlet_bc)
             dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
@@ -1034,24 +1034,24 @@ CONTAINS
             dbcs(j)%dirichlet_bc%osc_frac = osc_frac
             dbcs(j)%dirichlet_bc%frequency = frequency
             dbcs(j)%dirichlet_bc%phase = phase
-            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
+            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL + j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
             A = (/xub(j), yub(j), cntrlaxis_lb/)
-            B = (/xlb(j+1), ylb(j+1), cntrlaxis_lb/)
-            C = (/xlb(j+1), ylb(j+1), cntrlaxis_ub/)
+            B = (/xlb(j + 1), ylb(j + 1), cntrlaxis_lb/)
+            C = (/xlb(j + 1), ylb(j + 1), cntrlaxis_ub/)
             D = (/xub(j), yub(j), cntrlaxis_ub/)
-            normal_vec = vector_product((A-C), (D-B))
+            normal_vec = vector_product((A - C), (D - B))
             unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
             dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
             dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
             dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
             dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
-            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
-            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B + thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C + thickness*unit_normal
 
             dbcs(j)%dirichlet_bc%n_tiles = 1
 
@@ -1095,8 +1095,8 @@ CONTAINS
       INTEGER                                            :: i
       REAL(dp)                                           :: dx
 
-      dx = (b-a)/(N-1)
-      arr = (/(a+(i-1)*dx, i=1, N)/)
+      dx = (b - a)/(N - 1)
+      arr = (/(a + (i - 1)*dx, i=1, N)/)
 
    END FUNCTION linspace
 
@@ -1133,11 +1133,11 @@ CONTAINS
       C = cuboid_vtx(1:3, 3); C2 = cuboid_vtx(1:3, 8)
       D = cuboid_vtx(1:3, 4); D2 = cuboid_vtx(1:3, 5)
 
-      Tpnt = (A+C2)/2.0_dp
+      Tpnt = (A + C2)/2.0_dp
 
-      AB = B-A
-      AD = D-A
-      AA2 = A2-A
+      AB = B - A
+      AD = D - A
+      AA2 = A2 - A
 
 ! unit vectors generating the local coordinate system
       e1_locl = AB/SQRT(SUM(AB**2))
@@ -1187,14 +1187,14 @@ CONTAINS
 
       IF (direction .EQ. FWROT) THEN
          CALL matvec_3x3(vec_tmp, Rmat, vec)
-         vec_transfd = vec_tmp+Tp
+         vec_transfd = vec_tmp + Tp
       ELSEIF (direction .EQ. BWROT) THEN
          Rmat_inv = inv_3x3(Rmat)
-         Tpoint(1) = Rmat_inv(1, 1)*Tp(1)+Rmat_inv(1, 2)*Tp(2)+Rmat_inv(1, 3)*Tp(3)
-         Tpoint(2) = Rmat_inv(2, 1)*Tp(1)+Rmat_inv(2, 2)*Tp(2)+Rmat_inv(2, 3)*Tp(3)
-         Tpoint(3) = Rmat_inv(3, 1)*Tp(1)+Rmat_inv(3, 2)*Tp(2)+Rmat_inv(3, 3)*Tp(3)
+         Tpoint(1) = Rmat_inv(1, 1)*Tp(1) + Rmat_inv(1, 2)*Tp(2) + Rmat_inv(1, 3)*Tp(3)
+         Tpoint(2) = Rmat_inv(2, 1)*Tp(1) + Rmat_inv(2, 2)*Tp(2) + Rmat_inv(2, 3)*Tp(3)
+         Tpoint(3) = Rmat_inv(3, 1)*Tp(1) + Rmat_inv(3, 2)*Tp(2) + Rmat_inv(3, 3)*Tp(3)
          CALL matvec_3x3(vec_tmp, Rmat_inv, vec)
-         vec_transfd = vec_tmp-Tpoint
+         vec_transfd = vec_tmp - Tpoint
       END IF
 
    END FUNCTION rotate_translate_vector
@@ -1245,17 +1245,17 @@ CONTAINS
       z_xtnt(1) = MINVAL(dbc_vertices(3, :)); z_xtnt(2) = MAXVAL(dbc_vertices(3, :))
 
 ! devide the x, y and z extents into n_prtn partitions
-      step = (x_xtnt(2)-x_xtnt(1))/REAL(n_prtn(1), kind=dp)
-      xprtn_lb(:) = x_xtnt(1)+(/(i, i=0, n_prtn(1)-1)/)*step ! lower bounds
-      xprtn_ub(:) = x_xtnt(1)+(/(i, i=1, n_prtn(1))/)*step ! upper bounds
+      step = (x_xtnt(2) - x_xtnt(1))/REAL(n_prtn(1), kind=dp)
+      xprtn_lb(:) = x_xtnt(1) + (/(i, i=0, n_prtn(1) - 1)/)*step ! lower bounds
+      xprtn_ub(:) = x_xtnt(1) + (/(i, i=1, n_prtn(1))/)*step ! upper bounds
 
-      step = (y_xtnt(2)-y_xtnt(1))/REAL(n_prtn(2), kind=dp)
-      yprtn_lb(:) = y_xtnt(1)+(/(i, i=0, n_prtn(2)-1)/)*step
-      yprtn_ub(:) = y_xtnt(1)+(/(i, i=1, n_prtn(2))/)*step
+      step = (y_xtnt(2) - y_xtnt(1))/REAL(n_prtn(2), kind=dp)
+      yprtn_lb(:) = y_xtnt(1) + (/(i, i=0, n_prtn(2) - 1)/)*step
+      yprtn_ub(:) = y_xtnt(1) + (/(i, i=1, n_prtn(2))/)*step
 
-      step = (z_xtnt(2)-z_xtnt(1))/REAL(n_prtn(3), kind=dp)
-      zprtn_lb(:) = z_xtnt(1)+(/(i, i=0, n_prtn(3)-1)/)*step
-      zprtn_ub(:) = z_xtnt(1)+(/(i, i=1, n_prtn(3))/)*step
+      step = (z_xtnt(2) - z_xtnt(1))/REAL(n_prtn(3), kind=dp)
+      zprtn_lb(:) = z_xtnt(1) + (/(i, i=0, n_prtn(3) - 1)/)*step
+      zprtn_ub(:) = z_xtnt(1) + (/(i, i=1, n_prtn(3))/)*step
 
       ALLOCATE (tiles(n_prtn(1)*n_prtn(2)*n_prtn(3)))
       k = 1
@@ -1275,7 +1275,7 @@ CONTAINS
                tiles(k)%tile%vertices(1:3, 8) = (/xprtn_ub(ii), yprtn_ub(jj), zprtn_ub(kk)/)
 
                tiles(k)%tile%volume = 0.0_dp
-               k = k+1
+               k = k + 1
             END DO
          END DO
       END DO
@@ -1318,22 +1318,22 @@ CONTAINS
       D = dbc_vertices(:, 4)
       D2 = dbc_vertices(:, 5)
 
-      AB = B-A
-      AC = C-A
-      AD = D-A
+      AB = B - A
+      AC = C - A
+      AD = D - A
       normal_vector = vector_product(AB, AC)
       unit_normal = normal_vector/SQRT(SUM(normal_vector**2))
-      thickness = SQRT(SUM((D-D2)**2))
+      thickness = SQRT(SUM((D - D2)**2))
 
 ! the larger n_prtn is assigned to the longer edge
       ABlength = SQRT(SUM(AB**2))
       ADlength = SQRT(SUM(AD**2))
       IF (ADlength .GE. ABlength) THEN
-         np1 = MAX(n_prtn(1)+1, n_prtn(2)+1)
-         np2 = MIN(n_prtn(1)+1, n_prtn(2)+1)
+         np1 = MAX(n_prtn(1) + 1, n_prtn(2) + 1)
+         np2 = MIN(n_prtn(1) + 1, n_prtn(2) + 1)
       ELSE
-         np1 = MIN(n_prtn(1)+1, n_prtn(2)+1)
-         np2 = MAX(n_prtn(1)+1, n_prtn(2)+1)
+         np1 = MIN(n_prtn(1) + 1, n_prtn(2) + 1)
+         np2 = MAX(n_prtn(1) + 1, n_prtn(2) + 1)
       END IF
 
       ALLOCATE (X(np1, np2, 3))
@@ -1341,9 +1341,9 @@ CONTAINS
 
 ! partition AD and BC
       DO l = 1, np1
-         step = REAL((l-1), kind=dp)/REAL((np1-1), kind=dp)
-         end_points(1, l, :) = A*(1.0_dp-step)+D*step
-         end_points(2, l, :) = B*(1.0_dp-step)+C*step
+         step = REAL((l - 1), kind=dp)/REAL((np1 - 1), kind=dp)
+         end_points(1, l, :) = A*(1.0_dp - step) + D*step
+         end_points(2, l, :) = B*(1.0_dp - step) + C*step
       END DO
 
 ! partition in the second direction along the line segments with endpoints from
@@ -1352,29 +1352,29 @@ CONTAINS
          point1(:) = end_points(1, l, :)
          point2(:) = end_points(2, l, :)
          DO i = 1, np2
-            step = REAL((i-1), kind=dp)/REAL((np2-1), kind=dp)
-            X(l, i, :) = point1*(1.0_dp-step)+point2*step
+            step = REAL((i - 1), kind=dp)/REAL((np2 - 1), kind=dp)
+            X(l, i, :) = point1*(1.0_dp - step) + point2*step
          END DO
       END DO
 
-      ALLOCATE (tiles((np1-1)*(np2-1)))
+      ALLOCATE (tiles((np1 - 1)*(np2 - 1)))
       k = 1
-      DO l = 1, np1-1
-         DO i = 1, np2-1
+      DO l = 1, np1 - 1
+         DO i = 1, np2 - 1
             ALLOCATE (tiles(k)%tile)
             tiles(k)%tile%tile_id = k
 
             tiles(k)%tile%vertices(1:3, 1) = X(l, i, :)
-            tiles(k)%tile%vertices(1:3, 2) = X(l, i+1, :)
-            tiles(k)%tile%vertices(1:3, 3) = X(l+1, i+1, :)
-            tiles(k)%tile%vertices(1:3, 4) = X(l+1, i, :)
-            tiles(k)%tile%vertices(1:3, 5) = X(l+1, i, :)+thickness*unit_normal
-            tiles(k)%tile%vertices(1:3, 6) = X(l, i, :)+thickness*unit_normal
-            tiles(k)%tile%vertices(1:3, 7) = X(l, i+1, :)+thickness*unit_normal
-            tiles(k)%tile%vertices(1:3, 8) = X(l+1, i+1, :)+thickness*unit_normal
+            tiles(k)%tile%vertices(1:3, 2) = X(l, i + 1, :)
+            tiles(k)%tile%vertices(1:3, 3) = X(l + 1, i + 1, :)
+            tiles(k)%tile%vertices(1:3, 4) = X(l + 1, i, :)
+            tiles(k)%tile%vertices(1:3, 5) = X(l + 1, i, :) + thickness*unit_normal
+            tiles(k)%tile%vertices(1:3, 6) = X(l, i, :) + thickness*unit_normal
+            tiles(k)%tile%vertices(1:3, 7) = X(l, i + 1, :) + thickness*unit_normal
+            tiles(k)%tile%vertices(1:3, 8) = X(l + 1, i + 1, :) + thickness*unit_normal
 
             tiles(k)%tile%volume = 0.0_dp
-            k = k+1
+            k = k + 1
          END DO
       END DO
 
@@ -1431,7 +1431,7 @@ CONTAINS
       ALLOCATE (xloclr(lb1:ub1), yloclr(lb2:ub2), zloclr(lb3:ub3))
 
 ! periodicities
-      per = cell_xtnts(2, :)-cell_xtnts(1, :)
+      per = cell_xtnts(2, :) - cell_xtnts(1, :)
 
       x_xtnt(1) = MINVAL(tile_vertices(1, :)); x_xtnt(2) = MAXVAL(tile_vertices(1, :))
       y_xtnt(1) = MINVAL(tile_vertices(2, :)); y_xtnt(2) = MAXVAL(tile_vertices(2, :))
@@ -1445,25 +1445,25 @@ CONTAINS
             DO j = lb2, ub2
                DO i = lb1, ub1
                   xi0 = x_locl(i); yj0 = y_locl(j); zk0 = z_locl(k)
-                  xil = x_locl(i)-per(1); yjl = y_locl(j)-per(2); zkl = z_locl(k)-per(3)
-                  xir = x_locl(i)+per(1); yjr = y_locl(j)+per(2); zkr = z_locl(k)+per(3)
+                  xil = x_locl(i) - per(1); yjl = y_locl(j) - per(2); zkl = z_locl(k) - per(3)
+                  xir = x_locl(i) + per(1); yjr = y_locl(j) + per(2); zkr = z_locl(k) + per(3)
 
                   ! points from the original cell local to the current processor
-                  fx = prefactor(1, 2)*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
-                  fy = prefactor(2, 2)*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
-                  fz = prefactor(3, 2)*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
+                  fx = prefactor(1, 2)*(erf((xi0 - x_xtnt(1))/sigma) - erf((xi0 - x_xtnt(2))/sigma))
+                  fy = prefactor(2, 2)*(erf((yj0 - y_xtnt(1))/sigma) - erf((yj0 - y_xtnt(2))/sigma))
+                  fz = prefactor(3, 2)*(erf((zk0 - z_xtnt(1))/sigma) - erf((zk0 - z_xtnt(2))/sigma))
 
                   ! periodically replicated cell on the left, points local to the current processor
-                  gx = prefactor(1, 1)*(erf((xil-x_xtnt(1))/sigma)-erf((xil-x_xtnt(2))/sigma))
-                  gy = prefactor(2, 1)*(erf((yjl-y_xtnt(1))/sigma)-erf((yjl-y_xtnt(2))/sigma))
-                  gz = prefactor(3, 1)*(erf((zkl-z_xtnt(1))/sigma)-erf((zkl-z_xtnt(2))/sigma))
+                  gx = prefactor(1, 1)*(erf((xil - x_xtnt(1))/sigma) - erf((xil - x_xtnt(2))/sigma))
+                  gy = prefactor(2, 1)*(erf((yjl - y_xtnt(1))/sigma) - erf((yjl - y_xtnt(2))/sigma))
+                  gz = prefactor(3, 1)*(erf((zkl - z_xtnt(1))/sigma) - erf((zkl - z_xtnt(2))/sigma))
 
                   ! periodically replicated cell on the right, points local to the current processor
-                  hx = prefactor(1, 3)*(erf((xir-x_xtnt(1))/sigma)-erf((xir-x_xtnt(2))/sigma))
-                  hy = prefactor(2, 3)*(erf((yjr-y_xtnt(1))/sigma)-erf((yjr-y_xtnt(2))/sigma))
-                  hz = prefactor(3, 3)*(erf((zkr-z_xtnt(1))/sigma)-erf((zkr-z_xtnt(2))/sigma))
+                  hx = prefactor(1, 3)*(erf((xir - x_xtnt(1))/sigma) - erf((xir - x_xtnt(2))/sigma))
+                  hy = prefactor(2, 3)*(erf((yjr - y_xtnt(1))/sigma) - erf((yjr - y_xtnt(2))/sigma))
+                  hz = prefactor(3, 3)*(erf((zkr - z_xtnt(1))/sigma) - erf((zkr - z_xtnt(2))/sigma))
 
-                  tile_pw%cr3d(i, j, k) = (fx+gx+hx)*(fy+gy+hy)*(fz+gz+hz)
+                  tile_pw%cr3d(i, j, k) = (fx + gx + hx)*(fy + gy + hy)*(fz + gz + hz)
                END DO
             END DO
          END DO
@@ -1473,9 +1473,9 @@ CONTAINS
                DO i = lb1, ub1
                   xi0 = x_locl(i); yj0 = y_locl(j); zk0 = z_locl(k)
 
-                  fx = 0.5_dp*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
-                  fy = 0.5_dp*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
-                  fz = 0.5_dp*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
+                  fx = 0.5_dp*(erf((xi0 - x_xtnt(1))/sigma) - erf((xi0 - x_xtnt(2))/sigma))
+                  fy = 0.5_dp*(erf((yj0 - y_xtnt(1))/sigma) - erf((yj0 - y_xtnt(2))/sigma))
+                  fz = 0.5_dp*(erf((zk0 - z_xtnt(1))/sigma) - erf((zk0 - z_xtnt(2))/sigma))
 
                   tile_pw%cr3d(i, j, k) = fx*fy*fz
                END DO
@@ -1535,7 +1535,7 @@ CONTAINS
       ALLOCATE (xlocll(lb1:ub1), ylocll(lb2:ub2), zlocll(lb3:ub3))
       ALLOCATE (xloclr(lb1:ub1), yloclr(lb2:ub2), zloclr(lb3:ub3))
 
-      per = cell_xtnts(2, :)-cell_xtnts(1, :)
+      per = cell_xtnts(2, :) - cell_xtnts(1, :)
 
       CALL rotate_translate_cuboid(tile_vertices, Rmat, Tpnt, tile_transfd_vertices)
 
@@ -1546,13 +1546,13 @@ CONTAINS
       transfdz_xtnt(1) = MINVAL(tile_transfd_vertices(3, :))
       transfdz_xtnt(2) = MAXVAL(tile_transfd_vertices(3, :))
 
-      cm_x = 0.5_dp*(transfdx_xtnt(2)+transfdx_xtnt(1))
-      cm_y = 0.5_dp*(transfdy_xtnt(2)+transfdy_xtnt(1))
-      cm_z = 0.5_dp*(transfdz_xtnt(2)+transfdz_xtnt(1))
+      cm_x = 0.5_dp*(transfdx_xtnt(2) + transfdx_xtnt(1))
+      cm_y = 0.5_dp*(transfdy_xtnt(2) + transfdy_xtnt(1))
+      cm_z = 0.5_dp*(transfdz_xtnt(2) + transfdz_xtnt(1))
 
-      x_xtnt = transfdx_xtnt-cm_x
-      y_xtnt = transfdy_xtnt-cm_y
-      z_xtnt = transfdz_xtnt-cm_z
+      x_xtnt = transfdx_xtnt - cm_x
+      y_xtnt = transfdy_xtnt - cm_y
+      z_xtnt = transfdz_xtnt - cm_z
 
       prefactor = 0.5_dp
 
@@ -1563,9 +1563,9 @@ CONTAINS
 
                xi0 = pnt0(1); yj0 = pnt0(2); zk0 = pnt0(3)
 
-               fx = 0.5_dp*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
-               fy = 0.5_dp*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
-               fz = 0.5_dp*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
+               fx = 0.5_dp*(erf((xi0 - x_xtnt(1))/sigma) - erf((xi0 - x_xtnt(2))/sigma))
+               fy = 0.5_dp*(erf((yj0 - y_xtnt(1))/sigma) - erf((yj0 - y_xtnt(2))/sigma))
+               fz = 0.5_dp*(erf((zk0 - z_xtnt(1))/sigma) - erf((zk0 - z_xtnt(2))/sigma))
 
                tile_pw%cr3d(i, j, k) = fx*fy*fz
             END DO

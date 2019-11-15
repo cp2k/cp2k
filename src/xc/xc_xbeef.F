@@ -157,7 +157,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho_1_3, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       dummy => rho
 
@@ -254,7 +254,7 @@ CONTAINS
 
             s = norm_drho(ii)/MAX(t3, epsilon_rho43) !reduced gradient finally
             s2 = s**2
-            t = 2.0_dp*s2/(4.0_dp+s2)-1.0_dp
+            t = 2.0_dp*s2/(4.0_dp + s2) - 1.0_dp
 
             IF (grad_deriv >= 0) THEN !asking for pure e evaluation or also derivatives
                e_leg(0) = 1 !first legendre pol
@@ -264,31 +264,31 @@ CONTAINS
             IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
                de_leg(1) = 1
-               dt = 4.0_dp*s/(4.0_dp+s2)-4.0_dp*s*s2/(4.0_dp+s2)**2
+               dt = 4.0_dp*s/(4.0_dp + s2) - 4.0_dp*s*s2/(4.0_dp + s2)**2
                ds_rho = -(4.0_dp*s)/(3.0_dp*MAX(my_rho, epsilon_rho))
                ds_ndrho = 1.0_dp/(MAX(t3, epsilon_rho43))
             END IF
 
-            DO i = 2, m-1 !LEGENDRE PART
-               e_leg(i) = 2.*(t)*e_leg(i-1)-e_leg(i-2)-((t)*e_leg(i-1)-e_leg(i-2))/(REAL(i, KIND=dp))
+            DO i = 2, m - 1 !LEGENDRE PART
+               e_leg(i) = 2.*(t)*e_leg(i - 1) - e_leg(i - 2) - ((t)*e_leg(i - 1) - e_leg(i - 2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
                IF (ABS(grad_deriv) >= 1) THEN !first derivative
                   !the zero-derivatives need to be available for the first deriv.
-                  de_leg(i) = e_leg(i-1)*i+de_leg(i-1)*(t)
+                  de_leg(i) = e_leg(i - 1)*i + de_leg(i - 1)*(t)
                END IF
             END DO
 
             !NO DERIVATIVE
             IF (grad_deriv >= 0) THEN
                !add the scaled legendre linear combination to e_0
-               e_0(ii) = e_0(ii)+SUM(e_leg*a)*e_ueg*sx
+               e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
             END IF
 
             !FIRST DERIVATIVE
             IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
-               e_rho(ii) = e_rho(ii)+(SUM(e_leg*a)*e_ueg_drho+SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
-               e_ndrho(ii) = e_ndrho(ii)+(SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
+               e_rho(ii) = e_rho(ii) + (SUM(e_leg*a)*e_ueg_drho + SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
+               e_ndrho(ii) = e_ndrho(ii) + (SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
             END IF
 
          END IF
@@ -342,7 +342,7 @@ CONTAINS
                           rhob=rho(2)%array, norm_drhoa=norm_drho(1)%array, &
                           norm_drhob=norm_drho(2)%array, rho_cutoff=epsilon_rho, &
                           local_bounds=bo)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       dummy => rho(1)%array
 
@@ -456,7 +456,7 @@ CONTAINS
 
             s = norm_drho_spin(ii)/MAX(t3, epsilon_rho43) !reduced gradient finally
             s2 = s**2
-            t = 2.0_dp*s**2/(4.0_dp+s**2)-1.0_dp
+            t = 2.0_dp*s**2/(4.0_dp + s**2) - 1.0_dp
 
             IF (grad_deriv >= 0) THEN !asking for pure e evaluation or also derivatives
                e_leg(0) = 1 !first legendre pol
@@ -466,18 +466,18 @@ CONTAINS
             IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
                de_leg(1) = 1
-               dt = 4.0_dp*s/(4.0_dp+s2)-4.0_dp*s*s2/(4.0_dp+s2)**2
+               dt = 4.0_dp*s/(4.0_dp + s2) - 4.0_dp*s*s2/(4.0_dp + s2)**2
                ds_rho = -(4.0_dp*s)/(3.0_dp*MAX(my_rho, epsilon_rho))
                ds_ndrho = 1.0_dp/(MAX(t3, epsilon_rho43))
             END IF
 
-            DO i = 2, m-1 !LEGENDRE PART
-               e_leg(i) = 2.*(t)*e_leg(i-1)-e_leg(i-2)-((t)*e_leg(i-1)-e_leg(i-2))/(REAL(i, KIND=dp))
+            DO i = 2, m - 1 !LEGENDRE PART
+               e_leg(i) = 2.*(t)*e_leg(i - 1) - e_leg(i - 2) - ((t)*e_leg(i - 1) - e_leg(i - 2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
                IF (ABS(grad_deriv) >= 1) THEN !first derivative
                   !the zero-derivatives need to be available for the first deriv.
-                  de_leg(i) = e_leg(i-1)*i+de_leg(i-1)*(t)
+                  de_leg(i) = e_leg(i - 1)*i + de_leg(i - 1)*(t)
                END IF
 
             END DO
@@ -485,13 +485,13 @@ CONTAINS
             !NO DERIVATIVE
             IF (grad_deriv >= 0) THEN
                !add the scaled legendre linear combination to e_0
-               e_0(ii) = e_0(ii)+SUM(e_leg*a)*e_ueg*sx
+               e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
             END IF
 
             !FIRST DERIVATIVE
             IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
-               e_rho_spin(ii) = e_rho_spin(ii)+(SUM(e_leg*a)*e_ueg_drho+SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
-               e_ndrho_spin(ii) = e_ndrho_spin(ii)+(SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
+               e_rho_spin(ii) = e_rho_spin(ii) + (SUM(e_leg*a)*e_ueg_drho + SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
+               e_ndrho_spin(ii) = e_ndrho_spin(ii) + (SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
             END IF
          END IF
       END DO

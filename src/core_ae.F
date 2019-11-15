@@ -149,12 +149,12 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, &
                            maxco=maxco, maxlgto=maxl, maxsgf=maxsgf, maxnset=maxnset)
 
-      CALL init_orbital_pointers(maxl+nder+1)
+      CALL init_orbital_pointers(maxl + nder + 1)
 
       ldsab = MAX(maxco, maxsgf)
-      ldai = ncoset(maxl+nder+1)
+      ldai = ncoset(maxl + nder + 1)
       ALLOCATE (hab(ldsab, ldsab, maxnset*maxnset), work(ldsab, ldsab))
-      ALLOCATE (verf(ldai, ldai, 2*maxl+nder+1), vnuc(ldai, ldai, 2*maxl+nder+1), ff(0:2*maxl+nder))
+      ALLOCATE (verf(ldai, ldai, 2*maxl + nder + 1), vnuc(ldai, ldai, 2*maxl + nder + 1), ff(0:2*maxl + nder))
       IF (calculate_forces) THEN
          ALLOCATE (pab(maxco, maxco, maxnset*maxnset))
       END IF
@@ -242,7 +242,7 @@ CONTAINS
                DO jset = 1, nsetb
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
-                  nij = jset+(iset-1)*maxnset
+                  nij = jset + (iset - 1)*maxnset
                   IF (iatom <= jatom) THEN
                      CALL dgemm("N", "N", ncoa, nsgfb(jset), nsgfa(iset), &
                                 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
@@ -283,34 +283,34 @@ CONTAINS
             DO WHILE (nl_sub_iterate(ap_iterator) == 0)
                CALL get_iterator_info(ap_iterator, jatom=katom, r=rac)
                dac = SQRT(SUM(rac*rac))
-               rbc(:) = rac(:)-rab(:)
+               rbc(:) = rac(:) - rab(:)
                dbc = SQRT(SUM(rbc*rbc))
-               IF ((MAXVAL(set_radius_a(:))+core_radius < dac) .OR. &
-                   (MAXVAL(set_radius_b(:))+core_radius < dbc)) THEN
+               IF ((MAXVAL(set_radius_a(:)) + core_radius < dac) .OR. &
+                   (MAXVAL(set_radius_b(:)) + core_radius < dbc)) THEN
                   CYCLE
                END IF
 
                DO iset = 1, nseta
-                  IF (set_radius_a(iset)+core_radius < dac) CYCLE
+                  IF (set_radius_a(iset) + core_radius < dac) CYCLE
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   sgfa = first_sgfa(1, iset)
                   DO jset = 1, nsetb
-                     IF (set_radius_b(jset)+core_radius < dbc) CYCLE
+                     IF (set_radius_b(jset) + core_radius < dbc) CYCLE
                      ncob = npgfb(jset)*ncoset(lb_max(jset))
                      sgfb = first_sgfb(1, jset)
-                     IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+                     IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
                      rab2 = dab*dab
                      rac2 = dac*dac
                      rbc2 = dbc*dbc
-                     nij = jset+(iset-1)*maxnset
+                     nij = jset + (iset - 1)*maxnset
                      ! *** Calculate the GTH pseudo potential forces ***
                      IF (calculate_forces) THEN
-                        na_plus = npgfa(iset)*ncoset(la_max(iset)+nder)
+                        na_plus = npgfa(iset)*ncoset(la_max(iset) + nder)
                         nb_plus = npgfb(jset)*ncoset(lb_max(jset))
                         ALLOCATE (habd(na_plus, nb_plus))
                         habd = 0._dp
                         CALL verfc( &
-                           la_max(iset)+nder, npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                           la_max(iset) + nder, npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                            lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
                            alpha_c, core_radius, zeta_c, core_charge, &
                            rab, rab2, rac, rac2, rbc2, hab(:, :, nij), verf, vnuc, ff(0:), &
@@ -326,20 +326,20 @@ CONTAINS
                         DEALLOCATE (habd)
 
                         atom_c = atom_of_kind(katom)
-                        force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a)+f0*force_a(1)
-                        force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a)+f0*force_a(2)
-                        force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a)+f0*force_a(3)
+                        force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a) + f0*force_a(1)
+                        force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a) + f0*force_a(2)
+                        force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a) + f0*force_a(3)
 
-                        force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b)+f0*force_b(1)
-                        force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b)+f0*force_b(2)
-                        force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b)+f0*force_b(3)
+                        force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b) + f0*force_b(1)
+                        force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b) + f0*force_b(2)
+                        force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b) + f0*force_b(3)
 
                         force(kkind)%all_potential(1, atom_c) = force(kkind)%all_potential(1, atom_c) &
-                                                                -f0*force_a(1)-f0*force_b(1)
+                                                                - f0*force_a(1) - f0*force_b(1)
                         force(kkind)%all_potential(2, atom_c) = force(kkind)%all_potential(2, atom_c) &
-                                                                -f0*force_a(2)-f0*force_b(2)
+                                                                - f0*force_a(2) - f0*force_b(2)
                         force(kkind)%all_potential(3, atom_c) = force(kkind)%all_potential(3, atom_c) &
-                                                                -f0*force_a(3)-f0*force_b(3)
+                                                                - f0*force_a(3) - f0*force_b(3)
 
                         IF (use_virial) THEN
                            CALL virial_pair_force(virial%pv_virial, f0, force_a, rac)
@@ -363,7 +363,7 @@ CONTAINS
             DO jset = 1, nsetb
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
-               nij = jset+(iset-1)*maxnset
+               nij = jset + (iset - 1)*maxnset
                CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
                           1.0_dp, hab(1, 1, nij), SIZE(hab, 1), &
                           sphi_b(1, sgfb), SIZE(sphi_b, 1), &
@@ -406,7 +406,7 @@ CONTAINS
          END IF
       END IF
       IF (calculate_forces .AND. use_virial) THEN
-         virial%pv_ppl = virial%pv_virial-pv_loc
+         virial%pv_ppl = virial%pv_virial - pv_loc
       END IF
 
       CALL timestop(handle)
@@ -453,47 +453,47 @@ CONTAINS
       fb = 0.0_dp
 
       na = ncoset(la_max)
-      nap = ncoset(la_max+nder)
+      nap = ncoset(la_max + nder)
       nb = ncoset(lb_max)
       DO ipgfa = 1, npgfa
          zax2 = zeta(ipgfa)*2.0_dp
          DO ipgfb = 1, npgfb
             zbx2 = zetb(ipgfb)*2.0_dp
-            DO ic_a = ncoset(la_min-1)+1, ncoset(la_max)
+            DO ic_a = ncoset(la_min - 1) + 1, ncoset(la_max)
                la(1:3) = indco(1:3, ic_a)
-               icap1 = coset(la(1)+1, la(2), la(3))
-               icap2 = coset(la(1), la(2)+1, la(3))
-               icap3 = coset(la(1), la(2), la(3)+1)
-               icam1 = coset(la(1)-1, la(2), la(3))
-               icam2 = coset(la(1), la(2)-1, la(3))
-               icam3 = coset(la(1), la(2), la(3)-1)
-               icoa = ic_a+(ipgfa-1)*na
-               icax = (ipgfa-1)*nap
+               icap1 = coset(la(1) + 1, la(2), la(3))
+               icap2 = coset(la(1), la(2) + 1, la(3))
+               icap3 = coset(la(1), la(2), la(3) + 1)
+               icam1 = coset(la(1) - 1, la(2), la(3))
+               icam2 = coset(la(1), la(2) - 1, la(3))
+               icam3 = coset(la(1), la(2), la(3) - 1)
+               icoa = ic_a + (ipgfa - 1)*na
+               icax = (ipgfa - 1)*nap
 
-               DO ic_b = ncoset(lb_min-1)+1, ncoset(lb_max)
+               DO ic_b = ncoset(lb_min - 1) + 1, ncoset(lb_max)
                   lb(1:3) = indco(1:3, ic_b)
-                  icbm1 = coset(lb(1)-1, lb(2), lb(3))
-                  icbm2 = coset(lb(1), lb(2)-1, lb(3))
-                  icbm3 = coset(lb(1), lb(2), lb(3)-1)
-                  icob = ic_b+(ipgfb-1)*nb
-                  icbx = (ipgfb-1)*nb
+                  icbm1 = coset(lb(1) - 1, lb(2), lb(3))
+                  icbm2 = coset(lb(1), lb(2) - 1, lb(3))
+                  icbm3 = coset(lb(1), lb(2), lb(3) - 1)
+                  icob = ic_b + (ipgfb - 1)*nb
+                  icbx = (ipgfb - 1)*nb
 
-                  fa(1) = fa(1)-pab(icoa, icob)*(-zax2*habd(icap1+icax, icob)+ &
-                                                 REAL(la(1), KIND=dp)*habd(icam1+icax, icob))
-                  fa(2) = fa(2)-pab(icoa, icob)*(-zax2*habd(icap2+icax, icob)+ &
-                                                 REAL(la(2), KIND=dp)*habd(icam2+icax, icob))
-                  fa(3) = fa(3)-pab(icoa, icob)*(-zax2*habd(icap3+icax, icob)+ &
-                                                 REAL(la(3), KIND=dp)*habd(icam3+icax, icob))
+                  fa(1) = fa(1) - pab(icoa, icob)*(-zax2*habd(icap1 + icax, icob) + &
+                                                   REAL(la(1), KIND=dp)*habd(icam1 + icax, icob))
+                  fa(2) = fa(2) - pab(icoa, icob)*(-zax2*habd(icap2 + icax, icob) + &
+                                                   REAL(la(2), KIND=dp)*habd(icam2 + icax, icob))
+                  fa(3) = fa(3) - pab(icoa, icob)*(-zax2*habd(icap3 + icax, icob) + &
+                                                   REAL(la(3), KIND=dp)*habd(icam3 + icax, icob))
 
-                  fb(1) = fb(1)-pab(icoa, icob)*( &
-                          -zbx2*(habd(icap1+icax, icob)-rab(1)*habd(ic_a+icax, icob))+ &
-                          REAL(lb(1), KIND=dp)*habd(ic_a+icax, icbm1+icbx))
-                  fb(2) = fb(2)-pab(icoa, icob)*( &
-                          -zbx2*(habd(icap2+icax, icob)-rab(2)*habd(ic_a+icax, icob))+ &
-                          REAL(lb(2), KIND=dp)*habd(ic_a+icax, icbm2+icbx))
-                  fb(3) = fb(3)-pab(icoa, icob)*( &
-                          -zbx2*(habd(icap3+icax, icob)-rab(3)*habd(ic_a+icax, icob))+ &
-                          REAL(lb(3), KIND=dp)*habd(ic_a+icax, icbm3+icbx))
+                  fb(1) = fb(1) - pab(icoa, icob)*( &
+                          -zbx2*(habd(icap1 + icax, icob) - rab(1)*habd(ic_a + icax, icob)) + &
+                          REAL(lb(1), KIND=dp)*habd(ic_a + icax, icbm1 + icbx))
+                  fb(2) = fb(2) - pab(icoa, icob)*( &
+                          -zbx2*(habd(icap2 + icax, icob) - rab(2)*habd(ic_a + icax, icob)) + &
+                          REAL(lb(2), KIND=dp)*habd(ic_a + icax, icbm2 + icbx))
+                  fb(3) = fb(3) - pab(icoa, icob)*( &
+                          -zbx2*(habd(icap3 + icax, icob) - rab(3)*habd(ic_a + icax, icob)) + &
+                          REAL(lb(3), KIND=dp)*habd(ic_a + icax, icbm3 + icbx))
 
                END DO ! ic_b
             END DO ! ic_a

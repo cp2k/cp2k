@@ -164,11 +164,11 @@ CONTAINS
       ! Main Loop
       wildcard = "   SD"
       t_now = m_walltime()
-      t_diff = t_now-t_old
+      t_diff = t_now - t_old
       t_old = t_now
       CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, used_time=t_diff, its=iter_nr)
       eold = opt_energy
-      DO its = iter_nr+1, maxiter
+      DO its = iter_nr + 1, maxiter
          CALL cp_iterate(logger%iter_info, last=(its == maxiter))
          CALL section_vals_val_set(gopt_env%geo_section, "STEP_START_VAL", i_val=its)
          CALL gopt_f_ii(its, output_unit)
@@ -184,10 +184,10 @@ CONTAINS
 
          ! Some IO and Convergence check
          t_now = m_walltime()
-         t_diff = t_now-t_old
+         t_diff = t_now - t_old
          t_old = t_now
          CALL gopt_f_io(gopt_env, force_env, root_section, its, opt_energy, &
-                        output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0-xold, xi, conv, &
+                        output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0 - xold, xi, conv, &
                         used_time=t_diff)
          eold = opt_energy
          emin = MIN(emin, opt_energy)
@@ -207,7 +207,7 @@ CONTAINS
          ! Reset Condition or Steepest Descent Requested
          ! ABS(DOT_PRODUCT(g, h))/SQRT((DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h))) > res_lim ...
          IF ((DOT_PRODUCT(g, h)*DOT_PRODUCT(g, h)) > (res_lim*res_lim*DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h)) &
-             .OR. its+1 <= max_steep_steps) THEN
+             .OR. its + 1 <= max_steep_steps) THEN
             ! Steepest Descent
             wildcard = "   SD"
             h = -xi

@@ -14,52 +14,52 @@
 ! **************************************************************************************************
 MODULE cp_fm_diag
    USE cp_blacs_calls, ONLY: cp_blacs_gridexit, &
-      cp_blacs_gridinit
+                             cp_blacs_gridinit
    USE cp_blacs_env, ONLY: cp_blacs_env_create, &
-      cp_blacs_env_release, &
-      cp_blacs_env_type
+                           cp_blacs_env_release, &
+                           cp_blacs_env_type
    USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale, &
-      cp_fm_gemm, &
-      cp_fm_scale, &
-      cp_fm_syrk, &
-      cp_fm_triangular_invert, &
-      cp_fm_triangular_multiply, &
-      cp_fm_upper_to_full
+                                 cp_fm_gemm, &
+                                 cp_fm_scale, &
+                                 cp_fm_syrk, &
+                                 cp_fm_triangular_invert, &
+                                 cp_fm_triangular_multiply, &
+                                 cp_fm_upper_to_full
    USE cp_fm_cholesky, ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag_utils, ONLY: cp_fm_redistribute_start, &
-      cp_fm_redistribute_end
+                               cp_fm_redistribute_end
    USE cp_fm_elpa, ONLY: cp_fm_diag_elpa, &
-      set_elpa_kernel, &
-      set_elpa_qr, &
-      set_elpa_print, &
-      initialize_elpa_library, &
-      finalize_elpa_library
+                         set_elpa_kernel, &
+                         set_elpa_qr, &
+                         set_elpa_print, &
+                         initialize_elpa_library, &
+                         finalize_elpa_library
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
-      cp_fm_struct_release, &
-      cp_fm_struct_type
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
    USE cp_fm_types, ONLY: cp_fm_create, &
-      cp_fm_get_info, &
-      cp_fm_release, &
-      cp_fm_set_element, &
-      cp_fm_to_fm, &
-      cp_fm_type
+                          cp_fm_get_info, &
+                          cp_fm_release, &
+                          cp_fm_set_element, &
+                          cp_fm_to_fm, &
+                          cp_fm_type
    USE cp_log_handling, ONLY: cp_get_default_logger, &
-      cp_logger_get_default_unit_nr, &
-      cp_logger_get_unit_nr, &
-      cp_logger_type
+                              cp_logger_get_default_unit_nr, &
+                              cp_logger_get_unit_nr, &
+                              cp_logger_type
    USE cp_para_env, ONLY: cp_para_env_create, &
-      cp_para_env_release
+                          cp_para_env_release
    USE cp_para_types, ONLY: cp_para_env_type
    USE kinds, ONLY: dp
    USE machine, ONLY: m_memory
    USE message_passing, ONLY: mp_bcast, &
-      mp_comm_free, &
-      mp_comm_split, &
-      mp_sync
+                              mp_comm_free, &
+                              mp_comm_split, &
+                              mp_sync
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
-      ieee_set_halting_mode, &
-      ieee_all
+                              ieee_set_halting_mode, &
+                              ieee_all
 #endif
 
 #include "../base/base_uses.f90"
@@ -221,7 +221,7 @@ CONTAINS
             CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
             IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
                IF (i == j) THEN
-                  IF (ABS(matrix%local_data(il, jl)-1.0_dp) > eps) THEN
+                  IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps) THEN
                      WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                         "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
@@ -249,7 +249,7 @@ CONTAINS
       DO i = 1, nmo
          DO j = 1, nmo
             IF (i == j) THEN
-               IF (ABS(matrix%local_data(i, j)-1.0_dp) > eps) THEN
+               IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps) THEN
                   WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                      "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                      "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
@@ -427,7 +427,7 @@ CONTAINS
       v => eigenvectors%local_data
       descv(:) = eigenvectors%matrix_struct%descriptor(:)
 
-      liwork = 7*n+8*context%num_pe(2)+2
+      liwork = 7*n + 8*context%num_pe(2) + 2
       ALLOCATE (iwork(liwork))
       ! work space query
 
@@ -443,7 +443,7 @@ CONTAINS
       ! arbitrary additional memory  ... we give 100000 more words
       ! (it seems to depend on the block size used)
 
-      lwork = NINT(work(1)+100000)
+      lwork = NINT(work(1) + 100000)
 !    lwork = NINT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
@@ -605,12 +605,12 @@ CONTAINS
       nq0 = MAX(numroc(nn, nb, 0, 0, npcol), nb)
 
       IF (needs_evecs) THEN
-         lwork = 5*n+MAX(5*nn, np0*nq0)+iceil(neig_local, npe)*nn+2*nb*nb+ &
-                 INT(work_syevx_local*REAL((neig_local-1)*n, dp)) !!!! allocates a full matrix on every CPU !!!!!
+         lwork = 5*n + MAX(5*nn, np0*nq0) + iceil(neig_local, npe)*nn + 2*nb*nb + &
+                 INT(work_syevx_local*REAL((neig_local - 1)*n, dp)) !!!! allocates a full matrix on every CPU !!!!!
       ELSE
-         lwork = 5*n+MAX(5*nn, nb*(np0+1))
+         lwork = 5*n + MAX(5*nn, nb*(np0 + 1))
       ENDIF
-      liwork = 6*MAX(N, npe+1, 4)
+      liwork = 6*MAX(N, npe + 1, 4)
 
       ALLOCATE (gap(npe))
       gap = 0.0_dp
@@ -680,7 +680,7 @@ CONTAINS
       nb = MAX(ilaenv(1, "DSYTRD", "U", n, -1, -1, -1), &
                ilaenv(1, "DORMTR", "U", n, -1, -1, -1))
 
-      lwork = MAX((nb+3)*n, 8*n)+n ! sun bug fix
+      lwork = MAX((nb + 3)*n, 8*n) + n ! sun bug fix
       liwork = 5*n
 
       ALLOCATE (ifail(n))
@@ -784,7 +784,7 @@ CONTAINS
       ilow_local = 1
       range_type = "I"
       IF (PRESENT(ilow) .AND. PRESENT(iup)) THEN
-         neig = iup-ilow+1
+         neig = iup - ilow + 1
          iup_local = iup
          ilow_local = ilow
       ELSE IF (PRESENT(vlow) .AND. PRESENT(vup)) THEN
@@ -842,7 +842,7 @@ CONTAINS
                    m, nz, w(1), z, 1, 1, descz, work, lwork, iwork, liwork, info)
 
       lwork = INT(work(1))
-      lwork = NINT(work(1)+300000)
+      lwork = NINT(work(1) + 300000)
       liwork = iwork(1)
       IF (lwork > SIZE(work, 1)) THEN
          DEALLOCATE (work)
@@ -883,7 +883,7 @@ CONTAINS
       nb = MAX(ilaenv(1, "DSYTRD", "U", n, -1, -1, -1), &
                ilaenv(1, "DORMTR", "U", n, -1, -1, -1))
 
-      lwork = MAX((nb+3)*n, 8*n)+n ! sun bug fix
+      lwork = MAX((nb + 3)*n, 8*n) + n ! sun bug fix
       liwork = 5*n
 
       ALLOCATE (ifail(n))
@@ -1002,7 +1002,7 @@ CONTAINS
 
          IF (eigenvalues(icol_global) < threshold) THEN
 
-            n_dependent = n_dependent+1
+            n_dependent = n_dependent + 1
 
             ipcol = indxg2p(icol_global, ncol_block, mypcol, &
                             work%matrix_struct%first_p_pos(2), npcol)
@@ -1057,7 +1057,7 @@ CONTAINS
 
          IF (eigenvalues(icol_global) < threshold) THEN
 
-            n_dependent = n_dependent+1
+            n_dependent = n_dependent + 1
             eigenvectors(1:nrow_global, icol_global) = 0.0_dp
 
          ELSE
@@ -1174,8 +1174,8 @@ CONTAINS
 ! ACHTUNG start_sec_block sagt aus WO der ZWEITE Block STARTET!!!
 ! Der Block wird mitsamt dem OO-Block bearbeitet
 
-      block_dim_row = start_sec_block-1
-      block_dim_col = N-block_dim_row
+      block_dim_row = start_sec_block - 1
+      block_dim_col = N - block_dim_row
       ALLOCATE (A_loc(block_dim_row, block_dim_col))
 
       mype = matrix%matrix_struct%para_env%mepos
@@ -1216,17 +1216,17 @@ CONTAINS
       q_loc = 0
 
       DO q = start_sec_block, N
-         q_loc = q_loc+1
-         DO p = 1, (start_sec_block-1)
+         q_loc = q_loc + 1
+         DO p = 1, (start_sec_block - 1)
 
             IF (ABS(A_loc(p, q_loc)) > thresh) THEN
 
-               tau = (eigval(q)-eigval(p))/(2.0_dp*A_loc(p, q_loc))
+               tau = (eigval(q) - eigval(p))/(2.0_dp*A_loc(p, q_loc))
 
-               tan_theta = SIGN(1.0_dp, tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau))
+               tan_theta = SIGN(1.0_dp, tau)/(ABS(tau) + SQRT(1.0_dp + tau*tau))
 
                ! cos theta
-               c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+               c = 1.0_dp/SQRT(1.0_dp + tan_theta*tan_theta)
                s = tan_theta*c
 
                ! Und jetzt noch die Eigenvektoren produzieren:
@@ -1273,16 +1273,16 @@ CONTAINS
       tau = 0.0_dp
 
       DO q = start_sec_block, N
-         DO p = 1, (start_sec_block-1)
+         DO p = 1, (start_sec_block - 1)
 
             IF (ABS(A(p, q)) > thresh) THEN
 
-               tau = (eigval(q)-eigval(p))/(2.0_dp*A(p, q))
+               tau = (eigval(q) - eigval(p))/(2.0_dp*A(p, q))
 
-               tan_theta = SIGN(1.0_dp, tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau))
+               tan_theta = SIGN(1.0_dp, tau)/(ABS(tau) + SQRT(1.0_dp + tau*tau))
 
                ! cos theta
-               c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+               c = 1.0_dp/SQRT(1.0_dp + tan_theta*tan_theta)
                s = tan_theta*c
 
                ! Und jetzt noch die Eigenvektoren produzieren:
@@ -1457,7 +1457,7 @@ CONTAINS
       nc = nao
       DO i = 1, nao
          IF (seigval(i) < epseig) THEN
-            nc = i-1
+            nc = i - 1
             EXIT
          END IF
       END DO
@@ -1466,17 +1466,17 @@ CONTAINS
       IF (nc /= nao) THEN
          IF (nc < nmo) THEN
             ! Copy NULL space definition to last vectors of eigenvectors (if needed)
-            ncol = nmo-nc
-            CALL cp_fm_to_fm(work, eigenvectors, ncol, nc+1, nc+1)
+            ncol = nmo - nc
+            CALL cp_fm_to_fm(work, eigenvectors, ncol, nc + 1, nc + 1)
          END IF
          ! Set NULL space in eigenvector matrix of S to zero
-         DO icol = nc+1, nao
+         DO icol = nc + 1, nao
             DO irow = 1, nao
                CALL cp_fm_set_element(work, irow, icol, 0.0_dp)
             END DO
          END DO
          ! Set small eigenvalues to a dummy save value
-         seigval(nc+1:nao) = 1.0_dp
+         seigval(nc + 1:nao) = 1.0_dp
       END IF
       ! calculate U*s**(-1/2)
       seigval(:) = 1.0_dp/SQRT(seigval(:))
@@ -1486,7 +1486,7 @@ CONTAINS
       CALL cp_fm_gemm("N", "N", nao, nao, nao, 1.0_dp, bmatrix, work, 0.0_dp, amatrix)
       IF (nc /= nao) THEN
          ! set diagonal values to save large value
-         DO icol = nc+1, nao
+         DO icol = nc + 1, nao
             CALL cp_fm_set_element(amatrix, icol, icol, 10000.0_dp)
          END DO
       END IF

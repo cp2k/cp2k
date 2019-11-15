@@ -91,7 +91,7 @@ CONTAINS
       ALLOCATE (pool)
       pool%el_struct => el_struct
       CALL cp_fm_struct_retain(pool%el_struct)
-      last_fm_pool_id_nr = last_fm_pool_id_nr+1
+      last_fm_pool_id_nr = last_fm_pool_id_nr + 1
       pool%id_nr = last_fm_pool_id_nr
       pool%ref_count = 1
       NULLIFY (pool%cache)
@@ -113,7 +113,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
 
-      pool%ref_count = pool%ref_count+1
+      pool%ref_count = pool%ref_count + 1
    END SUBROUTINE fm_pool_retain
 
 ! **************************************************************************************************
@@ -157,7 +157,7 @@ CONTAINS
 
       IF (ASSOCIATED(pool)) THEN
          CPASSERT(pool%ref_count > 0)
-         pool%ref_count = pool%ref_count-1
+         pool%ref_count = pool%ref_count - 1
          IF (pool%ref_count == 0) THEN
             pool%ref_count = 1
             CALL fm_pool_flush_cache(pool)

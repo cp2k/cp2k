@@ -157,7 +157,7 @@ CONTAINS
             CALL section_vals_val_get(density_fit_section, "PFACTOR", r_val=pfact)
             ALLOCATE (radii(num_gauss))
             DO i = 1, num_gauss
-               radii(i) = rcmin*pfact**(i-1)
+               radii(i) = rcmin*pfact**(i - 1)
             END DO
          END IF
          CALL section_vals_val_get(density_fit_section, "GCUT", r_val=gcut)
@@ -331,7 +331,7 @@ CONTAINS
          CALL section_vals_val_get(density_fit_section, "PFACTOR", r_val=pfact)
          ALLOCATE (radii(num_gauss))
          DO i = 1, num_gauss
-            radii(i) = rcmin*pfact**(i-1)
+            radii(i) = rcmin*pfact**(i - 1)
          END DO
       END IF
       IF (PRESENT(out_radii)) THEN
@@ -357,15 +357,15 @@ CONTAINS
       CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                           particle_set, radii, rho_tot_g, gcut); bv(:) = bv(:)/Vol
       CALL mp_sum(bv, rho_tot_g%pw_grid%para%group)
-      c1 = DOT_PRODUCT(cv, MATMUL(cp_ddapc_env%AmI, bv))-ch_dens
+      c1 = DOT_PRODUCT(cv, MATMUL(cp_ddapc_env%AmI, bv)) - ch_dens
       c1 = c1/cp_ddapc_env%c0
-      qv(:) = -MATMUL(cp_ddapc_env%AmI, (bv-c1*cv))
+      qv(:) = -MATMUL(cp_ddapc_env%AmI, (bv - c1*cv))
       j = 0
       qtot = 0.0_dp
       DO i = 1, ndim, num_gauss
-         j = j+1
+         j = j + 1
          DO ii = 1, num_gauss
-            qtot(j) = qtot(j)+qv((i-1)+ii)
+            qtot(j) = qtot(j) + qv((i - 1) + ii)
          END DO
       END DO
       IF (PRESENT(qout1)) THEN
@@ -415,7 +415,7 @@ CONTAINS
          !NB do build_der_A_matrix_rows in blocks, for more efficient use of DGEMM
 #define NPSET 100
          DO iparticle0 = 1, SIZE(particle_set), NPSET
-            nparticles = MIN(NPSET, SIZE(particle_set)-iparticle0+1)
+            nparticles = MIN(NPSET, SIZE(particle_set) - iparticle0 + 1)
             !NB each dAm is supposed to have one block of rows and one block of columns
             !NB for derivatives with respect to each atom.  build_der_A_matrix_rows()
             !NB just returns rows, since dAm is symmetric, and missing columns can be
@@ -429,7 +429,7 @@ CONTAINS
             !NB that contributions to dqv are distributed over the nodes.
             !NB also get rid of zeroing of dAm and division by Vol**2 - it's slow, and can be done
             !NB more quickly later, to a scalar or vector rather than a matrix
-            DO iparticle = iparticle0, iparticle0+nparticles-1
+            DO iparticle = iparticle0, iparticle0 + nparticles - 1
             IF (debug_this_module) THEN
                CALL debug_der_A_matrix(dAm, particle_set, radii, rho_tot_g, &
                                        gcut, iparticle, Vol, qs_env)
@@ -446,13 +446,13 @@ CONTAINS
             END IF
             DO j = 1, 3
                !NB dAmj is actually pretty sparse - one block of cols + one block of rows - use this here:
-               pmin = (iparticle-1)*SIZE(radii)+1
+               pmin = (iparticle - 1)*SIZE(radii) + 1
                pmax = iparticle*SIZE(radii)
                !NB multiply by block of columns that aren't explicitly in dAm, but can be reconstructured
                !NB as transpose of relevant block of rows
                IF (pmin > 1) THEN
-                  dAmj_qv(:pmin-1) = MATMUL(TRANSPOSE(dAm(pmin:pmax, :pmin-1, j)), qv(pmin:pmax))
-                  cvT_AmI_dAmj(:pmin-1) = MATMUL(TRANSPOSE(dAm(pmin:pmax, :pmin-1, j)), cvT_AmI(pmin:pmax))
+                  dAmj_qv(:pmin - 1) = MATMUL(TRANSPOSE(dAm(pmin:pmax, :pmin - 1, j)), qv(pmin:pmax))
+                  cvT_AmI_dAmj(:pmin - 1) = MATMUL(TRANSPOSE(dAm(pmin:pmax, :pmin - 1, j)), cvT_AmI(pmin:pmax))
                ENDIF
                !NB multiply by block of rows that are explicitly in dAm
                dAmj_qv(pmin:pmax) = MATMUL(dAm(pmin:pmax, :, j), qv(:))
@@ -460,16 +460,16 @@ CONTAINS
                !NB multiply by block of columns that aren't explicitly in dAm, but can be reconstructured
                !NB as transpose of relevant block of rows
                IF (pmax < SIZE(particle_set)*SIZE(radii)) THEN
-                  dAmj_qv(pmax+1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax, pmax+1:, j)), qv(pmin:pmax))
-                  cvT_AmI_dAmj(pmax+1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax, pmax+1:, j)), cvT_AmI(pmin:pmax))
+                  dAmj_qv(pmax + 1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax, pmax + 1:, j)), qv(pmin:pmax))
+                  cvT_AmI_dAmj(pmax + 1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax, pmax + 1:, j)), cvT_AmI(pmin:pmax))
                ENDIF
                dAmj_qv(:) = dAmj_qv(:)/(Vol*Vol)
                cvT_AmI_dAmj(:) = cvT_AmI_dAmj(:)/(Vol*Vol)
-               c3 = DOT_PRODUCT(cvT_AmI_dAmj, AmI_bv)-DOT_PRODUCT(cvT_AmI, dbv(:, j))-c1*DOT_PRODUCT(cvT_AmI_dAmj, AmI_cv)
-               tv(:, iparticle, j) = -(dAmj_qv(:)+dbv(:, j)+c3/cp_ddapc_env%c0*cv)
+               c3 = DOT_PRODUCT(cvT_AmI_dAmj, AmI_bv) - DOT_PRODUCT(cvT_AmI, dbv(:, j)) - c1*DOT_PRODUCT(cvT_AmI_dAmj, AmI_cv)
+               tv(:, iparticle, j) = -(dAmj_qv(:) + dbv(:, j) + c3/cp_ddapc_env%c0*cv)
             END DO ! j
             !NB zero relevant parts of dAm here
-            dAm((iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii), :, :) = 0.0_dp
+            dAm((iparticle - 1)*SIZE(radii) + 1:iparticle*SIZE(radii), :, :) = 0.0_dp
             !! dAm(:,(iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:) = 0.0_dp
             END DO ! iparticle
          END DO ! iparticle0
@@ -576,30 +576,30 @@ CONTAINS
       sfac = -1.0_dp/Vol
       fac = DOT_PRODUCT(cv, MATMUL(AmI, cv))
       fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
-      cv(:) = uv-cv*fac2/fac
+      cv(:) = uv - cv*fac2/fac
       cv(:) = MATMUL(AmI, cv)
-      IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1)+sfac*fac2/fac
+      IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
       DO ig = g_hartree%pw_grid%first_gne0, g_hartree%pw_grid%ngpts_cut_local
          g2 = g_hartree%pw_grid%gsq(ig)
-         w = 4.0_dp*pi*(g2-gcut2)**2.0_dp/(g2*gcut2)
+         w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
          IF (g2 > gcut2) EXIT
          gvec = g_hartree%pw_grid%g(:, ig)
          g_corr = 0.0_dp
          idim = 0
          DO iparticle = 1, SIZE(particle_set)
             DO igauss = 1, SIZE(radii)
-               idim = idim+1
+               idim = idim + 1
                rc = radii(igauss)
                rc2 = rc*rc
                rvec = particle_set(iparticle)%r
                arg = DOT_PRODUCT(gvec, rvec)
                phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
                gfunc = EXP(-g2*rc2/4.0_dp)
-               g_corr = g_corr+gfunc*cv(idim)*phase
+               g_corr = g_corr + gfunc*cv(idim)*phase
             END DO
          END DO
          g_corr = g_corr*w
-         g_hartree%cc(ig) = g_hartree%cc(ig)+sfac*g_corr/Vol
+         g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
       END DO
       CALL timestop(handle)
    END SUBROUTINE restraint_functional_potential
@@ -648,30 +648,30 @@ CONTAINS
       sfac = -1.0_dp/Vol
       fac = DOT_PRODUCT(cv, MATMUL(AmI, cv))
       fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
-      cv(:) = uv-cv*fac2/fac
+      cv(:) = uv - cv*fac2/fac
       cv(:) = MATMUL(AmI, cv)
-      IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1)+sfac*fac2/fac
+      IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
       DO ig = g_hartree%pw_grid%first_gne0, g_hartree%pw_grid%ngpts_cut_local
          g2 = g_hartree%pw_grid%gsq(ig)
-         w = 4.0_dp*pi*(g2-gcut2)**2.0_dp/(g2*gcut2)
+         w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
          IF (g2 > gcut2) EXIT
          gvec = g_hartree%pw_grid%g(:, ig)
          g_corr = 0.0_dp
          idim = 0
          DO iparticle = 1, SIZE(particle_set)
             DO igauss = 1, SIZE(radii)
-               idim = idim+1
+               idim = idim + 1
                rc = radii(igauss)
                rc2 = rc*rc
                rvec = particle_set(iparticle)%r
                arg = DOT_PRODUCT(gvec, rvec)
                phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
                gfunc = EXP(-g2*rc2/4.0_dp)
-               g_corr = g_corr+gfunc*cv(idim)*phase
+               g_corr = g_corr + gfunc*cv(idim)*phase
             END DO
          END DO
          g_corr = g_corr*w
-         g_hartree%cc(ig) = g_hartree%cc(ig)+sfac*g_corr/Vol
+         g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
       END DO
       CALL timestop(handle)
    END SUBROUTINE modify_hartree_pot
@@ -722,18 +722,18 @@ CONTAINS
       DO i = 1, 3
          bv1(:) = 0.0_dp
          bv2(:) = 0.0_dp
-         particle_set(iparticle)%r(i) = rvec(i)+dx
+         particle_set(iparticle)%r(i) = rvec(i) + dx
          CALL build_b_vector(bv1, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut); bv1(:) = bv1(:)/Vol
          CALL mp_sum(bv1, rho_tot_g%pw_grid%para%group)
-         particle_set(iparticle)%r(i) = rvec(i)-dx
+         particle_set(iparticle)%r(i) = rvec(i) - dx
          CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut); bv2(:) = bv2(:)/Vol
          CALL mp_sum(bv2, rho_tot_g%pw_grid%para%group)
-         ddbv(:) = (bv1(:)-bv2(:))/(2.0_dp*dx)
+         ddbv(:) = (bv1(:) - bv2(:))/(2.0_dp*dx)
          DO kk = 1, SIZE(ddbv)
             IF (ddbv(kk) .GT. 1.0E-8_dp) THEN
-               v0 = ABS(dbv(kk, i)-ddbv(kk))/ddbv(kk)*100.0_dp
+               v0 = ABS(dbv(kk, i) - ddbv(kk))/ddbv(kk)*100.0_dp
                WRITE (*, *) "Error % on B ::", v0
                IF (v0 .GT. 0.1_dp) THEN
                   WRITE (*, '(A,2I5,2F15.9)') "ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:", iparticle, i, &
@@ -800,21 +800,21 @@ CONTAINS
       DO i = 1, 3
          Am1 = 0.0_dp
          Am2 = 0.0_dp
-         particle_set(iparticle)%r(i) = rvec(i)+dx
+         particle_set(iparticle)%r(i) = rvec(i) + dx
          CALL build_A_matrix(Am1, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
          Am1(:, :) = Am1(:, :)/(Vol*Vol)
          CALL mp_sum(Am1, rho_tot_g%pw_grid%para%group)
-         particle_set(iparticle)%r(i) = rvec(i)-dx
+         particle_set(iparticle)%r(i) = rvec(i) - dx
          CALL build_A_matrix(Am2, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
          Am2(:, :) = Am2(:, :)/(Vol*Vol)
          CALL mp_sum(Am2, rho_tot_g%pw_grid%para%group)
-         ddAm(:, :) = (Am1-Am2)/(2.0_dp*dx)
+         ddAm(:, :) = (Am1 - Am2)/(2.0_dp*dx)
          DO kk = 1, SIZE(ddAm, 1)
             DO ll = 1, SIZE(ddAm, 2)
                IF (ddAm(kk, ll) .GT. 1.0E-8_dp) THEN
-                  v0 = ABS(dAm(kk, ll, i)-ddAm(kk, ll))/ddAm(kk, ll)*100.0_dp
+                  v0 = ABS(dAm(kk, ll, i) - ddAm(kk, ll))/ddAm(kk, ll)*100.0_dp
                   WRITE (*, *) "Error % on A ::", v0, Am1(kk, ll), Am2(kk, ll), iparticle, i, kk, ll
                   IF (v0 .GT. 0.1_dp) THEN
                      WRITE (*, '(A,4I5,2F15.9)') "ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:", iparticle, i, kk, ll, &
@@ -875,17 +875,17 @@ CONTAINS
       DO iparticle = 1, SIZE(particle_set)
          rvec = particle_set(iparticle)%r
          DO i = 1, 3
-            particle_set(iparticle)%r(i) = rvec(i)+dx
+            particle_set(iparticle)%r(i) = rvec(i) + dx
             CALL get_ddapc(qs_env, .FALSE., density_fit_section, qout1=qtot1, &
                            ext_rho_tot_g=rho_tot_g, Itype_of_density=type_of_density)
-            particle_set(iparticle)%r(i) = rvec(i)-dx
+            particle_set(iparticle)%r(i) = rvec(i) - dx
             CALL get_ddapc(qs_env, .FALSE., density_fit_section, qout1=qtot2, &
                            ext_rho_tot_g=rho_tot_g, Itype_of_density=type_of_density)
-            ddqv(:) = (qtot1-qtot2)/(2.0_dp*dx)
-            DO kk = 1, SIZE(qtot1)-1, SIZE(radii)
-               IF (ANY(ddqv(kk:kk+2) .GT. 1.0E-8_dp)) THEN
-                  WRITE (*, '(A,2F12.6,F12.2)') "Error :", SUM(dqv(kk:kk+2, iparticle, i)), SUM(ddqv(kk:kk+2)), &
-                     ABS((SUM(ddqv(kk:kk+2))-SUM(dqv(kk:kk+2, iparticle, i)))/SUM(ddqv(kk:kk+2))*100.0_dp)
+            ddqv(:) = (qtot1 - qtot2)/(2.0_dp*dx)
+            DO kk = 1, SIZE(qtot1) - 1, SIZE(radii)
+               IF (ANY(ddqv(kk:kk + 2) .GT. 1.0E-8_dp)) THEN
+                  WRITE (*, '(A,2F12.6,F12.2)') "Error :", SUM(dqv(kk:kk + 2, iparticle, i)), SUM(ddqv(kk:kk + 2)), &
+                     ABS((SUM(ddqv(kk:kk + 2)) - SUM(dqv(kk:kk + 2, iparticle, i)))/SUM(ddqv(kk:kk + 2))*100.0_dp)
                END IF
             END DO
             particle_set(iparticle)%r = rvec

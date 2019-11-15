@@ -55,7 +55,7 @@ CONTAINS
       REAL(dp)                                           :: ynew(SIZE(xnew))
 
       INTEGER                                            :: i, ip
-      REAL(dp)                                           :: c(0:4, SIZE(x)-1)
+      REAL(dp)                                           :: c(0:4, SIZE(x) - 1)
 
       ! get spline parameters: 2nd derivs at ends determined by cubic interpolation
       CALL spline3pars(x, y, [2, 2], [0._dp, 0._dp], c)
@@ -82,7 +82,7 @@ CONTAINS
       REAL(dp), INTENT(out), OPTIONAL                    :: ynew(:), dynew(:), d2ynew(:)
 
       INTEGER                                            :: i, ip
-      REAL(dp)                                           :: c(0:4, SIZE(x)-1)
+      REAL(dp)                                           :: c(0:4, SIZE(x) - 1)
 
       CALL spline3pars(x, y, [2, 2], [0._dp, 0._dp], c)
 
@@ -145,7 +145,7 @@ CONTAINS
       IF (bctype(1) < 1 .OR. bctype(1) > 2) CALL stop_error("spline3pars error: bctype /= 1 or 2.")
       IF (bctype(2) < 1 .OR. bctype(2) > 2) CALL stop_error("spline3pars error: bctype /= 1 or 2.")
       IF (SIZE(c, 1) /= 5) CALL stop_error("spline3pars error: size(c,1) /= 5.")
-      IF (SIZE(c, 2) /= SIZE(xi)-1) CALL stop_error("spline3pars error: size(c,2) /= size(xi)-1.")
+      IF (SIZE(c, 2) /= SIZE(xi) - 1) CALL stop_error("spline3pars error: size(c,2) /= size(xi)-1.")
       IF (SIZE(xi) /= SIZE(yi)) CALL stop_error("spline3pars error: size(xi) /= size(yi)")
 
       ! To get rid of compiler warnings:
@@ -154,8 +154,8 @@ CONTAINS
 
       ! initializations
       n = SIZE(xi)
-      DO i = 1, n-1
-         hi(i) = xi(i+1)-xi(i)
+      DO i = 1, n - 1
+         hi(i) = xi(i + 1) - xi(i)
       END DO
 
       ! compute interpolating-cubic 2nd derivs at ends, if required
@@ -167,7 +167,7 @@ CONTAINS
          x0 = xe(1) ! center at end
          DO i = 1, 4
             DO j = 1, 4
-               Ae(i, j) = (xe(i)-x0)**(j-1)
+               Ae(i, j) = (xe(i) - x0)**(j - 1)
             END DO
          END DO
          Ae(:, 1) = 1 ! set 0^0 = 1
@@ -180,12 +180,12 @@ CONTAINS
       ! right end
       IF (bctype(2) == 2) THEN
          IF (n < 4) CALL stop_error("spline3pars error: n < 4")
-         xe = xi(n-3:n)
-         ye = yi(n-3:n)
+         xe = xi(n - 3:n)
+         ye = yi(n - 3:n)
          x0 = xe(4) ! center at end
          DO i = 1, 4
             DO j = 1, 4
-               Ae(i, j) = (xe(i)-x0)**(j-1)
+               Ae(i, j) = (xe(i) - x0)**(j - 1)
             END DO
          END DO
          Ae(:, 1) = 1 ! set 0^0 = 1
@@ -209,40 +209,40 @@ CONTAINS
       As(4, 1) = 6/hi(1)**2
       bs(1) = d2p1
       ! internal knot conditions
-      DO i = 2, n-1
-         i2 = 2*(i-1)
-         As(5, i2-1) = 1/hi(i-1)
-         As(4, i2) = 2/hi(i-1)
-         As(3, i2+1) = 2/hi(i)
-         As(2, i2+2) = 1/hi(i)
-         As(5, i2) = 1/hi(i-1)**2
-         As(4, i2+1) = -1/hi(i)**2
-         bs(i2) = (yi(i+1)-yi(i))/hi(i)-(yi(i)-yi(i-1))/hi(i-1)
-         bs(i2+1) = 0
+      DO i = 2, n - 1
+         i2 = 2*(i - 1)
+         As(5, i2 - 1) = 1/hi(i - 1)
+         As(4, i2) = 2/hi(i - 1)
+         As(3, i2 + 1) = 2/hi(i)
+         As(2, i2 + 2) = 1/hi(i)
+         As(5, i2) = 1/hi(i - 1)**2
+         As(4, i2 + 1) = -1/hi(i)**2
+         bs(i2) = (yi(i + 1) - yi(i))/hi(i) - (yi(i) - yi(i - 1))/hi(i - 1)
+         bs(i2 + 1) = 0
       END DO
       ! right end condition
-      As(4, 2*(n-1)) = 6/hi(n-1)**2
-      bs(2*(n-1)) = d2pn
+      As(4, 2*(n - 1)) = 6/hi(n - 1)**2
+      bs(2*(n - 1)) = d2pn
 
       ! solve spline equations -- LAPACK band form
       bmat(:, 1) = bs
-      CALL lapack_sgbsv(2*(n-1), 1, 2, 1, As, 5, ipiv2, bmat, 2*(n-1), info)
+      CALL lapack_sgbsv(2*(n - 1), 1, 2, 1, As, 5, ipiv2, bmat, 2*(n - 1), info)
       IF (info /= 0) CALL stop_error("spline3pars error: dgbsv error.")
       cs = bmat(:, 1)
 
       ! transform to (x-x0)^(i-1) basis and return
-      DO i = 1, n-1
+      DO i = 1, n - 1
          ! coefficients in spline basis:
          c1 = yi(i)
-         c2 = yi(i+1)
-         c3 = cs(2*i-1)
+         c2 = yi(i + 1)
+         c3 = cs(2*i - 1)
          c4 = cs(2*i)
          ! coefficients in (x-x0)^(i-1) basis
          c(0, i) = xi(i)
          c(1, i) = c1
-         c(2, i) = -(c1-c2+2*c3+c4)/hi(i)
+         c(2, i) = -(c1 - c2 + 2*c3 + c4)/hi(i)
          c(3, i) = 3*c3/hi(i)**2
-         c(4, i) = (-c3+c4)/hi(i)**3
+         c(4, i) = (-c3 + c4)/hi(i)**3
       END DO
    END SUBROUTINE
 
@@ -276,7 +276,7 @@ CONTAINS
       ! initialize, check input parameters
       n = SIZE(xi)
       IF (SIZE(c, 1) /= 5) CALL stop_error("spline3 error: size(c,1) /= 5.")
-      IF (SIZE(c, 2) /= SIZE(xi)-1) CALL stop_error("spline3 error: size(c,2) /= size(xi)-1.")
+      IF (SIZE(c, 2) /= SIZE(xi) - 1) CALL stop_error("spline3 error: size(c,2) /= size(xi)-1.")
       ! find interval containing x
       i1 = iix(x, xi)
       ! return value and derivative
@@ -325,13 +325,13 @@ CONTAINS
       ELSEIF (x <= xi(3)) THEN ! second element
          i1 = 2
       ELSEIF (x >= xi(n)) THEN ! right end
-         i1 = n-1
+         i1 = n - 1
       ELSE
          ! bisection: xi(i1) <= x < xi(i2)
          i1 = 3; i2 = n
          DO
-            IF (i2-i1 == 1) EXIT
-            ic = i1+(i2-i1)/2
+            IF (i2 - i1 == 1) EXIT
+            ic = i1 + (i2 - i1)/2
             IF (x >= xi(ic)) THEN
                i1 = ic
             ELSE
@@ -353,8 +353,8 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: x, xi(:)
       INTEGER, INTENT(in)                                :: i_min
 
-      IF (i_min >= 1 .AND. i_min <= SIZE(xi)-1) THEN
-         ip = iix(x, xi(i_min:))+i_min-1
+      IF (i_min >= 1 .AND. i_min <= SIZE(xi) - 1) THEN
+         ip = iix(x, xi(i_min:)) + i_min - 1
       ELSE
          ip = iix(x, xi)
       END IF
@@ -389,10 +389,10 @@ CONTAINS
       ! final point of mesh
 
       ! compute index
-      i = INT((x-x1)/(xn-x1)*(n-1))+1
+      i = INT((x - x1)/(xn - x1)*(n - 1)) + 1
       ! reset if ouside 1..n
       IF (i < 1) i = 1
-      IF (i > n-1) i = n-1
+      IF (i > n - 1) i = n - 1
       iixun = i
    END FUNCTION
 
@@ -432,10 +432,10 @@ CONTAINS
       ! mesh parameter
 
       ! compute index
-      i = INT(LOG((x-x1)/alpha+1)/beta)+1
+      i = INT(LOG((x - x1)/alpha + 1)/beta) + 1
       ! reset if outside 1..n
       IF (i < 1) i = 1
-      IF (i > n-1) i = n-1
+      IF (i > n - 1) i = n - 1
       iixexp = i
    END FUNCTION
 
@@ -457,8 +457,8 @@ CONTAINS
       ! point at which to evaluate polynomial
       ! coefficients: poly = \sum_{i=1}^4 c(i) (x-c(0))^(i-1)
 
-      dx = x-c(0)
-      poly3 = c(1)+c(2)*dx+c(3)*dx**2+c(4)*dx**3
+      dx = x - c(0)
+      poly3 = c(1) + c(2)*dx + c(3)*dx**2 + c(4)*dx**3
    END FUNCTION
 
 !--------------------------------------------------------------------------------------------------!
@@ -479,8 +479,8 @@ CONTAINS
       ! point at which to evaluate polynomial
       ! coefficients: poly = \sum_{i=1}^4 c(i) (x-c(0))^(i-1)
 
-      dx = x-c(0)
-      dpoly3 = c(2)+2*c(3)*dx+3*c(4)*dx**2
+      dx = x - c(0)
+      dpoly3 = c(2) + 2*c(3)*dx + 3*c(4)*dx**2
    END FUNCTION
 
 !--------------------------------------------------------------------------------------------------!
@@ -501,8 +501,8 @@ CONTAINS
       ! point at which to evaluate polynomial
       ! coefficients: poly = \sum_{i=1}^4 c(i) (x-c(0))^(i-1)
 
-      dx = x-c(0)
-      d2poly3 = 2*c(3)+6*c(4)*dx
+      dx = x - c(0)
+      d2poly3 = 2*c(3) + 6*c(4)*dx
    END FUNCTION
 
 !--------------------------------------------------------------------------------------------------!

@@ -374,10 +374,10 @@ CONTAINS
       INTEGER                                            :: fgpm, k, l, lgpm
       REAL(dp)                                           :: error, xa(max_inter), ya(max_inter)
 
-      lgpm = MIN(clgp+INT(max_inter/2.0), ngrd)
-      fgpm = lgpm-max_inter+1
-      DO k = 0, max_inter-1
-         xa(k+1) = (fgpm+k)*dgrd
+      lgpm = MIN(clgp + INT(max_inter/2.0), ngrd)
+      fgpm = lgpm - max_inter + 1
+      DO k = 0, max_inter - 1
+         xa(k + 1) = (fgpm + k)*dgrd
       END DO
       !
       ! Interpolate matrix elements for all orbitals
@@ -411,16 +411,16 @@ CONTAINS
       REAL(dp)                                           :: error, xa(max_extra), ya(max_extra)
 
       nzero = max_extra/3
-      ntable = max_extra-nzero
+      ntable = max_extra - nzero
       !
       ! Get the three last distances from the table
       !
       DO k = 1, ntable
-         xa(k) = (ngrd-(max_extra-3)+k)*dgrd
+         xa(k) = (ngrd - (max_extra - 3) + k)*dgrd
       END DO
       DO k = 1, nzero
-         xa(ntable+k) = (ngrd+k-1)*dgrd+slako_d0
-         ya(ntable+k) = 0.0
+         xa(ntable + k) = (ngrd + k - 1)*dgrd + slako_d0
+         ya(ntable + k) = 0.0
       END DO
       !
       ! Extrapolate matrix elements for all orbitals
@@ -429,9 +429,9 @@ CONTAINS
          !
          ! Read SK parameters from table
          !
-         fgp = ngrd+1-(max_extra-3)
+         fgp = ngrd + 1 - (max_extra - 3)
          lgp = ngrd
-         ya(1:max_extra-3) = slakotab(fgp:lgp, l)
+         ya(1:max_extra - 3) = slakotab(fgp:lgp, l)
          CALL polint(xa, ya, max_extra, dx, skpar(l), error)
       END DO
    END SUBROUTINE extrapol
@@ -571,7 +571,7 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: skpar(:)
       REAL(dp), INTENT(inout)                            :: mat(:, :)
 
-         mat(1, 1) = mat(1, 1)+skpar(1)
+         mat(1, 1) = mat(1, 1) + skpar(1)
          !
       END SUBROUTINE skss
 
@@ -595,11 +595,11 @@ CONTAINS
          skp = skpar(ind(1, 0, 0))
          IF (transposed) THEN
             DO l = 1, 3
-               mat(1, l+1) = mat(1, l+1)+rr(l)*skp
+               mat(1, l + 1) = mat(1, l + 1) + rr(l)*skp
             END DO
          ELSE
             DO l = 1, 3
-               mat(l+1, 1) = mat(l+1, 1)-rr(l)*skp
+               mat(l + 1, 1) = mat(l + 1, 1) - rr(l)*skp
             END DO
          END IF
          !
@@ -621,26 +621,26 @@ CONTAINS
 
          epp(1:3) = rr2(1:3)
          DO l = 1, 3
-            epp(l+3) = rr(l)*rr(l+1)
+            epp(l + 3) = rr(l)*rr(l + 1)
          END DO
          skppp = skpar(ind(1, 1, 1))
          skpps = skpar(ind(1, 1, 0))
          !
          DO l = 1, 3
-            matel(l) = epp(l)*skpps+(1._dp-epp(l))*skppp
+            matel(l) = epp(l)*skpps + (1._dp - epp(l))*skppp
          END DO
          DO l = 4, 6
-            matel(l) = epp(l)*(skpps-skppp)
+            matel(l) = epp(l)*(skpps - skppp)
          END DO
          !
          DO ir = 1, 3
-            DO is = 1, ir-1
-               ii = ir-is
-               k = 3*ii-(ii*(ii-1))/2+is
-               mat(is+1, ir+1) = mat(is+1, ir+1)+matel(k)
-               mat(ir+1, is+1) = mat(ir+1, is+1)+matel(k)
+            DO is = 1, ir - 1
+               ii = ir - is
+               k = 3*ii - (ii*(ii - 1))/2 + is
+               mat(is + 1, ir + 1) = mat(is + 1, ir + 1) + matel(k)
+               mat(ir + 1, is + 1) = mat(ir + 1, is + 1) + matel(k)
             END DO
-            mat(ir+1, ir+1) = mat(ir+1, ir+1)+matel(ir)
+            mat(ir + 1, ir + 1) = mat(ir + 1, ir + 1) + matel(ir)
          END DO
       END SUBROUTINE skpp
 
@@ -662,22 +662,22 @@ CONTAINS
 
          sksds = skpar(ind(2, 0, 0))
          r3 = SQRT(3._dp)
-         d4 = rr2(3)-0.5_dp*(rr2(1)+rr2(2))
-         d5 = rr2(1)-rr2(2)
+         d4 = rr2(3) - 0.5_dp*(rr2(1) + rr2(2))
+         d5 = rr2(1) - rr2(2)
          !
          DO l = 1, 3
-            es(l) = r3*rr(l)*rr(l+1)
+            es(l) = r3*rr(l)*rr(l + 1)
          END DO
          es(4) = 0.5_dp*r3*d5
          es(5) = d4
          !
          IF (transposed) THEN
             DO l = 1, 5
-               mat(1, l+4) = mat(1, l+4)+es(l)*sksds
+               mat(1, l + 4) = mat(1, l + 4) + es(l)*sksds
             END DO
          ELSE
             DO l = 1, 5
-               mat(l+4, 1) = mat(l+4, 1)+es(l)*sksds
+               mat(l + 4, 1) = mat(l + 4, 1) + es(l)*sksds
             END DO
          END IF
       END SUBROUTINE sksd
@@ -700,23 +700,23 @@ CONTAINS
                                                             sktmp
 
          r3 = SQRT(3.0_dp)
-         d3 = rr2(1)+rr2(2)
-         d4 = rr2(3)-0.5_dp*d3
-         d5 = rr2(1)-rr2(2)
+         d3 = rr2(1) + rr2(2)
+         d4 = rr2(3) - 0.5_dp*d3
+         d5 = rr2(1) - rr2(2)
          d6 = rr(1)*rr(2)*rr(3)
          DO l = 1, 3
-            epd(l, 1) = r3*rr2(l)*rr(l+1)
-            epd(l, 2) = rr(l+1)*(1.0_dp-2._dp*rr2(l))
-            epd(l+4, 1) = r3*rr2(l)*rr(l+2)
-            epd(l+4, 2) = rr(l+2)*(1.0_dp-2*rr2(l))
-            epd(l+7, 1) = 0.5_dp*r3*rr(l)*d5
-            epd(l+10, 1) = rr(l)*d4
+            epd(l, 1) = r3*rr2(l)*rr(l + 1)
+            epd(l, 2) = rr(l + 1)*(1.0_dp - 2._dp*rr2(l))
+            epd(l + 4, 1) = r3*rr2(l)*rr(l + 2)
+            epd(l + 4, 2) = rr(l + 2)*(1.0_dp - 2*rr2(l))
+            epd(l + 7, 1) = 0.5_dp*r3*rr(l)*d5
+            epd(l + 10, 1) = rr(l)*d4
          END DO
          !
          epd(4, 1) = r3*d6
          epd(4, 2) = -2._dp*d6
-         epd(8, 2) = rr(1)*(1.0_dp-d5)
-         epd(9, 2) = -rr(2)*(1.0_dp+d5)
+         epd(8, 2) = rr(1)*(1.0_dp - d5)
+         epd(9, 2) = -rr(2)*(1.0_dp + d5)
          epd(10, 2) = -rr(3)*d5
          epd(11, 2) = -r3*rr(1)*rr2(3)
          epd(12, 2) = -r3*rr(2)*rr2(3)
@@ -725,16 +725,16 @@ CONTAINS
          dm(1:15) = 0.0_dp
          !
          DO m = 1, 2
-            sktmp = skpar(ind(2, 1, m-1))
-            dm(1) = dm(1)+epd(1, m)*sktmp
-            dm(2) = dm(2)+epd(6, m)*sktmp
-            dm(3) = dm(3)+epd(4, m)*sktmp
-            dm(5) = dm(5)+epd(2, m)*sktmp
-            dm(6) = dm(6)+epd(7, m)*sktmp
-            dm(7) = dm(7)+epd(5, m)*sktmp
-            dm(9) = dm(9)+epd(3, m)*sktmp
+            sktmp = skpar(ind(2, 1, m - 1))
+            dm(1) = dm(1) + epd(1, m)*sktmp
+            dm(2) = dm(2) + epd(6, m)*sktmp
+            dm(3) = dm(3) + epd(4, m)*sktmp
+            dm(5) = dm(5) + epd(2, m)*sktmp
+            dm(6) = dm(6) + epd(7, m)*sktmp
+            dm(7) = dm(7) + epd(5, m)*sktmp
+            dm(9) = dm(9) + epd(3, m)*sktmp
             DO l = 8, 13
-               dm(l+2) = dm(l+2)+epd(l, m)*sktmp
+               dm(l + 2) = dm(l + 2) + epd(l, m)*sktmp
             END DO
          END DO
          !
@@ -744,15 +744,15 @@ CONTAINS
          IF (transposed) THEN
             DO ir = 1, 5
                DO is = 1, 3
-                  k = 3*(ir-1)+is
-                  mat(is+1, ir+4) = mat(is+1, ir+4)+dm(k)
+                  k = 3*(ir - 1) + is
+                  mat(is + 1, ir + 4) = mat(is + 1, ir + 4) + dm(k)
                END DO
             END DO
          ELSE
             DO ir = 1, 5
                DO is = 1, 3
-                  k = 3*(ir-1)+is
-                  mat(ir+4, is+1) = mat(ir+4, is+1)-dm(k)
+                  k = 3*(ir - 1) + is
+                  mat(ir + 4, is + 1) = mat(ir + 4, is + 1) - dm(k)
                END DO
             END DO
          END IF
@@ -774,18 +774,18 @@ CONTAINS
       REAL(dp)                                           :: d3, d4, d5, dd(3), dm(15), e(15, 3), r3
 
          r3 = SQRT(3._dp)
-         d3 = rr2(1)+rr2(2)
-         d4 = rr2(3)-0.5_dp*d3
-         d5 = rr2(1)-rr2(2)
+         d3 = rr2(1) + rr2(2)
+         d4 = rr2(3) - 0.5_dp*d3
+         d5 = rr2(1) - rr2(2)
          DO l = 1, 3
-            e(l, 1) = rr2(l)*rr2(l+1)
-            e(l, 2) = rr2(l)+rr2(l+1)-4._dp*e(l, 1)
-            e(l, 3) = rr2(l+2)+e(l, 1)
+            e(l, 1) = rr2(l)*rr2(l + 1)
+            e(l, 2) = rr2(l) + rr2(l + 1) - 4._dp*e(l, 1)
+            e(l, 3) = rr2(l + 2) + e(l, 1)
             e(l, 1) = 3._dp*e(l, 1)
          END DO
          e(4, 1) = d5**2
-         e(4, 2) = d3-e(4, 1)
-         e(4, 3) = rr2(3)+0.25_dp*e(4, 1)
+         e(4, 2) = d3 - e(4, 1)
+         e(4, 3) = rr2(3) + 0.25_dp*e(4, 1)
          e(4, 1) = 0.75_dp*e(4, 1)
          e(5, 1) = d4**2
          e(5, 2) = 3._dp*rr2(3)*d3
@@ -794,22 +794,22 @@ CONTAINS
          dd(2) = rr(2)*rr(1)
          dd(3) = rr(3)*rr(2)
          DO l = 1, 2
-            e(l+5, 1) = 3._dp*rr2(l+1)*dd(l)
-            e(l+5, 2) = dd(l)*(1._dp-4._dp*rr2(l+1))
-            e(l+5, 3) = dd(l)*(rr2(l+1)-1._dp)
+            e(l + 5, 1) = 3._dp*rr2(l + 1)*dd(l)
+            e(l + 5, 2) = dd(l)*(1._dp - 4._dp*rr2(l + 1))
+            e(l + 5, 3) = dd(l)*(rr2(l + 1) - 1._dp)
          END DO
          e(8, 1) = dd(1)*d5*1.5_dp
-         e(8, 2) = dd(1)*(1.0_dp-2.0_dp*d5)
-         e(8, 3) = dd(1)*(0.5_dp*d5-1.0_dp)
+         e(8, 2) = dd(1)*(1.0_dp - 2.0_dp*d5)
+         e(8, 3) = dd(1)*(0.5_dp*d5 - 1.0_dp)
          e(9, 1) = d5*0.5_dp*d4*r3
          e(9, 2) = -d5*rr2(3)*r3
-         e(9, 3) = d5*0.25_dp*(1.0_dp+rr2(3))*r3
+         e(9, 3) = d5*0.25_dp*(1.0_dp + rr2(3))*r3
          e(10, 1) = rr2(1)*dd(3)*3.0_dp
-         e(10, 2) = (0.25_dp-rr2(1))*dd(3)*4.0_dp
-         e(10, 3) = dd(3)*(rr2(1)-1.0_dp)
+         e(10, 2) = (0.25_dp - rr2(1))*dd(3)*4.0_dp
+         e(10, 3) = dd(3)*(rr2(1) - 1.0_dp)
          e(11, 1) = 1.5_dp*dd(3)*d5
-         e(11, 2) = -dd(3)*(1.0_dp+2.0_dp*d5)
-         e(11, 3) = dd(3)*(1.0_dp+0.5_dp*d5)
+         e(11, 2) = -dd(3)*(1.0_dp + 2.0_dp*d5)
+         e(11, 3) = dd(3)*(1.0_dp + 0.5_dp*d5)
          e(13, 3) = 0.5_dp*d5*dd(2)
          e(13, 2) = -2.0_dp*dd(2)*d5
          e(13, 1) = e(13, 3)*3.0_dp
@@ -817,27 +817,27 @@ CONTAINS
          e(14, 1) = d4*dd(3)*r3
          e(15, 1) = d4*dd(2)*r3
          e(15, 2) = -2.0_dp*r3*dd(2)*rr2(3)
-         e(15, 3) = 0.5_dp*r3*(1.0_dp+rr2(3))*dd(2)
-         e(14, 2) = r3*dd(3)*(d3-rr2(3))
+         e(15, 3) = 0.5_dp*r3*(1.0_dp + rr2(3))*dd(2)
+         e(14, 2) = r3*dd(3)*(d3 - rr2(3))
          e(14, 3) = -r3*0.5_dp*dd(3)*d3
-         e(12, 2) = r3*dd(1)*(d3-rr2(3))
+         e(12, 2) = r3*dd(1)*(d3 - rr2(3))
          e(12, 3) = -r3*0.5_dp*dd(1)*d3
          !
          dm(1:15) = 0._dp
          DO l = 1, 15
             DO m = 1, 3
-               dm(l) = dm(l)+e(l, m)*skpar(ind(2, 2, m-1))
+               dm(l) = dm(l) + e(l, m)*skpar(ind(2, 2, m - 1))
             END DO
          END DO
          !
          DO ir = 1, 5
-            DO is = 1, ir-1
-               ii = ir-is
-               k = 5*ii-(ii*(ii-1))/2+is
-               mat(ir+4, is+4) = mat(ir+4, is+4)+dm(k)
-               mat(is+4, ir+4) = mat(is+4, ir+4)+dm(k)
+            DO is = 1, ir - 1
+               ii = ir - is
+               k = 5*ii - (ii*(ii - 1))/2 + is
+               mat(ir + 4, is + 4) = mat(ir + 4, is + 4) + dm(k)
+               mat(is + 4, ir + 4) = mat(is + 4, ir + 4) + dm(k)
             END DO
-            mat(ir+4, ir+4) = mat(ir+4, ir+4)+dm(ir)
+            mat(ir + 4, ir + 4) = mat(ir + 4, ir + 4) + dm(ir)
          END DO
       END SUBROUTINE skdd
       !
@@ -867,9 +867,9 @@ CONTAINS
 
       ns = 1
 
-      dif = ABS(x-xa(1))
+      dif = ABS(x - xa(1))
       DO i = 1, n
-         dift = ABS(x-xa(i))
+         dift = ABS(x - xa(i))
          IF (dift .LT. dif) THEN
             ns = i
             dif = dift
@@ -879,25 +879,25 @@ CONTAINS
       END DO
       !
       y = ya(ns)
-      ns = ns-1
-      DO m = 1, n-1
-         DO i = 1, n-m
-            ho = xa(i)-x
-            hp = xa(i+m)-x
-            w = c(i+1)-d(i)
-            den = ho-hp
+      ns = ns - 1
+      DO m = 1, n - 1
+         DO i = 1, n - m
+            ho = xa(i) - x
+            hp = xa(i + m) - x
+            w = c(i + 1) - d(i)
+            den = ho - hp
             CPASSERT(den /= 0.0_dp)
             den = w/den
             d(i) = hp*den
             c(i) = ho*den
          END DO
-         IF (2*ns .LT. n-m) THEN
-            dy = c(ns+1)
+         IF (2*ns .LT. n - m) THEN
+            dy = c(ns + 1)
          ELSE
             dy = d(ns)
-            ns = ns-1
+            ns = ns - 1
          ENDIF
-         y = y+dy
+         y = y + dy
       END DO
 !
       RETURN
@@ -941,14 +941,14 @@ CONTAINS
          !
          ! polynomial part
          !
-         rz = urep(1)-r
+         rz = urep(1) - r
          IF (rz <= rtiny) RETURN
          DO ic = 2, n_urpoly
-            erep = erep+urep(ic)*rz**(ic)
+            erep = erep + urep(ic)*rz**(ic)
          END DO
          IF (dograd) THEN
             DO ic = 2, n_urpoly
-               de_z = de_z-ic*urep(ic)*rz**(ic-1)
+               de_z = de_z - ic*urep(ic)*rz**(ic - 1)
             END DO
          END IF
       ELSE IF (spdim > 0) THEN
@@ -968,8 +968,8 @@ CONTAINS
          !
          IF (r < spxr(1, 1)) THEN
             ! a) short range
-            erep = erep+EXP(-srep(1)*r+srep(2))+srep(3)
-            IF (dograd) de_z = de_z-srep(1)*EXP(-srep(1)*r+srep(2))
+            erep = erep + EXP(-srep(1)*r + srep(2)) + srep(3)
+            IF (dograd) de_z = de_z - srep(1)*EXP(-srep(1)*r + srep(2))
          ELSE
             !
             ! condition c). First determine between which places the spline is located:
@@ -978,32 +978,32 @@ CONTAINS
                IF (r < spxr(isp, 1)) CYCLE ispg ! distance is smaller than this spline range
                IF (r >= spxr(isp, 2)) CYCLE ispg ! distance is larger than this spline range
                ! at this point we have found the correct spline interval
-               rz = r-spxr(isp, 1)
+               rz = r - spxr(isp, 1)
                IF (isp /= spdim) THEN
                   nsp = 3 ! condition ca
                   DO jsp = 0, nsp
-                     erep = erep+scoeff(isp, jsp+1)*rz**(jsp)
+                     erep = erep + scoeff(isp, jsp + 1)*rz**(jsp)
                   END DO
                   IF (dograd) THEN
                      DO jsp = 1, nsp
-                        de_z = de_z+jsp*scoeff(isp, jsp+1)*rz**(jsp-1)
+                        de_z = de_z + jsp*scoeff(isp, jsp + 1)*rz**(jsp - 1)
                      END DO
                   END IF
                ELSE
                   nsp = 5 ! condition cb
                   DO jsp = 0, nsp
                      IF (jsp <= 3) THEN
-                        erep = erep+scoeff(isp, jsp+1)*rz**(jsp)
+                        erep = erep + scoeff(isp, jsp + 1)*rz**(jsp)
                      ELSE
-                        erep = erep+surr(jsp-3)*rz**(jsp)
+                        erep = erep + surr(jsp - 3)*rz**(jsp)
                      ENDIF
                   END DO
                   IF (dograd) THEN
                      DO jsp = 1, nsp
                         IF (jsp <= 3) THEN
-                           de_z = de_z+jsp*scoeff(isp, jsp+1)*rz**(jsp-1)
+                           de_z = de_z + jsp*scoeff(isp, jsp + 1)*rz**(jsp - 1)
                         ELSE
-                           de_z = de_z+jsp*surr(jsp-3)*rz**(jsp-1)
+                           de_z = de_z + jsp*surr(jsp - 3)*rz**(jsp - 1)
                         ENDIF
                      END DO
                   END IF

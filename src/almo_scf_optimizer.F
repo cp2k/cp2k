@@ -190,7 +190,7 @@ CONTAINS
       t1 = m_walltime()
       DO
 
-         iscf = iscf+1
+         iscf = iscf + 1
 
          ! obtain projected KS matrix and the DIIS-error vector
          CALL almo_scf_ks_to_ks_blk(almo_scf_env)
@@ -254,7 +254,7 @@ CONTAINS
                      CALL dbcsr_add(almo_scf_env%matrix_ks_blk(ispin), &
                                     matrix_mixing_old_blk(ispin), &
                                     true_mixing_fraction, &
-                                    1.0_dp-true_mixing_fraction)
+                                    1.0_dp - true_mixing_fraction)
                   END DO
                ENDIF
             ENDIF
@@ -377,7 +377,7 @@ CONTAINS
 
          ENDIF ! prepare_to_exit
 
-         energy_diff = energy_new-energy_old
+         energy_diff = energy_new - energy_old
          energy_old = energy_new
          almo_scf_env%almo_scf_energy = energy_new
 
@@ -386,7 +386,7 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2)') "ALMO SCF DIIS", &
                iscf, &
-               energy_new, energy_diff, error_norm, t2-t1
+               energy_new, energy_diff, error_norm, t2 - t1
          ENDIF
          t1 = m_walltime()
 
@@ -547,7 +547,7 @@ CONTAINS
       t1 = m_walltime()
       DO
 
-         iscf = iscf+1
+         iscf = iscf + 1
 
          ! obtain projected KS matrix and the DIIS-error vector
          CALL almo_scf_ks_to_ks_xx(almo_scf_env)
@@ -594,7 +594,7 @@ CONTAINS
                      CALL add_submatrices( &
                         almo_scf_env%mixing_fraction, &
                         almo_scf_env%domain_ks_xx(:, ispin), &
-                        1.0_dp-almo_scf_env%mixing_fraction, &
+                        1.0_dp - almo_scf_env%mixing_fraction, &
                         submatrix_mixing_old_blk(:, ispin), &
                         'N')
                   END DO
@@ -678,7 +678,7 @@ CONTAINS
 
                   !! RS-WARNING: If smearing ALMO is requested, electronic entropy contribution should probably be included here
 
-                  denergy_tot = denergy_tot+denergy_spin(ispin)
+                  denergy_tot = denergy_tot + denergy_spin(ispin)
 
                   ! RZK-warning Energy correction can be evaluated using matrix_x
                   ! as shown in the attempt below and in the PCG procedure.
@@ -751,7 +751,7 @@ CONTAINS
                   WRITE (unit_nr, '(T2,A35,F25.10)') "ENERGY LOWERING:", &
                      denergy_tot
                   WRITE (unit_nr, '(T2,A35,F25.10)') "CORRECTED ENERGY:", &
-                     almo_scf_env%almo_scf_energy+denergy_tot
+                     almo_scf_env%almo_scf_energy + denergy_tot
                   WRITE (unit_nr, *)
                ENDIF
                CALL almo_scf_update_ks_energy(qs_env, &
@@ -789,7 +789,7 @@ CONTAINS
 
          ELSE ! not a perturbative treatment
 
-            energy_diff = energy_new-energy_old
+            energy_diff = energy_new - energy_old
             energy_old = energy_new
             almo_scf_env%almo_scf_energy = energy_new
 
@@ -798,7 +798,7 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,I6,F20.9,E11.3,E11.3,E11.3,F8.2)') "ALMO SCF", &
                   iscf, &
-                  energy_new, energy_diff, error_norm, error_norm_0, t2-t1
+                  energy_new, energy_diff, error_norm, error_norm_0, t2 - t1
             ENDIF
             t1 = m_walltime()
 
@@ -1243,7 +1243,7 @@ CONTAINS
                   ! calculate objective function Tr(F_0 R)
                   IF (ispin .EQ. 1) energy_new = 0.0_dp
                   CALL dbcsr_dot(matrix_t_out(ispin), FTsiginv(ispin), energy_ispin)
-                  energy_new = energy_new+energy_ispin*spin_factor
+                  energy_new = energy_new + energy_ispin*spin_factor
                ENDIF
 
                IF (penalty_occ_vol) THEN
@@ -1299,7 +1299,7 @@ CONTAINS
                      WRITE (unit_nr, *) "energy, penalty: ", energy_new, penalty_func_new
                   ENDIF
                   ! this is not pure energy anymore
-                  energy_new = energy_new+penalty_func_new
+                  energy_new = energy_new + penalty_func_new
                ENDIF
 
             ENDDO ! ispin
@@ -1452,7 +1452,7 @@ CONTAINS
                      IF (.NOT. line_search) THEN
 
                         line_search = .TRUE.
-                        line_search_iteration = line_search_iteration+1
+                        line_search_iteration = line_search_iteration + 1
 
                      ELSE
 
@@ -1465,11 +1465,11 @@ CONTAINS
                         DO ispin = 1, nspins
 
                            CALL dbcsr_dot(grad(ispin), step(ispin), tempreal)
-                           line_search_error = line_search_error+tempreal
+                           line_search_error = line_search_error + tempreal
                            CALL dbcsr_dot(grad(ispin), grad(ispin), tempreal)
-                           denom = denom+tempreal
+                           denom = denom + tempreal
                            CALL dbcsr_dot(step(ispin), step(ispin), tempreal)
-                           denom2 = denom2+tempreal
+                           denom2 = denom2 + tempreal
 
                         ENDDO ! ispin
 
@@ -1479,7 +1479,7 @@ CONTAINS
 
                         IF (ABS(line_search_error) .GT. optimizer%lin_search_eps_error) THEN
                            line_search = .TRUE.
-                           line_search_iteration = line_search_iteration+1
+                           line_search_iteration = line_search_iteration + 1
                         ELSE
                            line_search = .FALSE.
                            line_search_iteration = 0
@@ -1494,12 +1494,12 @@ CONTAINS
 
                      IF (.NOT. line_search) THEN
                         line_search = .TRUE.
-                        line_search_iteration = line_search_iteration+1
+                        line_search_iteration = line_search_iteration + 1
                      ELSE
                         IF (line_search_iteration .EQ. fixed_line_search_niter) THEN
                            line_search = .FALSE.
                            line_search_iteration = 0
-                           line_search_iteration = line_search_iteration+1
+                           line_search_iteration = line_search_iteration + 1
                         ENDIF
                      ENDIF
 
@@ -1510,7 +1510,7 @@ CONTAINS
                IF (line_search) THEN
                   energy_diff = 0.0_dp
                ELSE
-                  energy_diff = energy_new-energy_old
+                  energy_diff = energy_new - energy_old
                   energy_old = energy_new
                ENDIF
 
@@ -1521,7 +1521,7 @@ CONTAINS
                   !   WRITE(unit_nr,*) "....updating step direction...."
                   !ENDIF
 
-                  cg_iteration = cg_iteration+1
+                  cg_iteration = cg_iteration + 1
 
                   ! save the previous step
                   DO ispin = 1, nspins
@@ -1721,7 +1721,7 @@ CONTAINS
                   g0 = 0.0_dp
                   DO ispin = 1, nspins
                      CALL dbcsr_dot(grad(ispin), step(ispin), tempreal)
-                     g0 = g0+tempreal
+                     g0 = g0 + tempreal
                   ENDDO ! ispin
                   IF (iteration .EQ. 0) THEN
                      step_size = optimizer%lin_search_step_size_guess
@@ -1744,11 +1744,11 @@ CONTAINS
                      g1 = 0.0_dp
                      DO ispin = 1, nspins
                         CALL dbcsr_dot(grad(ispin), step(ispin), tempreal)
-                        g1 = g1+tempreal
+                        g1 = g1 + tempreal
                      ENDDO ! ispin
                      ! we have accumulated some points along this direction
                      ! use only the most recent g0 (quadratic approximation)
-                     appr_sec_der = (g1-g0)/step_size
+                     appr_sec_der = (g1 - g0)/step_size
                      !IF (unit_nr > 0) THEN
                      !   WRITE (unit_nr, '(A2,7F12.5)') &
                      !      "EG", e0, e1, g0, g1, appr_sec_der, step_size, -g1/appr_sec_der
@@ -1761,8 +1761,8 @@ CONTAINS
                      ! if the next iteration is also line_search
                      ! use e1 and the calculated g1 as e0 and g0
                      e1 = energy_new
-                     appr_sec_der = 2.0*((e1-e0)/step_size-g0)/step_size
-                     g1 = appr_sec_der*step_size+g0
+                     appr_sec_der = 2.0*((e1 - e0)/step_size - g0)/step_size
+                     g1 = appr_sec_der*step_size + g0
                      !IF (unit_nr > 0) THEN
                      !   WRITE (unit_nr, '(A2,7F12.5)') &
                      !      "EG", e0, e1, g0, g1, appr_sec_der, step_size, -g1/appr_sec_der
@@ -1772,7 +1772,7 @@ CONTAINS
                      e0 = e1
                      g0 = g1
                   ENDIF
-                  next_step_size_guess = next_step_size_guess+step_size
+                  next_step_size_guess = next_step_size_guess + step_size
                ENDIF
 
                ! update theta
@@ -1794,10 +1794,10 @@ CONTAINS
                WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2)') &
                   iter_type, iteration, &
                   energy_new, energy_diff, grad_norm, &
-                  t2-t1
+                  t2 - t1
                IF (penalty_occ_vol) THEN
                   WRITE (unit_nr, '(T2,A19,F23.10)') &
-                     "Energy component:", energy_new-penalty_func_new
+                     "Energy component:", energy_new - penalty_func_new
                   WRITE (unit_nr, '(T2,A19,F23.10)') &
                      "Penalty component:", penalty_func_new
                ENDIF
@@ -1805,7 +1805,7 @@ CONTAINS
 
             IF (my_special_case .EQ. xalmo_case_block_diag) THEN
                IF (penalty_occ_vol) THEN
-                  almo_scf_env%almo_scf_energy = energy_new-penalty_func_new
+                  almo_scf_env%almo_scf_energy = energy_new - penalty_func_new
                ELSE
                   almo_scf_env%almo_scf_energy = energy_new
                ENDIF
@@ -1813,7 +1813,7 @@ CONTAINS
 
             t1 = m_walltime()
 
-            iteration = iteration+1
+            iteration = iteration + 1
             IF (prepare_to_exit) EXIT
 
          ENDDO ! inner SCF loop
@@ -1822,7 +1822,7 @@ CONTAINS
             outer_prepare_to_exit = .TRUE.
          ENDIF
 
-         outer_iteration = outer_iteration+1
+         outer_iteration = outer_iteration + 1
          IF (outer_prepare_to_exit) EXIT
 
       ENDDO ! outer SCF loop
@@ -1904,7 +1904,7 @@ CONTAINS
                WRITE (unit_nr, '(T2,A35,F25.10)') "ENERGY LOWERING:", &
                   energy_new
                WRITE (unit_nr, '(T2,A35,F25.10)') "CORRECTED ENERGY:", &
-                  almo_scf_env%almo_scf_energy+energy_new
+                  almo_scf_env%almo_scf_energy + energy_new
                WRITE (unit_nr, *)
             ENDIF
             CALL almo_scf_update_ks_energy(qs_env, &
@@ -2058,7 +2058,7 @@ CONTAINS
          CALL dbcsr_add(m_X, m_T_in(ispin), -1.0_dp, 1.0_dp)
 
          CALL dbcsr_dot(m_X, Fvo0, energy_ispin)
-         energy_out = energy_out+energy_ispin*spin_factor
+         energy_out = energy_out + energy_ispin*spin_factor
 
          IF (detailed_analysis) THEN
 
@@ -2243,8 +2243,8 @@ CONTAINS
             CALL dbcsr_reserve_block2d(almo_scf_env%matrix_v_disc_blk(ispin), &
                                        iblock_row, iblock_col, p_new_block)
             CPASSERT(ASSOCIATED(p_new_block))
-            CPASSERT(retained_v+discarded_v .EQ. iblock_col_size)
-            p_new_block(:, :) = data_p(:, (retained_v+1):iblock_col_size)
+            CPASSERT(retained_v + discarded_v .EQ. iblock_col_size)
+            p_new_block(:, :) = data_p(:, (retained_v + 1):iblock_col_size)
 
             NULLIFY (p_new_block)
             CALL dbcsr_reserve_block2d(almo_scf_env%matrix_v_blk(ispin), &
@@ -2733,7 +2733,7 @@ CONTAINS
                         ENDIF ! safe_mode
                         t2cholesky = m_walltime()
                         IF (unit_nr > 0) THEN
-                           WRITE (unit_nr, *) "Cholesky+inverse wall-time: ", t2cholesky-t1cholesky
+                           WRITE (unit_nr, *) "Cholesky+inverse wall-time: ", t2cholesky - t1cholesky
                         ENDIF
                         CALL timestop(handle2)
                      ELSE
@@ -2979,7 +2979,7 @@ CONTAINS
                                                filter_eps=almo_scf_env%eps_filter)
                            delta_obj_function = fun0
                            CALL dbcsr_dot(sigma_oo_curr_inv, sigma_oo_curr, obj_function)
-                           delta_obj_function = obj_function-delta_obj_function
+                           delta_obj_function = obj_function - delta_obj_function
                            IF (line_search) THEN
                               fun1 = obj_function
                            ELSE
@@ -2995,7 +2995,7 @@ CONTAINS
 
                               IF ((.NOT. md_in_k_space) .AND. &
                                   (iteration .GE. MAX(0, almo_scf_env%opt_k_prec_iter_start) .AND. &
-                                   MOD(iteration-almo_scf_env%opt_k_prec_iter_start, &
+                                   MOD(iteration - almo_scf_env%opt_k_prec_iter_start, &
                                        almo_scf_env%opt_k_prec_iter_freq) .EQ. 0)) THEN
 
                                  !IF ((iteration.eq.0).AND.(.NOT.md_in_k_space)) THEN
@@ -3041,7 +3041,7 @@ CONTAINS
                               reset_conjugator = .FALSE.
                               ! first check if manual reset is active
                               IF (iteration .LT. MAX(almo_scf_env%opt_k_conj_iter_start, 1) .OR. &
-                                  MOD(iteration-almo_scf_env%opt_k_conj_iter_start, &
+                                  MOD(iteration - almo_scf_env%opt_k_conj_iter_start, &
                                       almo_scf_env%opt_k_conj_iter_freq) .EQ. 0) THEN
 
                                  reset_conjugator = .TRUE.
@@ -3154,7 +3154,7 @@ CONTAINS
                                     CALL dbcsr_dot(tmp_k_blk, step, numer)
                                     tau = -1.0_dp*numer/denom
                                     CALL dbcsr_dot(prev_step, grad, numer)
-                                    beta = tau-kappa*numer/denom
+                                    beta = tau - kappa*numer/denom
                                  CASE (cg_zero)
                                     beta = 0.0_dp
                                  CASE DEFAULT
@@ -3213,11 +3213,11 @@ CONTAINS
                               safety_multiplier = 1.0E+1_dp ! must be more than one
                               num_threshold = MAX(EPSILON(1.0_dp), &
                                                   safety_multiplier*(almo_scf_env%eps_filter**2)*almo_scf_env%ndomains)
-                              IF (ABS(fun1-fun0-gfun0*step_size) .LT. num_threshold) THEN
+                              IF (ABS(fun1 - fun0 - gfun0*step_size) .LT. num_threshold) THEN
                                  IF (unit_nr > 0) THEN
                                     WRITE (unit_nr, '(T3,A,1X,E17.7)') &
                                        "Numerical accuracy is too low to observe non-linear behavior", &
-                                       ABS(fun1-fun0-gfun0*step_size)
+                                       ABS(fun1 - fun0 - gfun0*step_size)
                                     WRITE (unit_nr, '(T3,A,1X,E17.7,A,1X,E12.3)') "Error computing ", &
                                        ABS(gfun0), &
                                        " is smaller than the threshold", num_threshold
@@ -3238,9 +3238,9 @@ CONTAINS
 
                               ! find the minimum assuming quadratic form
                               ! use f0, f1, g0
-                              step_size_quadratic_approx = -(gfun0*step_size*step_size)/(2.0_dp*(fun1-fun0-gfun0*step_size))
+                              step_size_quadratic_approx = -(gfun0*step_size*step_size)/(2.0_dp*(fun1 - fun0 - gfun0*step_size))
                               ! use f0, f1, g1
-                              step_size_quadratic_approx2 = -(fun1-fun0-step_size*gfun1/2.0_dp)/(gfun1-(fun1-fun0)/step_size)
+                             step_size_quadratic_approx2 = -(fun1 - fun0 - step_size*gfun1/2.0_dp)/(gfun1 - (fun1 - fun0)/step_size)
 
                               IF ((step_size_quadratic_approx .LT. 0.0_dp) .AND. &
                                   (step_size_quadratic_approx2 .LT. 0.0_dp)) THEN
@@ -3263,7 +3263,7 @@ CONTAINS
 
                               ! check accuracy of the quadratic approximation
                               IF (use_quadratic_approximation) THEN
-                                 quadratic_approx_error = ABS(step_size_quadratic_approx- &
+                                 quadratic_approx_error = ABS(step_size_quadratic_approx - &
                                                               step_size_quadratic_approx2)/step_size_quadratic_approx
                                  IF (quadratic_approx_error .GT. quadratic_approx_error_threshold) THEN
                                     IF (unit_nr > 0) THEN
@@ -3282,14 +3282,14 @@ CONTAINS
                                  ! if quadratic approximation is not accurate enough
                                  ! try to find the minimum assuming cubic form
                                  ! aa*x**3 + bb*x**2 + cc*x + dd = f(x)
-                                 bb = (-step_size*gfun1+3.0_dp*(fun1-fun0)-2.0_dp*step_size*gfun0)/(step_size*step_size)
-                                 aa = (gfun1-2.0_dp*step_size*bb-gfun0)/(3.0_dp*step_size*step_size)
+                                 bb = (-step_size*gfun1 + 3.0_dp*(fun1 - fun0) - 2.0_dp*step_size*gfun0)/(step_size*step_size)
+                                 aa = (gfun1 - 2.0_dp*step_size*bb - gfun0)/(3.0_dp*step_size*step_size)
 
-                                 IF (ABS(gfun1-2.0_dp*step_size*bb-gfun0) .LT. num_threshold) THEN
+                                 IF (ABS(gfun1 - 2.0_dp*step_size*bb - gfun0) .LT. num_threshold) THEN
                                     IF (unit_nr > 0) THEN
                                        WRITE (unit_nr, '(T3,A,1X,E17.7)') &
                                           "Numerical accuracy is too low to observe cubic behavior", &
-                                          ABS(gfun1-2.0_dp*step_size*bb-gfun0)
+                                          ABS(gfun1 - 2.0_dp*step_size*bb - gfun0)
                                     ENDIF
                                     use_cubic_approximation = .FALSE.
                                     use_quadratic_approximation = .TRUE.
@@ -3334,7 +3334,7 @@ CONTAINS
                                  IF (unit_nr > 0) THEN
                                     WRITE (unit_nr, '(T3,A)') "Use quadratic approximation"
                                  ENDIF
-                                 step_size = (step_size_quadratic_approx+step_size_quadratic_approx2)*0.5_dp
+                                 step_size = (step_size_quadratic_approx + step_size_quadratic_approx2)*0.5_dp
                               ENDIF
 
                               ! one more check on the step size
@@ -3396,19 +3396,19 @@ CONTAINS
                               WRITE (unit_nr, '(T6,A,1X,I5,1X,E12.3,E16.7,F15.9,F15.9,F15.9,E12.3,F15.9,F15.9,F8.3)') &
                                  "K iter CG", iteration, time_step, time_step*iteration, &
                                  energy_correction(ispin), obj_function, delta_obj_function, grad_norm, &
-                                 kin_energy, kin_energy+obj_function, beta
+                                 kin_energy, kin_energy + obj_function, beta
                            ELSE
                               IF (line_search .OR. prepare_to_exit) THEN
                                  WRITE (unit_nr, '(T6,A,1X,I3,1X,E12.3,F16.10,F16.10,E12.3,E12.3,E12.3,F8.3,F8.3,F10.3)') &
                                     "K iter CG", iteration, step_size, &
                                     energy_correction(ispin), delta_obj_function, grad_norm, &
-                                    gfun0, line_search_error, beta, conjugacy_error, t2a-t1a
+                                    gfun0, line_search_error, beta, conjugacy_error, t2a - t1a
                                  !(flop1+flop2)/(1.0E6_dp*(t2-t1))
                               ELSE
                                  WRITE (unit_nr, '(T6,A,1X,I3,1X,E12.3,F16.10,F16.10,E12.3,E12.3,E12.3,F8.3,F8.3,F10.3)') &
                                     "K iter LS", iteration, step_size, &
                                     energy_correction(ispin), delta_obj_function, grad_norm, &
-                                    gfun1, line_search_error, beta, conjugacy_error, t2a-t1a
+                                    gfun1, line_search_error, beta, conjugacy_error, t2a - t1a
                                  !(flop1+flop2)/(1.0E6_dp*(t2-t1))
                               ENDIF
                            ENDIF
@@ -3420,7 +3420,7 @@ CONTAINS
                         prepare_to_exit = .TRUE.
                      ENDIF ! opt_k_max_iter .ne. 0
 
-                     IF (.NOT. line_search) iteration = iteration+1
+                     IF (.NOT. line_search) iteration = iteration + 1
 
                      IF (prepare_to_exit) EXIT
 
@@ -3590,7 +3590,7 @@ CONTAINS
 
                   ENDIF
 
-                  outer_opt_k_iteration = outer_opt_k_iteration+1
+                  outer_opt_k_iteration = outer_opt_k_iteration + 1
                   IF (outer_opt_k_prepare_to_exit) EXIT
 
                ENDDO ! outer loop for k
@@ -3711,7 +3711,7 @@ CONTAINS
                   energy_correction(ispin)
                WRITE (unit_nr, *)
             ENDIF
-            energy_correction_final = energy_correction_final+energy_correction(ispin)
+            energy_correction_final = energy_correction_final + energy_correction(ispin)
 
             !!! print out the results of decomposition analysis
             !!IF (unit_nr>0) THEN
@@ -3865,7 +3865,7 @@ CONTAINS
                            matrix_p_almo_scf_converged(ispin), &
                            energy_correction(ispin))
 
-            energy_correction_final = energy_correction_final+energy_correction(ispin)
+            energy_correction_final = energy_correction_final + energy_correction(ispin)
 
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *)
@@ -3890,8 +3890,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,F18.9,F18.9,F18.9,F12.6)') "ETOT", &
             almo_scf_env%almo_scf_energy, &
             energy_correction_final, &
-            almo_scf_env%almo_scf_energy+energy_correction_final, &
-            t2-t1
+            almo_scf_env%almo_scf_energy + energy_correction_final, &
+            t2 - t1
          WRITE (unit_nr, *)
       ENDIF
 
@@ -5311,17 +5311,17 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix_asym, row, col, block_p, found)
             IF (found) THEN
 
-               H(vert_offset+1:vert_offset+ao_block_sizes(row), &
-                 hori_offset+1:hori_offset+mo_block_sizes(col)) &
+               H(vert_offset + 1:vert_offset + ao_block_sizes(row), &
+                 hori_offset + 1:hori_offset + mo_block_sizes(col)) &
                   = block_p(:, :)
 
             ENDIF
 
-            vert_offset = vert_offset+ao_block_sizes(row)
+            vert_offset = vert_offset + ao_block_sizes(row)
 
          ENDDO
 
-         hori_offset = hori_offset+mo_block_sizes(col)
+         hori_offset = hori_offset + mo_block_sizes(col)
 
       ENDDO ! loop over electron blocks
 
@@ -5922,16 +5922,16 @@ CONTAINS
             CALL dbcsr_dot(m_tmp_no_1, prev_minus_prec_grad(i), num)
             CALL dbcsr_dot(m_tmp_no_1, step(i), num2)
             CALL dbcsr_dot(prev_step(i), grad(i), num3)
-            my_numer2 = my_numer2+num2
-            my_numer3 = my_numer3+num3
+            my_numer2 = my_numer2 + num2
+            my_numer3 = my_numer3 + num3
          CASE (cg_zero)
             num = 0.0_dp
             den = 1.0_dp
          CASE DEFAULT
             CPABORT("illegal conjugator")
          END SELECT
-         my_numer = my_numer+num
-         my_denom = my_denom+den
+         my_numer = my_numer + num
+         my_denom = my_denom + den
 
          CALL dbcsr_release(m_tmp_no_1)
 
@@ -5947,7 +5947,7 @@ CONTAINS
          CASE (cg_hager_zhang)
             kappa = -2.0_dp*my_numer/my_denom
             tau = -1.0_dp*my_numer2/my_denom
-            beta = tau-kappa*my_numer3/my_denom
+            beta = tau - kappa*my_numer3/my_denom
          CASE (cg_zero)
             beta = 0.0_dp
          CASE DEFAULT
@@ -6319,8 +6319,8 @@ CONTAINS
                CALL dbcsr_dot(m_residue(ispin), m_zet(ispin), numer_ispin)
                CALL dbcsr_dot(m_step(ispin), m_Hstep(ispin), denom_ispin)
 
-               numer = numer+numer_ispin
-               denom = denom+denom_ispin
+               numer = numer + numer_ispin
+               denom = denom + denom_ispin
 
             ENDDO !ispin
 
@@ -6419,11 +6419,11 @@ CONTAINS
                WRITE (unit_nr, '(T6,A9,I6,F14.5,F14.5,F15.10,F9.2)') &
                   iter_type, iteration, &
                   alpha, beta, residue_norm, &
-                  t2-t1
+                  t2 - t1
             ENDIF
             t1 = m_walltime()
 
-            iteration = iteration+1
+            iteration = iteration + 1
             IF (prepare_to_exit) EXIT
 
          ENDDO ! inner loop
@@ -6432,7 +6432,7 @@ CONTAINS
             outer_prepare_to_exit = .TRUE.
          ENDIF
 
-         outer_iteration = outer_iteration+1
+         outer_iteration = outer_iteration + 1
          IF (outer_prepare_to_exit) EXIT
 
       ENDDO ! outer loop
@@ -6447,7 +6447,7 @@ CONTAINS
             CALL dbcsr_copy(m_zet(ispin), m_grad(ispin))
             CALL dbcsr_dot(m_delta(ispin), m_zet(ispin), alpha)
             WRITE (unit_nr, *) "trace(grad.delta): ", alpha
-            alpha = -1.0_dp/(penalty_occ_vol_pf2(ispin)*alpha-1.0_dp)
+            alpha = -1.0_dp/(penalty_occ_vol_pf2(ispin)*alpha - 1.0_dp)
             WRITE (unit_nr, *) "correction alpha: ", alpha
             CALL dbcsr_scale(m_delta(ispin), alpha)
 
@@ -6716,7 +6716,7 @@ CONTAINS
                                 0.0_dp, m_tmp_no_2, &
                                 retain_sparsity=.TRUE.)
             CALL dbcsr_add(m_x_out(ispin), m_tmp_no_2, &
-                           1.0_dp, -4.0_dp*penalty_prefactor_local+1.0_dp)
+                           1.0_dp, -4.0_dp*penalty_prefactor_local + 1.0_dp)
 #endif
 
 !          ! F_vv.X.S_oo
@@ -6992,12 +6992,12 @@ CONTAINS
             CALL dbcsr_get_block_p(quench_t, &
                                    row, col, block_p, found)
             IF (found) THEN
-               ao_domain_sizes(col) = ao_domain_sizes(col)+ao_blk_sizes(row)
+               ao_domain_sizes(col) = ao_domain_sizes(col) + ao_blk_sizes(row)
             ENDIF
 
          ENDDO
 
-         H_size = H_size+ao_domain_sizes(col)*mo_block_sizes(col)
+         H_size = H_size + ao_domain_sizes(col)*mo_block_sizes(col)
 
       ENDDO
 
@@ -7043,8 +7043,8 @@ CONTAINS
                                                block_row, block_col, block_p, found)
                         IF (found) THEN
                            ! copy the block into the submatrix
-                           F_ao_block(ao_vert_offset+1:ao_vert_offset+ao_block_sizes(block_row), &
-                                      ao_hori_offset+1:ao_hori_offset+ao_block_sizes(block_col)) &
+                           F_ao_block(ao_vert_offset + 1:ao_vert_offset + ao_block_sizes(block_row), &
+                                      ao_hori_offset + 1:ao_hori_offset + ao_block_sizes(block_col)) &
                               = block_p(:, :)
                         ENDIF
 
@@ -7052,18 +7052,18 @@ CONTAINS
                                                block_row, block_col, block_p, found)
                         IF (found) THEN
                            ! copy the block into the submatrix
-                           S_ao_block(ao_vert_offset+1:ao_vert_offset+ao_block_sizes(block_row), &
-                                      ao_hori_offset+1:ao_hori_offset+ao_block_sizes(block_col)) &
+                           S_ao_block(ao_vert_offset + 1:ao_vert_offset + ao_block_sizes(block_row), &
+                                      ao_hori_offset + 1:ao_hori_offset + ao_block_sizes(block_col)) &
                               = block_p(:, :)
                         ENDIF
 
-                        ao_hori_offset = ao_hori_offset+ao_block_sizes(block_col)
+                        ao_hori_offset = ao_hori_offset + ao_block_sizes(block_col)
 
                      ENDIF
 
                   ENDDO
 
-                  ao_vert_offset = ao_vert_offset+ao_block_sizes(block_row)
+                  ao_vert_offset = ao_vert_offset + ao_block_sizes(block_row)
 
                ENDIF
 
@@ -7105,10 +7105,10 @@ CONTAINS
                lev2_hori_offset = 0
                DO orb_i = 1, mo_block_sizes(col)
                   IF (orb_i .EQ. orb_j .AND. row .EQ. col) THEN
-                     H(lev1_vert_offset+lev2_vert_offset+1:lev1_vert_offset+lev2_vert_offset+ao_domain_sizes(row), &
-                       lev1_hori_offset+lev2_hori_offset+1:lev1_hori_offset+lev2_hori_offset+ao_domain_sizes(col)) &
+                     H(lev1_vert_offset + lev2_vert_offset + 1:lev1_vert_offset + lev2_vert_offset + ao_domain_sizes(row), &
+                       lev1_hori_offset + lev2_hori_offset + 1:lev1_hori_offset + lev2_hori_offset + ao_domain_sizes(col)) &
                         != -penalty_prefactor_local*S_ao_block(:,:)
-                        = F_ao_block(:, :)+S_ao_block(:, :)
+                        = F_ao_block(:, :) + S_ao_block(:, :)
 !=S_ao_block(:,:)
 !RZK-warning               =F_ao_block(:,:)+( 1.0_dp + penalty_prefactor_local )*S_ao_block(:,:)
 !               =S_mo_block(orb_j,orb_i)*F_ao_block(:,:)&
@@ -7118,15 +7118,15 @@ CONTAINS
                   !WRITE(*,*) row, col, orb_j, orb_i, lev1_vert_offset+lev2_vert_offset+1, ao_domain_sizes(row),&
                   !   lev1_hori_offset+lev2_hori_offset+1, ao_domain_sizes(col), S_mo_block(orb_j,orb_i)
 
-                  lev2_hori_offset = lev2_hori_offset+ao_domain_sizes(col)
+                  lev2_hori_offset = lev2_hori_offset + ao_domain_sizes(col)
 
                ENDDO
 
-               lev2_vert_offset = lev2_vert_offset+ao_domain_sizes(row)
+               lev2_vert_offset = lev2_vert_offset + ao_domain_sizes(row)
 
             ENDDO
 
-            lev1_hori_offset = lev1_hori_offset+ao_domain_sizes(col)*mo_block_sizes(col)
+            lev1_hori_offset = lev1_hori_offset + ao_domain_sizes(col)*mo_block_sizes(col)
 
             DEALLOCATE (F_ao_block)
             DEALLOCATE (S_ao_block)
@@ -7135,7 +7135,7 @@ CONTAINS
 
          ENDDO ! col fragment
 
-         lev1_vert_offset = lev1_vert_offset+ao_domain_sizes(row)*mo_block_sizes(row)
+         lev1_vert_offset = lev1_vert_offset + ao_domain_sizes(row)*mo_block_sizes(row)
 
       ENDDO ! row fragment
 
@@ -7338,8 +7338,8 @@ CONTAINS
                IF (found) THEN
                   ! copy the data into the vector, column by column
                   DO orb_i = 1, mo_block_sizes(col)
-                     Grad_vec(lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1: &
-                              lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+ao_block_sizes(row)) &
+                     Grad_vec(lev1_vert_offset + ao_domain_sizes(col)*(orb_i - 1) + lev2_vert_offset + 1: &
+                              lev1_vert_offset + ao_domain_sizes(col)*(orb_i - 1) + lev2_vert_offset + ao_block_sizes(row)) &
                         = block_p(:, orb_i)
 !WRITE(*,*) "GRAD: ", row, col, orb_i, lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1, ao_block_sizes(row)
                   ENDDO
@@ -7357,13 +7357,13 @@ CONTAINS
 !S-1.G    ENDDO
 !S-1.G ENDIF
 
-               lev2_vert_offset = lev2_vert_offset+ao_block_sizes(row)
+               lev2_vert_offset = lev2_vert_offset + ao_block_sizes(row)
 
             ENDIF
 
          ENDDO
 
-         lev1_vert_offset = lev1_vert_offset+ao_domain_sizes(col)*mo_block_sizes(col)
+         lev1_vert_offset = lev1_vert_offset + ao_domain_sizes(col)*mo_block_sizes(col)
 
       ENDDO ! loop over electron blocks
 
@@ -7425,7 +7425,7 @@ CONTAINS
             test(jj, :) = Hinv(:, jj)/eigenvalues(jj)
          ELSE
             test(jj, :) = Hinv(:, jj)*0.0_dp
-            zero_neg_eiv = zero_neg_eiv+1
+            zero_neg_eiv = zero_neg_eiv + 1
          ENDIF
       ENDDO
       WRITE (unit_nr, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
@@ -7480,12 +7480,12 @@ CONTAINS
       ALLOCATE (test(H_size, H_size))
       test(:, :) = MATMUL(Hinv, H)
       DO ii = 1, H_size
-         test(ii, ii) = test(ii, ii)-1.0_dp
+         test(ii, ii) = test(ii, ii) - 1.0_dp
       ENDDO
       test_error = 0.0_dp
       DO ii = 1, H_size
          DO jj = 1, H_size
-            test_error = test_error+test(jj, ii)*test(jj, ii)
+            test_error = test_error + test(jj, ii)*test(jj, ii)
          ENDDO
       ENDDO
       WRITE (unit_nr, *) "Hessian inversion error: ", SQRT(test_error)
@@ -7500,7 +7500,7 @@ CONTAINS
 
       ALLOCATE (tmpr(H_size))
       tmpr(:) = MATMUL(H, Step_vec)
-      tmp(:) = tmpr(:)+Grad_vec(:)
+      tmp(:) = tmpr(:) + Grad_vec(:)
       DEALLOCATE (tmpr)
       WRITE (unit_nr, *) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 
@@ -7538,17 +7538,17 @@ CONTAINS
                ! copy the data column by column
                DO orb_i = 1, mo_block_sizes(col)
                   p_new_block(:, orb_i) = &
-                     Step_vec(lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1: &
-                              lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+ao_block_sizes(row))
+                     Step_vec(lev1_vert_offset + ao_domain_sizes(col)*(orb_i - 1) + lev2_vert_offset + 1: &
+                              lev1_vert_offset + ao_domain_sizes(col)*(orb_i - 1) + lev2_vert_offset + ao_block_sizes(row))
                ENDDO
 
-               lev2_vert_offset = lev2_vert_offset+ao_block_sizes(row)
+               lev2_vert_offset = lev2_vert_offset + ao_block_sizes(row)
 
             ENDIF
 
          ENDDO
 
-         lev1_vert_offset = lev1_vert_offset+ao_domain_sizes(col)*mo_block_sizes(col)
+         lev1_vert_offset = lev1_vert_offset + ao_domain_sizes(col)*mo_block_sizes(col)
 
       ENDDO ! loop over electron blocks
 

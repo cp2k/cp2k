@@ -58,7 +58,7 @@ CONTAINS
             ABS(DOT_PRODUCT(nvec, theta))
       END IF
       CPASSERT(check)
-      nvec = nvec*COS(dt)+theta*SIN(dt)
+      nvec = nvec*COS(dt) + theta*SIN(dt)
 
    END SUBROUTINE rotate_dimer
 
@@ -91,9 +91,9 @@ CONTAINS
       i_rep_val = 0
       Main_Loop: DO i = 1, SIZE(dimer_env%nvec), size_array
          ALLOCATE (array(size_array))
-         i_rep_val = i_rep_val+1
+         i_rep_val = i_rep_val + 1
          DO j = 1, size_array
-            isize = isize+1
+            isize = isize + 1
             array(j) = dimer_env%nvec(isize)
             IF (isize == SIZE(dimer_env%nvec)) THEN
                CALL reallocate(array, 1, j)
@@ -124,7 +124,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_theta', routineP = moduleN//':'//routineN
 
-      gradient = gradient-DOT_PRODUCT(gradient, dimer_env%nvec)*dimer_env%nvec
+      gradient = gradient - DOT_PRODUCT(gradient, dimer_env%nvec)*dimer_env%nvec
       norm = SQRT(DOT_PRODUCT(gradient, gradient))
       IF (norm < EPSILON(0.0_dp)) THEN
          ! This means that NVEC is totally aligned with minimum curvature mode

@@ -174,7 +174,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(pw_env%ref_count > 0)
-      pw_env%ref_count = pw_env%ref_count+1
+      pw_env%ref_count = pw_env%ref_count + 1
    END SUBROUTINE pw_env_retain
 
 ! **************************************************************************************************
@@ -198,7 +198,7 @@ CONTAINS
       IF (PRESENT(kg)) my_kg = kg
       IF (ASSOCIATED(pw_env)) THEN
          CPASSERT(pw_env%ref_count > 0)
-         pw_env%ref_count = pw_env%ref_count-1
+         pw_env%ref_count = pw_env%ref_count - 1
          IF (pw_env%ref_count < 1) THEN
             CALL pw_poisson_release(pw_env%poisson_env)
             CALL pw_pools_dealloc(pw_env%pw_pools)

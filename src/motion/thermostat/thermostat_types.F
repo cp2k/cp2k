@@ -119,7 +119,7 @@ CONTAINS
 
       ! Preliminary allocation for thermostats
       ALLOCATE (thermostats)
-      last_thermostats_id_nr = last_thermostats_id_nr+1
+      last_thermostats_id_nr = last_thermostats_id_nr + 1
       thermostats%id_nr = last_thermostats_id_nr
       thermostats%ref_count = 1
 
@@ -161,7 +161,7 @@ CONTAINS
 
       IF (ASSOCIATED(thermostats)) THEN
          CPASSERT(thermostats%ref_count > 0)
-         thermostats%ref_count = thermostats%ref_count+1
+         thermostats%ref_count = thermostats%ref_count + 1
       END IF
 
    END SUBROUTINE retain_thermostats
@@ -185,7 +185,7 @@ CONTAINS
       IF (check) THEN
          check = thermostats%ref_count > 0
          CPASSERT(check)
-         thermostats%ref_count = thermostats%ref_count-1
+         thermostats%ref_count = thermostats%ref_count - 1
          IF (thermostats%ref_count < 1) THEN
             CALL release_thermostat_info(thermostats%thermostat_info_part)
             CALL release_thermostat_info(thermostats%thermostat_info_shell)
@@ -245,7 +245,7 @@ CONTAINS
       skip_region_loc = .FALSE.
       IF (PRESENT(skip_region)) skip_region_loc = skip_region
       ALLOCATE (thermostat)
-      last_thermostat_id_nr = last_thermostat_id_nr+1
+      last_thermostat_id_nr = last_thermostat_id_nr + 1
       thermostat%id_nr = last_thermostat_id_nr
       thermostat%ref_count = 1
       thermostat%section => section
@@ -324,7 +324,7 @@ CONTAINS
       IF (check) THEN
          check = thermostat%ref_count > 0
          CPASSERT(check)
-         thermostat%ref_count = thermostat%ref_count-1
+         thermostat%ref_count = thermostat%ref_count - 1
          IF (thermostat%ref_count < 1) THEN
             NULLIFY (thermostat%section)
             IF (ASSOCIATED(thermostat%nhc)) THEN

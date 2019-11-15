@@ -407,7 +407,7 @@ CONTAINS
       kspace = INDEX(info%line, ' ')
       kend = INDEX(info%line, '>')
       DO WHILE (kend .LE. 0)
-         info%lineno = info%lineno+1
+         info%lineno = info%lineno + 1
          READ (info%lun, '(a)', iostat=ierr) nextline
          IF (ierr .EQ. 0) THEN
             info%line = TRIM(info%line)//' '//ADJUSTL(nextline)
@@ -432,20 +432,20 @@ CONTAINS
       !
       IF (info%line(1:3) .EQ. '-->') THEN
          endtag = .TRUE.
-         tag = info%line(4:kend-1)
+         tag = info%line(4:kend - 1)
       ELSE IF (info%line(1:2) .EQ. '</') THEN
          endtag = .TRUE.
-         tag = info%line(3:kend-1)
+         tag = info%line(3:kend - 1)
       ELSE
          IF (info%line(1:1) .EQ. '<') THEN
-            tag = info%line(2:kend-1)
+            tag = info%line(2:kend - 1)
             CALL xml_report_details('XML_GET - tag found: ', TRIM(tag))
          ELSE
             kend = 0 ! Beginning of data!
          ENDIF
       ENDIF
 
-      info%line = ADJUSTL(info%line(kend+1:))
+      info%line = ADJUSTL(info%line(kend + 1:))
 
       idxat = 0
       idxdat = 0
@@ -465,7 +465,7 @@ CONTAINS
          IF (keq .LT. 1) THEN
             kend = INDEX(info%line, '/>')
             IF (kend .GE. 1) THEN
-               kend = kend+1 ! To go beyond the ">" character
+               kend = kend + 1 ! To go beyond the ">" character
                endtag = .TRUE.
             ELSE
                kend = INDEX(info%line, '>')
@@ -480,17 +480,17 @@ CONTAINS
                ENDIF
             ENDIF
             IF (kend .GE. 1) THEN
-               info%line = ADJUSTL(info%line(kend+1:))
+               info%line = ADJUSTL(info%line(kend + 1:))
             ENDIF
             EXIT
          ENDIF
 
-         idxat = idxat+1
+         idxat = idxat + 1
          IF (idxat .LE. SIZE(attribs, 2)) THEN
             no_attribs = idxat
-            attribs(1, idxat) = ADJUSTL(info%line(1:keq-1)) ! Use adjustl() to avoid
+            attribs(1, idxat) = ADJUSTL(info%line(1:keq - 1)) ! Use adjustl() to avoid
             ! multiple spaces, etc
-            info%line = ADJUSTL(info%line(keq+1:))
+            info%line = ADJUSTL(info%line(keq + 1:))
 
             !
             ! We have almost found the start of the attribute's value
@@ -504,7 +504,7 @@ CONTAINS
                RETURN
             ENDIF
 
-            ksecond = INDEX(info%line(kfirst+1:), '"')+kfirst
+            ksecond = INDEX(info%line(kfirst + 1:), '"') + kfirst
             IF (ksecond .LT. 1) THEN
                CALL xml_report_errors('XML_GET - malformed attribute-value pair: ', &
                                       TRIM(info%line), info%lineno)
@@ -513,8 +513,8 @@ CONTAINS
                RETURN
             ENDIF
 
-            attribs(2, idxat) = info%line(kfirst+1:ksecond-1)
-            info%line = ADJUSTL(info%line(ksecond+1:))
+            attribs(2, idxat) = info%line(kfirst + 1:ksecond - 1)
+            info%line = ADJUSTL(info%line(ksecond + 1:))
          ENDIF
 
          IF (idxat .GT. SIZE(attribs, 2)) THEN
@@ -539,11 +539,11 @@ CONTAINS
          ELSE
             kend = INDEX(info%line, '<')
          ENDIF
-         idxdat = idxdat+1
+         idxdat = idxdat + 1
          IF (idxdat .LE. SIZE(DATA)) THEN
             no_data = idxdat
             IF (kend .GE. 1) THEN
-               DATA(idxdat) = info%line(1:kend-1)
+               DATA(idxdat) = info%line(1:kend - 1)
                info%line = info%line(kend:)
             ELSE
                DATA(idxdat) = info%line
@@ -561,7 +561,7 @@ CONTAINS
          IF (kend .GE. 1) THEN
             EXIT
          ELSE
-            info%lineno = info%lineno+1
+            info%lineno = info%lineno + 1
             READ (info%lun, '(a)', iostat=ierr) info%line
             IF (ierr .LT. 0) THEN
                CALL xml_report_details('XML_GET - end of file found - LU-number: ', &
@@ -658,7 +658,7 @@ CONTAINS
          ENDIF
       ENDDO
       WRITE (info%lun, '(a)') '>'
-      info%level = info%level+1
+      info%level = info%level + 1
 
    END SUBROUTINE xml_put_open_tag_
 
@@ -743,7 +743,7 @@ CONTAINS
 
       CHARACTER(len=300), PARAMETER                      :: indent = ' '
 
-      info%level = info%level-1
+      info%level = info%level - 1
       WRITE (info%lun, '(4a)') &
          indent(1:3*info%level), '</', ADJUSTL(tag), '>'
 
@@ -765,7 +765,7 @@ CONTAINS
       empty = .TRUE.
       DO i = 1, no_data
          IF (LEN_TRIM(DATA(i)) .NE. 0 .OR. .NOT. empty) THEN
-            j = j+1
+            j = j + 1
             DATA(j) = ADJUSTL(DATA(i))
             empty = .FALSE.
          ENDIF
@@ -777,7 +777,7 @@ CONTAINS
          IF (LEN_TRIM(DATA(i)) .NE. 0) THEN
             EXIT
          ELSE
-            no_data = no_data-1
+            no_data = no_data - 1
          ENDIF
       ENDDO
 
@@ -804,8 +804,8 @@ CONTAINS
                pos = INDEX(DATA(i) (j:), TRIM(entities(2, k)))
                IF (pos .GT. 0) THEN
                   found = .TRUE.
-                  j = j+pos-1
-                  j2 = j+LEN_TRIM(entities(2, k))
+                  j = j + pos - 1
+                  j2 = j + LEN_TRIM(entities(2, k))
                   DATA(i) (j:) = TRIM(entities(1, k))//DATA(i) (j2:)
                   j = j2
                ENDIF

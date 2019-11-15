@@ -144,10 +144,10 @@ CONTAINS
             CALL get_qs_env(qs_env, para_env=para_env)
             found = .FALSE.
             nbatch = para_env%num_pe/xas_tdp_control%batch_size
-            IF (nbatch*xas_tdp_control%batch_size .NE. para_env%num_pe) nbatch = nbatch+1
+            IF (nbatch*xas_tdp_control%batch_size .NE. para_env%num_pe) nbatch = nbatch + 1
             nex_atom = SIZE(xas_tdp_env%ex_atom_indices)
 
-            DO ibatch = 0, nbatch-1
+            DO ibatch = 0, nbatch - 1
 
                bo = get_limit(nex_atom, nbatch, ibatch)
                DO iex = bo(1), bo(2)
@@ -331,16 +331,16 @@ CONTAINS
          !Copy the alpha part into LHS, multiply by the alpha-beta kernel and the beta part of RHS
          CALL copy_ri_contr_int(lhs_int(1:ndo_mo), rhs_int(1:ndo_mo))
          CALL ri_all_blocks_mm(lhs_int(1:ndo_mo), xas_tdp_env%ri_fxc(ri_atom, 2)%array)
-         CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
+         CALL ri_int_product(work_mat, lhs_int(1:ndo_mo), rhs_int(ndo_mo + 1:2*ndo_mo), &
                              quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter)
 
          ! beta-beta spin quadrant (lower-right)
          quadrants = [.FALSE., .FALSE., .TRUE.]
 
          !Copy the beta part into LHS, multiply by the beta-beta kernel and the beta part of RHS
-         CALL copy_ri_contr_int(lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo))
-         CALL ri_all_blocks_mm(lhs_int(ndo_mo+1:2*ndo_mo), xas_tdp_env%ri_fxc(ri_atom, 3)%array)
-         CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
+         CALL copy_ri_contr_int(lhs_int(ndo_mo + 1:2*ndo_mo), rhs_int(ndo_mo + 1:2*ndo_mo))
+         CALL ri_all_blocks_mm(lhs_int(ndo_mo + 1:2*ndo_mo), xas_tdp_env%ri_fxc(ri_atom, 3)%array)
+         CALL ri_int_product(work_mat, lhs_int(ndo_mo + 1:2*ndo_mo), rhs_int(ndo_mo + 1:2*ndo_mo), &
                              quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter)
 
       ELSE IF (xas_tdp_control%do_roks) THEN
@@ -454,7 +454,7 @@ CONTAINS
 
          ! beta-beta spin quadrant (lower-right)
          quadrants = [.FALSE., .FALSE., .TRUE.]
-         CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
+         CALL ri_int_product(work_mat, lhs_int(ndo_mo + 1:2*ndo_mo), rhs_int(ndo_mo + 1:2*ndo_mo), &
                              quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter)
 
       ELSE IF (xas_tdp_control%do_roks) THEN
@@ -782,13 +782,13 @@ CONTAINS
                CALL dbcsr_get_block_p(abIJ_desymm_std_dist, iblk, jblk, pblock, found)
 
                IF (found) THEN
-                  CALL dbcsr_put_block(work_mat, (iso-1)*nblk+iblk, (jso-1)*nblk+jblk, pblock)
+                  CALL dbcsr_put_block(work_mat, (iso - 1)*nblk + iblk, (jso - 1)*nblk + jblk, pblock)
 
                   !In case of ROKS, we have (ab|IJ) for alpha-alpha spin, but it is the same for
                   !beta-beta => replicate the blocks (alpha-beta is zero)
                   IF (do_roks) THEN
                      !the beta-beta block
-                     CALL dbcsr_put_block(work_mat, (ndo_so+iso-1)*nblk+iblk, (ndo_so+jso-1)*nblk+jblk, pblock)
+                     CALL dbcsr_put_block(work_mat, (ndo_so + iso - 1)*nblk + iblk, (ndo_so + jso - 1)*nblk + jblk, pblock)
                   END IF
                END IF
 
@@ -885,7 +885,7 @@ CONTAINS
                              qs_env, eps_filter=xas_tdp_control%eps_filter, mo_transpose=.TRUE.)
 
          quadrants = [.FALSE., .FALSE., .TRUE.]
-         CALL ri_int_product(work_mat, lhs_int(ndo_mo+1:2*ndo_mo), rhs_int(ndo_mo+1:2*ndo_mo), &
+         CALL ri_int_product(work_mat, lhs_int(ndo_mo + 1:2*ndo_mo), rhs_int(ndo_mo + 1:2*ndo_mo), &
                              quadrants, qs_env, eps_filter=xas_tdp_control%eps_filter, mo_transpose=.TRUE.)
       ELSE
          !In the restricted closed-shell case, only have one spin and a single qudarant
@@ -1022,9 +1022,9 @@ CONTAINS
             ! do the contraction
             CALL dbcsr_set(aI_P, 0.0_dp); CALL dbcsr_set(P_Ib, 0.0_dp)
             IF (my_op == "C") THEN
-               CALL contract_o3c_once(o3c_coul, coeffs(:, (ispin-1)*ndo_mo+imo), aI_P, P_Ib, katom)
+               CALL contract_o3c_once(o3c_coul, coeffs(:, (ispin - 1)*ndo_mo + imo), aI_P, P_Ib, katom)
             ELSE
-               CALL contract_o3c_once(o3c_ex, coeffs(:, (ispin-1)*ndo_mo+imo), aI_P, P_Ib, katom)
+               CALL contract_o3c_once(o3c_ex, coeffs(:, (ispin - 1)*ndo_mo + imo), aI_P, P_Ib, katom)
             END IF
 
             ! Get the full "normal" (aI|P) contracted integrals
@@ -1032,7 +1032,7 @@ CONTAINS
             CALL dbcsr_transposed(work3, work2)
             CALL change_dist(aI_P, work1, para_env)
             CALL dbcsr_add(work3, work1, 1.0_dp, 1.0_dp)
-            CALL dbcsr_complete_redistribute(work3, contr_int((ispin-1)*ndo_mo+imo)%matrix)
+            CALL dbcsr_complete_redistribute(work3, contr_int((ispin - 1)*ndo_mo + imo)%matrix)
 
             CALL dbcsr_release(work3)
 
@@ -1084,8 +1084,8 @@ CONTAINS
 
       !Allocate a pointer array which will point on the block => we won't need to send more than
       !nblk**2/num_pe message per processor (assumes blocks well distributed)
-      ALLOCATE (send_buff(nblk**2/num_pe+1), recv_buff(nblk**2/num_pe+1))
-      ALLOCATE (send_req(nblk**2/num_pe+1), recv_req(nblk**2/num_pe+1))
+      ALLOCATE (send_buff(nblk**2/num_pe + 1), recv_buff(nblk**2/num_pe + 1))
+      ALLOCATE (send_req(nblk**2/num_pe + 1), recv_req(nblk**2/num_pe + 1))
       is = 0; ir = 0
 
       !Iterate over input matrix
@@ -1107,9 +1107,9 @@ CONTAINS
                !If block not on the same processor, need to send it
                CALL dbcsr_get_stored_coordinates(mat_out, iblk, jblk, dest)
                !unique tag
-               tag = nblk*iblk+jblk
+               tag = nblk*iblk + jblk
                !point on the block such that the buffer is not changed after isend
-               is = is+1
+               is = is + 1
                send_buff(is)%array => pbin
                CALL mp_isend(msgin=send_buff(is)%array, dest=dest, comm=group, request=send_req(is), &
                              tag=tag)
@@ -1133,8 +1133,8 @@ CONTAINS
             !If not, need to receiv it
             IF (.NOT. found_in) THEN
                CALL dbcsr_get_stored_coordinates(mat_in, iblk, jblk, source)
-               tag = nblk*iblk+jblk
-               ir = ir+1
+               tag = nblk*iblk + jblk
+               ir = ir + 1
                recv_buff(ir)%array => pbout
                CALL mp_irecv(msgout=recv_buff(ir)%array, source=source, request=recv_req(ir), &
                              tag=tag, comm=group)
@@ -1515,17 +1515,17 @@ CONTAINS
                   ! Case study on quadrant
                   !upper-left
                   IF (quadrants(1)) THEN
-                     CALL dbcsr_put_block(kernel, (iso-1)*nblk+iblk, (jso-1)*nblk+jblk, pblock)
+                     CALL dbcsr_put_block(kernel, (iso - 1)*nblk + iblk, (jso - 1)*nblk + jblk, pblock)
                   END IF
 
                   !upper-right
                   IF (quadrants(2)) THEN
-                     CALL dbcsr_put_block(kernel, (iso-1)*nblk+iblk, (ndo_so+jso-1)*nblk+jblk, pblock)
+                     CALL dbcsr_put_block(kernel, (iso - 1)*nblk + iblk, (ndo_so + jso - 1)*nblk + jblk, pblock)
                   END IF
 
                   !lower-right
                   IF (quadrants(3)) THEN
-                     CALL dbcsr_put_block(kernel, (ndo_so+iso-1)*nblk+iblk, (ndo_so+jso-1)*nblk+jblk, pblock)
+                     CALL dbcsr_put_block(kernel, (ndo_so + iso - 1)*nblk + iblk, (ndo_so + jso - 1)*nblk + jblk, pblock)
                   END IF
 
                END IF

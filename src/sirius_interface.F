@@ -165,7 +165,7 @@ CONTAINS
          !     NOT the single values, but the whole section_vals_type independently
          ifun = 0
          DO
-            ifun = ifun+1
+            ifun = ifun + 1
             xc_fun => section_vals_get_subs_vals2(xc_section, i_section=ifun)
             IF (.NOT. ASSOCIATED(xc_fun)) EXIT
             IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
@@ -258,12 +258,12 @@ CONTAINS
                rp(1:nmesh) = atom_grid%rad(1:nmesh)
             ELSE
                DO i = 1, nmesh
-                  rp(i) = atom_grid%rad(nmesh-i+1)
+                  rp(i) = atom_grid%rad(nmesh - i + 1)
                END DO
             END IF
 ! add new atom type
             CALL sirius_add_atom_type(sctx, string(label), &
-                                      zn=NINT(zeff+0.001d0), &
+                                      zn=NINT(zeff + 0.001d0), &
                                       mass=REAL(mass, KIND=C_DOUBLE), &
                                       spin_orbit=bool(.FALSE.))
 !
@@ -281,11 +281,11 @@ CONTAINS
 ! we need to multiply by r so that data transfered to sirius are r \beta(r) not beta(r)
                ef(1:nmesh) = EXP(-0.5_dp*rp(1:nmesh)*rp(1:nmesh)/(rl*rl))
                DO i = 1, gth_atompot%nl(l)
-                  pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
-                  j = l+2*i-1
+                  pf = rl**(l + 0.5_dp*(4._dp*i - 1._dp))
+                  j = l + 2*i - 1
                   pf = SQRT(2._dp)/(pf*SQRT(gamma1(j)))
-                  beta(:) = pf*rp**(l+2*i-2)*ef
-                  ibeta = ibeta+1
+                  beta(:) = pf*rp**(l + 2*i - 2)*ef
+                  ibeta = ibeta + 1
                   fun(1:nmesh) = beta(1:nmesh)*rp(1:nmesh)
                   CALL sirius_add_atom_type_radial_function(sctx, string(label), &
                                                             string("beta"), fun(1), nmesh, l=l)
@@ -299,8 +299,8 @@ CONTAINS
             dion = 0.0_dp
             DO l = 0, 3
                IF (gth_atompot%nl(l) == 0) CYCLE
-               ibeta = SUM(gth_atompot%nl(0:l-1))+1
-               i = ibeta+gth_atompot%nl(l)-1
+               ibeta = SUM(gth_atompot%nl(0:l - 1)) + 1
+               i = ibeta + gth_atompot%nl(l) - 1
                dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
             END DO
             CALL sirius_set_atom_type_dion(sctx, string(label), nbeta, dion(1, 1))
@@ -317,7 +317,7 @@ CONTAINS
                   fe(:) = EXP(-0.5_dp*rc(:)*rc(:))
                   DO j = 1, gth_atompot%nct_nlcc(i)
                      cval = gth_atompot%cval_nlcc(j, i)
-                     corden(:) = corden(:)+fe(:)*rc(:)**(2*j-2)*cval
+                     corden(:) = corden(:) + fe(:)*rc(:)**(2*j - 2)*cval
                   END DO
                END DO
                fun(1:nmesh) = corden(1:nmesh)*rp(1:nmesh)
@@ -348,7 +348,7 @@ CONTAINS
                   fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(i)
                ELSE
                   DO i = 1, nmesh
-                     fun(i) = wavefunction(nmesh-i+1, iwf)*rp(i)
+                     fun(i) = wavefunction(nmesh - i + 1, iwf)*rp(i)
                   END DO
                END IF
                CALL sirius_add_atom_type_radial_function(sctx, &
@@ -361,7 +361,7 @@ CONTAINS
                fun(1:nmesh) = fourpi*density(1:nmesh)*atom_grid%rad(1:nmesh)**2
             ELSE
                DO i = 1, nmesh
-                  fun(i) = fourpi*density(nmesh-i+1)*atom_grid%rad(nmesh-i+1)**2
+                  fun(i) = fourpi*density(nmesh - i + 1)*atom_grid%rad(nmesh - i + 1)**2
                END DO
             END IF
             CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_total"), &
@@ -499,7 +499,7 @@ CONTAINS
 
       CALL sirius_option_get_length(section_name, number_of_options)
 
-      DO elem = 0, number_of_options-1
+      DO elem = 0, number_of_options - 1
          option_name = CHAR(0)
          CALL sirius_option_get_name_and_type(section_name, elem, option_name, ctype)
          option_name1 = TRIM(ADJUSTL(option_name))

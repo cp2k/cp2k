@@ -201,7 +201,7 @@ CONTAINS
                   nr = 0
                   DO is = 1, SIZE(crys_sym%kplink, 2)
                      IF (crys_sym%kplink(2, is) == ik) THEN
-                        nr = nr+1
+                        nr = nr + 1
                         ir = crys_sym%kpop(is)
                         kpsym%rot(1:3, 1:3, nr) = crys_sym%rotations(1:3, 1:3, ir)
                         kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
@@ -380,14 +380,14 @@ CONTAINS
          ! distribution of kpoints
          ALLOCATE (kpoint%kp_dist(2, nkp_grp))
          DO igr = 1, nkp_grp
-            kpoint%kp_dist(1:2, igr) = get_limit(nkp, nkp_grp, igr-1)
+            kpoint%kp_dist(1:2, igr) = get_limit(nkp, nkp_grp, igr - 1)
          END DO
          ! local kpoints
-         kpoint%kp_range(1:2) = kpoint%kp_dist(1:2, para_env_inter_kp%mepos+1)
+         kpoint%kp_range(1:2) = kpoint%kp_dist(1:2, para_env_inter_kp%mepos + 1)
          ALLOCATE (kp_env(nkp_loc))
          DO ik = 1, nkp_loc
             NULLIFY (kp_env(ik)%kpoint_env)
-            ikk = kpoint%kp_range(1)+ik-1
+            ikk = kpoint%kp_range(1) + ik - 1
             CALL kpoint_env_create(kp_env(ik)%kpoint_env)
             kp => kp_env(ik)%kpoint_env
             kp%nkpoint = ikk
@@ -457,7 +457,7 @@ CONTAINS
             nc = 2
          END IF
          nspin = SIZE(mos, 1)
-         nkp_loc = kpoint%kp_range(2)-kpoint%kp_range(1)+1
+         nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
          IF (nkp_loc > 0) THEN
             CPASSERT(SIZE(kpoint%kp_env) == nkp_loc)
             ! allocate the mo sets, correct number of kpoints (local), real/complex, spin
@@ -467,7 +467,7 @@ CONTAINS
                DO is = 1, nspin
                   CALL get_mo_set(mos(is)%mo_set, nao=nao, nmo=nmo, nelectron=nelectron, &
                                   n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
-                  nmo = MIN(nao, nmo+nadd)
+                  nmo = MIN(nao, nmo + nadd)
                   DO ic = 1, nc
                      NULLIFY (kp%mos(ic, is)%mo_set)
                      CALL allocate_mo_set(kp%mos(ic, is)%mo_set, nao, nmo, nelectron, n_el_f, maxocc, &
@@ -487,7 +487,7 @@ CONTAINS
             ! set possible new number of MOs
             DO is = 1, nspin
                CALL get_mo_set(mos(is)%mo_set, nmo=nmorig(is))
-               nmo = MIN(nao, nmorig(is)+nadd)
+               nmo = MIN(nao, nmorig(is) + nadd)
                CALL set_mo_set(mos(is)%mo_set, nmo=nmo)
             END DO
             ! matrix pools for the kpoint group, information on MOs is transfered using
@@ -598,7 +598,7 @@ CONTAINS
             END IF
          END DO
          IF (new) THEN
-            icount = icount+1
+            icount = icount + 1
             IF (icount > SIZE(list, 2)) THEN
                CALL reallocate(list, 1, 3, 1, 2*SIZE(list, 2))
             END IF
@@ -633,9 +633,9 @@ CONTAINS
                IF (cti(i1, i2, i3) == 0) THEN
                   cti(i1, i2, i3) = 1000000
                ELSE
-                  ncount = ncount+1
-                  cti(i1, i2, i3) = (ABS(i1)+ABS(i2)+ABS(i3))*1000+ABS(i3)*100+ABS(i2)*10+ABS(i1)
-                  cti(i1, i2, i3) = cti(i1, i2, i3)+(i1+i2+i3)
+                  ncount = ncount + 1
+                  cti(i1, i2, i3) = (ABS(i1) + ABS(i2) + ABS(i3))*1000 + ABS(i3)*100 + ABS(i2)*10 + ABS(i1)
+                  cti(i1, i2, i3) = cti(i1, i2, i3) + (i1 + i2 + i3)
                END IF
             END DO
          END DO
@@ -648,9 +648,9 @@ CONTAINS
       index_to_cell => kpoint%index_to_cell
       DO ic = 1, ncount
          cell = MINLOC(cti)
-         i1 = cell(1)-1-itm(1)
-         i2 = cell(2)-1-itm(2)
-         i3 = cell(3)-1-itm(3)
+         i1 = cell(1) - 1 - itm(1)
+         i2 = cell(2) - 1 - itm(2)
+         i3 = cell(3) - 1 - itm(3)
          cti(i1, i2, i3) = 1000000
          index_to_cell(1, ic) = i1
          index_to_cell(2, ic) = i2
@@ -738,7 +738,7 @@ CONTAINS
             fsym = -1.0_dp
          END IF
 
-         arg = REAL(cell(1), dp)*xkp(1)+REAL(cell(2), dp)*xkp(2)+REAL(cell(3), dp)*xkp(3)
+         arg = REAL(cell(1), dp)*xkp(1) + REAL(cell(2), dp)*xkp(2) + REAL(cell(3), dp)*xkp(3)
          IF (my_complex) THEN
             coskl = fsign*fsym*COS(twopi*arg)
             sinkl = fsign*SIN(twopi*arg)
@@ -759,7 +759,7 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
                                    block=rblock, found=found)
             CPASSERT(found)
-            rblock = rblock+coskl*rsblock
+            rblock = rblock + coskl*rsblock
          ELSE
             CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
                                    block=rblock, found=found)
@@ -767,8 +767,8 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=cmatrix, row=irow, col=icol, &
                                    block=cblock, found=found)
             CPASSERT(found)
-            rblock = rblock+coskl*rsblock
-            cblock = cblock+sinkl*rsblock
+            rblock = rblock + coskl*rsblock
+            cblock = cblock + sinkl*rsblock
          END IF
 
       END DO
@@ -818,9 +818,9 @@ CONTAINS
       weig = 0.0_dp
       wocc = 0.0_dp
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
-      kplocal = kp_range(2)-kp_range(1)+1
+      kplocal = kp_range(2) - kp_range(1) + 1
       DO ikpgr = 1, kplocal
-         ik = kp_range(1)+ikpgr-1
+         ik = kp_range(1) + ikpgr - 1
          kp => kpoint%kp_env(ikpgr)%kpoint_env
          DO ispin = 1, nspin
             mo_set => kp%mos(1, ispin)%mo_set
@@ -849,7 +849,7 @@ CONTAINS
                CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
                             smear%electronic_temperature, 1.0_dp)
             ELSE
-               nel = REAL(ne_a, KIND=dp)+REAL(ne_b, KIND=dp)
+               nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
                CALL Fermikp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
                              smear%electronic_temperature)
                kTS = kTS/2._dp
@@ -871,7 +871,7 @@ CONTAINS
          END IF
       END IF
       DO ikpgr = 1, kplocal
-         ik = kp_range(1)+ikpgr-1
+         ik = kp_range(1) + ikpgr - 1
          kp => kpoint%kp_env(ikpgr)%kpoint_env
          DO ispin = 1, nspin
             mo_set => kp%mos(1, ispin)%mo_set
@@ -928,7 +928,7 @@ CONTAINS
       CALL cp_fm_create(fwork, matrix_struct)
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
-      kplocal = kp_range(2)-kp_range(1)+1
+      kplocal = kp_range(2) - kp_range(1) + 1
       DO ikpgr = 1, kplocal
          kp => kpoint%kp_env(ikpgr)%kpoint_env
          nspin = SIZE(kp%mos, 2)
@@ -1067,7 +1067,7 @@ CONTAINS
          DO ik = 1, nkp
             my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
             IF (my_kpgrp) THEN
-               ikk = ik-kpoint%kp_range(1)+1
+               ikk = ik - kpoint%kp_range(1) + 1
                kp => kpoint%kp_env(ikk)%kpoint_env
             ELSE
                NULLIFY (kp)
@@ -1077,7 +1077,7 @@ CONTAINS
 
             IF (my_kpgrp) THEN
                DO ic = 1, nc
-                  indx = indx+1
+                  indx = indx + 1
                   IF (wtype) THEN
                      CALL cp_fm_start_copy_general(kp%wmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env, info(indx))
                   ELSE
@@ -1086,7 +1086,7 @@ CONTAINS
                END DO
             ELSE
                DO ic = 1, nc
-                  indx = indx+1
+                  indx = indx + 1
                   CALL cp_fm_start_copy_general(fmdummy, fmwork(ic)%matrix, para_env, info(indx))
                END DO
             END IF
@@ -1098,7 +1098,7 @@ CONTAINS
       DO ispin = 1, nspin
          DO ik = 1, nkp
             DO ic = 1, nc
-               indx = indx+1
+               indx = indx + 1
                CALL cp_fm_finish_copy_general(fmwork(ic)%matrix, info(indx))
             END DO
 
@@ -1141,11 +1141,11 @@ CONTAINS
          DO ik = 1, nkp
             my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
             IF (my_kpgrp) THEN
-               ikk = ik-kpoint%kp_range(1)+1
+               ikk = ik - kpoint%kp_range(1) + 1
                kp => kpoint%kp_env(ikk)%kpoint_env
 
                DO ic = 1, nc
-                  indx = indx+1
+                  indx = indx + 1
                   IF (wtype) THEN
                      CALL cp_fm_cleanup_copy_general(kp%wmat(ic, ispin)%matrix, info(indx))
                   ELSE
@@ -1155,7 +1155,7 @@ CONTAINS
             ELSE
                ! calls with dummy arguments, so not included
                ! therefore just increment counter by trip count
-               indx = indx+nc
+               indx = indx + nc
             END IF
          END DO
       END DO
@@ -1227,7 +1227,7 @@ CONTAINS
             fc = 1.0_dp
          END IF
          icell = cell_to_index(cell(1), cell(2), cell(3))
-         arg = REAL(cell(1), dp)*xkp(1)+REAL(cell(2), dp)*xkp(2)+REAL(cell(3), dp)*xkp(3)
+         arg = REAL(cell(1), dp)*xkp(1) + REAL(cell(2), dp)*xkp(2) + REAL(cell(3), dp)*xkp(3)
          coskl = wkp*COS(twopi*arg)
          sinkl = wkp*fc*SIN(twopi*arg)
 
@@ -1238,14 +1238,14 @@ CONTAINS
          IF (real_only) THEN
             CALL dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
             CPASSERT(found)
-            dblock = dblock+coskl*rblock
+            dblock = dblock + coskl*rblock
          ELSE
             CALL dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
             CPASSERT(found)
             CALL dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
             CPASSERT(found)
-            dblock = dblock+coskl*rblock
-            dblock = dblock+sinkl*cblock
+            dblock = dblock + coskl*rblock
+            dblock = dblock + sinkl*cblock
          END IF
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -1301,8 +1301,8 @@ CONTAINS
 
       ! do we have a real rotation
       dorot = .FALSE.
-      IF (ABS(SUM(ABS(rot))-3.0_dp) > 1.e-12_dp) dorot = .TRUE.
-      dr = ABS(rot(1, 1)-1.0_dp)+ABS(rot(2, 2)-1.0_dp)+ABS(rot(3, 3)-1.0_dp)
+      IF (ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp) dorot = .TRUE.
+      dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
       IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
 
       fsign = 1.0_dp

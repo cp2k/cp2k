@@ -118,7 +118,7 @@ CONTAINS
                kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot, &
                kpp1_env%ndiag_term)
       kpp1_env%ref_count = 1
-      last_kpp1_id_nr = last_kpp1_id_nr+1
+      last_kpp1_id_nr = last_kpp1_id_nr + 1
       kpp1_env%id_nr = last_kpp1_id_nr
       kpp1_env%iter = 0
       kpp1_env%print_count = 0
@@ -219,7 +219,7 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%TDDFPT%RES_ETYPE", &
                                 i_val=res_etype)
 
-      kpp1_env%iter = kpp1_env%iter+1
+      kpp1_env%iter = kpp1_env%iter + 1
 
 ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -528,7 +528,7 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
          rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d+my_diff*rho1_r(ispin)%pw%cr3d
-         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc+my_diff*rho1_g(ispin)%pw%cc
+         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
       END DO
 
       CALL qs_ks_build_kohn_sham_matrix(qs_env, &
@@ -549,7 +549,7 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
          rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d+my_diff*rho1_r(ispin)%pw%cr3d
-         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc+my_diff*rho1_g(ispin)%pw%cc
+         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
       END DO
 
       CALL qs_ks_build_kohn_sham_matrix(qs_env, &
@@ -563,7 +563,7 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
          rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d+my_diff*rho1_r(ispin)%pw%cr3d
-         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc+my_diff*rho1_g(ispin)%pw%cc
+         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
       END DO
 
       ! k_p_p1=(H(rho0+h/2 rho1)-H(rho0-h/2 rho1))/h

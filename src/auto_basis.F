@@ -103,18 +103,18 @@ CONTAINS
          IF (z > 18) linc = 2
          SELECT CASE (basis_cntrl)
          CASE (0)
-            laux = MAX(2*lval, lmax+linc)
+            laux = MAX(2*lval, lmax + linc)
          CASE (1)
-            laux = MAX(2*lval, lmax+linc)
+            laux = MAX(2*lval, lmax + linc)
          CASE (2)
-            laux = MAX(2*lval, lmax+linc+1)
+            laux = MAX(2*lval, lmax + linc + 1)
          CASE (3)
-            laux = MAX(2*lmax, lmax+linc+2)
+            laux = MAX(2*lmax, lmax + linc + 2)
          CASE DEFAULT
             CPABORT("Invalid value of control variable")
          END SELECT
          !
-         DO l = 2*lmax+1, laux
+         DO l = 2*lmax + 1, laux
             xv = peff(2*lmax)
             pmin(l) = xv
             pmax(l) = xv
@@ -130,35 +130,35 @@ CONTAINS
                pend(l) = peff(l)
                bval(l) = bv(l)
             END IF
-            xv = LOG(pend(l)/pmin(l))/LOG(bval(l))+1.e-10_dp
+            xv = LOG(pend(l)/pmin(l))/LOG(bval(l)) + 1.e-10_dp
             nval(l) = MAX(CEILING(xv), 0)
          END DO
          ! first set include valence only
          nsets = 1
          ls1(1) = 0
          ls2(1) = lval
-         DO l = lval+1, laux
-            IF (nval(l) < nval(lval)-1) EXIT
+         DO l = lval + 1, laux
+            IF (nval(l) < nval(lval) - 1) EXIT
             ls2(1) = l
          END DO
          ! second set up to 2*lval
          IF (laux > ls2(1)) THEN
-            IF (lval == 0 .OR. 2*lval <= ls2(1)+1) THEN
+            IF (lval == 0 .OR. 2*lval <= ls2(1) + 1) THEN
                nsets = 2
-               ls1(2) = ls2(1)+1
+               ls1(2) = ls2(1) + 1
                ls2(2) = laux
             ELSE
                nsets = 2
-               ls1(2) = ls2(1)+1
+               ls1(2) = ls2(1) + 1
                ls2(2) = MIN(2*lval, laux)
                lx = ls2(2)
-               DO l = lx+1, laux
-                  IF (nval(l) < nval(lx)-1) EXIT
+               DO l = lx + 1, laux
+                  IF (nval(l) < nval(lx) - 1) EXIT
                   ls2(2) = l
                END DO
                IF (laux > ls2(2)) THEN
                   nsets = 3
-                  ls1(3) = ls2(2)+1
+                  ls1(3) = ls2(2) + 1
                   ls2(3) = laux
                END IF
             END IF
@@ -173,7 +173,7 @@ CONTAINS
                amin(i) = MIN(amin(i), pmin(j))
                bmin(i) = MIN(bmin(i), bval(j))
             END DO
-            xv = LOG(amax(i)/amin(i))/LOG(bmin(i))+1.e-10_dp
+            xv = LOG(amax(i)/amin(i))/LOG(bmin(i)) + 1.e-10_dp
             npgf(i) = MAX(CEILING(xv), 0)
          END DO
          nx = MAXVAL(npgf(1:nsets))
@@ -182,8 +182,8 @@ CONTAINS
          nl = 0
          DO i = 1, nsets
             DO j = 1, npgf(i)
-               jj = npgf(i)-j+1
-               zet(jj, i) = amin(i)*bmin(i)**(j-1)
+               jj = npgf(i) - j + 1
+               zet(jj, i) = amin(i)*bmin(i)**(j - 1)
             END DO
             DO l = ls1(i), ls2(i)
                nl(l, i) = nval(l)
@@ -255,22 +255,22 @@ CONTAINS
          IF (z > 18) linc = 2
          SELECT CASE (basis_cntrl)
          CASE (0)
-            laux = MAX(2*lval, lmax+linc)
-            laux = MIN(laux, 2+linc)
+            laux = MAX(2*lval, lmax + linc)
+            laux = MIN(laux, 2 + linc)
          CASE (1)
-            laux = MAX(2*lval, lmax+linc)
-            laux = MIN(laux, 3+linc)
+            laux = MAX(2*lval, lmax + linc)
+            laux = MIN(laux, 3 + linc)
          CASE (2)
-            laux = MAX(2*lval, lmax+linc+1)
-            laux = MIN(laux, 4+linc)
+            laux = MAX(2*lval, lmax + linc + 1)
+            laux = MIN(laux, 4 + linc)
          CASE (3)
-            laux = MAX(2*lval, lmax+linc+1)
-            laux = MIN(laux, 4+linc)
+            laux = MAX(2*lval, lmax + linc + 1)
+            laux = MIN(laux, 4 + linc)
          CASE DEFAULT
             CPABORT("Invalid value of control variable")
          END SELECT
          !
-         DO l = 2*lmax+1, laux
+         DO l = 2*lmax + 1, laux
             pmin(l) = pmin(2*lmax)
             pmax(l) = pmax(2*lmax)
             peff(l) = peff(2*lmax)
@@ -278,29 +278,29 @@ CONTAINS
          !
          IF (exact_1c_terms) THEN
             DO l = 0, laux
-               IF (l <= lval+1) THEN
-                  pend(l) = zmax(l)+1.0_dp
-                  bval(l) = bv(basis_cntrl+1)
+               IF (l <= lval + 1) THEN
+                  pend(l) = zmax(l) + 1.0_dp
+                  bval(l) = bv(basis_cntrl + 1)
                ELSE
                   pend(l) = 2.0_dp*peff(l)
-                  bval(l) = bx(basis_cntrl+1)
+                  bval(l) = bx(basis_cntrl + 1)
                END IF
                pmin(l) = zmin(l)
-               xv = LOG(pend(l)/pmin(l))/LOG(bval(l))+1.e-10_dp
+               xv = LOG(pend(l)/pmin(l))/LOG(bval(l)) + 1.e-10_dp
                nval(l) = MAX(CEILING(xv), 0)
                bval(l) = (pend(l)/pmin(l))**(1._dp/nval(l))
             END DO
          ELSE
             DO l = 0, laux
-               IF (l <= lval+1) THEN
+               IF (l <= lval + 1) THEN
                   pend(l) = pmax(l)
-                  bval(l) = bv(basis_cntrl+1)
+                  bval(l) = bv(basis_cntrl + 1)
                   pmin(l) = zmin(l)
                ELSE
                   pend(l) = 4.0_dp*peff(l)
-                  bval(l) = bx(basis_cntrl+1)
+                  bval(l) = bx(basis_cntrl + 1)
                END IF
-               xv = LOG(pend(l)/pmin(l))/LOG(bval(l))+1.e-10_dp
+               xv = LOG(pend(l)/pmin(l))/LOG(bval(l)) + 1.e-10_dp
                nval(l) = MAX(CEILING(xv), 0)
                bval(l) = (pend(l)/pmin(l))**(1._dp/nval(l))
             END DO
@@ -308,8 +308,8 @@ CONTAINS
          !
          lm = MIN(2*lval, 3)
          n1 = MAXVAL(nval(0:lm))
-         n2 = MAXVAL(nval(lm+1:laux))
-         nsets = n1+n2
+         n2 = MAXVAL(nval(lm + 1:laux))
+         nsets = n1 + n2
          ALLOCATE (zet(1, nsets))
          zet = 0.0_dp
          nl = 0
@@ -318,18 +318,18 @@ CONTAINS
             ls1(i) = 0
             ls2(i) = lm
             npgf(i) = 1
-            zet(1, i) = pmin(j)*bval(j)**(i-1)
+            zet(1, i) = pmin(j)*bval(j)**(i - 1)
             DO l = 0, lm
                nl(l, i) = 1
             END DO
          END DO
-         j = lm+1
-         DO i = n1+1, nsets
-            ls1(i) = lm+1
+         j = lm + 1
+         DO i = n1 + 1, nsets
+            ls1(i) = lm + 1
             ls2(i) = laux
             npgf(i) = 1
-            zet(1, i) = pmin(j)*bval(j)**(i-n1-1)
-            DO l = lm+1, laux
+            zet(1, i) = pmin(j)*bval(j)**(i - n1 - 1)
+            DO l = lm + 1, laux
                nl(l, i) = 1
             END DO
          END DO
@@ -396,8 +396,8 @@ CONTAINS
             nx = econf(l)
             DO
                IF (nx > 0) THEN
-                  nval(l) = nval(l)+1
-                  nx = nx-2*(2*l+1)
+                  nval(l) = nval(l) + 1
+                  nx = nx - 2*(2*l + 1)
                ELSE
                   EXIT
                END IF
@@ -408,27 +408,27 @@ CONTAINS
          CASE (0)
             laux = lval
             DO l = 0, lval
-               nfun(l) = nfun(l)+1
+               nfun(l) = nfun(l) + 1
             END DO
          CASE (1)
-            laux = MIN(lval+1, lmax)
+            laux = MIN(lval + 1, lmax)
             DO l = 0, lval
-               nfun(l) = nfun(l)+1
+               nfun(l) = nfun(l) + 1
             END DO
             IF (laux > lval) nfun(laux) = 1
          CASE (2)
-            laux = MIN(lval+1, lmax)
+            laux = MIN(lval + 1, lmax)
             DO l = 0, lval
-               nfun(l) = nfun(l)+2
+               nfun(l) = nfun(l) + 2
             END DO
             IF (laux > lval) nfun(laux) = 1
          CASE (3)
-            laux = MIN(lval+2, lmax)
+            laux = MIN(lval + 2, lmax)
             DO l = 0, lval
-               nfun(l) = nfun(l)+3
+               nfun(l) = nfun(l) + 3
             END DO
-            IF (laux > lval) nfun(lval+1) = 2
-            IF (laux > lval+1) nfun(laux) = 1
+            IF (laux > lval) nfun(lval + 1) = 2
+            IF (laux > lval + 1) nfun(laux) = 1
          CASE DEFAULT
             CPABORT("Invalid value of control variable")
          END SELECT
@@ -436,24 +436,24 @@ CONTAINS
          nsets = 0
          maxpgf = 0
          DO l = 0, lval
-            z1 = MAX(zmin(l), 0.10_dp+l*0.025_dp)
+            z1 = MAX(zmin(l), 0.10_dp + l*0.025_dp)
             z2 = zmax(l)
             mx = CEILING(LOG(z2/z1)/LOG(5.0_dp))
             IF (nval(l) > 1) THEN
-               nsets = nsets+2
+               nsets = nsets + 2
                maxpgf = MAX(maxpgf, nval(l), mx, 3)
             ELSEIF (nval(l) == 1) THEN
-               nsets = nsets+1
+               nsets = nsets + 1
                maxpgf = MAX(maxpgf, mx, 3)
             END IF
-            DO i = nval(l)+1, nfun(l)
+            DO i = nval(l) + 1, nfun(l)
                maxpgf = MAX(maxpgf, mx, 1)
-               nsets = nsets+1
+               nsets = nsets + 1
             END DO
          END DO
-         DO l = lval+1, laux
+         DO l = lval + 1, laux
             maxpgf = MAX(maxpgf, 1)
-            nsets = nsets+nfun(l)
+            nsets = nsets + nfun(l)
          END DO
          !
          ALLOCATE (zet(maxpgf, nsets))
@@ -463,7 +463,7 @@ CONTAINS
          DO l = 0, laux
             amet = 2.50_dp
             ! optimize exponensts
-            z1 = MAX(zmin(l), 0.20_dp+l*0.025_dp)
+            z1 = MAX(zmin(l), 0.20_dp + l*0.025_dp)
             z2 = zmax(l)
             mx = CEILING(LOG(z2/z1)/LOG(4.0_dp))
             IF (nval(l) > 1) THEN
@@ -490,7 +490,7 @@ CONTAINS
                IF (ostate%state == 2) THEN
                   afit(1) = xval(1)
                   DO i = 2, nx
-                     afit(i) = afit(i-1)*xval(i)
+                     afit(i) = afit(i - 1)*xval(i)
                   END DO
                   CALL overlap_maximum(l, np, nf, zval, gcval, nx, afit, amet, ostate%f)
                   CALL neb_potential(xval, ostate%nvar, ostate%f)
@@ -502,46 +502,46 @@ CONTAINS
             CALL powell_optimize(ostate%nvar, xval, ostate)
             afit(1) = xval(1)
             DO i = 2, nx
-               afit(i) = afit(i-1)*xval(i)
+               afit(i) = afit(i - 1)*xval(i)
             END DO
             DEALLOCATE (zval, gcval)
             !
             IF (nval(l) > 1) THEN
                ! split set
-               iset = iset+1
+               iset = iset + 1
                lset(iset) = l
-               npgf(iset) = nx-1
-               nl(l, iset) = nval(l)-1
-               zet(1:nx-1, iset) = afit(1:nx-1)
+               npgf(iset) = nx - 1
+               nl(l, iset) = nval(l) - 1
+               zet(1:nx - 1, iset) = afit(1:nx - 1)
                ! new set
-               iset = iset+1
+               iset = iset + 1
                lset(iset) = l
-               npgf(iset) = nx-1
+               npgf(iset) = nx - 1
                nl(l, iset) = 1
-               zet(1:nx-1, iset) = afit(2:nx)
-               DO i = 1, nfun(l)-2
-                  iset = iset+1
+               zet(1:nx - 1, iset) = afit(2:nx)
+               DO i = 1, nfun(l) - 2
+                  iset = iset + 1
                   lset(iset) = l
                   npgf(iset) = 1
-                  zet(1, iset) = afit(nx-i+1)
+                  zet(1, iset) = afit(nx - i + 1)
                   nl(l, iset) = 1
                END DO
             ELSEIF (nval(l) == 1) THEN
-               iset = iset+1
+               iset = iset + 1
                lset(iset) = l
                npgf(iset) = nx
                zet(1:nx, iset) = afit(1:nx)
                nl(l, iset) = 1
-               DO i = 1, nfun(l)-1
-                  iset = iset+1
+               DO i = 1, nfun(l) - 1
+                  iset = iset + 1
                   lset(iset) = l
                   npgf(iset) = 1
-                  zet(1, iset) = afit(nx-i+1)
+                  zet(1, iset) = afit(nx - i + 1)
                   nl(l, iset) = 1
                END DO
             ELSE
                DO i = 1, nfun(l)
-                  iset = iset+1
+                  iset = iset + 1
                   lset(iset) = l
                   npgf(iset) = 1
                   zet(1, iset) = afit(i)
@@ -612,22 +612,22 @@ CONTAINS
          ! zeff
          DO ishell = 1, nshell(iset)
             l = lshell(ishell, iset)
-            kval = fac(l+1)**2*2._dp**(2*l+1)/fac(2*l+2)
+            kval = fac(l + 1)**2*2._dp**(2*l + 1)/fac(2*l + 2)
             rexp = 0.0_dp
             rno = 0.0_dp
             DO i = 1, npgf(iset)
                gcca = gcc(i, ishell, iset)
                DO j = 1, npgf(iset)
-                  zeta = zet(i, iset)+zet(j, iset)
+                  zeta = zet(i, iset) + zet(j, iset)
                   gccb = gcc(j, ishell, iset)
-                  rint = 0.5_dp*fac(l+1)/zeta**(l+2)
-                  rexp = rexp+gcca*gccb*rint
-                  rint = rootpi*0.5_dp**(l+2)*dfac(2*l+1)/zeta**(l+1.5_dp)
-                  rno = rno+gcca*gccb*rint
+                  rint = 0.5_dp*fac(l + 1)/zeta**(l + 2)
+                  rexp = rexp + gcca*gccb*rint
+                  rint = rootpi*0.5_dp**(l + 2)*dfac(2*l + 1)/zeta**(l + 1.5_dp)
+                  rno = rno + gcca*gccb*rint
                END DO
             END DO
             rexp = rexp/rno
-            aeff = (fac(l+1)/dfac(2*l+1))**2*2._dp**(2*l+1)/(pi*rexp**2)
+            aeff = (fac(l + 1)/dfac(2*l + 1))**2*2._dp**(2*l + 1)/(pi*rexp**2)
             zeff(l) = MAX(zeff(l), aeff)
          END DO
       END DO
@@ -660,10 +660,10 @@ CONTAINS
 
       DO l1 = 0, lmax
          DO l2 = l1, lmax
-            DO la = l2-l1, l2+l1
-               pmax(la) = MAX(pmax(la), zmax(l1)+zmax(l2))
-               pmin(la) = MIN(pmin(la), zmin(l1)+zmin(l2))
-               peff(la) = MAX(peff(la), zeff(l1)+zeff(l2))
+            DO la = l2 - l1, l2 + l1
+               pmax(la) = MAX(pmax(la), zmax(l1) + zmax(l2))
+               pmin(la) = MIN(pmin(la), zmin(l1) + zmin(l2))
+               peff(la) = MAX(peff(la), zeff(l1) + zeff(l2))
             END DO
          END DO
       END DO
@@ -701,10 +701,10 @@ CONTAINS
       fij = 0.0_dp
       DO ia = 1, npgf
          DO ib = 1, npgf
-            p = zet(ia)+zet(ib)+amet
-            intab = 0.5_dp/p**(lm+1.5_dp)*gamma1(lm+1)
+            p = zet(ia) + zet(ib) + amet
+            intab = 0.5_dp/p**(lm + 1.5_dp)*gamma1(lm + 1)
             DO i = 1, nfun
-               fij = fij+gcc(ia, i)*gcc(ib, i)*intab
+               fij = fij + gcc(ia, i)*gcc(ib, i)*intab
             END DO
          END DO
       END DO
@@ -714,10 +714,10 @@ CONTAINS
       fx = 0.0_dp
       DO ia = 1, npgf
          DO ib = 1, nfit
-            p = zet(ia)+afit(ib)+amet
-            intab = 0.5_dp/p**(lm+1.5_dp)*gamma1(lm+1)
+            p = zet(ia) + afit(ib) + amet
+            intab = 0.5_dp/p**(lm + 1.5_dp)*gamma1(lm + 1)
             DO i = 1, nfun
-               fx(ib, i) = fx(ib, i)+gcc(ia, i)*intab
+               fx(ib, i) = fx(ib, i) + gcc(ia, i)*intab
             END DO
          END DO
       END DO
@@ -726,8 +726,8 @@ CONTAINS
       ALLOCATE (xx(nfit, nfit), x2(nfit, nfit))
       DO ia = 1, nfit
          DO ib = 1, nfit
-            p = afit(ia)+afit(ib)+amet
-            xx(ia, ib) = 0.5_dp/p**(lm+1.5_dp)*gamma1(lm+1)
+            p = afit(ia) + afit(ib) + amet
+            xx(ia, ib) = 0.5_dp/p**(lm + 1.5_dp)*gamma1(lm + 1)
          END DO
       END DO
 
@@ -739,15 +739,15 @@ CONTAINS
          ! value t*xx*t
          xij = 0.0_dp
          DO i = 1, nfun
-            xij = xij+DOT_PRODUCT(tx(:, i), MATMUL(xx, tx(:, i)))
+            xij = xij + DOT_PRODUCT(tx(:, i), MATMUL(xx, tx(:, i)))
          END DO
          ! value t*fx
          fxij = 0.0_dp
          DO i = 1, nfun
-            fxij = fxij+DOT_PRODUCT(tx(:, i), fx(:, i))
+            fxij = fxij + DOT_PRODUCT(tx(:, i), fx(:, i))
          END DO
          !
-         eval = fij-2.0_dp*fxij+xij
+         eval = fij - 2.0_dp*fxij + xij
       ELSE
          ! error in solving for max overlap
          eval = 1.0e10_dp
@@ -773,7 +773,7 @@ CONTAINS
 
       DO i = 2, n
          IF (x(i) < 1.5_dp) THEN
-            eval = eval+10.0_dp*(1.5_dp-x(i))**2
+            eval = eval + 10.0_dp*(1.5_dp - x(i))**2
          END IF
       END DO
 
@@ -820,9 +820,9 @@ CONTAINS
          DO ishell = 1, nshell(iset)
             l = lshell(ishell, iset)
             IF (l == lin) THEN
-               nf = nf+1
+               nf = nf + 1
                IF (toadd) THEN
-                  np = np+npgf(iset)
+                  np = np + npgf(iset)
                   toadd = .FALSE.
                END IF
             END IF
@@ -839,12 +839,12 @@ CONTAINS
          DO ishell = 1, nshell(iset)
             l = lshell(ishell, iset)
             IF (l == lin) THEN
-               jf = jf+1
+               jf = jf + 1
                IF (toadd) THEN
-                  j1 = jp+1
-                  j2 = jp+npgf(iset)
+                  j1 = jp + 1
+                  j2 = jp + npgf(iset)
                   zval(j1:j2) = zet(1:npgf(iset), iset)
-                  jp = jp+npgf(iset)
+                  jp = jp + npgf(iset)
                   toadd = .FALSE.
                END IF
                gcval(j1:j2, jf) = gcc(1:npgf(iset), ishell, iset)

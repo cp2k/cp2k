@@ -250,9 +250,9 @@ CONTAINS
       CPASSERT(i <= n)
       CPASSERT(j <= n)
 
-      ij = (i-1)*n-((i-1)*(i-2))/2+(j-i+1)
+      ij = (i - 1)*n - ((i - 1)*(i - 2))/2 + (j - i + 1)
 
-      CPASSERT(ij <= (n*(n+1))/2)
+      CPASSERT(ij <= (n*(n + 1))/2)
 
    END FUNCTION csr_idx_to_combined
 
@@ -273,8 +273,8 @@ CONTAINS
 
       m = MAX(ij/n, 1)
       DO i = m, n
-         m0 = (i-1)*n-((i-1)*(i-2))/2
-         j = ij-m0+i-1
+         m0 = (i - 1)*n - ((i - 1)*(i - 2))/2
+         j = ij - m0 + i - 1
          IF (j <= n) EXIT
       END DO
 
@@ -310,13 +310,13 @@ CONTAINS
             irange(1) = 1
             irange(2) = 0
          ELSE
-            irange(1) = taskid+1
-            irange(2) = taskid+1
+            irange(1) = taskid + 1
+            irange(2) = taskid + 1
          END IF
       ELSE
          rat = REAL(nindex, KIND=dp)/REAL(numtask, KIND=dp)
-         irange(1) = NINT(rat*taskid)+1
-         irange(2) = NINT(rat*taskid+rat)
+         irange(1) = NINT(rat*taskid) + 1
+         irange(2) = NINT(rat*taskid + rat)
       END IF
 
    END FUNCTION get_irange_csr
@@ -342,7 +342,7 @@ CONTAINS
       REAL(KIND=dp)                            :: erint
 
       ASSOCIATE (eri=>this%eri(nspin)%csr_mat, norb=>this%norb)
-         nindex = (norb*(norb+1))/2
+         nindex = (norb*(norb + 1))/2
          irange = get_irange_csr(nindex, eri%mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 
@@ -351,11 +351,11 @@ CONTAINS
                i12 = csr_idx_to_combined(i1, i2, norb)
 
                IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-                  i12l = i12-irange(1)+1
+                  i12l = i12 - irange(1) + 1
                   irptr = eri%rowptr_local(i12l)
                   nindex = eri%nzerow_local(i12l)
-                  colind(1:nindex) = eri%colind_local(irptr:irptr+nindex-1)
-                  erival(1:nindex) = eri%nzval_local%r_dp(irptr:irptr+nindex-1)
+                  colind(1:nindex) = eri%colind_local(irptr:irptr + nindex - 1)
+                  erival(1:nindex) = eri%nzval_local%r_dp(irptr:irptr + nindex - 1)
                ELSE
                   erival = 0.0_dp
                   colind = 0

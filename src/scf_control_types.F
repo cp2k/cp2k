@@ -261,7 +261,7 @@ CONTAINS
 
       NULLIFY (scf_control%smear)
 
-      last_scf_c_id_nr = last_scf_c_id_nr+1
+      last_scf_c_id_nr = last_scf_c_id_nr + 1
 
       CALL timestop(handle)
 
@@ -283,7 +283,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(scf_control))
 
       CPASSERT(scf_control%ref_count > 0)
-      scf_control%ref_count = scf_control%ref_count+1
+      scf_control%ref_count = scf_control%ref_count + 1
 
    END SUBROUTINE scf_c_retain
 
@@ -304,7 +304,7 @@ CONTAINS
 
       IF (ASSOCIATED(scf_control)) THEN
          CPASSERT(scf_control%ref_count > 0)
-         scf_control%ref_count = scf_control%ref_count-1
+         scf_control%ref_count = scf_control%ref_count - 1
          IF (scf_control%ref_count < 1) THEN
             IF (ASSOCIATED(scf_control%smear%list)) THEN
                DEALLOCATE (scf_control%smear%list)

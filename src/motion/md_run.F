@@ -387,9 +387,9 @@ CONTAINS
                IF (force_env%meta_env%well_tempered) THEN
                   force_env%meta_env%wttemperature = simpar%temp_ext
                   IF (force_env%meta_env%wtgamma > EPSILON(1._dp)) THEN
-                     dummy = force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma-1._dp)
+                     dummy = force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma - 1._dp)
                      IF (force_env%meta_env%delta_t > EPSILON(1._dp)) THEN
-                        check = ABS(force_env%meta_env%delta_t-dummy) < 1.E+3_dp*EPSILON(1._dp)
+                        check = ABS(force_env%meta_env%delta_t - dummy) < 1.E+3_dp*EPSILON(1._dp)
                         IF (.NOT. check) &
                            CALL cp_abort(__LOCATION__, &
                                          "Inconsistency between DELTA_T and WTGAMMA (both specified):"// &
@@ -399,7 +399,7 @@ CONTAINS
                      ENDIF
                   ELSE
                      force_env%meta_env%wtgamma = 1._dp &
-                                                  +force_env%meta_env%delta_t/force_env%meta_env%wttemperature
+                                                  + force_env%meta_env%delta_t/force_env%meta_env%wttemperature
                   ENDIF
                   force_env%meta_env%invdt = 1._dp/force_env%meta_env%delta_t
                ENDIF
@@ -427,7 +427,7 @@ CONTAINS
       ELSE
          CALL get_md_env(md_env, reftraj=reftraj)
          CALL initialize_reftraj(reftraj, reftraj_section, md_env)
-         itimes = reftraj%info%first_snapshot-1
+         itimes = reftraj%info%first_snapshot - 1
          md_stride = reftraj%info%stride
          IF (ASSOCIATED(force_env%meta_env)) THEN
             IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
@@ -450,8 +450,8 @@ CONTAINS
       ! Real MD Loop
       DO istep = 1, simpar%nsteps, md_stride
          ! Increase counters
-         itimes = itimes+1
-         time = time+simpar%dt
+         itimes = itimes + 1
+         time = time + simpar%dt
          !needed when electric field fields are applied
          IF (ASSOCIATED(force_env%qs_env)) THEN
             force_env%qs_env%sim_time = time
@@ -529,7 +529,7 @@ CONTAINS
          END IF
 
          time_iter_stop = m_walltime()
-         used_time = time_iter_stop-time_iter_start
+         used_time = time_iter_stop - time_iter_start
          time_iter_start = time_iter_stop
 
          CALL md_output(md_env, md_section, force_env%root_section, should_stop)

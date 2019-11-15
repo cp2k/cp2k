@@ -94,14 +94,14 @@ CONTAINS
       worker_id = -1
       swarm_mpi%world => world_para_env
 
-      IF (MOD(swarm_mpi%world%num_pe-1, n_workers) /= 0) THEN
+      IF (MOD(swarm_mpi%world%num_pe - 1, n_workers) /= 0) THEN
          CPABORT("number of processors-1 is not divisible by n_workers.")
       ENDIF
-      IF (swarm_mpi%world%num_pe < n_workers+1) THEN
+      IF (swarm_mpi%world%num_pe < n_workers + 1) THEN
          CPABORT("There are not enough processes for n_workers + 1. Aborting.")
       ENDIF
 
-      pe_per_worker = (swarm_mpi%world%num_pe-1)/n_workers
+      pe_per_worker = (swarm_mpi%world%num_pe - 1)/n_workers
 
       IF (iw > 0) THEN
          WRITE (iw, '(A,45X,I8)') " SWARM| Number of mpi ranks", swarm_mpi%world%num_pe
@@ -109,7 +109,7 @@ CONTAINS
       ENDIF
 
       ! the last task becomes the master. Preseves node-alignment of other tasks.
-      im_the_master = (swarm_mpi%world%mepos == swarm_mpi%world%num_pe-1)
+      im_the_master = (swarm_mpi%world%mepos == swarm_mpi%world%num_pe - 1)
 
       ! First split split para_env%group into a master- and a workers-groups...
       IF (im_the_master) THEN
@@ -122,7 +122,7 @@ CONTAINS
          CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 2)
          CALL mp_environ(subgroup_size, subgroup_rank, subgroup)
          !WRITE (*,*) "Hello, this is a Worker - there are ",subgroup_size, " of us."
-         IF (subgroup_size /= swarm_mpi%world%num_pe-1) CPABORT("mp_comm_split_direct failed (worker)")
+         IF (subgroup_size /= swarm_mpi%world%num_pe - 1) CPABORT("mp_comm_split_direct failed (worker)")
       ENDIF
 
       ALLOCATE (swarm_mpi%wid2group(n_workers))
@@ -132,7 +132,7 @@ CONTAINS
          ! ...then split workers-group into n_workers groups - one for each worker.
          group_distribution_p => group_distribution
          CALL mp_comm_split(subgroup, worker_group, n_groups_created, group_distribution_p, n_subgroups=n_workers)
-         worker_id = group_distribution(subgroup_rank)+1 ! shall start by 1
+         worker_id = group_distribution(subgroup_rank) + 1 ! shall start by 1
          IF (n_groups_created /= n_workers) CPABORT("mp_comm_split failed.")
          CALL cp_para_env_create(swarm_mpi%worker, group=worker_group)
          CALL mp_comm_free(subgroup)
@@ -223,7 +223,7 @@ CONTAINS
             CPABORT("Did not expect so many workers.")
          ENDIF
          WRITE (worker_name, "(A,I5.5)") 'WORKER', worker_id
-         IF (LEN_TRIM(project_name)+1+LEN_TRIM(worker_name) > default_string_length) THEN
+         IF (LEN_TRIM(project_name) + 1 + LEN_TRIM(worker_name) > default_string_length) THEN
             CPABORT("project name too long")
          ENDIF
          output_path = TRIM(project_name)//"-"//TRIM(worker_name)//".out"
@@ -342,7 +342,7 @@ CONTAINS
 
       IF (swarm_mpi%worker%source /= swarm_mpi%worker%mepos) RETURN
 
-      dest = swarm_mpi%world%num_pe-1
+      dest = swarm_mpi%world%num_pe - 1
       tag = 42
       CALL swarm_message_mpi_send(report, group=swarm_mpi%world%group, dest=dest, tag=tag)
 
@@ -403,7 +403,7 @@ CONTAINS
 ! First: The rank-0 of the worker groups receives the command from the master.
 
       IF (swarm_mpi%worker%ionode) THEN
-         src = swarm_mpi%world%num_pe-1 !
+         src = swarm_mpi%world%num_pe - 1 !
          tag = 42
          CALL swarm_message_mpi_recv(cmd, group=swarm_mpi%world%group, src=src, tag=tag)
 

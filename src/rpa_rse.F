@@ -278,8 +278,8 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF ((i_global .LE. homo) .AND. (j_global .GT. homo)) THEN
-               rse_corr = rse_corr+fm_X_mo%local_data(iib, jjb)**2.0_dp/ &
-                          (eigenval(i_global)-eigenval(j_global)-diag_diff(i_global)+diag_diff(j_global))
+               rse_corr = rse_corr + fm_X_mo%local_data(iib, jjb)**2.0_dp/ &
+                          (eigenval(i_global) - eigenval(j_global) - diag_diff(i_global) + diag_diff(j_global))
             ENDIF
          END DO
       END DO
@@ -320,14 +320,14 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
                IF ((i_global .LE. homo_beta) .AND. (j_global .GT. homo_beta)) THEN
-                  rse_corr_beta = rse_corr_beta+fm_X_mo_beta%local_data(iib, jjb)**2.0_dp/ &
-                                  (eigenval_beta(i_global)-eigenval_beta(j_global)-diag_diff(i_global)+diag_diff(j_global))
+                  rse_corr_beta = rse_corr_beta + fm_X_mo_beta%local_data(iib, jjb)**2.0_dp/ &
+                                  (eigenval_beta(i_global) - eigenval_beta(j_global) - diag_diff(i_global) + diag_diff(j_global))
                ENDIF
             END DO
          END DO
 !$OMP END PARALLEL DO
          CALL mp_sum(rse_corr_beta, para_env%group)
-         rse_corr = 0.5_dp*(rse_corr+rse_corr_beta)
+         rse_corr = 0.5_dp*(rse_corr + rse_corr_beta)
       ENDIF
 
       mp2_env%ri_rpa%rse_corr_diag = rse_corr
@@ -642,7 +642,7 @@ CONTAINS
             i_global = row_indices(iiB)
             IF (i_global .EQ. j_global) THEN
                fm_F_mo%local_data(iib, jjb) = &
-                  fm_F_mo%local_data(iib, jjb)+eigenval(i_global)
+                  fm_F_mo%local_data(iib, jjb) + eigenval(i_global)
             ENDIF
          END DO
       END DO
@@ -663,7 +663,7 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
                IF (i_global .EQ. j_global) fm_F_mo_beta%local_data(iib, jjb) = &
-                  fm_F_mo_beta%local_data(iib, jjb)+eigenval_beta(i_global)
+                  fm_F_mo_beta%local_data(iib, jjb) + eigenval_beta(i_global)
             END DO
          END DO
 !$OMP END PARALLEL DO
@@ -684,7 +684,7 @@ CONTAINS
                               s_firstrow=1, s_firstcol=1, &
                               t_firstrow=1, t_firstcol=1)
 
-      virtual = dimen-homo
+      virtual = dimen - homo
       NULLIFY (fm_F_vv, fm_U, fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=virtual, ncol_global=virtual)
@@ -696,7 +696,7 @@ CONTAINS
 
       CALL cp_fm_to_fm_submat(msource=fm_F_mo, mtarget=fm_F_vv, &
                               nrow=virtual, ncol=virtual, &
-                              s_firstrow=homo+1, s_firstcol=homo+1, &
+                              s_firstrow=homo + 1, s_firstcol=homo + 1, &
                               t_firstrow=1, t_firstcol=1)
 
       ! Diagonalize occupied-occupied and virtual-virtual matrices
@@ -712,7 +712,7 @@ CONTAINS
       ALLOCATE (eig_semi_can(dimen))
       eig_semi_can = 0.0_dp
       eig_semi_can(1:homo) = eig_o(:)
-      eig_semi_can(homo+1:dimen) = eig_v(:)
+      eig_semi_can(homo + 1:dimen) = eig_v(:)
 
       ! Create occupied-virtual block
       NULLIFY (fm_F_ov, fm_tmp, fm_struct_tmp)
@@ -726,7 +726,7 @@ CONTAINS
 
       CALL cp_fm_to_fm_submat(msource=fm_F_mo, mtarget=fm_F_ov, &
                               nrow=homo, ncol=virtual, &
-                              s_firstrow=1, s_firstcol=homo+1, &
+                              s_firstrow=1, s_firstcol=homo + 1, &
                               t_firstrow=1, t_firstcol=1)
 
       CALL cp_fm_get_info(matrix=fm_F_ov, &
@@ -758,8 +758,8 @@ CONTAINS
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            rse_corr = rse_corr+fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
-                       (eig_semi_can(i_global)-eig_semi_can(j_global+homo))
+            rse_corr = rse_corr + fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
+                       (eig_semi_can(i_global) - eig_semi_can(j_global + homo))
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -793,7 +793,7 @@ CONTAINS
                                  nrow=homo_beta, ncol=homo_beta, &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
-         virtual_beta = dimen-homo_beta
+         virtual_beta = dimen - homo_beta
          NULLIFY (fm_F_vv, fm_U, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=virtual_beta, ncol_global=virtual_beta)
@@ -805,7 +805,7 @@ CONTAINS
 
          CALL cp_fm_to_fm_submat(msource=fm_F_mo_beta, mtarget=fm_F_vv, &
                                  nrow=virtual_beta, ncol=virtual_beta, &
-                                 s_firstrow=homo_beta+1, s_firstcol=homo_beta+1, &
+                                 s_firstrow=homo_beta + 1, s_firstcol=homo_beta + 1, &
                                  t_firstrow=1, t_firstcol=1)
 
          ! Diagonalize occupied-occupied and virtual-virtual matrices
@@ -820,7 +820,7 @@ CONTAINS
          ALLOCATE (eig_semi_can(dimen))
          eig_semi_can = 0.0_dp
          eig_semi_can(1:homo_beta) = eig_o(:)
-         eig_semi_can(homo_beta+1:dimen) = eig_v(:)
+         eig_semi_can(homo_beta + 1:dimen) = eig_v(:)
 
          ! Create occupied-virtual block
          NULLIFY (fm_F_ov, fm_tmp, fm_struct_tmp)
@@ -834,7 +834,7 @@ CONTAINS
 
          CALL cp_fm_to_fm_submat(msource=fm_F_mo_beta, mtarget=fm_F_ov, &
                                  nrow=homo_beta, ncol=virtual_beta, &
-                                 s_firstrow=1, s_firstcol=homo_beta+1, &
+                                 s_firstrow=1, s_firstcol=homo_beta + 1, &
                                  t_firstrow=1, t_firstcol=1)
 
          CALL cp_gemm(transa='N', transb='N', m=homo_beta, n=virtual_beta, k=homo_beta, alpha=1.0_dp, &
@@ -857,8 +857,8 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               rse_corr_beta = rse_corr_beta+fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
-                               (eig_semi_can(i_global)-eig_semi_can(j_global+homo_beta))
+               rse_corr_beta = rse_corr_beta + fm_F_ov%local_data(iib, jjb)**2.0_dp/ &
+                               (eig_semi_can(i_global) - eig_semi_can(j_global + homo_beta))
             END DO
          END DO
 !$OMP    END PARALLEL DO
@@ -876,7 +876,7 @@ CONTAINS
          CALL cp_fm_release(fm_O)
          CALL cp_fm_release(fm_tmp)
 
-         rse_corr = 0.5_dp*(rse_corr+rse_corr_beta)
+         rse_corr = 0.5_dp*(rse_corr + rse_corr_beta)
 
       ENDIF
 

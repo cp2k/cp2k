@@ -445,8 +445,8 @@ CONTAINS
             DO ispin = 1, nspins
                rho_ao => rho_ao_kp(ispin, :)
                CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
-                                        drho=drho_r(3*(ispin-1)+1:3*ispin), &
-                                        drho_gspace=drho_g(3*(ispin-1)+1:3*ispin), &
+                                        drho=drho_r(3*(ispin - 1) + 1:3*ispin), &
+                                        drho_gspace=drho_g(3*(ispin - 1) + 1:3*ispin), &
                                         qs_env=qs_env, soft_valid=gapw)
             END DO
             CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
@@ -514,8 +514,8 @@ CONTAINS
             DO ispin = 1, nspins
                rho_ao => rho_xc_ao(ispin, :)
                CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
-                                        drho=rho_xc_r(3*(ispin-1)+1:3*ispin), &
-                                        drho_gspace=drho_xc_g(3*(ispin-1)+1:3*ispin), &
+                                        drho=rho_xc_r(3*(ispin - 1) + 1:3*ispin), &
+                                        drho_gspace=drho_xc_g(3*(ispin - 1) + 1:3*ispin), &
                                         qs_env=qs_env, soft_valid=gapw_xc)
             END DO
             CALL qs_rho_set(rho_xc, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)

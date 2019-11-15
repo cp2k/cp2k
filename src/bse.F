@@ -232,9 +232,9 @@ CONTAINS
       DO i_occ = 1, homo
          DO a_virt = 1, virtual
 
-            eigen_diff = Eigenval(a_virt+homo)-Eigenval(i_occ)
+            eigen_diff = Eigenval(a_virt + homo) - Eigenval(i_occ)
 
-            AZ(i_occ, a_virt, :) = AZ(i_occ, a_virt, :)+Z_vectors(i_occ, a_virt, :)*eigen_diff
+            AZ(i_occ, a_virt, :) = AZ(i_occ, a_virt, :) + Z_vectors(i_occ, a_virt, :)*eigen_diff
 
          END DO
       END DO
@@ -277,7 +277,7 @@ CONTAINS
             DO i_occ = 1, homo
                DO a_virt = 1, virtual
 
-                  RI_vector(LLL, i_Z_vector) = RI_vector(LLL, i_Z_vector)+ &
+                  RI_vector(LLL, i_Z_vector) = RI_vector(LLL, i_Z_vector) + &
                                                Z_vectors(i_occ, a_virt, i_Z_vector)* &
                                                B_iaQ_bse_local(i_occ, a_virt, LLL)
 
@@ -292,7 +292,7 @@ CONTAINS
             DO i_occ = 1, homo
                DO a_virt = 1, virtual
 
-                  AZ(i_occ, a_virt, i_Z_vector) = AZ(i_occ, a_virt, i_Z_vector)+ &
+                  AZ(i_occ, a_virt, i_Z_vector) = AZ(i_occ, a_virt, i_Z_vector) + &
                                                   RI_vector(LLL, i_Z_vector)* &
                                                   B_iaQ_bse_local(i_occ, a_virt, LLL)
 
@@ -332,7 +332,7 @@ CONTAINS
 
       DO i_occ = 1, homo
          DO a_virt = 1, virtual
-            eigen_diff_ia(i_occ, a_virt) = Eigenval(a_virt+homo)-Eigenval(i_occ)
+            eigen_diff_ia(i_occ, a_virt) = Eigenval(a_virt + homo) - Eigenval(i_occ)
          END DO
       END DO
 
@@ -422,7 +422,7 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) = fm_mat_Q_static_bse_gemm%local_data(iiB, jjB)+1.0_dp
+               fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) = fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) + 1.0_dp
             END IF
          END DO
       END DO
@@ -504,7 +504,7 @@ CONTAINS
       ALLOCATE (mepos_from_RI_index(dimen_RI))
       mepos_from_RI_index = 0
 
-      DO imepos = 0, para_env%num_pe-1
+      DO imepos = 0, para_env%num_pe - 1
 
          CALL get_group_dist(gd_array, pos=imepos, starts=start_RI, ends=end_RI)
 
@@ -517,12 +517,12 @@ CONTAINS
 
       ALLOCATE (B_local(small_size, big_size, 1:size_RI))
 
-      ALLOCATE (num_entries_send(0:para_env%num_pe-1))
-      ALLOCATE (num_entries_rec(0:para_env%num_pe-1))
+      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
+      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
 
       ALLOCATE (req_array(1:para_env%num_pe, 4))
 
-      ALLOCATE (entry_counter(0:para_env%num_pe-1))
+      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
 
       CALL cp_fm_get_info(matrix=fm_mat_S, &
                           nrow_local=nrow_local, &
@@ -534,7 +534,7 @@ CONTAINS
 
       ! communicate not all due to huge memory overhead, since for every number in fm_mat_S, we store
       ! three additional ones (RI index, first MO index, second MO index!!)
-      DO i_comm = 0, num_comm_cycles-1
+      DO i_comm = 0, num_comm_cycles - 1
 
          num_entries_send = 0
          num_entries_rec = 0
@@ -548,17 +548,17 @@ CONTAINS
 
             imepos = mepos_from_RI_index(RI_index)
 
-            num_entries_send(imepos) = num_entries_send(imepos)+nrow_local
+            num_entries_send(imepos) = num_entries_send(imepos) + nrow_local
 
          END DO
 
          CALL mp_alltoall(num_entries_send, num_entries_rec, 1, para_env%group)
 
-         ALLOCATE (buffer_rec(0:para_env%num_pe-1))
-         ALLOCATE (buffer_send(0:para_env%num_pe-1))
+         ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
+         ALLOCATE (buffer_send(0:para_env%num_pe - 1))
 
          ! allocate data message and corresponding indices
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
 
             ALLOCATE (buffer_rec(imepos)%msg(num_entries_rec(imepos)))
             buffer_rec(imepos)%msg = 0.0_dp
@@ -588,10 +588,10 @@ CONTAINS
             DO iiB = 1, nrow_local
 
                combi_index = row_indices(iiB)
-               level_small_size = MAX(1, combi_index-1)/big_size+1
-               level_big_size = combi_index-(level_small_size-1)*big_size
+               level_small_size = MAX(1, combi_index - 1)/big_size + 1
+               level_big_size = combi_index - (level_small_size - 1)*big_size
 
-               entry_counter(imepos) = entry_counter(imepos)+1
+               entry_counter(imepos) = entry_counter(imepos) + 1
 
                buffer_send(imepos)%msg(entry_counter(imepos)) = fm_mat_S%local_data(iiB, jjB)
 
@@ -610,11 +610,11 @@ CONTAINS
          CALL timestop(handle1)
 
          ! fill B_local
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
 
             DO i_entry = 1, num_entries_rec(imepos)
 
-               RI_index = buffer_rec(imepos)%indx(i_entry, 1)-start_RI+1
+               RI_index = buffer_rec(imepos)%indx(i_entry, 1) - start_RI + 1
                level_small_size = buffer_rec(imepos)%indx(i_entry, 2)
                level_big_size = buffer_rec(imepos)%indx(i_entry, 3)
 
@@ -626,7 +626,7 @@ CONTAINS
 
          END DO
 
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
             DEALLOCATE (buffer_send(imepos)%msg)
             DEALLOCATE (buffer_send(imepos)%indx)
             DEALLOCATE (buffer_rec(imepos)%msg)

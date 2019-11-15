@@ -83,7 +83,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(para_env))
       CPASSERT(para_env%ref_count > 0)
-      para_env%ref_count = para_env%ref_count+1
+      para_env%ref_count = para_env%ref_count + 1
    END SUBROUTINE cp_para_env_retain
 
 ! **************************************************************************************************
@@ -105,7 +105,7 @@ CONTAINS
 
       IF (ASSOCIATED(para_env)) THEN
          CPASSERT(para_env%ref_count > 0)
-         para_env%ref_count = para_env%ref_count-1
+         para_env%ref_count = para_env%ref_count - 1
          IF (para_env%ref_count < 1) THEN
             IF (para_env%owns_group) THEN
                CALL mp_comm_free(para_env%group)
@@ -200,7 +200,7 @@ CONTAINS
 
       IF (ASSOCIATED(cart)) THEN
          CPASSERT(cart%ref_count > 0)
-         cart%ref_count = cart%ref_count-1
+         cart%ref_count = cart%ref_count - 1
          IF (cart%ref_count == 0) THEN
             IF (cart%owns_group) THEN
                CALL mp_comm_free(cart%group)

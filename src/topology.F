@@ -358,7 +358,7 @@ CONTAINS
       DO i = 1, topology%natoms
          IF (elements(i) == "__DEF__") CYCLE
          ! If present an underscore let's skip all that over the underscore
-         id = INDEX(elements(i), "_")-1
+         id = INDEX(elements(i), "_") - 1
          IF (id == -1) id = LEN_TRIM(elements(i))
          ! Many atomic kind have been defined as ELEMENT+LETTER+NUMBER
          ! the number at the end can vary arbitrarily..

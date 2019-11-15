@@ -218,8 +218,8 @@ CONTAINS
             v = SQRT(evals(k))
             DO i = 1, N
                DO j = 1, N
-                  block_N(i, j) = block_N(i, j)+w*A(i, k)*A(j, k)
-                  block_N_inv(i, j) = block_N_inv(i, j)+v*A(i, k)*A(j, k)
+                  block_N(i, j) = block_N(i, j) + w*A(i, k)*A(j, k)
+                  block_N_inv(i, j) = block_N_inv(i, j) + v*A(i, k)*A(j, k)
                ENDDO
             ENDDO
          ENDDO
@@ -334,8 +334,8 @@ CONTAINS
       ! create new mapping of matrix-grid to processor-grid
       ALLOCATE (diag_row_dist(natoms), diag_col_dist(natoms))
       DO iatom = 1, natoms
-         diag_row_dist(iatom) = MOD(iatom-1, pgrid_rows)
-         diag_col_dist(iatom) = MOD((iatom-1)/pgrid_rows, pgrid_cols)
+         diag_row_dist(iatom) = MOD(iatom - 1, pgrid_rows)
+         diag_col_dist(iatom) = MOD((iatom - 1)/pgrid_rows, pgrid_cols)
       ENDDO
 
       ! instanciate distribution object
@@ -445,10 +445,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_diff, loop_eps, now, time_diff
 
       ! calculate progress
-      energy_diff = new_energy-pao%energy_prev
+      energy_diff = new_energy - pao%energy_prev
       pao%energy_prev = new_energy
       now = m_walltime()
-      time_diff = now-pao%step_start_time
+      time_diff = now - pao%step_start_time
       pao%step_start_time = now
 
       ! convergence criterion
@@ -504,11 +504,11 @@ CONTAINS
       energy = 0.0_dp
       DO ispin = 1, ls_scf_env%nspins
          CALL dbcsr_dot(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin), trace_PH)
-         energy = energy+trace_PH
+         energy = energy + trace_PH
       ENDDO
 
       ! add penalty term
-      energy = energy+penalty
+      energy = energy + penalty
 
       IF (pao%iw > 0) THEN
          WRITE (pao%iw, *) ""
@@ -538,12 +538,12 @@ CONTAINS
       trace_PS = 0.0_dp
       DO ispin = 1, ls_scf_env%nspins
          CALL dbcsr_dot(ls_scf_env%matrix_p(ispin), matrix_S_desym, tmp)
-         trace_PS = trace_PS+tmp
+         trace_PS = trace_PS + tmp
       ENDDO
 
       CALL dbcsr_release(matrix_S_desym)
 
-      IF (ABS(ls_scf_env%nelectron_total-trace_PS) > 0.5) &
+      IF (ABS(ls_scf_env%nelectron_total - trace_PS) > 0.5) &
          CPABORT("Number of electrons wrong. Trace(PS) ="//cp_to_string(trace_PS))
 
       CALL timestop(handle)
@@ -952,23 +952,23 @@ CONTAINS
                SELECT CASE (pao%num_grad_order)
                CASE (2) ! calculate derivative to 2th order
                   Gij_num = -eval_point(block_X, i, j, -eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num+eval_point(block_X, i, j, +eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num + eval_point(block_X, i, j, +eps, pao, ls_scf_env, qs_env)
                   Gij_num = Gij_num/(2.0_dp*eps)
 
                CASE (4) ! calculate derivative to 4th order
                   Gij_num = eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num-8_dp*eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num+8_dp*eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num-eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num - 8_dp*eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num + 8_dp*eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num - eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
                   Gij_num = Gij_num/(12.0_dp*eps)
 
                CASE (6) ! calculate derivative to 6th order
                   Gij_num = -1_dp*eval_point(block_X, i, j, -3_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num+9_dp*eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num-45_dp*eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num+45_dp*eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num-9_dp*eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
-                  Gij_num = Gij_num+1_dp*eval_point(block_X, i, j, +3_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num + 9_dp*eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num - 45_dp*eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num + 45_dp*eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num - 9_dp*eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
+                  Gij_num = Gij_num + 1_dp*eval_point(block_X, i, j, +3_dp*eps, pao, ls_scf_env, qs_env)
                   Gij_num = Gij_num/(60.0_dp*eps)
 
                CASE DEFAULT
@@ -976,7 +976,7 @@ CONTAINS
                END SELECT
 
                IF (ASSOCIATED(block_X)) THEN
-                  delta = ABS(Gij_num-block_G(i, j))
+                  delta = ABS(Gij_num - block_G(i, j))
                   delta_max = MAX(delta_max, delta)
                   !WRITE (*,*) "gradient check", iatom, i, j, Gij_num, block_G(i,j), delta
                ENDIF
@@ -1018,7 +1018,7 @@ CONTAINS
 
       IF (ASSOCIATED(block_X)) THEN
          old_Xij = block_X(i, j) ! backup old block_X
-         block_X(i, j) = block_X(i, j)+eps ! add pertubation
+         block_X(i, j) = block_X(i, j) + eps ! add pertubation
       ENDIF
 
       ! calculate energy
@@ -1054,8 +1054,8 @@ CONTAINS
       pao => ls_scf_env%pao_env
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s)
 
-      ls_scf_env%scf_history%istore = ls_scf_env%scf_history%istore+1
-      istore = MOD(ls_scf_env%scf_history%istore-1, ls_scf_env%scf_history%nstore)+1
+      ls_scf_env%scf_history%istore = ls_scf_env%scf_history%istore + 1
+      istore = MOD(ls_scf_env%scf_history%istore - 1, ls_scf_env%scf_history%nstore) + 1
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Storing density matrix for ASPC guess in slot:", istore
 
       ! initialize storage
@@ -1149,9 +1149,9 @@ CONTAINS
          ! actual extrapolation
          CALL dbcsr_set(matrix_P, 0.0_dp)
          DO iaspc = 1, naspc
-            alpha = (-1.0_dp)**(iaspc+1)*REAL(iaspc, KIND=dp)* &
-                    binomial(2*naspc, naspc-iaspc)/binomial(2*naspc-2, naspc-1)
-            istore = MOD(ls_scf_env%scf_history%istore-iaspc, ls_scf_env%scf_history%nstore)+1
+            alpha = (-1.0_dp)**(iaspc + 1)*REAL(iaspc, KIND=dp)* &
+                    binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
+            istore = MOD(ls_scf_env%scf_history%istore - iaspc, ls_scf_env%scf_history%nstore) + 1
             CALL dbcsr_add(matrix_P, ls_scf_env%scf_history%matrix(ispin, istore), 1.0_dp, alpha)
          ENDDO
 
@@ -1228,7 +1228,7 @@ CONTAINS
 
       CALL mp_sum(forces, para_env%group)
       DO iatom = 1, natoms
-         particle_set(iatom)%f = particle_set(iatom)%f+forces(iatom, :)
+         particle_set(iatom)%f = particle_set(iatom)%f + forces(iatom, :)
       ENDDO
 
       DEALLOCATE (forces)

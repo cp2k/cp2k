@@ -131,27 +131,27 @@ CONTAINS
       pw_mode_loc = pw_grid_in%para%mode
       IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
       CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
-      qmmm_grid_tag = qmmm_grid_tag+1
+      qmmm_grid_tag = qmmm_grid_tag + 1
       pw_grid_out%id_nr = qmmm_grid_tag
       pw_grid_out%ref_count = 1
       pw_grid_out%reference = 0
       pw_grid_out%bounds = pw_grid_in%bounds
-      pw_grid_out%bounds(2, :) = pw_grid_out%bounds(2, :)+1
+      pw_grid_out%bounds(2, :) = pw_grid_out%bounds(2, :) + 1
       IF (pw_mode_loc == PW_MODE_DISTRIBUTED) THEN
          pw_grid_out%bounds_local = pw_grid_in%bounds_local
          IF (pw_grid_in%bounds_local(2, 1) == pw_grid_in%bounds(2, 1) .AND. &
              pw_grid_in%bounds_local(1, 1) <= pw_grid_in%bounds(2, 1)) THEN
-            pw_grid_out%bounds_local(2, 1) = pw_grid_out%bounds_local(2, 1)+1
+            pw_grid_out%bounds_local(2, 1) = pw_grid_out%bounds_local(2, 1) + 1
          END IF
-         pw_grid_out%bounds_local(2, 2) = pw_grid_out%bounds_local(2, 2)+1
-         pw_grid_out%bounds_local(2, 3) = pw_grid_out%bounds_local(2, 3)+1
+         pw_grid_out%bounds_local(2, 2) = pw_grid_out%bounds_local(2, 2) + 1
+         pw_grid_out%bounds_local(2, 3) = pw_grid_out%bounds_local(2, 3) + 1
       ELSE
          pw_grid_out%bounds_local = pw_grid_out%bounds
       END IF
-      pw_grid_out%npts = pw_grid_in%npts+1
+      pw_grid_out%npts = pw_grid_in%npts + 1
       pw_grid_out%ngpts = PRODUCT(INT(pw_grid_out%npts, KIND=int_8))
       pw_grid_out%ngpts_cut = 0
-      pw_grid_out%npts_local = pw_grid_out%bounds_local(2, :)-pw_grid_out%bounds_local(1, :)+1
+      pw_grid_out%npts_local = pw_grid_out%bounds_local(2, :) - pw_grid_out%bounds_local(1, :) + 1
       pw_grid_out%ngpts_local = PRODUCT(pw_grid_out%npts_local)
       pw_grid_out%ngpts_cut_local = 0
       pw_grid_out%dr = pw_grid_in%dr
@@ -179,8 +179,8 @@ CONTAINS
                pw_grid_out%para%nyzray, &
                pw_grid_out%para%bo)
       ALLOCATE (pos_of_x(pw_grid_out%bounds(1, 1):pw_grid_out%bounds(2, 1)))
-      pos_of_x(:pw_grid_out%bounds(2, 1)-1) = pw_grid_in%para%pos_of_x
-      pos_of_x(pw_grid_out%bounds(2, 1)) = pos_of_x(pw_grid_out%bounds(2, 1)-1)
+      pos_of_x(:pw_grid_out%bounds(2, 1) - 1) = pw_grid_in%para%pos_of_x
+      pos_of_x(pw_grid_out%bounds(2, 1)) = pos_of_x(pw_grid_out%bounds(2, 1) - 1)
       pw_grid_out%para%pos_of_x => pos_of_x
       pw_grid_out%para%rs_dims = pw_grid_in%para%rs_dims
       IF (PRODUCT(pw_grid_in%para%rs_dims) /= 0) THEN

@@ -95,8 +95,8 @@ CONTAINS
             CPABORT("Invalid functional requested ("//cp_to_string(functional)//")")
          END SELECT
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(reference)+6 < LEN(reference)) THEN
-               reference(LEN_TRIM(reference):LEN_TRIM(reference)+6) = ' {LDA}'
+            IF (LEN_TRIM(reference) + 6 < LEN(reference)) THEN
+               reference(LEN_TRIM(reference):LEN_TRIM(reference) + 6) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -120,8 +120,8 @@ CONTAINS
             CPABORT("Invalid functional requested ("//cp_to_string(functional)//")")
          END SELECT
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(shortform)+6 < LEN(shortform)) THEN
-               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6) = ' {LDA}'
+            IF (LEN_TRIM(shortform) + 6 < LEN(shortform)) THEN
+               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform) + 6) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -200,12 +200,12 @@ CONTAINS
          rho_spin_name = (/"(rho) ", "(---) "/)
          norm_drho_spin_name = (/"(norm_drho) ", "(----_----) "/)
       END IF
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       m = ABS(order)
       CALL xgga_init(rho_cutoff)
 
       ALLOCATE (s(npoints))
-      ALLOCATE (fs(npoints, m+1))
+      ALLOCATE (fs(npoints, m + 1))
 
       DO ispin = 1, nspin
          IF (lsd) THEN
@@ -364,7 +364,7 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rho(ip) > eps_rho) THEN
-            e_0(ip) = e_0(ip)+fact*r13(ip)*rho(ip)*fs(ip, 1)
+            e_0(ip) = e_0(ip) + fact*r13(ip)*rho(ip)*fs(ip, 1)
          END IF
 
       END DO
@@ -406,8 +406,8 @@ CONTAINS
             a1 = f43*fact*r13(ip)
             sx = -f43*s(ip)/rho(ip)
             sy = sfac*tact/(r13(ip)*rho(ip))
-            e_rho(ip) = e_rho(ip)+a1*fs(ip, 1)+a0*fs(ip, 2)*sx
-            e_ndrho(ip) = e_ndrho(ip)+a0*fs(ip, 2)*sy
+            e_rho(ip) = e_rho(ip) + a1*fs(ip, 1) + a0*fs(ip, 2)*sx
+            e_ndrho(ip) = e_ndrho(ip) + a0*fs(ip, 2)*sy
 
          END IF
 
@@ -455,11 +455,11 @@ CONTAINS
             sy = sfac*tact/(r13(ip)*rho(ip))
             sxx = 28.0_dp/9.0_dp*s(ip)/(rho(ip)*rho(ip))
             sxy = -f43*sfac*tact/(r13(ip)*rho(ip)*rho(ip))
-            e_rho_rho(ip) = e_rho_rho(ip)+a2*fs(ip, 1)+2.0_dp*a1*fs(ip, 2)*sx+ &
-                            a0*fs(ip, 3)*sx*sx+a0*fs(ip, 2)*sxx
+            e_rho_rho(ip) = e_rho_rho(ip) + a2*fs(ip, 1) + 2.0_dp*a1*fs(ip, 2)*sx + &
+                            a0*fs(ip, 3)*sx*sx + a0*fs(ip, 2)*sxx
             e_rho_ndrho(ip) = e_rho_ndrho(ip) &
-                              +a1*fs(ip, 2)*sy+a0*fs(ip, 3)*sx*sy+a0*fs(ip, 2)*sxy
-            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip)+a0*fs(ip, 3)*sy*sy
+                              + a1*fs(ip, 2)*sy + a0*fs(ip, 3)*sx*sy + a0*fs(ip, 2)*sxy
+            e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + a0*fs(ip, 3)*sy*sy
 
          END IF
 
@@ -516,20 +516,20 @@ CONTAINS
             sxxx = -280.0_dp/27.0_dp*s(ip)/(rho(ip)*rho(ip)*rho(ip))
             sxxy = 28.0_dp/9.0_dp*sfac*tact/(r13(ip)*rho(ip)*rho(ip)*rho(ip))
             e_rho_rho_rho(ip) = e_rho_rho_rho(ip) &
-                                +a3*fs(ip, 1)+3.0_dp*a2*fs(ip, 2)*sx+ &
-                                3.0_dp*a1*fs(ip, 3)*sx*sx+3.0_dp*a1*fs(ip, 2)*sxx+ &
-                                a0*fs(ip, 4)*sx*sx*sx+3.0_dp*a0*fs(ip, 3)*sx*sxx+ &
+                                + a3*fs(ip, 1) + 3.0_dp*a2*fs(ip, 2)*sx + &
+                                3.0_dp*a1*fs(ip, 3)*sx*sx + 3.0_dp*a1*fs(ip, 2)*sxx + &
+                                a0*fs(ip, 4)*sx*sx*sx + 3.0_dp*a0*fs(ip, 3)*sx*sxx + &
                                 a0*fs(ip, 2)*sxxx
             e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip) &
-                                  +a2*fs(ip, 2)*sy+2.0_dp*a1*fs(ip, 3)*sx*sy+ &
-                                  2.0_dp*a1*fs(ip, 2)*sxy+a0*fs(ip, 4)*sx*sx*sy+ &
-                                  2.0_dp*a0*fs(ip, 3)*sx*sxy+a0*fs(ip, 3)*sxx*sy+ &
+                                  + a2*fs(ip, 2)*sy + 2.0_dp*a1*fs(ip, 3)*sx*sy + &
+                                  2.0_dp*a1*fs(ip, 2)*sxy + a0*fs(ip, 4)*sx*sx*sy + &
+                                  2.0_dp*a0*fs(ip, 3)*sx*sxy + a0*fs(ip, 3)*sxx*sy + &
                                   a0*fs(ip, 2)*sxxy
             e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip) &
-                                    +a1*fs(ip, 3)*sy*sy+a0*fs(ip, 4)*sx*sy*sy+ &
+                                    + a1*fs(ip, 3)*sy*sy + a0*fs(ip, 4)*sx*sy*sy + &
                                     2.0_dp*a0*fs(ip, 3)*sxy*sy
             e_ndrho_ndrho_ndrho(ip) = e_ndrho_ndrho_ndrho(ip) &
-                                      +a0*fs(ip, 4)*sy*sy*sy
+                                      + a0*fs(ip, 4)*sy*sy*sy
 
          END IF
 
@@ -573,61 +573,61 @@ CONTAINS
       DO ip = 1, SIZE(s)
          x = s(ip)*f0
          bs = beta*x
-         sbs = SQRT(x*x+1.0_dp)
-         as = LOG(x+sbs)
+         sbs = SQRT(x*x + 1.0_dp)
+         as = LOG(x + sbs)
          sas = x*as
-         ys = 1.0_dp/(1.0_dp+q*sas)
+         ys = 1.0_dp/(1.0_dp + q*sas)
          SELECT CASE (m)
          CASE (0)
-            fs(ip, 1) = 1.0_dp+p*x*x*ys
+            fs(ip, 1) = 1.0_dp + p*x*x*ys
          CASE (1)
-            asp = as+x/sbs
-            fs(ip, 1) = 1.0_dp+p*x*x*ys
-            fs(ip, 2) = (2.0_dp*p*x*ys-p*q*x*x*asp*ys*ys)*f0
+            asp = as + x/sbs
+            fs(ip, 1) = 1.0_dp + p*x*x*ys
+            fs(ip, 2) = (2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys)*f0
          CASE (2)
-            asp = as+x/sbs
+            asp = as + x/sbs
             sbs3 = 1.0_dp/(sbs*sbs*sbs)
-            fs(ip, 1) = 1.0_dp+p*x*x*ys
-            fs(ip, 2) = (2.0_dp*p*x*ys-p*q*x*x*asp*ys*ys)*f0
-            fs(ip, 3) = -f0*f0*p*ys**3*sbs3*(q*x*x*x*x*(q*sas+5.0_dp &
-                                                        -2.0_dp*q*sbs)+2.0_dp*(x*x*(q*q*sas &
-                                                                                    +3.0_dp*q-sbs)-sbs))
+            fs(ip, 1) = 1.0_dp + p*x*x*ys
+            fs(ip, 2) = (2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys)*f0
+            fs(ip, 3) = -f0*f0*p*ys**3*sbs3*(q*x*x*x*x*(q*sas + 5.0_dp &
+                                                        - 2.0_dp*q*sbs) + 2.0_dp*(x*x*(q*q*sas &
+                                                                                       + 3.0_dp*q - sbs) - sbs))
          CASE (3)
-            asp = as+x/sbs
+            asp = as + x/sbs
             sbs3 = 1.0_dp/(sbs*sbs*sbs)
-            fs(ip, 1) = 1.0_dp+p*x*x*ys
-            fs(ip, 2) = (2.0_dp*p*x*ys-p*q*x*x*asp*ys*ys)*f0
-            fs(ip, 3) = -f0*f0*p*ys**3*sbs3*(q*x*x*x*x*(q*sas+5.0_dp &
-                                                        -2.0_dp*q*sbs)+2.0_dp*(x*x*(q*q*sas &
-                                                                                    +3.0_dp*q-sbs)-sbs))
+            fs(ip, 1) = 1.0_dp + p*x*x*ys
+            fs(ip, 2) = (2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys)*f0
+            fs(ip, 3) = -f0*f0*p*ys**3*sbs3*(q*x*x*x*x*(q*sas + 5.0_dp &
+                                                        - 2.0_dp*q*sbs) + 2.0_dp*(x*x*(q*q*sas &
+                                                                                       + 3.0_dp*q - sbs) - sbs))
             t1 = q*x
             t2 = x**2
-            t4 = SQRT(1+t2)
-            t5 = x+t4
+            t4 = SQRT(1 + t2)
+            t5 = x + t4
             t6 = LOG(t5)
-            t8 = 1+t1*t6
+            t8 = 1 + t1*t6
             t9 = t8**2
             t10 = 1/t9
             t13 = 1/t4
-            t15 = 1+t13*x
+            t15 = 1 + t13*x
             t16 = 1/t5
-            t19 = q*t6+t1*t15*t16
+            t19 = q*t6 + t1*t15*t16
             t22 = p*x
             t24 = 1/t9/t8
             t25 = t19**2
             t32 = t4**2
             t34 = 1/t32/t4
-            t36 = -t34*t2+t13
+            t36 = -t34*t2 + t13
             t39 = t15**2
             t40 = t5**2
             t41 = 1/t40
-            t44 = 2*q*t15*t16+t1*t36*t16-t1*t39*t41
+            t44 = 2*q*t15*t16 + t1*t36*t16 - t1*t39*t41
             t48 = p*t2
             t49 = t9**2
             t65 = t32**2
-            t87 = -6*p*t10*t19+12*t22*t24*t25-6*t22*t10*t44-6*t48/t49*t25*t19+ &
-                  6*t48*t24*t19*t44-t48*t10*(3*q*t36*t16-3*q*t39*t41+3*t1*(1/t65/t4* &
-                                                                           t2*x-t34*x)*t16-3*t1*t36*t41*t15+2*t1*t39*t15/t40/t5)
+            t87 = -6*p*t10*t19 + 12*t22*t24*t25 - 6*t22*t10*t44 - 6*t48/t49*t25*t19 + &
+                  6*t48*t24*t19*t44 - t48*t10*(3*q*t36*t16 - 3*q*t39*t41 + 3*t1*(1/t65/t4* &
+                                                                         t2*x - t34*x)*t16 - 3*t1*t36*t41*t15 + 2*t1*t39*t15/t40/t5)
 
             fs(ip, 4) = t87
             fs(ip, 4) = f0*f0*f0*fs(ip, 4)
@@ -673,38 +673,38 @@ CONTAINS
          s6 = s2*s4
          SELECT CASE (m)
          CASE (0)
-            p0 = 1.0_dp+t1*s2+t2*s4+t3*s6
+            p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
             fs(ip, 1) = p0**f15
          CASE (1)
-            p0 = 1.0_dp+t1*s2+t2*s4+t3*s6
-            p1 = s(ip)*(2.0_dp*t1+4.0_dp*t2*s2+6.0_dp*t3*s4)
+            p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
+            p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
             p15 = p0**f15
             fs(ip, 1) = p15
             fs(ip, 2) = f15*p1*p15/p0
          CASE (2)
-            p0 = 1.0_dp+t1*s2+t2*s4+t3*s6
-            p1 = s(ip)*(2.0_dp*t1+4.0_dp*t2*s2+6.0_dp*t3*s4)
+            p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
+            p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
             p15 = p0**f15
             fs(ip, 1) = p15
             fs(ip, 2) = f15*p1*p15/p0
             t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
             t25 = p1*p1
-            fs(ip, 3) = -14.0_dp/225.0_dp/t13/p0*t25+ &
-                        1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
+            fs(ip, 3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
+                        1.0_dp/t13*(2.0_dp*t1 + 12*t2*s2 + 30.0_dp*t3*s4)/15.0_dp
          CASE (3)
-            p0 = 1.0_dp+t1*s2+t2*s4+t3*s6
-            p1 = s(ip)*(2.0_dp*t1+4.0_dp*t2*s2+6.0_dp*t3*s4)
+            p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
+            p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
             p15 = p0**f15
             fs(ip, 1) = p15
             fs(ip, 2) = f15*p1*p15/p0
             t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
             t25 = p1*p1
-            fs(ip, 3) = -14.0_dp/225.0_dp/t13/p0*t25+ &
-                        1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
+            fs(ip, 3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
+                        1.0_dp/t13*(2.0_dp*t1 + 12*t2*s2 + 30.0_dp*t3*s4)/15.0_dp
             t8 = p0**2; t9 = p0**f15; t14 = p0/t9; t19 = s2*s(ip)
-            fs(ip, 4) = 406.0_dp/3375.0_dp/t14/t8*p1*p1*p1-14.0_dp/ &
-                        75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+ &
-                        1/t14*(24*t2*s(ip)+120*t3*t19)*f15
+            fs(ip, 4) = 406.0_dp/3375.0_dp/t14/t8*p1*p1*p1 - 14.0_dp/ &
+                        75.0_dp/t14/p0*p1*(2*t1 + 12*t2*s2 + 30*t3*s4) + &
+                        1/t14*(24*t2*s(ip) + 120*t3*t19)*f15
          CASE DEFAULT
             CPABORT("Illegal order")
          END SELECT
@@ -753,45 +753,45 @@ CONTAINS
          s6 = s2*s4
          SELECT CASE (m)
          CASE (0)
-            n0 = 1._dp+a1*s2+a2*s4+a3*s6
-            d0 = 1._dp+b1*s2+b2*s4+b3*s6
+            n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+            d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
             fs(ip, 1) = n0/d0
          CASE (1)
-            n0 = 1._dp+a1*s2+a2*s4+a3*s6
-            d0 = 1._dp+b1*s2+b2*s4+b3*s6
-            n1 = ss*(2._dp*a1+4._dp*a2*s2+6._dp*a3*s4)
-            d1 = ss*(2._dp*b1+4._dp*b2*s2+6._dp*b3*s4)
+            n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+            d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+            n1 = ss*(2._dp*a1 + 4._dp*a2*s2 + 6._dp*a3*s4)
+            d1 = ss*(2._dp*b1 + 4._dp*b2*s2 + 6._dp*b3*s4)
             f0 = n0/d0
             fs(ip, 1) = f0
-            fs(ip, 2) = (n1-f0*d1)/d0*scale_s
+            fs(ip, 2) = (n1 - f0*d1)/d0*scale_s
          CASE (2)
-            n0 = 1._dp+a1*s2+a2*s4+a3*s6
-            d0 = 1._dp+b1*s2+b2*s4+b3*s6
-            n1 = ss*(2._dp*a1+4._dp*a2*s2+6._dp*a3*s4)
-            d1 = ss*(2._dp*b1+4._dp*b2*s2+6._dp*b3*s4)
-            n2 = 2._dp*a1+12._dp*a2*s2+30._dp*a3*s4
-            d2 = 2._dp*b1+12._dp*b2*s2+30._dp*b3*s4
+            n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+            d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+            n1 = ss*(2._dp*a1 + 4._dp*a2*s2 + 6._dp*a3*s4)
+            d1 = ss*(2._dp*b1 + 4._dp*b2*s2 + 6._dp*b3*s4)
+            n2 = 2._dp*a1 + 12._dp*a2*s2 + 30._dp*a3*s4
+            d2 = 2._dp*b1 + 12._dp*b2*s2 + 30._dp*b3*s4
             f0 = n0/d0
-            f1 = (n1-f0*d1)/d0
+            f1 = (n1 - f0*d1)/d0
             fs(ip, 1) = f0
             fs(ip, 2) = f1*scale_s
-            fs(ip, 3) = (n2-f0*d2-2._dp*f1*d1)/d0*scale_s*scale_s
+            fs(ip, 3) = (n2 - f0*d2 - 2._dp*f1*d1)/d0*scale_s*scale_s
          CASE (3)
-            n0 = 1._dp+a1*s2+a2*s4+a3*s6
-            d0 = 1._dp+b1*s2+b2*s4+b3*s6
-            n1 = ss*(2._dp*a1+4._dp*a2*s2+6._dp*a3*s4)
-            d1 = ss*(2._dp*b1+4._dp*b2*s2+6._dp*b3*s4)
-            n2 = 2._dp*a1+12._dp*a2*s2+30._dp*a3*s4
-            d2 = 2._dp*b1+12._dp*b2*s2+30._dp*b3*s4
-            n3 = ss*(24._dp*a2+120._dp*a3*s2)
-            d3 = ss*(24._dp*b2+120._dp*b3*s2)
+            n0 = 1._dp + a1*s2 + a2*s4 + a3*s6
+            d0 = 1._dp + b1*s2 + b2*s4 + b3*s6
+            n1 = ss*(2._dp*a1 + 4._dp*a2*s2 + 6._dp*a3*s4)
+            d1 = ss*(2._dp*b1 + 4._dp*b2*s2 + 6._dp*b3*s4)
+            n2 = 2._dp*a1 + 12._dp*a2*s2 + 30._dp*a3*s4
+            d2 = 2._dp*b1 + 12._dp*b2*s2 + 30._dp*b3*s4
+            n3 = ss*(24._dp*a2 + 120._dp*a3*s2)
+            d3 = ss*(24._dp*b2 + 120._dp*b3*s2)
             f0 = n0/d0
-            f1 = (n1-f0*d1)/d0
-            f2 = (n2-f0*d2-2._dp*f1*d1)/d0
+            f1 = (n1 - f0*d1)/d0
+            f2 = (n2 - f0*d2 - 2._dp*f1*d1)/d0
             fs(ip, 1) = f0
             fs(ip, 2) = f1*scale_s
             fs(ip, 3) = f2*scale_s*scale_s
-            fs(ip, 4) = (n3-f0*d3-3._dp*f2*d1-3._dp*f1*d2)/d0*scale_s*scale_s*scale_s
+            fs(ip, 4) = (n3 - f0*d3 - 3._dp*f2*d1 - 3._dp*f1*d2)/d0*scale_s*scale_s*scale_s
          CASE DEFAULT
             CPABORT("Illegal order")
          END SELECT
@@ -828,23 +828,23 @@ CONTAINS
       DO ip = 1, SIZE(s)
          x = s(ip)*f0
          a = gamma_bo*x*x
-         y = 1.0_dp/(1.0_dp+a)
+         y = 1.0_dp/(1.0_dp + a)
          SELECT CASE (m)
          CASE (0)
-            fs(ip, 1) = a1+b*a*a*y*y
+            fs(ip, 1) = a1 + b*a*a*y*y
          CASE (1)
-            fs(ip, 1) = a1+b*a*a*y*y
+            fs(ip, 1) = a1 + b*a*a*y*y
             fs(ip, 2) = 4.0_dp*b*f0*a*gamma_bo*x*y*y*y
          CASE (2)
-            fs(ip, 1) = a1+b*a*a*y*y
+            fs(ip, 1) = a1 + b*a*a*y*y
             fs(ip, 2) = 4.0_dp*b*f0*a*gamma_bo*x*y*y*y
-            fs(ip, 3) = -12.0_dp*b*f0*f0*gamma_bo*a*(a-1.0_dp)*y*y*y*y
+            fs(ip, 3) = -12.0_dp*b*f0*f0*gamma_bo*a*(a - 1.0_dp)*y*y*y*y
          CASE (3)
-            fs(ip, 1) = a1+b*a*a*y*y
+            fs(ip, 1) = a1 + b*a*a*y*y
             fs(ip, 2) = 4.0_dp*b*f0*a*gamma_bo*x*y*y*y
-            fs(ip, 3) = -12.0_dp*b*f0*f0*gamma_bo*a*(a-1.0_dp)*y*y*y*y
+            fs(ip, 3) = -12.0_dp*b*f0*f0*gamma_bo*a*(a - 1.0_dp)*y*y*y*y
             fs(ip, 4) = 24.0_dp*b*f0*f0*f0*gamma_bo*gamma_bo*x* &
-                        (1.0_dp-5.0_dp*a+2.0_dp*a*a)*y*y*y*y*y
+                        (1.0_dp - 5.0_dp*a + 2.0_dp*a*a)*y*y*y*y*y
          CASE DEFAULT
             CPABORT("Illegal order")
          END SELECT
@@ -888,12 +888,12 @@ CONTAINS
             x = s(ip)
             t3 = b**2
             t4 = x**2
-            t7 = SQRT(o+t3*t4)
-            t9 = LOG(b*x+t7)
+            t7 = SQRT(o + t3*t4)
+            t9 = LOG(b*x + t7)
             t10 = a1*x*t9
             t12 = EXP(-a4*t4)
             t17 = t4**2
-            fs(ip, 1) = (o+t10+(a2-a3*t12)*t4)/(o+t10+a5*t17)
+            fs(ip, 1) = (o + t10 + (a2 - a3*t12)*t4)/(o + t10 + a5*t17)
          END DO
 
 !$OMP       END DO
@@ -907,22 +907,22 @@ CONTAINS
             x = s(ip)
             t2 = b**2
             t3 = x**2
-            t6 = SQRT(o+t2*t3)
-            t7 = b*x+t6
+            t6 = SQRT(o + t2*t3)
+            t7 = b*x + t6
             t8 = LOG(t7)
             t9 = a1*t8
             t10 = a1*x
-            t17 = t10*(b+1/t6*t2*x)/t7
+            t17 = t10*(b + 1/t6*t2*x)/t7
             t19 = t3*x
             t21 = EXP(-a4*t3)
-            t26 = a2-a3*t21
+            t26 = a2 - a3*t21
             t30 = t10*t8
             t31 = t3**2
-            t33 = o+t30+a5*t31
+            t33 = o + t30 + a5*t31
             t38 = t33**2
             fs(ip, 2) = &
-               (t9+t17+2._dp*a3*a4*t19*t21+2._dp*t26*x)/ &
-               t33-(o+t30+t26*t3)/t38*(t9+t17+4._dp*a5*t19)
+               (t9 + t17 + 2._dp*a3*a4*t19*t21 + 2._dp*t26*x)/ &
+               t33 - (o + t30 + t26*t3)/t38*(t9 + t17 + 4._dp*a5*t19)
          END DO
 
 !$OMP       END DO
@@ -936,16 +936,16 @@ CONTAINS
             x = s(ip)
             t1 = b**2
             t2 = x**2
-            t5 = SQRT(o+t1*t2)
+            t5 = SQRT(o + t1*t2)
             t7 = o/t5*t1
-            t9 = b+t7*x
-            t12 = b*x+t5
+            t9 = b + t7*x
+            t12 = b*x + t5
             t13 = o/t12
             t15 = 2._dp*a1*t9*t13
             t16 = a1*x
             t17 = t5**2
             t20 = t1**2
-            t25 = t16*(-o/t17/t5*t20*t2+t7)*t13
+            t25 = t16*(-o/t17/t5*t20*t2 + t7)*t13
             t26 = t9**2
             t27 = t12**2
             t30 = t16*t26/t27
@@ -956,21 +956,21 @@ CONTAINS
             t44 = a3*t33
             t47 = LOG(t12)
             t48 = t16*t47
-            t50 = o+t48+a5*t39
+            t50 = o + t48 + a5*t39
             t53 = a1*t47
             t55 = t16*t9*t13
             t56 = t2*x
-            t60 = a2-t44
+            t60 = a2 - t44
             t64 = t50**2
             t65 = o/t64
-            t69 = t53+t55+4._dp*a5*t56
-            t73 = o+t48+t60*t2
+            t69 = t53 + t55 + 4._dp*a5*t56
+            t73 = o + t48 + t60*t2
             t77 = t69**2
             fs(ip, 3) = &
-               (t15+t25-t30+10._dp*t31*t2*t33-4._dp*a3*t37*t39*t33+ &
-                2._dp*a2-2._dp*t44)/t50-2._dp* &
-               (t53+t55+2._dp*t31*t56*t33+2._dp*t60*x)* &
-               t65*t69+2._dp*t73/t64/t50*t77-t73*t65*(t15+t25-t30+12._dp*a5*t2)
+               (t15 + t25 - t30 + 10._dp*t31*t2*t33 - 4._dp*a3*t37*t39*t33 + &
+                2._dp*a2 - 2._dp*t44)/t50 - 2._dp* &
+               (t53 + t55 + 2._dp*t31*t56*t33 + 2._dp*t60*x)* &
+               t65*t69 + 2._dp*t73/t64/t50*t77 - t73*t65*(t15 + t25 - t30 + 12._dp*a5*t2)
          END DO
 
 !$OMP       END DO
@@ -984,16 +984,16 @@ CONTAINS
             x = s(ip)
             t1 = b**2
             t2 = x**2
-            t5 = SQRT(0.1e1_dp+t1*t2)
+            t5 = SQRT(0.1e1_dp + t1*t2)
             t6 = t5**2
             t9 = t1**2
             t10 = 1/t6/t5*t9
             t13 = 1/t5*t1
-            t14 = -t10*t2+t13
-            t17 = b*x+t5
+            t14 = -t10*t2 + t13
+            t17 = b*x + t5
             t18 = 1/t17
             t20 = 3*a1*t14*t18
-            t22 = b+t13*x
+            t22 = b + t13*x
             t23 = t22**2
             t25 = t17**2
             t26 = 1/t25
@@ -1001,7 +1001,7 @@ CONTAINS
             t29 = a1*x
             t30 = t6**2
             t35 = t2*x
-            t40 = 3*t29*(1/t30/t5*t1*t9*t35-t10*x)*t18
+            t40 = 3*t29*(1/t30/t5*t1*t9*t35 - t10*x)*t18
             t44 = 3*t29*t14*t26*t22
             t50 = 2*t29*t23*t22/t25/t17
             t51 = a3*a4
@@ -1012,7 +1012,7 @@ CONTAINS
             t64 = t2**2
             t70 = LOG(t17)
             t71 = t29*t70
-            t73 = 0.1e1_dp+t71+a5*t64
+            t73 = 0.1e1_dp + t71 + a5*t64
             t78 = 2*a1*t22*t18
             t80 = t29*t14*t18
             t82 = t29*t23*t26
@@ -1021,20 +1021,20 @@ CONTAINS
             t94 = 1/t93
             t96 = a1*t70
             t98 = t29*t18*t22
-            t101 = t96+t98+4*a5*t35
-            t106 = a2-t90
-            t109 = t96+t98+2*t51*t59+2*t106*x
+            t101 = t96 + t98 + 4*a5*t35
+            t106 = a2 - t90
+            t109 = t96 + t98 + 2*t51*t59 + 2*t106*x
             t111 = 1/t93/t73
             t113 = t101**2
-            t119 = t78+t80-t82+12*a5*t2
-            t123 = 0.1e1_dp+t71+t106*t2
+            t119 = t78 + t80 - t82 + 12*a5*t2
+            t123 = 0.1e1_dp + t71 + t106*t2
             t124 = t93**2
             fs(ip, 4) = &
-               (t20-t28+t40-t44+t50+24*t51*x*t53-36._dp*t58*t59+8._dp*a3*t57*a4*t64* &
-                x*t53)/t73-3._dp*(t78+t80-t82+10._dp*t51*t2*t53- &
-                                  4._dp*t58*t64*t53+2._dp*a2-2._dp*t90)*t94*t101+ &
-               6._dp*t109*t111*t113-3._dp*t109*t94*t119-6*t123/t124*t113*t101+ &
-               6._dp*t123*t111*t101*t119-t123*t94*(t20-t28+t40-t44+t50+24._dp*a5*x)
+               (t20 - t28 + t40 - t44 + t50 + 24*t51*x*t53 - 36._dp*t58*t59 + 8._dp*a3*t57*a4*t64* &
+                x*t53)/t73 - 3._dp*(t78 + t80 - t82 + 10._dp*t51*t2*t53 - &
+                                    4._dp*t58*t64*t53 + 2._dp*a2 - 2._dp*t90)*t94*t101 + &
+               6._dp*t109*t111*t113 - 3._dp*t109*t94*t119 - 6*t123/t124*t113*t101 + &
+               6._dp*t123*t111*t101*t119 - t123*t94*(t20 - t28 + t40 - t44 + t50 + 24._dp*a5*x)
          END DO
 
 !$OMP       END DO
@@ -1074,22 +1074,22 @@ CONTAINS
       DO ip = 1, SIZE(s)
          x = s(ip)*f0
          x2 = x*x
-         y = 1.0_dp/(1.0_dp+mk*x2)
+         y = 1.0_dp/(1.0_dp + mk*x2)
          SELECT CASE (m)
          CASE (0)
-            fs(ip, 1) = 1.0_dp+mu*x2*y
+            fs(ip, 1) = 1.0_dp + mu*x2*y
          CASE (1)
-            fs(ip, 1) = 1.0_dp+mu*x2*y
+            fs(ip, 1) = 1.0_dp + mu*x2*y
             fs(ip, 2) = 2.0_dp*mu*x*y*y*f0
          CASE (2)
-            fs(ip, 1) = 1.0_dp+mu*x2*y
+            fs(ip, 1) = 1.0_dp + mu*x2*y
             fs(ip, 2) = 2.0_dp*mu*x*y*y*f0
-            fs(ip, 3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
+            fs(ip, 3) = -2.0_dp*mu*(3.0_dp*mk*x2 - 1.0_dp)*y*y*y*f0*f0
          CASE (3)
-            fs(ip, 1) = 1.0_dp+mu*x2*y
+            fs(ip, 1) = 1.0_dp + mu*x2*y
             fs(ip, 2) = 2.0_dp*mu*x*y*y*f0
-            fs(ip, 3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
-            fs(ip, 4) = 24.0_dp*mu*mk*x*(mk*x2-1.0_dp)*y*y*y*y*f0*f0*f0
+            fs(ip, 3) = -2.0_dp*mu*(3.0_dp*mk*x2 - 1.0_dp)*y*y*y*f0*f0
+            fs(ip, 4) = 24.0_dp*mu*mk*x*(mk*x2 - 1.0_dp)*y*y*y*y*f0*f0*f0
          CASE DEFAULT
             CPABORT("Illegal order")
          END SELECT

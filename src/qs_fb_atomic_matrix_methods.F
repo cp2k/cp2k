@@ -86,22 +86,22 @@ CONTAINS
       CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                               natoms=natoms_in_halo, &
                               halo_atoms=halo_atoms)
-      check_ok = SIZE(blk_row_start) .GE. (natoms_in_halo+1)
+      check_ok = SIZE(blk_row_start) .GE. (natoms_in_halo + 1)
       CPASSERT(check_ok)
-      check_ok = SIZE(blk_col_start) .GE. (natoms_in_halo+1)
+      check_ok = SIZE(blk_col_start) .GE. (natoms_in_halo + 1)
       CPASSERT(check_ok)
       blk_row_start = 0
       blk_col_start = 0
       nrows = 0
       ncols = 0
       DO ii = 1, natoms_in_halo
-         blk_row_start(ii) = nrows+1
-         blk_col_start(ii) = ncols+1
-         nrows = nrows+row_block_size_data(halo_atoms(ii))
-         ncols = ncols+col_block_size_data(halo_atoms(ii))
+         blk_row_start(ii) = nrows + 1
+         blk_col_start(ii) = ncols + 1
+         nrows = nrows + row_block_size_data(halo_atoms(ii))
+         ncols = ncols + col_block_size_data(halo_atoms(ii))
       END DO
-      blk_row_start(natoms_in_halo+1) = nrows+1
-      blk_col_start(natoms_in_halo+1) = ncols+1
+      blk_row_start(natoms_in_halo + 1) = nrows + 1
+      blk_col_start(natoms_in_halo + 1) = ncols + 1
    END SUBROUTINE fb_atmatrix_calc_size
 
 ! ****************************************************************************
@@ -227,7 +227,7 @@ CONTAINS
          ! need to reuse send_sizes as an accumulative displacement, so recalculate
          send_sizes(ipe) = 0
          DO ipair = 1, send_pair_count(ipe)
-            CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe)+ipair), &
+            CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
                                           pe, iatom, jatom, send_encode)
             nrows_blk = row_block_size_data(iatom)
             ncols_blk = col_block_size_data(jatom)
@@ -241,11 +241,11 @@ CONTAINS
                DO jj = 1, ncols_blk
                   DO ii = 1, nrows_blk
                      ! column major format in blocks
-                     ind = send_disps(ipe)+send_sizes(ipe)+ii+(jj-1)*nrows_blk
+                     ind = send_disps(ipe) + send_sizes(ipe) + ii + (jj - 1)*nrows_blk
                      send_buf(ind) = mat_block(ii, jj)
                   END DO ! ii
                END DO ! jj
-               send_sizes(ipe) = send_sizes(ipe)+nrows_blk*ncols_blk
+               send_sizes(ipe) = send_sizes(ipe) + nrows_blk*ncols_blk
             END IF
          END DO ! ipair
       END DO ! ipe
@@ -266,7 +266,7 @@ CONTAINS
       DO ipe = 1, numprocs
          recv_sizes(ipe) = 0
          DO ipair = 1, recv_pair_count(ipe)
-            CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe)+ipair), &
+            CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
                                           pe, iatom, jatom, recv_encode)
             ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
             ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
@@ -288,19 +288,19 @@ CONTAINS
             DO jj = 1, ncols_blk
                DO ii = 1, nrows_blk
                   ! column major format in blocks
-                  ind = recv_disps(ipe)+recv_sizes(ipe)+ii+(jj-1)*nrows_blk
-                  atomic_matrix(blk_row_start(iatom_in_halo)+ii-1, &
-                                blk_col_start(jatom_in_halo)+jj-1) = recv_buf(ind)
+                  ind = recv_disps(ipe) + recv_sizes(ipe) + ii + (jj - 1)*nrows_blk
+                  atomic_matrix(blk_row_start(iatom_in_halo) + ii - 1, &
+                                blk_col_start(jatom_in_halo) + jj - 1) = recv_buf(ind)
 
                END DO ! ii
             END DO ! jj
-            recv_sizes(ipe) = recv_sizes(ipe)+nrows_blk*ncols_blk
+            recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe
 
       ! the constructed matrix is upper triangular, fill it up to full
       DO ii = 2, SIZE(atomic_matrix, 1)
-         DO jj = 1, ii-1
+         DO jj = 1, ii - 1
             atomic_matrix(ii, jj) = atomic_matrix(jj, ii)
          END DO
       END DO
@@ -392,9 +392,9 @@ CONTAINS
                ! copy data to atomic_matrix if found
                IF (found) THEN
                   DO jj = 1, SIZE(blk_p, 2)
-                     icol = blk_col_start(jatom)+jj-1
+                     icol = blk_col_start(jatom) + jj - 1
                      DO ii = 1, SIZE(blk_p, 1)
-                        irow = blk_row_start(iatom)+ii-1
+                        irow = blk_row_start(iatom) + ii - 1
                         atomic_matrix(irow, icol) = blk_p(ii, jj)
                      END DO ! ii
                   END DO ! jj
@@ -405,7 +405,7 @@ CONTAINS
 
       ! the constructed matrix is upper triangular, fill it up to full
       DO ii = 2, SIZE(atomic_matrix, 1)
-         DO jj = 1, ii-1
+         DO jj = 1, ii - 1
             atomic_matrix(ii, jj) = atomic_matrix(jj, ii)
          END DO
       END DO
@@ -523,13 +523,13 @@ CONTAINS
                                              nblkrows_total)
                ! calculation of cost not implemented at the moment
                tasks_recv(TASK_COST, itask) = 0
-               itask = itask+1
+               itask = itask + 1
             END IF
          END DO ! jatom
       END DO ! iatom
 
       ! get the actual number of tasks
-      ntasks_recv = itask-1
+      ntasks_recv = itask - 1
 
       ! create tasks
       CALL fb_com_tasks_create(com_tasks_recv)
@@ -566,7 +566,7 @@ CONTAINS
                                 row=iatom_global, col=jatom_global, block=mat_block, &
                                 found=found)
          IF (found) THEN
-            counter = counter+1
+            counter = counter + 1
             ! we can do this here, because essencially we are inspecting
             ! the send tasks one by one, and then omit ones which the
             ! block is not found in the DBCSR matrix. itask is always
@@ -679,7 +679,7 @@ CONTAINS
       DO ihalo = 1, nhalos
          CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                  natoms=natoms_in_halo)
-         ntasks_recv = ntasks_recv+natoms_in_halo*natoms_in_halo
+         ntasks_recv = ntasks_recv + natoms_in_halo*natoms_in_halo
       END DO
       ALLOCATE (tasks_recv(TASK_N_RECORDS, ntasks_recv))
 
@@ -719,14 +719,14 @@ CONTAINS
                                                 nblkrows_total)
                   ! calculation of cost not implemented at the moment
                   tasks_recv(TASK_COST, itask) = 0
-                  itask = itask+1
+                  itask = itask + 1
                END IF
             END DO ! jatom
          END DO ! iatom
       END DO ! ihalo
 
       ! set the actual number of tasks obtained
-      ntasks_recv = itask-1
+      ntasks_recv = itask - 1
 
       ! create tasks
       CALL fb_com_tasks_create(com_tasks_recv)
@@ -763,7 +763,7 @@ CONTAINS
                                 col=jatom_global, block=mat_block, &
                                 found=found)
          IF (found) THEN
-            counter = counter+1
+            counter = counter + 1
             ! we can do this here, because essencially we are inspecting
             ! the send tasks one by one, and then omit ones which the
             ! block is not found in the DBCSR matrix. itask is always

@@ -116,7 +116,7 @@ CONTAINS
       DO imol = 1, SUM(nchains)
          nunit = nunits(mol_type(imol))
          DO iunit = 1, nunit
-            junit = junit+1
+            junit = junit + 1
             r(1:3, iunit, imol) = particles%els(junit)%r(1:3)
          ENDDO
       ENDDO
@@ -134,7 +134,7 @@ CONTAINS
          nend = SUM(nchains(:))
       ENDIF
       DO imol = nstart, nend
-         IF (lall) jstart = imol+1
+         IF (lall) jstart = imol + 1
          nunits_i = nunits(mol_type(imol))
          DO jmol = jstart, SUM(nchains(:))
             IF (imol == jmol) CYCLE
@@ -143,17 +143,17 @@ CONTAINS
             DO iunit = 1, nunits_i
                DO junit = 1, nunits_j
 ! find the minimum image distance
-                  RIJ(1) = r(1, iunit, imol)-r(1, junit, jmol)- &
+                  RIJ(1) = r(1, iunit, imol) - r(1, junit, jmol) - &
                            box_length(1)*ANINT( &
-                           (r(1, iunit, imol)-r(1, junit, jmol))/box_length(1))
-                  RIJ(2) = r(2, iunit, imol)-r(2, junit, jmol)- &
+                           (r(1, iunit, imol) - r(1, junit, jmol))/box_length(1))
+                  RIJ(2) = r(2, iunit, imol) - r(2, junit, jmol) - &
                            box_length(2)*ANINT( &
-                           (r(2, iunit, imol)-r(2, junit, jmol))/box_length(2))
-                  RIJ(3) = r(3, iunit, imol)-r(3, junit, jmol)- &
+                           (r(2, iunit, imol) - r(2, junit, jmol))/box_length(2))
+                  RIJ(3) = r(3, iunit, imol) - r(3, junit, jmol) - &
                            box_length(3)*ANINT( &
-                           (r(3, iunit, imol)-r(3, junit, jmol))/box_length(3))
+                           (r(3, iunit, imol) - r(3, junit, jmol))/box_length(3))
 
-                  dist = RIJ(1)**2+RIJ(2)**2+RIJ(3)**2
+                  dist = RIJ(1)**2 + RIJ(2)**2 + RIJ(3)**2
 
                   IF (dist < rmin) THEN
                      loverlap = .TRUE.
@@ -208,7 +208,7 @@ CONTAINS
 
       DO iatom = 1, natom
          DO i = 1, 3
-            center_of_mass(i) = center_of_mass(i)+ &
+            center_of_mass(i) = center_of_mass(i) + &
                                 mass(iatom)*coordinates(i, iatom)
          ENDDO
       ENDDO
@@ -259,17 +259,17 @@ CONTAINS
       DO imolecule = 1, nchains_tot
          molecule_type = mol_type(imolecule)
          natoms = nunits(molecule_type)
-         start_atom = end_atom+1
-         end_atom = start_atom+natoms-1
+         start_atom = end_atom + 1
+         end_atom = start_atom + natoms - 1
          CALL get_center_of_mass(coordinates(:, start_atom:end_atom), &
                                  natoms, center_of_mass(:), mass(:, molecule_type))
          DO iatom = 1, natoms
-            jatom = iatom+start_atom-1
-            coordinates(1, jatom) = coordinates(1, jatom)- &
+            jatom = iatom + start_atom - 1
+            coordinates(1, jatom) = coordinates(1, jatom) - &
                                     box_length(1)*FLOOR(center_of_mass(1)/box_length(1))
-            coordinates(2, jatom) = coordinates(2, jatom)- &
+            coordinates(2, jatom) = coordinates(2, jatom) - &
                                     box_length(2)*FLOOR(center_of_mass(2)/box_length(2))
-            coordinates(3, jatom) = coordinates(3, jatom)- &
+            coordinates(3, jatom) = coordinates(3, jatom) - &
                                     box_length(3)*FLOOR(center_of_mass(3)/box_length(2))
          ENDDO
 
@@ -415,7 +415,7 @@ CONTAINS
       ENDDO
 
 ! figure out the numbers of the first and last atoms in the molecule
-      end_atom = start_atom+nunits_mol-1
+      end_atom = start_atom + nunits_mol - 1
 ! figure out which molecule number we're on
       molecule_number = 0
       atom_number = 1
@@ -424,7 +424,7 @@ CONTAINS
             molecule_number = imolecule
             EXIT
          ENDIF
-         atom_number = atom_number+nunits(mol_type(imolecule))
+         atom_number = atom_number + nunits(mol_type(imolecule))
       ENDDO
       IF (molecule_number == 0) CALL cp_abort(__LOCATION__, &
                                               'CBMC swap move cannot find which molecule number it needs')
@@ -457,7 +457,7 @@ CONTAINS
                                              move_type, r_insert(:), abc(:), rng_stream)
 
                DO i = 1, 3
-                  diff(i) = r_insert(i)-r_old(i, start_atom+avbmc_atom-1)
+                  diff(i) = r_insert(i) - r_old(i, start_atom + avbmc_atom - 1)
                ENDDO
 
             ELSE
@@ -474,13 +474,13 @@ CONTAINS
 ! move the molecule to the insertion point
 
                DO i = 1, 3
-                  diff(i) = r_insert(i)-center_of_mass(i)
+                  diff(i) = r_insert(i) - center_of_mass(i)
                ENDDO
 
             ENDIF
 
             DO iatom = start_atom, end_atom
-               r(1:3, iatom, imove) = r(1:3, iatom, imove)+diff(1:3)
+               r(1:3, iatom, imove) = r(1:3, iatom, imove) + diff(1:3)
             ENDDO
 
 ! rotate the molecule...this routine is only made for serial use
@@ -513,7 +513,7 @@ CONTAINS
          CALL force_env_get(force_env, &
                             potential_energy=bias_energy)
 
-         trial_energy(imove) = (bias_energy-old_energy)
+         trial_energy(imove) = (bias_energy - old_energy)
          exponent = -BETA*trial_energy(imove)
 
          IF (exponent .GT. exp_max_val) THEN
@@ -555,7 +555,7 @@ CONTAINS
       DO imove = 1, nswapmoves
          IF (loverlap_array(imove)) CYCLE
          all_overlaps = .FALSE.
-         total_running_weight = total_running_weight+boltz_weights(imove)
+         total_running_weight = total_running_weight + boltz_weights(imove)
          IF (total_running_weight .GE. rand*rosenbluth_weight) THEN
             choosen = imove
             EXIT
@@ -650,7 +650,7 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       rand = next_random_number(rng_stream)
-      dgamma = pi*(rand-0.5E0_dp)*2.0E0_dp
+      dgamma = pi*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation matrix ***
 
@@ -660,39 +660,39 @@ CONTAINS
 ! ***    ROTATE UNITS OF I AROUND X-AXIS ***
 
       DO iunit = 1, natoms
-         ry = r(2, iunit)-center_of_mass(2)
-         rz = r(3, iunit)-center_of_mass(3)
-         rynew = cosdg*ry+sindg*rz
-         rznew = cosdg*rz-sindg*ry
+         ry = r(2, iunit) - center_of_mass(2)
+         rz = r(3, iunit) - center_of_mass(3)
+         rynew = cosdg*ry + sindg*rz
+         rznew = cosdg*rz - sindg*ry
 
-         r(2, iunit) = rynew+center_of_mass(2)
-         r(3, iunit) = rznew+center_of_mass(3)
+         r(2, iunit) = rynew + center_of_mass(2)
+         r(3, iunit) = rznew + center_of_mass(3)
 
       ENDDO
 
 ! ***    ROTATE UNITS OF I AROUND y-AXIS ***
 
       DO iunit = 1, natoms
-         rx = r(1, iunit)-center_of_mass(1)
-         rz = r(3, iunit)-center_of_mass(3)
-         rxnew = cosdg*rx+sindg*rz
-         rznew = cosdg*rz-sindg*rx
+         rx = r(1, iunit) - center_of_mass(1)
+         rz = r(3, iunit) - center_of_mass(3)
+         rxnew = cosdg*rx + sindg*rz
+         rznew = cosdg*rz - sindg*rx
 
-         r(1, iunit) = rxnew+center_of_mass(1)
-         r(3, iunit) = rznew+center_of_mass(3)
+         r(1, iunit) = rxnew + center_of_mass(1)
+         r(3, iunit) = rznew + center_of_mass(3)
 
       ENDDO
 
 ! ***    ROTATE UNITS OF I AROUND z-AXIS ***
 
       DO iunit = 1, natoms
-         rx = r(1, iunit)-center_of_mass(1)
-         ry = r(2, iunit)-center_of_mass(2)
-         rxnew = cosdg*rx+sindg*ry
-         rynew = cosdg*ry-sindg*rx
+         rx = r(1, iunit) - center_of_mass(1)
+         ry = r(2, iunit) - center_of_mass(2)
+         rxnew = cosdg*rx + sindg*ry
+         rynew = cosdg*ry - sindg*rx
 
-         r(1, iunit) = rxnew+center_of_mass(1)
-         r(2, iunit) = rynew+center_of_mass(2)
+         r(1, iunit) = rxnew + center_of_mass(1)
+         r(2, iunit) = rynew + center_of_mass(2)
 
       ENDDO
 
@@ -751,18 +751,18 @@ CONTAINS
          molecule_number = CEILING(rand*REAL(nchains(molecule_type_old, box), KIND=dp))
 
          start_mol = 1
-         DO jbox = 1, box-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, box - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
 
 ! adjust to take into account molecules of other types in the box
-         DO imol_type = 1, molecule_type_old-1
-            molecule_number = molecule_number+nchains(imol_type, box)
+         DO imol_type = 1, molecule_type_old - 1
+            molecule_number = molecule_number + nchains(imol_type, box)
          ENDDO
 
          start_atom = 1
-         DO imolecule = 1, molecule_number-1
-            start_atom = start_atom+nunits(mol_type(start_mol+imolecule-1))
+         DO imolecule = 1, molecule_number - 1
+            start_atom = start_atom + nunits(mol_type(start_mol + imolecule - 1))
          ENDDO
 
       ELSEIF (PRESENT(box)) THEN
@@ -771,16 +771,16 @@ CONTAINS
          molecule_number = CEILING(rand*REAL(SUM(nchains(:, box)), KIND=dp))
 
          start_mol = 1
-         DO jbox = 1, box-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, box - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
 
-         molecule_type = mol_type(start_mol+molecule_number-1)
+         molecule_type = mol_type(start_mol + molecule_number - 1)
 
 ! now the starting atom
          start_atom = 1
-         DO imolecule = 1, molecule_number-1
-            start_atom = start_atom+nunits(mol_type(start_mol+imolecule-1))
+         DO imolecule = 1, molecule_number - 1
+            start_atom = start_atom + nunits(mol_type(start_mol + imolecule - 1))
          ENDDO
 
       ELSEIF (PRESENT(molecule_type_old)) THEN
@@ -795,28 +795,28 @@ CONTAINS
                box_number = ibox
                EXIT
             ENDIF
-            molecule_number = molecule_number-nchains(molecule_type_old, ibox)
+            molecule_number = molecule_number - nchains(molecule_type_old, ibox)
          ENDDO
 
          start_mol = 1
-         DO jbox = 1, box_number-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, box_number - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
 
 ! now find the starting atom number
-         DO imol_type = 1, molecule_type_old-1
-            molecule_number = molecule_number+nchains(imol_type, box_number)
+         DO imol_type = 1, molecule_type_old - 1
+            molecule_number = molecule_number + nchains(imol_type, box_number)
          ENDDO
          start_atom = 1
-         DO imolecule = 1, molecule_number-1
-            start_atom = start_atom+nunits(mol_type(start_mol+imolecule-1))
+         DO imolecule = 1, molecule_number - 1
+            start_atom = start_atom + nunits(mol_type(start_mol + imolecule - 1))
          ENDDO
 
       ELSE
 ! no restrictions...need to find all pieces of data
          nchains_tot = 0
          DO ibox = 1, SIZE(nchains(1, :))
-            nchains_tot = nchains_tot+SUM(nchains(:, ibox))
+            nchains_tot = nchains_tot + SUM(nchains(:, ibox))
          ENDDO
          rand = next_random_number(rng_stream)
          molecule_number = CEILING(rand*REAL(nchains_tot, KIND=dp))
@@ -829,17 +829,17 @@ CONTAINS
                box_number = ibox
                EXIT
             ENDIF
-            molecule_number = molecule_number-SUM(nchains(:, ibox))
+            molecule_number = molecule_number - SUM(nchains(:, ibox))
          ENDDO
 
 ! now find the starting atom number
          start_mol = 1
-         DO jbox = 1, box_number-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, box_number - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
          start_atom = 1
-         DO imolecule = 1, molecule_number-1
-            start_atom = start_atom+nunits(mol_type(start_mol+imolecule-1))
+         DO imolecule = 1, molecule_number - 1
+            start_atom = start_atom + nunits(mol_type(start_mol + imolecule - 1))
          ENDDO
 
       ENDIF
@@ -881,8 +881,8 @@ CONTAINS
 
       discrete_array(:, :) = 0
 
-      length1 = ABS(cell(1)-cell(2))
-      length2 = ABS(cell(2)-cell(3))
+      length1 = ABS(cell(1) - cell(2))
+      length2 = ABS(cell(2) - cell(3))
 
 ! now let's figure out all the different cases
       IF (length1 .LT. 0.01_dp*step_size .AND. &
@@ -902,7 +902,7 @@ CONTAINS
          DO iside = 1, 3
 ! now we see if the value is a high value or a low value...it can only be
 ! one of the two
-            IF (ABS(cell(iside)-low_value) .LT. 0.01_dp*step_size) THEN
+            IF (ABS(cell(iside) - low_value) .LT. 0.01_dp*step_size) THEN
 ! low value, we can only increase the cell size
                discrete_array(iside, 1) = 1
                discrete_array(iside, 2) = 0
@@ -952,21 +952,21 @@ CONTAINS
          DO
             eta_1 = next_random_number(rng_stream)
             eta_2 = next_random_number(rng_stream)
-            eta_sq = eta_1**2+eta_2**2
+            eta_sq = eta_1**2 + eta_2**2
             IF (eta_sq .LT. 1.0_dp) THEN
-               r_insert(1) = 2.0_dp*eta_1*SQRT(1.0_dp-eta_sq)
-               r_insert(2) = 2.0_dp*eta_2*SQRT(1.0_dp-eta_sq)
-               r_insert(3) = 1.0_dp-2.0_dp*eta_sq
+               r_insert(1) = 2.0_dp*eta_1*SQRT(1.0_dp - eta_sq)
+               r_insert(2) = 2.0_dp*eta_2*SQRT(1.0_dp - eta_sq)
+               r_insert(3) = 1.0_dp - 2.0_dp*eta_sq
                EXIT
             ENDIF
          ENDDO
 
 ! now scale that vector to be within the "in" region
          rand = next_random_number(rng_stream)
-         r_insert(1:3) = r_insert(1:3)*(rand*(rmax**3-rmin**3)+rmin**3)** &
+         r_insert(1:3) = r_insert(1:3)*(rand*(rmax**3 - rmin**3) + rmin**3)** &
                          (1.0_dp/3.0_dp)
 
-         r_insert(1:3) = r_target(1:3)+r_insert(1:3)
+         r_insert(1:3) = r_target(1:3) + r_insert(1:3)
       ELSE
 
 ! find a new insertion point somewhere in the box
@@ -977,14 +977,14 @@ CONTAINS
             ENDDO
 
 ! make sure it's not in the "in" region
-            RIJ(1) = r_insert(1)-r_target(1)-abc(1)* &
-                     ANINT((r_insert(1)-r_target(1))/abc(1))
-            RIJ(2) = r_insert(2)-r_target(2)-abc(2)* &
-                     ANINT((r_insert(2)-r_target(2))/abc(2))
-            RIJ(3) = r_insert(3)-r_target(3)-abc(3)* &
-                     ANINT((r_insert(3)-r_target(3))/abc(3))
+            RIJ(1) = r_insert(1) - r_target(1) - abc(1)* &
+                     ANINT((r_insert(1) - r_target(1))/abc(1))
+            RIJ(2) = r_insert(2) - r_target(2) - abc(2)* &
+                     ANINT((r_insert(2) - r_target(2))/abc(2))
+            RIJ(3) = r_insert(3) - r_target(3) - abc(3)* &
+                     ANINT((r_insert(3) - r_target(3))/abc(3))
 
-            dist = RIJ(1)**2+RIJ(2)**2+RIJ(3)**2
+            dist = RIJ(1)**2 + RIJ(2)**2 + RIJ(3)**2
 
             IF (dist .LT. rmin**2 .OR. dist .GT. rmax**2) THEN
                EXIT
@@ -1058,7 +1058,7 @@ CONTAINS
       DO imol = 1, nend
          nunit = nunits(mol_type(imol))
          DO iunit = 1, nunit
-            junit = junit+1
+            junit = junit + 1
             r(1:3, iunit, imol) = particles%els(junit)%r(1:3)
          ENDDO
       ENDDO
@@ -1079,7 +1079,7 @@ CONTAINS
       DO WHILE (SUM(decision) .LT. nend)
          DO nstart = 1, nend
             IF (clusmat(nstart) .EQ. 0) THEN
-               counter = counter+1
+               counter = counter + 1
                clusmat(nstart) = counter
                EXIT
             END IF
@@ -1110,13 +1110,13 @@ CONTAINS
 !Calculating the distance between atoms
                      DO iunit = 1, nunits_i
                         DO junit = 1, nunits_j
-                           dx = xcoord(iunit)-r(1, junit, jmol)
-                           dy = ycoord(iunit)-r(2, junit, jmol)
-                           dz = zcoord(iunit)-r(3, junit, jmol)
-                           dx = dx-abc(1)*ANINT(dx/abc(1))
-                           dy = dy-abc(2)*ANINT(dy/abc(2))
-                           dz = dz-abc(3)*ANINT(dz/abc(3))
-                           rsquare = (dx*dx)+(dy*dy)+(dz*dz)
+                           dx = xcoord(iunit) - r(1, junit, jmol)
+                           dy = ycoord(iunit) - r(2, junit, jmol)
+                           dz = zcoord(iunit) - r(3, junit, jmol)
+                           dx = dx - abc(1)*ANINT(dx/abc(1))
+                           dy = dy - abc(2)*ANINT(dy/abc(2))
+                           dz = dz - abc(3)*ANINT(dz/abc(3))
+                           rsquare = (dx*dx) + (dy*dy) + (dz*dz)
 !Checking the distance based on rclus square(rclussq)
                            IF (rsquare .LT. rclussquare) THEN
                               clusmat(jmol) = counter

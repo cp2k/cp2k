@@ -173,15 +173,15 @@ CONTAINS
       REAL(KIND=dp), &
          DIMENSION(ncoset(la_max_set+1), ncoset(lb_max)) :: sc, ss
 
-      rab = rbc-rac
+      rab = rbc - rac
       rab2 = SUM(rab**2)
       dab = SQRT(rab2)
-      k2 = kvec(1)*kvec(1)+kvec(2)*kvec(2)+kvec(3)*kvec(3)
+      k2 = kvec(1)*kvec(1) + kvec(2)*kvec(2) + kvec(3)*kvec(3)
 
       IF (PRESENT(dcosab)) THEN
          da_max = 1
-         la_max = la_max_set+1
-         la_min = MAX(0, la_min_set-1)
+         la_max = la_max_set + 1
+         la_min = MAX(0, la_min_set - 1)
          dscos = 0.0_dp
          dssin = 0.0_dp
       ELSE
@@ -192,7 +192,7 @@ CONTAINS
 
       ! initialize all matrix elements to zero
       IF (PRESENT(dcosab)) THEN
-         na = ncoset(la_max-1)*npgfa
+         na = ncoset(la_max - 1)*npgfa
       ELSE
          na = ncoset(la_max)*npgfa
       END IF
@@ -216,20 +216,20 @@ CONTAINS
             sc = 0.0_dp
 
 !       *** Screening ***
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               nb = nb+ncoset(lb_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               nb = nb + ncoset(lb_max)
                CYCLE
             END IF
 
 !       *** Calculate some prefactors ***
 
-            zetp = 1.0_dp/(zeta(ipgf)+zetb(jpgf))
+            zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
 
             f0 = (pi*zetp)**1.5_dp
             f1 = zetb(jpgf)*zetp
             f2 = 0.5_dp*zetp
 
-            kdp = zetp*DOT_PRODUCT(kvec, zeta(ipgf)*rac+zetb(jpgf)*rbc)
+            kdp = zetp*DOT_PRODUCT(kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc)
 
 !       *** Calculate the basic two-center cos/sin integral [s|cos/sin|s] ***
 
@@ -247,12 +247,12 @@ CONTAINS
 
 !         *** [p|O|s] = (Pi - Ai)*[s|O|s] +[s|dO|s]  (i = x,y,z) ***
 
-               sc(2, 1) = rap(1)*sc(1, 1)-f2*kvec(1)*ss(1, 1)
-               sc(3, 1) = rap(2)*sc(1, 1)-f2*kvec(2)*ss(1, 1)
-               sc(4, 1) = rap(3)*sc(1, 1)-f2*kvec(3)*ss(1, 1)
-               ss(2, 1) = rap(1)*ss(1, 1)+f2*kvec(1)*sc(1, 1)
-               ss(3, 1) = rap(2)*ss(1, 1)+f2*kvec(2)*sc(1, 1)
-               ss(4, 1) = rap(3)*ss(1, 1)+f2*kvec(3)*sc(1, 1)
+               sc(2, 1) = rap(1)*sc(1, 1) - f2*kvec(1)*ss(1, 1)
+               sc(3, 1) = rap(2)*sc(1, 1) - f2*kvec(2)*ss(1, 1)
+               sc(4, 1) = rap(3)*sc(1, 1) - f2*kvec(3)*ss(1, 1)
+               ss(2, 1) = rap(1)*ss(1, 1) + f2*kvec(1)*sc(1, 1)
+               ss(3, 1) = rap(2)*ss(1, 1) + f2*kvec(2)*sc(1, 1)
+               ss(4, 1) = rap(3)*ss(1, 1) + f2*kvec(3)*sc(1, 1)
 
 !         *** [a|O|s] = (Pi - Ai)*[a-1i|O|s] + f2*Ni(a-1i)*[a-2i|s] ***
 !         ***           + [a-1i|dO|s]                               ***
@@ -261,51 +261,51 @@ CONTAINS
 
 !           *** Increase the angular momentum component z of function a ***
 
-                  sc(coset(0, 0, la), 1) = rap(3)*sc(coset(0, 0, la-1), 1)+ &
-                                           f2*REAL(la-1, dp)*sc(coset(0, 0, la-2), 1)- &
-                                           f2*kvec(3)*ss(coset(0, 0, la-1), 1)
-                  ss(coset(0, 0, la), 1) = rap(3)*ss(coset(0, 0, la-1), 1)+ &
-                                           f2*REAL(la-1, dp)*ss(coset(0, 0, la-2), 1)+ &
-                                           f2*kvec(3)*sc(coset(0, 0, la-1), 1)
+                  sc(coset(0, 0, la), 1) = rap(3)*sc(coset(0, 0, la - 1), 1) + &
+                                           f2*REAL(la - 1, dp)*sc(coset(0, 0, la - 2), 1) - &
+                                           f2*kvec(3)*ss(coset(0, 0, la - 1), 1)
+                  ss(coset(0, 0, la), 1) = rap(3)*ss(coset(0, 0, la - 1), 1) + &
+                                           f2*REAL(la - 1, dp)*ss(coset(0, 0, la - 2), 1) + &
+                                           f2*kvec(3)*sc(coset(0, 0, la - 1), 1)
 
 !           *** Increase the angular momentum component y of function a ***
 
-                  az = la-1
-                  sc(coset(0, 1, az), 1) = rap(2)*sc(coset(0, 0, az), 1)- &
+                  az = la - 1
+                  sc(coset(0, 1, az), 1) = rap(2)*sc(coset(0, 0, az), 1) - &
                                            f2*kvec(2)*ss(coset(0, 0, az), 1)
-                  ss(coset(0, 1, az), 1) = rap(2)*ss(coset(0, 0, az), 1)+ &
+                  ss(coset(0, 1, az), 1) = rap(2)*ss(coset(0, 0, az), 1) + &
                                            f2*kvec(2)*sc(coset(0, 0, az), 1)
 
                   DO ay = 2, la
-                     az = la-ay
-                     sc(coset(0, ay, az), 1) = rap(2)*sc(coset(0, ay-1, az), 1)+ &
-                                               f2*REAL(ay-1, dp)*sc(coset(0, ay-2, az), 1)- &
-                                               f2*kvec(2)*ss(coset(0, ay-1, az), 1)
-                     ss(coset(0, ay, az), 1) = rap(2)*ss(coset(0, ay-1, az), 1)+ &
-                                               f2*REAL(ay-1, dp)*ss(coset(0, ay-2, az), 1)+ &
-                                               f2*kvec(2)*sc(coset(0, ay-1, az), 1)
+                     az = la - ay
+                     sc(coset(0, ay, az), 1) = rap(2)*sc(coset(0, ay - 1, az), 1) + &
+                                               f2*REAL(ay - 1, dp)*sc(coset(0, ay - 2, az), 1) - &
+                                               f2*kvec(2)*ss(coset(0, ay - 1, az), 1)
+                     ss(coset(0, ay, az), 1) = rap(2)*ss(coset(0, ay - 1, az), 1) + &
+                                               f2*REAL(ay - 1, dp)*ss(coset(0, ay - 2, az), 1) + &
+                                               f2*kvec(2)*sc(coset(0, ay - 1, az), 1)
                   END DO
 
 !           *** Increase the angular momentum component x of function a ***
 
-                  DO ay = 0, la-1
-                     az = la-1-ay
-                     sc(coset(1, ay, az), 1) = rap(1)*sc(coset(0, ay, az), 1)- &
+                  DO ay = 0, la - 1
+                     az = la - 1 - ay
+                     sc(coset(1, ay, az), 1) = rap(1)*sc(coset(0, ay, az), 1) - &
                                                f2*kvec(1)*ss(coset(0, ay, az), 1)
-                     ss(coset(1, ay, az), 1) = rap(1)*ss(coset(0, ay, az), 1)+ &
+                     ss(coset(1, ay, az), 1) = rap(1)*ss(coset(0, ay, az), 1) + &
                                                f2*kvec(1)*sc(coset(0, ay, az), 1)
                   END DO
 
                   DO ax = 2, la
-                     f3 = f2*REAL(ax-1, dp)
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
-                        sc(coset(ax, ay, az), 1) = rap(1)*sc(coset(ax-1, ay, az), 1)+ &
-                                                   f3*sc(coset(ax-2, ay, az), 1)- &
-                                                   f2*kvec(1)*ss(coset(ax-1, ay, az), 1)
-                        ss(coset(ax, ay, az), 1) = rap(1)*ss(coset(ax-1, ay, az), 1)+ &
-                                                   f3*ss(coset(ax-2, ay, az), 1)+ &
-                                                   f2*kvec(1)*sc(coset(ax-1, ay, az), 1)
+                     f3 = f2*REAL(ax - 1, dp)
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
+                        sc(coset(ax, ay, az), 1) = rap(1)*sc(coset(ax - 1, ay, az), 1) + &
+                                                   f3*sc(coset(ax - 2, ay, az), 1) - &
+                                                   f2*kvec(1)*ss(coset(ax - 1, ay, az), 1)
+                        ss(coset(ax, ay, az), 1) = rap(1)*ss(coset(ax - 1, ay, az), 1) + &
+                                                   f3*ss(coset(ax - 2, ay, az), 1) + &
+                                                   f2*kvec(1)*sc(coset(ax - 1, ay, az), 1)
                      END DO
                   END DO
 
@@ -324,31 +324,31 @@ CONTAINS
 
 !           *** Horizontal recurrence steps ***
 
-                  rbp(:) = rap(:)-rab(:)
+                  rbp(:) = rap(:) - rab(:)
 
 !           *** [a|O|p] = [a+1i|O|s] - (Bi - Ai)*[a|O|s] ***
 
                   IF (lb_max == 1) THEN
                      la_start = la_min
                   ELSE
-                     la_start = MAX(0, la_min-1)
+                     la_start = MAX(0, la_min - 1)
                   END IF
 
-                  DO la = la_start, la_max-1
+                  DO la = la_start, la_max - 1
                      DO ax = 0, la
-                        DO ay = 0, la-ax
-                           az = la-ax-ay
-                           sc(coset(ax, ay, az), 2) = sc(coset(ax+1, ay, az), 1)- &
+                        DO ay = 0, la - ax
+                           az = la - ax - ay
+                           sc(coset(ax, ay, az), 2) = sc(coset(ax + 1, ay, az), 1) - &
                                                       rab(1)*sc(coset(ax, ay, az), 1)
-                           sc(coset(ax, ay, az), 3) = sc(coset(ax, ay+1, az), 1)- &
+                           sc(coset(ax, ay, az), 3) = sc(coset(ax, ay + 1, az), 1) - &
                                                       rab(2)*sc(coset(ax, ay, az), 1)
-                           sc(coset(ax, ay, az), 4) = sc(coset(ax, ay, az+1), 1)- &
+                           sc(coset(ax, ay, az), 4) = sc(coset(ax, ay, az + 1), 1) - &
                                                       rab(3)*sc(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 2) = ss(coset(ax+1, ay, az), 1)- &
+                           ss(coset(ax, ay, az), 2) = ss(coset(ax + 1, ay, az), 1) - &
                                                       rab(1)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 3) = ss(coset(ax, ay+1, az), 1)- &
+                           ss(coset(ax, ay, az), 3) = ss(coset(ax, ay + 1, az), 1) - &
                                                       rab(2)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 4) = ss(coset(ax, ay, az+1), 1)- &
+                           ss(coset(ax, ay, az), 4) = ss(coset(ax, ay, az + 1), 1) - &
                                                       rab(3)*ss(coset(ax, ay, az), 1)
                         END DO
                      END DO
@@ -361,47 +361,47 @@ CONTAINS
 
                   DO ax = 0, la_max
                      fx = f2*REAL(ax, dp)
-                     DO ay = 0, la_max-ax
+                     DO ay = 0, la_max - ax
                         fy = f2*REAL(ay, dp)
-                        az = la_max-ax-ay
+                        az = la_max - ax - ay
                         fz = f2*REAL(az, dp)
                         IF (ax == 0) THEN
-                           sc(coset(ax, ay, az), 2) = rbp(1)*sc(coset(ax, ay, az), 1)- &
+                           sc(coset(ax, ay, az), 2) = rbp(1)*sc(coset(ax, ay, az), 1) - &
                                                       f2*kvec(1)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 2) = rbp(1)*ss(coset(ax, ay, az), 1)+ &
+                           ss(coset(ax, ay, az), 2) = rbp(1)*ss(coset(ax, ay, az), 1) + &
                                                       f2*kvec(1)*sc(coset(ax, ay, az), 1)
                         ELSE
-                           sc(coset(ax, ay, az), 2) = rbp(1)*sc(coset(ax, ay, az), 1)+ &
-                                                      fx*sc(coset(ax-1, ay, az), 1)- &
+                           sc(coset(ax, ay, az), 2) = rbp(1)*sc(coset(ax, ay, az), 1) + &
+                                                      fx*sc(coset(ax - 1, ay, az), 1) - &
                                                       f2*kvec(1)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 2) = rbp(1)*ss(coset(ax, ay, az), 1)+ &
-                                                      fx*ss(coset(ax-1, ay, az), 1)+ &
+                           ss(coset(ax, ay, az), 2) = rbp(1)*ss(coset(ax, ay, az), 1) + &
+                                                      fx*ss(coset(ax - 1, ay, az), 1) + &
                                                       f2*kvec(1)*sc(coset(ax, ay, az), 1)
                         END IF
                         IF (ay == 0) THEN
-                           sc(coset(ax, ay, az), 3) = rbp(2)*sc(coset(ax, ay, az), 1)- &
+                           sc(coset(ax, ay, az), 3) = rbp(2)*sc(coset(ax, ay, az), 1) - &
                                                       f2*kvec(2)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 3) = rbp(2)*ss(coset(ax, ay, az), 1)+ &
+                           ss(coset(ax, ay, az), 3) = rbp(2)*ss(coset(ax, ay, az), 1) + &
                                                       f2*kvec(2)*sc(coset(ax, ay, az), 1)
                         ELSE
-                           sc(coset(ax, ay, az), 3) = rbp(2)*sc(coset(ax, ay, az), 1)+ &
-                                                      fy*sc(coset(ax, ay-1, az), 1)- &
+                           sc(coset(ax, ay, az), 3) = rbp(2)*sc(coset(ax, ay, az), 1) + &
+                                                      fy*sc(coset(ax, ay - 1, az), 1) - &
                                                       f2*kvec(2)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 3) = rbp(2)*ss(coset(ax, ay, az), 1)+ &
-                                                      fy*ss(coset(ax, ay-1, az), 1)+ &
+                           ss(coset(ax, ay, az), 3) = rbp(2)*ss(coset(ax, ay, az), 1) + &
+                                                      fy*ss(coset(ax, ay - 1, az), 1) + &
                                                       f2*kvec(2)*sc(coset(ax, ay, az), 1)
                         END IF
                         IF (az == 0) THEN
-                           sc(coset(ax, ay, az), 4) = rbp(3)*sc(coset(ax, ay, az), 1)- &
+                           sc(coset(ax, ay, az), 4) = rbp(3)*sc(coset(ax, ay, az), 1) - &
                                                       f2*kvec(3)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 4) = rbp(3)*ss(coset(ax, ay, az), 1)+ &
+                           ss(coset(ax, ay, az), 4) = rbp(3)*ss(coset(ax, ay, az), 1) + &
                                                       f2*kvec(3)*sc(coset(ax, ay, az), 1)
                         ELSE
-                           sc(coset(ax, ay, az), 4) = rbp(3)*sc(coset(ax, ay, az), 1)+ &
-                                                      fz*sc(coset(ax, ay, az-1), 1)- &
+                           sc(coset(ax, ay, az), 4) = rbp(3)*sc(coset(ax, ay, az), 1) + &
+                                                      fz*sc(coset(ax, ay, az - 1), 1) - &
                                                       f2*kvec(3)*ss(coset(ax, ay, az), 1)
-                           ss(coset(ax, ay, az), 4) = rbp(3)*ss(coset(ax, ay, az), 1)+ &
-                                                      fz*ss(coset(ax, ay, az-1), 1)+ &
+                           ss(coset(ax, ay, az), 4) = rbp(3)*ss(coset(ax, ay, az), 1) + &
+                                                      fz*ss(coset(ax, ay, az - 1), 1) + &
                                                       f2*kvec(3)*sc(coset(ax, ay, az), 1)
                         END IF
                      END DO
@@ -418,46 +418,46 @@ CONTAINS
                      IF (lb == lb_max) THEN
                         la_start = la_min
                      ELSE
-                        la_start = MAX(0, la_min-1)
+                        la_start = MAX(0, la_min - 1)
                      END IF
 
-                     DO la = la_start, la_max-1
+                     DO la = la_start, la_max - 1
                         DO ax = 0, la
-                           DO ay = 0, la-ax
-                              az = la-ax-ay
+                           DO ay = 0, la - ax
+                              az = la - ax - ay
 
 !                   *** Shift of angular momentum component z from a to b ***
 
                               sc(coset(ax, ay, az), coset(0, 0, lb)) = &
-                                 sc(coset(ax, ay, az+1), coset(0, 0, lb-1))- &
-                                 rab(3)*sc(coset(ax, ay, az), coset(0, 0, lb-1))
+                                 sc(coset(ax, ay, az + 1), coset(0, 0, lb - 1)) - &
+                                 rab(3)*sc(coset(ax, ay, az), coset(0, 0, lb - 1))
                               ss(coset(ax, ay, az), coset(0, 0, lb)) = &
-                                 ss(coset(ax, ay, az+1), coset(0, 0, lb-1))- &
-                                 rab(3)*ss(coset(ax, ay, az), coset(0, 0, lb-1))
+                                 ss(coset(ax, ay, az + 1), coset(0, 0, lb - 1)) - &
+                                 rab(3)*ss(coset(ax, ay, az), coset(0, 0, lb - 1))
 
 !                   *** Shift of angular momentum component y from a to b ***
 
                               DO by = 1, lb
-                                 bz = lb-by
+                                 bz = lb - by
                                  sc(coset(ax, ay, az), coset(0, by, bz)) = &
-                                    sc(coset(ax, ay+1, az), coset(0, by-1, bz))- &
-                                    rab(2)*sc(coset(ax, ay, az), coset(0, by-1, bz))
+                                    sc(coset(ax, ay + 1, az), coset(0, by - 1, bz)) - &
+                                    rab(2)*sc(coset(ax, ay, az), coset(0, by - 1, bz))
                                  ss(coset(ax, ay, az), coset(0, by, bz)) = &
-                                    ss(coset(ax, ay+1, az), coset(0, by-1, bz))- &
-                                    rab(2)*ss(coset(ax, ay, az), coset(0, by-1, bz))
+                                    ss(coset(ax, ay + 1, az), coset(0, by - 1, bz)) - &
+                                    rab(2)*ss(coset(ax, ay, az), coset(0, by - 1, bz))
                               END DO
 
 !                   *** Shift of angular momentum component x from a to b ***
 
                               DO bx = 1, lb
-                                 DO by = 0, lb-bx
-                                    bz = lb-bx-by
+                                 DO by = 0, lb - bx
+                                    bz = lb - bx - by
                                     sc(coset(ax, ay, az), coset(bx, by, bz)) = &
-                                       sc(coset(ax+1, ay, az), coset(bx-1, by, bz))- &
-                                       rab(1)*sc(coset(ax, ay, az), coset(bx-1, by, bz))
+                                       sc(coset(ax + 1, ay, az), coset(bx - 1, by, bz)) - &
+                                       rab(1)*sc(coset(ax, ay, az), coset(bx - 1, by, bz))
                                     ss(coset(ax, ay, az), coset(bx, by, bz)) = &
-                                       ss(coset(ax+1, ay, az), coset(bx-1, by, bz))- &
-                                       rab(1)*ss(coset(ax, ay, az), coset(bx-1, by, bz))
+                                       ss(coset(ax + 1, ay, az), coset(bx - 1, by, bz)) - &
+                                       rab(1)*ss(coset(ax, ay, az), coset(bx - 1, by, bz))
                                  END DO
                               END DO
 
@@ -472,141 +472,141 @@ CONTAINS
 
                      DO ax = 0, la_max
                         fx = f2*REAL(ax, dp)
-                        DO ay = 0, la_max-ax
+                        DO ay = 0, la_max - ax
                            fy = f2*REAL(ay, dp)
-                           az = la_max-ax-ay
+                           az = la_max - ax - ay
                            fz = f2*REAL(az, dp)
 
 !                 *** Increase the angular momentum component z of function b ***
 
-                           f3 = f2*REAL(lb-1, dp)
+                           f3 = f2*REAL(lb - 1, dp)
 
                            IF (az == 0) THEN
                               sc(coset(ax, ay, az), coset(0, 0, lb)) = &
-                                 rbp(3)*sc(coset(ax, ay, az), coset(0, 0, lb-1))+ &
-                                 f3*sc(coset(ax, ay, az), coset(0, 0, lb-2))- &
-                                 f2*kvec(3)*ss(coset(ax, ay, az), coset(0, 0, lb-1))
+                                 rbp(3)*sc(coset(ax, ay, az), coset(0, 0, lb - 1)) + &
+                                 f3*sc(coset(ax, ay, az), coset(0, 0, lb - 2)) - &
+                                 f2*kvec(3)*ss(coset(ax, ay, az), coset(0, 0, lb - 1))
                               ss(coset(ax, ay, az), coset(0, 0, lb)) = &
-                                 rbp(3)*ss(coset(ax, ay, az), coset(0, 0, lb-1))+ &
-                                 f3*ss(coset(ax, ay, az), coset(0, 0, lb-2))+ &
-                                 f2*kvec(3)*sc(coset(ax, ay, az), coset(0, 0, lb-1))
+                                 rbp(3)*ss(coset(ax, ay, az), coset(0, 0, lb - 1)) + &
+                                 f3*ss(coset(ax, ay, az), coset(0, 0, lb - 2)) + &
+                                 f2*kvec(3)*sc(coset(ax, ay, az), coset(0, 0, lb - 1))
                            ELSE
                               sc(coset(ax, ay, az), coset(0, 0, lb)) = &
-                                 rbp(3)*sc(coset(ax, ay, az), coset(0, 0, lb-1))+ &
-                                 fz*sc(coset(ax, ay, az-1), coset(0, 0, lb-1))+ &
-                                 f3*sc(coset(ax, ay, az), coset(0, 0, lb-2))- &
-                                 f2*kvec(3)*ss(coset(ax, ay, az), coset(0, 0, lb-1))
+                                 rbp(3)*sc(coset(ax, ay, az), coset(0, 0, lb - 1)) + &
+                                 fz*sc(coset(ax, ay, az - 1), coset(0, 0, lb - 1)) + &
+                                 f3*sc(coset(ax, ay, az), coset(0, 0, lb - 2)) - &
+                                 f2*kvec(3)*ss(coset(ax, ay, az), coset(0, 0, lb - 1))
                               ss(coset(ax, ay, az), coset(0, 0, lb)) = &
-                                 rbp(3)*ss(coset(ax, ay, az), coset(0, 0, lb-1))+ &
-                                 fz*ss(coset(ax, ay, az-1), coset(0, 0, lb-1))+ &
-                                 f3*ss(coset(ax, ay, az), coset(0, 0, lb-2))+ &
-                                 f2*kvec(3)*sc(coset(ax, ay, az), coset(0, 0, lb-1))
+                                 rbp(3)*ss(coset(ax, ay, az), coset(0, 0, lb - 1)) + &
+                                 fz*ss(coset(ax, ay, az - 1), coset(0, 0, lb - 1)) + &
+                                 f3*ss(coset(ax, ay, az), coset(0, 0, lb - 2)) + &
+                                 f2*kvec(3)*sc(coset(ax, ay, az), coset(0, 0, lb - 1))
                            END IF
 
 !                 *** Increase the angular momentum component y of function b ***
 
                            IF (ay == 0) THEN
-                              bz = lb-1
+                              bz = lb - 1
                               sc(coset(ax, ay, az), coset(0, 1, bz)) = &
-                                 rbp(2)*sc(coset(ax, ay, az), coset(0, 0, bz))- &
+                                 rbp(2)*sc(coset(ax, ay, az), coset(0, 0, bz)) - &
                                  f2*kvec(2)*ss(coset(ax, ay, az), coset(0, 0, bz))
                               ss(coset(ax, ay, az), coset(0, 1, bz)) = &
-                                 rbp(2)*ss(coset(ax, ay, az), coset(0, 0, bz))+ &
+                                 rbp(2)*ss(coset(ax, ay, az), coset(0, 0, bz)) + &
                                  f2*kvec(2)*sc(coset(ax, ay, az), coset(0, 0, bz))
                               DO by = 2, lb
-                                 bz = lb-by
-                                 f3 = f2*REAL(by-1, dp)
+                                 bz = lb - by
+                                 f3 = f2*REAL(by - 1, dp)
                                  sc(coset(ax, ay, az), coset(0, by, bz)) = &
-                                    rbp(2)*sc(coset(ax, ay, az), coset(0, by-1, bz))+ &
-                                    f3*sc(coset(ax, ay, az), coset(0, by-2, bz))- &
-                                    f2*kvec(2)*ss(coset(ax, ay, az), coset(0, by-1, bz))
+                                    rbp(2)*sc(coset(ax, ay, az), coset(0, by - 1, bz)) + &
+                                    f3*sc(coset(ax, ay, az), coset(0, by - 2, bz)) - &
+                                    f2*kvec(2)*ss(coset(ax, ay, az), coset(0, by - 1, bz))
                                  ss(coset(ax, ay, az), coset(0, by, bz)) = &
-                                    rbp(2)*ss(coset(ax, ay, az), coset(0, by-1, bz))+ &
-                                    f3*ss(coset(ax, ay, az), coset(0, by-2, bz))+ &
-                                    f2*kvec(2)*sc(coset(ax, ay, az), coset(0, by-1, bz))
+                                    rbp(2)*ss(coset(ax, ay, az), coset(0, by - 1, bz)) + &
+                                    f3*ss(coset(ax, ay, az), coset(0, by - 2, bz)) + &
+                                    f2*kvec(2)*sc(coset(ax, ay, az), coset(0, by - 1, bz))
                               END DO
                            ELSE
-                              bz = lb-1
+                              bz = lb - 1
                               sc(coset(ax, ay, az), coset(0, 1, bz)) = &
-                                 rbp(2)*sc(coset(ax, ay, az), coset(0, 0, bz))+ &
-                                 fy*sc(coset(ax, ay-1, az), coset(0, 0, bz))- &
+                                 rbp(2)*sc(coset(ax, ay, az), coset(0, 0, bz)) + &
+                                 fy*sc(coset(ax, ay - 1, az), coset(0, 0, bz)) - &
                                  f2*kvec(2)*ss(coset(ax, ay, az), coset(0, 0, bz))
                               ss(coset(ax, ay, az), coset(0, 1, bz)) = &
-                                 rbp(2)*ss(coset(ax, ay, az), coset(0, 0, bz))+ &
-                                 fy*ss(coset(ax, ay-1, az), coset(0, 0, bz))+ &
+                                 rbp(2)*ss(coset(ax, ay, az), coset(0, 0, bz)) + &
+                                 fy*ss(coset(ax, ay - 1, az), coset(0, 0, bz)) + &
                                  f2*kvec(2)*sc(coset(ax, ay, az), coset(0, 0, bz))
                               DO by = 2, lb
-                                 bz = lb-by
-                                 f3 = f2*REAL(by-1, dp)
+                                 bz = lb - by
+                                 f3 = f2*REAL(by - 1, dp)
                                  sc(coset(ax, ay, az), coset(0, by, bz)) = &
-                                    rbp(2)*sc(coset(ax, ay, az), coset(0, by-1, bz))+ &
-                                    fy*sc(coset(ax, ay-1, az), coset(0, by-1, bz))+ &
-                                    f3*sc(coset(ax, ay, az), coset(0, by-2, bz))- &
-                                    f2*kvec(2)*ss(coset(ax, ay, az), coset(0, by-1, bz))
+                                    rbp(2)*sc(coset(ax, ay, az), coset(0, by - 1, bz)) + &
+                                    fy*sc(coset(ax, ay - 1, az), coset(0, by - 1, bz)) + &
+                                    f3*sc(coset(ax, ay, az), coset(0, by - 2, bz)) - &
+                                    f2*kvec(2)*ss(coset(ax, ay, az), coset(0, by - 1, bz))
                                  ss(coset(ax, ay, az), coset(0, by, bz)) = &
-                                    rbp(2)*ss(coset(ax, ay, az), coset(0, by-1, bz))+ &
-                                    fy*ss(coset(ax, ay-1, az), coset(0, by-1, bz))+ &
-                                    f3*ss(coset(ax, ay, az), coset(0, by-2, bz))+ &
-                                    f2*kvec(2)*sc(coset(ax, ay, az), coset(0, by-1, bz))
+                                    rbp(2)*ss(coset(ax, ay, az), coset(0, by - 1, bz)) + &
+                                    fy*ss(coset(ax, ay - 1, az), coset(0, by - 1, bz)) + &
+                                    f3*ss(coset(ax, ay, az), coset(0, by - 2, bz)) + &
+                                    f2*kvec(2)*sc(coset(ax, ay, az), coset(0, by - 1, bz))
                               END DO
                            END IF
 
 !                 *** Increase the angular momentum component x of function b ***
 
                            IF (ax == 0) THEN
-                              DO by = 0, lb-1
-                                 bz = lb-1-by
+                              DO by = 0, lb - 1
+                                 bz = lb - 1 - by
                                  sc(coset(ax, ay, az), coset(1, by, bz)) = &
-                                    rbp(1)*sc(coset(ax, ay, az), coset(0, by, bz))- &
+                                    rbp(1)*sc(coset(ax, ay, az), coset(0, by, bz)) - &
                                     f2*kvec(1)*ss(coset(ax, ay, az), coset(0, by, bz))
                                  ss(coset(ax, ay, az), coset(1, by, bz)) = &
-                                    rbp(1)*ss(coset(ax, ay, az), coset(0, by, bz))+ &
+                                    rbp(1)*ss(coset(ax, ay, az), coset(0, by, bz)) + &
                                     f2*kvec(1)*sc(coset(ax, ay, az), coset(0, by, bz))
                               END DO
                               DO bx = 2, lb
-                                 f3 = f2*REAL(bx-1, dp)
-                                 DO by = 0, lb-bx
-                                    bz = lb-bx-by
+                                 f3 = f2*REAL(bx - 1, dp)
+                                 DO by = 0, lb - bx
+                                    bz = lb - bx - by
                                     sc(coset(ax, ay, az), coset(bx, by, bz)) = &
                                        rbp(1)*sc(coset(ax, ay, az), &
-                                                 coset(bx-1, by, bz))+ &
-                                       f3*sc(coset(ax, ay, az), coset(bx-2, by, bz))- &
-                                       f2*kvec(1)*ss(coset(ax, ay, az), coset(bx-1, by, bz))
+                                                 coset(bx - 1, by, bz)) + &
+                                       f3*sc(coset(ax, ay, az), coset(bx - 2, by, bz)) - &
+                                       f2*kvec(1)*ss(coset(ax, ay, az), coset(bx - 1, by, bz))
                                     ss(coset(ax, ay, az), coset(bx, by, bz)) = &
                                        rbp(1)*ss(coset(ax, ay, az), &
-                                                 coset(bx-1, by, bz))+ &
-                                       f3*ss(coset(ax, ay, az), coset(bx-2, by, bz))+ &
-                                       f2*kvec(1)*sc(coset(ax, ay, az), coset(bx-1, by, bz))
+                                                 coset(bx - 1, by, bz)) + &
+                                       f3*ss(coset(ax, ay, az), coset(bx - 2, by, bz)) + &
+                                       f2*kvec(1)*sc(coset(ax, ay, az), coset(bx - 1, by, bz))
                                  END DO
                               END DO
                            ELSE
-                              DO by = 0, lb-1
-                                 bz = lb-1-by
+                              DO by = 0, lb - 1
+                                 bz = lb - 1 - by
                                  sc(coset(ax, ay, az), coset(1, by, bz)) = &
-                                    rbp(1)*sc(coset(ax, ay, az), coset(0, by, bz))+ &
-                                    fx*sc(coset(ax-1, ay, az), coset(0, by, bz))- &
+                                    rbp(1)*sc(coset(ax, ay, az), coset(0, by, bz)) + &
+                                    fx*sc(coset(ax - 1, ay, az), coset(0, by, bz)) - &
                                     f2*kvec(1)*ss(coset(ax, ay, az), coset(0, by, bz))
                                  ss(coset(ax, ay, az), coset(1, by, bz)) = &
-                                    rbp(1)*ss(coset(ax, ay, az), coset(0, by, bz))+ &
-                                    fx*ss(coset(ax-1, ay, az), coset(0, by, bz))+ &
+                                    rbp(1)*ss(coset(ax, ay, az), coset(0, by, bz)) + &
+                                    fx*ss(coset(ax - 1, ay, az), coset(0, by, bz)) + &
                                     f2*kvec(1)*sc(coset(ax, ay, az), coset(0, by, bz))
                               END DO
                               DO bx = 2, lb
-                                 f3 = f2*REAL(bx-1, dp)
-                                 DO by = 0, lb-bx
-                                    bz = lb-bx-by
+                                 f3 = f2*REAL(bx - 1, dp)
+                                 DO by = 0, lb - bx
+                                    bz = lb - bx - by
                                     sc(coset(ax, ay, az), coset(bx, by, bz)) = &
                                        rbp(1)*sc(coset(ax, ay, az), &
-                                                 coset(bx-1, by, bz))+ &
-                                       fx*sc(coset(ax-1, ay, az), coset(bx-1, by, bz))+ &
-                                       f3*sc(coset(ax, ay, az), coset(bx-2, by, bz))- &
-                                       f2*kvec(1)*ss(coset(ax, ay, az), coset(bx-1, by, bz))
+                                                 coset(bx - 1, by, bz)) + &
+                                       fx*sc(coset(ax - 1, ay, az), coset(bx - 1, by, bz)) + &
+                                       f3*sc(coset(ax, ay, az), coset(bx - 2, by, bz)) - &
+                                       f2*kvec(1)*ss(coset(ax, ay, az), coset(bx - 1, by, bz))
                                     ss(coset(ax, ay, az), coset(bx, by, bz)) = &
                                        rbp(1)*ss(coset(ax, ay, az), &
-                                                 coset(bx-1, by, bz))+ &
-                                       fx*ss(coset(ax-1, ay, az), coset(bx-1, by, bz))+ &
-                                       f3*ss(coset(ax, ay, az), coset(bx-2, by, bz))+ &
-                                       f2*kvec(1)*sc(coset(ax, ay, az), coset(bx-1, by, bz))
+                                                 coset(bx - 1, by, bz)) + &
+                                       fx*ss(coset(ax - 1, ay, az), coset(bx - 1, by, bz)) + &
+                                       f3*ss(coset(ax, ay, az), coset(bx - 2, by, bz)) + &
+                                       f2*kvec(1)*sc(coset(ax, ay, az), coset(bx - 1, by, bz))
                                  END DO
                               END DO
                            END IF
@@ -624,16 +624,16 @@ CONTAINS
 
 !           *** Vertical recurrence steps: [s|O|s] -> [s|O|b] ***
 
-                  rbp(:) = (f1-1.0_dp)*rab(:)
+                  rbp(:) = (f1 - 1.0_dp)*rab(:)
 
 !           *** [s|O|p] = (Pi - Bi)*[s|O|s] + [s|dO|s] ***
 
-                  sc(1, 2) = rbp(1)*sc(1, 1)-f2*kvec(1)*ss(1, 1)
-                  sc(1, 3) = rbp(2)*sc(1, 1)-f2*kvec(2)*ss(1, 1)
-                  sc(1, 4) = rbp(3)*sc(1, 1)-f2*kvec(3)*ss(1, 1)
-                  ss(1, 2) = rbp(1)*ss(1, 1)+f2*kvec(1)*sc(1, 1)
-                  ss(1, 3) = rbp(2)*ss(1, 1)+f2*kvec(2)*sc(1, 1)
-                  ss(1, 4) = rbp(3)*ss(1, 1)+f2*kvec(3)*sc(1, 1)
+                  sc(1, 2) = rbp(1)*sc(1, 1) - f2*kvec(1)*ss(1, 1)
+                  sc(1, 3) = rbp(2)*sc(1, 1) - f2*kvec(2)*ss(1, 1)
+                  sc(1, 4) = rbp(3)*sc(1, 1) - f2*kvec(3)*ss(1, 1)
+                  ss(1, 2) = rbp(1)*ss(1, 1) + f2*kvec(1)*sc(1, 1)
+                  ss(1, 3) = rbp(2)*ss(1, 1) + f2*kvec(2)*sc(1, 1)
+                  ss(1, 4) = rbp(3)*ss(1, 1) + f2*kvec(3)*sc(1, 1)
 
 !           *** [s|O|b] = (Pi - Bi)*[s|O|b-1i] + f2*Ni(b-1i)*[s|O|b-2i] ***
 !           ***           + [s|dO|b-1i]                                 ***
@@ -642,51 +642,51 @@ CONTAINS
 
 !             *** Increase the angular momentum component z of function b ***
 
-                     sc(1, coset(0, 0, lb)) = rbp(3)*sc(1, coset(0, 0, lb-1))+ &
-                                              f2*REAL(lb-1, dp)*sc(1, coset(0, 0, lb-2))- &
-                                              f2*kvec(3)*ss(1, coset(0, 0, lb-1))
-                     ss(1, coset(0, 0, lb)) = rbp(3)*ss(1, coset(0, 0, lb-1))+ &
-                                              f2*REAL(lb-1, dp)*ss(1, coset(0, 0, lb-2))+ &
-                                              f2*kvec(3)*sc(1, coset(0, 0, lb-1))
+                     sc(1, coset(0, 0, lb)) = rbp(3)*sc(1, coset(0, 0, lb - 1)) + &
+                                              f2*REAL(lb - 1, dp)*sc(1, coset(0, 0, lb - 2)) - &
+                                              f2*kvec(3)*ss(1, coset(0, 0, lb - 1))
+                     ss(1, coset(0, 0, lb)) = rbp(3)*ss(1, coset(0, 0, lb - 1)) + &
+                                              f2*REAL(lb - 1, dp)*ss(1, coset(0, 0, lb - 2)) + &
+                                              f2*kvec(3)*sc(1, coset(0, 0, lb - 1))
 
 !             *** Increase the angular momentum component y of function b ***
 
-                     bz = lb-1
-                     sc(1, coset(0, 1, bz)) = rbp(2)*sc(1, coset(0, 0, bz))- &
+                     bz = lb - 1
+                     sc(1, coset(0, 1, bz)) = rbp(2)*sc(1, coset(0, 0, bz)) - &
                                               f2*kvec(2)*ss(1, coset(0, 0, bz))
-                     ss(1, coset(0, 1, bz)) = rbp(2)*ss(1, coset(0, 0, bz))+ &
+                     ss(1, coset(0, 1, bz)) = rbp(2)*ss(1, coset(0, 0, bz)) + &
                                               f2*kvec(2)*sc(1, coset(0, 0, bz))
 
                      DO by = 2, lb
-                        bz = lb-by
-                        sc(1, coset(0, by, bz)) = rbp(2)*sc(1, coset(0, by-1, bz))+ &
-                                                  f2*REAL(by-1, dp)*sc(1, coset(0, by-2, bz))- &
-                                                  f2*kvec(2)*ss(1, coset(0, by-1, bz))
-                        ss(1, coset(0, by, bz)) = rbp(2)*ss(1, coset(0, by-1, bz))+ &
-                                                  f2*REAL(by-1, dp)*ss(1, coset(0, by-2, bz))+ &
-                                                  f2*kvec(2)*sc(1, coset(0, by-1, bz))
+                        bz = lb - by
+                        sc(1, coset(0, by, bz)) = rbp(2)*sc(1, coset(0, by - 1, bz)) + &
+                                                  f2*REAL(by - 1, dp)*sc(1, coset(0, by - 2, bz)) - &
+                                                  f2*kvec(2)*ss(1, coset(0, by - 1, bz))
+                        ss(1, coset(0, by, bz)) = rbp(2)*ss(1, coset(0, by - 1, bz)) + &
+                                                  f2*REAL(by - 1, dp)*ss(1, coset(0, by - 2, bz)) + &
+                                                  f2*kvec(2)*sc(1, coset(0, by - 1, bz))
                      END DO
 
 !             *** Increase the angular momentum component x of function b ***
 
-                     DO by = 0, lb-1
-                        bz = lb-1-by
-                        sc(1, coset(1, by, bz)) = rbp(1)*sc(1, coset(0, by, bz))- &
+                     DO by = 0, lb - 1
+                        bz = lb - 1 - by
+                        sc(1, coset(1, by, bz)) = rbp(1)*sc(1, coset(0, by, bz)) - &
                                                   f2*kvec(1)*ss(1, coset(0, by, bz))
-                        ss(1, coset(1, by, bz)) = rbp(1)*ss(1, coset(0, by, bz))+ &
+                        ss(1, coset(1, by, bz)) = rbp(1)*ss(1, coset(0, by, bz)) + &
                                                   f2*kvec(1)*sc(1, coset(0, by, bz))
                      END DO
 
                      DO bx = 2, lb
-                        f3 = f2*REAL(bx-1, dp)
-                        DO by = 0, lb-bx
-                           bz = lb-bx-by
-                           sc(1, coset(bx, by, bz)) = rbp(1)*sc(1, coset(bx-1, by, bz))+ &
-                                                      f3*sc(1, coset(bx-2, by, bz))- &
-                                                      f2*kvec(1)*ss(1, coset(bx-1, by, bz))
-                           ss(1, coset(bx, by, bz)) = rbp(1)*ss(1, coset(bx-1, by, bz))+ &
-                                                      f3*ss(1, coset(bx-2, by, bz))+ &
-                                                      f2*kvec(1)*sc(1, coset(bx-1, by, bz))
+                        f3 = f2*REAL(bx - 1, dp)
+                        DO by = 0, lb - bx
+                           bz = lb - bx - by
+                           sc(1, coset(bx, by, bz)) = rbp(1)*sc(1, coset(bx - 1, by, bz)) + &
+                                                      f3*sc(1, coset(bx - 2, by, bz)) - &
+                                                      f2*kvec(1)*ss(1, coset(bx - 1, by, bz))
+                           ss(1, coset(bx, by, bz)) = rbp(1)*ss(1, coset(bx - 1, by, bz)) + &
+                                                      f3*ss(1, coset(bx - 2, by, bz)) + &
+                                                      f2*kvec(1)*sc(1, coset(bx - 1, by, bz))
                         END DO
                      END DO
 
@@ -696,10 +696,10 @@ CONTAINS
 
             END IF
 
-            DO j = ncoset(lb_min-1)+1, ncoset(lb_max)
-               DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-                  cosab(na+i, nb+j) = sc(i, j)
-                  sinab(na+i, nb+j) = ss(i, j)
+            DO j = ncoset(lb_min - 1) + 1, ncoset(lb_max)
+               DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                  cosab(na + i, nb + j) = sc(i, j)
+                  sinab(na + i, nb + j) = ss(i, j)
                END DO
             END DO
 
@@ -711,42 +711,42 @@ CONTAINS
                lb_start = lb_min
             END IF
 
-            DO da = 0, da_max-1
+            DO da = 0, da_max - 1
                ftz = 2.0_dp*zeta(ipgf)
                DO dax = 0, da
-                  DO day = 0, da-dax
-                     daz = da-dax-day
-                     cda = coset(dax, day, daz)-1
-                     cdax = coset(dax+1, day, daz)-1
-                     cday = coset(dax, day+1, daz)-1
-                     cdaz = coset(dax, day, daz+1)-1
+                  DO day = 0, da - dax
+                     daz = da - dax - day
+                     cda = coset(dax, day, daz) - 1
+                     cdax = coset(dax + 1, day, daz) - 1
+                     cday = coset(dax, day + 1, daz) - 1
+                     cdaz = coset(dax, day, daz + 1) - 1
                      !*** [da/dAi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b] ***
 
-                     DO la = la_start, la_max-da-1
+                     DO la = la_start, la_max - da - 1
                         DO ax = 0, la
                            fax = REAL(ax, dp)
-                           DO ay = 0, la-ax
+                           DO ay = 0, la - ax
                               fay = REAL(ay, dp)
-                              az = la-ax-ay
+                              az = la - ax - ay
                               faz = REAL(az, dp)
                               coa = coset(ax, ay, az)
-                              coamx = coset(ax-1, ay, az)
-                              coamy = coset(ax, ay-1, az)
-                              coamz = coset(ax, ay, az-1)
-                              coapx = coset(ax+1, ay, az)
-                              coapy = coset(ax, ay+1, az)
-                              coapz = coset(ax, ay, az+1)
+                              coamx = coset(ax - 1, ay, az)
+                              coamy = coset(ax, ay - 1, az)
+                              coamz = coset(ax, ay, az - 1)
+                              coapx = coset(ax + 1, ay, az)
+                              coapy = coset(ax, ay + 1, az)
+                              coapz = coset(ax, ay, az + 1)
                               DO lb = lb_start, lb_max
                                  DO bx = 0, lb
-                                    DO by = 0, lb-bx
-                                       bz = lb-bx-by
+                                    DO by = 0, lb - bx
+                                       bz = lb - bx - by
                                        cob = coset(bx, by, bz)
-                                       dscos(coa, cob, cdax) = ftz*sc(coapx, cob)-fax*sc(coamx, cob)
-                                       dscos(coa, cob, cday) = ftz*sc(coapy, cob)-fay*sc(coamy, cob)
-                                       dscos(coa, cob, cdaz) = ftz*sc(coapz, cob)-faz*sc(coamz, cob)
-                                       dssin(coa, cob, cdax) = ftz*ss(coapx, cob)-fax*ss(coamx, cob)
-                                       dssin(coa, cob, cday) = ftz*ss(coapy, cob)-fay*ss(coamy, cob)
-                                       dssin(coa, cob, cdaz) = ftz*ss(coapz, cob)-faz*ss(coamz, cob)
+                                       dscos(coa, cob, cdax) = ftz*sc(coapx, cob) - fax*sc(coamx, cob)
+                                       dscos(coa, cob, cday) = ftz*sc(coapy, cob) - fay*sc(coamy, cob)
+                                       dscos(coa, cob, cdaz) = ftz*sc(coapz, cob) - faz*sc(coamz, cob)
+                                       dssin(coa, cob, cdax) = ftz*ss(coapx, cob) - fax*ss(coamx, cob)
+                                       dssin(coa, cob, cday) = ftz*ss(coapy, cob) - fay*ss(coamy, cob)
+                                       dssin(coa, cob, cdaz) = ftz*ss(coapz, cob) - faz*ss(coamz, cob)
                                     END DO
                                  END DO
                               END DO
@@ -762,18 +762,18 @@ CONTAINS
                DO k = 1, 3
                   DO j = 1, ncoset(lb_max)
                      DO i = 1, ncoset(la_max_set)
-                        dcosab(na+i, nb+j, k) = dscos(i, j, k)
-                        dsinab(na+i, nb+j, k) = dssin(i, j, k)
+                        dcosab(na + i, nb + j, k) = dscos(i, j, k)
+                        dsinab(na + i, nb + j, k) = dssin(i, j, k)
                      END DO
                   END DO
                END DO
             END IF
 
-            nb = nb+ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
 
          END DO
 
-         na = na+ncoset(la_max_set)
+         na = na + ncoset(la_max_set)
 
       END DO
 
@@ -816,7 +816,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(ncoset(la_max), ncoset(&
          lb_max), ncoset(lc_max))                        :: s
 
-      rab = rbc-rac
+      rab = rbc - rac
       rab2 = SUM(rab**2)
       dab = SQRT(rab2)
 
@@ -833,21 +833,21 @@ CONTAINS
             s = 0.0_dp
 !       *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO k = 1, ncoset(lc_max)-1
-                  DO j = nb+1, nb+ncoset(lb_max)
-                     DO i = na+1, na+ncoset(la_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO k = 1, ncoset(lc_max) - 1
+                  DO j = nb + 1, nb + ncoset(lb_max)
+                     DO i = na + 1, na + ncoset(la_max)
                         mab(i, j, k) = 0.0_dp
                      END DO
                   END DO
                END DO
-               nb = nb+ncoset(lb_max)
+               nb = nb + ncoset(lb_max)
                CYCLE
             END IF
 
 !       *** Calculate some prefactors ***
 
-            zetp = 1.0_dp/(zeta(ipgf)+zetb(jpgf))
+            zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
 
             f0 = (pi*zetp)**1.5_dp
             f1 = zetb(jpgf)*zetp
@@ -855,7 +855,7 @@ CONTAINS
 
 !       *** Calculate the basic two-center moment integral [s|M|s] ***
 
-            rpc = zetp*(zeta(ipgf)*rac+zetb(jpgf)*rbc)
+            rpc = zetp*(zeta(ipgf)*rac + zetb(jpgf)*rbc)
             s(1, 1, 1) = f0*EXP(-zeta(ipgf)*f1*rab2)
             DO l = 2, ncoset(lc_max)
                lx = indco(1, l)
@@ -863,23 +863,23 @@ CONTAINS
                lz = indco(3, l)
                l2 = 0
                IF (lz > 0) THEN
-                  l1 = coset(lx, ly, lz-1)
-                  IF (lz > 1) l2 = coset(lx, ly, lz-2)
-                  ni = lz-1
+                  l1 = coset(lx, ly, lz - 1)
+                  IF (lz > 1) l2 = coset(lx, ly, lz - 2)
+                  ni = lz - 1
                   i = 3
                ELSE IF (ly > 0) THEN
-                  l1 = coset(lx, ly-1, lz)
-                  IF (ly > 1) l2 = coset(lx, ly-2, lz)
-                  ni = ly-1
+                  l1 = coset(lx, ly - 1, lz)
+                  IF (ly > 1) l2 = coset(lx, ly - 2, lz)
+                  ni = ly - 1
                   i = 2
                ELSE IF (lx > 0) THEN
-                  l1 = coset(lx-1, ly, lz)
-                  IF (lx > 1) l2 = coset(lx-2, ly, lz)
-                  ni = lx-1
+                  l1 = coset(lx - 1, ly, lz)
+                  IF (lx > 1) l2 = coset(lx - 2, ly, lz)
+                  ni = lx - 1
                   i = 1
                END IF
                s(1, 1, l) = rpc(i)*s(1, 1, l1)
-               IF (l2 > 0) s(1, 1, l) = s(1, 1, l)+f2*REAL(ni, dp)*s(1, 1, l2)
+               IF (l2 > 0) s(1, 1, l) = s(1, 1, l) + f2*REAL(ni, dp)*s(1, 1, l2)
             END DO
 
 !       *** Recurrence steps: [s|M|s] -> [a|M|b] ***
@@ -890,17 +890,17 @@ CONTAINS
                ly = indco(2, l)
                lz = indco(3, l)
                IF (lx > 0) THEN
-                  lx1 = coset(lx-1, ly, lz)
+                  lx1 = coset(lx - 1, ly, lz)
                ELSE
                   lx1 = -1
                END IF
                IF (ly > 0) THEN
-                  ly1 = coset(lx, ly-1, lz)
+                  ly1 = coset(lx, ly - 1, lz)
                ELSE
                   ly1 = -1
                END IF
                IF (lz > 0) THEN
-                  lz1 = coset(lx, ly, lz-1)
+                  lz1 = coset(lx, ly, lz - 1)
                ELSE
                   lz1 = -1
                END IF
@@ -919,9 +919,9 @@ CONTAINS
                   s(2, 1, l) = rap(1)*s(1, 1, l)
                   s(3, 1, l) = rap(2)*s(1, 1, l)
                   s(4, 1, l) = rap(3)*s(1, 1, l)
-                  IF (lx1 > 0) s(2, 1, l) = s(2, 1, l)+f2x*s(1, 1, lx1)
-                  IF (ly1 > 0) s(3, 1, l) = s(3, 1, l)+f2y*s(1, 1, ly1)
-                  IF (lz1 > 0) s(4, 1, l) = s(4, 1, l)+f2z*s(1, 1, lz1)
+                  IF (lx1 > 0) s(2, 1, l) = s(2, 1, l) + f2x*s(1, 1, lx1)
+                  IF (ly1 > 0) s(3, 1, l) = s(3, 1, l) + f2y*s(1, 1, ly1)
+                  IF (lz1 > 0) s(4, 1, l) = s(4, 1, l) + f2z*s(1, 1, lz1)
 
 !           *** [a|M|s] = (Pi - Ai)*[a-1i|M|s] + f2*Ni(a-1i)*[a-2i|M|s] ***
 !           ***           + f2*Ni(m-1i)*[a-1i|M-1i|s]                   ***
@@ -930,43 +930,43 @@ CONTAINS
 
 !             *** Increase the angular momentum component z of function a ***
 
-                     s(coset(0, 0, la), 1, l) = rap(3)*s(coset(0, 0, la-1), 1, l)+ &
-                                                f2*REAL(la-1, dp)*s(coset(0, 0, la-2), 1, l)
-                     IF (lz1 > 0) s(coset(0, 0, la), 1, l) = s(coset(0, 0, la), 1, l)+ &
-                                                             f2z*s(coset(0, 0, la-1), 1, lz1)
+                     s(coset(0, 0, la), 1, l) = rap(3)*s(coset(0, 0, la - 1), 1, l) + &
+                                                f2*REAL(la - 1, dp)*s(coset(0, 0, la - 2), 1, l)
+                     IF (lz1 > 0) s(coset(0, 0, la), 1, l) = s(coset(0, 0, la), 1, l) + &
+                                                             f2z*s(coset(0, 0, la - 1), 1, lz1)
 
 !             *** Increase the angular momentum component y of function a ***
 
-                     az = la-1
+                     az = la - 1
                      s(coset(0, 1, az), 1, l) = rap(2)*s(coset(0, 0, az), 1, l)
-                     IF (ly1 > 0) s(coset(0, 1, az), 1, l) = s(coset(0, 1, az), 1, l)+ &
+                     IF (ly1 > 0) s(coset(0, 1, az), 1, l) = s(coset(0, 1, az), 1, l) + &
                                                              f2y*s(coset(0, 0, az), 1, ly1)
 
                      DO ay = 2, la
-                        az = la-ay
-                        s(coset(0, ay, az), 1, l) = rap(2)*s(coset(0, ay-1, az), 1, l)+ &
-                                                    f2*REAL(ay-1, dp)*s(coset(0, ay-2, az), 1, l)
-                        IF (ly1 > 0) s(coset(0, ay, az), 1, l) = s(coset(0, ay, az), 1, l)+ &
-                                                                 f2y*s(coset(0, ay-1, az), 1, ly1)
+                        az = la - ay
+                        s(coset(0, ay, az), 1, l) = rap(2)*s(coset(0, ay - 1, az), 1, l) + &
+                                                    f2*REAL(ay - 1, dp)*s(coset(0, ay - 2, az), 1, l)
+                        IF (ly1 > 0) s(coset(0, ay, az), 1, l) = s(coset(0, ay, az), 1, l) + &
+                                                                 f2y*s(coset(0, ay - 1, az), 1, ly1)
                      END DO
 
 !             *** Increase the angular momentum component x of function a ***
 
-                     DO ay = 0, la-1
-                        az = la-1-ay
+                     DO ay = 0, la - 1
+                        az = la - 1 - ay
                         s(coset(1, ay, az), 1, l) = rap(1)*s(coset(0, ay, az), 1, l)
-                        IF (lx1 > 0) s(coset(1, ay, az), 1, l) = s(coset(1, ay, az), 1, l)+ &
+                        IF (lx1 > 0) s(coset(1, ay, az), 1, l) = s(coset(1, ay, az), 1, l) + &
                                                                  f2x*s(coset(0, ay, az), 1, lx1)
                      END DO
 
                      DO ax = 2, la
-                        f3 = f2*REAL(ax-1, dp)
-                        DO ay = 0, la-ax
-                           az = la-ax-ay
-                           s(coset(ax, ay, az), 1, l) = rap(1)*s(coset(ax-1, ay, az), 1, l)+ &
-                                                        f3*s(coset(ax-2, ay, az), 1, l)
-                           IF (lx1 > 0) s(coset(ax, ay, az), 1, l) = s(coset(ax, ay, az), 1, l)+ &
-                                                                     f2x*s(coset(ax-1, ay, az), 1, lx1)
+                        f3 = f2*REAL(ax - 1, dp)
+                        DO ay = 0, la - ax
+                           az = la - ax - ay
+                           s(coset(ax, ay, az), 1, l) = rap(1)*s(coset(ax - 1, ay, az), 1, l) + &
+                                                        f3*s(coset(ax - 2, ay, az), 1, l)
+                           IF (lx1 > 0) s(coset(ax, ay, az), 1, l) = s(coset(ax, ay, az), 1, l) + &
+                                                                     f2x*s(coset(ax - 1, ay, az), 1, lx1)
                         END DO
                      END DO
 
@@ -984,25 +984,25 @@ CONTAINS
 
 !             *** Horizontal recurrence steps ***
 
-                     rbp(:) = rap(:)-rab(:)
+                     rbp(:) = rap(:) - rab(:)
 
 !             *** [a|M|p] = [a+1i|M|s] - (Bi - Ai)*[a|M|s] ***
 
                      IF (lb_max == 1) THEN
                         la_start = la_min
                      ELSE
-                        la_start = MAX(0, la_min-1)
+                        la_start = MAX(0, la_min - 1)
                      END IF
 
-                     DO la = la_start, la_max-1
+                     DO la = la_start, la_max - 1
                         DO ax = 0, la
-                           DO ay = 0, la-ax
-                              az = la-ax-ay
-                              s(coset(ax, ay, az), 2, l) = s(coset(ax+1, ay, az), 1, l)- &
+                           DO ay = 0, la - ax
+                              az = la - ax - ay
+                              s(coset(ax, ay, az), 2, l) = s(coset(ax + 1, ay, az), 1, l) - &
                                                            rab(1)*s(coset(ax, ay, az), 1, l)
-                              s(coset(ax, ay, az), 3, l) = s(coset(ax, ay+1, az), 1, l)- &
+                              s(coset(ax, ay, az), 3, l) = s(coset(ax, ay + 1, az), 1, l) - &
                                                            rab(2)*s(coset(ax, ay, az), 1, l)
-                              s(coset(ax, ay, az), 4, l) = s(coset(ax, ay, az+1), 1, l)- &
+                              s(coset(ax, ay, az), 4, l) = s(coset(ax, ay, az + 1), 1, l) - &
                                                            rab(3)*s(coset(ax, ay, az), 1, l)
                            END DO
                         END DO
@@ -1015,33 +1015,33 @@ CONTAINS
 
                      DO ax = 0, la_max
                         fx = f2*REAL(ax, dp)
-                        DO ay = 0, la_max-ax
+                        DO ay = 0, la_max - ax
                            fy = f2*REAL(ay, dp)
-                           az = la_max-ax-ay
+                           az = la_max - ax - ay
                            fz = f2*REAL(az, dp)
                            IF (ax == 0) THEN
                               s(coset(ax, ay, az), 2, l) = rbp(1)*s(coset(ax, ay, az), 1, l)
                            ELSE
-                              s(coset(ax, ay, az), 2, l) = rbp(1)*s(coset(ax, ay, az), 1, l)+ &
-                                                           fx*s(coset(ax-1, ay, az), 1, l)
+                              s(coset(ax, ay, az), 2, l) = rbp(1)*s(coset(ax, ay, az), 1, l) + &
+                                                           fx*s(coset(ax - 1, ay, az), 1, l)
                            END IF
-                           IF (lx1 > 0) s(coset(ax, ay, az), 2, l) = s(coset(ax, ay, az), 2, l)+ &
+                           IF (lx1 > 0) s(coset(ax, ay, az), 2, l) = s(coset(ax, ay, az), 2, l) + &
                                                                      f2x*s(coset(ax, ay, az), 1, lx1)
                            IF (ay == 0) THEN
                               s(coset(ax, ay, az), 3, l) = rbp(2)*s(coset(ax, ay, az), 1, l)
                            ELSE
-                              s(coset(ax, ay, az), 3, l) = rbp(2)*s(coset(ax, ay, az), 1, l)+ &
-                                                           fy*s(coset(ax, ay-1, az), 1, l)
+                              s(coset(ax, ay, az), 3, l) = rbp(2)*s(coset(ax, ay, az), 1, l) + &
+                                                           fy*s(coset(ax, ay - 1, az), 1, l)
                            END IF
-                           IF (ly1 > 0) s(coset(ax, ay, az), 3, l) = s(coset(ax, ay, az), 3, l)+ &
+                           IF (ly1 > 0) s(coset(ax, ay, az), 3, l) = s(coset(ax, ay, az), 3, l) + &
                                                                      f2y*s(coset(ax, ay, az), 1, ly1)
                            IF (az == 0) THEN
                               s(coset(ax, ay, az), 4, l) = rbp(3)*s(coset(ax, ay, az), 1, l)
                            ELSE
-                              s(coset(ax, ay, az), 4, l) = rbp(3)*s(coset(ax, ay, az), 1, l)+ &
-                                                           fz*s(coset(ax, ay, az-1), 1, l)
+                              s(coset(ax, ay, az), 4, l) = rbp(3)*s(coset(ax, ay, az), 1, l) + &
+                                                           fz*s(coset(ax, ay, az - 1), 1, l)
                            END IF
-                           IF (lz1 > 0) s(coset(ax, ay, az), 4, l) = s(coset(ax, ay, az), 4, l)+ &
+                           IF (lz1 > 0) s(coset(ax, ay, az), 4, l) = s(coset(ax, ay, az), 4, l) + &
                                                                      f2z*s(coset(ax, ay, az), 1, lz1)
                         END DO
                      END DO
@@ -1057,37 +1057,37 @@ CONTAINS
                         IF (lb == lb_max) THEN
                            la_start = la_min
                         ELSE
-                           la_start = MAX(0, la_min-1)
+                           la_start = MAX(0, la_min - 1)
                         END IF
 
-                        DO la = la_start, la_max-1
+                        DO la = la_start, la_max - 1
                            DO ax = 0, la
-                              DO ay = 0, la-ax
-                                 az = la-ax-ay
+                              DO ay = 0, la - ax
+                                 az = la - ax - ay
 
 !                     *** Shift of angular momentum component z from a to b ***
 
                                  s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                    s(coset(ax, ay, az+1), coset(0, 0, lb-1), l)- &
-                                    rab(3)*s(coset(ax, ay, az), coset(0, 0, lb-1), l)
+                                    s(coset(ax, ay, az + 1), coset(0, 0, lb - 1), l) - &
+                                    rab(3)*s(coset(ax, ay, az), coset(0, 0, lb - 1), l)
 
 !                     *** Shift of angular momentum component y from a to b ***
 
                                  DO by = 1, lb
-                                    bz = lb-by
+                                    bz = lb - by
                                     s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       s(coset(ax, ay+1, az), coset(0, by-1, bz), l)- &
-                                       rab(2)*s(coset(ax, ay, az), coset(0, by-1, bz), l)
+                                       s(coset(ax, ay + 1, az), coset(0, by - 1, bz), l) - &
+                                       rab(2)*s(coset(ax, ay, az), coset(0, by - 1, bz), l)
                                  END DO
 
 !                     *** Shift of angular momentum component x from a to b ***
 
                                  DO bx = 1, lb
-                                    DO by = 0, lb-bx
-                                       bz = lb-bx-by
+                                    DO by = 0, lb - bx
+                                       bz = lb - bx - by
                                        s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          s(coset(ax+1, ay, az), coset(bx-1, by, bz), l)- &
-                                          rab(1)*s(coset(ax, ay, az), coset(bx-1, by, bz), l)
+                                          s(coset(ax + 1, ay, az), coset(bx - 1, by, bz), l) - &
+                                          rab(1)*s(coset(ax, ay, az), coset(bx - 1, by, bz), l)
                                     END DO
                                  END DO
 
@@ -1102,113 +1102,113 @@ CONTAINS
 
                         DO ax = 0, la_max
                            fx = f2*REAL(ax, dp)
-                           DO ay = 0, la_max-ax
+                           DO ay = 0, la_max - ax
                               fy = f2*REAL(ay, dp)
-                              az = la_max-ax-ay
+                              az = la_max - ax - ay
                               fz = f2*REAL(az, dp)
 
 !                   *** Shift of angular momentum component z from a to b ***
 
-                              f3 = f2*REAL(lb-1, dp)
+                              f3 = f2*REAL(lb - 1, dp)
 
                               IF (az == 0) THEN
                                  s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                    rbp(3)*s(coset(ax, ay, az), coset(0, 0, lb-1), l)+ &
-                                    f3*s(coset(ax, ay, az), coset(0, 0, lb-2), l)
+                                    rbp(3)*s(coset(ax, ay, az), coset(0, 0, lb - 1), l) + &
+                                    f3*s(coset(ax, ay, az), coset(0, 0, lb - 2), l)
                               ELSE
                                  s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                    rbp(3)*s(coset(ax, ay, az), coset(0, 0, lb-1), l)+ &
-                                    fz*s(coset(ax, ay, az-1), coset(0, 0, lb-1), l)+ &
-                                    f3*s(coset(ax, ay, az), coset(0, 0, lb-2), l)
+                                    rbp(3)*s(coset(ax, ay, az), coset(0, 0, lb - 1), l) + &
+                                    fz*s(coset(ax, ay, az - 1), coset(0, 0, lb - 1), l) + &
+                                    f3*s(coset(ax, ay, az), coset(0, 0, lb - 2), l)
                               END IF
                               IF (lz1 > 0) s(coset(ax, ay, az), coset(0, 0, lb), l) = &
-                                 s(coset(ax, ay, az), coset(0, 0, lb), l)+ &
-                                 f2z*s(coset(ax, ay, az), coset(0, 0, lb-1), lz1)
+                                 s(coset(ax, ay, az), coset(0, 0, lb), l) + &
+                                 f2z*s(coset(ax, ay, az), coset(0, 0, lb - 1), lz1)
 
 !                   *** Shift of angular momentum component y from a to b ***
 
                               IF (ay == 0) THEN
-                                 bz = lb-1
+                                 bz = lb - 1
                                  s(coset(ax, ay, az), coset(0, 1, bz), l) = &
                                     rbp(2)*s(coset(ax, ay, az), coset(0, 0, bz), l)
                                  IF (ly1 > 0) s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    s(coset(ax, ay, az), coset(0, 1, bz), l)+ &
+                                    s(coset(ax, ay, az), coset(0, 1, bz), l) + &
                                     f2y*s(coset(ax, ay, az), coset(0, 0, bz), ly1)
                                  DO by = 2, lb
-                                    bz = lb-by
-                                    f3 = f2*REAL(by-1, dp)
+                                    bz = lb - by
+                                    f3 = f2*REAL(by - 1, dp)
                                     s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       rbp(2)*s(coset(ax, ay, az), coset(0, by-1, bz), l)+ &
-                                       f3*s(coset(ax, ay, az), coset(0, by-2, bz), l)
+                                       rbp(2)*s(coset(ax, ay, az), coset(0, by - 1, bz), l) + &
+                                       f3*s(coset(ax, ay, az), coset(0, by - 2, bz), l)
                                     IF (ly1 > 0) s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(0, by, bz), l)+ &
-                                       f2y*s(coset(ax, ay, az), coset(0, by-1, bz), ly1)
+                                       s(coset(ax, ay, az), coset(0, by, bz), l) + &
+                                       f2y*s(coset(ax, ay, az), coset(0, by - 1, bz), ly1)
                                  END DO
                               ELSE
-                                 bz = lb-1
+                                 bz = lb - 1
                                  s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    rbp(2)*s(coset(ax, ay, az), coset(0, 0, bz), l)+ &
-                                    fy*s(coset(ax, ay-1, az), coset(0, 0, bz), l)
+                                    rbp(2)*s(coset(ax, ay, az), coset(0, 0, bz), l) + &
+                                    fy*s(coset(ax, ay - 1, az), coset(0, 0, bz), l)
                                  IF (ly1 > 0) s(coset(ax, ay, az), coset(0, 1, bz), l) = &
-                                    s(coset(ax, ay, az), coset(0, 1, bz), l)+ &
+                                    s(coset(ax, ay, az), coset(0, 1, bz), l) + &
                                     f2y*s(coset(ax, ay, az), coset(0, 0, bz), ly1)
                                  DO by = 2, lb
-                                    bz = lb-by
-                                    f3 = f2*REAL(by-1, dp)
+                                    bz = lb - by
+                                    f3 = f2*REAL(by - 1, dp)
                                     s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       rbp(2)*s(coset(ax, ay, az), coset(0, by-1, bz), l)+ &
-                                       fy*s(coset(ax, ay-1, az), coset(0, by-1, bz), l)+ &
-                                       f3*s(coset(ax, ay, az), coset(0, by-2, bz), l)
+                                       rbp(2)*s(coset(ax, ay, az), coset(0, by - 1, bz), l) + &
+                                       fy*s(coset(ax, ay - 1, az), coset(0, by - 1, bz), l) + &
+                                       f3*s(coset(ax, ay, az), coset(0, by - 2, bz), l)
                                     IF (ly1 > 0) s(coset(ax, ay, az), coset(0, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(0, by, bz), l)+ &
-                                       f2y*s(coset(ax, ay, az), coset(0, by-1, bz), ly1)
+                                       s(coset(ax, ay, az), coset(0, by, bz), l) + &
+                                       f2y*s(coset(ax, ay, az), coset(0, by - 1, bz), ly1)
                                  END DO
                               END IF
 
 !                   *** Shift of angular momentum component x from a to b ***
 
                               IF (ax == 0) THEN
-                                 DO by = 0, lb-1
-                                    bz = lb-1-by
+                                 DO by = 0, lb - 1
+                                    bz = lb - 1 - by
                                     s(coset(ax, ay, az), coset(1, by, bz), l) = &
                                        rbp(1)*s(coset(ax, ay, az), coset(0, by, bz), l)
                                     IF (lx1 > 0) s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(1, by, bz), l)+ &
+                                       s(coset(ax, ay, az), coset(1, by, bz), l) + &
                                        f2x*s(coset(ax, ay, az), coset(0, by, bz), lx1)
                                  END DO
                                  DO bx = 2, lb
-                                    f3 = f2*REAL(bx-1, dp)
-                                    DO by = 0, lb-bx
-                                       bz = lb-bx-by
+                                    f3 = f2*REAL(bx - 1, dp)
+                                    DO by = 0, lb - bx
+                                       bz = lb - bx - by
                                        s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          rbp(1)*s(coset(ax, ay, az), coset(bx-1, by, bz), l)+ &
-                                          f3*s(coset(ax, ay, az), coset(bx-2, by, bz), l)
+                                          rbp(1)*s(coset(ax, ay, az), coset(bx - 1, by, bz), l) + &
+                                          f3*s(coset(ax, ay, az), coset(bx - 2, by, bz), l)
                                        IF (lx1 > 0) s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          s(coset(ax, ay, az), coset(bx, by, bz), l)+ &
-                                          f2x*s(coset(ax, ay, az), coset(bx-1, by, bz), lx1)
+                                          s(coset(ax, ay, az), coset(bx, by, bz), l) + &
+                                          f2x*s(coset(ax, ay, az), coset(bx - 1, by, bz), lx1)
                                     END DO
                                  END DO
                               ELSE
-                                 DO by = 0, lb-1
-                                    bz = lb-1-by
+                                 DO by = 0, lb - 1
+                                    bz = lb - 1 - by
                                     s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       rbp(1)*s(coset(ax, ay, az), coset(0, by, bz), l)+ &
-                                       fx*s(coset(ax-1, ay, az), coset(0, by, bz), l)
+                                       rbp(1)*s(coset(ax, ay, az), coset(0, by, bz), l) + &
+                                       fx*s(coset(ax - 1, ay, az), coset(0, by, bz), l)
                                     IF (lx1 > 0) s(coset(ax, ay, az), coset(1, by, bz), l) = &
-                                       s(coset(ax, ay, az), coset(1, by, bz), l)+ &
+                                       s(coset(ax, ay, az), coset(1, by, bz), l) + &
                                        f2x*s(coset(ax, ay, az), coset(0, by, bz), lx1)
                                  END DO
                                  DO bx = 2, lb
-                                    f3 = f2*REAL(bx-1, dp)
-                                    DO by = 0, lb-bx
-                                       bz = lb-bx-by
+                                    f3 = f2*REAL(bx - 1, dp)
+                                    DO by = 0, lb - bx
+                                       bz = lb - bx - by
                                        s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          rbp(1)*s(coset(ax, ay, az), coset(bx-1, by, bz), l)+ &
-                                          fx*s(coset(ax-1, ay, az), coset(bx-1, by, bz), l)+ &
-                                          f3*s(coset(ax, ay, az), coset(bx-2, by, bz), l)
+                                          rbp(1)*s(coset(ax, ay, az), coset(bx - 1, by, bz), l) + &
+                                          fx*s(coset(ax - 1, ay, az), coset(bx - 1, by, bz), l) + &
+                                          f3*s(coset(ax, ay, az), coset(bx - 2, by, bz), l)
                                        IF (lx1 > 0) s(coset(ax, ay, az), coset(bx, by, bz), l) = &
-                                          s(coset(ax, ay, az), coset(bx, by, bz), l)+ &
-                                          f2x*s(coset(ax, ay, az), coset(bx-1, by, bz), lx1)
+                                          s(coset(ax, ay, az), coset(bx, by, bz), l) + &
+                                          f2x*s(coset(ax, ay, az), coset(bx - 1, by, bz), lx1)
                                     END DO
                                  END DO
                               END IF
@@ -1226,16 +1226,16 @@ CONTAINS
 
 !             *** Vertical recurrence steps: [s|M|s] -> [s|M|b] ***
 
-                     rbp(:) = (f1-1.0_dp)*rab(:)
+                     rbp(:) = (f1 - 1.0_dp)*rab(:)
 
 !             *** [s|M|p] = (Pi - Bi)*[s|M|s] + f2*Ni(m)*[s|M-1i|s] ***
 
                      s(1, 2, l) = rbp(1)*s(1, 1, l)
                      s(1, 3, l) = rbp(2)*s(1, 1, l)
                      s(1, 4, l) = rbp(3)*s(1, 1, l)
-                     IF (lx1 > 0) s(1, 2, l) = s(1, 2, l)+f2x*s(1, 1, lx1)
-                     IF (ly1 > 0) s(1, 3, l) = s(1, 3, l)+f2y*s(1, 1, ly1)
-                     IF (lz1 > 0) s(1, 4, l) = s(1, 4, l)+f2z*s(1, 1, lz1)
+                     IF (lx1 > 0) s(1, 2, l) = s(1, 2, l) + f2x*s(1, 1, lx1)
+                     IF (ly1 > 0) s(1, 3, l) = s(1, 3, l) + f2y*s(1, 1, ly1)
+                     IF (lz1 > 0) s(1, 4, l) = s(1, 4, l) + f2z*s(1, 1, lz1)
 
 !             *** [s|M|b] = (Pi - Bi)*[s|M|b-1i] + f2*Ni(b-1i)*[s|M|b-2i] ***
 !             ***           + f2*Ni(m)*[s|M-1i|b-1i]                      ***
@@ -1244,43 +1244,43 @@ CONTAINS
 
 !               *** Increase the angular momentum component z of function b ***
 
-                        s(1, coset(0, 0, lb), l) = rbp(3)*s(1, coset(0, 0, lb-1), l)+ &
-                                                   f2*REAL(lb-1, dp)*s(1, coset(0, 0, lb-2), l)
-                        IF (lz1 > 0) s(1, coset(0, 0, lb), l) = s(1, coset(0, 0, lb), l)+ &
-                                                                f2z*s(1, coset(0, 0, lb-1), lz1)
+                        s(1, coset(0, 0, lb), l) = rbp(3)*s(1, coset(0, 0, lb - 1), l) + &
+                                                   f2*REAL(lb - 1, dp)*s(1, coset(0, 0, lb - 2), l)
+                        IF (lz1 > 0) s(1, coset(0, 0, lb), l) = s(1, coset(0, 0, lb), l) + &
+                                                                f2z*s(1, coset(0, 0, lb - 1), lz1)
 
 !               *** Increase the angular momentum component y of function b ***
 
-                        bz = lb-1
+                        bz = lb - 1
                         s(1, coset(0, 1, bz), l) = rbp(2)*s(1, coset(0, 0, bz), l)
-                        IF (ly1 > 0) s(1, coset(0, 1, bz), l) = s(1, coset(0, 1, bz), l)+ &
+                        IF (ly1 > 0) s(1, coset(0, 1, bz), l) = s(1, coset(0, 1, bz), l) + &
                                                                 f2y*s(1, coset(0, 0, bz), ly1)
 
                         DO by = 2, lb
-                           bz = lb-by
-                           s(1, coset(0, by, bz), l) = rbp(2)*s(1, coset(0, by-1, bz), l)+ &
-                                                       f2*REAL(by-1, dp)*s(1, coset(0, by-2, bz), l)
-                           IF (ly1 > 0) s(1, coset(0, by, bz), l) = s(1, coset(0, by, bz), l)+ &
-                                                                    f2y*s(1, coset(0, by-1, bz), ly1)
+                           bz = lb - by
+                           s(1, coset(0, by, bz), l) = rbp(2)*s(1, coset(0, by - 1, bz), l) + &
+                                                       f2*REAL(by - 1, dp)*s(1, coset(0, by - 2, bz), l)
+                           IF (ly1 > 0) s(1, coset(0, by, bz), l) = s(1, coset(0, by, bz), l) + &
+                                                                    f2y*s(1, coset(0, by - 1, bz), ly1)
                         END DO
 
 !             *** Increase the angular momentum component x of function b ***
 
-                        DO by = 0, lb-1
-                           bz = lb-1-by
+                        DO by = 0, lb - 1
+                           bz = lb - 1 - by
                            s(1, coset(1, by, bz), l) = rbp(1)*s(1, coset(0, by, bz), l)
-                           IF (lx1 > 0) s(1, coset(1, by, bz), l) = s(1, coset(1, by, bz), l)+ &
+                           IF (lx1 > 0) s(1, coset(1, by, bz), l) = s(1, coset(1, by, bz), l) + &
                                                                     f2x*s(1, coset(0, by, bz), lx1)
                         END DO
 
                         DO bx = 2, lb
-                           f3 = f2*REAL(bx-1, dp)
-                           DO by = 0, lb-bx
-                              bz = lb-bx-by
-                              s(1, coset(bx, by, bz), l) = rbp(1)*s(1, coset(bx-1, by, bz), l)+ &
-                                                           f3*s(1, coset(bx-2, by, bz), l)
-                              IF (lx1 > 0) s(1, coset(bx, by, bz), l) = s(1, coset(bx, by, bz), l)+ &
-                                                                        f2x*s(1, coset(bx-1, by, bz), lx1)
+                           f3 = f2*REAL(bx - 1, dp)
+                           DO by = 0, lb - bx
+                              bz = lb - bx - by
+                              s(1, coset(bx, by, bz), l) = rbp(1)*s(1, coset(bx - 1, by, bz), l) + &
+                                                           f3*s(1, coset(bx - 2, by, bz), l)
+                              IF (lx1 > 0) s(1, coset(bx, by, bz), l) = s(1, coset(bx, by, bz), l) + &
+                                                                        f2x*s(1, coset(bx - 1, by, bz), lx1)
                            END DO
                         END DO
 
@@ -1295,16 +1295,16 @@ CONTAINS
             DO k = 2, ncoset(lc_max)
                DO j = 1, ncoset(lb_max)
                   DO i = 1, ncoset(la_max)
-                     mab(na+i, nb+j, k-1) = s(i, j, k)
+                     mab(na + i, nb + j, k - 1) = s(i, j, k)
                   END DO
                END DO
             END DO
 
-            nb = nb+ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
 
          END DO
 
-         na = na+ncoset(la_max)
+         na = na + ncoset(la_max)
 
       END DO
 
@@ -1348,15 +1348,15 @@ CONTAINS
       rab2 = SUM(rab**2)
       dab = SQRT(rab2)
 
-      lda_min = MAX(0, la_min-1)
-      ldb_min = MAX(0, lb_min-1)
-      lmax = MAX(la_max+1, lb_max+1)
-      lds = ncoset(lmax+1)
+      lda_min = MAX(0, la_min - 1)
+      ldb_min = MAX(0, lb_min - 1)
+      lmax = MAX(la_max + 1, lb_max + 1)
+      lds = ncoset(lmax + 1)
       ALLOCATE (s(lds, lds, ncoset(1)))
       sab = 0.0_dp
       s = 0.0_dp
-      CALL overlap(la_max+1, lda_min, npgfa, rpgfa, zeta, &
-                   lb_max+1, ldb_min, npgfb, rpgfb, zetb, &
+      CALL overlap(la_max + 1, lda_min, npgfa, rpgfa, zeta, &
+                   lb_max + 1, ldb_min, npgfb, rpgfb, zetb, &
                    rab, dab, sab, 0, .FALSE., s, lds)
 
       CALL dabdr(la_max, npgfa, zeta, rpgfa, la_min, &
@@ -1411,13 +1411,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
 
-      rab = rbc-rac
+      rab = rbc - rac
       rab2 = SUM(rab**2)
       dab = SQRT(rab2)
 
-      lda_min = MAX(0, la_min-1)
-      ldb_min = MAX(0, lb_min-1)
-      lmax = MAX(la_max+1, lb_max+1)
+      lda_min = MAX(0, la_min - 1)
+      ldb_min = MAX(0, lb_min - 1)
+      lmax = MAX(la_max + 1, lb_max + 1)
       lda = ncoset(la_max)*npgfa
       ldb = ncoset(lb_max)*npgfb
       ALLOCATE (difmab_tmp(lda, ldb, 3))
@@ -1425,16 +1425,16 @@ CONTAINS
       IF (PRESENT(mab_ext)) THEN
          mab => mab_ext
       ELSE
-         ALLOCATE (mab(npgfa*ncoset(la_max+1), npgfb*ncoset(lb_max+1), &
-                       ncoset(order)-1))
+         ALLOCATE (mab(npgfa*ncoset(la_max + 1), npgfb*ncoset(lb_max + 1), &
+                       ncoset(order) - 1))
          mab = 0.0_dp
 !     *** Calculate the primitive overlap integrals ***
-         CALL moment(la_max+1, npgfa, zeta, rpgfa, lda_min, &
-                     lb_max+1, npgfb, zetb, rpgfb, &
+         CALL moment(la_max + 1, npgfa, zeta, rpgfa, lda_min, &
+                     lb_max + 1, npgfb, zetb, rpgfb, &
                      order, rac, rbc, mab)
 
       END IF
-      DO imom = 1, ncoset(order)-1
+      DO imom = 1, ncoset(order) - 1
          difmab_tmp = 0.0_dp
          CALL adbdr(la_max, npgfa, rpgfa, la_min, &
                     lb_max, npgfb, zetb, rpgfb, lb_min, &
@@ -1498,20 +1498,20 @@ CONTAINS
 
       CPASSERT(order == 1)
 
-      rab = rbc-rac
+      rab = rbc - rac
       rab2 = SUM(rab**2)
       dab = SQRT(rab2)
 
-      lda_min = MAX(0, la_min-1)
-      ldb_min = MAX(0, lb_min-1)
-      lmax = MAX(la_max+1, lb_max+1)
+      lda_min = MAX(0, la_min - 1)
+      ldb_min = MAX(0, lb_min - 1)
+      lmax = MAX(la_max + 1, lb_max + 1)
       lda = ncoset(la_max)*npgfa
       ldb = ncoset(lb_max)*npgfb
       ALLOCATE (difmab(lda, ldb, 3))
-      ALLOCATE (mab(npgfa*ncoset(la_max+1), npgfb*ncoset(lb_max+1), 3))
+      ALLOCATE (mab(npgfa*ncoset(la_max + 1), npgfb*ncoset(lb_max + 1), 3))
       mab = 0.0_dp
-      CALL moment(la_max+1, npgfa, zeta, rpgfa, lda_min, &
-                  lb_max+1, npgfb, zetb, rpgfb, 1, rac, rbc, mab)
+      CALL moment(la_max + 1, npgfa, zeta, rpgfa, lda_min, &
+                  lb_max + 1, npgfb, zetb, rpgfb, 1, rac, rbc, mab)
 
       DO imom = 1, 3
          difmab = 0.0_dp
@@ -1521,16 +1521,16 @@ CONTAINS
          DO ipgf = 1, npgfa
             nb = 0
             DO jpgf = 1, npgfb
-               DO j = nb+ncoset(lb_min-1)+1, nb+ncoset(lb_max)
-                  DO i = na+ncoset(la_min-1)+1, na+ncoset(la_max)
-                     forceb(imom, 1) = forceb(imom, 1)+pab(i, j)*difmab(i, j, 1)
-                     forceb(imom, 2) = forceb(imom, 2)+pab(i, j)*difmab(i, j, 2)
-                     forceb(imom, 3) = forceb(imom, 3)+pab(i, j)*difmab(i, j, 3)
+               DO j = nb + ncoset(lb_min - 1) + 1, nb + ncoset(lb_max)
+                  DO i = na + ncoset(la_min - 1) + 1, na + ncoset(la_max)
+                     forceb(imom, 1) = forceb(imom, 1) + pab(i, j)*difmab(i, j, 1)
+                     forceb(imom, 2) = forceb(imom, 2) + pab(i, j)*difmab(i, j, 2)
+                     forceb(imom, 3) = forceb(imom, 3) + pab(i, j)*difmab(i, j, 3)
                   END DO
                END DO
-               nb = nb+ncoset(lb_max)
+               nb = nb + ncoset(lb_max)
             END DO
-            na = na+ncoset(la_max)
+            na = na + ncoset(la_max)
          END DO
 
          difmab = 0.0_dp
@@ -1540,16 +1540,16 @@ CONTAINS
          DO ipgf = 1, npgfa
             nb = 0
             DO jpgf = 1, npgfb
-               DO j = nb+ncoset(lb_min-1)+1, nb+ncoset(lb_max)
-                  DO i = na+ncoset(la_min-1)+1, na+ncoset(la_max)
-                     forcea(imom, 1) = forcea(imom, 1)+pab(i, j)*difmab(i, j, 1)
-                     forcea(imom, 2) = forcea(imom, 2)+pab(i, j)*difmab(i, j, 2)
-                     forcea(imom, 3) = forcea(imom, 3)+pab(i, j)*difmab(i, j, 3)
+               DO j = nb + ncoset(lb_min - 1) + 1, nb + ncoset(lb_max)
+                  DO i = na + ncoset(la_min - 1) + 1, na + ncoset(la_max)
+                     forcea(imom, 1) = forcea(imom, 1) + pab(i, j)*difmab(i, j, 1)
+                     forcea(imom, 2) = forcea(imom, 2) + pab(i, j)*difmab(i, j, 2)
+                     forcea(imom, 3) = forcea(imom, 3) + pab(i, j)*difmab(i, j, 3)
                   END DO
                END DO
-               nb = nb+ncoset(lb_max)
+               nb = nb + ncoset(lb_max)
             END DO
-            na = na+ncoset(la_max)
+            na = na + ncoset(la_max)
          END DO
       END DO
 

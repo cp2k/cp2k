@@ -385,7 +385,7 @@ CONTAINS
       CALL arnoldi_ev(arnoldi_matrices, my_arnoldi)
       delta_E = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
       ! increase delta_E a bit to make sure that it really is an upper bound
-      delta_E = delta_E+1.0E-2_dp*ABS(delta_E)
+      delta_E = delta_E + 1.0E-2_dp*ABS(delta_E)
       CALL get_selected_ritz_vector(my_arnoldi, 1, arnoldi_matrices(1)%matrix, &
                                     pexsi_env%max_ev_vector(ispin))
       CALL deallocate_arnoldi_data(my_arnoldi)
@@ -450,7 +450,7 @@ CONTAINS
                                n_total_inertia_iter, n_total_pexsi_iter)
 
       ! Check convergence
-      nelectron_diff = nelectron_out-nelectron_exact_pexsi
+      nelectron_diff = nelectron_out - nelectron_exact_pexsi
       pexsi_convergence = ABS(nelectron_diff) .LT. nel_tol
 
       IF (unit_nr > 0) THEN
@@ -482,7 +482,7 @@ CONTAINS
             pexsi_env%csr_mat_F%nzval_local%r_dp, &
             energy_H, energy_S, free_energy)
          ! calculate entropic energy contribution -TS = A - U
-         kTS = (free_energy-energy_H)
+         kTS = (free_energy - energy_H)
       ENDIF
 
       ! send kTS to all nodes:
@@ -555,13 +555,13 @@ CONTAINS
 
       IF (initialize) THEN
          pexsi_env%adaptive_nel_alpha = &
-            (pexsi_env%tol_nel_initial-pexsi_env%tol_nel_target)/(ABS(delta_scf)-eps_scf)
+            (pexsi_env%tol_nel_initial - pexsi_env%tol_nel_target)/(ABS(delta_scf) - eps_scf)
          pexsi_env%adaptive_nel_beta = &
-            pexsi_env%tol_nel_initial-pexsi_env%adaptive_nel_alpha*ABS(delta_scf)
+            pexsi_env%tol_nel_initial - pexsi_env%adaptive_nel_alpha*ABS(delta_scf)
          pexsi_env%do_adaptive_tol_nel = .TRUE.
       ENDIF
       IF (pexsi_env%do_adaptive_tol_nel) THEN
-         tol_nel = pexsi_env%adaptive_nel_alpha*ABS(delta_scf)+pexsi_env%adaptive_nel_beta
+         tol_nel = pexsi_env%adaptive_nel_alpha*ABS(delta_scf) + pexsi_env%adaptive_nel_beta
          tol_nel = MAX(tol_nel, pexsi_env%tol_nel_target)
          tol_nel = MIN(tol_nel, pexsi_env%tol_nel_initial)
       ENDIF

@@ -247,19 +247,19 @@ CONTAINS
             WRITE (UNIT=output_unit, &
                    FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,16X,F20.10)") &
                scf_env%iter_count, TRIM(scf_env%iter_method), scf_env%iter_param, &
-               t2-t1, energy%total
+               t2 - t1, energy%total
          ELSE
             IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp) .OR. &
                 (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN
                WRITE (UNIT=output_unit, &
                       FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,ES14.4,1X,F20.10,1X,ES9.2)") &
                   scf_env%iter_count, TRIM(scf_env%iter_method), scf_env%iter_param, &
-                  t2-t1, scf_env%iter_delta, energy%total, energy%total-energy%tot_old
+                  t2 - t1, scf_env%iter_delta, energy%total, energy%total - energy%tot_old
             ELSE
                WRITE (UNIT=output_unit, &
                       FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)") &
                   scf_env%iter_count, TRIM(scf_env%iter_method), scf_env%iter_param, &
-                  t2-t1, scf_env%iter_delta, energy%total, energy%total-energy%tot_old
+                  t2 - t1, scf_env%iter_delta, energy%total, energy%total - energy%tot_old
             END IF
          END IF
       END IF
@@ -317,32 +317,32 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T41,2F20.10))") &
                "Electronic density on regular grids: ", &
                accurate_sum(tot_rho_r), &
-               accurate_sum(tot_rho_r)+nelectron_total, &
+               accurate_sum(tot_rho_r) + nelectron_total, &
                "Core density on regular grids:", &
                qs_charges%total_rho_core_rspace, &
-               qs_charges%total_rho_core_rspace-REAL(nelectron_total+dft_control%charge, dp)
+               qs_charges%total_rho_core_rspace - REAL(nelectron_total + dft_control%charge, dp)
             IF (gapw) THEN
                tot1_h = qs_charges%total_rho1_hard(1)
                tot1_s = qs_charges%total_rho1_soft(1)
                DO ispin = 2, dft_control%nspins
-                  tot1_h = tot1_h+qs_charges%total_rho1_hard(ispin)
-                  tot1_s = tot1_s+qs_charges%total_rho1_soft(ispin)
+                  tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+                  tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
                END DO
                WRITE (UNIT=output_unit, FMT="((T3,A,T41,2F20.10))") &
                   "Hard and soft densities (Lebedev):", &
                   tot1_h, tot1_s
                WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
                   "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ", &
-                  accurate_sum(tot_rho_r)+tot1_h-tot1_s, &
+                  accurate_sum(tot_rho_r) + tot1_h - tot1_s, &
                   "Total charge density (r-space):      ", &
-                  accurate_sum(tot_rho_r)+tot1_h-tot1_s &
-                  +qs_charges%total_rho_core_rspace, &
+                  accurate_sum(tot_rho_r) + tot1_h - tot1_s &
+                  + qs_charges%total_rho_core_rspace, &
                   "Total Rho_soft + Rho0_soft (g-space):", &
                   qs_charges%total_rho_gspace
             ELSE
                WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
                   "Total charge density on r-space grids:     ", &
-                  accurate_sum(tot_rho_r)+ &
+                  accurate_sum(tot_rho_r) + &
                   qs_charges%total_rho_core_rspace, &
                   "Total charge density g-space grids:     ", &
                   qs_charges%total_rho_gspace
@@ -354,7 +354,7 @@ CONTAINS
                "Core Hamiltonian energy [eV]:                  ", energy%core*evolt, &
                "Two-electron integral energy [eV]:             ", energy%hartree*evolt, &
                "Electronic energy [eV]:                        ", &
-               (energy%core+0.5_dp*energy%hartree)*evolt
+               (energy%core + 0.5_dp*energy%hartree)*evolt
             IF (energy%dispersion /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "Dispersion energy [eV]:                     ", energy%dispersion*evolt
@@ -382,7 +382,7 @@ CONTAINS
                "Electric field interaction energy:          ", energy%efield
          ELSE
             IF (dft_control%do_admm) THEN
-               exc_energy = energy%exc+energy%exc_aux_fit
+               exc_energy = energy%exc + energy%exc_aux_fit
             ELSE
                exc_energy = energy%exc
             END IF
@@ -474,7 +474,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Atomic reference energy [eV]:                  ", energy%core_self*evolt, &
                "Heat of formation [kcal/mol]:                  ", &
-               (energy%total+energy%core_self)*kcalmol
+               (energy%total + energy%core_self)*kcalmol
          ELSE
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Total energy:                                  ", energy%total
@@ -853,7 +853,7 @@ CONTAINS
             IF (igroup > 1) WRITE (output_unit, '(T3,A)') ' '
             WRITE (output_unit, '(T3,A,T54,(3X,I18))') &
                'Atomic group                :', igroup
-            SELECT CASE (cdft_control%group (igroup)%constraint_type)
+            SELECT CASE (cdft_control%group(igroup)%constraint_type)
             CASE (cdft_charge_constraint)
                IF (cdft_control%group(igroup)%is_fragment_constraint) THEN
                   WRITE (output_unit, '(T3,A,T42,A)') &
@@ -894,7 +894,7 @@ CONTAINS
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
                'Current value of constraint :', cdft_control%value(igroup)
             WRITE (output_unit, '(T3,A,T59,(3X,ES13.3))') &
-               'Deviation from target       :', cdft_control%value(igroup)-cdft_control%target(igroup)
+               'Deviation from target       :', cdft_control%value(igroup) - cdft_control%target(igroup)
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
                'Strength of constraint      :', cdft_control%strength(igroup)
          END DO

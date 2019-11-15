@@ -83,7 +83,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ewald_pw))
       CPASSERT(ewald_pw%ref_count > 0)
-      ewald_pw%ref_count = ewald_pw%ref_count+1
+      ewald_pw%ref_count = ewald_pw%ref_count + 1
    END SUBROUTINE ewald_pw_retain
 
 ! **************************************************************************************************
@@ -114,7 +114,7 @@ CONTAINS
       CALL dg_create(dg)
       ewald_pw%dg => dg
       ewald_pw%ref_count = 1
-      last_ewald_pw_id_nr = last_ewald_pw_id_nr+1
+      last_ewald_pw_id_nr = last_ewald_pw_id_nr + 1
       ewald_pw%id_nr = last_ewald_pw_id_nr
       CALL ewald_pw_init(ewald_pw, ewald_env, cell, cell_ref, print_section)
    END SUBROUTINE ewald_pw_create
@@ -136,7 +136,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(ewald_pw)) THEN
          CPASSERT(ewald_pw%ref_count > 0)
-         ewald_pw%ref_count = ewald_pw%ref_count-1
+         ewald_pw%ref_count = ewald_pw%ref_count - 1
          IF (ewald_pw%ref_count < 1) THEN
             CALL pw_pool_release(ewald_pw%pw_small_pool)
             CALL pw_pool_release(ewald_pw%pw_big_pool)

@@ -211,28 +211,28 @@ CONTAINS
       DP = 1
       SP = 0
       DO IP = 1, Comp(i)%ByteCodeSize
-         SELECT CASE (Comp (i)%ByteCode (IP))
+         SELECT CASE (Comp(i)%ByteCode(IP))
 
-         CASE (cImmed); SP = SP+1; Comp(i)%Stack(SP) = Comp(i)%Immed(DP); DP = DP+1
+         CASE (cImmed); SP = SP + 1; Comp(i)%Stack(SP) = Comp(i)%Immed(DP); DP = DP + 1
          CASE (cNeg); Comp(i)%Stack(SP) = -Comp(i)%Stack(SP)
-         CASE (cAdd); Comp(i)%Stack(SP-1) = Comp(i)%Stack(SP-1)+Comp(i)%Stack(SP); SP = SP-1
-         CASE (cSub); Comp(i)%Stack(SP-1) = Comp(i)%Stack(SP-1)-Comp(i)%Stack(SP); SP = SP-1
-         CASE (cMul); Comp(i)%Stack(SP-1) = Comp(i)%Stack(SP-1)*Comp(i)%Stack(SP); SP = SP-1
+         CASE (cAdd); Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1) + Comp(i)%Stack(SP); SP = SP - 1
+         CASE (cSub); Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1) - Comp(i)%Stack(SP); SP = SP - 1
+         CASE (cMul); Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1)*Comp(i)%Stack(SP); SP = SP - 1
          CASE (cDiv); IF (Comp(i)%Stack(SP) == 0._rn) THEN; EvalErrType = 1; res = zero; RETURN; ENDIF
-            Comp(i)%Stack(SP-1) = Comp(i)%Stack(SP-1)/Comp(i)%Stack(SP); SP = SP-1
+            Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1)/Comp(i)%Stack(SP); SP = SP - 1
          CASE (cPow)
             ! Fixing for possible Negative floating-point value raised to a real power
-            IF (Comp(i)%Stack(SP-1) < 0.0_rn) THEN
+            IF (Comp(i)%Stack(SP - 1) < 0.0_rn) THEN
                ipow = FLOOR(Comp(i)%Stack(SP))
                IF (MOD(Comp(i)%Stack(SP), REAL(ipow, KIND=rn)) == 0.0_rn) THEN
-                  Comp(i)%Stack(SP-1) = Comp(i)%Stack(SP-1)**ipow
+                  Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1)**ipow
                ELSE
                   CPABORT("Negative floating-point value raised to a real power!")
                END IF
             ELSE
-               Comp(i)%Stack(SP-1) = Comp(i)%Stack(SP-1)**Comp(i)%Stack(SP)
+               Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1)**Comp(i)%Stack(SP)
             END IF
-            SP = SP-1
+            SP = SP - 1
          CASE (cAbs); Comp(i)%Stack(SP) = ABS(Comp(i)%Stack(SP))
          CASE (cExp); Comp(i)%Stack(SP) = EXP(Comp(i)%Stack(SP))
          CASE (cLog10); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; ENDIF
@@ -256,7 +256,7 @@ CONTAINS
          CASE (cAtan); Comp(i)%Stack(SP) = ATAN(Comp(i)%Stack(SP))
          CASE (cErf); Comp(i)%Stack(SP) = ERF(Comp(i)%Stack(SP))
          CASE (cErfc); Comp(i)%Stack(SP) = ERFC(Comp(i)%Stack(SP))
-         CASE DEFAULT; SP = SP+1; Comp(i)%Stack(SP) = Val(Comp(i)%ByteCode(IP)-VarBegin+1)
+         CASE DEFAULT; SP = SP + 1; Comp(i)%Stack(SP) = Val(Comp(i)%ByteCode(IP) - VarBegin + 1)
          END SELECT
       END DO
       EvalErrType = 0
@@ -298,41 +298,41 @@ CONTAINS
          ! Check for valid operand (must appear)
          !-- -------- --------- --------- --------- --------- --------- --------- -------
          IF (c == '-' .OR. c == '+') THEN ! Check for leading - or +
-            j = j+1
+            j = j + 1
             IF (j > lFunc) CALL ParseErrMsg(j, FuncStr, 'Missing operand')
             c = Func(j:j)
             IF (ANY(c == Ops)) CALL ParseErrMsg(j, FuncStr, 'Multiple operators')
          END IF
          n = MathFunctionIndex(Func(j:))
          IF (n > 0) THEN ! Check for math function
-            j = j+LEN_TRIM(Funcs(n))
+            j = j + LEN_TRIM(Funcs(n))
             IF (j > lFunc) CALL ParseErrMsg(j, FuncStr, 'Missing function argument')
             c = Func(j:j)
             IF (c /= '(') CALL ParseErrMsg(j, FuncStr, 'Missing opening parenthesis')
          END IF
          IF (c == '(') THEN ! Check for opening parenthesis
-            ParCnt = ParCnt+1
-            j = j+1
+            ParCnt = ParCnt + 1
+            j = j + 1
             CYCLE step
          END IF
          IF (SCAN(c, '0123456789.') > 0) THEN ! Check for number
             r = RealNum(Func(j:), ib, in, err)
-            IF (err) CALL ParseErrMsg(j, FuncStr, 'Invalid number format:  '//Func(j+ib-1:j+in-2))
-            j = j+in-1
+            IF (err) CALL ParseErrMsg(j, FuncStr, 'Invalid number format:  '//Func(j + ib - 1:j + in - 2))
+            j = j + in - 1
             IF (j > lFunc) EXIT
             c = Func(j:j)
          ELSE ! Check for variable
             n = VariableIndex(Func(j:), Var, ib, in)
-            IF (n == 0) CALL ParseErrMsg(j, FuncStr, 'Invalid element: '//Func(j+ib-1:j+in-2))
-            j = j+in-1
+            IF (n == 0) CALL ParseErrMsg(j, FuncStr, 'Invalid element: '//Func(j + ib - 1:j + in - 2))
+            j = j + in - 1
             IF (j > lFunc) EXIT
             c = Func(j:j)
          END IF
          DO WHILE (c == ')') ! Check for closing parenthesis
-            ParCnt = ParCnt-1
+            ParCnt = ParCnt - 1
             IF (ParCnt < 0) CALL ParseErrMsg(j, FuncStr, 'Mismatched parenthesis')
-            IF (Func(j-1:j-1) == '(') CALL ParseErrMsg(j-1, FuncStr, 'Empty parentheses')
-            j = j+1
+            IF (Func(j - 1:j - 1) == '(') CALL ParseErrMsg(j - 1, FuncStr, 'Empty parentheses')
+            j = j + 1
             IF (j > lFunc) EXIT
             c = Func(j:j)
          END DO
@@ -341,8 +341,8 @@ CONTAINS
          !-- -------- --------- --------- --------- --------- --------- --------- -------
          IF (j > lFunc) EXIT
          IF (ANY(c == Ops)) THEN ! Check for multiple operators
-            IF (j+1 > lFunc) CALL ParseErrMsg(j, FuncStr)
-            IF (ANY(Func(j+1:j+1) == Ops)) CALL ParseErrMsg(j+1, FuncStr, 'Multiple operators')
+            IF (j + 1 > lFunc) CALL ParseErrMsg(j, FuncStr)
+            IF (ANY(Func(j + 1:j + 1) == Ops)) CALL ParseErrMsg(j + 1, FuncStr, 'Multiple operators')
          ELSE ! Check for next operand
             CALL ParseErrMsg(j, FuncStr, 'Missing operator')
          END IF
@@ -350,7 +350,7 @@ CONTAINS
          ! Now, we have an operand and an operator: the next loop will check for another
          ! operand (must appear)
          !-- -------- --------- --------- --------- --------- --------- --------- -------
-         j = j+1
+         j = j + 1
       END DO step
       IF (ParCnt > 0) CALL ParseErrMsg(j, FuncStr, 'Missing )')
    END SUBROUTINE CheckSyntax
@@ -407,7 +407,7 @@ CONTAINS
       IF ((j > LBOUND(ipos, DIM=1)) .AND. (j <= UBOUND(ipos, DIM=1))) THEN
          WRITE (*, '(A)') REPEAT(" ", ipos(j))//"?"
       ELSE
-         WRITE (*, '(A)') REPEAT(" ", SIZE(ipos)+1)//"?"
+         WRITE (*, '(A)') REPEAT(" ", SIZE(ipos) + 1)//"?"
       END IF
       CPABORT(TRIM(message))
 
@@ -503,7 +503,7 @@ CONTAINS
             IF (SCAN(str(in:in), '+-*/^) ') > 0) EXIT
          END DO
          DO j = 1, SIZE(Var)
-            IF (str(ib:in-1) == Var(j)) THEN
+            IF (str(ib:in - 1) == Var(j)) THEN
                n = INT(j, KIND=is) !  Variable name found
                EXIT
             END IF
@@ -532,11 +532,11 @@ CONTAINS
       k = 1
       DO WHILE (str(k:lstr) /= ' ')
          IF (str(k:k) == ' ') THEN
-            str(k:lstr) = str(k+1:lstr)//' ' ! Move 1 character to left
-            ipos(k:lstr) = (/ipos(k+1:lstr), 0/) ! Move 1 element to left
-            k = k-1
+            str(k:lstr) = str(k + 1:lstr)//' ' ! Move 1 character to left
+            ipos(k:lstr) = (/ipos(k + 1:lstr), 0/) ! Move 1 element to left
+            k = k - 1
          END IF
-         k = k+1
+         k = k + 1
       END DO
    END SUBROUTINE RemoveSpaces
    !
@@ -560,8 +560,8 @@ CONTAINS
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
       lca = LEN(ca)
-      DO j = 1, LEN_TRIM(str)-lca+1
-         IF (str(j:j+lca-1) == ca) str(j:j+lca-1) = cb
+      DO j = 1, LEN_TRIM(str) - lca + 1
+         IF (str(j:j + lca - 1) == ca) str(j:j + lca - 1) = cb
       END DO
    END SUBROUTINE Replace
    !
@@ -621,7 +621,7 @@ CONTAINS
 ! Value of byte to be added
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
-      Comp(i)%ByteCodeSize = Comp(i)%ByteCodeSize+1
+      Comp(i)%ByteCodeSize = Comp(i)%ByteCodeSize + 1
       IF (ASSOCIATED(Comp(i)%ByteCode)) Comp(i)%ByteCode(Comp(i)%ByteCodeSize) = b
    END SUBROUTINE AddCompiledByte
    !
@@ -649,12 +649,12 @@ CONTAINS
 
       n = 0
       IF (SCAN(F(1:1), '0123456789.') > 0) THEN ! Check for begin of a number
-         Comp(i)%ImmedSize = Comp(i)%ImmedSize+1
+         Comp(i)%ImmedSize = Comp(i)%ImmedSize + 1
          IF (ASSOCIATED(Comp(i)%Immed)) Comp(i)%Immed(Comp(i)%ImmedSize) = RealNum(F)
          n = cImmed
       ELSE ! Check for a variable
          n = VariableIndex(F, Var)
-         IF (n > 0) n = VarBegin+n-1_is
+         IF (n > 0) n = VarBegin + n - 1_is
       END IF
    END FUNCTION MathItemIndex
    !
@@ -682,11 +682,11 @@ CONTAINS
       res = .FALSE.
       IF (F(b:b) == '(' .AND. F(e:e) == ')') THEN
          k = 0
-         DO j = b+1, e-1
+         DO j = b + 1, e - 1
             IF (F(j:j) == '(') THEN
-               k = k+1
+               k = k + 1
             ELSEIF (F(j:j) == ')') THEN
-               k = k-1
+               k = k - 1
             END IF
             IF (k < 0) EXIT
          END DO
@@ -727,36 +727,36 @@ CONTAINS
 
       IF (F(b:b) == '+') THEN ! Case 1: F(b:e) = '+...'
 !      WRITE(*,*)'1. F(b:e) = "+..."'
-         CALL CompileSubstr(i, F, b+1, e, Var)
+         CALL CompileSubstr(i, F, b + 1, e, Var)
          RETURN
       ELSEIF (CompletelyEnclosed(F, b, e)) THEN ! Case 2: F(b:e) = '(...)'
 !      WRITE(*,*)'2. F(b:e) = "(...)"'
-         CALL CompileSubstr(i, F, b+1, e-1, Var)
+         CALL CompileSubstr(i, F, b + 1, e - 1, Var)
          RETURN
       ELSEIF (SCAN(F(b:b), calpha) > 0) THEN
          n = MathFunctionIndex(F(b:e))
          IF (n > 0) THEN
-            b2 = b+INDEX(F(b:e), '(')-1
+            b2 = b + INDEX(F(b:e), '(') - 1
             IF (CompletelyEnclosed(F, b2, e)) THEN ! Case 3: F(b:e) = 'fcn(...)'
 !            WRITE(*,*)'3. F(b:e) = "fcn(...)"'
-               CALL CompileSubstr(i, F, b2+1, e-1, Var)
+               CALL CompileSubstr(i, F, b2 + 1, e - 1, Var)
                CALL AddCompiledByte(i, n)
                RETURN
             END IF
          END IF
       ELSEIF (F(b:b) == '-') THEN
-         IF (CompletelyEnclosed(F, b+1, e)) THEN ! Case 4: F(b:e) = '-(...)'
+         IF (CompletelyEnclosed(F, b + 1, e)) THEN ! Case 4: F(b:e) = '-(...)'
 !         WRITE(*,*)'4. F(b:e) = "-(...)"'
-            CALL CompileSubstr(i, F, b+2, e-1, Var)
+            CALL CompileSubstr(i, F, b + 2, e - 1, Var)
             CALL AddCompiledByte(i, cNeg)
             RETURN
-         ELSEIF (SCAN(F(b+1:b+1), calpha) > 0) THEN
-            n = MathFunctionIndex(F(b+1:e))
+         ELSEIF (SCAN(F(b + 1:b + 1), calpha) > 0) THEN
+            n = MathFunctionIndex(F(b + 1:e))
             IF (n > 0) THEN
-               b2 = b+INDEX(F(b+1:e), '(')
+               b2 = b + INDEX(F(b + 1:e), '(')
                IF (CompletelyEnclosed(F, b2, e)) THEN ! Case 5: F(b:e) = '-fcn(...)'
 !               WRITE(*,*)'5. F(b:e) = "-fcn(...)"'
-                  CALL CompileSubstr(i, F, b2+1, e-1, Var)
+                  CALL CompileSubstr(i, F, b2 + 1, e - 1, Var)
                   CALL AddCompiledByte(i, n)
                   CALL AddCompiledByte(i, cNeg)
                   RETURN
@@ -771,22 +771,22 @@ CONTAINS
          k = 0
          DO j = e, b, -1
             IF (F(j:j) == ')') THEN
-               k = k+1
+               k = k + 1
             ELSEIF (F(j:j) == '(') THEN
-               k = k-1
+               k = k - 1
             END IF
             IF (k == 0 .AND. F(j:j) == Ops(io) .AND. IsBinaryOp(j, F)) THEN
                IF (ANY(F(j:j) == Ops(cMul:cPow)) .AND. F(b:b) == '-') THEN ! Case 6: F(b:e) = '-...Op...' with Op > -
 !               WRITE(*,*)'6. F(b:e) = "-...Op..." with Op > -'
-                  CALL CompileSubstr(i, F, b+1, e, Var)
+                  CALL CompileSubstr(i, F, b + 1, e, Var)
                   CALL AddCompiledByte(i, cNeg)
                   RETURN
                ELSE ! Case 7: F(b:e) = '...BinOp...'
 !               WRITE(*,*)'7. Binary operator',F(j:j)
-                  CALL CompileSubstr(i, F, b, j-1, Var)
-                  CALL CompileSubstr(i, F, j+1, e, Var)
+                  CALL CompileSubstr(i, F, b, j - 1, Var)
+                  CALL CompileSubstr(i, F, j + 1, e, Var)
                   CALL AddCompiledByte(i, OperatorIndex(Ops(io)))
-                  Comp(i)%StackPtr = Comp(i)%StackPtr-1
+                  Comp(i)%StackPtr = Comp(i)%StackPtr - 1
                   RETURN
                END IF
             END IF
@@ -796,12 +796,12 @@ CONTAINS
       ! Check for remaining items, i.e. variables or explicit numbers
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       b2 = b
-      IF (F(b:b) == '-') b2 = b2+1
+      IF (F(b:b) == '-') b2 = b2 + 1
       n = MathItemIndex(i, F(b2:e), Var)
 !   WRITE(*,*)'8. AddCompiledByte ',n
       CALL AddCompiledByte(i, n)
-      Comp(i)%StackPtr = Comp(i)%StackPtr+1
-      IF (Comp(i)%StackPtr > Comp(i)%StackSize) Comp(i)%StackSize = Comp(i)%StackSize+1
+      Comp(i)%StackPtr = Comp(i)%StackPtr + 1
+      IF (Comp(i)%StackPtr > Comp(i)%StackSize) Comp(i)%StackSize = Comp(i)%StackSize + 1
       IF (b2 > b) CALL AddCompiledByte(i, cNeg)
    END SUBROUTINE CompileSubstr
    !
@@ -833,14 +833,14 @@ CONTAINS
       IF (F(j:j) == '+' .OR. F(j:j) == '-') THEN ! Plus or minus sign:
          IF (j == 1) THEN ! - leading unary operator ?
             res = .FALSE.
-         ELSEIF (SCAN(F(j-1:j-1), '+-*/^(') > 0) THEN ! - other unary operator ?
+         ELSEIF (SCAN(F(j - 1:j - 1), '+-*/^(') > 0) THEN ! - other unary operator ?
             res = .FALSE.
-         ELSEIF (SCAN(F(j+1:j+1), '0123456789') > 0 .AND. & ! - in exponent of real number ?
-                 SCAN(F(j-1:j-1), 'eEdD') > 0) THEN
+         ELSEIF (SCAN(F(j + 1:j + 1), '0123456789') > 0 .AND. & ! - in exponent of real number ?
+                 SCAN(F(j - 1:j - 1), 'eEdD') > 0) THEN
             Dflag = .FALSE.; Pflag = .FALSE.
-            k = j-1
+            k = j - 1
             DO WHILE (k > 1) !   step to the left in mantissa
-               k = k-1
+               k = k - 1
                IF (SCAN(F(k:k), '0123456789') > 0) THEN
                   Dflag = .TRUE.
                ELSEIF (F(k:k) == '.') THEN
@@ -899,9 +899,9 @@ CONTAINS
       ib = 1
       in = 1
       DO WHILE (in <= LEN_TRIM(str))
-         SELECT CASE (str (in:in))
+         SELECT CASE (str(in:in))
          CASE (' ') ! Only leading blanks permitted
-            ib = ib+1
+            ib = ib + 1
             IF (InMan .OR. Eflag .OR. InExp) EXIT
          CASE ('+', '-') ! Permitted only
             IF (Bflag) THEN
@@ -937,13 +937,13 @@ CONTAINS
          CASE DEFAULT
             EXIT ! STOP at all other characters
          END SELECT
-         in = in+1
+         in = in + 1
       END DO
-      err = (ib > in-1) .OR. (.NOT. DInMan) .OR. ((Eflag .OR. InExp) .AND. .NOT. DInExp)
+      err = (ib > in - 1) .OR. (.NOT. DInMan) .OR. ((Eflag .OR. InExp) .AND. .NOT. DInExp)
       IF (err) THEN
          res = 0.0_rn
       ELSE
-         READ (str(ib:in-1), *, IOSTAT=istat) res
+         READ (str(ib:in - 1), *, IOSTAT=istat) res
          err = istat /= 0
       END IF
       IF (PRESENT(ibegin)) ibegin = ib
@@ -1008,30 +1008,30 @@ CONTAINS
       IF (h /= 0._rn) THEN
          xval = vals(ipar)
          hh = h
-         vals(ipar) = xval+hh
+         vals(ipar) = xval + hh
          funcp = evalf(id_fun, vals)
-         vals(ipar) = xval-hh
+         vals(ipar) = xval - hh
          funcm = evalf(id_fun, vals)
-         a(1, 1) = (funcp-funcm)/(2.0_rn*hh)
+         a(1, 1) = (funcp - funcm)/(2.0_rn*hh)
          err = big_error
          DO i = 2, ntab
             hh = hh/con
-            vals(ipar) = xval+hh
+            vals(ipar) = xval + hh
             funcp = evalf(id_fun, vals)
-            vals(ipar) = xval-hh
+            vals(ipar) = xval - hh
             funcm = evalf(id_fun, vals)
-            a(1, i) = (funcp-funcm)/(2.0_rn*hh)
+            a(1, i) = (funcp - funcm)/(2.0_rn*hh)
             fac = con2
             DO j = 2, i
-               a(j, i) = (a(j-1, i)*fac-a(j-1, i-1))/(fac-1.0_rn)
+               a(j, i) = (a(j - 1, i)*fac - a(j - 1, i - 1))/(fac - 1.0_rn)
                fac = con2*fac
-               errt = MAX(ABS(a(j, i)-a(j-1, i)), ABS(a(j, i)-a(j-1, i-1)))
+               errt = MAX(ABS(a(j, i) - a(j - 1, i)), ABS(a(j, i) - a(j - 1, i - 1)))
                IF (errt .LE. err) THEN
                   err = errt
                   derivative = a(j, i)
                ENDIF
             END DO
-            IF (ABS(a(i, i)-a(i-1, i-1)) .GE. safe*err) RETURN
+            IF (ABS(a(i, i) - a(i - 1, i - 1)) .GE. safe*err) RETURN
          END DO
       ELSE
          CPABORT("DX provided equals zero!")

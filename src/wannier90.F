@@ -108,7 +108,7 @@ MODULE wannier90
    INTEGER, PARAMETER :: num_nnmax = 12
 
    INTEGER, PARAMETER :: nsupcell = 5
-   INTEGER            :: lmn(3, (2*nsupcell+1)**3)
+   INTEGER            :: lmn(3, (2*nsupcell + 1)**3)
 
    REAL(kind=dp), PARAMETER    :: eps5 = 1.0e-5_dp
    REAL(kind=dp), PARAMETER    :: eps6 = 1.0e-6_dp
@@ -174,9 +174,9 @@ CONTAINS
       num_shells = 0
       ALLOCATE (shell_list(max_shells))
 
-      cell_volume = real_lattice(1, 1)*(real_lattice(2, 2)*real_lattice(3, 3)-real_lattice(3, 2)*real_lattice(2, 3))+ &
-                    real_lattice(1, 2)*(real_lattice(2, 3)*real_lattice(3, 1)-real_lattice(3, 3)*real_lattice(2, 1))+ &
-                    real_lattice(1, 3)*(real_lattice(2, 1)*real_lattice(3, 2)-real_lattice(3, 1)*real_lattice(2, 2))
+      cell_volume = real_lattice(1, 1)*(real_lattice(2, 2)*real_lattice(3, 3) - real_lattice(3, 2)*real_lattice(2, 3)) + &
+                    real_lattice(1, 2)*(real_lattice(2, 3)*real_lattice(3, 1) - real_lattice(3, 3)*real_lattice(2, 1)) + &
+                    real_lattice(1, 3)*(real_lattice(2, 1)*real_lattice(3, 2) - real_lattice(3, 1)*real_lattice(2, 2))
       iprint = 1
       search_shells = 12
       kmesh_tol = 0.000001_dp
@@ -366,25 +366,25 @@ CONTAINS
       ndnntot = 0
       DO nlist = 1, search_shells
          DO nkp = 1, num_kpts
-            DO loop = 1, (2*nsupcell+1)**3
+            DO loop = 1, (2*nsupcell + 1)**3
                l = lmn(1, loop); m = lmn(2, loop); n = lmn(3, loop)
                !
-               vkpp = kpt_cart(:, nkp)+MATMUL(lmn(:, loop), recip_lattice)
-               dist = SQRT((kpt_cart(1, 1)-vkpp(1))**2 &
-                           +(kpt_cart(2, 1)-vkpp(2))**2+(kpt_cart(3, 1)-vkpp(3))**2)
+               vkpp = kpt_cart(:, nkp) + MATMUL(lmn(:, loop), recip_lattice)
+               dist = SQRT((kpt_cart(1, 1) - vkpp(1))**2 &
+                           + (kpt_cart(2, 1) - vkpp(2))**2 + (kpt_cart(3, 1) - vkpp(3))**2)
                !
-               IF ((dist .GT. kmesh_tol) .AND. (dist .GT. dnn0+kmesh_tol)) THEN
-                  IF (dist .LT. dnn1-kmesh_tol) THEN
+               IF ((dist .GT. kmesh_tol) .AND. (dist .GT. dnn0 + kmesh_tol)) THEN
+                  IF (dist .LT. dnn1 - kmesh_tol) THEN
                      dnn1 = dist ! found a closer shell
                      counter = 0
                   END IF
-                  IF (dist .GT. (dnn1-kmesh_tol) .AND. dist .LT. (dnn1+kmesh_tol)) THEN
-                     counter = counter+1 ! count the multiplicity of the shell
+                  IF (dist .GT. (dnn1 - kmesh_tol) .AND. dist .LT. (dnn1 + kmesh_tol)) THEN
+                     counter = counter + 1 ! count the multiplicity of the shell
                   END IF
                END IF
             ENDDO
          ENDDO
-         IF (dnn1 .LT. eta-kmesh_tol) ndnntot = ndnntot+1
+         IF (dnn1 .LT. eta - kmesh_tol) ndnntot = ndnntot + 1
          dnn(nlist) = dnn1
          multi(nlist) = counter
          dnn0 = dnn1
@@ -412,14 +412,14 @@ CONTAINS
             WRITE (stdout, '(i3,",")', advance='no') shell_list(ndnn)
          ENDIF
       ENDDO
-      DO l = 1, 11-num_shells
+      DO l = 1, 11 - num_shells
          WRITE (stdout, '(4x)', advance='no')
       ENDDO
       WRITE (stdout, '("|")')
 
       nntot = 0
       DO loop_s = 1, num_shells
-         nntot = nntot+multi(shell_list(loop_s))
+         nntot = nntot + multi(shell_list(loop_s))
       END DO
       IF (nntot > num_nnmax) THEN
          WRITE (stdout, '(a,i2,a)') ' **WARNING: kmesh has found >', num_nnmax, ' nearest neighbours**'
@@ -433,7 +433,7 @@ CONTAINS
          DO shell = 1, search_shells
             CALL kmesh_get_bvectors(multi(shell), 1, dnn(shell), bvec_tmp(:, 1:multi(shell)))
             DO loop = 1, multi(shell)
-               counter = counter+1
+               counter = counter + 1
                WRITE (stdout, '(a,I4,1x,a,2x,3f12.6,2x,a,2x,f12.6,a)') ' | b-vector  ', counter, ': (', &
                   bvec_tmp(:, loop)/lenconfac, ')', dnn(shell)/lenconfac, '  |'
             END DO
@@ -454,7 +454,7 @@ CONTAINS
       nnx = 0
       DO loop_s = 1, num_shells
          DO loop_b = 1, multi(shell_list(loop_s))
-            nnx = nnx+1
+            nnx = nnx + 1
             wb_local(nnx) = bweight(loop_s)
          END DO
       END DO
@@ -477,21 +477,21 @@ CONTAINS
          nnx = 0
          ok: DO ndnnx = 1, num_shells
             ndnn = shell_list(ndnnx)
-            DO loop = 1, (2*nsupcell+1)**3
+            DO loop = 1, (2*nsupcell + 1)**3
                l = lmn(1, loop); m = lmn(2, loop); n = lmn(3, loop)
                vkpp2 = MATMUL(lmn(:, loop), recip_lattice)
                DO nkp2 = 1, num_kpts
-                  vkpp = vkpp2+kpt_cart(:, nkp2)
-                  dist = SQRT((kpt_cart(1, nkp)-vkpp(1))**2 &
-                              +(kpt_cart(2, nkp)-vkpp(2))**2+(kpt_cart(3, nkp)-vkpp(3))**2)
-                  IF ((dist .GE. dnn(ndnn)*(1-kmesh_tol)) .AND. (dist .LE. dnn(ndnn)*(1+kmesh_tol))) THEN
-                     nnx = nnx+1
-                     nnshell(nkp, ndnn) = nnshell(nkp, ndnn)+1
+                  vkpp = vkpp2 + kpt_cart(:, nkp2)
+                  dist = SQRT((kpt_cart(1, nkp) - vkpp(1))**2 &
+                              + (kpt_cart(2, nkp) - vkpp(2))**2 + (kpt_cart(3, nkp) - vkpp(3))**2)
+                  IF ((dist .GE. dnn(ndnn)*(1 - kmesh_tol)) .AND. (dist .LE. dnn(ndnn)*(1 + kmesh_tol))) THEN
+                     nnx = nnx + 1
+                     nnshell(nkp, ndnn) = nnshell(nkp, ndnn) + 1
                      nnlist(nkp, nnx) = nkp2
                      nncell(1, nkp, nnx) = l
                      nncell(2, nkp, nnx) = m
                      nncell(3, nkp, nnx) = n
-                     bk_local(:, nnx, nkp) = vkpp(:)-kpt_cart(:, nkp)
+                     bk_local(:, nnx, nkp) = vkpp(:) - kpt_cart(:, nkp)
                   ENDIF
                   !if we have the right number of neighbours we can exit
                   IF (nnshell(nkp, ndnn) == multi(ndnn)) CYCLE ok
@@ -515,12 +515,12 @@ CONTAINS
             DO nnsh = 1, nnshell(nkp, ndnn)
                bb1 = 0.0_dp
                bbn = 0.0_dp
-               nnx = nnx+1
+               nnx = nnx + 1
                DO i = 1, 3
-                  bb1 = bb1+bk_local(i, nnx, 1)*bk_local(i, nnx, 1)
-                  bbn = bbn+bk_local(i, nnx, nkp)*bk_local(i, nnx, nkp)
+                  bb1 = bb1 + bk_local(i, nnx, 1)*bk_local(i, nnx, 1)
+                  bbn = bbn + bk_local(i, nnx, nkp)*bk_local(i, nnx, nkp)
                ENDDO
-               IF (ABS(SQRT(bb1)-SQRT(bbn)) .GT. kmesh_tol) THEN
+               IF (ABS(SQRT(bb1) - SQRT(bbn)) .GT. kmesh_tol) THEN
                   WRITE (stdout, '(1x,2f10.6)') bb1, bbn
                   CPABORT('Non-symmetric k-point neighbours!')
                ENDIF
@@ -540,11 +540,11 @@ CONTAINS
                DO ndnnx = 1, num_shells
                   ndnn = shell_list(ndnnx)
                   DO nnsh = 1, nnshell(1, ndnn)
-                     nnx = nnx+1
-                     ddelta = ddelta+wb_local(nnx)*bk_local(i, nnx, nkp)*bk_local(j, nnx, nkp)
+                     nnx = nnx + 1
+                     ddelta = ddelta + wb_local(nnx)*bk_local(i, nnx, nkp)*bk_local(j, nnx, nkp)
                   ENDDO
                ENDDO
-               IF ((i .EQ. j) .AND. (ABS(ddelta-1.0_dp) .GT. kmesh_tol)) THEN
+               IF ((i .EQ. j) .AND. (ABS(ddelta - 1.0_dp) .GT. kmesh_tol)) THEN
                   WRITE (stdout, '(1x,2i3,f12.8)') i, j, ddelta
                   CPABORT('Eq. (B1) not satisfied in kmesh_get (1)')
                ENDIF
@@ -565,8 +565,8 @@ CONTAINS
       DO ndnnx = 1, num_shells
          ndnn = shell_list(ndnnx)
          DO nnsh = 1, nnshell(1, ndnn)
-            nnx = nnx+1
-            wbtot = wbtot+wb_local(nnx)
+            nnx = nnx + 1
+            wbtot = wbtot + wb_local(nnx)
          ENDDO
       ENDDO
 
@@ -584,7 +584,7 @@ CONTAINS
          ENDIF
          IF (ifound .EQ. 0) THEN
             !         found new vector to add to set
-            na = na+1
+            na = na + 1
             bka(1, na) = bk_local(1, nn, 1)
             bka(2, na) = bk_local(2, nn, 1)
             bka(3, na) = bk_local(3, nn, 1)
@@ -655,10 +655,10 @@ CONTAINS
       !                                                                  !
       !==================================================================!
       INTEGER                                            :: counter, indx(1), l, &
-                                                            lmn_cp(3, (2*nsupcell+1)**3), loop, m, &
-                                                            n
-      REAL(kind=dp)                                      :: dist((2*nsupcell+1)**3), &
-                                                            dist_cp((2*nsupcell+1)**3), pos(3)
+                                                            lmn_cp(3, (2*nsupcell + 1)**3), loop, &
+                                                            m, n
+      REAL(kind=dp)                                      :: dist((2*nsupcell + 1)**3), &
+                                                            dist_cp((2*nsupcell + 1)**3), pos(3)
 
       counter = 1
       lmn(:, counter) = 0
@@ -667,7 +667,7 @@ CONTAINS
          DO m = -nsupcell, nsupcell
             DO n = -nsupcell, nsupcell
                IF (l == 0 .AND. m == 0 .AND. n == 0) CYCLE
-               counter = counter+1
+               counter = counter + 1
                lmn(1, counter) = l; lmn(2, counter) = m; lmn(3, counter) = n
                pos = MATMUL(lmn(:, counter), recip_lattice)
                dist(counter) = SQRT(DOT_PRODUCT(pos, pos))
@@ -675,7 +675,7 @@ CONTAINS
          END DO
       END DO
 
-      DO loop = (2*nsupcell+1)**3, 1, -1
+      DO loop = (2*nsupcell + 1)**3, 1, -1
          indx = internal_maxloc(dist)
          dist_cp(loop) = dist(indx(1))
          lmn_cp(:, loop) = lmn(:, indx(1))
@@ -699,11 +699,11 @@ CONTAINS
       !                                                                         !
       !=========================================================================!
 
-      REAL(kind=dp), INTENT(in)                          :: dist((2*nsupcell+1)**3)
+      REAL(kind=dp), INTENT(in)                          :: dist((2*nsupcell + 1)**3)
       INTEGER                                            :: internal_maxloc
 
       INTEGER                                            :: counter, guess(1), &
-                                                            list((2*nsupcell+1)**3), loop
+                                                            list((2*nsupcell + 1)**3), loop
 
       list = 0
       counter = 1
@@ -711,10 +711,10 @@ CONTAINS
       guess = MAXLOC(dist)
       list(1) = guess(1)
       ! look for any degenerate values
-      DO loop = 1, (2*nsupcell+1)**3
+      DO loop = 1, (2*nsupcell + 1)**3
          IF (loop == guess(1)) CYCLE
-         IF (ABS(dist(loop)-dist(guess(1))) < eps8) THEN
-            counter = counter+1
+         IF (ABS(dist(loop) - dist(guess(1))) < eps8) THEN
+            counter = counter + 1
             list(counter) = loop
          ENDIF
       END DO
@@ -762,7 +762,7 @@ CONTAINS
 
       b1sat = .FALSE.
       DO shell = 1, search_shells
-         cur_shell = num_shells+1
+         cur_shell = num_shells + 1
 
          ! get the b vectors for the new shell
          CALL kmesh_get_bvectors(multi(shell), 1, dnn(shell), bvector(:, 1:multi(shell), cur_shell))
@@ -776,7 +776,7 @@ CONTAINS
                      delta = DOT_PRODUCT(bvector(:, loop_bn, cur_shell), bvector(:, loop_b, loop_s))/ &
                              SQRT(DOT_PRODUCT(bvector(:, loop_bn, cur_shell), bvector(:, loop_bn, cur_shell))* &
                                   DOT_PRODUCT(bvector(:, loop_b, loop_s), bvector(:, loop_b, loop_s)))
-                     IF (ABS(ABS(delta)-1.0_dp) < eps6) lpar = .TRUE.
+                     IF (ABS(ABS(delta) - 1.0_dp) < eps6) lpar = .TRUE.
                   END DO
                END DO
             END DO
@@ -789,7 +789,7 @@ CONTAINS
             CYCLE
          END IF
 
-         num_shells = num_shells+1
+         num_shells = num_shells + 1
          shell_list(num_shells) = shell
 
          ALLOCATE (amat(max_shells, num_shells))
@@ -802,12 +802,12 @@ CONTAINS
          amat = 0.0_dp
          DO loop_s = 1, num_shells
             DO loop_b = 1, multi(shell_list(loop_s))
-               amat(1, loop_s) = amat(1, loop_s)+bvector(1, loop_b, loop_s)*bvector(1, loop_b, loop_s)
-               amat(2, loop_s) = amat(2, loop_s)+bvector(2, loop_b, loop_s)*bvector(2, loop_b, loop_s)
-               amat(3, loop_s) = amat(3, loop_s)+bvector(3, loop_b, loop_s)*bvector(3, loop_b, loop_s)
-               amat(4, loop_s) = amat(4, loop_s)+bvector(1, loop_b, loop_s)*bvector(2, loop_b, loop_s)
-               amat(5, loop_s) = amat(5, loop_s)+bvector(2, loop_b, loop_s)*bvector(3, loop_b, loop_s)
-               amat(6, loop_s) = amat(6, loop_s)+bvector(3, loop_b, loop_s)*bvector(1, loop_b, loop_s)
+               amat(1, loop_s) = amat(1, loop_s) + bvector(1, loop_b, loop_s)*bvector(1, loop_b, loop_s)
+               amat(2, loop_s) = amat(2, loop_s) + bvector(2, loop_b, loop_s)*bvector(2, loop_b, loop_s)
+               amat(3, loop_s) = amat(3, loop_s) + bvector(3, loop_b, loop_s)*bvector(3, loop_b, loop_s)
+               amat(4, loop_s) = amat(4, loop_s) + bvector(1, loop_b, loop_s)*bvector(2, loop_b, loop_s)
+               amat(5, loop_s) = amat(5, loop_s) + bvector(2, loop_b, loop_s)*bvector(3, loop_b, loop_s)
+               amat(6, loop_s) = amat(6, loop_s) + bvector(3, loop_b, loop_s)*bvector(1, loop_b, loop_s)
             END DO
          END DO
 
@@ -828,7 +828,7 @@ CONTAINS
             ELSE
                WRITE (stdout, '(1x,a)') '| SVD found small singular value, Rejecting this shell and trying the next   |'
                b1sat = .FALSE.
-               num_shells = num_shells-1
+               num_shells = num_shells - 1
                DEALLOCATE (amat, umat, vmat, smat, singv)
                CYCLE
             END IF
@@ -854,11 +854,11 @@ CONTAINS
                delta = 0.0_dp
                DO loop_s = 1, num_shells
                   DO loop_b = 1, multi(shell_list(loop_s))
-                     delta = delta+bweight(loop_s)*bvector(loop_i, loop_b, loop_s)*bvector(loop_j, loop_b, loop_s)
+                     delta = delta + bweight(loop_s)*bvector(loop_i, loop_b, loop_s)*bvector(loop_j, loop_b, loop_s)
                   END DO
                END DO
                IF (loop_i == loop_j) THEN
-                  IF (ABS(delta-1.0_dp) > kmesh_tol) b1sat = .FALSE.
+                  IF (ABS(delta - 1.0_dp) > kmesh_tol) b1sat = .FALSE.
                END IF
                IF (loop_i /= loop_j) THEN
                   IF (ABS(delta) > kmesh_tol) b1sat = .FALSE.
@@ -920,15 +920,15 @@ CONTAINS
       bvector = 0.0_dp
 
       num_bvec = 0
-      ok: DO loop = 1, (2*nsupcell+1)**3
+      ok: DO loop = 1, (2*nsupcell + 1)**3
          vkpp2 = MATMUL(lmn(:, loop), recip_lattice)
          DO nkp2 = 1, num_kpts
-            vkpp = vkpp2+kpt_cart(:, nkp2)
-            dist = SQRT((kpt_cart(1, kpt)-vkpp(1))**2 &
-                        +(kpt_cart(2, kpt)-vkpp(2))**2+(kpt_cart(3, kpt)-vkpp(3))**2)
-            IF ((dist .GE. shell_dist*(1.0_dp-kmesh_tol)) .AND. dist .LE. shell_dist*(1.0_dp+kmesh_tol)) THEN
-               num_bvec = num_bvec+1
-               bvector(:, num_bvec) = vkpp(:)-kpt_cart(:, kpt)
+            vkpp = vkpp2 + kpt_cart(:, nkp2)
+            dist = SQRT((kpt_cart(1, kpt) - vkpp(1))**2 &
+                        + (kpt_cart(2, kpt) - vkpp(2))**2 + (kpt_cart(3, kpt) - vkpp(3))**2)
+            IF ((dist .GE. shell_dist*(1.0_dp - kmesh_tol)) .AND. dist .LE. shell_dist*(1.0_dp + kmesh_tol)) THEN
+               num_bvec = num_bvec + 1
+               bvector(:, num_bvec) = vkpp(:) - kpt_cart(:, kpt)
             ENDIF
             !if we have the right number of neighbours we can exit
             IF (num_bvec == multi) CYCLE ok
@@ -950,8 +950,8 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3), INTENT(in)            :: a, b
       LOGICAL, INTENT(out)                               :: ispos, isneg
 
-      ispos = SUM((a-b)**2) .LT. eps8
-      isneg = SUM((a+b)**2) .LT. eps8
+      ispos = SUM((a - b)**2) .LT. eps8
+      isneg = SUM((a + b)**2) .LT. eps8
    END SUBROUTINE utility_compar
 
 ! **************************************************************************************************

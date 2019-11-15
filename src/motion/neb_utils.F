@@ -120,8 +120,8 @@ CONTAINS
          CALL rmsd3(particle_set, coords%xyz(:, i), coords%xyz(:, i0), &
                     iw, rotate=my_rotate)
       END IF
-      distance = SQRT(DOT_PRODUCT(coords%wrk(:, i)-coords%wrk(:, i0), &
-                                  coords%wrk(:, i)-coords%wrk(:, i0)))
+      distance = SQRT(DOT_PRODUCT(coords%wrk(:, i) - coords%wrk(:, i0), &
+                                  coords%wrk(:, i) - coords%wrk(:, i0)))
 
    END SUBROUTINE neb_replica_distance
 
@@ -199,13 +199,13 @@ CONTAINS
             DO iatom = 1, natom
                CALL section_vals_val_get(coord_section, "_DEFAULT_KEYWORD_", &
                                          i_rep_val=iatom, r_vals=rptr)
-               ic = 3*(iatom-1)
-               coords%xyz(ic+1:ic+3, i_rep) = rptr(1:3)*bohr
+               ic = 3*(iatom - 1)
+               coords%xyz(ic + 1:ic + 3, i_rep) = rptr(1:3)*bohr
                ! Initially core and shell positions are set to the atomic positions
                shell_index = particle_set(iatom)%shell_index
                IF (shell_index /= 0) THEN
-                  is = 3*(natom+shell_index-1)
-                  coords%xyz(is+1:is+3, i_rep) = coords%xyz(ic+1:ic+3, i_rep)
+                  is = 3*(natom + shell_index - 1)
+                  coords%xyz(is + 1:is + 3, i_rep) = coords%xyz(ic + 1:ic + 3, i_rep)
                END IF
             END DO
          ELSE
@@ -227,13 +227,13 @@ CONTAINS
                                 " Error in XYZ format for REPLICA coordinates. Very probably the"// &
                                 " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
                READ (parser%input_line, *) dummy_char, r(1:3)
-               ic = 3*(iatom-1)
-               coords%xyz(ic+1:ic+3, i_rep) = r(1:3)*bohr
+               ic = 3*(iatom - 1)
+               coords%xyz(ic + 1:ic + 3, i_rep) = r(1:3)*bohr
                ! Initially core and shell positions are set to the atomic positions
                shell_index = particle_set(iatom)%shell_index
                IF (shell_index /= 0) THEN
-                  is = 3*(natom+shell_index-1)
-                  coords%xyz(is+1:is+3, i_rep) = coords%xyz(ic+1:ic+3, i_rep)
+                  is = 3*(natom + shell_index - 1)
+                  coords%xyz(is + 1:is + 3, i_rep) = coords%xyz(ic + 1:ic + 3, i_rep)
                END IF
             END DO
             CALL parser_release(parser)
@@ -281,22 +281,22 @@ CONTAINS
                DO iatom = 1, natom
                   CALL section_vals_val_get(vel_section, "_DEFAULT_KEYWORD_", &
                                             i_rep_val=iatom, r_vals=rptr)
-                  ic = 3*(iatom-1)
-                  vels%wrk(ic+1:ic+3, i_rep) = rptr(1:3)
+                  ic = 3*(iatom - 1)
+                  vels%wrk(ic + 1:ic + 3, i_rep) = rptr(1:3)
                   ! Initially set shell velocities to core velocity
                   shell_index = particle_set(iatom)%shell_index
                   IF (shell_index /= 0) THEN
-                     is = 3*(natom+shell_index-1)
-                     vels%wrk(is+1:is+3, i_rep) = vels%wrk(ic+1:ic+3, i_rep)
+                     is = 3*(natom + shell_index - 1)
+                     vels%wrk(is + 1:is + 3, i_rep) = vels%wrk(ic + 1:ic + 3, i_rep)
                   END IF
                END DO
             END IF
          END IF
       END DO ! i_rep
-      ALLOCATE (distance(neb_nr_replica-1))
+      ALLOCATE (distance(neb_nr_replica - 1))
       IF (input_nr_replica < neb_nr_replica) THEN
          ! Interpolate missing replicas
-         nr_replica_to_interpolate = neb_nr_replica-input_nr_replica
+         nr_replica_to_interpolate = neb_nr_replica - input_nr_replica
          distance = 0.0_dp
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A,I0,A)') 'NEB| Interpolating ', nr_replica_to_interpolate, ' missing Replica.'
@@ -304,35 +304,35 @@ CONTAINS
          DO WHILE (nr_replica_to_interpolate > 0)
             ! Compute distances between known images to find the interval
             ! where to add a new image
-            DO j = 1, input_nr_replica-1
-               CALL neb_replica_distance(particle_set, coords, j, j+1, distance(j), iw, &
+            DO j = 1, input_nr_replica - 1
+               CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
                                          rotate=neb_env%align_frames)
             END DO
             jtarg = MAXLOC(distance(1:input_nr_replica), 1)
             IF (iw > 0) THEN
                WRITE (iw, '(T2,3(A,I0),A)') 'NEB| Interpolating Nr. ', &
                   nr_replica_to_interpolate, ' missing Replica between Replica Nr. ', &
-                  jtarg, ' and ', jtarg+1, '.'
+                  jtarg, ' and ', jtarg + 1, '.'
             END IF
-            input_nr_replica = input_nr_replica+1
-            nr_replica_to_interpolate = nr_replica_to_interpolate-1
+            input_nr_replica = input_nr_replica + 1
+            nr_replica_to_interpolate = nr_replica_to_interpolate - 1
             ! Interpolation is a simple bisection in XYZ
-            coords%xyz(:, jtarg+2:input_nr_replica) = coords%xyz(:, jtarg+1:input_nr_replica-1)
-            coords%xyz(:, jtarg+1) = (coords%xyz(:, jtarg)+coords%xyz(:, jtarg+2))/2.0_dp
+            coords%xyz(:, jtarg + 2:input_nr_replica) = coords%xyz(:, jtarg + 1:input_nr_replica - 1)
+            coords%xyz(:, jtarg + 1) = (coords%xyz(:, jtarg) + coords%xyz(:, jtarg + 2))/2.0_dp
             IF (neb_env%use_colvar) THEN
                ! Interpolation is a simple bisection also in internal coordinates
                ! in this case the XYZ coordinates need only as a starting point for computing
                ! the potential energy function. The reference are the internal coordinates
                ! interpolated here after..
-               coords%int(:, jtarg+2:input_nr_replica) = coords%int(:, jtarg+1:input_nr_replica-1)
-               coords%int(:, jtarg+1) = (coords%int(:, jtarg)+coords%int(:, jtarg+2))/2.0_dp
+               coords%int(:, jtarg + 2:input_nr_replica) = coords%int(:, jtarg + 1:input_nr_replica - 1)
+               coords%int(:, jtarg + 1) = (coords%int(:, jtarg) + coords%int(:, jtarg + 2))/2.0_dp
             END IF
-            vels%wrk(:, jtarg+2:input_nr_replica) = vels%wrk(:, jtarg+1:input_nr_replica-1)
-            vels%wrk(:, jtarg+1) = 0.0_dp
-            CALL dump_replica_coordinates(particle_set, coords, jtarg+1, &
+            vels%wrk(:, jtarg + 2:input_nr_replica) = vels%wrk(:, jtarg + 1:input_nr_replica - 1)
+            vels%wrk(:, jtarg + 1) = 0.0_dp
+            CALL dump_replica_coordinates(particle_set, coords, jtarg + 1, &
                                           input_nr_replica, iw, neb_env%use_colvar)
             CALL neb_initialize_velocity(vels%wrk, neb_section, particle_set, &
-                                         jtarg+1, iw, globenv, neb_env)
+                                         jtarg + 1, iw, globenv, neb_env)
          END DO
       END IF
       vels%wrk(:, 1) = 0.0_dp
@@ -341,8 +341,8 @@ CONTAINS
       IF (neb_env%opt_type == band_diis_opt) vels%wrk = 0.0_dp
       ! Compute distances between replicas and in case of Cartesian Coordinates
       ! Rotate the frames in order to minimize the RMSD
-      DO j = 1, input_nr_replica-1
-         CALL neb_replica_distance(particle_set, coords, j, j+1, distance(j), iw, &
+      DO j = 1, input_nr_replica - 1
+         CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
                                    rotate=neb_env%align_frames)
       END DO
       DEALLOCATE (distance)
@@ -393,13 +393,13 @@ CONTAINS
       ALLOCATE (Mmatrix(n_int*n_int, n_rep_neb))
       IF (output_unit > 0) WRITE (output_unit, '(/,T2,A)') "NEB| Computing Energies and Forces"
       DO irep = 1, n_rep_neb, n_rep
-         DO j = 0, n_rep-1
-            IF (irep+j <= n_rep_neb) THEN
+         DO j = 0, n_rep - 1
+            IF (irep + j <= n_rep_neb) THEN
                ! If the number of replica in replica_env and the number of replica
                ! used in the NEB does not match, the other replica in replica_env
                ! just compute energies and forces keeping the fixed coordinates and
                ! forces
-               rep_env%r(:, j+1) = coords%xyz(:, irep+j)
+               rep_env%r(:, j + 1) = coords%xyz(:, irep + j)
             END IF
          END DO
          ! Fix file name for BAND replicas.. Each BAND replica has its own file
@@ -418,41 +418,41 @@ CONTAINS
             CALL perform_replica_geo(rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp)
          END SELECT
 
-         DO j = 0, n_rep-1
-            IF (irep+j <= n_rep_neb) THEN
+         DO j = 0, n_rep - 1
+            IF (irep + j <= n_rep_neb) THEN
                ! Copy back Forces and Energies
-               forces%wrk(:, irep+j) = rep_env%f(1:nsize_wrk, j+1)
-               energies(irep+j) = rep_env%f(rep_env%ndim+1, j+1)
+               forces%wrk(:, irep + j) = rep_env%f(1:nsize_wrk, j + 1)
+               energies(irep + j) = rep_env%f(rep_env%ndim + 1, j + 1)
                SELECT CASE (neb_env%pot_type)
                CASE (pot_neb_full)
                   ! Dump Info
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, '(T2,A,I5,A,I5,A)') &
-                        "NEB| REPLICA Nr.", irep+j, "- Energy and Forces"
+                        "NEB| REPLICA Nr.", irep + j, "- Energy and Forces"
                      WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                        "NEB|", " Total Energy: ", rep_env%f(rep_env%ndim+1, j+1)
+                        "NEB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j + 1)
                      WRITE (output_unit, '(T2,"NEB|",T10,"ATOM",T33,3(9X,A,7X))') lab(1), lab(2), lab(3)
                      DO i = 1, SIZE(particle_set)
                         WRITE (output_unit, '(T2,"NEB|",T12,A,T30,3(2X,F15.9))') &
                            particle_set(i)%atomic_kind%name, &
-                           rep_env%f((i-1)*3+1:(i-1)*3+3, j+1)
+                           rep_env%f((i - 1)*3 + 1:(i - 1)*3 + 3, j + 1)
                      END DO
                   END IF
                CASE (pot_neb_fe, pot_neb_me)
                   ! Let's update the cartesian coordinates. This will make
                   ! easier the next evaluation of energies and forces...
-                  coords%xyz(:, irep+j) = rep_env%r(1:rep_env%ndim, j+1)
-                  Mmatrix(:, irep+j) = Mmatrix_tmp(:, j+1)
+                  coords%xyz(:, irep + j) = rep_env%r(1:rep_env%ndim, j + 1)
+                  Mmatrix(:, irep + j) = Mmatrix_tmp(:, j + 1)
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, '(/,T2,A,I5,A,I5,A)') &
-                        "NEB| REPLICA Nr.", irep+j, "- Energy, Collective Variables,  Forces"
+                        "NEB| REPLICA Nr.", irep + j, "- Energy, Collective Variables,  Forces"
                      WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                        "NEB|", " Total Energy: ", rep_env%f(rep_env%ndim+1, j+1)
+                        "NEB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j + 1)
                      WRITE (output_unit, &
                             '(T2,"NEB|",T10,"CV Nr.",12X,"Expected COLVAR",5X,"Present COLVAR",10X,"Forces")')
                      DO i = 1, n_int
                         WRITE (output_unit, '(T2,"NEB|",T12,I2,7X,3(5X,F15.9))') &
-                           i, coords%int(i, irep+j), cvalues(i, j+1), rep_env%f(i, j+1)
+                           i, coords%int(i, irep + j), cvalues(i, j + 1), rep_env%f(i, j + 1)
                      END DO
                   END IF
                END SELECT
@@ -464,7 +464,7 @@ CONTAINS
       IF (PRESENT(neb_env)) THEN
          ! First identify the image of the chain with the higher potential energy
          ! First and last point of the band are never considered
-         neb_env%nr_HE_image = MAXLOC(energies(2:n_rep_neb-1), 1)+1
+         neb_env%nr_HE_image = MAXLOC(energies(2:n_rep_neb - 1), 1) + 1
          ALLOCATE (tangent(nsize_wrk))
          ! Then modify image forces accordingly to the scheme chosen for the
          ! calculation.
@@ -529,38 +529,38 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL force_env_get(f_env%force_env, globenv=globenv, &
                          root_section=root_section)
-      j = rep_env%local_rep_indices(1)-1
+      j = rep_env%local_rep_indices(1) - 1
       n_el = 3*rep_env%nparticle
       Mmatrix = 0.0_dp
       ! Syncronize position on the replica procs
-      CALL set_pos(rep_env%f_env_id, rep_env%r(:, j+1), n_el, ierr)
+      CALL set_pos(rep_env%f_env_id, rep_env%r(:, j + 1), n_el, ierr)
       CPASSERT(ierr == 0)
       !
-      IF (irep+j <= n_rep_neb) THEN
-         logger%iter_info%iteration(2) = irep+j
+      IF (irep + j <= n_rep_neb) THEN
+         logger%iter_info%iteration(2) = irep + j
          CALL remove_restart_info(root_section)
          md_section => section_vals_get_subs_vals(root_section, "MOTION%MD")
          CALL section_vals_get(md_section, explicit=explicit)
          CPASSERT(explicit)
          ! Let's syncronize the target of Collective Variables for this run
-         CALL set_colvars_target(coords%int(:, irep+j), f_env%force_env)
+         CALL set_colvars_target(coords%int(:, irep + j), f_env%force_env)
          ! Do a molecular dynamics and get back the derivative
          ! of the free energy w.r.t. the colvar and the metric tensor
          CALL qs_mol_dyn(f_env%force_env, globenv=globenv)
          ! Collect the equilibrated coordinates
-         CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el, j+1), n_el, ierr)
+         CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el, j + 1), n_el, ierr)
          CPASSERT(ierr == 0)
          ! Write he gradients in the colvar coordinates into the replica_env array
          ! and copy back also the metric tensor..
          ! work in progress..
          CPABORT("")
-         rep_env%f(:, j+1) = 0.0_dp
+         rep_env%f(:, j + 1) = 0.0_dp
          Mmatrix = 0.0_dp
       ELSE
-         rep_env%r(:, j+1) = 0.0_dp
-         rep_env%f(:, j+1) = 0.0_dp
-         cvalues(:, j+1) = 0.0_dp
-         Mmatrix(:, j+1) = 0.0_dp
+         rep_env%r(:, j + 1) = 0.0_dp
+         rep_env%f(:, j + 1) = 0.0_dp
+         cvalues(:, j + 1) = 0.0_dp
+         Mmatrix(:, j + 1) = 0.0_dp
       END IF
       CALL rep_env_sync(rep_env, rep_env%f)
       CALL rep_env_sync(rep_env, rep_env%r)
@@ -605,20 +605,20 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL force_env_get(f_env%force_env, globenv=globenv, &
                          root_section=root_section)
-      j = rep_env%local_rep_indices(1)-1
+      j = rep_env%local_rep_indices(1) - 1
       n_el = 3*rep_env%nparticle
       Mmatrix = 0.0_dp
       ! Syncronize position on the replica procs
-      CALL set_pos(rep_env%f_env_id, rep_env%r(:, j+1), n_el, ierr)
+      CALL set_pos(rep_env%f_env_id, rep_env%r(:, j + 1), n_el, ierr)
       CPASSERT(ierr == 0)
-      IF (irep+j <= n_rep_neb) THEN
-         logger%iter_info%iteration(2) = irep+j
+      IF (irep + j <= n_rep_neb) THEN
+         logger%iter_info%iteration(2) = irep + j
          CALL remove_restart_info(root_section)
          geoopt_section => section_vals_get_subs_vals(root_section, "MOTION%GEO_OPT")
          CALL section_vals_get(geoopt_section, explicit=explicit)
          CPASSERT(explicit)
          ! Let's syncronize the target of Collective Variables for this run
-         CALL set_colvars_target(coords%int(:, irep+j), f_env%force_env)
+         CALL set_colvars_target(coords%int(:, irep + j), f_env%force_env)
          ! Do a geometry optimization..
          CALL cp_geo_opt(f_env%force_env, globenv=globenv)
          ! Once the geometry optimization is ended let's do a single run
@@ -626,22 +626,22 @@ CONTAINS
          CALL force_env_calc_energy_force(f_env%force_env, &
                                           calc_force=.TRUE., skip_external_control=.TRUE.)
          ! Collect the optimized coordinates
-         CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el, j+1), n_el, ierr)
+         CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el, j + 1), n_el, ierr)
          CPASSERT(ierr == 0)
          ! Collect the gradients in cartesian coordinates
-         CALL get_force(rep_env%f_env_id, rep_env%f(1:n_el, j+1), n_el, ierr)
+         CALL get_force(rep_env%f_env_id, rep_env%f(1:n_el, j + 1), n_el, ierr)
          CPASSERT(ierr == 0)
          ! Copy the energy
-         CALL get_energy(rep_env%f_env_id, rep_env%f(n_el+1, j+1), ierr)
+         CALL get_energy(rep_env%f_env_id, rep_env%f(n_el + 1, j + 1), ierr)
          CPASSERT(ierr == 0)
          ! The gradients in the colvar coordinates
-         CALL get_clv_force(f_env%force_env, rep_env%f(1:n_el, j+1), rep_env%r(1:n_el, j+1), &
-                            SIZE(coords%xyz, 1), SIZE(coords%wrk, 1), cvalues(:, j+1), Mmatrix(:, j+1))
+         CALL get_clv_force(f_env%force_env, rep_env%f(1:n_el, j + 1), rep_env%r(1:n_el, j + 1), &
+                            SIZE(coords%xyz, 1), SIZE(coords%wrk, 1), cvalues(:, j + 1), Mmatrix(:, j + 1))
       ELSE
-         rep_env%r(:, j+1) = 0.0_dp
-         rep_env%f(:, j+1) = 0.0_dp
-         cvalues(:, j+1) = 0.0_dp
-         Mmatrix(:, j+1) = 0.0_dp
+         rep_env%r(:, j + 1) = 0.0_dp
+         rep_env%f(:, j + 1) = 0.0_dp
+         cvalues(:, j + 1) = 0.0_dp
+         Mmatrix(:, j + 1) = 0.0_dp
       END IF
       CALL rep_env_sync(rep_env, rep_env%f)
       CALL rep_env_sync(rep_env, rep_env%r)
@@ -684,24 +684,24 @@ CONTAINS
       CASE (do_eb)
          tangent(:) = 0.0_dp
       CASE (do_b_neb)
-         CALL neb_replica_distance(coords=coords, i0=i, i=i-1, distance=distance1, iw=iw, &
+         CALL neb_replica_distance(coords=coords, i0=i, i=i - 1, distance=distance1, iw=iw, &
                                    rotate=.FALSE.)
-         CALL neb_replica_distance(coords=coords, i0=i+1, i=i, distance=distance2, iw=iw, &
+         CALL neb_replica_distance(coords=coords, i0=i + 1, i=i, distance=distance2, iw=iw, &
                                    rotate=.FALSE.)
-         tangent(:) = (coords%wrk(:, i)-coords%wrk(:, i-1))/distance1+ &
-                      (coords%wrk(:, i+1)-coords%wrk(:, i))/distance2
+         tangent(:) = (coords%wrk(:, i) - coords%wrk(:, i - 1))/distance1 + &
+                      (coords%wrk(:, i + 1) - coords%wrk(:, i))/distance2
       CASE (do_it_neb, do_ci_neb, do_d_neb)
-         IF ((energies(i+1) .GT. energies(i)) .AND. (energies(i) .GT. (energies(i-1)))) THEN
-            tangent(:) = coords%wrk(:, i+1)-coords%wrk(:, i)
-         ELSE IF ((energies(i+1) .LT. energies(i)) .AND. (energies(i) .LT. (energies(i-1)))) THEN
-            tangent(:) = coords%wrk(:, i)-coords%wrk(:, i-1)
+         IF ((energies(i + 1) .GT. energies(i)) .AND. (energies(i) .GT. (energies(i - 1)))) THEN
+            tangent(:) = coords%wrk(:, i + 1) - coords%wrk(:, i)
+         ELSE IF ((energies(i + 1) .LT. energies(i)) .AND. (energies(i) .LT. (energies(i - 1)))) THEN
+            tangent(:) = coords%wrk(:, i) - coords%wrk(:, i - 1)
          ELSE
-            DVmax = MAX(ABS(energies(i+1)-energies(i)), ABS(energies(i-1)-energies(i)))
-            DVmin = MIN(ABS(energies(i+1)-energies(i)), ABS(energies(i-1)-energies(i)))
-            IF (energies(i+1) .GE. energies(i-1)) THEN
-               tangent(:) = (coords%wrk(:, i+1)-coords%wrk(:, i))*DVmax+(coords%wrk(:, i)-coords%wrk(:, i-1))*DVmin
+            DVmax = MAX(ABS(energies(i + 1) - energies(i)), ABS(energies(i - 1) - energies(i)))
+            DVmin = MIN(ABS(energies(i + 1) - energies(i)), ABS(energies(i - 1) - energies(i)))
+            IF (energies(i + 1) .GE. energies(i - 1)) THEN
+               tangent(:) = (coords%wrk(:, i + 1) - coords%wrk(:, i))*DVmax + (coords%wrk(:, i) - coords%wrk(:, i - 1))*DVmin
             ELSE
-               tangent(:) = (coords%wrk(:, i+1)-coords%wrk(:, i))*DVmin+(coords%wrk(:, i)-coords%wrk(:, i-1))*DVmax
+               tangent(:) = (coords%wrk(:, i + 1) - coords%wrk(:, i))*DVmin + (coords%wrk(:, i) - coords%wrk(:, i - 1))*DVmax
             END IF
          END IF
       CASE (do_sm)
@@ -761,10 +761,10 @@ CONTAINS
       ! otherwise proceeed normally..
       ALLOCATE (wrk(nsize_wrk))
       ! Spring Energy
-      CALL neb_replica_distance(coords=coords, i0=i-1, i=i, distance=distance1, iw=iw, &
+      CALL neb_replica_distance(coords=coords, i0=i - 1, i=i, distance=distance1, iw=iw, &
                                 rotate=.FALSE.)
-      tmp = distance1-neb_env%avg_distance
-      neb_env%spring_energy = neb_env%spring_energy+0.5_dp*neb_env%k*tmp**2
+      tmp = distance1 - neb_env%avg_distance
+      neb_env%spring_energy = neb_env%spring_energy + 0.5_dp*neb_env%k*tmp**2
       SELECT CASE (my_tag)
       CASE (do_eb)
          CALL cite_reference(Elber1987)
@@ -772,40 +772,40 @@ CONTAINS
          !                formulation
          ALLOCATE (dtmp1(nsize_wrk))
          ! derivatives of the spring
-         tmp = distance1-neb_env%avg_distance
-         dtmp1(:) = 1.0_dp/distance1*(coords%wrk(:, i)-coords%wrk(:, i-1))
+         tmp = distance1 - neb_env%avg_distance
+         dtmp1(:) = 1.0_dp/distance1*(coords%wrk(:, i) - coords%wrk(:, i - 1))
          wrk(:) = neb_env%k*tmp*dtmp1
-         forces%wrk(:, i) = forces%wrk(:, i)-wrk
-         forces%wrk(:, i-1) = forces%wrk(:, i-1)+wrk
+         forces%wrk(:, i) = forces%wrk(:, i) - wrk
+         forces%wrk(:, i - 1) = forces%wrk(:, i - 1) + wrk
          ! derivatives due to the average length of the spring
-         fac = 1.0_dp/(neb_env%avg_distance*REAL(neb_env%number_of_replica-1, KIND=dp))
-         wrk(:) = neb_env%k*fac*(coords%wrk(:, i)-coords%wrk(:, i-1))
+         fac = 1.0_dp/(neb_env%avg_distance*REAL(neb_env%number_of_replica - 1, KIND=dp))
+         wrk(:) = neb_env%k*fac*(coords%wrk(:, i) - coords%wrk(:, i - 1))
          tmp = 0.0_dp
          DO j = 2, neb_env%number_of_replica
-            CALL neb_replica_distance(coords=coords, i0=j-1, i=j, distance=distance1, iw=iw, &
+            CALL neb_replica_distance(coords=coords, i0=j - 1, i=j, distance=distance1, iw=iw, &
                                       rotate=.FALSE.)
-            tmp = tmp+distance1-neb_env%avg_distance
+            tmp = tmp + distance1 - neb_env%avg_distance
          END DO
-         forces%wrk(:, i) = forces%wrk(:, i)+wrk*tmp
-         forces%wrk(:, i-1) = forces%wrk(:, i-1)-wrk*tmp
+         forces%wrk(:, i) = forces%wrk(:, i) + wrk*tmp
+         forces%wrk(:, i - 1) = forces%wrk(:, i - 1) - wrk*tmp
          DEALLOCATE (dtmp1)
       CASE (do_b_neb)
          ! Bisection NEB
          CALL cite_reference(Jonsson1998)
-         wrk(:) = (coords%wrk(:, i+1)-2.0_dp*coords%wrk(:, i)+coords%wrk(:, i-1))
+         wrk(:) = (coords%wrk(:, i + 1) - 2.0_dp*coords%wrk(:, i) + coords%wrk(:, i - 1))
          tmp = neb_env%k*DOT_PRODUCT(wrk, tangent)
-         wrk(:) = forces%wrk(:, i)-dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
-         forces%wrk(:, i) = wrk+tmp*tangent
+         wrk(:) = forces%wrk(:, i) - dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
+         forces%wrk(:, i) = wrk + tmp*tangent
       CASE (do_it_neb)
          ! Improved tangent NEB
          CALL cite_reference(Jonsson2000_1)
-         CALL neb_replica_distance(coords=coords, i0=i, i=i+1, distance=distance1, iw=iw, &
+         CALL neb_replica_distance(coords=coords, i0=i, i=i + 1, distance=distance1, iw=iw, &
                                    rotate=.FALSE.)
-         CALL neb_replica_distance(coords=coords, i0=i-1, i=i, distance=distance2, iw=iw, &
+         CALL neb_replica_distance(coords=coords, i0=i - 1, i=i, distance=distance2, iw=iw, &
                                    rotate=.FALSE.)
-         tmp = neb_env%k*(distance1-distance2)
-         wrk(:) = forces%wrk(:, i)-dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
-         forces%wrk(:, i) = wrk+tmp*tangent
+         tmp = neb_env%k*(distance1 - distance2)
+         wrk(:) = forces%wrk(:, i) - dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
+         forces%wrk(:, i) = wrk + tmp*tangent
       CASE (do_ci_neb)
          ! Climbing Image NEB
          CALL cite_reference(Jonsson2000_2)
@@ -814,22 +814,22 @@ CONTAINS
          ELSE
             wrk(:) = forces%wrk(:, i)
             tmp = -2.0_dp*dot_product_band(neb_env, wrk, tangent, Mmatrix)
-            forces%wrk(:, i) = wrk+tmp*tangent
+            forces%wrk(:, i) = wrk + tmp*tangent
          END IF
       CASE (do_d_neb)
          ! Doubly NEB
          CALL cite_reference(Wales2004)
          ALLOCATE (dtmp1(nsize_wrk))
-         dtmp1(:) = forces%wrk(:, i)-dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
+         dtmp1(:) = forces%wrk(:, i) - dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
          forces%wrk(:, i) = dtmp1
          tmp = SQRT(DOT_PRODUCT(dtmp1, dtmp1))
          dtmp1(:) = dtmp1(:)/tmp
          ! Project out only the spring component interfering with the
          ! orthogonal gradient of the band
-         wrk(:) = (coords%wrk(:, i+1)-2.0_dp*coords%wrk(:, i)+coords%wrk(:, i-1))
+         wrk(:) = (coords%wrk(:, i + 1) - 2.0_dp*coords%wrk(:, i) + coords%wrk(:, i - 1))
          tmp = DOT_PRODUCT(wrk, dtmp1)
-         dtmp1(:) = neb_env%k*(wrk(:)-tmp*dtmp1(:))
-         forces%wrk(:, i) = forces%wrk(:, i)+dtmp1(:)
+         dtmp1(:) = neb_env%k*(wrk(:) - tmp*dtmp1(:))
+         forces%wrk(:, i) = forces%wrk(:, i) + dtmp1(:)
          DEALLOCATE (dtmp1)
       END SELECT
       DEALLOCATE (wrk)
@@ -910,21 +910,21 @@ CONTAINS
          ! The rotation of the replica is enabled exclusively when working in
          ! cartesian coordinates
          IF (rotate_frames .AND. (coords%in_use == do_band_cartesian)) THEN
-            CALL rmsd3(particle_set, coords%xyz(:, i), coords%xyz(:, i-1), iw, &
+            CALL rmsd3(particle_set, coords%xyz(:, i), coords%xyz(:, i - 1), iw, &
                        rotate=.TRUE., rot=rot)
             ! Rotate velocities
             DO k = 1, SIZE(vels%xyz, 1)/3
-               kind = (k-1)*3
-               tmp = vels%xyz(kind+1:kind+3, i)
-               CALL matvec_3x3(vels%xyz(kind+1:kind+3, i), TRANSPOSE(rot), tmp)
+               kind = (k - 1)*3
+               tmp = vels%xyz(kind + 1:kind + 3, i)
+               CALL matvec_3x3(vels%xyz(kind + 1:kind + 3, i), TRANSPOSE(rot), tmp)
             END DO
          END IF
          IF (PRESENT(distances)) THEN
-            check = SIZE(distances) == (number_of_replica-1)
+            check = SIZE(distances) == (number_of_replica - 1)
             CPASSERT(check)
-            xtmp = DOT_PRODUCT(coords%wrk(:, i)-coords%wrk(:, i-1), &
-                               coords%wrk(:, i)-coords%wrk(:, i-1))
-            distances(i-1) = SQRT(xtmp)
+            xtmp = DOT_PRODUCT(coords%wrk(:, i) - coords%wrk(:, i - 1), &
+                               coords%wrk(:, i) - coords%wrk(:, i - 1))
+            distances(i - 1) = SQRT(xtmp)
          END IF
       END DO
    END SUBROUTINE reorient_images
@@ -959,42 +959,42 @@ CONTAINS
          ALLOCATE (tmp_coords(SIZE(coords, 1), SIZE(coords, 2)))
          tmp_coords(:, :) = coords
          ! Smoothing
-         DO i = 2, SIZE(coords, 2)-1
-            coords(:, i) = tmp_coords(:, i)*(1.0_dp-2.0_dp*smoothing)+ &
-                           tmp_coords(:, i-1)*smoothing+tmp_coords(:, i+1)*smoothing
+         DO i = 2, SIZE(coords, 2) - 1
+            coords(:, i) = tmp_coords(:, i)*(1.0_dp - 2.0_dp*smoothing) + &
+                           tmp_coords(:, i - 1)*smoothing + tmp_coords(:, i + 1)*smoothing
          END DO
-         sline = coords-tmp_coords+sline
+         sline = coords - tmp_coords + sline
          tmp_coords(:, :) = coords
          ! Reparametrization
          SELECT CASE (spline_order)
          CASE (1)
             ! Compute distances
             DO i = 2, SIZE(coords, 2)
-               xtmp = DOT_PRODUCT(coords(:, i)-coords(:, i-1), coords(:, i)-coords(:, i-1))
-               distances(i-1) = SQRT(xtmp)
+               xtmp = DOT_PRODUCT(coords(:, i) - coords(:, i - 1), coords(:, i) - coords(:, i - 1))
+               distances(i - 1) = SQRT(xtmp)
             END DO
-            avg_distance = SUM(distances)/REAL(SIZE(coords, 2)-1, KIND=dp)
+            avg_distance = SUM(distances)/REAL(SIZE(coords, 2) - 1, KIND=dp)
             ! Redistribute frames
-            DO i = 2, SIZE(coords, 2)-1
+            DO i = 2, SIZE(coords, 2) - 1
                xtmp = 0.0_dp
-               DO j = 1, SIZE(coords, 2)-1
-                  xtmp = xtmp+distances(j)
-                  IF (xtmp > avg_distance*REAL(i-1, KIND=dp)) THEN
-                     xtmp = (xtmp-avg_distance*REAL(i-1, KIND=dp))/distances(j)
-                     coords(:, i) = (1.0_dp-xtmp)*tmp_coords(:, j+1)+xtmp*tmp_coords(:, j)
+               DO j = 1, SIZE(coords, 2) - 1
+                  xtmp = xtmp + distances(j)
+                  IF (xtmp > avg_distance*REAL(i - 1, KIND=dp)) THEN
+                     xtmp = (xtmp - avg_distance*REAL(i - 1, KIND=dp))/distances(j)
+                     coords(:, i) = (1.0_dp - xtmp)*tmp_coords(:, j + 1) + xtmp*tmp_coords(:, j)
                      EXIT
                   END IF
                END DO
             END DO
             ! Re-compute distances
             DO i = 2, SIZE(coords, 2)
-               xtmp = DOT_PRODUCT(coords(:, i)-coords(:, i-1), coords(:, i)-coords(:, i-1))
-               distances(i-1) = SQRT(xtmp)
+               xtmp = DOT_PRODUCT(coords(:, i) - coords(:, i - 1), coords(:, i) - coords(:, i - 1))
+               distances(i - 1) = SQRT(xtmp)
             END DO
          CASE DEFAULT
             CPWARN("String Method: Spline order greater than 1 not implemented.")
          END SELECT
-         sline = coords-tmp_coords+sline
+         sline = coords - tmp_coords + sline
          DEALLOCATE (tmp_coords)
       END IF
    END SUBROUTINE reparametrize_images

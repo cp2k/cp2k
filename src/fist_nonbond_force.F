@@ -284,7 +284,7 @@ CONTAINS
                      beta_b = sqrthalf/mm_radius_b
                   END IF
                   IF ((mm_radius_a > 0) .OR. (mm_radius_b > 0)) THEN
-                     beta = sqrthalf/SQRT(mm_radius_a*mm_radius_a+mm_radius_b*mm_radius_b)
+                     beta = sqrthalf/SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
                   END IF
                END IF
 
@@ -309,55 +309,55 @@ CONTAINS
                   IF (shell_type == sh_sh) THEN
                      shell_a = particle_set(atom_a)%shell_index
                      shell_b = particle_set(atom_b)%shell_index
-                     rab_cc = rcore_last_update_pbc(shell_b)%r-rcore_last_update_pbc(shell_a)%r
-                     rab_cs = rshell_last_update_pbc(shell_b)%r-rcore_last_update_pbc(shell_a)%r
-                     rab_sc = rcore_last_update_pbc(shell_b)%r-rshell_last_update_pbc(shell_a)%r
-                     rab_ss = rshell_last_update_pbc(shell_b)%r-rshell_last_update_pbc(shell_a)%r
-                     rab_list(1:3, 1) = rab_cc(1:3)+cell_v(1:3)
-                     rab_list(1:3, 2) = rab_cs(1:3)+cell_v(1:3)
-                     rab_list(1:3, 3) = rab_sc(1:3)+cell_v(1:3)
-                     rab_list(1:3, 4) = rab_ss(1:3)+cell_v(1:3)
+                     rab_cc = rcore_last_update_pbc(shell_b)%r - rcore_last_update_pbc(shell_a)%r
+                     rab_cs = rshell_last_update_pbc(shell_b)%r - rcore_last_update_pbc(shell_a)%r
+                     rab_sc = rcore_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
+                     rab_ss = rshell_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
+                     rab_list(1:3, 1) = rab_cc(1:3) + cell_v(1:3)
+                     rab_list(1:3, 2) = rab_cs(1:3) + cell_v(1:3)
+                     rab_list(1:3, 3) = rab_sc(1:3) + cell_v(1:3)
+                     rab_list(1:3, 4) = rab_ss(1:3) + cell_v(1:3)
                   ELSE IF ((shell_type == nosh_sh) .AND. (particle_set(atom_a)%shell_index /= 0)) THEN
                      shell_a = particle_set(atom_a)%shell_index
                      shell_b = 0
-                     rab_cc = r_last_update_pbc(atom_b)%r-rcore_last_update_pbc(shell_a)%r
+                     rab_cc = r_last_update_pbc(atom_b)%r - rcore_last_update_pbc(shell_a)%r
                      rab_sc = 0.0_dp
                      rab_cs = 0.0_dp
-                     rab_ss = r_last_update_pbc(atom_b)%r-rshell_last_update_pbc(shell_a)%r
-                     rab_list(1:3, 1) = rab_cc(1:3)+cell_v(1:3)
+                     rab_ss = r_last_update_pbc(atom_b)%r - rshell_last_update_pbc(shell_a)%r
+                     rab_list(1:3, 1) = rab_cc(1:3) + cell_v(1:3)
                      rab_list(1:3, 2) = 0.0_dp
                      rab_list(1:3, 3) = 0.0_dp
-                     rab_list(1:3, 4) = rab_ss(1:3)+cell_v(1:3)
+                     rab_list(1:3, 4) = rab_ss(1:3) + cell_v(1:3)
                   ELSE IF ((shell_type == nosh_sh) .AND. (particle_set(atom_b)%shell_index /= 0)) THEN
                      shell_b = particle_set(atom_b)%shell_index
                      shell_a = 0
-                     rab_cc = rcore_last_update_pbc(shell_b)%r-r_last_update_pbc(atom_a)%r
+                     rab_cc = rcore_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
                      rab_sc = 0.0_dp
                      rab_cs = 0.0_dp
-                     rab_ss = rshell_last_update_pbc(shell_b)%r-r_last_update_pbc(atom_a)%r
-                     rab_list(1:3, 1) = rab_cc(1:3)+cell_v(1:3)
+                     rab_ss = rshell_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
+                     rab_list(1:3, 1) = rab_cc(1:3) + cell_v(1:3)
                      rab_list(1:3, 2) = 0.0_dp
                      rab_list(1:3, 3) = 0.0_dp
-                     rab_list(1:3, 4) = rab_ss(1:3)+cell_v(1:3)
+                     rab_list(1:3, 4) = rab_ss(1:3) + cell_v(1:3)
                   END IF
                   ! Compute the term only if all the pairs (cc,cs,sc,ss) are within the cut-off
                   Check_terms: DO i = 1, 4
-                     rab2_list(i) = rab_list(1, i)**2+rab_list(2, i)**2+rab_list(3, i)**2
+                     rab2_list(i) = rab_list(1, i)**2 + rab_list(2, i)**2 + rab_list(3, i)**2
                      IF (rab2_list(i) >= rab2_max) THEN
                         all_terms = .FALSE.
                         EXIT Check_terms
                      END IF
                   END DO Check_terms
-                  rab_com = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+                  rab_com = r_last_update_pbc(atom_b)%r - r_last_update_pbc(atom_a)%r
                ELSE
                   ! not do shell
-                  rab_cc = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+                  rab_cc = r_last_update_pbc(atom_b)%r - r_last_update_pbc(atom_a)%r
                   rab_com = rab_cc
                   shell_a = 0
                   shell_b = 0
                END IF
-               rab_com = rab_com+cell_v
-               rab2_com = rab_com(1)**2+rab_com(2)**2+rab_com(3)**2
+               rab_com = rab_com + cell_v
+               rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
 
                ! compute the interactions for the current pair
                etot = 0.0_dp
@@ -395,7 +395,7 @@ CONTAINS
                                                       ei_interaction_cutoffs(1, kind_a, kind_b))
                            CALL add_force_nonbond(fcore_a, fcore_b, pv, fscalar, rab, use_virial)
                         END IF
-                        etot = etot+energy
+                        etot = etot + energy
                      END IF
 
                      IF (shell_type == sh_sh) THEN
@@ -405,7 +405,7 @@ CONTAINS
                         fscalar = 0.0_dp
                         IF (fac_vdw > 0) THEN
                            energy = potential_s(spline_data, rab2, fscalar, spl_f, logger)
-                           etot = etot+energy*fac_vdw
+                           etot = etot + energy*fac_vdw
                            fscalar = fscalar*fac_vdw
                         END IF
                         IF (fac_ei > 0) THEN
@@ -413,7 +413,7 @@ CONTAINS
                            energy = potential_coulomb(rab2, fscalar, fac_ei*qshell_a*qshell_b, &
                                                       ewald_type, alpha, beta, &
                                                       ei_interaction_cutoffs(3, kind_a, kind_b))
-                           etot = etot+energy
+                           etot = etot + energy
                         END IF
                         CALL add_force_nonbond(fshell_a, fshell_b, pv, fscalar, rab, use_virial)
 
@@ -426,7 +426,7 @@ CONTAINS
                            energy = potential_coulomb(rab2, fscalar, fac_ei*qcore_a*qshell_b, &
                                                       ewald_type, alpha, beta_b, &
                                                       ei_interaction_cutoffs(2, kind_b, kind_a))
-                           etot = etot+energy
+                           etot = etot + energy
                            CALL add_force_nonbond(fcore_a, fshell_b, pv, fscalar, rab, use_virial)
 
                            ! shell-core: Coulomb only
@@ -436,7 +436,7 @@ CONTAINS
                            energy = potential_coulomb(rab2, fscalar, fac_ei*qshell_a*qcore_b, &
                                                       ewald_type, alpha, beta_a, &
                                                       ei_interaction_cutoffs(2, kind_a, kind_b))
-                           etot = etot+energy
+                           etot = etot + energy
                            CALL add_force_nonbond(fshell_a, fcore_b, pv, fscalar, rab, use_virial)
                         END IF
                      ELSE IF ((shell_type == nosh_sh) .AND. (shell_a == 0)) THEN
@@ -446,7 +446,7 @@ CONTAINS
                         fscalar = 0.0_dp
                         IF (fac_vdw > 0) THEN
                            energy = potential_s(spline_data, rab2, fscalar, spl_f, logger)
-                           etot = etot+energy*fac_vdw
+                           etot = etot + energy*fac_vdw
                            fscalar = fscalar*fac_vdw
                         END IF
                         IF (fac_ei > 0) THEN
@@ -454,7 +454,7 @@ CONTAINS
                            energy = potential_coulomb(rab2, fscalar, fac_ei*qeff_a*qshell_b, &
                                                       ewald_type, alpha, beta, &
                                                       ei_interaction_cutoffs(3, kind_a, kind_b))
-                           etot = etot+energy
+                           etot = etot + energy
                         END IF
                         CALL add_force_nonbond(fatom_a, fshell_b, pv, fscalar, rab, use_virial)
                      ELSE IF ((shell_type == nosh_sh) .AND. (shell_b == 0)) THEN
@@ -464,7 +464,7 @@ CONTAINS
                         fscalar = 0.0_dp
                         IF (fac_vdw > 0) THEN
                            energy = potential_s(spline_data, rab2, fscalar, spl_f, logger)
-                           etot = etot+energy*fac_vdw
+                           etot = etot + energy*fac_vdw
                            fscalar = fscalar*fac_vdw
                         END IF
                         IF (fac_ei > 0) THEN
@@ -472,7 +472,7 @@ CONTAINS
                            energy = potential_coulomb(rab2, fscalar, fac_ei*qshell_a*qeff_b, &
                                                       ewald_type, alpha, beta, &
                                                       ei_interaction_cutoffs(3, kind_a, kind_b))
-                           etot = etot+energy
+                           etot = etot + energy
                         END IF
                         CALL add_force_nonbond(fshell_a, fatom_b, pv, fscalar, rab, use_virial)
                      END IF
@@ -486,7 +486,7 @@ CONTAINS
                      fscalar = 0.0_dp
                      IF (fac_vdw > 0) THEN
                         energy = potential_s(spline_data, rab2, fscalar, spl_f, logger)
-                        etot = etot+energy*fac_vdw
+                        etot = etot + energy*fac_vdw
                         fscalar = fscalar*fac_vdw
                      END IF
                      IF (fac_ei > 0) THEN
@@ -494,56 +494,56 @@ CONTAINS
                         energy = potential_coulomb(rab2, fscalar, fac_ei*qeff_a*qeff_b, &
                                                    ewald_type, alpha, beta, &
                                                    ei_interaction_cutoffs(3, kind_a, kind_b))
-                        etot = etot+energy
+                        etot = etot + energy
                      END IF
                      CALL add_force_nonbond(fatom_a, fatom_b, pv, fscalar, rab, use_virial)
                   END IF
                END IF
                ! Nonbonded energy
 !$OMP              ATOMIC
-               pot_nonbond = pot_nonbond+etot
+               pot_nonbond = pot_nonbond + etot
                IF (atprop_env%energy) THEN
                   ! Update atomic energies
 !$OMP                 ATOMIC
-                  atprop_env%atener(atom_a) = atprop_env%atener(atom_a)+0.5_dp*etot
+                  atprop_env%atener(atom_a) = atprop_env%atener(atom_a) + 0.5_dp*etot
 !$OMP                 ATOMIC
-                  atprop_env%atener(atom_b) = atprop_env%atener(atom_b)+0.5_dp*etot
+                  atprop_env%atener(atom_b) = atprop_env%atener(atom_b) + 0.5_dp*etot
                END IF
                ! Nonbonded forces
                DO i = 1, 3
 !$OMP                 ATOMIC
-                  f_nonbond(i, atom_a) = f_nonbond(i, atom_a)+fatom_a(i)
+                  f_nonbond(i, atom_a) = f_nonbond(i, atom_a) + fatom_a(i)
 !$OMP                 ATOMIC
-                  f_nonbond(i, atom_b) = f_nonbond(i, atom_b)+fatom_b(i)
+                  f_nonbond(i, atom_b) = f_nonbond(i, atom_b) + fatom_b(i)
                END DO
                IF (shell_a > 0) THEN
                   DO i = 1, 3
 !$OMP                    ATOMIC
-                     fcore_nonbond(i, shell_a) = fcore_nonbond(i, shell_a)+fcore_a(i)
+                     fcore_nonbond(i, shell_a) = fcore_nonbond(i, shell_a) + fcore_a(i)
 !$OMP                    ATOMIC
-                     fshell_nonbond(i, shell_a) = fshell_nonbond(i, shell_a)+fshell_a(i)
+                     fshell_nonbond(i, shell_a) = fshell_nonbond(i, shell_a) + fshell_a(i)
                   END DO
                END IF
                IF (shell_b > 0) THEN
                   DO i = 1, 3
 !$OMP                    ATOMIC
-                     fcore_nonbond(i, shell_b) = fcore_nonbond(i, shell_b)+fcore_b(i)
+                     fcore_nonbond(i, shell_b) = fcore_nonbond(i, shell_b) + fcore_b(i)
 !$OMP                    ATOMIC
-                     fshell_nonbond(i, shell_b) = fshell_nonbond(i, shell_b)+fshell_b(i)
+                     fshell_nonbond(i, shell_b) = fshell_nonbond(i, shell_b) + fshell_b(i)
                   END DO
                END IF
                ! Add the contribution of the current pair to the total pressure tensor
                IF (use_virial) THEN
                   DO i = 1, 3
                      DO j = 1, 3
-                        pv_thread(j, i) = pv_thread(j, i)+pv(j, i)
+                        pv_thread(j, i) = pv_thread(j, i) + pv(j, i)
                         ! Update atomic stress tensors
                         IF (atprop_env%stress) THEN
 !$OMP                          ATOMIC
-                           atprop_env%atstress(j, i, atom_a) = atprop_env%atstress(j, i, atom_a)+ &
+                           atprop_env%atstress(j, i, atom_a) = atprop_env%atstress(j, i, atom_a) + &
                                                                0.5_dp*pv(j, i)
 !$OMP                          ATOMIC
-                           atprop_env%atstress(j, i, atom_b) = atprop_env%atstress(j, i, atom_b)+ &
+                           atprop_env%atstress(j, i, atom_b) = atprop_env%atstress(j, i, atom_b) + &
                                                                0.5_dp*pv(j, i)
                         END IF
                      END DO
@@ -555,7 +555,7 @@ CONTAINS
                DO i = 1, 3
                   DO j = 1, 3
 !$OMP                    ATOMIC
-                     pv_nonbond(j, i) = pv_nonbond(j, i)+pv_thread(j, i)
+                     pv_nonbond(j, i) = pv_nonbond(j, i) + pv_thread(j, i)
                   END DO
                END DO
             END IF
@@ -602,22 +602,22 @@ CONTAINS
       fr(1) = fscalar*rab(1)
       fr(2) = fscalar*rab(2)
       fr(3) = fscalar*rab(3)
-      f_nonbond_a(1) = f_nonbond_a(1)-fr(1)
-      f_nonbond_a(2) = f_nonbond_a(2)-fr(2)
-      f_nonbond_a(3) = f_nonbond_a(3)-fr(3)
-      f_nonbond_b(1) = f_nonbond_b(1)+fr(1)
-      f_nonbond_b(2) = f_nonbond_b(2)+fr(2)
-      f_nonbond_b(3) = f_nonbond_b(3)+fr(3)
+      f_nonbond_a(1) = f_nonbond_a(1) - fr(1)
+      f_nonbond_a(2) = f_nonbond_a(2) - fr(2)
+      f_nonbond_a(3) = f_nonbond_a(3) - fr(3)
+      f_nonbond_b(1) = f_nonbond_b(1) + fr(1)
+      f_nonbond_b(2) = f_nonbond_b(2) + fr(2)
+      f_nonbond_b(3) = f_nonbond_b(3) + fr(3)
       IF (use_virial) THEN
-         pv(1, 1) = pv(1, 1)+rab(1)*fr(1)
-         pv(1, 2) = pv(1, 2)+rab(1)*fr(2)
-         pv(1, 3) = pv(1, 3)+rab(1)*fr(3)
-         pv(2, 1) = pv(2, 1)+rab(2)*fr(1)
-         pv(2, 2) = pv(2, 2)+rab(2)*fr(2)
-         pv(2, 3) = pv(2, 3)+rab(2)*fr(3)
-         pv(3, 1) = pv(3, 1)+rab(3)*fr(1)
-         pv(3, 2) = pv(3, 2)+rab(3)*fr(2)
-         pv(3, 3) = pv(3, 3)+rab(3)*fr(3)
+         pv(1, 1) = pv(1, 1) + rab(1)*fr(1)
+         pv(1, 2) = pv(1, 2) + rab(1)*fr(2)
+         pv(1, 3) = pv(1, 3) + rab(1)*fr(3)
+         pv(2, 1) = pv(2, 1) + rab(2)*fr(1)
+         pv(2, 2) = pv(2, 2) + rab(2)*fr(2)
+         pv(2, 3) = pv(2, 3) + rab(2)*fr(3)
+         pv(3, 1) = pv(3, 1) + rab(3)*fr(1)
+         pv(3, 2) = pv(3, 2) + rab(3)*fr(2)
+         pv(3, 3) = pv(3, 3) + rab(3)*fr(3)
       END IF
 
    END SUBROUTINE
@@ -733,7 +733,7 @@ CONTAINS
                END IF
                ! The amount of correction is related to the
                ! amount of scaling as follows:
-               fac_cor = 1.0_dp-fac_ei
+               fac_cor = 1.0_dp - fac_ei
                IF (fac_cor <= 0.0_dp) CYCLE
 
                ! Parameters for kind a
@@ -927,38 +927,38 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fij_com, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: fbc
 
-      rij = r1-r2
+      rij = r1 - r2
       rij = pbc(rij, cell)
-      rijsq = rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3)
+      rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
       idij = 1.0_dp/SQRT(rijsq)
       dij = rijsq*idij
       arg = alpha*dij
       e_arg_arg = EXP(-arg**2)
-      tc = 1.0_dp/(1.0_dp+pc*arg)
+      tc = 1.0_dp/(1.0_dp + pc*arg)
 
       ! Defining errf=1-erfc
-      errf = 1.0_dp-((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1)*tc*e_arg_arg
+      errf = 1.0_dp - ((((ac5*tc + ac4)*tc + ac3)*tc + ac2)*tc + ac1)*tc*e_arg_arg
 
       ! Getting the potential
       vbc = -q1*q2*idij*errf*fac_cor
-      v_bonded_corr = v_bonded_corr+vbc
+      v_bonded_corr = v_bonded_corr + vbc
       IF (atprop_env%energy) THEN
          iatom = particle_set1(i)%atom_index
-         atprop_env%atener(iatom) = atprop_env%atener(iatom)+0.5_dp*vbc
+         atprop_env%atener(iatom) = atprop_env%atener(iatom) + 0.5_dp*vbc
          jatom = particle_set2(j)%atom_index
-         atprop_env%atener(jatom) = atprop_env%atener(jatom)+0.5_dp*vbc
+         atprop_env%atener(jatom) = atprop_env%atener(jatom) + 0.5_dp*vbc
       END IF
 
       ! Subtracting the force from the total force
-      fscalar = q1*q2*idij**2*(idij*errf-const*e_arg_arg)*fac_cor
+      fscalar = q1*q2*idij**2*(idij*errf - const*e_arg_arg)*fac_cor
 
-      particle_set1(i)%f(1) = particle_set1(i)%f(1)-fscalar*rij(1)
-      particle_set1(i)%f(2) = particle_set1(i)%f(2)-fscalar*rij(2)
-      particle_set1(i)%f(3) = particle_set1(i)%f(3)-fscalar*rij(3)
+      particle_set1(i)%f(1) = particle_set1(i)%f(1) - fscalar*rij(1)
+      particle_set1(i)%f(2) = particle_set1(i)%f(2) - fscalar*rij(2)
+      particle_set1(i)%f(3) = particle_set1(i)%f(3) - fscalar*rij(3)
 
-      particle_set2(j)%f(1) = particle_set2(j)%f(1)+fscalar*rij(1)
-      particle_set2(j)%f(2) = particle_set2(j)%f(2)+fscalar*rij(2)
-      particle_set2(j)%f(3) = particle_set2(j)%f(3)+fscalar*rij(3)
+      particle_set2(j)%f(1) = particle_set2(j)%f(1) + fscalar*rij(1)
+      particle_set2(j)%f(2) = particle_set2(j)%f(2) + fscalar*rij(2)
+      particle_set2(j)%f(3) = particle_set2(j)%f(3) + fscalar*rij(3)
 
       IF (use_virial .AND. shell_adiabatic) THEN
          fij_com = fscalar*rij
@@ -971,13 +971,13 @@ CONTAINS
          fbc(3, 1) = -fij_com(3)*rij(1)
          fbc(3, 2) = -fij_com(3)*rij(2)
          fbc(3, 3) = -fij_com(3)*rij(3)
-         pv_bc(:, :) = pv_bc(:, :)+fbc(:, :)
+         pv_bc(:, :) = pv_bc(:, :) + fbc(:, :)
          IF (atprop_env%stress) THEN
             ! Atomic stress tensors
             iatom = particle_set1(i)%atom_index
-            atprop_env%atstress(:, :, iatom) = atprop_env%atstress(:, :, iatom)+0.5_dp*fbc(:, :)
+            atprop_env%atstress(:, :, iatom) = atprop_env%atstress(:, :, iatom) + 0.5_dp*fbc(:, :)
             jatom = particle_set2(j)%atom_index
-            atprop_env%atstress(:, :, jatom) = atprop_env%atstress(:, :, jatom)+0.5_dp*fbc(:, :)
+            atprop_env%atstress(:, :, jatom) = atprop_env%atstress(:, :, jatom) + 0.5_dp*fbc(:, :)
          END IF
       END IF
 
@@ -1032,9 +1032,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fr, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: fbc
 
-      rij = r1-r2
+      rij = r1 - r2
       rij = pbc(rij, cell)
-      rijsq = rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3)
+      rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
       dij = SQRT(rijsq)
       ! Two possible limiting cases according the value of dij
       arg = alpha*dij
@@ -1043,40 +1043,40 @@ CONTAINS
       IF (arg > 0.355_dp) THEN
          idij = 1.0_dp/dij
          e_arg_arg = EXP(-arg*arg)
-         tc = 1.0_dp/(1.0_dp+pc*arg)
+         tc = 1.0_dp/(1.0_dp + pc*arg)
          ! defining errf = 1 - erfc
-         errf = 1.0_dp-((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1)*tc*e_arg_arg
+         errf = 1.0_dp - ((((ac5*tc + ac4)*tc + ac3)*tc + ac2)*tc + ac1)*tc*e_arg_arg
          efac = idij*errf
-         ffac = idij**2*(efac-const*e_arg_arg)
+         ffac = idij**2*(efac - const*e_arg_arg)
       ELSE
          tc = arg*arg
          tc2 = tc*tc
          tc4 = tc2*tc2
-         efac = const*(1.0_dp-tc/3.0_dp+tc2/10.0_dp-tc*tc2/42.0_dp+tc4/216.0_dp- &
-                       tc*tc4/1320.0_dp+tc2*tc4/9360.0_dp)
-         ffac = const*alpha**2*(2.0_dp/3.0_dp-2.0_dp*tc/5.0_dp+tc2/7.0_dp-tc*tc2/27.0_dp+ &
-                                tc4/132.0_dp-tc*tc4/780.0_dp)
+         efac = const*(1.0_dp - tc/3.0_dp + tc2/10.0_dp - tc*tc2/42.0_dp + tc4/216.0_dp - &
+                       tc*tc4/1320.0_dp + tc2*tc4/9360.0_dp)
+         ffac = const*alpha**2*(2.0_dp/3.0_dp - 2.0_dp*tc/5.0_dp + tc2/7.0_dp - tc*tc2/27.0_dp + &
+                                tc4/132.0_dp - tc*tc4/780.0_dp)
       END IF
 
       ! getting the potential
       vbc = -q1*q2*efac
-      v_bonded_corr = v_bonded_corr+vbc
+      v_bonded_corr = v_bonded_corr + vbc
       IF (atprop_env%energy) THEN
          iatom = shell_particle_set(i)%atom_index
-         atprop_env%atener(iatom) = atprop_env%atener(iatom)+vbc
+         atprop_env%atener(iatom) = atprop_env%atener(iatom) + vbc
       END IF
 
       ! subtracting the force from the total force
       fscalar = q1*q2*ffac
       fr(:) = fscalar*rij(:)
 
-      core_particle_set(i)%f(1) = core_particle_set(i)%f(1)-fr(1)
-      core_particle_set(i)%f(2) = core_particle_set(i)%f(2)-fr(2)
-      core_particle_set(i)%f(3) = core_particle_set(i)%f(3)-fr(3)
+      core_particle_set(i)%f(1) = core_particle_set(i)%f(1) - fr(1)
+      core_particle_set(i)%f(2) = core_particle_set(i)%f(2) - fr(2)
+      core_particle_set(i)%f(3) = core_particle_set(i)%f(3) - fr(3)
 
-      shell_particle_set(i)%f(1) = shell_particle_set(i)%f(1)+fr(1)
-      shell_particle_set(i)%f(2) = shell_particle_set(i)%f(2)+fr(2)
-      shell_particle_set(i)%f(3) = shell_particle_set(i)%f(3)+fr(3)
+      shell_particle_set(i)%f(1) = shell_particle_set(i)%f(1) + fr(1)
+      shell_particle_set(i)%f(2) = shell_particle_set(i)%f(2) + fr(2)
+      shell_particle_set(i)%f(3) = shell_particle_set(i)%f(3) + fr(3)
 
       IF (use_virial .AND. shell_adiabatic) THEN
          fbc(1, 1) = -fr(1)*rij(1)
@@ -1088,11 +1088,11 @@ CONTAINS
          fbc(3, 1) = -fr(3)*rij(1)
          fbc(3, 2) = -fr(3)*rij(2)
          fbc(3, 3) = -fr(3)*rij(3)
-         pv_bc(:, :) = pv_bc(:, :)+fbc(:, :)
+         pv_bc(:, :) = pv_bc(:, :) + fbc(:, :)
          IF (atprop_env%stress) THEN
             ! Atomic stress tensors
             iatom = shell_particle_set(i)%atom_index
-            atprop_env%atstress(:, :, iatom) = atprop_env%atstress(:, :, iatom)+fbc(:, :)
+            atprop_env%atstress(:, :, iatom) = atprop_env%atstress(:, :, iatom) + fbc(:, :)
          END IF
       END IF
 

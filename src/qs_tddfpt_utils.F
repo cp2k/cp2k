@@ -203,7 +203,7 @@ CONTAINS
          ! create a SORTED list of initial guesses !
          !-----------------------------------------!
          ! first element
-         evd = tddfpt_control%lumos_eigenvalues(1, spin)-orbital_eigenvalues(n_orbits)
+         evd = tddfpt_control%lumos_eigenvalues(1, spin) - orbital_eigenvalues(n_orbits)
          ALLOCATE (sorter_start)
          sorter_start%orbit = n_orbits
          sorter_start%lumo = 1
@@ -215,7 +215,7 @@ CONTAINS
 
                IF (oo == n_orbits .AND. vo == 1) CYCLE ! already in list
 
-               evd = tddfpt_control%lumos_eigenvalues(vo, spin)-orbital_eigenvalues(oo)
+               evd = tddfpt_control%lumos_eigenvalues(vo, spin) - orbital_eigenvalues(oo)
 
                sorter_iterator => sorter_start
                NULLIFY (sorter_pointer)
@@ -250,11 +250,11 @@ CONTAINS
                        guess(:, sorter_iterator%orbit), 1)
             CALL cp_fm_set_submatrix(matrices(i, spin)%matrix, &
                                      guess(:, 1:n_orbits))
-            energies(i) = energies(i)+sorter_iterator%value/REAL(n_spins, dp)
+            energies(i) = energies(i) + sorter_iterator%value/REAL(n_spins, dp)
             sorter_iterator => sorter_iterator%next
          END DO
          IF (n_v > n_orbits*n_lumos) THEN
-            DO i = n_orbits*n_lumos+1, n_v
+            DO i = n_orbits*n_lumos + 1, n_v
                CALL cp_fm_init_random(matrices(i, spin)%matrix, n_orbits)
                energies(i) = 1.0E38_dp
             END DO
@@ -345,14 +345,14 @@ CONTAINS
                                            1, virt, nrows(spin), 1)
                   contribution = 0.0_dp
                   DO j = 1, nrows(spin)
-                     contribution = contribution+homo_coeff_col(j, 1)*lumo_coeff_col(j, 1)
+                     contribution = contribution + homo_coeff_col(j, 1)*lumo_coeff_col(j, 1)
                   END DO
-                  summed_contributions = summed_contributions+(contribution)**2
+                  summed_contributions = summed_contributions + (contribution)**2
                   IF (ABS(contribution) > 5.0e-2_dp) THEN
                      IF (output_unit > 0) WRITE (output_unit, '(14X,I5,A,I5,10X,F8.3,5X,F8.3)') &
-                        occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
+                        occ, " ->", nhomos(spin) + virt, ABS(contribution), summed_contributions
                   END IF
-                  IF (ABS(summed_contributions-1.0_dp) < 1.0e-3_dp) CYCLE searchloop
+                  IF (ABS(summed_contributions - 1.0_dp) < 1.0e-3_dp) CYCLE searchloop
                END DO
             END DO searchloop
          END DO
@@ -398,7 +398,7 @@ CONTAINS
                                       X(spin)%matrix%matrix_struct%ncol_global, &
                                       1.0_dp, 0.0_dp)
          CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
-         norm = norm+tmp
+         norm = norm + tmp
       END DO
 
       norm = SQRT(norm)
@@ -446,7 +446,7 @@ CONTAINS
             dot_product = 0.0_dp
             DO spin = 1, n_spins
                CALL cp_fm_trace(SV_set(i, spin)%matrix, work(spin)%matrix, tmp)
-               dot_product = dot_product+tmp
+               dot_product = dot_product + tmp
             END DO
             DO spin = 1, n_spins
                CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &

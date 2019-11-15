@@ -42,7 +42,7 @@ CONTAINS
       DO i = -shell*perd(1), shell*perd(1)
          DO j = -shell*perd(2), shell*perd(2)
             DO k = -shell*perd(3), shell*perd(3)
-               IF ((i**2+j**2+k**2 == shell)) count_cells_perd = count_cells_perd+1
+               IF ((i**2 + j**2 + k**2 == shell)) count_cells_perd = count_cells_perd + 1
             ENDDO
          ENDDO
       ENDDO
@@ -69,7 +69,7 @@ CONTAINS
          DO i = -shell*perd(1), shell*perd(1)
          DO j = -shell*perd(2), shell*perd(2)
             inner: DO k = -shell*perd(3), shell*perd(3)
-               IF (.NOT. (i**2+j**2+k**2 == shell)) CYCLE inner
+               IF (.NOT. (i**2 + j**2 + k**2 == shell)) CYCLE inner
                IF (found) THEN
                   m = (/i, j, k/)
                   EXIT outer
@@ -78,7 +78,7 @@ CONTAINS
             ENDDO inner
          ENDDO
          ENDDO
-         shell = shell+1
+         shell = shell + 1
       ENDDO outer
    END SUBROUTINE next_image_cell_perd
 

@@ -70,18 +70,18 @@ CONTAINS
       ! check if we passed a minimum
       passed_minimum = .TRUE.
       DO i = 1, mdctrl_data%bump_steps_upwards
-         IF (mdctrl_data%epot_history(i) <= mdctrl_data%epot_history(i+1)) &
+         IF (mdctrl_data%epot_history(i) <= mdctrl_data%epot_history(i + 1)) &
             passed_minimum = .FALSE.
       END DO
 
-      DO i = mdctrl_data%bump_steps_upwards+1, mdctrl_data%bump_steps_upwards+mdctrl_data%bump_steps_downwards
-         IF (mdctrl_data%epot_history(i) >= mdctrl_data%epot_history(i+1)) &
+      DO i = mdctrl_data%bump_steps_upwards + 1, mdctrl_data%bump_steps_upwards + mdctrl_data%bump_steps_downwards
+         IF (mdctrl_data%epot_history(i) >= mdctrl_data%epot_history(i + 1)) &
             passed_minimum = .FALSE.
       END DO
 
       ! count the passed bumps and stop md_run when md_bumps_max is reached.
       IF (passed_minimum) &
-         mdctrl_data%md_bump_counter = mdctrl_data%md_bump_counter+1
+         mdctrl_data%md_bump_counter = mdctrl_data%md_bump_counter + 1
 
       IF (mdctrl_data%md_bump_counter >= mdctrl_data%md_bumps_max) THEN
          should_stop = .TRUE.

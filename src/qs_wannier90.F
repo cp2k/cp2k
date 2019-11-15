@@ -219,15 +219,15 @@ CONTAINS
       nexcl = 0
       DO i_rep = 1, n_rep
          CALL section_vals_val_get(input, "EXCLUDE_BANDS", i_rep_val=i_rep, i_vals=invals)
-         nexcl = nexcl+SIZE(invals)
+         nexcl = nexcl + SIZE(invals)
       END DO
       IF (nexcl > 0) THEN
          ALLOCATE (exclude_bands(nexcl))
          nexcl = 0
          DO i_rep = 1, n_rep
             CALL section_vals_val_get(input, "EXCLUDE_BANDS", i_rep_val=i_rep, i_vals=invals)
-            exclude_bands(nexcl+1:nexcl+SIZE(invals)) = invals(:)
-            nexcl = nexcl+SIZE(invals)
+            exclude_bands(nexcl + 1:nexcl + SIZE(invals)) = invals(:)
+            nexcl = nexcl + SIZE(invals)
          END DO
       END IF
       !
@@ -250,10 +250,10 @@ CONTAINS
       kpoint%use_real_wfn = .FALSE.
       kpoint%parallel_group_size = 0
       i = 0
-      DO ix = 0, mp_grid(1)-1
-         DO iy = 0, mp_grid(2)-1
-            DO iz = 0, mp_grid(3)-1
-               i = i+1
+      DO ix = 0, mp_grid(1) - 1
+         DO iy = 0, mp_grid(2) - 1
+            DO iz = 0, mp_grid(3) - 1
+               i = i + 1
                kpt_latt(1, i) = REAL(ix, KIND=dp)/REAL(mp_grid(1), KIND=dp)
                kpt_latt(2, i) = REAL(iy, KIND=dp)/REAL(mp_grid(2), KIND=dp)
                kpt_latt(3, i) = REAL(iz, KIND=dp)/REAL(mp_grid(3), KIND=dp)
@@ -269,7 +269,7 @@ CONTAINS
       ! number of bands in calculation
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao, nmo=num_bands_tot)
-      num_bands_tot = MIN(nao, num_bands_tot+nadd)
+      num_bands_tot = MIN(nao, num_bands_tot + nadd)
       num_bands = num_wann
       num_atoms = SIZE(particle_set)
       ALLOCATE (atoms_cart(3, num_atoms))
@@ -360,7 +360,7 @@ CONTAINS
       DO ik = 1, SIZE(kpoint%kp_env)
          CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
          moskp => kpoint%kp_env(ik)%kpoint_env%mos
-         ikk = kpoint%kp_range(1)+ik-1
+         ikk = kpoint%kp_range(1) + ik - 1
          CPASSERT(ASSOCIATED(moskp))
          DO ispin = 1, SIZE(moskp, 2)
             DO ic = 1, SIZE(moskp, 1)
@@ -403,14 +403,14 @@ CONTAINS
       nbs = 0
       DO ik = 1, num_kpts
          DO i = 1, nntot
-            bvec(1:3) = kpt_latt(1:3, nnlist(ik, i))-kpt_latt(1:3, ik)+nncell(1:3, ik, i)
+            bvec(1:3) = kpt_latt(1:3, nnlist(ik, i)) - kpt_latt(1:3, ik) + nncell(1:3, ik, i)
             ibs = 0
             DO k = 1, nbs
-               IF (SUM(ABS(bvec(1:3)-b_latt(1:3, k))) < 1.e-6_dp) THEN
+               IF (SUM(ABS(bvec(1:3) - b_latt(1:3, k))) < 1.e-6_dp) THEN
                   ibs = k
                   EXIT
                END IF
-               IF (SUM(ABS(bvec(1:3)+b_latt(1:3, k))) < 1.e-6_dp) THEN
+               IF (SUM(ABS(bvec(1:3) + b_latt(1:3, k))) < 1.e-6_dp) THEN
                   ibs = -k
                   EXIT
                END IF
@@ -420,7 +420,7 @@ CONTAINS
                nblist(ik, i) = ibs
             ELSE
                ! new lattice vector
-               nbs = nbs+1
+               nbs = nbs + 1
                b_latt(1:3, nbs) = bvec(1:3)
                nblist(ik, i) = nbs
             END IF
@@ -475,7 +475,7 @@ CONTAINS
             ! get the MO coefficients for this k-point
             my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
             IF (my_kpgrp) THEN
-               ikk = ik-kpoint%kp_range(1)+1
+               ikk = ik - kpoint%kp_range(1) + 1
                kp => kpoint%kp_env(ikk)%kpoint_env
                CPASSERT(SIZE(kp%mos, 1) == 2)
                fmr => kp%mos(1, ispin)%mo_set%mo_coeff
@@ -493,7 +493,7 @@ CONTAINS
                ik2 = nnlist(ik, i)
                mygrp = (ik2 >= kpoint%kp_range(1) .AND. ik2 <= kpoint%kp_range(2))
                IF (mygrp) THEN
-                  ikk = ik2-kpoint%kp_range(1)+1
+                  ikk = ik2 - kpoint%kp_range(1) + 1
                   kp => kpoint%kp_env(ikk)%kpoint_env
                   CPASSERT(SIZE(kp%mos, 1) == 2)
                   fmr => kp%mos(1, ispin)%mo_set%mo_coeff
@@ -591,7 +591,7 @@ CONTAINS
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          DO ispin = 1, nspins
             IF (my_kpgrp) THEN
-               ikpgr = ik-kp_range(1)+1
+               ikpgr = ik - kp_range(1) + 1
                kp => kpoint%kp_env(ikpgr)%kpoint_env
                CALL get_mo_set(kp%mos(1, ispin)%mo_set, eigenvalues=eigenvalues)
                eigval(1:nmo) = eigenvalues(1:nmo)

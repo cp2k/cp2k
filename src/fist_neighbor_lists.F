@@ -359,13 +359,13 @@ CONTAINS
       ALLOCATE (cellmap(-ncellmax:ncellmax, -ncellmax:ncellmax, -ncellmax:ncellmax))
       cellmap = -1
       imap = 0
-      nkind00 = nkind*(nkind+1)/2
+      nkind00 = nkind*(nkind + 1)/2
       DO imax_cell = 0, ncellmax
          DO kcell = -imax_cell, imax_cell
             DO jcell = -imax_cell, imax_cell
                DO icell = -imax_cell, imax_cell
                   IF (cellmap(icell, jcell, kcell) == -1) THEN
-                     imap = imap+1
+                     imap = imap + 1
                      cellmap(icell, jcell, kcell) = imap
                      CPASSERT(imap <= nonbonded%nlists)
                      neighbor_kind_pair => nonbonded%neighbor_kind_pairs(imap)
@@ -384,7 +384,7 @@ CONTAINS
                        -isubcell(3):isubcell(3)))
       sphcub = .FALSE.
       IF (ALL(isubcell /= 0)) THEN
-         radius = REAL(isubcell(1), KIND=dp)**2+REAL(isubcell(2), KIND=dp)**2+ &
+         radius = REAL(isubcell(1), KIND=dp)**2 + REAL(isubcell(2), KIND=dp)**2 + &
                   REAL(isubcell(3), KIND=dp)**2
          loop1: DO k = -isubcell(3), isubcell(3)
             loop2: DO j = -isubcell(2), isubcell(2)
@@ -392,12 +392,12 @@ CONTAINS
                   ic = REAL((/i, j, k/), KIND=dp)
                   ! subcell cube vertex
                   DO kx = -1, 1
-                     icx(3) = ic(3)+SIGN(0.5_dp, REAL(kx, KIND=dp))
+                     icx(3) = ic(3) + SIGN(0.5_dp, REAL(kx, KIND=dp))
                      DO jx = -1, 1
-                        icx(2) = ic(2)+SIGN(0.5_dp, REAL(jx, KIND=dp))
+                        icx(2) = ic(2) + SIGN(0.5_dp, REAL(jx, KIND=dp))
                         DO ix = -1, 1
-                           icx(1) = ic(1)+SIGN(0.5_dp, REAL(ix, KIND=dp))
-                           vv = icx(1)*icx(1)+icx(2)*icx(2)+icx(3)*icx(3)
+                           icx(1) = ic(1) + SIGN(0.5_dp, REAL(ix, KIND=dp))
+                           vv = icx(1)*icx(1) + icx(2)*icx(2) + icx(3)*icx(3)
                            vv = vv/radius
                            IF (vv <= 1.0_dp) THEN
                               sphcub(i, j, k) = .TRUE.
@@ -422,7 +422,7 @@ CONTAINS
          DO iatom_local = 1, natom_local_a
             atom_a = atom(ikind)%list_local_a_index(iatom_local)
             CALL give_ijk_subcell(coord(:, atom_a), i, j, k, cell, nsubcell)
-            subcell_a(i, j, k)%natom = subcell_a(i, j, k)%natom+1
+            subcell_a(i, j, k)%natom = subcell_a(i, j, k)%natom + 1
          END DO
       END DO
       DO k = 1, nsubcell(3)
@@ -439,14 +439,14 @@ CONTAINS
          DO iatom_local = 1, natom_local_a
             atom_a = atom(ikind)%list_local_a_index(iatom_local)
             CALL give_ijk_subcell(coord(:, atom_a), i, j, k, cell, nsubcell)
-            subcell_a(i, j, k)%natom = subcell_a(i, j, k)%natom+1
+            subcell_a(i, j, k)%natom = subcell_a(i, j, k)%natom + 1
             subcell_a(i, j, k)%atom_list(subcell_a(i, j, k)%natom) = atom_a
          END DO
       END DO
       ! Associate particles to subcells (distributed particles)
       DO atom_b = 1, SIZE(particle_set)
          CALL give_ijk_subcell(coord(:, atom_b), i, j, k, cell, nsubcell)
-         subcell_b(i, j, k)%natom = subcell_b(i, j, k)%natom+1
+         subcell_b(i, j, k)%natom = subcell_b(i, j, k)%natom + 1
       END DO
       DO k = 1, nsubcell(3)
          DO j = 1, nsubcell(2)
@@ -458,7 +458,7 @@ CONTAINS
       END DO
       DO atom_b = 1, SIZE(particle_set)
          CALL give_ijk_subcell(coord(:, atom_b), i, j, k, cell, nsubcell)
-         subcell_b(i, j, k)%natom = subcell_b(i, j, k)%natom+1
+         subcell_b(i, j, k)%natom = subcell_b(i, j, k)%natom + 1
          subcell_b(i, j, k)%atom_list(subcell_b(i, j, k)%natom) = atom_b
       END DO
       ! Reorder atoms associated to subcells
@@ -492,24 +492,24 @@ CONTAINS
          IF (subcell_a(a_i, a_j, a_k)%natom == 0) CYCLE
          ! Loop over second subcell
          loop_b_k: DO ik = ik_start, isubcell(3)
-            bg_k = a_k+ik
+            bg_k = a_k + ik
             b_k = MOD(bg_k, zdim)
             b_pk = bg_k/zdim
             IF (b_k <= 0) THEN
-               b_k = zdim+b_k
-               b_pk = b_pk-1
+               b_k = zdim + b_k
+               b_pk = b_pk - 1
             END IF
             IF ((periodic(3) == 0) .AND. (ABS(b_pk) > 0)) CYCLE
             ! Setup the starting point.. this prescreens the order of the subcells
             ij_start = -isubcell(2)
             IF ((ik == 0) .AND. (ik_start == 0)) ij_start = 0
             loop_b_j: DO ij = ij_start, isubcell(2)
-               bg_j = a_j+ij
+               bg_j = a_j + ij
                b_j = MOD(bg_j, ydim)
                b_pj = bg_j/ydim
                IF (b_j <= 0) THEN
-                  b_j = ydim+b_j
-                  b_pj = b_pj-1
+                  b_j = ydim + b_j
+                  b_pj = b_pj - 1
                END IF
                IF ((periodic(2) == 0) .AND. (ABS(b_pj) > 0)) CYCLE
                ! Setup the starting point.. this prescreens the order of the subcells
@@ -518,12 +518,12 @@ CONTAINS
                loop_b_i: DO ii = ii_start, isubcell(1)
                   ! Ellipsoidal screening of subcells
                   IF (.NOT. sphcub(ii, ij, ik)) CYCLE
-                  bg_i = a_i+ii
+                  bg_i = a_i + ii
                   b_i = MOD(bg_i, xdim)
                   b_pi = bg_i/xdim
                   IF (b_i <= 0) THEN
-                     b_i = xdim+b_i
-                     b_pi = b_pi-1
+                     b_i = xdim + b_i
+                     b_pi = b_pi - 1
                   END IF
                   IF ((periodic(1) == 0) .AND. (ABS(b_pi) > 0)) CYCLE
                   IF (subcell_b(b_i, b_j, b_k)%natom == 0) CYCLE
@@ -541,9 +541,9 @@ CONTAINS
                   DO jatom_local = 1, subcell_b(b_i, b_j, b_k)%natom
                      atom_b = subcell_b(b_i, b_j, b_k)%atom_list(jatom_local)
                      jkind = particle_set(atom_b)%atomic_kind%kind_number
-                     rb(1) = coord(1, atom_b)+cell_v(1)
-                     rb(2) = coord(2, atom_b)+cell_v(2)
-                     rb(3) = coord(3, atom_b)+cell_v(3)
+                     rb(1) = coord(1, atom_b) + cell_v(1)
+                     rb(2) = coord(2, atom_b) + cell_v(2)
+                     rb(3) = coord(3, atom_b) + cell_v(3)
                      DO iatom_local = 1, subcell_a(a_i, a_j, a_k)%natom
                         atom_a = subcell_a(a_i, a_j, a_k)%atom_list(iatom_local)
                         ikind = particle_set(atom_a)%atomic_kind%kind_number
@@ -561,18 +561,18 @@ CONTAINS
                            END IF
                         END IF
                         IF (subcell000 .AND. atom_order) CYCLE
-                        rab(1) = rb(1)-coord(1, atom_a)
-                        rab(2) = rb(2)-coord(2, atom_a)
-                        rab(3) = rb(3)-coord(3, atom_a)
-                        rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+                        rab(1) = rb(1) - coord(1, atom_a)
+                        rab(2) = rb(2) - coord(2, atom_a)
+                        rab(3) = rb(3) - coord(3, atom_a)
+                        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                         rab_max = r_max(ikind, jkind)
                         rab2_max = rab_max*rab_max
                         IF (rab2 < rab2_max) THEN
                            ! Diagonal storage
                            j1 = MIN(ikind, jkind)
-                           i1 = MAX(ikind, jkind)-j1+1
-                           j1 = nkind-j1+1
-                           id_kind = nkind00-(j1*(j1+1)/2)+i1
+                           i1 = MAX(ikind, jkind) - j1 + 1
+                           j1 = nkind - j1 + 1
+                           id_kind = nkind00 - (j1*(j1 + 1)/2) + i1
                            ! Store the pair
                            CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
                                                   rab=rab, &
@@ -584,7 +584,7 @@ CONTAINS
                            IF ((atom_a == atom_b) .AND. (ik_start == 0)) THEN
                               invcellmap = cellmap(-b_pi, -b_pj, -b_pk)
                               inv_neighbor_kind_pair => nonbonded%neighbor_kind_pairs(invcellmap)
-                              rab = rab-2.0_dp*cell_v
+                              rab = rab - 2.0_dp*cell_v
                               CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b, &
                                                      rab=rab, &
                                                      check_spline=check_spline, id_kind=id_kind, &
@@ -673,7 +673,7 @@ CONTAINS
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
          CALL matvec_3x3(cell_v, cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
          DO ilist = 1, neighbor_kind_pair%npairs
-            nneighbor = nneighbor+1
+            nneighbor = nneighbor + 1
             IF (output_unit > 0) THEN
                ! Print second part of the headline
                atom_a = neighbor_kind_pair%list(1, ilist)
@@ -687,7 +687,7 @@ CONTAINS
 
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                rb(:) = pbc(particle_set(atom_b)%r, cell)
-               rab = rb(:)-ra(:)+cell_v
+               rab = rb(:) - ra(:) + cell_v
                dab = SQRT(DOT_PRODUCT(rab, rab))
                IF (ilist <= neighbor_kind_pair%nscale) THEN
                   WRITE (UNIT=output_unit, FMT="(T3,2(I6,3(1X,F10.6)),3(1X,I3),10X,F8.4,L4,F11.5,F9.5)") &
@@ -746,11 +746,11 @@ CONTAINS
       NULLIFY (neighbor_kind_pair)
       CALL timeset(routineN, handle)
       ! define a lookup table to get jkind for a given id_kind
-      ALLOCATE (indj(nkinds*(nkinds+1)/2))
+      ALLOCATE (indj(nkinds*(nkinds + 1)/2))
       id_kind = 0
       DO jkind = 1, nkinds
          DO ikind = jkind, nkinds
-            id_kind = id_kind+1
+            id_kind = id_kind + 1
             indj(id_kind) = jkind
          END DO
       END DO
@@ -765,16 +765,16 @@ CONTAINS
                ! scaled (possibly to zero for exclusion) are not touched. They
                ! stay packed in the beginning. Sorting is skipped altogether when
                ! all pairs have scaled interactions.
-               ALLOCATE (work(1:npairs-nscale))
-               ALLOCATE (list_copy(2, 1:npairs-nscale))
+               ALLOCATE (work(1:npairs - nscale))
+               ALLOCATE (list_copy(2, 1:npairs - nscale))
                ! Copy of the pair list is required to perform the permutation below
                ! correctly.
-               list_copy = neighbor_kind_pair%list(:, nscale+1:npairs)
-               CALL sort(neighbor_kind_pair%id_kind(nscale+1:npairs), npairs-nscale, work)
+               list_copy = neighbor_kind_pair%list(:, nscale + 1:npairs)
+               CALL sort(neighbor_kind_pair%id_kind(nscale + 1:npairs), npairs - nscale, work)
                ! Reorder atoms using the same permutation that was used to sort
                ! the array id_kind.
-               DO ipair = nscale+1, npairs
-                  tmp = work(ipair-nscale)
+               DO ipair = nscale + 1, npairs
+                  tmp = work(ipair - nscale)
                   neighbor_kind_pair%list(1, ipair) = list_copy(1, tmp)
                   neighbor_kind_pair%list(2, ipair) = list_copy(2, tmp)
                END DO
@@ -789,7 +789,7 @@ CONTAINS
             ! Allocate sufficient memory in case all pairs of atom kinds are
             ! present, and also provide storage for the pairs with exclusion
             ! flags, which are unsorted.
-            max_alloc_size = nkinds*(nkinds+1)/2+nscale
+            max_alloc_size = nkinds*(nkinds + 1)/2 + nscale
             IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
                DEALLOCATE (neighbor_kind_pair%grp_kind_start)
             END IF
@@ -809,21 +809,21 @@ CONTAINS
             ! Get ikind and jkind corresponding to id_kind.
             id_kind = neighbor_kind_pair%id_kind(ipair)
             jkind = indj(id_kind)
-            tmp = nkinds-jkind
-            ikind = nkinds+id_kind-nkinds*(nkinds+1)/2+(tmp*(tmp+1)/2)
+            tmp = nkinds - jkind
+            ikind = nkinds + id_kind - nkinds*(nkinds + 1)/2 + (tmp*(tmp + 1)/2)
             neighbor_kind_pair%ij_kind(1, neighbor_kind_pair%ngrp_kind) = ikind
             neighbor_kind_pair%ij_kind(2, neighbor_kind_pair%ngrp_kind) = jkind
             ! Define the remaining intervals.
             DO ipair = 2, npairs
-               IF (neighbor_kind_pair%id_kind(ipair) /= neighbor_kind_pair%id_kind(ipair-1)) THEN
-                  neighbor_kind_pair%grp_kind_end(neighbor_kind_pair%ngrp_kind) = ipair-1
-                  neighbor_kind_pair%ngrp_kind = neighbor_kind_pair%ngrp_kind+1
+               IF (neighbor_kind_pair%id_kind(ipair) /= neighbor_kind_pair%id_kind(ipair - 1)) THEN
+                  neighbor_kind_pair%grp_kind_end(neighbor_kind_pair%ngrp_kind) = ipair - 1
+                  neighbor_kind_pair%ngrp_kind = neighbor_kind_pair%ngrp_kind + 1
                   neighbor_kind_pair%grp_kind_start(neighbor_kind_pair%ngrp_kind) = ipair
                   ! Get ikind and jkind corresponding to id_kind.
                   id_kind = neighbor_kind_pair%id_kind(ipair)
                   jkind = indj(id_kind)
-                  tmp = nkinds-jkind
-                  ikind = nkinds+id_kind-nkinds*(nkinds+1)/2+(tmp*(tmp+1)/2)
+                  tmp = nkinds - jkind
+                  ikind = nkinds + id_kind - nkinds*(nkinds + 1)/2 + (tmp*(tmp + 1)/2)
                   neighbor_kind_pair%ij_kind(1, neighbor_kind_pair%ngrp_kind) = ikind
                   neighbor_kind_pair%ij_kind(2, neighbor_kind_pair%ngrp_kind) = jkind
                END IF

@@ -86,8 +86,8 @@ CONTAINS
 
 ! *** Calculate some prefactors ***
 
-      dac2 = rac(1)**2+rac(2)**2+rac(3)**2
-      dbc2 = rbc(1)**2+rbc(2)**2+rbc(3)**2
+      dac2 = rac(1)**2 + rac(2)**2 + rac(3)**2
+      dbc2 = rbc(1)**2 + rbc(2)**2 + rbc(3)**2
 
       ! *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -101,19 +101,19 @@ CONTAINS
 
             ! *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO j = nb+1, nb+ncoset(lb_max)
-                  DO i = na+1, na+ncoset(la_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO j = nb + 1, nb + ncoset(lb_max)
+                  DO i = na + 1, na + ncoset(la_max)
                      fcab(i, j) = 0.0_dp
                   ENDDO
                ENDDO
-               nb = nb+ncoset(lb_max)
+               nb = nb + ncoset(lb_max)
                CYCLE
             ENDIF
 
             ! *** Calculate some prefactors ***
 
-            f0 = 4.0_dp/3.0_dp*pi*EXP(-zeta(ipgf)*dac2-zetb(jpgf)*dbc2)
+            f0 = 4.0_dp/3.0_dp*pi*EXP(-zeta(ipgf)*dac2 - zetb(jpgf)*dbc2)
 
             ! *** Calculate the primitive Fermi contact integrals ***
 
@@ -121,10 +121,10 @@ CONTAINS
             DO bx = 0, lb
                fbx = 1.0_dp
                IF (bx .GT. 0) fbx = (rbc(1))**bx
-               DO by = 0, lb-bx
-                  bz = lb-bx-by
+               DO by = 0, lb - bx
+                  bz = lb - bx - by
                   cob = coset(bx, by, bz)
-                  mb = nb+cob
+                  mb = nb + cob
                   fby = 1.0_dp
                   IF (by .GT. 0) fby = (rbc(2))**by
                   fbz = 1.0_dp
@@ -133,10 +133,10 @@ CONTAINS
                   DO ax = 0, la
                      fax = fbx
                      IF (ax .GT. 0) fax = fbx*(rac(1))**ax
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
                         coa = coset(ax, ay, az)
-                        ma = na+coa
+                        ma = na + coa
                         fay = fby
                         IF (ay .GT. 0) fay = fby*(rac(2))**ay
                         faz = fbz
@@ -152,11 +152,11 @@ CONTAINS
             ENDDO
             ENDDO !lb
 
-            nb = nb+ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
 
          ENDDO
 
-         na = na+ncoset(la_max)
+         na = na + ncoset(la_max)
 
       ENDDO
 

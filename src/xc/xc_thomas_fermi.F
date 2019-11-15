@@ -81,16 +81,16 @@ CONTAINS
       IF (PRESENT(reference)) THEN
          reference = "Thomas-Fermi kinetic energy functional: see Parr and Yang"
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(reference)+6 < LEN(reference)) THEN
-               reference(LEN_TRIM(reference):LEN_TRIM(reference)+6) = ' {LDA}'
+            IF (LEN_TRIM(reference) + 6 < LEN(reference)) THEN
+               reference(LEN_TRIM(reference):LEN_TRIM(reference) + 6) = ' {LDA}'
             END IF
          END IF
       END IF
       IF (PRESENT(shortform)) THEN
          shortform = "Thomas-Fermi kinetic energy functional"
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(shortform)+6 < LEN(shortform)) THEN
-               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6) = ' {LDA}'
+            IF (LEN_TRIM(shortform) + 6 < LEN(shortform)) THEN
+               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform) + 6) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -137,7 +137,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=r13, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL thomas_fermi_init(epsilon_rho)
 
       IF (order >= 0) THEN
@@ -212,7 +212,7 @@ CONTAINS
                           rhob=rho(2)%array, &
                           rho_cutoff=epsilon_rho, &
                           local_bounds=bo)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL thomas_fermi_init(epsilon_rho)
 
       DO ispin = 1, 2
@@ -277,7 +277,7 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_0(ip) = e_0(ip)+flda*r13(ip)*r13(ip)*rho(ip)
+            e_0(ip) = e_0(ip) + flda*r13(ip)*r13(ip)*rho(ip)
 
          END IF
 
@@ -309,7 +309,7 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_rho(ip) = e_rho(ip)+f*r13(ip)*r13(ip)
+            e_rho(ip) = e_rho(ip) + f*r13(ip)*r13(ip)
 
          END IF
 
@@ -341,7 +341,7 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_rho_rho(ip) = e_rho_rho(ip)+f/r13(ip)
+            e_rho_rho(ip) = e_rho_rho(ip) + f/r13(ip)
 
          END IF
 
@@ -373,7 +373,7 @@ CONTAINS
 
          IF (rho(ip) > eps_rho) THEN
 
-            e_rho_rho_rho(ip) = e_rho_rho_rho(ip)+f/(r13(ip)*rho(ip))
+            e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f/(r13(ip)*rho(ip))
 
          END IF
 
@@ -401,7 +401,7 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rhoa(ip) > eps_rho) THEN
-            e_0(ip) = e_0(ip)+flsd*r13a(ip)*r13a(ip)*rhoa(ip)
+            e_0(ip) = e_0(ip) + flsd*r13a(ip)*r13a(ip)*rhoa(ip)
          END IF
 
       END DO
@@ -431,7 +431,7 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rhoa(ip) > eps_rho) THEN
-            e_rho(ip) = e_rho(ip)+f*r13a(ip)*r13a(ip)
+            e_rho(ip) = e_rho(ip) + f*r13a(ip)*r13a(ip)
          END IF
 
       END DO
@@ -462,7 +462,7 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rhoa(ip) > eps_rho) THEN
-            e_rho_rho(ip) = e_rho_rho(ip)+f/r13a(ip)
+            e_rho_rho(ip) = e_rho_rho(ip) + f/r13a(ip)
          END IF
 
       END DO
@@ -492,7 +492,7 @@ CONTAINS
       DO ip = 1, npoints
 
          IF (rhoa(ip) > eps_rho) THEN
-            e_rho_rho_rho(ip) = e_rho_rho_rho(ip)+f/(r13a(ip)*rhoa(ip))
+            e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f/(r13a(ip)*rhoa(ip))
          END IF
 
       END DO

@@ -157,7 +157,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(buffer%obj))
-      buffer%obj%ref_count = buffer%obj%ref_count+1
+      buffer%obj%ref_count = buffer%obj%ref_count + 1
    END SUBROUTINE fb_buffer_i_retain
 
 ! **************************************************************************************************
@@ -173,7 +173,7 @@ CONTAINS
 
       IF (ASSOCIATED(buffer%obj)) THEN
          CPASSERT(buffer%obj%ref_count > 0)
-         buffer%obj%ref_count = buffer%obj%ref_count-1
+         buffer%obj%ref_count = buffer%obj%ref_count - 1
          IF (buffer%obj%ref_count == 0) THEN
             buffer%obj%ref_count = 1
             IF (ASSOCIATED(buffer%obj%data_1d)) THEN
@@ -300,7 +300,7 @@ CONTAINS
       END IF
       ! obj meta data update
       buffer%obj%ref_count = 1
-      buffer%obj%id_nr = last_fb_buffer_i_id+1
+      buffer%obj%id_nr = last_fb_buffer_i_id + 1
       last_fb_buffer_i_id = buffer%obj%id_nr
    END SUBROUTINE fb_buffer_i_create
 
@@ -323,13 +323,13 @@ CONTAINS
       NULLIFY (new_disps, new_data)
 
       this_size = SIZE(data_1d)
-      new_n = buffer%obj%n+1
-      new_data_size = buffer%obj%disps(new_n)+this_size
+      new_n = buffer%obj%n + 1
+      new_data_size = buffer%obj%disps(new_n) + this_size
       ! resize when needed
-      IF (SIZE(buffer%obj%disps) .LT. new_n+1) THEN
+      IF (SIZE(buffer%obj%disps) .LT. new_n + 1) THEN
          ALLOCATE (new_disps(new_n*2))
          new_disps = 0
-         new_disps(1:buffer%obj%n+1) = buffer%obj%disps(1:buffer%obj%n+1)
+         new_disps(1:buffer%obj%n + 1) = buffer%obj%disps(1:buffer%obj%n + 1)
          DEALLOCATE (buffer%obj%disps)
          buffer%obj%disps => new_disps
       END IF
@@ -342,8 +342,8 @@ CONTAINS
          buffer%obj%data_1d => new_data
       END IF
       ! append to the buffer
-      buffer%obj%disps(new_n+1) = new_data_size
-      buffer%obj%data_1d(buffer%obj%disps(new_n)+1:new_data_size) = &
+      buffer%obj%disps(new_n + 1) = new_data_size
+      buffer%obj%data_1d(buffer%obj%disps(new_n) + 1:new_data_size) = &
          data_1d(1:this_size)
       buffer%obj%n = new_n
    END SUBROUTINE fb_buffer_i_add
@@ -366,8 +366,8 @@ CONTAINS
 
       CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
       buffer%obj%disps(1) = 0
-      DO ii = 2, buffer%obj%n+1
-         buffer%obj%disps(ii) = buffer%obj%disps(ii-1)+sizes(ii-1)
+      DO ii = 2, buffer%obj%n + 1
+         buffer%obj%disps(ii) = buffer%obj%disps(ii - 1) + sizes(ii - 1)
       END DO
    END SUBROUTINE fb_buffer_i_calc_disps
 
@@ -388,7 +388,7 @@ CONTAINS
 
       CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
       DO ii = 1, buffer%obj%n
-         sizes(ii) = buffer%obj%disps(ii+1)-buffer%obj%disps(ii)
+         sizes(ii) = buffer%obj%disps(ii + 1) - buffer%obj%disps(ii)
       END DO
    END SUBROUTINE fb_buffer_i_calc_sizes
 
@@ -433,7 +433,7 @@ CONTAINS
       INTEGER                                            :: ncols, slice_size
 
       IF (PRESENT(n)) n = buffer%obj%n
-      IF (PRESENT(data_size)) data_size = buffer%obj%disps(buffer%obj%n+1)
+      IF (PRESENT(data_size)) data_size = buffer%obj%disps(buffer%obj%n + 1)
       IF (PRESENT(sizes)) THEN
          CALL fb_buffer_calc_sizes(buffer, sizes)
       END IF
@@ -444,10 +444,10 @@ CONTAINS
       IF (PRESENT(data_1d)) THEN
          IF (PRESENT(i_slice)) THEN
             CPASSERT(i_slice .LE. buffer%obj%n)
-            data_1d => buffer%obj%data_1d(buffer%obj%disps(i_slice)+1: &
-                                          buffer%obj%disps(i_slice+1))
+            data_1d => buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
+                                          buffer%obj%disps(i_slice + 1))
          ELSE
-            data_1d => buffer%obj%data_1d(1:buffer%obj%disps(buffer%obj%n+1))
+            data_1d => buffer%obj%data_1d(1:buffer%obj%disps(buffer%obj%n + 1))
          END IF
       END IF
       IF (PRESENT(data_2d)) THEN
@@ -458,12 +458,12 @@ CONTAINS
          ! associate pointer unless copied to a targeted array. b) in
          ! F2003 standard, pointers should rank remap automatically by
          ! association to a rank 1 array
-         slice_size = buffer%obj%disps(i_slice+1)-buffer%obj%disps(i_slice)
+         slice_size = buffer%obj%disps(i_slice + 1) - buffer%obj%disps(i_slice)
          ncols = slice_size/data_2d_ld
          CPASSERT(slice_size == data_2d_ld*ncols)
          data_2d(1:data_2d_ld, 1:ncols) => &
-            buffer%obj%data_1d(buffer%obj%disps(i_slice)+1: &
-                               buffer%obj%disps(i_slice+1))
+            buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
+                               buffer%obj%disps(i_slice + 1))
       END IF
    END SUBROUTINE fb_buffer_i_get
 
@@ -485,10 +485,10 @@ CONTAINS
 
       INTEGER                                            :: slice_size
 
-      slice_size = buffer%obj%disps(i_slice+1)-buffer%obj%disps(i_slice)
+      slice_size = buffer%obj%disps(i_slice + 1) - buffer%obj%disps(i_slice)
       CPASSERT(SIZE(data_1d) == slice_size)
-      buffer%obj%data_1d(buffer%obj%disps(i_slice)+1: &
-                         buffer%obj%disps(i_slice+1)) = data_1d
+      buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
+                         buffer%obj%disps(i_slice + 1)) = data_1d
    END SUBROUTINE fb_buffer_i_replace
 
 ! DOUBLE PRECISION VERSION
@@ -505,7 +505,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(buffer%obj))
-      buffer%obj%ref_count = buffer%obj%ref_count+1
+      buffer%obj%ref_count = buffer%obj%ref_count + 1
    END SUBROUTINE fb_buffer_d_retain
 
 ! **************************************************************************************************
@@ -521,7 +521,7 @@ CONTAINS
 
       IF (ASSOCIATED(buffer%obj)) THEN
          CPASSERT(buffer%obj%ref_count > 0)
-         buffer%obj%ref_count = buffer%obj%ref_count-1
+         buffer%obj%ref_count = buffer%obj%ref_count - 1
          IF (buffer%obj%ref_count == 0) THEN
             buffer%obj%ref_count = 1
             IF (ASSOCIATED(buffer%obj%data_1d)) THEN
@@ -631,7 +631,7 @@ CONTAINS
       END IF
       ! allocate the arrays
       ALLOCATE (buffer%obj%data_1d(my_max_size))
-      ALLOCATE (buffer%obj%disps(my_nslices+1))
+      ALLOCATE (buffer%obj%disps(my_nslices + 1))
       buffer%obj%data_1d = 0
       buffer%obj%disps = 0
       ! set n for buffer before calc disps
@@ -649,7 +649,7 @@ CONTAINS
       END IF
       ! obj meta data update
       buffer%obj%ref_count = 1
-      buffer%obj%id_nr = last_fb_buffer_d_id+1
+      buffer%obj%id_nr = last_fb_buffer_d_id + 1
       last_fb_buffer_d_id = buffer%obj%id_nr
    END SUBROUTINE fb_buffer_d_create
 
@@ -673,13 +673,13 @@ CONTAINS
       NULLIFY (new_disps, new_data)
 
       this_size = SIZE(data_1d)
-      new_n = buffer%obj%n+1
-      new_data_size = buffer%obj%disps(new_n)+this_size
+      new_n = buffer%obj%n + 1
+      new_data_size = buffer%obj%disps(new_n) + this_size
       ! resize when needed
-      IF (SIZE(buffer%obj%disps) .LT. new_n+1) THEN
+      IF (SIZE(buffer%obj%disps) .LT. new_n + 1) THEN
          ALLOCATE (new_disps(new_n*2))
          new_disps = 0
-         new_disps(1:buffer%obj%n+1) = buffer%obj%disps(1:buffer%obj%n+1)
+         new_disps(1:buffer%obj%n + 1) = buffer%obj%disps(1:buffer%obj%n + 1)
          DEALLOCATE (buffer%obj%disps)
          buffer%obj%disps => new_disps
       END IF
@@ -692,8 +692,8 @@ CONTAINS
          buffer%obj%data_1d => new_data
       END IF
       ! append to the buffer
-      buffer%obj%disps(new_n+1) = new_data_size
-      buffer%obj%data_1d(buffer%obj%disps(new_n)+1:new_data_size) = &
+      buffer%obj%disps(new_n + 1) = new_data_size
+      buffer%obj%data_1d(buffer%obj%disps(new_n) + 1:new_data_size) = &
          data_1d(1:this_size)
       buffer%obj%n = new_n
    END SUBROUTINE fb_buffer_d_add
@@ -716,8 +716,8 @@ CONTAINS
 
       CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
       buffer%obj%disps(1) = 0
-      DO ii = 2, buffer%obj%n+1
-         buffer%obj%disps(ii) = buffer%obj%disps(ii-1)+sizes(ii-1)
+      DO ii = 2, buffer%obj%n + 1
+         buffer%obj%disps(ii) = buffer%obj%disps(ii - 1) + sizes(ii - 1)
       END DO
    END SUBROUTINE fb_buffer_d_calc_disps
 
@@ -738,7 +738,7 @@ CONTAINS
 
       CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
       DO ii = 1, buffer%obj%n
-         sizes(ii) = buffer%obj%disps(ii+1)-buffer%obj%disps(ii)
+         sizes(ii) = buffer%obj%disps(ii + 1) - buffer%obj%disps(ii)
       END DO
    END SUBROUTINE fb_buffer_d_calc_sizes
 
@@ -783,7 +783,7 @@ CONTAINS
       INTEGER                                            :: ncols, slice_size
 
       IF (PRESENT(n)) n = buffer%obj%n
-      IF (PRESENT(data_size)) data_size = buffer%obj%disps(buffer%obj%n+1)
+      IF (PRESENT(data_size)) data_size = buffer%obj%disps(buffer%obj%n + 1)
       IF (PRESENT(sizes)) THEN
          CALL fb_buffer_calc_sizes(buffer, sizes)
       END IF
@@ -794,10 +794,10 @@ CONTAINS
       IF (PRESENT(data_1d)) THEN
          IF (PRESENT(i_slice)) THEN
             CPASSERT(i_slice .LE. buffer%obj%n)
-            data_1d => buffer%obj%data_1d(buffer%obj%disps(i_slice)+1: &
-                                          buffer%obj%disps(i_slice+1))
+            data_1d => buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
+                                          buffer%obj%disps(i_slice + 1))
          ELSE
-            data_1d => buffer%obj%data_1d(1:buffer%obj%disps(buffer%obj%n+1))
+            data_1d => buffer%obj%data_1d(1:buffer%obj%disps(buffer%obj%n + 1))
          END IF
       END IF
       IF (PRESENT(data_2d)) THEN
@@ -808,12 +808,12 @@ CONTAINS
          ! associate pointer unless copied to a targeted array. b) in
          ! F2003 standard, pointers should rank remap automatically by
          ! association to a rank 1 array
-         slice_size = buffer%obj%disps(i_slice+1)-buffer%obj%disps(i_slice)
+         slice_size = buffer%obj%disps(i_slice + 1) - buffer%obj%disps(i_slice)
          ncols = slice_size/data_2d_ld
          CPASSERT(slice_size == data_2d_ld*ncols)
          data_2d(1:data_2d_ld, 1:ncols) => &
-            buffer%obj%data_1d(buffer%obj%disps(i_slice)+1: &
-                               buffer%obj%disps(i_slice+1))
+            buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
+                               buffer%obj%disps(i_slice + 1))
       END IF
    END SUBROUTINE fb_buffer_d_get
 
@@ -835,10 +835,10 @@ CONTAINS
 
       INTEGER                                            :: slice_size
 
-      slice_size = buffer%obj%disps(i_slice+1)-buffer%obj%disps(i_slice)
+      slice_size = buffer%obj%disps(i_slice + 1) - buffer%obj%disps(i_slice)
       CPASSERT(SIZE(data_1d) == slice_size)
-      buffer%obj%data_1d(buffer%obj%disps(i_slice)+1: &
-                         buffer%obj%disps(i_slice+1)) = data_1d
+      buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
+                         buffer%obj%disps(i_slice + 1)) = data_1d
    END SUBROUTINE fb_buffer_d_replace
 
 END MODULE qs_fb_buffer_types

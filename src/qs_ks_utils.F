@@ -228,7 +228,7 @@ CONTAINS
       CPASSERT(n_rep == Nterms)
       CALL section_vals_val_get(low_spin_roks_section, "SPIN_CONFIGURATION", i_rep_val=1, i_vals=ivec)
       Nelectron = SIZE(ivec)
-      CPASSERT(Nelectron == k_alpha-k_beta)
+      CPASSERT(Nelectron == k_alpha - k_beta)
       ALLOCATE (occupations(2, Nelectron, Nterms))
       occupations = 0
       DO iterm = 1, Nterms
@@ -299,7 +299,7 @@ CONTAINS
             ! compute the proper density matrices with the required occupations
             CALL dbcsr_set(matrix_p(ispin)%matrix, 0.0_dp)
             scaling = 1.0_dp
-            scaling(k_alpha-Nelectron+1:k_alpha) = occupations(ispin, :, iterm)
+            scaling(k_alpha - Nelectron + 1:k_alpha) = occupations(ispin, :, iterm)
             CALL dbcsr_copy(fm_scaled, mo_coeff)
             CALL dbcsr_scale_by_vector(fm_scaled, scaling, side='right')
             CALL dbcsr_multiply('n', 't', 1.0_dp, mo_coeff, fm_scaled, &
@@ -321,7 +321,7 @@ CONTAINS
                                    pw_pool=xc_pw_pool, compute_virial=.FALSE., virial_xc=virial_xc_tmp)
          END IF
 
-         energy%exc = energy%exc+energy_scaling(iterm)*exc
+         energy%exc = energy%exc + energy_scaling(iterm)*exc
 
          ! add the corresponding derivatives to the MO derivatives
          IF (.NOT. just_energy) THEN
@@ -344,7 +344,7 @@ CONTAINS
                                    0.0_dp, dbcsr_deriv, last_column=k_alpha)
 
                scaling = 1.0_dp
-               scaling(k_alpha-Nelectron+1:k_alpha) = occupations(ispin, :, iterm)
+               scaling(k_alpha - Nelectron + 1:k_alpha) = occupations(ispin, :, iterm)
                CALL dbcsr_scale_by_vector(dbcsr_deriv, scaling, side='right')
                CALL dbcsr_add(mo_derivs(1)%matrix, dbcsr_deriv, 1.0_dp, 1.0_dp)
             ENDDO
@@ -483,18 +483,18 @@ CONTAINS
             CALL cp_fm_get_info(mo_coeff, ncol_global=k_beta)
          ENDIF
 
-         Norb = k_alpha+k_beta
+         Norb = k_alpha + k_beta
          ALLOCATE (sic_orbital_list(3, Norb))
 
          iorb = 0
          DO i = 1, k_alpha
-            iorb = iorb+1
+            iorb = iorb + 1
             sic_orbital_list(1, iorb) = 1
             sic_orbital_list(2, iorb) = i
             sic_orbital_list(3, iorb) = 1
          ENDDO
          DO i = 1, k_beta
-            iorb = iorb+1
+            iorb = iorb + 1
             sic_orbital_list(1, iorb) = 2
             sic_orbital_list(2, iorb) = i
             IF (SIZE(mo_derivs, 1) == 1) THEN
@@ -517,12 +517,12 @@ CONTAINS
          CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=k_beta)
 
-         Norb = k_alpha-k_beta
+         Norb = k_alpha - k_beta
          ALLOCATE (sic_orbital_list(3, Norb))
 
          iorb = 0
-         DO i = k_beta+1, k_alpha
-            iorb = iorb+1
+         DO i = k_beta + 1, k_alpha
+            iorb = iorb + 1
             sic_orbital_list(1, iorb) = 1
             sic_orbital_list(2, iorb) = i
             ! we are guaranteed to be restricted
@@ -620,7 +620,7 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
          ! no PBC correction is done here, see "calc_v_sic_rspace" for SIC methods
          ! with PBC aware corrections
-         energy%hartree = energy%hartree-dft_control%sic_scaling_a*ener
+         energy%hartree = energy%hartree - dft_control%sic_scaling_a*ener
          IF (.NOT. just_energy) THEN
             CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
             CALL pw_scale(work_v_rspace%pw, -dft_control%sic_scaling_a*work_v_rspace%pw%pw_grid%dvol)
@@ -639,7 +639,7 @@ CONTAINS
             work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d- &
                                     dft_control%sic_scaling_b*vxc(1)%pw%pw_grid%dvol*vxc(1)%pw%cr3d
          END IF
-         energy%exc = energy%exc-dft_control%sic_scaling_b*exc
+         energy%exc = energy%exc - dft_control%sic_scaling_b*exc
 
          IF (.NOT. just_energy) THEN
             ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
@@ -755,7 +755,7 @@ CONTAINS
          CALL get_qs_env(qs_env, mos=mo_array)
          CALL get_mo_set(mo_set=mo_array(1)%mo_set, nelectron=nelec_a)
          CALL get_mo_set(mo_set=mo_array(2)%mo_set, nelectron=nelec_b)
-         nelec = nelec_a+nelec_b
+         nelec = nelec_a + nelec_b
          CALL pw_copy(rho_g(1)%pw, work_rho%pw)
          CALL pw_axpy(rho_g(2)%pw, work_rho%pw)
          scaling = 1.0_dp/REAL(nelec, KIND=dp)
@@ -771,14 +771,14 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, force=force)
          nforce = 0
          DO i = 1, SIZE(force)
-            nforce = nforce+SIZE(force(i)%ch_pulay, 2)
+            nforce = nforce + SIZE(force(i)%ch_pulay, 2)
          ENDDO
          ALLOCATE (store_forces(3, nforce))
          nforce = 0
          DO i = 1, SIZE(force)
-            store_forces(1:3, nforce+1:nforce+SIZE(force(i)%ch_pulay, 2)) = force(i)%ch_pulay(:, :)
+            store_forces(1:3, nforce + 1:nforce + SIZE(force(i)%ch_pulay, 2)) = force(i)%ch_pulay(:, :)
             force(i)%ch_pulay(:, :) = 0.0_dp
-            nforce = nforce+SIZE(force(i)%ch_pulay, 2)
+            nforce = nforce + SIZE(force(i)%ch_pulay, 2)
          ENDDO
       ENDIF
 
@@ -797,15 +797,15 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown sic method id")
       END SELECT
-      energy%hartree = energy%hartree+full_scaling*ener
+      energy%hartree = energy%hartree + full_scaling*ener
 
       ! add scaled forces, restoring the old
       IF (calculate_forces) THEN
          nforce = 0
          DO i = 1, SIZE(force)
-            force(i)%ch_pulay(:, :) = force(i)%ch_pulay(:, :)*full_scaling+ &
-                                      store_forces(1:3, nforce+1:nforce+SIZE(force(i)%ch_pulay, 2))
-            nforce = nforce+SIZE(force(i)%ch_pulay, 2)
+            force(i)%ch_pulay(:, :) = force(i)%ch_pulay(:, :)*full_scaling + &
+                                      store_forces(1:3, nforce + 1:nforce + SIZE(force(i)%ch_pulay, 2))
+            nforce = nforce + SIZE(force(i)%ch_pulay, 2)
          ENDDO
       ENDIF
 
@@ -863,7 +863,7 @@ CONTAINS
                                          extension=".scfLog")
 
       CALL qs_rho_get(rho, tot_rho_r=tot_rho_r_arr, rho_ao_kp=rho_ao)
-      n_electrons = n_electrons-dft_control%charge
+      n_electrons = n_electrons - dft_control%charge
       tot_rho_r = accurate_sum(tot_rho_r_arr)
 
       trace = 0
@@ -871,7 +871,7 @@ CONTAINS
          DO ispin = 1, dft_control%nspins
             DO img = 1, dft_control%nimages
                CALL dbcsr_dot(rho_ao(ispin, img)%matrix, matrix_s(1, img)%matrix, trace_tmp)
-               trace = trace+trace_tmp
+               trace = trace + trace_tmp
             END DO
          END DO
       ENDIF
@@ -881,18 +881,18 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="((T3,A,T41,2F20.10))") &
             "Electronic density on regular grids: ", &
             tot_rho_r, &
-            tot_rho_r+ &
+            tot_rho_r + &
             REAL(n_electrons, dp), &
             "Core density on regular grids:", &
             qs_charges%total_rho_core_rspace, &
-            qs_charges%total_rho_core_rspace-REAL(n_electrons+dft_control%charge, dp)
+            qs_charges%total_rho_core_rspace - REAL(n_electrons + dft_control%charge, dp)
       END IF
       IF (dft_control%qs_control%gapw) THEN
          tot1_h = qs_charges%total_rho1_hard(1)
          tot1_s = qs_charges%total_rho1_soft(1)
          DO ispin = 2, dft_control%nspins
-            tot1_h = tot1_h+qs_charges%total_rho1_hard(ispin)
-            tot1_s = tot1_s+qs_charges%total_rho1_soft(ispin)
+            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
          END DO
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="((T3,A,T41,2F20.10))") &
@@ -900,21 +900,21 @@ CONTAINS
                tot1_h, tot1_s
             WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
                "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ", &
-               tot_rho_r+tot1_h-tot1_s, &
+               tot_rho_r + tot1_h - tot1_s, &
                "Total charge density (r-space):      ", &
-               tot_rho_r+tot1_h-tot1_s &
-               +qs_charges%total_rho_core_rspace, &
+               tot_rho_r + tot1_h - tot1_s &
+               + qs_charges%total_rho_core_rspace, &
                "Total Rho_soft + Rho0_soft (g-space):", &
                qs_charges%total_rho_gspace
          END IF
-         qs_charges%background = tot_rho_r+tot1_h-tot1_s+ &
+         qs_charges%background = tot_rho_r + tot1_h - tot1_s + &
                                  qs_charges%total_rho_core_rspace
       ELSE IF (dft_control%qs_control%gapw_xc) THEN
          tot1_h = qs_charges%total_rho1_hard(1)
          tot1_s = qs_charges%total_rho1_soft(1)
          DO ispin = 2, dft_control%nspins
-            tot1_h = tot1_h+qs_charges%total_rho1_hard(ispin)
-            tot1_s = tot1_s+qs_charges%total_rho1_soft(ispin)
+            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
          END DO
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T41,2F20.10))") &
@@ -922,20 +922,20 @@ CONTAINS
                tot1_h, tot1_s
             WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
                "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ", &
-               accurate_sum(tot_rho_r_arr)+tot1_h-tot1_s
+               accurate_sum(tot_rho_r_arr) + tot1_h - tot1_s
          END IF
-         qs_charges%background = tot_rho_r+ &
+         qs_charges%background = tot_rho_r + &
                                  qs_charges%total_rho_core_rspace
       ELSE
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
                "Total charge density on r-space grids:     ", &
-               tot_rho_r+ &
+               tot_rho_r + &
                qs_charges%total_rho_core_rspace, &
                "Total charge density g-space grids:     ", &
                qs_charges%total_rho_gspace
          END IF
-         qs_charges%background = tot_rho_r+ &
+         qs_charges%background = tot_rho_r + &
                                  qs_charges%total_rho_core_rspace
       END IF
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="()")
@@ -998,18 +998,18 @@ CONTAINS
                      "Core Hamiltonian energy:                       ", energy%core, &
                      "Hartree energy:                                ", implicit_ps_ehartree, &
                      "Electric enthalpy:                             ", energy%hartree, &
-                     "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+                     "Exchange-correlation energy:                   ", energy%exc + energy%exc_aux_fit
                CASE (PERIODIC_BC, NEUMANN_BC)
                   WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
                      "Core Hamiltonian energy:                       ", energy%core, &
                      "Hartree energy:                                ", energy%hartree, &
-                     "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+                     "Exchange-correlation energy:                   ", energy%exc + energy%exc_aux_fit
                END SELECT
             ELSE
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
                   "Core Hamiltonian energy:                       ", energy%core, &
                   "Hartree energy:                                ", energy%hartree, &
-                  "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+                  "Exchange-correlation energy:                   ", energy%exc + energy%exc_aux_fit
             END IF
          ELSE
 !ZMP to print some variables at each step
@@ -1319,7 +1319,7 @@ CONTAINS
             ! CDFT constraint contribution
             IF (dft_control%qs_control%cdft) THEN
                DO igroup = 1, SIZE(cdft_control%group)
-                  SELECT CASE (cdft_control%group (igroup)%constraint_type)
+                  SELECT CASE (cdft_control%group(igroup)%constraint_type)
                   CASE (cdft_charge_constraint)
                      sign = 1.0_dp
                   CASE (cdft_magnetization_constraint)
@@ -1801,9 +1801,9 @@ CONTAINS
             ns1 = SIZE(qs_env%spin_embed_pot%pw%cr3d)
             IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
             IF (ispin .EQ. 1) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :)+qs_env%spin_embed_pot%pw%cr3d
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :) + qs_env%spin_embed_pot%pw%cr3d
             IF (ispin .EQ. 2) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :)-qs_env%spin_embed_pot%pw%cr3d
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%pw%cr3d
          ENDIF
          ! Integrate the density*potential
          embed_corr_local = accurate_sum(v_rspace_embed(ispin)%pw%cr3d*rho_r(ispin)%pw%cr3d)* &
@@ -1813,7 +1813,7 @@ CONTAINS
             CALL mp_sum(embed_corr_local, v_rspace_embed(ispin)%pw%pw_grid%para%group)
          END IF
 
-         embed_corr = embed_corr+embed_corr_local
+         embed_corr = embed_corr + embed_corr_local
 
       ENDDO
 

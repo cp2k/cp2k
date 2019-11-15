@@ -445,13 +445,13 @@ CONTAINS
             CALL cp_fm_get_element(zij(1, jdir)%matrix, istate, istate, realpart)
             CALL cp_fm_get_element(zij(2, jdir)%matrix, istate, istate, imagpart)
             z = CMPLX(realpart, imagpart, dp)
-            spread_i = spread_i-weights(jdir)* &
-                       LOG(realpart*realpart+imagpart*imagpart)/twopi/twopi
-            spread_ii = spread_ii+weights(jdir)* &
-                        (1.0_dp-(realpart*realpart+imagpart*imagpart))/twopi/twopi
+            spread_i = spread_i - weights(jdir)* &
+                       LOG(realpart*realpart + imagpart*imagpart)/twopi/twopi
+            spread_ii = spread_ii + weights(jdir)* &
+                        (1.0_dp - (realpart*realpart + imagpart*imagpart))/twopi/twopi
             IF (jdir < 4) THEN
                DO idir = 1, 3
-                  c(idir) = c(idir)+ &
+                  c(idir) = c(idir) + &
                             (cell%hmat(idir, jdir)/twopi)*AIMAG(LOG(z))
                ENDDO
             END IF
@@ -460,8 +460,8 @@ CONTAINS
          centers(1:3, istate) = cpbc(1:3)
          centers(4, istate) = spread_i
          centers(5, istate) = spread_ii
-         sum_spread_i = sum_spread_i+centers(4, istate)
-         sum_spread_ii = sum_spread_ii+centers(5, istate)
+         sum_spread_i = sum_spread_i + centers(4, istate)
+         sum_spread_ii = sum_spread_ii + centers(5, istate)
          IF (unit_out_s > 0 .AND. .NOT. my_only_init) WRITE (unit_out_s, '(I6,2F16.8)') istate, centers(4:5, istate)
       ENDDO
 
@@ -553,7 +553,7 @@ CONTAINS
 
       DO iatom = 1, natom
          DO istate = 1, nstate
-            Qii(istate) = Qii(istate)+diag(istate, iatom)*diag(istate, iatom)
+            Qii(istate) = Qii(istate) + diag(istate, iatom)*diag(istate, iatom)
             IF (ABS(diag(istate, iatom)) > ziimax(istate)) THEN
                ziimax(istate) = ABS(diag(istate, iatom))
                atom_of_state(istate) = iatom
@@ -710,7 +710,7 @@ CONTAINS
             imoloc = 0
             DO i = lb, ub
                ! Get the index in the subset
-               imoloc = imoloc+1
+               imoloc = imoloc + 1
                ! Get the index in the full set
                imo = localized_wfn_control%loc_states(i, ispin)
 
@@ -743,12 +743,12 @@ CONTAINS
             ! Provides boundaries of MOs
             CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LU_BOUNDS", &
                                       i_vals=bounds)
-            ncubes = bounds(2)-bounds(1)+1
+            ncubes = bounds(2) - bounds(1) + 1
             IF (ncubes > 0) THEN
                list_cubes_setup = .TRUE.
                ALLOCATE (list_cubes(ncubes))
                DO ir = 1, ncubes
-                  list_cubes(ir) = bounds(1)+(ir-1)
+                  list_cubes(ir) = bounds(1) + (ir - 1)
                END DO
             END IF
 
@@ -761,11 +761,11 @@ CONTAINS
                   CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LIST", &
                                             i_rep_val=ir, i_vals=list)
                   IF (ASSOCIATED(list)) THEN
-                     CALL reallocate(list_cubes, 1, ncubes+SIZE(list))
+                     CALL reallocate(list_cubes, 1, ncubes + SIZE(list))
                      DO i = 1, SIZE(list)
-                        list_cubes(i+ncubes) = list(i)
+                        list_cubes(i + ncubes) = list(i)
                      END DO
-                     ncubes = ncubes+SIZE(list)
+                     ncubes = ncubes + SIZE(list)
                   END IF
                END DO
                IF (ncubes > 0) list_cubes_setup = .TRUE.
@@ -908,7 +908,7 @@ CONTAINS
       END IF
 
       DO istate = 1, nstates
-         ivector = state_list(istate)-my_state0
+         ivector = state_list(istate) - my_state0
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, cell=cell, &
                          dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
 
@@ -1042,7 +1042,7 @@ CONTAINS
       NULLIFY (particle_set, atomic_kind_set, atomic_kind, logger)
       logger => cp_get_default_logger()
       natom = SIZE(qs_loc_env%particle_set)
-      ntot = natom+SIZE(center, 2)
+      ntot = natom + SIZE(center, 2)
       CALL allocate_particle_set(particle_set, ntot)
       ALLOCATE (atomic_kind_set(1))
       atomic_kind => atomic_kind_set(1)
@@ -1054,9 +1054,9 @@ CONTAINS
          particle_set(i)%r = pbc(qs_loc_env%particle_set(i)%r, qs_loc_env%cell)
       END DO
       ! Wannier Centers
-      DO i = natom+1, ntot
+      DO i = natom + 1, ntot
          particle_set(i)%atomic_kind => atomic_kind
-         particle_set(i)%r = pbc(center(1:3, i-natom), qs_loc_env%cell)
+         particle_set(i)%r = pbc(center(1:3, i - natom), qs_loc_env%cell)
       END DO
       ! Dump the structure
       CALL section_vals_val_get(print_key, "FORMAT", i_val=outformat)

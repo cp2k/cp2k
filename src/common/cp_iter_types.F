@@ -102,7 +102,7 @@ CONTAINS
       IF (stat /= 0) &
          CPABORT(routineP//" could not allocate iteration_info")
 
-      last_it_info_id = last_it_info_id+1
+      last_it_info_id = last_it_info_id + 1
       iteration_info%id_nr = last_it_info_id
       iteration_info%ref_count = 1
       iteration_info%print_level = 2
@@ -146,7 +146,7 @@ CONTAINS
       IF (iteration_info%ref_count <= 0) THEN
          CPABORT(routineP//" iteration_info%ref_counf<=0")
       END IF
-      iteration_info%ref_count = iteration_info%ref_count+1
+      iteration_info%ref_count = iteration_info%ref_count + 1
    END SUBROUTINE cp_iteration_info_retain
 
 ! **************************************************************************************************
@@ -164,7 +164,7 @@ CONTAINS
          IF (iteration_info%ref_count <= 0) THEN
             CPABORT(routineP//" iteration_info%ref_counf<=0")
          END IF
-         iteration_info%ref_count = iteration_info%ref_count-1
+         iteration_info%ref_count = iteration_info%ref_count - 1
          IF (iteration_info%ref_count == 0) THEN
             IF (ASSOCIATED(iteration_info%iteration)) THEN
                DEALLOCATE (iteration_info%iteration)

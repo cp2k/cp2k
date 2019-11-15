@@ -245,12 +245,12 @@ CONTAINS
 
       ALLOCATE (all_pid(para_env%num_pe))
       all_pid(:) = 0
-      all_pid(para_env%mepos+1) = r_pid
+      all_pid(para_env%mepos + 1) = r_pid
 
       CALL mp_sum(all_pid, para_env%group)
       ALLOCATE (all_host(30, para_env%num_pe))
       all_host(:, :) = 0
-      CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos+1))
+      CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
       CALL mp_sum(all_host, para_env%group)
       IF (output_unit > 0) THEN
 
@@ -259,7 +259,7 @@ CONTAINS
             CALL ascii_to_string(all_host(:, ipe), string)
             WRITE (UNIT=output_unit, FMT="(T2,A,T63,I8,T71,I10)") &
                TRIM(r_user_name)//"@"//TRIM(string)// &
-               " has created rank and process ", ipe-1, all_pid(ipe)
+               " has created rank and process ", ipe - 1, all_pid(ipe)
          END DO
          WRITE (UNIT=output_unit, FMT="(T2,A)") ""
       END IF
@@ -289,7 +289,7 @@ CONTAINS
       all_host(:, :) = 0
 
       IF (m_procrun(r_pid) .EQ. 1) THEN
-         CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos+1))
+         CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
          CALL mp_sum(all_host, para_env%group)
       ENDIF
 
@@ -305,7 +305,7 @@ CONTAINS
                DO jpe = 1, para_env%num_pe
                   CALL ascii_to_string(all_host(:, jpe), string_sec)
                   IF (string .EQ. string_sec) THEN
-                     nr_occu = nr_occu+1
+                     nr_occu = nr_occu + 1
                      all_pid(jpe) = -1
                   ENDIF
                END DO
@@ -1092,7 +1092,7 @@ CONTAINS
          READ (txt(1:n), FMT="(I2,A1,I2,A1,I2)", IOSTAT=ierr) hours, c1, minutes, c2, seconds
          IF (n /= 8 .OR. ierr /= 0 .OR. c1 .NE. ":" .OR. c2 .NE. ":") &
             CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
-         walltime = 3600.0_dp*REAL(hours, dp)+60.0_dp*REAL(minutes, dp)+REAL(seconds, dp)
+         walltime = 3600.0_dp*REAL(hours, dp) + 60.0_dp*REAL(minutes, dp) + REAL(seconds, dp)
       END IF
    END SUBROUTINE cp2k_get_walltime
 

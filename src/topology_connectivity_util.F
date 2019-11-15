@@ -117,23 +117,23 @@ CONTAINS
       map_atom_type = -1
       map_atom_mol(1) = 1
       map_atom_type(1) = 1
-      DO i = 1, natom-1
-         IF ((atom_info%map_mol_typ(i+1) /= atom_info%map_mol_typ(i)) .OR. &
-             ((atom_info%map_mol_res(i+1) /= atom_info%map_mol_res(i)) .AND. &
+      DO i = 1, natom - 1
+         IF ((atom_info%map_mol_typ(i + 1) /= atom_info%map_mol_typ(i)) .OR. &
+             ((atom_info%map_mol_res(i + 1) /= atom_info%map_mol_res(i)) .AND. &
               (.NOT. (topology%conn_type == do_conn_user)))) THEN
-            topology%nmol_type = topology%nmol_type+1
+            topology%nmol_type = topology%nmol_type + 1
          END IF
-         map_atom_type(i+1) = topology%nmol_type
-         IF ((atom_info%map_mol_typ(i+1) /= atom_info%map_mol_typ(i)) .OR. &
-             (atom_info%map_mol_num(i+1) /= atom_info%map_mol_num(i)) .OR. &
-             (atom_info%map_mol_res(i+1) /= atom_info%map_mol_res(i))) THEN
-            topology%nmol = topology%nmol+1
+         map_atom_type(i + 1) = topology%nmol_type
+         IF ((atom_info%map_mol_typ(i + 1) /= atom_info%map_mol_typ(i)) .OR. &
+             (atom_info%map_mol_num(i + 1) /= atom_info%map_mol_num(i)) .OR. &
+             (atom_info%map_mol_res(i + 1) /= atom_info%map_mol_res(i))) THEN
+            topology%nmol = topology%nmol + 1
          END IF
-         map_atom_mol(i+1) = topology%nmol
-         IF ((atom_info%map_mol_typ(i+1) == atom_info%map_mol_typ(i)) .AND. &
-             (atom_info%map_mol_num(i+1) == atom_info%map_mol_num(i)) .AND. &
-             (atom_info%map_mol_res(i+1) /= atom_info%map_mol_res(i))) THEN
-            topology%nmol_conn = topology%nmol_conn+1
+         map_atom_mol(i + 1) = topology%nmol
+         IF ((atom_info%map_mol_typ(i + 1) == atom_info%map_mol_typ(i)) .AND. &
+             (atom_info%map_mol_num(i + 1) == atom_info%map_mol_num(i)) .AND. &
+             (atom_info%map_mol_res(i + 1) /= atom_info%map_mol_res(i))) THEN
+            topology%nmol_conn = topology%nmol_conn + 1
          END IF
       END DO
       IF (iw > 0) WRITE (iw, *) "topology%nmol ::", topology%nmol
@@ -219,8 +219,8 @@ CONTAINS
       ikind = map_atom_type(1)
       imol = ABS(map_atom_mol(1))
       counter = 0
-      DO i = 1, natom-1
-         IF (ikind /= map_atom_type(i+1)) THEN
+      DO i = 1, natom - 1
+         IF (ikind /= map_atom_type(i + 1)) THEN
             found = .TRUE.
             found_last = .FALSE.
             imol = ABS(map_atom_mol(i))
@@ -234,9 +234,9 @@ CONTAINS
          END IF
 
          IF (found) THEN
-            ALLOCATE (molecule_list(imol-counter))
+            ALLOCATE (molecule_list(imol - counter))
             DO j = 1, SIZE(molecule_list)
-               molecule_list(j) = j+counter
+               molecule_list(j) = j + counter
             END DO
             molecule_kind => molecule_kind_set(ikind)
             CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -244,16 +244,16 @@ CONTAINS
             IF (iw > 0) WRITE (iw, *) "      molecule_list", ikind, molecule_list(:)
             IF (found_last) EXIT
             counter = imol
-            ikind = map_atom_type(i+1)
+            ikind = map_atom_type(i + 1)
          END IF
       END DO
       ! Treat separately the case in which the last atom is also a molecule
       IF (i == natom) THEN
          imol = ABS(map_atom_mol(natom))
          ! Last atom is also a molecule by itself
-         ALLOCATE (molecule_list(imol-counter))
+         ALLOCATE (molecule_list(imol - counter))
          DO j = 1, SIZE(molecule_list)
-            molecule_list(j) = j+counter
+            molecule_list(j) = j + counter
          END DO
          molecule_kind => molecule_kind_set(ikind)
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -297,13 +297,13 @@ CONTAINS
             ityp = atom_info%map_mol_typ(j)
             inum = atom_info%map_mol_num(j)
             ires = atom_info%map_mol_res(j)
-            imol = imol+1
+            imol = imol + 1
             first_list(imol) = j
          END IF
       END DO
       CPASSERT(imol == topology%nmol)
-      DO ikind = 1, topology%nmol-1
-         last_list(ikind) = first_list(ikind+1)-1
+      DO ikind = 1, topology%nmol - 1
+         last_list(ikind) = first_list(ikind + 1) - 1
       END DO
       last_list(topology%nmol) = topology%natoms
       CALL set_molecule_set(molecule_set, first_list, last_list)
@@ -335,12 +335,12 @@ CONTAINS
             CALL get_molecule(molecule=molecule, &
                               first_atom=first, last_atom=last)
             natom = 0
-            IF (first /= 0 .AND. last /= 0) natom = last-first+1
+            IF (first /= 0 .AND. last /= 0) natom = last - first + 1
             ALLOCATE (atom_list(natom))
             DO i = 1, natom
                !Atomic kind information will be filled in (PART 2)
                NULLIFY (atom_list(i)%atomic_kind)
-               atom_list(i)%id_name = atom_info%id_atmname(i+first-1)
+               atom_list(i)%id_name = atom_info%id_atmname(i + first - 1)
                IF (iw > 0) WRITE (iw, '(5X,A,3I5,1X,A5)') "atom_list ", &
                   imol, counter, i, TRIM(id2str(atom_list(i)%id_name))
             END DO
@@ -383,29 +383,29 @@ CONTAINS
          intra_bonds = 0
          inter_bonds = 0
          IF (ALL(bnd_type(:, i) > 0)) THEN
-            intra_bonds = bnd_type(2, i)-bnd_type(1, i)+1
+            intra_bonds = bnd_type(2, i) - bnd_type(1, i) + 1
          END IF
          IF (ALL(bnd_ctype(:, i) > 0)) THEN
-            inter_bonds = bnd_ctype(2, i)-bnd_ctype(1, i)+1
+            inter_bonds = bnd_ctype(2, i) - bnd_ctype(1, i) + 1
          END IF
-         ibond = intra_bonds+inter_bonds
+         ibond = intra_bonds + inter_bonds
          IF (iw > 0) THEN
             WRITE (iw, *) "    Total number bonds for molecule type ", i, " :", ibond
             WRITE (iw, *) "    intra (bonds inside  molecules) :: ", intra_bonds
             WRITE (iw, *) "    inter (bonds between molecules) :: ", inter_bonds
          END IF
          molecule_kind => molecule_kind_set(i)
-         nval_tot2 = nval_tot2+ibond*SIZE(molecule_kind%molecule_list)
+         nval_tot2 = nval_tot2 + ibond*SIZE(molecule_kind%molecule_list)
 
          ALLOCATE (bond_list(ibond))
          ibond = 0
          DO j = bnd_type(1, i), bnd_type(2, i)
             IF (j == 0) CYCLE
-            ibond = ibond+1
+            ibond = ibond + 1
             jind = map_vars(j)
             first = first_list(map_atom_mol(conn_info%bond_a(jind)))
-            bond_list(ibond)%a = conn_info%bond_a(jind)-first+1
-            bond_list(ibond)%b = conn_info%bond_b(jind)-first+1
+            bond_list(ibond)%a = conn_info%bond_a(jind) - first + 1
+            bond_list(ibond)%b = conn_info%bond_b(jind) - first + 1
             ! Set by default id_type to charmm and modify when handling the forcefield
             bond_list(ibond)%id_type = do_ff_charmm
             IF ((topology%conn_type == do_conn_g96) .OR. (topology%conn_type == do_conn_g87)) THEN
@@ -419,18 +419,18 @@ CONTAINS
                   conn_info%bond_a(jind), &
                   conn_info%bond_b(jind), &
                   "offset number at", &
-                  conn_info%bond_a(jind)-first+1, &
-                  conn_info%bond_b(jind)-first+1
+                  conn_info%bond_a(jind) - first + 1, &
+                  conn_info%bond_b(jind) - first + 1
             END IF
          END DO
          DO j = bnd_ctype(1, i), bnd_ctype(2, i)
             IF (j == 0) CYCLE
-            ibond = ibond+1
+            ibond = ibond + 1
             jind = map_cvars(j)
             min_index = MIN(conn_info%c_bond_a(jind), conn_info%c_bond_b(jind))
             first = first_list(map_atom_mol(min_index))
-            bond_list(ibond)%a = conn_info%c_bond_a(jind)-first+1
-            bond_list(ibond)%b = conn_info%c_bond_b(jind)-first+1
+            bond_list(ibond)%a = conn_info%c_bond_a(jind) - first + 1
+            bond_list(ibond)%b = conn_info%c_bond_b(jind) - first + 1
             ! Set by default id_type to charmm and modify when handling the forcefield
             bond_list(ibond)%id_type = do_ff_charmm
             IF ((topology%conn_type == do_conn_g96) .OR. (topology%conn_type == do_conn_g87)) THEN
@@ -444,8 +444,8 @@ CONTAINS
                   conn_info%c_bond_a(jind), &
                   conn_info%c_bond_b(jind), &
                   "offset number at", &
-                  conn_info%c_bond_a(jind)-first+1, &
-                  conn_info%c_bond_b(jind)-first+1
+                  conn_info%c_bond_a(jind) - first + 1, &
+                  conn_info%c_bond_b(jind) - first + 1
             END IF
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -489,7 +489,7 @@ CONTAINS
             j2 = map_atom_mol(conn_info%theta_b(j))
             j3 = map_atom_mol(conn_info%theta_c(j))
             IF (j1 /= j2 .OR. j2 /= j3) THEN
-               idim = idim+1
+               idim = idim + 1
             END IF
          END DO
          CALL reallocate(c_var_a, 1, idim)
@@ -504,7 +504,7 @@ CONTAINS
             j2 = map_atom_mol(conn_info%theta_b(j))
             j3 = map_atom_mol(conn_info%theta_c(j))
             IF (j1 /= j2 .OR. j2 /= j3) THEN
-               idim = idim+1
+               idim = idim + 1
                c_var_a(idim) = conn_info%theta_a(j)
                c_var_b(idim) = conn_info%theta_b(j)
                c_var_c(idim) = conn_info%theta_c(j)
@@ -547,29 +547,29 @@ CONTAINS
          intra_bends = 0
          inter_bends = 0
          IF (ALL(bnd_type(:, i) > 0)) THEN
-            intra_bends = bnd_type(2, i)-bnd_type(1, i)+1
+            intra_bends = bnd_type(2, i) - bnd_type(1, i) + 1
          END IF
          IF (ALL(bnd_ctype(:, i) > 0)) THEN
-            inter_bends = bnd_ctype(2, i)-bnd_ctype(1, i)+1
+            inter_bends = bnd_ctype(2, i) - bnd_ctype(1, i) + 1
          END IF
-         ibend = intra_bends+inter_bends
+         ibend = intra_bends + inter_bends
          IF (iw > 0) THEN
             WRITE (iw, *) "    Total number of angles for molecule type ", i, " :", ibend
             WRITE (iw, *) "    intra (angles inside  molecules) :: ", intra_bends
             WRITE (iw, *) "    inter (angles between molecules) :: ", inter_bends
          END IF
          molecule_kind => molecule_kind_set(i)
-         nval_tot2 = nval_tot2+ibend*SIZE(molecule_kind%molecule_list)
+         nval_tot2 = nval_tot2 + ibend*SIZE(molecule_kind%molecule_list)
          ALLOCATE (bend_list(ibend))
          ibend = 0
          DO j = bnd_type(1, i), bnd_type(2, i)
             IF (j == 0) CYCLE
-            ibend = ibend+1
+            ibend = ibend + 1
             jind = map_vars(j)
             first = first_list(map_atom_mol(conn_info%theta_a(jind)))
-            bend_list(ibend)%a = conn_info%theta_a(jind)-first+1
-            bend_list(ibend)%b = conn_info%theta_b(jind)-first+1
-            bend_list(ibend)%c = conn_info%theta_c(jind)-first+1
+            bend_list(ibend)%a = conn_info%theta_a(jind) - first + 1
+            bend_list(ibend)%b = conn_info%theta_b(jind) - first + 1
+            bend_list(ibend)%c = conn_info%theta_c(jind) - first + 1
             ! Set by default id_type to charmm and modify when handling the forcefield
             bend_list(ibend)%id_type = do_ff_charmm
             IF ((topology%conn_type == do_conn_g96) .OR. (topology%conn_type == do_conn_g87)) THEN
@@ -584,20 +584,20 @@ CONTAINS
                   conn_info%theta_b(jind), &
                   conn_info%theta_c(jind), &
                   "offset number at", &
-                  conn_info%theta_a(jind)-first+1, &
-                  conn_info%theta_b(jind)-first+1, &
-                  conn_info%theta_c(jind)-first+1
+                  conn_info%theta_a(jind) - first + 1, &
+                  conn_info%theta_b(jind) - first + 1, &
+                  conn_info%theta_c(jind) - first + 1
             END IF
          END DO
          DO j = bnd_ctype(1, i), bnd_ctype(2, i)
             IF (j == 0) CYCLE
-            ibend = ibend+1
+            ibend = ibend + 1
             jind = map_cvars(j)
             min_index = MIN(c_var_a(jind), c_var_b(jind), c_var_c(jind))
             first = first_list(map_atom_mol(min_index))
-            bend_list(ibend)%a = c_var_a(jind)-first+1
-            bend_list(ibend)%b = c_var_b(jind)-first+1
-            bend_list(ibend)%c = c_var_c(jind)-first+1
+            bend_list(ibend)%a = c_var_a(jind) - first + 1
+            bend_list(ibend)%b = c_var_b(jind) - first + 1
+            bend_list(ibend)%c = c_var_c(jind) - first + 1
             ! Set by default id_type to charmm and modify when handling the forcefield
             bend_list(ibend)%id_type = do_ff_charmm
             IF ((topology%conn_type == do_conn_g96) .OR. (topology%conn_type == do_conn_g87)) THEN
@@ -612,9 +612,9 @@ CONTAINS
                   c_var_b(jind), &
                   c_var_c(jind), &
                   "offset number at", &
-                  c_var_a(jind)-first+1, &
-                  c_var_b(jind)-first+1, &
-                  c_var_c(jind)-first+1
+                  c_var_a(jind) - first + 1, &
+                  c_var_b(jind) - first + 1, &
+                  c_var_c(jind) - first + 1
             END IF
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -649,7 +649,7 @@ CONTAINS
             j2 = map_atom_mol(conn_info%ub_b(j))
             j3 = map_atom_mol(conn_info%ub_c(j))
             IF (j1 /= j2 .OR. j2 /= j3) THEN
-               idim = idim+1
+               idim = idim + 1
             END IF
          END DO
          CALL reallocate(c_var_a, 1, idim)
@@ -661,7 +661,7 @@ CONTAINS
             j2 = map_atom_mol(conn_info%ub_b(j))
             j3 = map_atom_mol(conn_info%ub_c(j))
             IF (j1 /= j2 .OR. j2 /= j3) THEN
-               idim = idim+1
+               idim = idim + 1
                c_var_a(idim) = conn_info%ub_a(j)
                c_var_b(idim) = conn_info%ub_b(j)
                c_var_c(idim) = conn_info%ub_c(j)
@@ -701,29 +701,29 @@ CONTAINS
          intra_ubs = 0
          inter_ubs = 0
          IF (ALL(bnd_type(:, i) > 0)) THEN
-            intra_ubs = bnd_type(2, i)-bnd_type(1, i)+1
+            intra_ubs = bnd_type(2, i) - bnd_type(1, i) + 1
          END IF
          IF (ALL(bnd_ctype(:, i) > 0)) THEN
-            inter_ubs = bnd_ctype(2, i)-bnd_ctype(1, i)+1
+            inter_ubs = bnd_ctype(2, i) - bnd_ctype(1, i) + 1
          END IF
-         iub = intra_ubs+inter_ubs
+         iub = intra_ubs + inter_ubs
          IF (iw > 0) THEN
             WRITE (iw, *) "    Total number of Urey-Bradley for molecule type ", i, " :", iub
             WRITE (iw, *) "    intra (UB inside  molecules) :: ", intra_ubs
             WRITE (iw, *) "    inter (UB between molecules) :: ", inter_ubs
          END IF
          molecule_kind => molecule_kind_set(i)
-         nval_tot2 = nval_tot2+iub*SIZE(molecule_kind%molecule_list)
+         nval_tot2 = nval_tot2 + iub*SIZE(molecule_kind%molecule_list)
          ALLOCATE (ub_list(iub))
          iub = 0
          DO j = bnd_type(1, i), bnd_type(2, i)
             IF (j == 0) CYCLE
-            iub = iub+1
+            iub = iub + 1
             jind = map_vars(j)
             first = first_list(map_atom_mol(conn_info%ub_a(jind)))
-            ub_list(iub)%a = conn_info%ub_a(jind)-first+1
-            ub_list(iub)%b = conn_info%ub_b(jind)-first+1
-            ub_list(iub)%c = conn_info%ub_c(jind)-first+1
+            ub_list(iub)%a = conn_info%ub_a(jind) - first + 1
+            ub_list(iub)%b = conn_info%ub_b(jind) - first + 1
+            ub_list(iub)%c = conn_info%ub_c(jind) - first + 1
             ub_list(iub)%id_type = do_ff_charmm
             !point this to the right ub_kind_type if using force field
             NULLIFY (ub_list(iub)%ub_kind)
@@ -734,20 +734,20 @@ CONTAINS
                   conn_info%ub_b(jind), &
                   conn_info%ub_c(jind), &
                   "offset number at", &
-                  conn_info%ub_a(jind)-first+1, &
-                  conn_info%ub_b(jind)-first+1, &
-                  conn_info%ub_c(jind)-first+1
+                  conn_info%ub_a(jind) - first + 1, &
+                  conn_info%ub_b(jind) - first + 1, &
+                  conn_info%ub_c(jind) - first + 1
             END IF
          END DO
          DO j = bnd_ctype(1, i), bnd_ctype(2, i)
             IF (j == 0) CYCLE
-            iub = iub+1
+            iub = iub + 1
             jind = map_cvars(j)
             min_index = MIN(c_var_a(jind), c_var_b(jind), c_var_c(jind))
             first = first_list(map_atom_mol(min_index))
-            ub_list(iub)%a = c_var_a(jind)-first+1
-            ub_list(iub)%b = c_var_b(jind)-first+1
-            ub_list(iub)%c = c_var_c(jind)-first+1
+            ub_list(iub)%a = c_var_a(jind) - first + 1
+            ub_list(iub)%b = c_var_b(jind) - first + 1
+            ub_list(iub)%c = c_var_c(jind) - first + 1
             ub_list(iub)%id_type = do_ff_charmm
             !point this to the right ub_kind_type if using force field
             NULLIFY (ub_list(iub)%ub_kind)
@@ -758,9 +758,9 @@ CONTAINS
                   c_var_b(jind), &
                   c_var_c(jind), &
                   "offset number at", &
-                  c_var_a(jind)-first+1, &
-                  c_var_b(jind)-first+1, &
-                  c_var_c(jind)-first+1
+                  c_var_a(jind) - first + 1, &
+                  c_var_b(jind) - first + 1, &
+                  c_var_c(jind) - first + 1
             END IF
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -799,7 +799,7 @@ CONTAINS
             j3 = map_atom_mol(conn_info%phi_c(j))
             j4 = map_atom_mol(conn_info%phi_d(j))
             IF (j1 /= j2 .OR. j2 /= j3 .OR. j3 /= j4) THEN
-               idim = idim+1
+               idim = idim + 1
             END IF
          END DO
          CALL reallocate(c_var_a, 1, idim)
@@ -816,7 +816,7 @@ CONTAINS
             j3 = map_atom_mol(conn_info%phi_c(j))
             j4 = map_atom_mol(conn_info%phi_d(j))
             IF (j1 /= j2 .OR. j2 /= j3 .OR. j3 /= j4) THEN
-               idim = idim+1
+               idim = idim + 1
                c_var_a(idim) = conn_info%phi_a(j)
                c_var_b(idim) = conn_info%phi_b(j)
                c_var_c(idim) = conn_info%phi_c(j)
@@ -861,30 +861,30 @@ CONTAINS
          intra_torsions = 0
          inter_torsions = 0
          IF (ALL(bnd_type(:, i) > 0)) THEN
-            intra_torsions = bnd_type(2, i)-bnd_type(1, i)+1
+            intra_torsions = bnd_type(2, i) - bnd_type(1, i) + 1
          END IF
          IF (ALL(bnd_ctype(:, i) > 0)) THEN
-            inter_torsions = bnd_ctype(2, i)-bnd_ctype(1, i)+1
+            inter_torsions = bnd_ctype(2, i) - bnd_ctype(1, i) + 1
          END IF
-         itorsion = intra_torsions+inter_torsions
+         itorsion = intra_torsions + inter_torsions
          IF (iw > 0) THEN
             WRITE (iw, *) "    Total number of torsions for molecule type ", i, " :", itorsion
             WRITE (iw, *) "    intra (torsions inside  molecules) :: ", intra_torsions
             WRITE (iw, *) "    inter (torsions between molecules) :: ", inter_torsions
          END IF
          molecule_kind => molecule_kind_set(i)
-         nval_tot2 = nval_tot2+itorsion*SIZE(molecule_kind%molecule_list)
+         nval_tot2 = nval_tot2 + itorsion*SIZE(molecule_kind%molecule_list)
          ALLOCATE (torsion_list(itorsion))
          itorsion = 0
          DO j = bnd_type(1, i), bnd_type(2, i)
             IF (j == 0) CYCLE
-            itorsion = itorsion+1
+            itorsion = itorsion + 1
             jind = map_vars(j)
             first = first_list(map_atom_mol(conn_info%phi_a(jind)))
-            torsion_list(itorsion)%a = conn_info%phi_a(jind)-first+1
-            torsion_list(itorsion)%b = conn_info%phi_b(jind)-first+1
-            torsion_list(itorsion)%c = conn_info%phi_c(jind)-first+1
-            torsion_list(itorsion)%d = conn_info%phi_d(jind)-first+1
+            torsion_list(itorsion)%a = conn_info%phi_a(jind) - first + 1
+            torsion_list(itorsion)%b = conn_info%phi_b(jind) - first + 1
+            torsion_list(itorsion)%c = conn_info%phi_c(jind) - first + 1
+            torsion_list(itorsion)%d = conn_info%phi_d(jind) - first + 1
             ! Set by default id_type to charmm and modify when handling the forcefield
             torsion_list(itorsion)%id_type = do_ff_charmm
             IF ((topology%conn_type == do_conn_g96) .OR. (topology%conn_type == do_conn_g87)) THEN
@@ -900,22 +900,22 @@ CONTAINS
                   conn_info%phi_c(jind), &
                   conn_info%phi_d(jind), &
                   "offset number at", &
-                  conn_info%phi_a(jind)-first+1, &
-                  conn_info%phi_b(jind)-first+1, &
-                  conn_info%phi_c(jind)-first+1, &
-                  conn_info%phi_d(jind)-first+1
+                  conn_info%phi_a(jind) - first + 1, &
+                  conn_info%phi_b(jind) - first + 1, &
+                  conn_info%phi_c(jind) - first + 1, &
+                  conn_info%phi_d(jind) - first + 1
             END IF
          END DO
          DO j = bnd_ctype(1, i), bnd_ctype(2, i)
             IF (j == 0) CYCLE
-            itorsion = itorsion+1
+            itorsion = itorsion + 1
             jind = map_cvars(j)
             min_index = MIN(c_var_a(jind), c_var_b(jind), c_var_c(jind), c_var_d(jind))
             first = first_list(map_atom_mol(min_index))
-            torsion_list(itorsion)%a = c_var_a(jind)-first+1
-            torsion_list(itorsion)%b = c_var_b(jind)-first+1
-            torsion_list(itorsion)%c = c_var_c(jind)-first+1
-            torsion_list(itorsion)%d = c_var_d(jind)-first+1
+            torsion_list(itorsion)%a = c_var_a(jind) - first + 1
+            torsion_list(itorsion)%b = c_var_b(jind) - first + 1
+            torsion_list(itorsion)%c = c_var_c(jind) - first + 1
+            torsion_list(itorsion)%d = c_var_d(jind) - first + 1
             ! Set by default id_type to charmm and modify when handling the forcefield
             torsion_list(itorsion)%id_type = do_ff_charmm
             IF ((topology%conn_type == do_conn_g96) .OR. (topology%conn_type == do_conn_g87)) THEN
@@ -931,10 +931,10 @@ CONTAINS
                   c_var_c(jind), &
                   c_var_d(jind), &
                   "offset number at", &
-                  c_var_a(jind)-first+1, &
-                  c_var_b(jind)-first+1, &
-                  c_var_c(jind)-first+1, &
-                  c_var_d(jind)-first+1
+                  c_var_a(jind) - first + 1, &
+                  c_var_b(jind) - first + 1, &
+                  c_var_c(jind) - first + 1, &
+                  c_var_d(jind) - first + 1
             END IF
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -978,7 +978,7 @@ CONTAINS
             j3 = map_atom_mol(conn_info%impr_c(j))
             j4 = map_atom_mol(conn_info%impr_d(j))
             IF (j1 /= j2 .OR. j2 /= j3 .OR. j3 /= j4) THEN
-               idim = idim+1
+               idim = idim + 1
             END IF
          END DO
          CALL reallocate(c_var_a, 1, idim)
@@ -995,7 +995,7 @@ CONTAINS
             j3 = map_atom_mol(conn_info%impr_c(j))
             j4 = map_atom_mol(conn_info%impr_d(j))
             IF (j1 /= j2 .OR. j2 /= j3 .OR. j3 /= j4) THEN
-               idim = idim+1
+               idim = idim + 1
                c_var_a(idim) = conn_info%impr_a(j)
                c_var_b(idim) = conn_info%impr_b(j)
                c_var_c(idim) = conn_info%impr_c(j)
@@ -1040,12 +1040,12 @@ CONTAINS
          intra_imprs = 0
          inter_imprs = 0
          IF (ALL(bnd_type(:, i) > 0)) THEN
-            intra_imprs = bnd_type(2, i)-bnd_type(1, i)+1
+            intra_imprs = bnd_type(2, i) - bnd_type(1, i) + 1
          END IF
          IF (ALL(bnd_ctype(:, i) > 0)) THEN
-            inter_imprs = bnd_ctype(2, i)-bnd_ctype(1, i)+1
+            inter_imprs = bnd_ctype(2, i) - bnd_ctype(1, i) + 1
          END IF
-         iimpr = intra_imprs+inter_imprs
+         iimpr = intra_imprs + inter_imprs
          IF (iw > 0) THEN
             WRITE (iw, *) "    Total number of imprs for molecule type ", i, " :", iimpr
             WRITE (iw, *) "    intra (imprs inside  molecules) :: ", intra_imprs
@@ -1055,28 +1055,28 @@ CONTAINS
             WRITE (iw, *) "    inter (opbends between molecules) :: ", inter_imprs
          END IF
          molecule_kind => molecule_kind_set(i)
-         nval_tot2 = nval_tot2+iimpr*SIZE(molecule_kind%molecule_list)
+         nval_tot2 = nval_tot2 + iimpr*SIZE(molecule_kind%molecule_list)
          ALLOCATE (impr_list(iimpr), STAT=stat)
          ALLOCATE (opbend_list(iimpr), STAT=stat)
          CPASSERT(stat == 0)
          iimpr = 0
          DO j = bnd_type(1, i), bnd_type(2, i)
             IF (j == 0) CYCLE
-            iimpr = iimpr+1
+            iimpr = iimpr + 1
             jind = map_vars(j)
             first = first_list(map_atom_mol(conn_info%impr_a(jind)))
-            impr_list(iimpr)%a = conn_info%impr_a(jind)-first+1
-            impr_list(iimpr)%b = conn_info%impr_b(jind)-first+1
-            impr_list(iimpr)%c = conn_info%impr_c(jind)-first+1
-            impr_list(iimpr)%d = conn_info%impr_d(jind)-first+1
+            impr_list(iimpr)%a = conn_info%impr_a(jind) - first + 1
+            impr_list(iimpr)%b = conn_info%impr_b(jind) - first + 1
+            impr_list(iimpr)%c = conn_info%impr_c(jind) - first + 1
+            impr_list(iimpr)%d = conn_info%impr_d(jind) - first + 1
             ! Atom sequence for improper is A B C D in which A is central atom,
             ! B is deviating atom and C & D are secondairy atoms. Atom sequence for
             ! opbend is B D C A in which A is central atom, B is deviating. Hence
             ! to create an opbend out of an improper, B and D need to be interchanged.
-            opbend_list(iimpr)%a = conn_info%impr_b(jind)-first+1
-            opbend_list(iimpr)%b = conn_info%impr_d(jind)-first+1
-            opbend_list(iimpr)%c = conn_info%impr_c(jind)-first+1
-            opbend_list(iimpr)%d = conn_info%impr_a(jind)-first+1
+            opbend_list(iimpr)%a = conn_info%impr_b(jind) - first + 1
+            opbend_list(iimpr)%b = conn_info%impr_d(jind) - first + 1
+            opbend_list(iimpr)%c = conn_info%impr_c(jind) - first + 1
+            opbend_list(iimpr)%d = conn_info%impr_a(jind) - first + 1
             ! Set by default id_type of improper to charmm and modify when handling the forcefield
             impr_list(iimpr)%id_type = do_ff_charmm
             ! Set by default id_type of opbend to harmonic and modify when handling the forcefield
@@ -1095,10 +1095,10 @@ CONTAINS
                   conn_info%impr_c(jind), &
                   conn_info%impr_d(jind), &
                   "offset number at", &
-                  conn_info%impr_a(jind)-first+1, &
-                  conn_info%impr_b(jind)-first+1, &
-                  conn_info%impr_c(jind)-first+1, &
-                  conn_info%impr_d(jind)-first+1
+                  conn_info%impr_a(jind) - first + 1, &
+                  conn_info%impr_b(jind) - first + 1, &
+                  conn_info%impr_c(jind) - first + 1, &
+                  conn_info%impr_d(jind) - first + 1
                WRITE (iw, '(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
                   "molecule_kind", i, "intra OPBEND", &
                   conn_info%impr_b(jind), &
@@ -1106,26 +1106,26 @@ CONTAINS
                   conn_info%impr_c(jind), &
                   conn_info%impr_a(jind), &
                   "offset number at", &
-                  conn_info%impr_b(jind)-first+1, &
-                  conn_info%impr_d(jind)-first+1, &
-                  conn_info%impr_c(jind)-first+1, &
-                  conn_info%impr_a(jind)-first+1
+                  conn_info%impr_b(jind) - first + 1, &
+                  conn_info%impr_d(jind) - first + 1, &
+                  conn_info%impr_c(jind) - first + 1, &
+                  conn_info%impr_a(jind) - first + 1
             END IF
          END DO
          DO j = bnd_ctype(1, i), bnd_ctype(2, i)
             IF (j == 0) CYCLE
-            iimpr = iimpr+1
+            iimpr = iimpr + 1
             jind = map_cvars(j)
             min_index = MIN(c_var_a(jind), c_var_b(jind), c_var_c(jind), c_var_d(jind))
             first = first_list(map_atom_mol(min_index))
-            impr_list(iimpr)%a = c_var_a(jind)-first+1
-            impr_list(iimpr)%b = c_var_b(jind)-first+1
-            impr_list(iimpr)%c = c_var_c(jind)-first+1
-            impr_list(iimpr)%d = c_var_d(jind)-first+1
-            opbend_list(iimpr)%a = c_var_b(jind)-first+1
-            opbend_list(iimpr)%b = c_var_d(jind)-first+1
-            opbend_list(iimpr)%c = c_var_c(jind)-first+1
-            opbend_list(iimpr)%d = c_var_a(jind)-first+1
+            impr_list(iimpr)%a = c_var_a(jind) - first + 1
+            impr_list(iimpr)%b = c_var_b(jind) - first + 1
+            impr_list(iimpr)%c = c_var_c(jind) - first + 1
+            impr_list(iimpr)%d = c_var_d(jind) - first + 1
+            opbend_list(iimpr)%a = c_var_b(jind) - first + 1
+            opbend_list(iimpr)%b = c_var_d(jind) - first + 1
+            opbend_list(iimpr)%c = c_var_c(jind) - first + 1
+            opbend_list(iimpr)%d = c_var_a(jind) - first + 1
             ! Set by default id_type of improper to charmm and modify when handling the forcefield
             impr_list(iimpr)%id_type = do_ff_charmm
             ! Set by default id_type of opbend to harmonic and modify when handling the forcefield
@@ -1144,10 +1144,10 @@ CONTAINS
                   c_var_c(jind), &
                   c_var_d(jind), &
                   "offset number at", &
-                  c_var_a(jind)-first+1, &
-                  c_var_b(jind)-first+1, &
-                  c_var_c(jind)-first+1, &
-                  c_var_d(jind)-first+1
+                  c_var_a(jind) - first + 1, &
+                  c_var_b(jind) - first + 1, &
+                  c_var_c(jind) - first + 1, &
+                  c_var_d(jind) - first + 1
                WRITE (iw, '(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
                   "molecule_kind", i, "inter OPBEND", &
                   c_var_b(jind), &
@@ -1155,10 +1155,10 @@ CONTAINS
                   c_var_c(jind), &
                   c_var_a(jind), &
                   "offset number at", &
-                  c_var_b(jind)-first+1, &
-                  c_var_d(jind)-first+1, &
-                  c_var_c(jind)-first+1, &
-                  c_var_a(jind)-first+1
+                  c_var_b(jind) - first + 1, &
+                  c_var_d(jind) - first + 1, &
+                  c_var_c(jind) - first + 1, &
+                  c_var_a(jind) - first + 1
             END IF
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
@@ -1222,12 +1222,12 @@ CONTAINS
       DO j = 1, nvar1
          IF (map_var_mol(j) /= -1) EXIT
       END DO
-      IF (j == nvar1+1) RETURN
+      IF (j == nvar1 + 1) RETURN
       i = map_var_mol(j)
       bnd_type(1, i) = j
       DO ibond = j, nvar1
          IF (map_var_mol(ibond) /= i) THEN
-            bnd_type(2, i) = ibond-1
+            bnd_type(2, i) = ibond - 1
             i = map_var_mol(ibond)
             bnd_type(1, i) = ibond
          END IF
@@ -1322,57 +1322,57 @@ CONTAINS
          DO k = 1, multiple_unit_cell(3)
             DO j = 1, multiple_unit_cell(2)
                DO i = 1, multiple_unit_cell(1)
-                  ind = ind+1
+                  ind = ind + 1
                   IF (ind == 1) CYCLE
-                  a = (ind-1)*natoms_orig
+                  a = (ind - 1)*natoms_orig
 
                   ! Bonds
                   IF (nbond > 0) THEN
-                     m = (ind-1)*nbond
-                     conn_info%bond_a(m+1:m+nbond) = conn_info%bond_a(1:nbond)+a
-                     conn_info%bond_b(m+1:m+nbond) = conn_info%bond_b(1:nbond)+a
+                     m = (ind - 1)*nbond
+                     conn_info%bond_a(m + 1:m + nbond) = conn_info%bond_a(1:nbond) + a
+                     conn_info%bond_b(m + 1:m + nbond) = conn_info%bond_b(1:nbond) + a
                   END IF
                   ! Theta
                   IF (ntheta > 0) THEN
-                     m = (ind-1)*ntheta
-                     conn_info%theta_a(m+1:m+ntheta) = conn_info%theta_a(1:ntheta)+a
-                     conn_info%theta_b(m+1:m+ntheta) = conn_info%theta_b(1:ntheta)+a
-                     conn_info%theta_c(m+1:m+ntheta) = conn_info%theta_c(1:ntheta)+a
+                     m = (ind - 1)*ntheta
+                     conn_info%theta_a(m + 1:m + ntheta) = conn_info%theta_a(1:ntheta) + a
+                     conn_info%theta_b(m + 1:m + ntheta) = conn_info%theta_b(1:ntheta) + a
+                     conn_info%theta_c(m + 1:m + ntheta) = conn_info%theta_c(1:ntheta) + a
                   END IF
                   ! Phi
                   IF (nphi > 0) THEN
-                     m = (ind-1)*nphi
-                     conn_info%phi_a(m+1:m+nphi) = conn_info%phi_a(1:nphi)+a
-                     conn_info%phi_b(m+1:m+nphi) = conn_info%phi_b(1:nphi)+a
-                     conn_info%phi_c(m+1:m+nphi) = conn_info%phi_c(1:nphi)+a
-                     conn_info%phi_d(m+1:m+nphi) = conn_info%phi_d(1:nphi)+a
+                     m = (ind - 1)*nphi
+                     conn_info%phi_a(m + 1:m + nphi) = conn_info%phi_a(1:nphi) + a
+                     conn_info%phi_b(m + 1:m + nphi) = conn_info%phi_b(1:nphi) + a
+                     conn_info%phi_c(m + 1:m + nphi) = conn_info%phi_c(1:nphi) + a
+                     conn_info%phi_d(m + 1:m + nphi) = conn_info%phi_d(1:nphi) + a
                   END IF
                   ! Impropers
                   IF (nimpr > 0) THEN
-                     m = (ind-1)*nimpr
-                     conn_info%impr_a(m+1:m+nimpr) = conn_info%impr_a(1:nimpr)+a
-                     conn_info%impr_b(m+1:m+nimpr) = conn_info%impr_b(1:nimpr)+a
-                     conn_info%impr_c(m+1:m+nimpr) = conn_info%impr_c(1:nimpr)+a
-                     conn_info%impr_d(m+1:m+nimpr) = conn_info%impr_d(1:nimpr)+a
+                     m = (ind - 1)*nimpr
+                     conn_info%impr_a(m + 1:m + nimpr) = conn_info%impr_a(1:nimpr) + a
+                     conn_info%impr_b(m + 1:m + nimpr) = conn_info%impr_b(1:nimpr) + a
+                     conn_info%impr_c(m + 1:m + nimpr) = conn_info%impr_c(1:nimpr) + a
+                     conn_info%impr_d(m + 1:m + nimpr) = conn_info%impr_d(1:nimpr) + a
                   END IF
                   ! Para_res
                   IF (nbond_c > 0) THEN
-                     m = (ind-1)*nbond_c
-                     conn_info%c_bond_a(m+1:m+nbond_c) = conn_info%c_bond_a(1:nbond_c)+a
-                     conn_info%c_bond_b(m+1:m+nbond_c) = conn_info%c_bond_b(1:nbond_c)+a
+                     m = (ind - 1)*nbond_c
+                     conn_info%c_bond_a(m + 1:m + nbond_c) = conn_info%c_bond_a(1:nbond_c) + a
+                     conn_info%c_bond_b(m + 1:m + nbond_c) = conn_info%c_bond_b(1:nbond_c) + a
                   END IF
                   ! Urey-Bradley
                   IF (nub > 0) THEN
-                     m = (ind-1)*nub
-                     conn_info%ub_a(m+1:m+nub) = conn_info%ub_a(1:nub)+a
-                     conn_info%ub_b(m+1:m+nub) = conn_info%ub_b(1:nub)+a
-                     conn_info%ub_c(m+1:m+nub) = conn_info%ub_c(1:nub)+a
+                     m = (ind - 1)*nub
+                     conn_info%ub_a(m + 1:m + nub) = conn_info%ub_a(1:nub) + a
+                     conn_info%ub_b(m + 1:m + nub) = conn_info%ub_b(1:nub) + a
+                     conn_info%ub_c(m + 1:m + nub) = conn_info%ub_c(1:nub) + a
                   END IF
                   ! ONFO
                   IF (nonfo > 0) THEN
-                     m = (ind-1)*nonfo
-                     conn_info%onfo_a(m+1:m+nonfo) = conn_info%onfo_a(1:nonfo)+a
-                     conn_info%onfo_b(m+1:m+nonfo) = conn_info%onfo_b(1:nonfo)+a
+                     m = (ind - 1)*nonfo
+                     conn_info%onfo_a(m + 1:m + nonfo) = conn_info%onfo_a(1:nonfo) + a
+                     conn_info%onfo_b(m + 1:m + nonfo) = conn_info%onfo_b(1:nonfo) + a
                   END IF
                END DO
             END DO

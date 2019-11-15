@@ -74,12 +74,12 @@ CONTAINS
 
       CPASSERT(.NOT. (n > SIZE(smat, 1) .OR. m > SIZE(smat, 2)))
 
-      spi = SQRT(pi)/2.0_dp**(l+2)*dfac(2*l+1)
-      el = REAL(l, dp)+1.5_dp
+      spi = SQRT(pi)/2.0_dp**(l + 2)*dfac(2*l + 1)
+      el = REAL(l, dp) + 1.5_dp
 
       DO iq = 1, m
          DO ip = 1, n
-            smat(ip, iq) = spi/(pa(ip)+pb(iq))**el
+            smat(ip, iq) = spi/(pa(ip) + pb(iq))**el
          END DO
       END DO
 
@@ -113,10 +113,10 @@ CONTAINS
 
       CPASSERT(.NOT. (n > SIZE(kmat, 1) .OR. m > SIZE(kmat, 2)))
 
-      spi = dfac(2*l+3)*SQRT(pi)/2.0_dp**(l+2)
+      spi = dfac(2*l + 3)*SQRT(pi)/2.0_dp**(l + 2)
       DO iq = 1, m
          DO ip = 1, n
-            kmat(ip, iq) = spi*pa(ip)*pb(iq)/(pa(ip)+pb(iq))**(l+2.5_dp)
+            kmat(ip, iq) = spi*pa(ip)*pb(iq)/(pa(ip) + pb(iq))**(l + 2.5_dp)
          END DO
       END DO
 
@@ -153,7 +153,7 @@ CONTAINS
       tld = 0.5_dp*fac(l)
       DO iq = 1, m
          DO ip = 1, n
-            umat(ip, iq) = tld/(pa(ip)+pb(iq))**(l+1)
+            umat(ip, iq) = tld/(pa(ip) + pb(iq))**(l + 1)
          END DO
       END DO
 
@@ -191,15 +191,15 @@ CONTAINS
          tld = 0.5_dp*fac(l)
          DO iq = 1, m
             DO ip = 1, n
-               ppq = pa(ip)+pb(iq)
+               ppq = pa(ip) + pb(iq)
                pq = pa(ip)*pb(iq)
-               umat(ip, iq) = tld/ppq**l*(4.0_dp/ppq**2*pq*REAL(l+1, dp)+1.0_dp)
+               umat(ip, iq) = tld/ppq**l*(4.0_dp/ppq**2*pq*REAL(l + 1, dp) + 1.0_dp)
             END DO
          END DO
       ELSE
          DO iq = 1, m
             DO ip = 1, n
-               ppq = pa(ip)+pb(iq)
+               ppq = pa(ip) + pb(iq)
                pq = pa(ip)*pb(iq)
                umat(ip, iq) = 2.0_dp*pq/ppq**2
             END DO
@@ -252,12 +252,12 @@ CONTAINS
       CPASSERT(.NOT. (n > SIZE(upmat, 1) .OR. m > SIZE(upmat, 2)))
 
       a2 = a*a
-      tld = a/2._dp**(l+1)
+      tld = a/2._dp**(l + 1)
       DO iq = 1, m
          DO ip = 1, n
-            pq = pa(ip)+pb(iq)
+            pq = pa(ip) + pb(iq)
             z = a2/pq
-            upmat(ip, iq) = tld/(1._dp+z)**(l+0.5_dp)/pq**(l+1.5_dp)
+            upmat(ip, iq) = tld/(1._dp + z)**(l + 0.5_dp)/pq**(l + 1.5_dp)
          END DO
       END DO
 
@@ -269,49 +269,49 @@ CONTAINS
             ! nothing left to do
          CASE (1)
             DO ip = 1, n
-               pq = pa(ip)+pb(iq)
+               pq = pa(ip) + pb(iq)
                z = a2/pq
-               fpol = 2.0_dp*z+3.0_dp
+               fpol = 2.0_dp*z + 3.0_dp
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
          CASE (2)
             DO ip = 1, n
-               pq = pa(ip)+pb(iq)
+               pq = pa(ip) + pb(iq)
                z = a2/pq
-               fpol = 8.0_dp*z*z+20.0_dp*z+15.0_dp
+               fpol = 8.0_dp*z*z + 20.0_dp*z + 15.0_dp
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
          CASE (3)
             DO ip = 1, n
-               pq = pa(ip)+pb(iq)
+               pq = pa(ip) + pb(iq)
                z = a2/pq
-               fpol = 16.0_dp*z*z*z+56.0_dp*z*z+70.0_dp*z+35.0_dp
+               fpol = 16.0_dp*z*z*z + 56.0_dp*z*z + 70.0_dp*z + 35.0_dp
                fpol = 3._dp*fpol
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
          CASE (4)
             DO ip = 1, n
-               pq = pa(ip)+pb(iq)
+               pq = pa(ip) + pb(iq)
                z = a2/pq
-               fpol = 128.0_dp*z*z*z*z+576.0_dp*z*z*z+1008.0_dp*z*z+840.0_dp*z+315.0_dp
+               fpol = 128.0_dp*z*z*z*z + 576.0_dp*z*z*z + 1008.0_dp*z*z + 840.0_dp*z + 315.0_dp
                fpol = 3._dp*fpol
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
          CASE (5)
             DO ip = 1, n
-               pq = pa(ip)+pb(iq)
+               pq = pa(ip) + pb(iq)
                z = a2/pq
-               fpol = 256.0_dp*z*z*z*z*z+1408.0_dp*z*z*z*z+3168.0_dp*z*z*z+3696.0_dp*z*z+2310.0_dp*z+693.0_dp
+               fpol = 256.0_dp*z*z*z*z*z + 1408.0_dp*z*z*z*z + 3168.0_dp*z*z*z + 3696.0_dp*z*z + 2310.0_dp*z + 693.0_dp
                fpol = 15._dp*fpol
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
          CASE (6)
             DO ip = 1, n
-               pq = pa(ip)+pb(iq)
+               pq = pa(ip) + pb(iq)
                z = a2/pq
                z2 = z*z
-               fpol = 1024.0_dp*z2*z2*z2+6656.0_dp*z*z2*z2+18304.0_dp*z2*z2+27456.0_dp*z2*z+ &
-                      24024.0_dp*z2+12012.0_dp*z+3003.0_dp
+               fpol = 1024.0_dp*z2*z2*z2 + 6656.0_dp*z*z2*z2 + 18304.0_dp*z2*z2 + 27456.0_dp*z2*z + &
+                      24024.0_dp*z2 + 12012.0_dp*z + 3003.0_dp
                fpol = 45._dp*fpol
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
@@ -354,9 +354,9 @@ CONTAINS
 
       CPASSERT(SIZE(spmat) >= SIZE(p))
 
-      pf = 2._dp**(l+k+1)*gamma1(l+k+1)/rc**(l+2*k+1.5_dp)/SQRT(gamma1(l+2*k+1))
+      pf = 2._dp**(l + k + 1)*gamma1(l + k + 1)/rc**(l + 2*k + 1.5_dp)/SQRT(gamma1(l + 2*k + 1))
       orc = 1._dp/(rc*rc)
-      spmat(:) = pf/(2._dp*p(:)+orc)**(l+k+1.5_dp)
+      spmat(:) = pf/(2._dp*p(:) + orc)**(l + k + 1.5_dp)
 
    END SUBROUTINE sg_proj_ol
 
@@ -396,11 +396,11 @@ CONTAINS
 
       CPASSERT(.NOT. (n > SIZE(vpmat, 1) .OR. m > SIZE(vpmat, 2)))
 
-      tld = gamma1(l+k+1)*rc**(2*l+3)*2._dp**(l+k+0.5)
+      tld = gamma1(l + k + 1)*rc**(2*l + 3)*2._dp**(l + k + 0.5)
 
       DO iq = 1, m
          DO ip = 1, n
-            vpmat(ip, iq) = tld/(1._dp+2._dp*rc*rc*(pa(ip)+pb(iq)))**(l+k+1.5_dp)
+            vpmat(ip, iq) = tld/(1._dp + 2._dp*rc*rc*(pa(ip) + pb(iq)))**(l + k + 1.5_dp)
          END DO
       END DO
 
@@ -438,10 +438,10 @@ CONTAINS
 
       CPASSERT(.NOT. (n > SIZE(gmat, 1) .OR. m > SIZE(gmat, 2)))
 
-      tld = 0.5_dp/rc**(2*k)*gamma1(l+k+1)
+      tld = 0.5_dp/rc**(2*k)*gamma1(l + k + 1)
       DO iq = 1, m
          DO ip = 1, n
-            gmat(ip, iq) = tld/(pa(ip)+pb(iq))**(l+k+1.5_dp)
+            gmat(ip, iq) = tld/(pa(ip) + pb(iq))**(l + k + 1.5_dp)
          END DO
       END DO
 
@@ -480,34 +480,34 @@ CONTAINS
       na = SIZE(pa)
       nc = SIZE(pc)
       ss = 2.0_dp*SQRT(2.0_dp/pi)
-      slab = SQRT(pi)*dfac(2*lab+1)/2.0_dp**(lab+2)
-      slcd = SQRT(pi)*dfac(2*lcd+1)/2.0_dp**(lcd+2)
+      slab = SQRT(pi)*dfac(2*lab + 1)/2.0_dp**(lab + 2)
+      slcd = SQRT(pi)*dfac(2*lcd + 1)/2.0_dp**(lcd + 2)
       jab = 0
       DO ia = 1, na
          p = pa(ia)
          DO ib = ia, na
-            jab = jab+1
+            jab = jab + 1
             q = pa(ib)
-            xab = 0.5_dp*(p+q)
-            sab = slab/(p+q)**(lab+1.5_dp)
-            vab1 = vgau(2*lab-nu+1, xab)
-            vab2 = vgau(2*lab+2, xab)
-            vab3 = vgau(2*lab+nu+2, xab)
+            xab = 0.5_dp*(p + q)
+            sab = slab/(p + q)**(lab + 1.5_dp)
+            vab1 = vgau(2*lab - nu + 1, xab)
+            vab2 = vgau(2*lab + 2, xab)
+            vab3 = vgau(2*lab + nu + 2, xab)
             jcd = 0
             DO ic = 1, nc
                r = pc(ic)
                DO id = ic, nc
-                  jcd = jcd+1
+                  jcd = jcd + 1
                   s = pc(id)
-                  xcd = 0.5_dp*(r+s)
-                  scd = slcd/(r+s)**(lcd+1.5_dp)
-                  vcd1 = vgau(2*lcd+nu+2, xcd)
-                  vcd2 = vgau(2*lcd+2, xcd)
-                  vcd3 = vgau(2*lcd-nu+1, xcd)
-                  cc1 = cgau(2*lab-nu+1, 2*lcd+nu+2, xab/xcd)
-                  cc2 = cgau(2*lcd-nu+1, 2*lab+nu+2, xcd/xab)
+                  xcd = 0.5_dp*(r + s)
+                  scd = slcd/(r + s)**(lcd + 1.5_dp)
+                  vcd1 = vgau(2*lcd + nu + 2, xcd)
+                  vcd2 = vgau(2*lcd + 2, xcd)
+                  vcd3 = vgau(2*lcd - nu + 1, xcd)
+                  cc1 = cgau(2*lab - nu + 1, 2*lcd + nu + 2, xab/xcd)
+                  cc2 = cgau(2*lcd - nu + 1, 2*lab + nu + 2, xcd/xab)
 
-                  eri(jab, jcd) = ss*sab*scd/(vab2*vcd2)*(cc1*vab1*vcd1+cc2*vab3*vcd3)
+                  eri(jab, jcd) = ss*sab*scd/(vab2*vcd2)*(cc1*vab1*vcd1 + cc2*vab3*vcd3)
 
                END DO
             END DO
@@ -555,46 +555,46 @@ CONTAINS
       na = SIZE(pa)
       nb = SIZE(pb)
       ss = 2.0_dp*SQRT(2.0_dp/pi)
-      slac = SQRT(pi)*dfac(2*lac+1)/2.0_dp**(lac+2)
-      slbd = SQRT(pi)*dfac(2*lbd+1)/2.0_dp**(lbd+2)
+      slac = SQRT(pi)*dfac(2*lac + 1)/2.0_dp**(lac + 2)
+      slbd = SQRT(pi)*dfac(2*lbd + 1)/2.0_dp**(lbd + 2)
       jac = 0
       DO ia = 1, na
          p = pa(ia)
          DO ic = ia, na
-            jac = jac+1
+            jac = jac + 1
             q = pa(ic)
-            xac = 0.5_dp*(p+q)
-            sac = slac/(p+q)**(lac+1.5_dp)
-            vpq = vgau(2*lac+2, xac)
+            xac = 0.5_dp*(p + q)
+            sac = slac/(p + q)**(lac + 1.5_dp)
+            vpq = vgau(2*lac + 2, xac)
             jbd = 0
             DO ib = 1, nb
                r = pb(ib)
-               xab = 0.5_dp*(p+r)
-               xbc = 0.5_dp*(q+r)
+               xab = 0.5_dp*(p + r)
+               xbc = 0.5_dp*(q + r)
                DO id = ib, nb
-                  jbd = jbd+1
+                  jbd = jbd + 1
                   s = pb(id)
-                  xbd = 0.5_dp*(r+s)
-                  xcd = 0.5_dp*(q+s)
-                  xad = 0.5_dp*(p+s)
-                  sbd = slbd/(r+s)**(lbd+1.5_dp)
-                  vrs = vgau(2*lbd+2, xbd)
-                  v1pr = vgau(lac+lbd-nu+1, xab)
-                  v1qs = vgau(lac+lbd-nu+1, xcd)
-                  v1ps = vgau(lac+lbd-nu+1, xad)
-                  v1qr = vgau(lac+lbd-nu+1, xbc)
-                  v2qs = vgau(lac+lbd+nu+2, xcd)
-                  v2pr = vgau(lac+lbd+nu+2, xab)
-                  v2qr = vgau(lac+lbd+nu+2, xbc)
-                  v2ps = vgau(lac+lbd+nu+2, xad)
-                  cc1 = cgau(lac+lbd-nu+1, lac+lbd+nu+2, xab/xcd)
-                  cc2 = cgau(lac+lbd-nu+1, lac+lbd+nu+2, xcd/xab)
-                  cc3 = cgau(lac+lbd-nu+1, lac+lbd+nu+2, xad/xbc)
-                  cc4 = cgau(lac+lbd-nu+1, lac+lbd+nu+2, xbc/xad)
+                  xbd = 0.5_dp*(r + s)
+                  xcd = 0.5_dp*(q + s)
+                  xad = 0.5_dp*(p + s)
+                  sbd = slbd/(r + s)**(lbd + 1.5_dp)
+                  vrs = vgau(2*lbd + 2, xbd)
+                  v1pr = vgau(lac + lbd - nu + 1, xab)
+                  v1qs = vgau(lac + lbd - nu + 1, xcd)
+                  v1ps = vgau(lac + lbd - nu + 1, xad)
+                  v1qr = vgau(lac + lbd - nu + 1, xbc)
+                  v2qs = vgau(lac + lbd + nu + 2, xcd)
+                  v2pr = vgau(lac + lbd + nu + 2, xab)
+                  v2qr = vgau(lac + lbd + nu + 2, xbc)
+                  v2ps = vgau(lac + lbd + nu + 2, xad)
+                  cc1 = cgau(lac + lbd - nu + 1, lac + lbd + nu + 2, xab/xcd)
+                  cc2 = cgau(lac + lbd - nu + 1, lac + lbd + nu + 2, xcd/xab)
+                  cc3 = cgau(lac + lbd - nu + 1, lac + lbd + nu + 2, xad/xbc)
+                  cc4 = cgau(lac + lbd - nu + 1, lac + lbd + nu + 2, xbc/xad)
 
                   ee = 0.5_dp*ss*sac*sbd/(vpq*vrs)
-                  eri(jac, jbd) = ee*(v1pr*v2qs*cc1+v1qs*v2pr*cc2+ &
-                                      v1ps*v2qr*cc3+v1qr*v2ps*cc4)
+                  eri(jac, jbd) = ee*(v1pr*v2qs*cc1 + v1qs*v2pr*cc2 + &
+                                      v1ps*v2qr*cc3 + v1qr*v2ps*cc4)
 
                END DO
             END DO
@@ -640,7 +640,7 @@ CONTAINS
       tld = 0.5_dp*fac(l)
       DO iq = 1, m
          DO ip = 1, n
-            umat(ip, iq) = tld/(pa(ip)+pb(iq))**(l+1)-umat(ip, iq)
+            umat(ip, iq) = tld/(pa(ip) + pb(iq))**(l + 1) - umat(ip, iq)
          END DO
       END DO
 
@@ -659,7 +659,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: v
 
-      v = dfac(n-1)/x**(0.5_dp*(n+1))
+      v = dfac(n - 1)/x**(0.5_dp*(n + 1))
 
    END FUNCTION vgau
 
@@ -678,10 +678,10 @@ CONTAINS
       INTEGER                                            :: l
 
       c = 0.0_dp
-      DO l = 0, (a-1)/2
-         c = c+(t/(1.0_dp+t))**l*dfac(2*l+b-1)/dfac(2*l)
+      DO l = 0, (a - 1)/2
+         c = c + (t/(1.0_dp + t))**l*dfac(2*l + b - 1)/dfac(2*l)
       END DO
-      c = c*(1.0_dp+t)**(-0.5_dp*(b+1))/dfac(b-1)
+      c = c*(1.0_dp + t)**(-0.5_dp*(b + 1))/dfac(b - 1)
 
    END FUNCTION cgau
 
@@ -720,7 +720,7 @@ CONTAINS
          vq = vsto(2*nb(iq), pb(iq))
          DO ip = 1, n
             vp = vsto(2*na(ip), pa(ip))
-            vpq = vsto(na(ip)+nb(iq), 0.5_dp*(pa(ip)+pb(iq)))
+            vpq = vsto(na(ip) + nb(iq), 0.5_dp*(pa(ip) + pb(iq)))
             smat(ip, iq) = vpq/SQRT(vp*vq)
          END DO
       END DO
@@ -767,12 +767,12 @@ CONTAINS
          wq = wsto(l, nb(iq), pb(iq))
          DO ip = 1, n
             vp = vsto(2*na(ip), pa(ip))
-            vpq = vsto(na(ip)+nb(iq), 0.5_dp*(pa(ip)+pb(iq)))
-            vpq1 = vsto(na(ip)+nb(iq)-1, 0.5_dp*(pa(ip)+pb(iq)))
-            vpq2 = vsto(na(ip)+nb(iq)-2, 0.5_dp*(pa(ip)+pb(iq)))
+            vpq = vsto(na(ip) + nb(iq), 0.5_dp*(pa(ip) + pb(iq)))
+            vpq1 = vsto(na(ip) + nb(iq) - 1, 0.5_dp*(pa(ip) + pb(iq)))
+            vpq2 = vsto(na(ip) + nb(iq) - 2, 0.5_dp*(pa(ip) + pb(iq)))
             wp = wsto(l, na(ip), pa(ip))
             kmat(ip, iq) = 0.5_dp*pa(ip)*pb(iq)/SQRT(vp*vq)* &
-                           (vpq-(wp+wq)*vpq1+wp*wq*vpq2)
+                           (vpq - (wp + wq)*vpq1 + wp*wq*vpq2)
          END DO
       END DO
 
@@ -813,7 +813,7 @@ CONTAINS
          vq = vsto(2*nb(iq), pb(iq))
          DO ip = 1, n
             vp = vsto(2*na(ip), pa(ip))
-            vpq1 = vsto(na(ip)+nb(iq)-1, 0.5_dp*(pa(ip)+pb(iq)))
+            vpq1 = vsto(na(ip) + nb(iq) - 1, 0.5_dp*(pa(ip) + pb(iq)))
             umat(ip, iq) = 2._dp/SQRT(vp*vq)*vpq1
          END DO
       END DO
@@ -857,10 +857,10 @@ CONTAINS
 
       DO iq = 1, m
          DO ip = 1, n
-            gmat(ip, iq) = (2._dp*pa(ip))**(na(ip)+0.5_dp)/SQRT(fac(2*na(ip))) &
-                           *(2._dp*pb(iq))**(nb(iq)+0.5_dp)/SQRT(fac(2*nb(iq))) &
-                           /rc**(2*k)/(pa(ip)+pb(iq))**(na(ip)+nb(iq)+2*k+1) &
-                           *gamma0(na(ip)+nb(iq)+2*k+1)
+            gmat(ip, iq) = (2._dp*pa(ip))**(na(ip) + 0.5_dp)/SQRT(fac(2*na(ip))) &
+                           *(2._dp*pb(iq))**(nb(iq) + 0.5_dp)/SQRT(fac(2*nb(iq))) &
+                           /rc**(2*k)/(pa(ip) + pb(iq))**(na(ip) + nb(iq) + 2*k + 1) &
+                           *gamma0(na(ip) + nb(iq) + 2*k + 1)
          END DO
       END DO
 
@@ -879,7 +879,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: v
 
-      v = fac(n)/x**(n+1)
+      v = fac(n)/x**(n + 1)
 
    END FUNCTION vsto
 
@@ -895,7 +895,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: w
 
-      w = 2._dp*REAL(m-n-1, dp)/x
+      w = 2._dp*REAL(m - n - 1, dp)/x
 
    END FUNCTION wsto
 !------------------------------------------------------------------------------
@@ -968,7 +968,7 @@ CONTAINS
       DO iq = 1, m
          DO ip = 1, n
             kmat(ip, iq) = 0.5_dp*SUM(wr(:)*dra(:, ip)*drb(:, iq) &
-                                      +wr(:)*REAL(l*(l+1), dp)*ra(:, ip)*rb(:, iq)/r(:)**2)
+                                      + wr(:)*REAL(l*(l + 1), dp)*ra(:, ip)*rb(:, iq)/r(:)**2)
          END DO
       END DO
 
@@ -1045,7 +1045,7 @@ CONTAINS
       DO iq = 1, m
          DO ip = 1, n
             umat(ip, iq) = SUM(wr(:)*dra(:, ip)*drb(:, iq)/r(:) &
-                               +wr(:)*REAL(l*(l+1), dp)*ra(:, ip)*rb(:, iq)/r(:)**3)
+                               + wr(:)*REAL(l*(l + 1), dp)*ra(:, ip)*rb(:, iq)/r(:)**3)
          END DO
       END DO
 
@@ -1085,7 +1085,7 @@ CONTAINS
          DO ip = 1, n
             upmat(ip, iq) = 0._dp
             DO k = 1, SIZE(r)
-               upmat(ip, iq) = upmat(ip, iq)+ &
+               upmat(ip, iq) = upmat(ip, iq) + &
                                (wr(k)*ra(k, ip)*rb(k, iq)*erf(a*r(k))/r(k))
             ENDDO
          END DO
@@ -1132,8 +1132,8 @@ CONTAINS
 
       ALLOCATE (pro(n))
 
-      pf = SQRT(2._dp)/SQRT(gamma1(l+2*k+1))/rc**(l+2*k+1.5_dp)
-      pro(:) = pf*r(:)**(l+2*k)*EXP(-0.5_dp*(r(:)/rc)**2)
+      pf = SQRT(2._dp)/SQRT(gamma1(l + 2*k + 1))/rc**(l + 2*k + 1.5_dp)
+      pro(:) = pf*r(:)**(l + 2*k)*EXP(-0.5_dp*(r(:)/rc)**2)
 
       DO ip = 1, n
          spmat(ip) = SUM(wr(:)*pro(:)*ra(:, ip))

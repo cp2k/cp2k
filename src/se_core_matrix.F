@@ -208,7 +208,7 @@ CONTAINS
          CALL get_se_param(se_kind_a, defined=defined, natorb=natorb_a, &
                            beta=beta_a, uss=uss, upp=upp, udd=udd, uff=uff, eisol=eisol, eheat=eheat, &
                            nr=nr_a, sto_exponents=sto_exponents_a)
-         econst = econst-(eisol-eheat)*REAL(natom, dp)
+         econst = econst - (eisol - eheat)*REAL(natom, dp)
          se_defined(ikind) = (defined .AND. natorb_a >= 1)
          hmt(1, ikind) = beta_a(0)
          hmt(2:4, ikind) = beta_a(1)
@@ -264,7 +264,7 @@ CONTAINS
             CASE (do_method_am1, do_method_rm1, do_method_mndo, do_method_pdg, &
                   do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
                DO i = 1, SIZE(h_blocka, 1)
-                  h_blocka(i, i) = h_blocka(i, i)+ua(i)
+                  h_blocka(i, i) = h_blocka(i, i) + ua(i)
                END DO
             END SELECT
 
@@ -307,13 +307,13 @@ CONTAINS
             IF (irow == iatom) THEN
                DO i = 1, SIZE(h_block, 1)
                   DO j = 1, SIZE(h_block, 2)
-                     h_block(i, j) = h_block(i, j)+kh*(ha(i)+hb(j))*s_block(i, j)
+                     h_block(i, j) = h_block(i, j) + kh*(ha(i) + hb(j))*s_block(i, j)
                   END DO
                END DO
             ELSE
                DO i = 1, SIZE(h_block, 1)
                   DO j = 1, SIZE(h_block, 2)
-                     h_block(i, j) = h_block(i, j)+kh*(ha(j)+hb(i))*s_block(i, j)
+                     h_block(i, j) = h_block(i, j) + kh*(ha(j) + hb(i))*s_block(i, j)
                   END DO
                END DO
             END IF
@@ -343,19 +343,19 @@ CONTAINS
 !                enddo
 !              enddo
 
-                  CALL dbcsr_get_block_p(matrix_s(icor+1)%matrix, irow, icol, dsmat, found)
+                  CALL dbcsr_get_block_p(matrix_s(icor + 1)%matrix, irow, icol, dsmat, found)
                   CPASSERT(ASSOCIATED(dsmat))
                   dsmat = 2._dp*kh*dsmat*pabmat
                   IF (irow == iatom) THEN
                      DO i = 1, SIZE(h_block, 1)
                         DO j = 1, SIZE(h_block, 2)
-                           force_ab(icor) = force_ab(icor)+(ha(i)+hb(j))*dsmat(i, j)
+                           force_ab(icor) = force_ab(icor) + (ha(i) + hb(j))*dsmat(i, j)
                         END DO
                      END DO
                   ELSE
                      DO i = 1, SIZE(h_block, 1)
                         DO j = 1, SIZE(h_block, 2)
-                           force_ab(icor) = force_ab(icor)+(ha(j)+hb(i))*dsmat(i, j)
+                           force_ab(icor) = force_ab(icor) + (ha(j) + hb(i))*dsmat(i, j)
                         END DO
                      END DO
                   END IF
@@ -367,9 +367,9 @@ CONTAINS
          IF (calculate_forces .AND. (iatom /= jatom .OR. dr > rij_threshold)) THEN
             IF (irow == iatom) force_ab = -force_ab
             force(ikind)%all_potential(:, atom_a) = &
-               force(ikind)%all_potential(:, atom_a)-force_ab(:)
+               force(ikind)%all_potential(:, atom_a) - force_ab(:)
             force(jkind)%all_potential(:, atom_b) = &
-               force(jkind)%all_potential(:, atom_b)+force_ab(:)
+               force(jkind)%all_potential(:, atom_b) + force_ab(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, -1.0_dp, force_ab, rij)
             END IF
@@ -680,7 +680,7 @@ CONTAINS
 
          ct = -v(3)/rr
          IF (ABS(ct) < 1.0_dp) THEN
-            st = SQRT(1.0_dp-ct**2)
+            st = SQRT(1.0_dp - ct**2)
             cp = -v(1)/(rr*st)
             sp = -v(2)/(rr*st)
             Arot(1, 1) = ct*cp
@@ -706,81 +706,81 @@ CONTAINS
 
          za = ZSA
          zb = ZSB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
 
          J = 0.0_dp
          DO k = 1, nc1(nra, nrb)
-            J = J+REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k), yy)
+            J = J + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k), yy)
          ENDDO
-         J = J*rr**(nra+nrb+1)
-         J = J/2.0_dp**(nra+nrb+2)
+         J = J*rr**(nra + nrb + 1)
+         J = J/2.0_dp**(nra + nrb + 2)
 
-         S(1, 1) = S(1, 1)+fac1*fac2*J
+         S(1, 1) = S(1, 1) + fac1*fac2*J
 
          za = ZPA
          zb = ZSB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
 
          Jc = 0.0_dp
          DO k = 1, nc2(nra, nrb)
-            Jc = Jc+REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k), yy)
+            Jc = Jc + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k), yy)
          ENDDO
-         Jc = Jc*rr**(nra+nrb+1)
-         Jc = Jc/2.0_dp**(nra+nrb+2)
+         Jc = Jc*rr**(nra + nrb + 1)
+         Jc = Jc/2.0_dp**(nra + nrb + 2)
 
          DO k1 = 1, 3
-            S(k1+1, 1) = S(k1+1, 1) &
-         &          +SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*Jc
+            S(k1 + 1, 1) = S(k1 + 1, 1) &
+         &          + SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*Jc
          ENDDO
 
          za = ZSA
          zb = ZPB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
 
          Jc = 0.0_dp
          DO k = 1, nc3(nra, nrb)
-            Jc = Jc+REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k), yy)
+            Jc = Jc + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k), yy)
          ENDDO
-         Jc = Jc*rr**(nra+nrb+1)
-         Jc = Jc/2.0_dp**(nra+nrb+2)
+         Jc = Jc*rr**(nra + nrb + 1)
+         Jc = Jc/2.0_dp**(nra + nrb + 2)
 
          DO k1 = 1, 3
-            S(1, k1+1) = S(1, k1+1) &
-         &          -SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*Jc
+            S(1, k1 + 1) = S(1, k1 + 1) &
+         &          - SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*Jc
          ENDDO
 
          za = ZPA
          zb = ZPB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
 
          Jss = 0.0_dp
          DO k = 1, nc4(nra, nrb)
-            Jss = Jss+REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k), yy)
+            Jss = Jss + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k), yy)
          ENDDO
-         Jss = Jss*rr**(nra+nrb+1)
-         Jss = Jss/2.0_dp**(nra+nrb+2)
+         Jss = Jss*rr**(nra + nrb + 1)
+         Jss = Jss/2.0_dp**(nra + nrb + 2)
 
          Jcc = 0.0_dp
          DO k = 1, nc5(nra, nrb)
-            Jcc = Jcc+REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k), yy)
+            Jcc = Jcc + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k), yy)
          ENDDO
-         Jcc = Jcc*rr**(nra+nrb+1)
-         Jcc = Jcc/2.0_dp**(nra+nrb+2)
+         Jcc = Jcc*rr**(nra + nrb + 1)
+         Jcc = Jcc/2.0_dp**(nra + nrb + 2)
 
          DO k1 = 1, 3
             DO k2 = 1, 3
-               S(k1+1, k2+1) = S(k1+1, k2+1) &
-          &            +1.5_dp*Arot(k1, 1)*Arot(k2, 1)*fac1*fac2*Jss &
-          &            +1.5_dp*Arot(k1, 2)*Arot(k2, 2)*fac1*fac2*Jss &
-          &            -3.0_dp*Arot(k1, 3)*Arot(k2, 3)*fac1*fac2*Jcc
+               S(k1 + 1, k2 + 1) = S(k1 + 1, k2 + 1) &
+          &            + 1.5_dp*Arot(k1, 1)*Arot(k2, 1)*fac1*fac2*Jss &
+          &            + 1.5_dp*Arot(k1, 2)*Arot(k2, 2)*fac1*fac2*Jss &
+          &            - 3.0_dp*Arot(k1, 3)*Arot(k2, 3)*fac1*fac2*Jcc
             ENDDO
          ENDDO
 
@@ -1060,7 +1060,7 @@ CONTAINS
          IF (ABS(ct) >= 1.0_dp) THEN
 
             dct(:) = v(:)*v(3)/rr**3
-            dct(3) = dct(3)-1.0_dp/rr
+            dct(3) = dct(3) - 1.0_dp/rr
 
             Arot(1, 1) = ct
             Arot(1, 2) = 0.0_dp
@@ -1084,20 +1084,20 @@ CONTAINS
 
          ELSE
 
-            xx = SQRT(v(1)**2+v(2)**2)
+            xx = SQRT(v(1)**2 + v(2)**2)
             st = xx/rr
             cp = -v(1)/xx
             sp = -v(2)/xx
 
             dct(:) = v(:)*v(3)/rr**3
-            dct(3) = dct(3)-1.0_dp/rr
+            dct(3) = dct(3) - 1.0_dp/rr
             dst(:) = -ct*dct(:)/st
             dcp(:) = v(:)*v(1)/(rr**3*st)
-            dcp(:) = dcp(:)+v(1)*dst(:)/(rr*st**2)
-            dcp(1) = dcp(1)-1.0_dp/(rr*st)
+            dcp(:) = dcp(:) + v(1)*dst(:)/(rr*st**2)
+            dcp(1) = dcp(1) - 1.0_dp/(rr*st)
             dsp(:) = v(:)*v(2)/(rr**3*st)
-            dsp(:) = dsp(:)+v(2)*dst(:)/(rr*st**2)
-            dsp(2) = dsp(2)-1.0_dp/(rr*st)
+            dsp(:) = dsp(:) + v(2)*dst(:)/(rr*st**2)
+            dsp(2) = dsp(2) - 1.0_dp/(rr*st)
 
             Arot(1, 1) = ct*cp
             Arot(1, 2) = -sp
@@ -1109,12 +1109,12 @@ CONTAINS
             Arot(3, 2) = 0.0_dp
             Arot(3, 3) = ct
 
-            dArot(1, 1, :) = dct(:)*cp+ct*dcp(:)
+            dArot(1, 1, :) = dct(:)*cp + ct*dcp(:)
             dArot(1, 2, :) = -dsp(:)
-            dArot(1, 3, :) = dst(:)*cp+st*dcp(:)
-            dArot(2, 1, :) = dct(:)*sp+ct*dsp(:)
+            dArot(1, 3, :) = dst(:)*cp + st*dcp(:)
+            dArot(2, 1, :) = dct(:)*sp + ct*dsp(:)
             dArot(2, 2, :) = dcp(:)
-            dArot(2, 3, :) = dst(:)*sp+st*dsp(:)
+            dArot(2, 3, :) = dst(:)*sp + st*dsp(:)
             dArot(3, 1, :) = -dst(:)
             dArot(3, 2, :) = 0.0_dp
             dArot(3, 3, :) = dct(:)
@@ -1123,132 +1123,132 @@ CONTAINS
 
          za = ZSA
          zb = ZSB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
-         dxx = 0.5_dp*(za+zb)
-         dyy = 0.5_dp*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
+         dxx = 0.5_dp*(za + zb)
+         dyy = 0.5_dp*(za - zb)
 
          w = 0.0_dp
          w1 = 0.0_dp
          w2 = 0.0_dp
-         f = rr**(nra+nrb+1)/2.0_dp**(nra+nrb+2)
+         f = rr**(nra + nrb + 1)/2.0_dp**(nra + nrb + 2)
          DO k = 1, nc1(nra, nrb)
-            w = w+REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k), yy)
-            w1 = w1+REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k)+1, xx)*BB(mb1(nra, nrb, k), yy)
-            w2 = w2+REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k)+1, yy)
+            w = w + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k), yy)
+            w1 = w1 + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k) + 1, xx)*BB(mb1(nra, nrb, k), yy)
+            w2 = w2 + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k) + 1, yy)
          ENDDO
          J = f*w
-         dJ = f*REAL(nra+nrb+1, dp)*w/rr
-         dJ = dJ-dxx*f*w1
-         dJ = dJ-dyy*f*w2
+         dJ = f*REAL(nra + nrb + 1, dp)*w/rr
+         dJ = dJ - dxx*f*w1
+         dJ = dJ - dyy*f*w2
 
-         dS(1, 1, :) = dS(1, 1, :)+fac1*fac2*dJ*v(:)/rr
+         dS(1, 1, :) = dS(1, 1, :) + fac1*fac2*dJ*v(:)/rr
 
          za = ZPA
          zb = ZSB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
-         dxx = 0.5_dp*(za+zb)
-         dyy = 0.5_dp*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
+         dxx = 0.5_dp*(za + zb)
+         dyy = 0.5_dp*(za - zb)
 
          w = 0.0_dp
          w1 = 0.0_dp
          w2 = 0.0_dp
-         f = rr**(nra+nrb+1)/2.0_dp**(nra+nrb+2)
+         f = rr**(nra + nrb + 1)/2.0_dp**(nra + nrb + 2)
          DO k = 1, nc2(nra, nrb)
-            w = w+REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k), yy)
-            w1 = w1+REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k)+1, xx)*BB(mb2(nra, nrb, k), yy)
-            w2 = w2+REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k)+1, yy)
+            w = w + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k), yy)
+            w1 = w1 + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k) + 1, xx)*BB(mb2(nra, nrb, k), yy)
+            w2 = w2 + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k) + 1, yy)
          ENDDO
          Jc = f*w
-         dJc = f*REAL(nra+nrb+1, dp)*w/rr
-         dJc = dJc-dxx*f*w1
-         dJc = dJc-dyy*f*w2
+         dJc = f*REAL(nra + nrb + 1, dp)*w/rr
+         dJc = dJc - dxx*f*w1
+         dJc = dJc - dyy*f*w2
 
          DO k1 = 1, 3
-            dS(k1+1, 1, :) = dS(k1+1, 1, :) &
-         &          +SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*dJc*v(:)/rr &
-         &          +SQRT(3.0_dp)*dArot(k1, 3, :)*fac1*fac2*Jc
+            dS(k1 + 1, 1, :) = dS(k1 + 1, 1, :) &
+         &          + SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*dJc*v(:)/rr &
+         &          + SQRT(3.0_dp)*dArot(k1, 3, :)*fac1*fac2*Jc
          ENDDO
 
          za = ZSA
          zb = ZPB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
-         dxx = 0.5_dp*(za+zb)
-         dyy = 0.5_dp*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
+         dxx = 0.5_dp*(za + zb)
+         dyy = 0.5_dp*(za - zb)
 
          w = 0.0_dp
          w1 = 0.0_dp
          w2 = 0.0_dp
-         f = rr**(nra+nrb+1)/2.0_dp**(nra+nrb+2)
+         f = rr**(nra + nrb + 1)/2.0_dp**(nra + nrb + 2)
          DO k = 1, nc3(nra, nrb)
-            w = w+REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k), yy)
-            w1 = w1+REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k)+1, xx)*BB(mb3(nra, nrb, k), yy)
-            w2 = w2+REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k)+1, yy)
+            w = w + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k), yy)
+            w1 = w1 + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k) + 1, xx)*BB(mb3(nra, nrb, k), yy)
+            w2 = w2 + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k) + 1, yy)
          ENDDO
          Jc = f*w
-         dJc = f*REAL(nra+nrb+1, dp)*w/rr
-         dJc = dJc-dxx*f*w1
-         dJc = dJc-dyy*f*w2
+         dJc = f*REAL(nra + nrb + 1, dp)*w/rr
+         dJc = dJc - dxx*f*w1
+         dJc = dJc - dyy*f*w2
 
          DO k1 = 1, 3
-            dS(1, k1+1, :) = dS(1, k1+1, :) &
-         &          -SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*dJc*v(:)/rr &
-         &          -SQRT(3.0_dp)*dArot(k1, 3, :)*fac1*fac2*Jc
+            dS(1, k1 + 1, :) = dS(1, k1 + 1, :) &
+         &          - SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*dJc*v(:)/rr &
+         &          - SQRT(3.0_dp)*dArot(k1, 3, :)*fac1*fac2*Jc
          ENDDO
 
          za = ZPA
          zb = ZPB
-         fac2 = SQRT(za**(2*nra+1)*zb**(2*nrb+1))
-         xx = 0.5_dp*rr*(za+zb)
-         yy = 0.5_dp*rr*(za-zb)
-         dxx = 0.5_dp*(za+zb)
-         dyy = 0.5_dp*(za-zb)
+         fac2 = SQRT(za**(2*nra + 1)*zb**(2*nrb + 1))
+         xx = 0.5_dp*rr*(za + zb)
+         yy = 0.5_dp*rr*(za - zb)
+         dxx = 0.5_dp*(za + zb)
+         dyy = 0.5_dp*(za - zb)
 
          w = 0.0_dp
          w1 = 0.0_dp
          w2 = 0.0_dp
-         f = rr**(nra+nrb+1)/2.0_dp**(nra+nrb+2)
+         f = rr**(nra + nrb + 1)/2.0_dp**(nra + nrb + 2)
          DO k = 1, nc4(nra, nrb)
-            w = w+REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k), yy)
-            w1 = w1+REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k)+1, xx)*BB(mb4(nra, nrb, k), yy)
-            w2 = w2+REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k)+1, yy)
+            w = w + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k), yy)
+            w1 = w1 + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k) + 1, xx)*BB(mb4(nra, nrb, k), yy)
+            w2 = w2 + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k) + 1, yy)
          ENDDO
          Jss = f*w
-         dJss = f*REAL(nra+nrb+1, dp)*w/rr
-         dJss = dJss-dxx*f*w1
-         dJss = dJss-dyy*f*w2
+         dJss = f*REAL(nra + nrb + 1, dp)*w/rr
+         dJss = dJss - dxx*f*w1
+         dJss = dJss - dyy*f*w2
 
          w = 0.0_dp
          w1 = 0.0_dp
          w2 = 0.0_dp
-         f = rr**(nra+nrb+1)/2.0_dp**(nra+nrb+2)
+         f = rr**(nra + nrb + 1)/2.0_dp**(nra + nrb + 2)
          DO k = 1, nc5(nra, nrb)
-            w = w+REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k), yy)
-            w1 = w1+REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k)+1, xx)*BB(mb5(nra, nrb, k), yy)
-            w2 = w2+REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k)+1, yy)
+            w = w + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k), yy)
+            w1 = w1 + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k) + 1, xx)*BB(mb5(nra, nrb, k), yy)
+            w2 = w2 + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k) + 1, yy)
          ENDDO
          Jcc = f*w
-         dJcc = f*REAL(nra+nrb+1, dp)*w/rr
-         dJcc = dJcc-dxx*f*w1
-         dJcc = dJcc-dyy*f*w2
+         dJcc = f*REAL(nra + nrb + 1, dp)*w/rr
+         dJcc = dJcc - dxx*f*w1
+         dJcc = dJcc - dyy*f*w2
 
          DO k1 = 1, 3
             DO k2 = 1, 3
-               dS(k1+1, k2+1, :) = dS(k1+1, k2+1, :) &
-          &            +1.5_dp*Arot(k1, 1)*Arot(k2, 1)*fac1*fac2*dJss*v(:)/rr &
-          &            +1.5_dp*dArot(k1, 1, :)*Arot(k2, 1)*fac1*fac2*Jss &
-          &            +1.5_dp*Arot(k1, 1)*dArot(k2, 1, :)*fac1*fac2*Jss &
-          &            +1.5_dp*Arot(k1, 2)*Arot(k2, 2)*fac1*fac2*dJss*v(:)/rr &
-          &            +1.5_dp*dArot(k1, 2, :)*Arot(k2, 2)*fac1*fac2*Jss &
-          &            +1.5_dp*Arot(k1, 2)*dArot(k2, 2, :)*fac1*fac2*Jss &
-          &            -3.0_dp*Arot(k1, 3)*Arot(k2, 3)*fac1*fac2*dJcc*v(:)/rr &
-          &            -3.0_dp*dArot(k1, 3, :)*Arot(k2, 3)*fac1*fac2*Jcc &
-          &            -3.0_dp*Arot(k1, 3)*dArot(k2, 3, :)*fac1*fac2*Jcc
+               dS(k1 + 1, k2 + 1, :) = dS(k1 + 1, k2 + 1, :) &
+          &            + 1.5_dp*Arot(k1, 1)*Arot(k2, 1)*fac1*fac2*dJss*v(:)/rr &
+          &            + 1.5_dp*dArot(k1, 1, :)*Arot(k2, 1)*fac1*fac2*Jss &
+          &            + 1.5_dp*Arot(k1, 1)*dArot(k2, 1, :)*fac1*fac2*Jss &
+          &            + 1.5_dp*Arot(k1, 2)*Arot(k2, 2)*fac1*fac2*dJss*v(:)/rr &
+          &            + 1.5_dp*dArot(k1, 2, :)*Arot(k2, 2)*fac1*fac2*Jss &
+          &            + 1.5_dp*Arot(k1, 2)*dArot(k2, 2, :)*fac1*fac2*Jss &
+          &            - 3.0_dp*Arot(k1, 3)*Arot(k2, 3)*fac1*fac2*dJcc*v(:)/rr &
+          &            - 3.0_dp*dArot(k1, 3, :)*Arot(k2, 3)*fac1*fac2*Jcc &
+          &            - 3.0_dp*Arot(k1, 3)*dArot(k2, 3, :)*fac1*fac2*Jcc
             ENDDO
          ENDDO
 
@@ -1273,79 +1273,79 @@ CONTAINS
          p = 1.0_dp
       ELSE
          IF (n == 1) THEN
-            p = 1.0_dp+x
+            p = 1.0_dp + x
          ELSE
             IF (n == 2) THEN
-               p = 2.0_dp+x*( &
-                   2.0_dp+x)
+               p = 2.0_dp + x*( &
+                   2.0_dp + x)
             ELSE
                IF (n == 3) THEN
-                  p = 6.0_dp+x*( &
-                      6.0_dp+x*( &
-                      3.0_dp+x))
+                  p = 6.0_dp + x*( &
+                      6.0_dp + x*( &
+                      3.0_dp + x))
                ELSE
                   IF (n == 4) THEN
-                     p = 24.0_dp+x*( &
-                         24.0_dp+x*( &
-                         12.0_dp+x*( &
-                         4.0_dp+x)))
+                     p = 24.0_dp + x*( &
+                         24.0_dp + x*( &
+                         12.0_dp + x*( &
+                         4.0_dp + x)))
                   ELSE
                      IF (n == 5) THEN
-                        p = 120.0_dp+x*( &
-                            120.0_dp+x*( &
-                            60.0_dp+x*( &
-                            20.0_dp+x*( &
-                            5.0_dp+x))))
+                        p = 120.0_dp + x*( &
+                            120.0_dp + x*( &
+                            60.0_dp + x*( &
+                            20.0_dp + x*( &
+                            5.0_dp + x))))
                      ELSE
                         IF (n == 6) THEN
-                           p = 720.0_dp+x*( &
-                               720.0_dp+x*( &
-                               360.0_dp+x*( &
-                               120.0_dp+x*( &
-                               30.0_dp+x*( &
-                               6.0_dp+x)))))
+                           p = 720.0_dp + x*( &
+                               720.0_dp + x*( &
+                               360.0_dp + x*( &
+                               120.0_dp + x*( &
+                               30.0_dp + x*( &
+                               6.0_dp + x)))))
                         ELSE
                            IF (n == 7) THEN
-                              p = 5040.0_dp+x*( &
-                                  5040.0_dp+x*( &
-                                  2520.0_dp+x*( &
-                                  840.0_dp+x*( &
-                                  210.0_dp+x*( &
-                                  42.0_dp+x*( &
-                                  7.0_dp+x))))))
+                              p = 5040.0_dp + x*( &
+                                  5040.0_dp + x*( &
+                                  2520.0_dp + x*( &
+                                  840.0_dp + x*( &
+                                  210.0_dp + x*( &
+                                  42.0_dp + x*( &
+                                  7.0_dp + x))))))
                            ELSE
                               IF (n == 8) THEN
-                                 p = 40320.0_dp+x*( &
-                                     40320.0_dp+x*( &
-                                     20160.0_dp+x*( &
-                                     6720.0_dp+x*( &
-                                     1680.0_dp+x*( &
-                                     336.0_dp+x*( &
-                                     56.0_dp+x*( &
-                                     8.0_dp+x)))))))
+                                 p = 40320.0_dp + x*( &
+                                     40320.0_dp + x*( &
+                                     20160.0_dp + x*( &
+                                     6720.0_dp + x*( &
+                                     1680.0_dp + x*( &
+                                     336.0_dp + x*( &
+                                     56.0_dp + x*( &
+                                     8.0_dp + x)))))))
                               ELSE
                                  IF (n == 9) THEN
-                                    p = 362880.0_dp+x*( &
-                                        362880.0_dp+x*( &
-                                        181440.0_dp+x*( &
-                                        60480.0_dp+x*( &
-                                        15120.0_dp+x*( &
-                                        3024.0_dp+x*( &
-                                        504.0_dp+x*( &
-                                        72.0_dp+x*( &
-                                        9.0_dp+x))))))))
+                                    p = 362880.0_dp + x*( &
+                                        362880.0_dp + x*( &
+                                        181440.0_dp + x*( &
+                                        60480.0_dp + x*( &
+                                        15120.0_dp + x*( &
+                                        3024.0_dp + x*( &
+                                        504.0_dp + x*( &
+                                        72.0_dp + x*( &
+                                        9.0_dp + x))))))))
                                  ELSE
                                     IF (n == 10) THEN
-                                       p = 3628800.0_dp+x*( &
-                                           3628800.0_dp+x*( &
-                                           1814400.0_dp+x*( &
-                                           604800.0_dp+x*( &
-                                           151200.0_dp+x*( &
-                                           30240.0_dp+x*( &
-                                           5040.0_dp+x*( &
-                                           720.0_dp+x*( &
-                                           90.0_dp+x*( &
-                                           10.0_dp+x)))))))))
+                                       p = 3628800.0_dp + x*( &
+                                           3628800.0_dp + x*( &
+                                           1814400.0_dp + x*( &
+                                           604800.0_dp + x*( &
+                                           151200.0_dp + x*( &
+                                           30240.0_dp + x*( &
+                                           5040.0_dp + x*( &
+                                           720.0_dp + x*( &
+                                           90.0_dp + x*( &
+                                           10.0_dp + x)))))))))
                                     ELSE
                                        p = 1.0_dp
                                        WRITE (*, *) ' n= ', n, ' in AA(n,x) '
@@ -1361,7 +1361,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      AA = EXP(-x)*p/x**(n+1)
+      AA = EXP(-x)*p/x**(n + 1)
 
    END FUNCTION AA
 
@@ -1377,12 +1377,12 @@ CONTAINS
       REAL(kind=dp)                                      :: y, BB
 
       IF (ABS(y) > 1.0e-20_dp) THEN
-         BB = REAL((-1)**(n+1), dp)*AA(n, -y)-AA(n, y)
+         BB = REAL((-1)**(n + 1), dp)*AA(n, -y) - AA(n, y)
       ELSE
          IF (MOD(n, 2) == 0) THEN
-            BB = 2.0_dp/REAL(n+1, dp)
+            BB = 2.0_dp/REAL(n + 1, dp)
          ELSE
-            BB = -y*2.0_dp/REAL(n+2, dp)
+            BB = -y*2.0_dp/REAL(n + 2, dp)
          ENDIF
       ENDIF
 

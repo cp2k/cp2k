@@ -125,11 +125,11 @@ CONTAINS
          DO ia = 1, local_particles%n_el(ikind)
             iatom = local_particles%list(ikind)%array(ia)
             eloc = -1.0_dp/6.0_dp*ua*mcharge(iatom)**3
-            eb3 = eb3+eloc
+            eb3 = eb3 + eloc
             IF (atprop%energy) THEN
                ! we have to add the part not covered by 0.5*Tr(FP)
-               eloc = -0.5_dp*eloc-0.25_dp*ua*zeff(ikind)*mcharge(iatom)**2
-               atprop%atecoul(iatom) = atprop%atecoul(iatom)+eloc
+               eloc = -0.5_dp*eloc - 0.25_dp*ua*zeff(ikind)*mcharge(iatom)**2
+               atprop%atecoul(iatom) = atprop%atecoul(iatom) + eloc
             END IF
          END DO
       END DO
@@ -174,7 +174,7 @@ CONTAINS
                atom_j = atom_of_kind(icol)
                uj = xgamma(jkind)
                !
-               gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
+               gmij = -0.5_dp*(ui*mcharge(irow)**2 + uj*mcharge(icol)**2)
                !
                NULLIFY (pblock)
                CALL dbcsr_get_block_p(matrix=matrix_p(1, 1)%matrix, &
@@ -182,12 +182,12 @@ CONTAINS
                CPASSERT(found)
                DO i = 1, 3
                   NULLIFY (dsblock)
-                  CALL dbcsr_get_block_p(matrix=matrix_s(1+i, 1)%matrix, &
+                  CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, 1)%matrix, &
                                          row=irow, col=icol, block=dsblock, found=found)
                   CPASSERT(found)
                   fi = -gmij*SUM(pblock*dsblock)
-                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
                   fij(i) = fi
                END DO
             ENDDO
@@ -198,7 +198,7 @@ CONTAINS
                CALL get_qs_env(qs_env, nkind=nkind)
                DO ikind = 1, nkind
                   DO jkind = 1, nkind
-                     iac = ikind+nkind*(jkind-1)
+                     iac = ikind + nkind*(jkind - 1)
                      IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
                      ui = xgamma(ikind)
                      uj = xgamma(jkind)
@@ -211,7 +211,7 @@ CONTAINS
                            dr = SQRT(SUM(rij(:)**2))
                            IF (dr > 1.e-6_dp) THEN
                               dsint => sap_int(iac)%alist(ia)%clist(ic)%acint
-                              gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+                              gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
                               icol = MAX(iatom, jatom)
                               irow = MIN(iatom, jatom)
                               NULLIFY (pblock)
@@ -262,7 +262,7 @@ CONTAINS
                atom_j = atom_of_kind(jatom)
                uj = xgamma(jkind)
                !
-               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+               gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
                !
                NULLIFY (pblock)
                CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
@@ -270,7 +270,7 @@ CONTAINS
                CPASSERT(found)
                DO i = 1, 3
                   NULLIFY (dsblock)
-                  CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
+                  CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, ic)%matrix, &
                                          row=irow, col=icol, block=dsblock, found=found)
                   CPASSERT(found)
                   IF (irow == iatom) THEN
@@ -278,8 +278,8 @@ CONTAINS
                   ELSE
                      fi = gmij*SUM(pblock*dsblock)
                   END IF
-                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
                   fij(i) = fi
                END DO
                IF (use_virial) THEN
@@ -329,13 +329,13 @@ CONTAINS
                ui = xgamma(ikind)
                jkind = kind_of(icol)
                uj = xgamma(jkind)
-               gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
+               gmij = -0.5_dp*(ui*mcharge(irow)**2 + uj*mcharge(icol)**2)
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
-                  ksblock = ksblock-0.5_dp*gmij*sblock
+                  ksblock = ksblock - 0.5_dp*gmij*sblock
                END DO
             ENDDO
             CALL dbcsr_iterator_stop(iter)
@@ -357,7 +357,7 @@ CONTAINS
                ui = xgamma(ikind)
                jkind = kind_of(jatom)
                uj = xgamma(jkind)
-               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+               gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
                !
                NULLIFY (sblock)
                CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
@@ -368,7 +368,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
-                  ksblock = ksblock-0.5_dp*gmij*sblock
+                  ksblock = ksblock - 0.5_dp*gmij*sblock
                END DO
 
             END DO

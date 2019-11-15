@@ -203,7 +203,7 @@ CONTAINS
       !the inverse of the prefactor in the taylor series
       tmp = 1.0_dp
       DO i = 1, nloop
-         CALL dbcsr_scale(T1, 1.0_dp/(REAL(i, dp)*2.0_dp-1.0_dp))
+         CALL dbcsr_scale(T1, 1.0_dp/(REAL(i, dp)*2.0_dp - 1.0_dp))
          CALL dbcsr_filter(T1, filter_eps)
          CALL dbcsr_multiply("N", "N", square_fac, im_matrix, T1, zero, &
                              T2, filter_eps=filter_eps)

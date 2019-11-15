@@ -184,25 +184,25 @@ CONTAINS
       next_power = 1
       DO WHILE (i_low < len_string)
          IF (string(i_low:i_low) /= ' ') EXIT
-         i_low = i_low+1
+         i_low = i_low + 1
       END DO
       i_high = i_low
       DO WHILE (i_high <= len_string)
          IF (string(i_high:i_high) == ' ' .OR. string(i_high:i_high) == '^' .OR. &
              string(i_high:i_high) == '*' .OR. string(i_high:i_high) == '/') EXIT
-         i_high = i_high+1
+         i_high = i_high + 1
       END DO
       DO
          IF (i_high <= i_low .OR. i_low > len_string) EXIT
-         i_unit = i_unit+1
+         i_unit = i_unit + 1
          IF (i_unit > cp_unit_max_kinds) THEN
             CPABORT("Maximum number of combined units exceeded")
             EXIT
          END IF
          ! read unit
-         unit_string = string(i_low:i_high-1)
+         unit_string = string(i_low:i_high - 1)
          CALL uppercase(unit_string)
-         SELECT CASE (TRIM (unit_string))
+         SELECT CASE (TRIM(unit_string))
          CASE ("INTERNAL_CP2K")
             unit_id(i_unit) = cp_units_none
             kind_id(i_unit) = cp_ukind_undef
@@ -364,35 +364,35 @@ CONTAINS
                           "au unit without specifing its kind not accepted, use "// &
                           "(au_e, au_f, au_t, au_temp, au_l, au_m, au_p, au_pot)")
          CASE default
-            CPABORT("Unknown unit: "//string(i_low:i_high-1))
+            CPABORT("Unknown unit: "//string(i_low:i_high - 1))
          END SELECT
          power(i_unit) = next_power
          ! parse op
          i_low = i_high
          DO WHILE (i_low <= len_string)
             IF (string(i_low:i_low) /= ' ') EXIT
-            i_low = i_low+1
+            i_low = i_low + 1
          END DO
          i_high = i_low
          DO WHILE (i_high <= len_string)
             IF (string(i_high:i_high) == ' ' .OR. string(i_high:i_high) == '^' .OR. &
                 string(i_high:i_high) == '*' .OR. string(i_high:i_high) == '/') EXIT
-            i_high = i_high+1
+            i_high = i_high + 1
          END DO
          IF (i_high < i_low .OR. i_low > len_string) EXIT
 
          IF (i_high <= len_string) THEN
             IF (string(i_low:i_high) == '^') THEN
-               i_low = i_high+1
+               i_low = i_high + 1
                DO WHILE (i_low <= len_string)
                   IF (string(i_low:i_low) /= ' ') EXIT
-                  i_low = i_low+1
+                  i_low = i_low + 1
                END DO
                i_high = i_low
                DO WHILE (i_high <= len_string)
-                  SELECT CASE (string (i_high:i_high))
+                  SELECT CASE (string(i_high:i_high))
                   CASE ('+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
-                     i_high = i_high+1
+                     i_high = i_high + 1
                   CASE default
                      EXIT
                   END SELECT
@@ -401,21 +401,21 @@ CONTAINS
                   CPABORT("an integer number is expected after a '^'")
                   EXIT
                END IF
-               formatstr = "(i"//cp_to_string(i_high-i_low+1)//")"
-               READ (string(i_low:i_high-1), formatstr) &
+               formatstr = "(i"//cp_to_string(i_high - i_low + 1)//")"
+               READ (string(i_low:i_high - 1), formatstr) &
                   next_power
                power(i_unit) = power(i_unit)*next_power
                ! next op
                i_low = i_high
                DO WHILE (i_low < len_string)
                   IF (string(i_low:i_low) /= ' ') EXIT
-                  i_low = i_low+1
+                  i_low = i_low + 1
                END DO
                i_high = i_low
                DO WHILE (i_high <= len_string)
                   IF (string(i_high:i_high) == ' ' .OR. string(i_high:i_high) == '^' .OR. &
                       string(i_high:i_high) == '*' .OR. string(i_high:i_high) == '/') EXIT
-                  i_high = i_high+1
+                  i_high = i_high + 1
                END DO
             END IF
          ENDIF
@@ -424,16 +424,16 @@ CONTAINS
          IF (i_high <= len_string) THEN
             IF (string(i_low:i_high) == "*" .OR. string(i_low:i_high) == '/') THEN
                IF (string(i_low:i_high) == '/') next_power = -1
-               i_low = i_high+1
+               i_low = i_high + 1
                DO WHILE (i_low <= len_string)
                   IF (string(i_low:i_low) /= ' ') EXIT
-                  i_low = i_low+1
+                  i_low = i_low + 1
                END DO
                i_high = i_low
                DO WHILE (i_high <= len_string)
                   IF (string(i_high:i_high) == ' ' .OR. string(i_high:i_high) == '^' .OR. &
                       string(i_high:i_high) == '*' .OR. string(i_high:i_high) == '/') EXIT
-                  i_high = i_high+1
+                  i_high = i_high + 1
                END DO
             END IF
          ENDIF
@@ -469,15 +469,15 @@ CONTAINS
       CPASSERT(SIZE(unit_id) <= cp_unit_max_kinds)
       ALLOCATE (unit)
       unit%ref_count = 1
-      last_unit_id = last_unit_id+1
+      last_unit_id = last_unit_id + 1
       unit%id_nr = last_unit_id
       unit%kind_id(1:SIZE(kind_id)) = kind_id
-      unit%kind_id(SIZE(kind_id)+1:) = cp_ukind_none
+      unit%kind_id(SIZE(kind_id) + 1:) = cp_ukind_none
       unit%unit_id(1:SIZE(unit_id)) = unit_id
       unit%unit_id(SIZE(unit_id):) = cp_units_none
       IF (PRESENT(power)) THEN
          unit%power(1:SIZE(power)) = power
-         unit%power(SIZE(power)+1:) = 0
+         unit%power(SIZE(power) + 1:) = 0
          DO i = 1, SIZE(unit%power)
             IF (unit%power(i) == 0) THEN
                unit%kind_id(i) = cp_ukind_none
@@ -503,11 +503,11 @@ CONTAINS
             max_kind = unit%kind_id(i)
             max_pos = i
             repeat = .FALSE.
-            DO j = i+1, SIZE(unit%kind_id)
+            DO j = i + 1, SIZE(unit%kind_id)
                IF (unit%kind_id(j) >= max_kind) THEN
                   IF (unit%kind_id(j) /= 0 .AND. unit%kind_id(j) == max_kind .AND. &
                       unit%unit_id(j) == unit%unit_id(max_pos)) THEN
-                     unit%power(max_pos) = unit%power(max_pos)+unit%power(j)
+                     unit%power(max_pos) = unit%power(max_pos) + unit%power(j)
                      unit%kind_id(j) = cp_ukind_none
                      unit%unit_id(j) = cp_units_none
                      unit%power(j) = 0
@@ -528,7 +528,7 @@ CONTAINS
             END DO
             IF (.NOT. repeat) EXIT
          END DO
-         IF (max_kind /= 0) unit%n_kinds = unit%n_kinds+1
+         IF (max_kind /= 0) unit%n_kinds = unit%n_kinds + 1
          ! put the max at pos i
          IF (max_pos /= i) THEN
             unit%kind_id(max_pos) = unit%kind_id(i)
@@ -560,7 +560,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(unit))
       CPASSERT(unit%ref_count > 0)
-      unit%ref_count = unit%ref_count+1
+      unit%ref_count = unit%ref_count + 1
    END SUBROUTINE cp_unit_retain
 
 ! **************************************************************************************************
@@ -578,7 +578,7 @@ CONTAINS
 
       IF (ASSOCIATED(unit)) THEN
          CPASSERT(unit%ref_count > 0)
-         unit%ref_count = unit%ref_count-1
+         unit%ref_count = unit%ref_count - 1
          IF (unit%ref_count == 0) THEN
             DEALLOCATE (unit)
          END IF
@@ -1062,8 +1062,8 @@ CONTAINS
       END SELECT
       IF (my_power /= 1) THEN
          a = LEN_TRIM(res)
-         CPASSERT(LEN(res)-a >= 3)
-         WRITE (res(a+1:), "('^',i3)") my_power
+         CPASSERT(LEN(res) - a >= 3)
+         WRITE (res(a + 1:), "('^',i3)") my_power
          CALL compress(res, .TRUE.)
       END IF
    END FUNCTION cp_basic_unit_desc
@@ -1110,12 +1110,12 @@ CONTAINS
          END IF
          IF (i > 1) THEN
             res(pos:pos) = "*"
-            pos = pos+1
+            pos = pos + 1
          END IF
          res(pos:) = TRIM(cp_basic_unit_desc(basic_kind=unit%kind_id(i), &
                                              basic_unit=my_unit, accept_undefined=my_accept_undefined, &
                                              power=unit%power(i)))
-         pos = LEN_TRIM(res)+1
+         pos = LEN_TRIM(res) + 1
       END DO
 
    END FUNCTION cp_unit_desc
@@ -1305,7 +1305,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(unit_set))
       ALLOCATE (unit_set)
       unit_set%ref_count = 1
-      last_unit_set_id = last_unit_set_id+1
+      last_unit_set_id = last_unit_set_id + 1
       unit_set%id_nr = last_unit_set_id
       my_name = name
       CALL uppercase(my_name)
@@ -1378,7 +1378,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(unit_set))
       CPASSERT(unit_set%ref_count > 0)
-      unit_set%ref_count = unit_set%ref_count+1
+      unit_set%ref_count = unit_set%ref_count + 1
    END SUBROUTINE cp_unit_set_retain
 
 ! **************************************************************************************************
@@ -1396,7 +1396,7 @@ CONTAINS
 
       IF (ASSOCIATED(unit_set)) THEN
          CPASSERT(unit_set%ref_count > 0)
-         unit_set%ref_count = unit_set%ref_count-1
+         unit_set%ref_count = unit_set%ref_count - 1
          IF (unit_set%ref_count == 0) THEN
             DO i = 1, SIZE(unit_set%units)
                CALL cp_unit_release(unit_set%units(i)%unit)

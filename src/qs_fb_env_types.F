@@ -103,7 +103,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(fb_env%obj))
       CPASSERT(fb_env%obj%ref_count > 0)
-      fb_env%obj%ref_count = fb_env%obj%ref_count+1
+      fb_env%obj%ref_count = fb_env%obj%ref_count + 1
    END SUBROUTINE fb_env_retain
 
 ! **********************************************************************
@@ -119,7 +119,7 @@ CONTAINS
 
       IF (ASSOCIATED(fb_env%obj)) THEN
          CPASSERT(fb_env%obj%ref_count > 0)
-         fb_env%obj%ref_count = fb_env%obj%ref_count-1
+         fb_env%obj%ref_count = fb_env%obj%ref_count - 1
          IF (fb_env%obj%ref_count == 0) THEN
             fb_env%obj%ref_count = 1
             IF (ASSOCIATED(fb_env%obj%rcut)) THEN
@@ -211,7 +211,7 @@ CONTAINS
       NULLIFY (fb_env%obj%local_atoms)
       fb_env%obj%nlocal_atoms = 0
       fb_env%obj%ref_count = 1
-      fb_env%obj%id_nr = last_fb_env_id+1
+      fb_env%obj%id_nr = last_fb_env_id + 1
       last_fb_env_id = fb_env%obj%id_nr
    END SUBROUTINE fb_env_create
 

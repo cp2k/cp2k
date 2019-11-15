@@ -192,7 +192,7 @@ CONTAINS
                                         rho_hard=rho_hard, &
                                         rho_soft=rho_soft)
 
-      rho_total = rho_hard+rho_soft
+      rho_total = rho_hard + rho_soft
 
       ! Calculate the coherent X-ray spectrum
 
@@ -213,22 +213,22 @@ CONTAINS
 
       DO ig = 2, ng
          CPASSERT(gsq(ig) >= gsq(jg))
-         IF (ABS(gsq(ig)-gsq(jg)) > 1.0E-12_dp) THEN
-            nshell = nshell+1
+         IF (ABS(gsq(ig) - gsq(jg)) > 1.0E-12_dp) THEN
+            nshell = nshell + 1
             IF (nshell > SIZE(q_shell)) THEN
-               CALL reallocate(q_shell, 1, SIZE(q_shell)+nblock)
-               CALL reallocate(ng_shell, 1, SIZE(ng_shell)+nblock)
+               CALL reallocate(q_shell, 1, SIZE(q_shell) + nblock)
+               CALL reallocate(ng_shell, 1, SIZE(ng_shell) + nblock)
             END IF
             q = SQRT(gsq(ig))
             IF (q > q_max) THEN
-               nshell = nshell-1
+               nshell = nshell - 1
                EXIT
             END IF
             q_shell(nshell) = q
             ng_shell(nshell) = 1
             jg = ig
          ELSE
-            ng_shell(nshell) = ng_shell(nshell)+1
+            ng_shell(nshell) = ng_shell(nshell) + 1
          END IF
       END DO
 
@@ -248,19 +248,19 @@ CONTAINS
          f2sum(ishell) = 0.0_dp
          f4sum(ishell) = 0.0_dp
          DO ig_shell = 1, ng_shell(ishell)
-            f = ABS(rhotot_elec_gspace%pw%cc(ig+ig_shell))
+            f = ABS(rhotot_elec_gspace%pw%cc(ig + ig_shell))
             fmin(ishell) = MIN(fmin(ishell), f)
             fmax(ishell) = MAX(fmax(ishell), f)
-            fsum(ishell) = fsum(ishell)+f
+            fsum(ishell) = fsum(ishell) + f
             f2 = f*f
-            f2sum(ishell) = f2sum(ishell)+f2
-            f4sum(ishell) = f4sum(ishell)+f2*f2
+            f2sum(ishell) = f2sum(ishell) + f2
+            f4sum(ishell) = f4sum(ishell) + f2*f2
          END DO
-         ig = ig+ng_shell(ishell)
+         ig = ig + ng_shell(ishell)
       END DO
 
-      CALL reallocate(nshell_pe, 0, npe-1)
-      CALL reallocate(offset_pe, 0, npe-1)
+      CALL reallocate(nshell_pe, 0, npe - 1)
+      CALL reallocate(offset_pe, 0, npe - 1)
 
       ! Root (source) process gathers the number of shell of each process
 
@@ -272,8 +272,8 @@ CONTAINS
       IF (unit_number > 0) THEN
          nshell_gather = SUM(nshell_pe)
          offset_pe(0) = 0
-         DO ipe = 1, npe-1
-            offset_pe(ipe) = offset_pe(ipe-1)+nshell_pe(ipe-1)
+         DO ipe = 1, npe - 1
+            offset_pe(ipe) = offset_pe(ipe - 1) + nshell_pe(ipe - 1)
          END DO
       ELSE
          nshell_gather = 1 ! dummy value for the non-root processes
@@ -337,8 +337,8 @@ CONTAINS
 
          DO ig = 2, nshell_gather
             i = aux_index(ig)
-            IF (ABS(q_shell_gather(ig)-q_shell_gather(jg)) > 1.0E-12_dp) THEN
-               nshell = nshell+1
+            IF (ABS(q_shell_gather(ig) - q_shell_gather(jg)) > 1.0E-12_dp) THEN
+               nshell = nshell + 1
                q_shell(nshell) = q_shell_gather(ig)
                ng_shell(nshell) = ng_shell_gather(i)
                fmin(nshell) = fmin_gather(i)
@@ -348,12 +348,12 @@ CONTAINS
                f4sum(nshell) = f4sum_gather(i)
                jg = ig
             ELSE
-               ng_shell(nshell) = ng_shell(nshell)+ng_shell_gather(i)
+               ng_shell(nshell) = ng_shell(nshell) + ng_shell_gather(i)
                fmin(nshell) = MIN(fmin(nshell), fmin_gather(i))
                fmax(nshell) = MAX(fmax(nshell), fmax_gather(i))
-               fsum(nshell) = fsum(nshell)+fsum_gather(i)
-               f2sum(nshell) = f2sum(nshell)+f2sum_gather(i)
-               f4sum(nshell) = f4sum(nshell)+f4sum_gather(i)
+               fsum(nshell) = fsum(nshell) + fsum_gather(i)
+               f2sum(nshell) = f2sum(nshell) + f2sum_gather(i)
+               f4sum(nshell) = f4sum(nshell) + f4sum_gather(i)
             END IF
          END DO
 
@@ -659,35 +659,35 @@ CONTAINS
                ELSE
                   alpha = 1.0_dp
                END IF
-               delta_cpc = delta_cpc+alpha*(cpc_h(ispin)%r_coef-cpc_s(ispin)%r_coef)
+               delta_cpc = delta_cpc + alpha*(cpc_h(ispin)%r_coef - cpc_s(ispin)%r_coef)
             END DO
 
             scale = 1.0_dp
 
             DO iset = 1, nset
-               ico1_set = (iset-1)*maxco+1
-               iso1_set = (iset-1)*maxso+1
+               ico1_set = (iset - 1)*maxco + 1
+               iso1_set = (iset - 1)*maxso + 1
                ncoa = ncoset(lmax(iset))
                nsoa = nsoset(lmax(iset))
                DO jset = 1, nset
-                  jco1_set = (jset-1)*maxco+1
-                  jso1_set = (jset-1)*maxso+1
+                  jco1_set = (jset - 1)*maxco + 1
+                  jso1_set = (jset - 1)*maxso + 1
                   ncob = ncoset(lmax(jset))
                   nsob = nsoset(lmax(jset))
                   DO ipgf = 1, npgf(iset)
-                     ico1_pgf = ico1_set+(ipgf-1)*ncoa
-                     iso1_pgf = iso1_set+(ipgf-1)*nsoa
+                     ico1_pgf = ico1_set + (ipgf - 1)*ncoa
+                     iso1_pgf = iso1_set + (ipgf - 1)*nsoa
                      DO jpgf = 1, npgf(jset)
-                        jco1_pgf = jco1_set+(jpgf-1)*ncob
-                        jso1_pgf = jso1_set+(jpgf-1)*nsob
-                        ico = ico1_pgf+ncoset(lmin(iset)-1)
-                        iso = iso1_pgf+nsoset(lmin(iset)-1)
+                        jco1_pgf = jco1_set + (jpgf - 1)*ncob
+                        jso1_pgf = jso1_set + (jpgf - 1)*nsob
+                        ico = ico1_pgf + ncoset(lmin(iset) - 1)
+                        iso = iso1_pgf + nsoset(lmin(iset) - 1)
 
                         ! Transformation spherical to Cartesian
 
                         DO la = lmin(iset), lmax(iset)
-                           jco = jco1_pgf+ncoset(lmin(jset)-1)
-                           jso = jso1_pgf+nsoset(lmin(jset)-1)
+                           jco = jco1_pgf + ncoset(lmin(jset) - 1)
+                           jso = jso1_pgf + nsoset(lmin(jset) - 1)
                            DO lb = lmin(jset), lmax(jset)
                               ison = o2nindex(iso)
                               json = o2nindex(jso)
@@ -698,17 +698,17 @@ CONTAINS
                               CALL dgemm("T", "N", nco(la), nco(lb), nso(la), 1.0_dp, &
                                          orbtramat(la)%slm, nso(la), work, maxso, &
                                          0.0_dp, pab(ico, jco), SIZE(pab, 1))
-                              jco = jco+nco(lb)
-                              jso = jso+nso(lb)
+                              jco = jco + nco(lb)
+                              jso = jso + nso(lb)
                            END DO ! next lb
-                           ico = ico+nco(la)
-                           iso = iso+nso(la)
+                           ico = ico + nco(la)
+                           iso = iso + nso(la)
                         END DO ! next la
 
                         ! Collocate current product of primitive Cartesian functions
 
-                        na = ico1_pgf-1
-                        nb = jco1_pgf-1
+                        na = ico1_pgf - 1
+                        nb = jco1_pgf - 1
 
                         CALL collocate_pgf_product_gspace( &
                            la_max=lmax(iset), &
@@ -737,7 +737,7 @@ CONTAINS
 
       rho_total = pw_integrate_function(rhotot_elec_gspace%pw, isign=-1)/volume
 
-      rho_hard = rho_total-rho_soft
+      rho_hard = rho_total - rho_soft
 
       ! Release work storage
 

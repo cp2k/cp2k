@@ -154,15 +154,15 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
          CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
          ! gamma matrix
-         ni = lmaxa+1
-         nj = lmaxb+1
+         ni = lmaxa + 1
+         nj = lmaxb + 1
          ALLOCATE (gammab(ni, nj))
-         rcut = rcuta+rcutb
+         rcut = rcuta + rcutb
          dr = SQRT(SUM(rij(:)**2))
          CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1)+MATMUL(gammab, charges1(jatom, 1:nj))
+         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges1(jatom, 1:nj))
          IF (iatom /= jatom) THEN
-            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1)+MATMUL(charges1(iatom, 1:ni), gammab)
+            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1) + MATMUL(charges1(iatom, 1:ni), gammab)
          END IF
          DEALLOCATE (gammab)
       END DO
@@ -201,13 +201,13 @@ CONTAINS
          DO ikind = 1, SIZE(local_particles%n_el)
             DO ia = 1, local_particles%n_el(ikind)
                iatom = local_particles%list(ikind)%array(ia)
-               DO jatom = 1, iatom-1
-                  rij = particle_set(iatom)%r-particle_set(jatom)%r
+               DO jatom = 1, iatom - 1
+                  rij = particle_set(iatom)%r - particle_set(jatom)%r
                   rij = pbc(rij, cell)
                   dr = SQRT(SUM(rij(:)**2))
                   IF (dr > 1.e-6_dp) THEN
-                     gmcharge(iatom, 1) = gmcharge(iatom, 1)+mcharge1(jatom)/dr
-                     gmcharge(jatom, 1) = gmcharge(jatom, 1)+mcharge1(iatom)/dr
+                     gmcharge(iatom, 1) = gmcharge(iatom, 1) + mcharge1(jatom)/dr
+                     gmcharge(jatom, 1) = gmcharge(jatom, 1) + mcharge1(iatom)/dr
                   END IF
                END DO
             END DO
@@ -221,9 +221,9 @@ CONTAINS
 
       IF (do_ewald) THEN
          ! add self charge interaction and background charge contribution
-         gmcharge(:, 1) = gmcharge(:, 1)-2._dp*alpha*oorootpi*mcharge(:)
+         gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
          IF (ANY(periodic(:) == 1)) THEN
-            gmcharge(:, 1) = gmcharge(:, 1)-pi/alpha**2/deth
+            gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
          END IF
       END IF
 
@@ -249,19 +249,19 @@ CONTAINS
          ALLOCATE (gcij(ni, nj))
          DO i = 1, ni
             DO j = 1, nj
-               la = laoa(i)+1
-               lb = laob(j)+1
-               gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1)+gchrg(icol, lb, 1))
+               la = laoa(i) + 1
+               lb = laob(j) + 1
+               gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1) + gchrg(icol, lb, 1))
             END DO
          END DO
-         gmij = 0.5_dp*(gmcharge(irow, 1)+gmcharge(icol, 1))
+         gmij = 0.5_dp*(gmcharge(irow, 1) + gmcharge(icol, 1))
          DO is = 1, SIZE(ks_matrix)
             NULLIFY (ksblock)
             CALL dbcsr_get_block_p(matrix=ks_matrix(is)%matrix, &
                                    row=irow, col=icol, block=ksblock, found=found)
             CPASSERT(found)
-            ksblock = ksblock-gcij*sblock
-            ksblock = ksblock-gmij*sblock
+            ksblock = ksblock - gcij*sblock
+            ksblock = ksblock - gmij*sblock
          END DO
          DEALLOCATE (gcij)
       ENDDO
@@ -331,13 +331,13 @@ CONTAINS
          ui = xgamma(ikind)
          jkind = kind_of(icol)
          uj = xgamma(jkind)
-         gmij = ui*mcharge(irow)*mcharge1(irow)+uj*mcharge(icol)*mcharge1(icol)
+         gmij = ui*mcharge(irow)*mcharge1(irow) + uj*mcharge(icol)*mcharge1(icol)
          DO is = 1, SIZE(ks_matrix)
             NULLIFY (ksblock)
             CALL dbcsr_get_block_p(matrix=ks_matrix(is)%matrix, &
                                    row=irow, col=icol, block=ksblock, found=found)
             CPASSERT(found)
-            ksblock = ksblock+0.5_dp*gmij*sblock
+            ksblock = ksblock + 0.5_dp*gmij*sblock
          END DO
       ENDDO
       CALL dbcsr_iterator_stop(iter)

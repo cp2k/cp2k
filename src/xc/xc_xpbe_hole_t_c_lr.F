@@ -173,7 +173,7 @@ CONTAINS
 
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       dummy => rho
 
@@ -270,7 +270,7 @@ CONTAINS
             ss = 0.3466806371753173524216762e0_dp*t6*t8
             IF (ss > scutoff) THEN
                ss2 = ss*ss
-               sscale = (smax*ss2-sconst)/(ss2*ss)
+               sscale = (smax*ss2 - sconst)/(ss2*ss)
             END IF
             IF (ss*sscale > gcutoff) THEN
                CALL xpbe_hole_t_c_lr_lda_calc_1(e_0(ip), e_rho(ip), e_ndrho(ip), &
@@ -334,7 +334,7 @@ CONTAINS
 
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, &
                           norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       dummy => rhoa
 
@@ -442,7 +442,7 @@ CONTAINS
             ss = 0.3466806371753173524216762e0_dp*t6*t8
             IF (ss > scutoff) THEN
                ss2 = ss*ss
-               sscale = (smax*ss2-sconst)/(ss2*ss)
+               sscale = (smax*ss2 - sconst)/(ss2*ss)
             END IF
             e_tmp = 0.0_dp
             IF (ss*sscale > gcutoff) THEN
@@ -454,7 +454,7 @@ CONTAINS
                                                 my_rho, &
                                                 my_ndrho, sscale, sx, R, order)
             END IF
-            e_0(ip) = e_0(ip)+0.5_dp*e_tmp
+            e_0(ip) = e_0(ip) + 0.5_dp*e_tmp
 
          END IF
       END DO
@@ -517,13 +517,13 @@ CONTAINS
          t14 = t12*t13
          t17 = t12**2
          t19 = t13**2
-         t21 = a1*t12*t13+a2*t17*t19
+         t21 = a1*t12*t13 + a2*t17*t19
          t22 = t14*t21
          t25 = t17*t11
          t27 = t19*sscale
          t29 = t17*t12
          t31 = t19*t13
-         t33 = 1+a3*t17*t19+a4*t25*t27+a5*t29*t31
+         t33 = 1 + a3*t17*t19 + a4*t25*t27 + a5*t29*t31
          t34 = 0.1e1_dp/t33
          t35 = R**2
          t37 = t6**2
@@ -539,7 +539,7 @@ CONTAINS
          t46 = exei(P, Q)
          t48 = expint(1, q)
          t50 = t14*t40
-         t51 = D+t50
+         t51 = D + t50
          t52 = t51*t35
          t53 = t52*t38
          t54 = expint(1, t53)
@@ -552,9 +552,9 @@ CONTAINS
          t65 = t34*B
          t69 = SQRT(pi)
          t71 = F1*t21
-         t73 = t71*t34+F2
-         t77 = C*(1+t73*t12*t13)
-         t85 = t69*(15*E+6*t77*t51+4*B*t56+8*A*t57)
+         t73 = t71*t34 + F2
+         t77 = C*(1 + t73*t12*t13)
+         t85 = t69*(15*E + 6*t77*t51 + 4*B*t56 + 8*A*t57)
          t86 = SQRT(t51)
          t87 = t86*t57
          t88 = 0.1e1_dp/t87
@@ -564,8 +564,8 @@ CONTAINS
          t94 = t11*sscale
          t95 = SQRT(t42)
          t98 = erf(0.3e1_dp/0.2e1_dp*t94*t95)
-         t99 = 1-t98
-         t103 = 0.3e1_dp/0.4e1_dp*pi+t85*t88/0.16e2_dp-0.3e1_dp/0.4e1_dp*t92 &
+         t99 = 1 - t98
+         t103 = 0.3e1_dp/0.4e1_dp*pi + t85*t88/0.16e2_dp - 0.3e1_dp/0.4e1_dp*t92 &
                 *t93*t99
          t104 = 0.1e1_dp/t69
          t105 = t103*t104
@@ -573,60 +573,60 @@ CONTAINS
          t107 = 0.1e1_dp/t13
          t108 = t106*t107
          t109 = t108*t87
-         t113 = t40*C+REAL(2*t64*t65, KIND=dp)-0.32e2_dp/0.15e2_dp*t105*t109 &
-                +t60*t73
+         t113 = t40*C + REAL(2*t64*t65, KIND=dp) - 0.32e2_dp/0.15e2_dp*t105*t109 &
+                + t60*t73
          t115 = t17*t19
          t116 = t21**2
          t117 = t33**2
          t118 = 0.1e1_dp/t117
          t119 = t116*t118
          t121 = C*t73
-         t123 = t119*B+t40*t121
+         t123 = t119*B + t40*t121
          t125 = t35*t2
          t126 = t61*C
          t129 = E*t21
          t133 = D*t103*t104
          t136 = t34*C
-         t140 = REAL(2*t129*t34, KIND=dp)-0.32e2_dp/0.15e2_dp*t133*t109+REAL(2 &
-                                                                             *t64*t136, KIND=dp)+t126*t73
+         t140 = REAL(2*t129*t34, KIND=dp) - 0.32e2_dp/0.15e2_dp*t133*t109 + REAL(2 &
+                                                                                 *t64*t136, KIND=dp) + t126*t73
          t142 = t105*t106
          t143 = t107*t87
          t144 = t143*t40
          t147 = t136*t73
          t150 = C*t116
-         t152 = -0.32e2_dp/0.15e2_dp*t142*t144+REAL(2*t64*t147, KIND=dp)+t150 &
+         t152 = -0.32e2_dp/0.15e2_dp*t142*t144 + REAL(2*t64*t147, KIND=dp) + t150 &
                 *t118
          t155 = t29*t31*C
          t156 = t73*t116
-         t159 = t126+2*D*E+t14*t140+t115*t152+t155*t156* &
+         t159 = t126 + 2*D*E + t14*t140 + t115*t152 + t155*t156* &
                 t118
          t162 = t35**2
          t163 = t162*t1
          t164 = t6*t5
          t167 = t61*t103*t104
          t170 = t34*E
-         t173 = -0.16e2_dp/0.15e2_dp*t167*t109+REAL(2*t64*t170, KIND=dp)
+         t173 = -0.16e2_dp/0.15e2_dp*t167*t109 + REAL(2*t64*t170, KIND=dp)
          t175 = t34*t103
          t176 = t64*t175
          t177 = t104*t106
          t178 = t177*t143
          t181 = E*t116
-         t183 = -0.32e2_dp/0.15e2_dp*t176*t178+t181*t118
+         t183 = -0.32e2_dp/0.15e2_dp*t176*t178 + t181*t118
          t187 = t104*t87*t119
-         t190 = t61*E+t14*t173+t115*t183-0.16e2_dp/0.15e2_dp*t115 &
+         t190 = t61*E + t14*t173 + t115*t183 - 0.16e2_dp/0.15e2_dp*t115 &
                 *t103*t187
-         t194 = 2*E+t60+t61*B+t14*t113+t115*t123+t125*t37 &
-                *t159+3*t163*t164*t190
+         t194 = 2*E + t60 + t61*B + t14*t113 + t115*t123 + t125*t37 &
+                *t159 + 3*t163*t164*t190
          t195 = t58*t194
          t196 = D*t35
-         t199 = EXP(-t196*t38-q)
-         t202 = -0.4e1_dp/0.9e1_dp*A*t46+0.4e1_dp/0.9e1_dp*A*t48-0.4e1_dp/ &
-                0.9e1_dp*A*t54-0.4e1_dp/0.9e1_dp*t195*t199
-         e_0 = e_0+(t45*t202*Clda)*sx
+         t199 = EXP(-t196*t38 - q)
+         t202 = -0.4e1_dp/0.9e1_dp*A*t46 + 0.4e1_dp/0.9e1_dp*A*t48 - 0.4e1_dp/ &
+                0.9e1_dp*A*t54 - 0.4e1_dp/0.9e1_dp*t195*t199
+         e_0 = e_0 + (t45*t202*Clda)*sx
       END IF
       IF (order >= 1 .OR. order >= -1) THEN
          t209 = rho**2
-         srho = -t3/t164*t8*t4/0.18e2_dp-t3*t7/t209/0.6e1_dp
+         srho = -t3/t164*t8*t4/0.18e2_dp - t3*t7/t209/0.6e1_dp
 
          t214 = t2*t7
          sndrho = t214*t8/0.6e1_dp
@@ -639,34 +639,34 @@ CONTAINS
          t227 = t12*t11
          t228 = a2*t227
          t229 = t19*t218
-         t232 = 2*t223*t224+4*t228*t229
+         t232 = 2*t223*t224 + 4*t228*t229
          t234 = t14*t232*t39
          t235 = t21*t118
          t236 = t14*t235
          t237 = a3*t227
          t240 = a4*t17
          t244 = a5*t25
-         t248 = 4*t237*t229+5*t240*t27*t218+6*t244*t31*t218
+         t248 = 4*t237*t229 + 5*t240*t27*t218 + 6*t244*t31*t218
          t251 = t236*t125*t37*t248
          t255 = 0.2e1_dp/0.3e1_dp*t50*t125*t7*t4
-         qrho = t222+t234-t251+t255
+         qrho = t222 + t234 - t251 + t255
          t256 = t216*t21
          t257 = t34*t41
          t261 = t232*t34
          t262 = t261*t41
          t265 = t118*t41
-         prho = 0.9e1_dp/0.2e1_dp*t256*t257*t218+0.9e1_dp/0.4e1_dp*t14*t262 &
-                -0.9e1_dp/0.4e1_dp*t22*t265*t248
+         prho = 0.9e1_dp/0.2e1_dp*t256*t257*t218 + 0.9e1_dp/0.4e1_dp*t14*t262 &
+                - 0.9e1_dp/0.4e1_dp*t22*t265*t248
          t269 = dsdndrho(rho)
          t273 = t13*t269
          t276 = t19*t269
-         t279 = 2*t223*t273+4*t228*t276
+         t279 = 2*t223*t273 + 4*t228*t276
          t280 = t279*t34
          t281 = t280*t41
-         t292 = 4*t237*t276+5*t240*t27*t269+6*t244*t31*t269
-         pndrho = 0.9e1_dp/0.2e1_dp*t256*t257*t269+0.9e1_dp/0.4e1_dp*t14* &
-                  t281-0.9e1_dp/0.4e1_dp*t22*t265*t292
-         qndrho = 2*t217*t125*t37*t269+t14*t279*t39-t236*t125 &
+         t292 = 4*t237*t276 + 5*t240*t27*t269 + 6*t244*t31*t269
+         pndrho = 0.9e1_dp/0.2e1_dp*t256*t257*t269 + 0.9e1_dp/0.4e1_dp*t14* &
+                  t281 - 0.9e1_dp/0.4e1_dp*t22*t265*t292
+         qndrho = 2*t217*t125*t37*t269 + t14*t279*t39 - t236*t125 &
                   *t37*t292
          t308 = dexeirho(P, Q, Prho, Qrho)
          t312 = EXP(-q)
@@ -674,7 +674,7 @@ CONTAINS
          t318 = 0.1e1_dp/t35
          t320 = 0.1e1_dp/t37
          t322 = 0.1e1_dp/t21*t33*t318*t1*t320
-         t331 = 2*t216*t40*t218+t14*t261-t14*t235*t248
+         t331 = 2*t216*t40*t218 + t14*t261 - t14*t235*t248
          t334 = t214*t4
          t339 = EXP(-t53)
          t341 = 0.1e1_dp/t51
@@ -683,7 +683,7 @@ CONTAINS
          t359 = D*t232
          t362 = t118*B
          t368 = t118*t248
-         t370 = F1*t232*t34-t71*t368
+         t370 = F1*t232*t34 - t71*t368
          t373 = t73*t11
          t382 = B*t51
          t385 = A*t56
@@ -693,13 +693,13 @@ CONTAINS
          t404 = EXP(-p)
          t405 = 0.1e1_dp/t402*t404
          t409 = 0.1e1_dp/t95
-         t420 = REAL(t69*(6*C*(t370*t12*t13+2*t373*t224)*t51 &
-                          +6*t77*t331+8*t382*t331+24*t385*t331)*t88, KIND=dp)/ &
-                0.16e2_dp-0.7e1_dp/0.32e2_dp*REAL(t85, KIND=dp)*REAL(t393, KIND=dp)* &
-                REAL(t331, KIND=dp)-0.3e1_dp &
-                /0.4e1_dp*t92*prho*t93*t99+0.3e1_dp/0.2e1_dp*t401*t405 &
-                *(0.3e1_dp/0.2e1_dp*t218*sscale*t95+0.3e1_dp/0.4e1_dp*t94*t409 &
-                  *(t262-t235*t41*t248))
+         t420 = REAL(t69*(6*C*(t370*t12*t13 + 2*t373*t224)*t51 &
+                          + 6*t77*t331 + 8*t382*t331 + 24*t385*t331)*t88, KIND=dp)/ &
+                0.16e2_dp - 0.7e1_dp/0.32e2_dp*REAL(t85, KIND=dp)*REAL(t393, KIND=dp)* &
+                REAL(t331, KIND=dp) - 0.3e1_dp &
+                /0.4e1_dp*t92*prho*t93*t99 + 0.3e1_dp/0.2e1_dp*t401*t405 &
+                *(0.3e1_dp/0.2e1_dp*t218*sscale*t95 + 0.3e1_dp/0.4e1_dp*t94*t409 &
+                  *(t262 - t235*t41*t248))
          t421 = t420*t104
          t424 = 0.1e1_dp/t227
          t425 = t105*t424
@@ -733,56 +733,56 @@ CONTAINS
          t604 = t87*t116
          t611 = t115*t105
          t612 = t429*t116
-         e_rho = e_rho+(0.4e1_dp/0.3e1_dp*t44*t202*Clda+t45*(-0.4e1_dp/0.9e1_dp* &
-                                                             A*t308-0.4e1_dp/0.27e2_dp*A*qrho*t314*t322+0.4e1_dp/0.27e2_dp &
-                                                             *A*(t331*t35*t38+0.2e1_dp/0.3e1_dp*t52*t334)*t339*t341 &
-                                                             *t318*t1*t320+0.4e1_dp/0.3e1_dp*t349*t199*t331-0.4e1_dp &
-                                                             /0.9e1_dp*t58*(REAL(2*t216*t113*t218, KIND=dp)+t14*(t261*C &
-                                                             -t235*C*REAL(t248, KIND=dp)+REAL(2*t359*t65, KIND=dp)-REAL(2*t64*t362 &
-                                                            *t248, KIND=dp)-0.32e2_dp/0.15e2_dp*t421*t109+0.64e2_dp/0.15e2_dp*t425 &
-                                                                            *t426-0.112e3_dp/0.15e2_dp*t142*t431+t60*t370)+REAL(4* &
-                                                                 t437*t123*t218, KIND=dp)+t115*(0.2e1_dp*t235*B*t232-0.2e1_dp*t446 &
-                                                                            *B*REAL(t248, KIND=dp)+t261*t121-t235*t451+t40*C*t370) &
-                                                                            +0.2e1_dp/0.3e1_dp*t125*t7*t159*t4+t125*t37*(REAL(2* &
-                                                                     t216*t140*t218, KIND=dp)+t14*(0.2e1_dp*E*t232*t34-REAL(2*t129 &
-                                                          *t368, KIND=dp)-0.32e2_dp/0.15e2_dp*D*t420*t104*t109+0.64e2_dp/0.15e2_dp &
-                                                                             *t133*t475-0.112e3_dp/0.15e2_dp*t133*t479+REAL(2*t359 &
-                                                                 *t136, KIND=dp)-REAL(2*t64*t484*t248, KIND=dp)+t126*t370)+REAL(4* &
-                                                                t437*t152*t218, KIND=dp)+t115*(-0.32e2_dp/0.15e2_dp*t421*t106*t144 &
-                                                       +0.64e2_dp/0.15e2_dp*t497*t498*t34*REAL(t218, KIND=dp)-0.112e3_dp/0.15e2_dp &
-                                                                                *t503*t504*t34*t331-0.32e2_dp/0.15e2_dp*t142*t143* &
-                                                                t261+0.32e2_dp/0.15e2_dp*t503*t498*REAL(t368, KIND=dp)+REAL(2*t359 &
-                                               *t147, KIND=dp)-0.2e1_dp*t517*t451+0.2e1_dp*REAL(t64, KIND=dp)*REAL(t136, KIND=dp)* &
-                                                           t370+REAL(2*t523*t524, KIND=dp)-REAL(2*t150*t527, KIND=dp))+REAL(6*t533 &
-                                                                       *t156*t534, KIND=dp)+t155*t370*t116*t118+0.2e1_dp*t155*t541 &
-                                              *REAL(t524, KIND=dp)-0.2e1_dp*t155*REAL(t156, KIND=dp)*REAL(t527, KIND=dp))+0.4e1_dp &
-                                                                            *t163*t6*t190*t4+0.3e1_dp*t163*t164*(REAL(2*t216*t173 &
-                                                                     *t218, KIND=dp)+t14*(-0.16e2_dp/0.15e2_dp*t61*t420*t104*t109+ &
-                                                                0.32e2_dp/0.15e2_dp*t167*t475-0.56e2_dp/0.15e2_dp*t167*t479+REAL(2 &
-                                                                  *t359*t170, KIND=dp)-REAL(2*t64*t568*t248, KIND=dp))+REAL(4*t437 &
-                                           *t183*t218, KIND=dp)+t115*(-0.32e2_dp/0.15e2_dp*REAL(t359, KIND=dp)*REAL(t175, KIND=dp) &
-                                                       *REAL(t178, KIND=dp)+0.32e2_dp/0.15e2_dp*t581*t177*t143*REAL(t248, KIND=dp) &
-                                                    -0.32e2_dp/0.15e2_dp*REAL(t64, KIND=dp)*t34*t420*REAL(t178, KIND=dp)+0.64e2_dp &
-                                                                         /0.15e2_dp*t176*t590*t426-0.112e3_dp/0.15e2_dp*t176*t177* &
-                                                            t431+REAL(2*t129*t524, KIND=dp)-REAL(2*t181*t527, KIND=dp))-0.64e2_dp/ &
-                                        0.15e2_dp*REAL(t603, KIND=dp)*REAL(t604, KIND=dp)*REAL(t534, KIND=dp)-0.16e2_dp/0.15e2_dp* &
-                                                                           t115*t420*t187-0.56e2_dp/0.15e2_dp*t611*t612*t118*t331- &
-                                                        0.32e2_dp/0.15e2_dp*t611*t498*REAL(t524, KIND=dp)+0.32e2_dp/0.15e2_dp*t611 &
-                                                 *REAL(t604, KIND=dp)*REAL(t527, KIND=dp)))*t199-0.4e1_dp/0.9e1_dp*t195*(-0.2e1_dp &
-                                                                                   /0.3e1_dp*t196*t334-t222-t234+t251-t255)*t199)* &
-                        Clda)*sx
+         e_rho = e_rho + (0.4e1_dp/0.3e1_dp*t44*t202*Clda + t45*(-0.4e1_dp/0.9e1_dp* &
+                                                                 A*t308 - 0.4e1_dp/0.27e2_dp*A*qrho*t314*t322 + 0.4e1_dp/0.27e2_dp &
+                                                                 *A*(t331*t35*t38 + 0.2e1_dp/0.3e1_dp*t52*t334)*t339*t341 &
+                                                                 *t318*t1*t320 + 0.4e1_dp/0.3e1_dp*t349*t199*t331 - 0.4e1_dp &
+                                                                 /0.9e1_dp*t58*(REAL(2*t216*t113*t218, KIND=dp) + t14*(t261*C &
+                                                        - t235*C*REAL(t248, KIND=dp) + REAL(2*t359*t65, KIND=dp) - REAL(2*t64*t362 &
+                                                        *t248, KIND=dp) - 0.32e2_dp/0.15e2_dp*t421*t109 + 0.64e2_dp/0.15e2_dp*t425 &
+                                                                      *t426 - 0.112e3_dp/0.15e2_dp*t142*t431 + t60*t370) + REAL(4* &
+                                                             t437*t123*t218, KIND=dp) + t115*(0.2e1_dp*t235*B*t232 - 0.2e1_dp*t446 &
+                                                                      *B*REAL(t248, KIND=dp) + t261*t121 - t235*t451 + t40*C*t370) &
+                                                                           + 0.2e1_dp/0.3e1_dp*t125*t7*t159*t4 + t125*t37*(REAL(2* &
+                                                                 t216*t140*t218, KIND=dp) + t14*(0.2e1_dp*E*t232*t34 - REAL(2*t129 &
+                                                      *t368, KIND=dp) - 0.32e2_dp/0.15e2_dp*D*t420*t104*t109 + 0.64e2_dp/0.15e2_dp &
+                                                                         *t133*t475 - 0.112e3_dp/0.15e2_dp*t133*t479 + REAL(2*t359 &
+                                                           *t136, KIND=dp) - REAL(2*t64*t484*t248, KIND=dp) + t126*t370) + REAL(4* &
+                                                              t437*t152*t218, KIND=dp) + t115*(-0.32e2_dp/0.15e2_dp*t421*t106*t144 &
+                                                    + 0.64e2_dp/0.15e2_dp*t497*t498*t34*REAL(t218, KIND=dp) - 0.112e3_dp/0.15e2_dp &
+                                                                              *t503*t504*t34*t331 - 0.32e2_dp/0.15e2_dp*t142*t143* &
+                                                            t261 + 0.32e2_dp/0.15e2_dp*t503*t498*REAL(t368, KIND=dp) + REAL(2*t359 &
+                                           *t147, KIND=dp) - 0.2e1_dp*t517*t451 + 0.2e1_dp*REAL(t64, KIND=dp)*REAL(t136, KIND=dp)* &
+                                                     t370 + REAL(2*t523*t524, KIND=dp) - REAL(2*t150*t527, KIND=dp)) + REAL(6*t533 &
+                                                                   *t156*t534, KIND=dp) + t155*t370*t116*t118 + 0.2e1_dp*t155*t541 &
+                                          *REAL(t524, KIND=dp) - 0.2e1_dp*t155*REAL(t156, KIND=dp)*REAL(t527, KIND=dp)) + 0.4e1_dp &
+                                                                           *t163*t6*t190*t4 + 0.3e1_dp*t163*t164*(REAL(2*t216*t173 &
+                                                                  *t218, KIND=dp) + t14*(-0.16e2_dp/0.15e2_dp*t61*t420*t104*t109 + &
+                                                            0.32e2_dp/0.15e2_dp*t167*t475 - 0.56e2_dp/0.15e2_dp*t167*t479 + REAL(2 &
+                                                              *t359*t170, KIND=dp) - REAL(2*t64*t568*t248, KIND=dp)) + REAL(4*t437 &
+                                         *t183*t218, KIND=dp) + t115*(-0.32e2_dp/0.15e2_dp*REAL(t359, KIND=dp)*REAL(t175, KIND=dp) &
+                                                     *REAL(t178, KIND=dp) + 0.32e2_dp/0.15e2_dp*t581*t177*t143*REAL(t248, KIND=dp) &
+                                                 - 0.32e2_dp/0.15e2_dp*REAL(t64, KIND=dp)*t34*t420*REAL(t178, KIND=dp) + 0.64e2_dp &
+                                                                       /0.15e2_dp*t176*t590*t426 - 0.112e3_dp/0.15e2_dp*t176*t177* &
+                                                      t431 + REAL(2*t129*t524, KIND=dp) - REAL(2*t181*t527, KIND=dp)) - 0.64e2_dp/ &
+                                      0.15e2_dp*REAL(t603, KIND=dp)*REAL(t604, KIND=dp)*REAL(t534, KIND=dp) - 0.16e2_dp/0.15e2_dp* &
+                                                                        t115*t420*t187 - 0.56e2_dp/0.15e2_dp*t611*t612*t118*t331 - &
+                                                      0.32e2_dp/0.15e2_dp*t611*t498*REAL(t524, KIND=dp) + 0.32e2_dp/0.15e2_dp*t611 &
+                                               *REAL(t604, KIND=dp)*REAL(t527, KIND=dp)))*t199 - 0.4e1_dp/0.9e1_dp*t195*(-0.2e1_dp &
+                                                                           /0.3e1_dp*t196*t334 - t222 - t234 + t251 - t255)*t199)* &
+                          Clda)*sx
          t640 = dexeindrho(P, Q, Pndrho, Qndrho)
-         t653 = 2*t216*t40*t269+t14*t280-t14*t235*t292
+         t653 = 2*t216*t40*t269 + t14*t280 - t14*t235*t292
          t667 = D*t279
          t675 = t118*t292
-         t677 = F1*t279*t34-t71*t675
-         t716 = REAL(t69*(6*C*(t677*t12*t13+2*t373*t273)*t51 &
-                          +6*t77*t653+8*t382*t653+24*t385*t653)*t88, KIND=dp)/ &
-                0.16e2_dp-0.7e1_dp/0.32e2_dp*REAL(t85, KIND=dp)*REAL(t393, KIND=dp)* &
-                REAL(t653, KIND=dp)-0.3e1_dp &
-                /0.4e1_dp*t92*pndrho*t93*t99+0.3e1_dp/0.2e1_dp*t401*t405 &
-                *(0.3e1_dp/0.2e1_dp*t269*sscale*t95+0.3e1_dp/0.4e1_dp*t94* &
-                  t409*(t281-t235*t41*t292))
+         t677 = F1*t279*t34 - t71*t675
+         t716 = REAL(t69*(6*C*(t677*t12*t13 + 2*t373*t273)*t51 &
+                          + 6*t77*t653 + 8*t382*t653 + 24*t385*t653)*t88, KIND=dp)/ &
+                0.16e2_dp - 0.7e1_dp/0.32e2_dp*REAL(t85, KIND=dp)*REAL(t393, KIND=dp)* &
+                REAL(t653, KIND=dp) - 0.3e1_dp &
+                /0.4e1_dp*t92*pndrho*t93*t99 + 0.3e1_dp/0.2e1_dp*t401*t405 &
+                *(0.3e1_dp/0.2e1_dp*t269*sscale*t95 + 0.3e1_dp/0.4e1_dp*t94* &
+                  t409*(t281 - t235*t41*t292))
          t717 = t716*t104
          t720 = t143*t269
          t723 = t430*t653
@@ -792,40 +792,40 @@ CONTAINS
          t800 = t118*t279
          t803 = t445*t292
          t808 = t118*t269
-         e_ndrho = e_ndrho+(t45*(-0.4e1_dp/0.9e1_dp*A*t640-0.4e1_dp/0.27e2_dp*A*qndrho &
-                                 *t314*t322+0.4e1_dp/0.9e1_dp*A*t653*t339*t341+0.4e1_dp &
-                                 /0.3e1_dp*t349*t199*t653-0.4e1_dp/0.9e1_dp*t58*(REAL(2*t216 &
-                                                                *t113*t269, KIND=dp)+t14*(t280*C-t235*C*REAL(t292, KIND=dp)+REAL(2 &
-                                                            *t667*t65, KIND=dp)-REAL(2*t64*t362*t292, KIND=dp)-0.32e2_dp/0.15e2_dp &
-                                                                    *t717*t109+0.64e2_dp/0.15e2_dp*t425*t720-0.112e3_dp/0.15e2_dp* &
-                                                                         t142*t723+t60*t677)+REAL(4*t437*t123*t269, KIND=dp)+t115* &
-                                                                   (0.2e1_dp*t235*B*t279-0.2e1_dp*t446*B*REAL(t292, KIND=dp)+t280* &
-                                                                                  t121-t235*t739+t40*C*t677)+t125*t37*(REAL(2*t216 &
-                                                                        *t140*t269, KIND=dp)+t14*(0.2e1_dp*E*t279*t34-REAL(2*t129* &
-                                                           t675, KIND=dp)-0.32e2_dp/0.15e2_dp*D*t716*t104*t109+0.64e2_dp/0.15e2_dp &
-                                                                            *t133*t758-0.112e3_dp/0.15e2_dp*t133*t762+REAL(2*t667* &
-                                                              t136, KIND=dp)-REAL(2*t64*t484*t292, KIND=dp)+t126*t677)+REAL(4*t437 &
-                                                                   *t152*t269, KIND=dp)+t115*(-0.32e2_dp/0.15e2_dp*t717*t106*t144+ &
-                                                        0.64e2_dp/0.15e2_dp*t497*t498*t34*REAL(t269, KIND=dp)-0.112e3_dp/0.15e2_dp &
-                                                                            *t503*t504*t34*t653-0.32e2_dp/0.15e2_dp*t142*t143*t280 &
-                                                                   +0.32e2_dp/0.15e2_dp*t503*t498*REAL(t675, KIND=dp)+REAL(2*t667* &
-                                            t147, KIND=dp)-0.2e1_dp*t517*t739+0.2e1_dp*REAL(t64, KIND=dp)*REAL(t136, KIND=dp)*t677 &
-                                                               +REAL(2*t523*t800, KIND=dp)-REAL(2*t150*t803, KIND=dp))+REAL(6*t533 &
-                                                                       *t156*t808, KIND=dp)+t155*t677*t116*t118+0.2e1_dp*t155*t541 &
-                                         *REAL(t800, KIND=dp)-0.2e1_dp*t155*REAL(t156, KIND=dp)*REAL(t803, KIND=dp))+0.3e1_dp*t163 &
-                                                                  *t164*(REAL(2*t216*t173*t269, KIND=dp)+t14*(-0.16e2_dp/0.15e2_dp &
-                                                                       *t61*t716*t104*t109+0.32e2_dp/0.15e2_dp*t167*t758-0.56e2_dp &
-                                                                        /0.15e2_dp*t167*t762+REAL(2*t667*t170, KIND=dp)-REAL(2*t64 &
-                                                            *t568*t292, KIND=dp))+REAL(4*t437*t183*t269, KIND=dp)+t115*(-0.32e2_dp &
-                                        /0.15e2_dp*REAL(t667, KIND=dp)*REAL(t175, KIND=dp)*REAL(t178, KIND=dp)+0.32e2_dp/0.15e2_dp &
-                                                       *t581*t177*t143*REAL(t292, KIND=dp)-0.32e2_dp/0.15e2_dp*REAL(t64, KIND=dp)* &
-                                                        t34*t716*REAL(t178, KIND=dp)+0.64e2_dp/0.15e2_dp*t176*t590*t720-0.112e3_dp &
-                                                                       /0.15e2_dp*t176*t177*t723+REAL(2*t129*t800, KIND=dp)-REAL(2 &
-                                                *t181*t803, KIND=dp))-0.64e2_dp/0.15e2_dp*REAL(t603, KIND=dp)*REAL(t604, KIND=dp)* &
-                                                        REAL(t808, KIND=dp)-0.16e2_dp/0.15e2_dp*t115*t716*t187-0.56e2_dp/0.15e2_dp &
-                                                            *t611*t612*t118*t653-0.32e2_dp/0.15e2_dp*t611*t498*REAL(t800, KIND=dp) &
-                                                          +0.32e2_dp/0.15e2_dp*t611*REAL(t604, KIND=dp)*REAL(t803, KIND=dp)))*t199 &
-                                 +0.4e1_dp/0.9e1_dp*t195*qndrho*t199)*Clda)*sx
+         e_ndrho = e_ndrho + (t45*(-0.4e1_dp/0.9e1_dp*A*t640 - 0.4e1_dp/0.27e2_dp*A*qndrho &
+                                   *t314*t322 + 0.4e1_dp/0.9e1_dp*A*t653*t339*t341 + 0.4e1_dp &
+                                   /0.3e1_dp*t349*t199*t653 - 0.4e1_dp/0.9e1_dp*t58*(REAL(2*t216 &
+                                                          *t113*t269, KIND=dp) + t14*(t280*C - t235*C*REAL(t292, KIND=dp) + REAL(2 &
+                                                        *t667*t65, KIND=dp) - REAL(2*t64*t362*t292, KIND=dp) - 0.32e2_dp/0.15e2_dp &
+                                                                *t717*t109 + 0.64e2_dp/0.15e2_dp*t425*t720 - 0.112e3_dp/0.15e2_dp* &
+                                                                   t142*t723 + t60*t677) + REAL(4*t437*t123*t269, KIND=dp) + t115* &
+                                                               (0.2e1_dp*t235*B*t279 - 0.2e1_dp*t446*B*REAL(t292, KIND=dp) + t280* &
+                                                                            t121 - t235*t739 + t40*C*t677) + t125*t37*(REAL(2*t216 &
+                                                                    *t140*t269, KIND=dp) + t14*(0.2e1_dp*E*t279*t34 - REAL(2*t129* &
+                                                       t675, KIND=dp) - 0.32e2_dp/0.15e2_dp*D*t716*t104*t109 + 0.64e2_dp/0.15e2_dp &
+                                                                        *t133*t758 - 0.112e3_dp/0.15e2_dp*t133*t762 + REAL(2*t667* &
+                                                        t136, KIND=dp) - REAL(2*t64*t484*t292, KIND=dp) + t126*t677) + REAL(4*t437 &
+                                                                *t152*t269, KIND=dp) + t115*(-0.32e2_dp/0.15e2_dp*t717*t106*t144 + &
+                                                      0.64e2_dp/0.15e2_dp*t497*t498*t34*REAL(t269, KIND=dp) - 0.112e3_dp/0.15e2_dp &
+                                                                          *t503*t504*t34*t653 - 0.32e2_dp/0.15e2_dp*t142*t143*t280 &
+                                                                + 0.32e2_dp/0.15e2_dp*t503*t498*REAL(t675, KIND=dp) + REAL(2*t667* &
+                                        t147, KIND=dp) - 0.2e1_dp*t517*t739 + 0.2e1_dp*REAL(t64, KIND=dp)*REAL(t136, KIND=dp)*t677 &
+                                                          + REAL(2*t523*t800, KIND=dp) - REAL(2*t150*t803, KIND=dp)) + REAL(6*t533 &
+                                                                   *t156*t808, KIND=dp) + t155*t677*t116*t118 + 0.2e1_dp*t155*t541 &
+                                     *REAL(t800, KIND=dp) - 0.2e1_dp*t155*REAL(t156, KIND=dp)*REAL(t803, KIND=dp)) + 0.3e1_dp*t163 &
+                                                                *t164*(REAL(2*t216*t173*t269, KIND=dp) + t14*(-0.16e2_dp/0.15e2_dp &
+                                                                   *t61*t716*t104*t109 + 0.32e2_dp/0.15e2_dp*t167*t758 - 0.56e2_dp &
+                                                                    /0.15e2_dp*t167*t762 + REAL(2*t667*t170, KIND=dp) - REAL(2*t64 &
+                                                        *t568*t292, KIND=dp)) + REAL(4*t437*t183*t269, KIND=dp) + t115*(-0.32e2_dp &
+                                      /0.15e2_dp*REAL(t667, KIND=dp)*REAL(t175, KIND=dp)*REAL(t178, KIND=dp) + 0.32e2_dp/0.15e2_dp &
+                                                     *t581*t177*t143*REAL(t292, KIND=dp) - 0.32e2_dp/0.15e2_dp*REAL(t64, KIND=dp)* &
+                                                    t34*t716*REAL(t178, KIND=dp) + 0.64e2_dp/0.15e2_dp*t176*t590*t720 - 0.112e3_dp &
+                                                                   /0.15e2_dp*t176*t177*t723 + REAL(2*t129*t800, KIND=dp) - REAL(2 &
+                                              *t181*t803, KIND=dp)) - 0.64e2_dp/0.15e2_dp*REAL(t603, KIND=dp)*REAL(t604, KIND=dp)* &
+                                                    REAL(t808, KIND=dp) - 0.16e2_dp/0.15e2_dp*t115*t716*t187 - 0.56e2_dp/0.15e2_dp &
+                                                          *t611*t612*t118*t653 - 0.32e2_dp/0.15e2_dp*t611*t498*REAL(t800, KIND=dp) &
+                                                         + 0.32e2_dp/0.15e2_dp*t611*REAL(t604, KIND=dp)*REAL(t803, KIND=dp)))*t199 &
+                                   + 0.4e1_dp/0.9e1_dp*t195*qndrho*t199)*Clda)*sx
       END IF
 
    END SUBROUTINE xpbe_hole_t_c_lr_lda_calc_1
@@ -881,13 +881,13 @@ CONTAINS
          t14 = t12*t13
          t17 = t12**2
          t19 = t13**2
-         t21 = a1*t12*t13+a2*t17*t19
+         t21 = a1*t12*t13 + a2*t17*t19
          t22 = t14*t21
          t25 = t17*t11
          t27 = t19*sscale
          t29 = t17*t12
          t31 = t19*t13
-         t33 = 1+a3*t17*t19+a4*t25*t27+a5*t29*t31
+         t33 = 1 + a3*t17*t19 + a4*t25*t27 + a5*t29*t31
          t34 = 0.1e1_dp/t33
          t35 = R**2
          t37 = t6**2
@@ -902,7 +902,7 @@ CONTAINS
          t46 = exei(P, Q)
          t48 = expint(1, q)
          t50 = t14*t40
-         t51 = D+t50
+         t51 = D + t50
          t52 = t51*t35
          t53 = t52*t38
          t54 = expint(1, t53)
@@ -912,54 +912,54 @@ CONTAINS
          t61 = D**2
          t64 = D*t21
          t65 = t34*B
-         t74 = g1+g2*t12*t13+g3*t17*t19+g4*t25*t27
+         t74 = g1 + g2*t12*t13 + g3*t17*t19 + g4*t25*t27
          t75 = E*t74
          t77 = F1*t21
-         t79 = t77*t34+F2
-         t81 = t40*C+2*t64*t65+2*t75+t60*t79
+         t79 = t77*t34 + F2
+         t81 = t40*C + 2*t64*t65 + 2*t75 + t60*t79
          t83 = t17*t19
          t84 = t21**2
          t85 = t33**2
          t86 = 0.1e1_dp/t85
          t89 = C*t79
-         t91 = t84*t86*B+t40*t89
+         t91 = t84*t86*B + t40*t89
          t93 = t35*t2
          t94 = t61*C
          t95 = D*E
          t97 = E*t21
          t102 = t34*C
-         t106 = 2*t97*t34+2*t95*t74+2*t64*t102+t94*t79
+         t106 = 2*t97*t34 + 2*t95*t74 + 2*t64*t102 + t94*t79
          t110 = t102*t79
          t113 = C*t84
-         t115 = 2*t75*t40+2*t64*t110+t113*t86
+         t115 = 2*t75*t40 + 2*t64*t110 + t113*t86
          t117 = t29*t31
          t118 = t117*C
          t119 = t79*t84
-         t122 = t94+2*t95+t14*t106+t83*t115+t118*t119*t86
+         t122 = t94 + 2*t95 + t14*t106 + t83*t115 + t118*t119*t86
          t125 = t35**2
          t126 = t125*t1
          t127 = t6*t5
          t128 = t61*E
          t130 = t34*E
-         t133 = t128*t74+2*t64*t130
+         t133 = t128*t74 + 2*t64*t130
          t135 = t130*t74
          t138 = E*t84
-         t140 = 2*t64*t135+t138*t86
+         t140 = 2*t64*t135 + t138*t86
          t142 = t117*E
          t143 = t74*t84
-         t146 = t128+t14*t133+t83*t140+t142*t143*t86
-         t150 = 2*E+t60+t61*B+t14*t81+t83*t91+t93*t37* &
-                t122+3*t126*t127*t146
+         t146 = t128 + t14*t133 + t83*t140 + t142*t143*t86
+         t150 = 2*E + t60 + t61*B + t14*t81 + t83*t91 + t93*t37* &
+                t122 + 3*t126*t127*t146
          t151 = t58*t150
          t152 = D*t35
-         t155 = EXP(-t152*t38-q)
-         t158 = -0.4e1_dp/0.9e1_dp*A*t46+0.4e1_dp/0.9e1_dp*A*t48-0.4e1_dp/ &
-                0.9e1_dp*A*t54-0.4e1_dp/0.9e1_dp*t151*t155
-         e_0 = e_0+(t45*t158*Clda)*sx
+         t155 = EXP(-t152*t38 - q)
+         t158 = -0.4e1_dp/0.9e1_dp*A*t46 + 0.4e1_dp/0.9e1_dp*A*t48 - 0.4e1_dp/ &
+                0.9e1_dp*A*t54 - 0.4e1_dp/0.9e1_dp*t151*t155
+         e_0 = e_0 + (t45*t158*Clda)*sx
       END IF
       IF (order >= 1 .OR. order == -1) THEN
          t165 = rho**2
-         srho = -t3/t127*t8*t4/0.18e2_dp-t3*t7/t165/0.6e1_dp
+         srho = -t3/t127*t8*t4/0.18e2_dp - t3*t7/t165/0.6e1_dp
          t170 = t2*t7
          sndrho = t170*t8/0.6e1_dp
          t172 = t11*t13
@@ -971,7 +971,7 @@ CONTAINS
          t183 = t12*t11
          t184 = a2*t183
          t185 = t19*t174
-         t188 = 2*t179*t180+4*t184*t185
+         t188 = 2*t179*t180 + 4*t184*t185
          t190 = t14*t188*t39
          t191 = t21*t86
          t192 = t14*t191
@@ -979,26 +979,26 @@ CONTAINS
          t196 = a4*t17
          t197 = t27*t174
          t200 = a5*t25
-         t204 = 4*t193*t185+5*t196*t197+6*t200*t31*t174
+         t204 = 4*t193*t185 + 5*t196*t197 + 6*t200*t31*t174
          t207 = t192*t93*t37*t204
          t211 = 0.2e1_dp/0.3e1_dp*t50*t93*t7*t4
-         qrho = t178+t190-t207+t211
+         qrho = t178 + t190 - t207 + t211
          t212 = t172*t21
          t213 = t34*t41
          t217 = t188*t34
          t221 = t86*t41
-         prho = 0.9e1_dp/0.2e1_dp*t212*t213*t174+0.9e1_dp/0.4e1_dp*t14*t217 &
-                *t41-0.9e1_dp/0.4e1_dp*t22*t221*t204
+         prho = 0.9e1_dp/0.2e1_dp*t212*t213*t174 + 0.9e1_dp/0.4e1_dp*t14*t217 &
+                *t41 - 0.9e1_dp/0.4e1_dp*t22*t221*t204
          t225 = dsdndrho(rho)
          t229 = t13*t225
          t232 = t19*t225
-         t235 = 2*t179*t229+4*t184*t232
+         t235 = 2*t179*t229 + 4*t184*t232
          t236 = t235*t34
          t242 = t27*t225
-         t248 = 4*t193*t232+5*t196*t242+6*t200*t31*t225
-         pndrho = 0.9e1_dp/0.2e1_dp*t212*t213*t225+0.9e1_dp/0.4e1_dp*t14* &
-                  t236*t41-0.9e1_dp/0.4e1_dp*t22*t221*t248
-         qndrho = 2*t173*t93*t37*t225+t14*t235*t39-t192*t93 &
+         t248 = 4*t193*t232 + 5*t196*t242 + 6*t200*t31*t225
+         pndrho = 0.9e1_dp/0.2e1_dp*t212*t213*t225 + 0.9e1_dp/0.4e1_dp*t14* &
+                  t236*t41 - 0.9e1_dp/0.4e1_dp*t22*t221*t248
+         qndrho = 2*t173*t93*t37*t225 + t14*t235*t39 - t192*t93 &
                   *t37*t248
          t264 = dexeirho(P, Q, Prho, Qrho)
          t268 = EXP(-q)
@@ -1007,7 +1007,7 @@ CONTAINS
          t278 = 0.1e1_dp/t37
          t280 = 0.1e1_dp/t21*t33*t276*t1*t278
          t287 = t191*t204
-         t289 = 2*t172*t40*t174+t14*t217-t14*t287
+         t289 = 2*t172*t40*t174 + t14*t217 - t14*t287
          t292 = t170*t4
          t297 = EXP(-t53)
          t299 = 0.1e1_dp/t51
@@ -1018,10 +1018,10 @@ CONTAINS
          t324 = g2*t11
          t327 = g3*t183
          t330 = g4*t17
-         t333 = 2*t324*t180+4*t327*t185+5*t330*t197
+         t333 = 2*t324*t180 + 4*t327*t185 + 5*t330*t197
          t334 = E*t333
          t338 = t86*t204
-         t340 = F1*t188*t34-t77*t338
+         t340 = F1*t188*t34 - t77*t338
          t344 = t183*t19
          t352 = 0.1e1_dp/t85/t33
          t353 = t84*t352
@@ -1038,62 +1038,62 @@ CONTAINS
          t435 = t86*E
          t454 = t406*E
          t461 = t74*t21
-         e_rho = e_rho+(0.4e1_dp/0.3e1_dp*t44*t158*Clda+t45*(-0.4e1_dp/0.9e1_dp* &
-                                                             A*t264-0.4e1_dp/0.27e2_dp*A*qrho*t272*t280+0.4e1_dp/0.27e2_dp &
-                                                             *A*(t289*t35*t38+0.2e1_dp/0.3e1_dp*t52*t292)*t297*t299 &
-                                                             *t276*t1*t278+0.4e1_dp/0.3e1_dp*t307*t155*t289-0.4e1_dp &
-                                                             /0.9e1_dp*t58*(REAL(2*t172*t81*t174, KIND=dp)+REAL(t14*(t217 &
-                                                                                       *C-t191*C*t204+2*t317*t65-2*t64*t320*t204+2 &
-                                                                *t334+t60*t340), KIND=dp)+REAL(4*t344*t91*t174, KIND=dp)+REAL(t83* &
-                                                                                   (2*t191*B*t188-2*t353*B*t204+t217*t89-t191*t358 &
-                                                                       +t40*C*t340), KIND=dp)+0.2e1_dp/0.3e1_dp*t93*t7*t122*t4+t93 &
-                                                                            *t37*REAL(2*t172*t106*t174+t14*(2*E*t188*t34 &
-                                                                                     -2*t97*t338+2*t95*t333+2*t317*t102-2*t64*t380 &
-                                                                                      *t204+t94*t340)+4*t344*t115*t174+t83*(2*t334 &
-                                                                                     *t40+2*t75*t217-2*t75*t287+2*t317*t110-2*t394 &
-                                                                                         *t358+2*t64*t102*t340+2*t398*t399-2*t113* &
-                                                                                   t401)+6*t407*t119*t408+t118*t340*t84*t86+2*t118 &
-                                                                       *t415*t399-2*t118*t119*t401, KIND=dp)+0.4e1_dp*t126*t6*t146 &
-                                                                            *t4+0.3e1_dp*t126*t127*REAL(2*t172*t133*t174+t14 &
-                                                                                   *(t128*t333+2*t317*t130-2*t64*t435*t204)+4*t344 &
-                                                                                       *t140*t174+t83*(2*t317*t135-2*t394*t75*t204 &
-                                                                                       +2*t64*t130*t333+2*t97*t399-2*t138*t401)+6* &
-                                                                                 t454*t143*t408+t142*t333*t84*t86+2*t142*t461*t399 &
-                                                               -2*t142*t143*t401, KIND=dp))*t155-0.4e1_dp/0.9e1_dp*t151*(-0.2e1_dp &
-                                                                                   /0.3e1_dp*t152*t292-t178-t190+t207-t211)*t155)* &
-                        Clda)*sx
+         e_rho = e_rho + (0.4e1_dp/0.3e1_dp*t44*t158*Clda + t45*(-0.4e1_dp/0.9e1_dp* &
+                                                                 A*t264 - 0.4e1_dp/0.27e2_dp*A*qrho*t272*t280 + 0.4e1_dp/0.27e2_dp &
+                                                                 *A*(t289*t35*t38 + 0.2e1_dp/0.3e1_dp*t52*t292)*t297*t299 &
+                                                                 *t276*t1*t278 + 0.4e1_dp/0.3e1_dp*t307*t155*t289 - 0.4e1_dp &
+                                                                 /0.9e1_dp*t58*(REAL(2*t172*t81*t174, KIND=dp) + REAL(t14*(t217 &
+                                                                               *C - t191*C*t204 + 2*t317*t65 - 2*t64*t320*t204 + 2 &
+                                                          *t334 + t60*t340), KIND=dp) + REAL(4*t344*t91*t174, KIND=dp) + REAL(t83* &
+                                                                             (2*t191*B*t188 - 2*t353*B*t204 + t217*t89 - t191*t358 &
+                                                                  + t40*C*t340), KIND=dp) + 0.2e1_dp/0.3e1_dp*t93*t7*t122*t4 + t93 &
+                                                                                *t37*REAL(2*t172*t106*t174 + t14*(2*E*t188*t34 &
+                                                                              - 2*t97*t338 + 2*t95*t333 + 2*t317*t102 - 2*t64*t380 &
+                                                                                *t204 + t94*t340) + 4*t344*t115*t174 + t83*(2*t334 &
+                                                                             *t40 + 2*t75*t217 - 2*t75*t287 + 2*t317*t110 - 2*t394 &
+                                                                                   *t358 + 2*t64*t102*t340 + 2*t398*t399 - 2*t113* &
+                                                                             t401) + 6*t407*t119*t408 + t118*t340*t84*t86 + 2*t118 &
+                                                                   *t415*t399 - 2*t118*t119*t401, KIND=dp) + 0.4e1_dp*t126*t6*t146 &
+                                                                              *t4 + 0.3e1_dp*t126*t127*REAL(2*t172*t133*t174 + t14 &
+                                                                             *(t128*t333 + 2*t317*t130 - 2*t64*t435*t204) + 4*t344 &
+                                                                                   *t140*t174 + t83*(2*t317*t135 - 2*t394*t75*t204 &
+                                                                                + 2*t64*t130*t333 + 2*t97*t399 - 2*t138*t401) + 6* &
+                                                                             t454*t143*t408 + t142*t333*t84*t86 + 2*t142*t461*t399 &
+                                                            - 2*t142*t143*t401, KIND=dp))*t155 - 0.4e1_dp/0.9e1_dp*t151*(-0.2e1_dp &
+                                                                           /0.3e1_dp*t152*t292 - t178 - t190 + t207 - t211)*t155)* &
+                          Clda)*sx
          t485 = dexeindrho(P, Q, Pndrho, Qndrho)
          t496 = t191*t248
-         t498 = 2*t172*t40*t225+t14*t236-t14*t496
+         t498 = 2*t172*t40*t225 + t14*t236 - t14*t496
          t512 = D*t235
-         t524 = 2*t324*t229+4*t327*t232+5*t330*t242
+         t524 = 2*t324*t229 + 4*t327*t232 + 5*t330*t242
          t525 = E*t524
          t529 = t86*t248
-         t531 = F1*t235*t34-t77*t529
+         t531 = F1*t235*t34 - t77*t529
          t545 = t89*t248
          t579 = t86*t235
          t581 = t352*t248
          t586 = t86*t225
-         e_ndrho = e_ndrho+(t45*(-0.4e1_dp/0.9e1_dp*A*t485-0.4e1_dp/0.27e2_dp*A*qndrho &
-                                 *t272*t280+0.4e1_dp/0.9e1_dp*A*t498*t297*t299+0.4e1_dp &
-                                 /0.3e1_dp*t307*t155*t498-0.4e1_dp/0.9e1_dp*t58*REAL(2*t172 &
-                                                                                     *t81*t225+t14*(t236*C-t191*C*t248+2*t512*t65 &
-                                                                                      -2*t64*t320*t248+2*t525+t60*t531)+4*t344*t91 &
-                                                                                     *t225+t83*(2*t191*B*t235-2*t353*B*t248+t236 &
-                                                                                       *t89-t191*t545+t40*C*t531)+t93*t37*(2*t172* &
-                                                                                      t106*t225+t14*(2*E*t235*t34-2*t97*t529+2*t95 &
-                                                                                      *t524+2*t512*t102-2*t64*t380*t248+t94*t531)+ &
-                                                                                      4*t344*t115*t225+t83*(2*t525*t40+2*t75*t236- &
-                                                                                     2*t75*t496+2*t512*t110-2*t394*t545+2*t64*t102 &
-                                                                                       *t531+2*t398*t579-2*t113*t581)+6*t407*t119* &
-                                                                                    t586+t118*t531*t84*t86+2*t118*t415*t579-2*t118 &
-                                                                                     *t119*t581)+3*t126*t127*(2*t172*t133*t225+t14 &
-                                                                                   *(t128*t524+2*t512*t130-2*t64*t435*t248)+4*t344 &
-                                                                                       *t140*t225+t83*(2*t512*t135-2*t394*t75*t248 &
-                                                                                       +2*t64*t130*t524+2*t97*t579-2*t138*t581)+6* &
-                                                                                 t454*t143*t586+t142*t524*t84*t86+2*t142*t461*t579 &
-                                                                   -2*t142*t143*t581), KIND=dp)*t155+0.4e1_dp/0.9e1_dp*t151*qndrho &
-                                 *t155)*Clda)*sx
+         e_ndrho = e_ndrho + (t45*(-0.4e1_dp/0.9e1_dp*A*t485 - 0.4e1_dp/0.27e2_dp*A*qndrho &
+                                   *t272*t280 + 0.4e1_dp/0.9e1_dp*A*t498*t297*t299 + 0.4e1_dp &
+                                   /0.3e1_dp*t307*t155*t498 - 0.4e1_dp/0.9e1_dp*t58*REAL(2*t172 &
+                                                                                *t81*t225 + t14*(t236*C - t191*C*t248 + 2*t512*t65 &
+                                                                               - 2*t64*t320*t248 + 2*t525 + t60*t531) + 4*t344*t91 &
+                                                                                 *t225 + t83*(2*t191*B*t235 - 2*t353*B*t248 + t236 &
+                                                                                 *t89 - t191*t545 + t40*C*t531) + t93*t37*(2*t172* &
+                                                                                t106*t225 + t14*(2*E*t235*t34 - 2*t97*t529 + 2*t95 &
+                                                                               *t524 + 2*t512*t102 - 2*t64*t380*t248 + t94*t531) + &
+                                                                                 4*t344*t115*t225 + t83*(2*t525*t40 + 2*t75*t236 - &
+                                                                               2*t75*t496 + 2*t512*t110 - 2*t394*t545 + 2*t64*t102 &
+                                                                                 *t531 + 2*t398*t579 - 2*t113*t581) + 6*t407*t119* &
+                                                                              t586 + t118*t531*t84*t86 + 2*t118*t415*t579 - 2*t118 &
+                                                                                 *t119*t581) + 3*t126*t127*(2*t172*t133*t225 + t14 &
+                                                                             *(t128*t524 + 2*t512*t130 - 2*t64*t435*t248) + 4*t344 &
+                                                                                   *t140*t225 + t83*(2*t512*t135 - 2*t394*t75*t248 &
+                                                                                + 2*t64*t130*t524 + 2*t97*t579 - 2*t138*t581) + 6* &
+                                                                             t454*t143*t586 + t142*t524*t84*t86 + 2*t142*t461*t579 &
+                                                                - 2*t142*t143*t581), KIND=dp)*t155 + 0.4e1_dp/0.9e1_dp*t151*qndrho &
+                                   *t155)*Clda)*sx
       END IF
 
    END SUBROUTINE xpbe_hole_t_c_lr_lda_calc_2
@@ -1123,13 +1123,13 @@ CONTAINS
       exei = 0.0_dp
       IF (P < expcutoff) THEN
          !Use exact product
-         IF (P+Q < 0.5_dp) THEN
-            tmp = -euler-LOG(P+Q)+P+Q
-            tmp = tmp-0.25_dp*(P+Q)**2+1.0_dp/18.0_dp*(P+Q)**3-1.0_dp/96.0_dp*(P+Q)**4
-            tmp = tmp+1.0_dp/600.0_dp*(P+Q)**5
+         IF (P + Q < 0.5_dp) THEN
+            tmp = -euler - LOG(P + Q) + P + Q
+            tmp = tmp - 0.25_dp*(P + Q)**2 + 1.0_dp/18.0_dp*(P + Q)**3 - 1.0_dp/96.0_dp*(P + Q)**4
+            tmp = tmp + 1.0_dp/600.0_dp*(P + Q)**5
             exei = EXP(P)*tmp
          ELSE
-            exei = EXP(P)*expint(1, Q+P)
+            exei = EXP(P)*expint(1, Q + P)
          END IF
       ELSE
          !Use approximation
@@ -1138,19 +1138,19 @@ CONTAINS
          exei = tmp
          ! *** 2nd order
          tmp = tmp/P
-         exei = exei-(Q+1.0_dp)*tmp
+         exei = exei - (Q + 1.0_dp)*tmp
          ! *** 3rd order
          tmp = tmp/P
          Q2 = Q*Q
-         exei = exei+(2.0_dp*Q+Q2+2.0_dp)*tmp
+         exei = exei + (2.0_dp*Q + Q2 + 2.0_dp)*tmp
          ! *** 4th order
          tmp = tmp/P
          Q3 = Q2*Q
-         exei = exei-(3.0_dp*Q2+6.0_dp*Q+Q3+6.0_dp)*tmp
+         exei = exei - (3.0_dp*Q2 + 6.0_dp*Q + Q3 + 6.0_dp)*tmp
          ! *** 5th order
          tmp = tmp/P
          Q4 = Q3*Q
-         exei = exei+(24.0_dp+4.0_dp*Q3+Q4+12.0_dp*Q2+24.0_dp*Q)*tmp
+         exei = exei + (24.0_dp + 4.0_dp*Q3 + Q4 + 12.0_dp*Q2 + 24.0_dp*Q)*tmp
 
          ! *** scaling factor
          exei = EXP(-Q)*exei
@@ -1169,7 +1169,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: P, Q, dPrho, dQrho
       REAL(dp)                                           :: dexeirho
 
-      dexeirho = dPrho*exei(P, Q)-(dPrho+dQrho)/(P+Q)*EXP(-Q)
+      dexeirho = dPrho*exei(P, Q) - (dPrho + dQrho)/(P + Q)*EXP(-Q)
    END FUNCTION dexeirho
 
 ! **************************************************************************************************
@@ -1184,7 +1184,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: P, Q, dPndrho, dQndrho
       REAL(dp)                                           :: dexeindrho
 
-      dexeindrho = dPndrho*exei(P, Q)-(dPndrho+dQndrho)/(P+Q)*EXP(-Q)
+      dexeindrho = dPndrho*exei(P, Q) - (dPndrho + dQndrho)/(P + Q)*EXP(-Q)
    END FUNCTION dexeindrho
 
 ! **************************************************************************************************

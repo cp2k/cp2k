@@ -102,11 +102,11 @@ CONTAINS
                DO k = bo_local(1, 3), bo_local(2, 3)
                   DO j = bo_local(1, 2), bo_local(2, 2)
                      DO i = bo_local(1, 1), bo_local(2, 1)
-                        grid_p(1) = (i-bo_global(1, 1))*dr(1)
-                        grid_p(2) = (j-bo_global(1, 2))*dr(2)
-                        grid_p(3) = (k-bo_global(1, 3))*dr(3)
+                        grid_p(1) = (i - bo_global(1, 1))*dr(1)
+                        grid_p(2) = (j - bo_global(1, 2))*dr(2)
+                        grid_p(3) = (k - bo_global(1, 3))*dr(3)
                         CALL get_external_potential(grid_p, ext_pot_section, func=efunc)
-                        v_ee%pw%cr3d(i, j, k) = v_ee%pw%cr3d(i, j, k)+efunc
+                        v_ee%pw%cr3d(i, j, k) = v_ee%pw%cr3d(i, j, k) + efunc
                      END DO
                   END DO
                END DO
@@ -196,7 +196,7 @@ CONTAINS
                   CALL get_external_potential(r, ext_pot_section, func=efunc, &
                                               dfunc=dfunc, calc_derivatives=my_force)
                END IF
-               ee_core_ener = ee_core_ener+zeff*efunc
+               ee_core_ener = ee_core_ener + zeff*efunc
                IF (my_force) THEN
                   CALL get_qs_env(qs_env=qs_env, force=force)
                   force(ikind)%eev(:, iatom) = dfunc*zeff
@@ -340,25 +340,25 @@ CONTAINS
       ubounds_local = grid%pw_grid%bounds_local(2, :)
 
       ! Determine the indices of grid points that are needed
-      lower_inds = lbounds+FLOOR(r/dr)-fd_extra_point
-      upper_inds = lower_inds+1+2*fd_extra_point
+      lower_inds = lbounds + FLOOR(r/dr) - fd_extra_point
+      upper_inds = lower_inds + 1 + 2*fd_extra_point
 
       DO i = lower_inds(1), upper_inds(1)
          ! If index is out of global bounds, assume periodic boundary conditions
          i_pbc = pbc_index(i, lbounds(1), ubounds(1))
-         buffer_i = i-lower_inds(1)+1-fd_extra_point
+         buffer_i = i - lower_inds(1) + 1 - fd_extra_point
          DO j = lower_inds(2), upper_inds(2)
             j_pbc = pbc_index(j, lbounds(2), ubounds(2))
-            buffer_j = j-lower_inds(2)+1-fd_extra_point
+            buffer_j = j - lower_inds(2) + 1 - fd_extra_point
 
             ! Find the process that has the data for indices i_pbc and j_pbc
             ! and store the data to bcast_buffer. Assuming that each process has full z data
             IF (grid%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
-               DO ip = 0, num_pe-1
-                  IF (grid%pw_grid%para%bo(1, 1, ip, 1) <= i_pbc-lbounds(1)+1 .AND. &
-                      grid%pw_grid%para%bo(2, 1, ip, 1) >= i_pbc-lbounds(1)+1 .AND. &
-                      grid%pw_grid%para%bo(1, 2, ip, 1) <= j_pbc-lbounds(2)+1 .AND. &
-                      grid%pw_grid%para%bo(2, 2, ip, 1) >= j_pbc-lbounds(2)+1) THEN
+               DO ip = 0, num_pe - 1
+                  IF (grid%pw_grid%para%bo(1, 1, ip, 1) <= i_pbc - lbounds(1) + 1 .AND. &
+                      grid%pw_grid%para%bo(2, 1, ip, 1) >= i_pbc - lbounds(1) + 1 .AND. &
+                      grid%pw_grid%para%bo(1, 2, ip, 1) <= j_pbc - lbounds(2) + 1 .AND. &
+                      grid%pw_grid%para%bo(2, 2, ip, 1) >= j_pbc - lbounds(2) + 1) THEN
                      data_source = ip
                      EXIT
                   END IF
@@ -370,7 +370,7 @@ CONTAINS
                   ELSE
                      DO k = lower_inds(3), upper_inds(3)
                         k_pbc = pbc_index(k, lbounds(3), ubounds(3))
-                        buffer_k = k-lower_inds(3)+1-fd_extra_point
+                        buffer_k = k - lower_inds(3) + 1 - fd_extra_point
                         bcast_buffer(buffer_k) = &
                            grid%cr3d(i_pbc, j_pbc, k_pbc)
                      END DO
@@ -387,7 +387,7 @@ CONTAINS
 
       ! Now that all the processes have local external potential data around r,
       ! interpolate the value at r
-      subgrid_origin = (lower_inds-lbounds+fd_extra_point)*dr
+      subgrid_origin = (lower_inds - lbounds + fd_extra_point)*dr
       func = trilinear_interpolation(r, grid_buffer(1:2, 1:2, 1:2), subgrid_origin, dr)
 
       ! If the derivative of the potential is needed, approximate the derivative at grid
@@ -422,9 +422,9 @@ CONTAINS
       DO i = 1, SIZE(dgrid, 1)
          DO j = 1, SIZE(dgrid, 2)
             DO k = 1, SIZE(dgrid, 3)
-               dgrid(i, j, k, 1) = 0.5*(grid(i+1, j, k)-grid(i-1, j, k))/dr(1)
-               dgrid(i, j, k, 2) = 0.5*(grid(i, j+1, k)-grid(i, j-1, k))/dr(2)
-               dgrid(i, j, k, 3) = 0.5*(grid(i, j, k+1)-grid(i, j, k-1))/dr(3)
+               dgrid(i, j, k, 1) = 0.5*(grid(i + 1, j, k) - grid(i - 1, j, k))/dr(1)
+               dgrid(i, j, k, 2) = 0.5*(grid(i, j + 1, k) - grid(i, j - 1, k))/dr(2)
+               dgrid(i, j, k, 3) = 0.5*(grid(i, j, k + 1) - grid(i, j, k - 1))/dr(3)
             END DO
          END DO
       END DO
@@ -447,15 +447,15 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3)                        :: norm_r, norm_r_rev
 
-      norm_r = (r-origin)/dr
-      norm_r_rev = 1-norm_r
-      value_at_r = subgrid(1, 1, 1)*PRODUCT(norm_r_rev)+ &
-                   subgrid(2, 1, 1)*norm_r(1)*norm_r_rev(2)*norm_r_rev(3)+ &
-                   subgrid(1, 2, 1)*norm_r_rev(1)*norm_r(2)*norm_r_rev(3)+ &
-                   subgrid(1, 1, 2)*norm_r_rev(1)*norm_r_rev(2)*norm_r(3)+ &
-                   subgrid(1, 2, 2)*norm_r_rev(1)*norm_r(2)*norm_r(3)+ &
-                   subgrid(2, 1, 2)*norm_r(1)*norm_r_rev(2)*norm_r(3)+ &
-                   subgrid(2, 2, 1)*norm_r(1)*norm_r(2)*norm_r_rev(3)+ &
+      norm_r = (r - origin)/dr
+      norm_r_rev = 1 - norm_r
+      value_at_r = subgrid(1, 1, 1)*PRODUCT(norm_r_rev) + &
+                   subgrid(2, 1, 1)*norm_r(1)*norm_r_rev(2)*norm_r_rev(3) + &
+                   subgrid(1, 2, 1)*norm_r_rev(1)*norm_r(2)*norm_r_rev(3) + &
+                   subgrid(1, 1, 2)*norm_r_rev(1)*norm_r_rev(2)*norm_r(3) + &
+                   subgrid(1, 2, 2)*norm_r_rev(1)*norm_r(2)*norm_r(3) + &
+                   subgrid(2, 1, 2)*norm_r(1)*norm_r_rev(2)*norm_r(3) + &
+                   subgrid(2, 2, 1)*norm_r(1)*norm_r(2)*norm_r_rev(3) + &
                    subgrid(2, 2, 2)*PRODUCT(norm_r)
    END FUNCTION trilinear_interpolation
 
@@ -471,9 +471,9 @@ CONTAINS
       INTEGER                                            :: i, lowbound, upbound, pbc_index
 
       IF (i < lowbound) THEN
-         pbc_index = upbound+i-lowbound+1
+         pbc_index = upbound + i - lowbound + 1
       ELSE IF (i > upbound) THEN
-         pbc_index = lowbound+i-upbound-1
+         pbc_index = lowbound + i - upbound - 1
       ELSE
          pbc_index = i
       END IF

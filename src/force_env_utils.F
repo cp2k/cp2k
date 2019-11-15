@@ -435,12 +435,12 @@ CONTAINS
          stress_tensor(:, :) = pv_virial(:, :)/cell%deth*pascal*1.0E-9_dp
          n = MIN(MAX(1, ndigits), 20)
          fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
-         WRITE (UNIT=fmtstr1(22:23), FMT="(I2)") n+7
+         WRITE (UNIT=fmtstr1(22:23), FMT="(I2)") n + 7
          fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
-         WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") n+7
+         WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") n + 7
          WRITE (UNIT=fmtstr2(19:20), FMT="(I2)") n
          fmtstr3 = "(/,T3,A,F  .  )"
-         WRITE (UNIT=fmtstr3(10:11), FMT="(I2)") n+8
+         WRITE (UNIT=fmtstr3(10:11), FMT="(I2)") n + 8
          WRITE (UNIT=fmtstr3(13:14), FMT="(I2)") n
          IF (numerical) THEN
             WRITE (UNIT=output_unit, FMT=fmtstr1) &
@@ -453,11 +453,11 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT=fmtstr2) "Y", stress_tensor(2, 1:3)
          WRITE (UNIT=output_unit, FMT=fmtstr2) "Z", stress_tensor(3, 1:3)
          fmtstr4 = "(/,T3,A,ES  .  )"
-         WRITE (UNIT=fmtstr4(11:12), FMT="(I2)") n+8
+         WRITE (UNIT=fmtstr4(11:12), FMT="(I2)") n + 8
          WRITE (UNIT=fmtstr4(14:15), FMT="(I2)") n
          WRITE (UNIT=output_unit, FMT=fmtstr4) &
-            "1/3 Trace(stress tensor): ", (stress_tensor(1, 1)+ &
-                                           stress_tensor(2, 2)+ &
+            "1/3 Trace(stress tensor): ", (stress_tensor(1, 1) + &
+                                           stress_tensor(2, 2) + &
                                            stress_tensor(3, 3))/3.0_dp, &
             "Det(stress tensor)      : ", det_3x3(stress_tensor(:, 1), &
                                                   stress_tensor(:, 2), &
@@ -466,7 +466,7 @@ CONTAINS
          eigvec(:, :) = 0.0_dp
          CALL jacobi(stress_tensor, eigval, eigvec)
          fmtstr5 = "(/,/,T2,A,/,/,T5,3F  .  ,/)"
-         WRITE (UNIT=fmtstr5(20:21), FMT="(I2)") n+8
+         WRITE (UNIT=fmtstr5(20:21), FMT="(I2)") n + 8
          WRITE (UNIT=fmtstr5(23:24), FMT="(I2)") n
          WRITE (UNIT=output_unit, FMT=fmtstr5) &
             "EIGENVECTORS AND EIGENVALUES OF THE STRESS TENSOR", &
@@ -515,13 +515,13 @@ CONTAINS
          CPASSERT(ASSOCIATED(particles))
          n = MIN(MAX(1, ndigits), 20)
          fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
-         WRITE (UNIT=fmtstr1(39:40), FMT="(I2)") n+6
+         WRITE (UNIT=fmtstr1(39:40), FMT="(I2)") n + 6
          fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,3(1X,F  .  ))"
          WRITE (UNIT=fmtstr2(33:34), FMT="(I2)") n
-         WRITE (UNIT=fmtstr2(30:31), FMT="(I2)") n+6
+         WRITE (UNIT=fmtstr2(30:31), FMT="(I2)") n + 6
          fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
          WRITE (UNIT=fmtstr3(20:21), FMT="(I2)") n
-         WRITE (UNIT=fmtstr3(17:18), FMT="(I2)") n+6
+         WRITE (UNIT=fmtstr3(17:18), FMT="(I2)") n + 6
          IF (PRESENT(zero_force_core_shell_atom)) THEN
             zero_force = zero_force_core_shell_atom
          ELSE
@@ -544,14 +544,14 @@ CONTAINS
             END IF
             WRITE (UNIT=output_unit, FMT=fmtstr2) &
                i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3)
-            total_force(1:3) = total_force(1:3)+f(1:3)
+            total_force(1:3) = total_force(1:3) + f(1:3)
          END DO
          WRITE (UNIT=output_unit, FMT=fmtstr3) &
             "SUM OF "//label//" FORCES", total_force(1:3), SQRT(SUM(total_force(:)**2))
       END IF
 
       IF (PRESENT(grand_total_force)) THEN
-         grand_total_force(1:3) = grand_total_force(1:3)+total_force(1:3)
+         grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
          WRITE (UNIT=output_unit, FMT="(A)") ""
          WRITE (UNIT=output_unit, FMT=fmtstr3) &
             "GRAND TOTAL FORCE", grand_total_force(1:3), SQRT(SUM(grand_total_force(:)**2))

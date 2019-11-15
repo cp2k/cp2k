@@ -153,7 +153,7 @@ CONTAINS
       ! is the smallest number greater or equal to min_ranks_per_pole that divides
       ! MPI size without remainder.
       DO WHILE (MOD(numnodes, pexsi_env%num_ranks_per_pole) .NE. 0)
-         pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole+1
+         pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole + 1
       ENDDO
 
       CALL cp_pexsi_get_options(pexsi_env%options, npSymbFact=npSymbFact)

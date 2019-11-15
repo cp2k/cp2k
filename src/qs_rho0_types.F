@@ -270,10 +270,10 @@ CONTAINS
          rho0_mpole%mp_gau(ik)%g0_h(1:nr, l) = gh_tmp(1:nr)* &
                                                rho0_mpole%norm_g0l_h(l)
 
-         prefactor = fourpi/(2.0_dp*l+1.0_dp)*rho0_mpole%norm_g0l_h(l)
+         prefactor = fourpi/(2.0_dp*l + 1.0_dp)*rho0_mpole%norm_g0l_h(l)
          CALL whittaker_c0a(int1, grid_atom%rad, gexp, erf_z_h, z_h, l, l, nr)
          DO ir = 1, nr
-            rho0_mpole%mp_gau(ik)%vg0_h(ir, l) = prefactor*(int1(ir)+ &
+            rho0_mpole%mp_gau(ik)%vg0_h(ir, l) = prefactor*(int1(ir) + &
                                                             int2(ir)*grid_atom%rad2l(ir, l))
          END DO
 

@@ -106,7 +106,7 @@ CONTAINS
          DO i_rep = 1, n_items
             CALL section_vals_val_get(move_type_section, "PROB", i_rep_section=i_rep, &
                                       r_val=mv_prob)
-            mv_prob_sum = mv_prob_sum+mv_prob
+            mv_prob_sum = mv_prob_sum + mv_prob
          END DO
       END IF
 
@@ -140,14 +140,14 @@ CONTAINS
          DO i_rep = 1, n_NMC_items
             CALL section_vals_val_get(move_type_section, "PROB", i_rep_section=i_rep, &
                                       r_val=mv_prob)
-            nmc_prob_sum = nmc_prob_sum+mv_prob
+            nmc_prob_sum = nmc_prob_sum + mv_prob
          END DO
       END IF
 
       ! get the total weight/amount of move probabilities
-      mv_prob_sum = mv_prob_sum+nmc_prob
+      mv_prob_sum = mv_prob_sum + nmc_prob
 
-      IF (n_items+n_NMC_items .GT. 0) THEN
+      IF (n_items + n_NMC_items .GT. 0) THEN
          ! initilaize the move array with related sizes, probs, etc.
          CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
@@ -157,10 +157,10 @@ CONTAINS
                           "in total less equal 0")
 
          ! get the sizes, probs, etc. for each move type and convert units
-         DO i_tmp = 1, n_items+n_NMC_items
+         DO i_tmp = 1, n_items + n_NMC_items
             ! select the corect section
             IF (i_tmp .GT. n_items) THEN
-               i_rep = i_tmp-n_items
+               i_rep = i_tmp - n_items
                IF (i_rep .EQ. 1) THEN
                   ! set the NMC stuff (approx potential)
                   tmc_params%move_types%mv_weight(mv_type_NMC_moves) = &
@@ -312,10 +312,10 @@ CONTAINS
       END IF
       mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
       flag = .TRUE.
-      CPASSERT(ABS(mv_prob_sum-1.0_dp) .LT. 0.01_dp)
+      CPASSERT(ABS(mv_prob_sum - 1.0_dp) .LT. 0.01_dp)
       IF (ASSOCIATED(tmc_params%nmc_move_types)) THEN
          mv_prob_sum = SUM(tmc_params%nmc_move_types%mv_weight(:))
-         CPASSERT(ABS(mv_prob_sum-1.0_dp) < 10*EPSILON(1.0_dp))
+         CPASSERT(ABS(mv_prob_sum - 1.0_dp) < 10*EPSILON(1.0_dp))
       END IF
    END SUBROUTINE read_init_move_types
 
@@ -373,7 +373,7 @@ CONTAINS
                                    ") is not contained in the system. ")
                   ! check if not be swapped with the same atom type
                   IF (ANY(move_types%atom_lists(list_i)%atoms(atom_j) .EQ. &
-                          move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
+                          move_types%atom_lists(list_i)%atoms(atom_j + 1:))) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "ATOM_SWAP can not swap two atoms of same kind ("// &
                                    TRIM(move_types%atom_lists(list_i)%atoms(atom_j))// &
@@ -455,7 +455,7 @@ CONTAINS
       CPASSERT(file_io .GT. 0)
       CPASSERT(ASSOCIATED(tmc_params%move_types))
 
-      FLUSH(file_io)
+      FLUSH (file_io)
 
       IF (.NOT. init .AND. &
           tmc_params%move_types%mv_weight(mv_type_NMC_moves) .GT. 0 .AND. &
@@ -477,13 +477,13 @@ CONTAINS
          c_tit = ""; c_a = ""; c_b = ""; c_c = ""
          IF (init .AND. temper .GT. 1) EXIT temp_loop
          WRITE (c_t, "(F10.2)") tmc_params%Temp(temper)
-         typ_loop: DO move = 0, SIZE(tmc_params%move_types%mv_weight)+nr_nmc_moves
+         typ_loop: DO move = 0, SIZE(tmc_params%move_types%mv_weight) + nr_nmc_moves
             ! the NMC moves
             IF (move .LE. SIZE(tmc_params%move_types%mv_weight)) THEN
                typ = move
                move_types => tmc_params%move_types
             ELSE
-               typ = move-SIZE(tmc_params%move_types%mv_weight)
+               typ = move - SIZE(tmc_params%move_types%mv_weight)
                move_types => tmc_params%nmc_move_types
             END IF
             ! total average
@@ -770,8 +770,8 @@ CONTAINS
          IF (PRESENT(subbox)) THEN
             ! only update subbox acceptance
             IF (acc) &
-               move_types%subbox_acc_count(mv_type, conf_moved) = move_types%subbox_acc_count(mv_type, conf_moved)+1
-            move_types%subbox_count(mv_type, conf_moved) = move_types%subbox_count(mv_type, conf_moved)+1
+               move_types%subbox_acc_count(mv_type, conf_moved) = move_types%subbox_acc_count(mv_type, conf_moved) + 1
+            move_types%subbox_count(mv_type, conf_moved) = move_types%subbox_count(mv_type, conf_moved) + 1
             ! No more to do
             change_type = 0
             change_res = 0
@@ -790,17 +790,17 @@ CONTAINS
       !-- INcrease or DEcrease accaptance rate
       ! MOVE types
       IF (change_type .GT. 0) THEN
-         move_types%acc_count(mv_type, conf_moved) = move_types%acc_count(mv_type, conf_moved)+1
+         move_types%acc_count(mv_type, conf_moved) = move_types%acc_count(mv_type, conf_moved) + 1
       END IF
 
       ! RESULTs
       IF (change_res .GT. 0) THEN
-         move_types%acc_count(0, conf_moved) = move_types%acc_count(0, conf_moved)+1
+         move_types%acc_count(0, conf_moved) = move_types%acc_count(0, conf_moved) + 1
       END IF
 
-      IF (conf_moved .GT. 0) move_types%mv_count(0, conf_moved) = move_types%mv_count(0, conf_moved)+ABS(change_res)
+      IF (conf_moved .GT. 0) move_types%mv_count(0, conf_moved) = move_types%mv_count(0, conf_moved) + ABS(change_res)
       IF (mv_type .GE. 0 .AND. conf_moved .GT. 0) &
-         move_types%mv_count(mv_type, conf_moved) = move_types%mv_count(mv_type, conf_moved)+ABS(change_type)
+         move_types%mv_count(mv_type, conf_moved) = move_types%mv_count(mv_type, conf_moved) + ABS(change_type)
 
       IF (prob_opt) THEN
          WHERE (move_types%mv_count .GT. 0) &
@@ -834,8 +834,8 @@ CONTAINS
 
       IF (PRESENT(mv_counter)) THEN
          CPASSERT(PRESENT(acc_counter))
-         move_types%mv_count(:, :) = move_types%mv_count(:, :)+mv_counter(:, :)
-         move_types%acc_count(:, :) = move_types%acc_count(:, :)+acc_counter(:, :)
+         move_types%mv_count(:, :) = move_types%mv_count(:, :) + mv_counter(:, :)
+         move_types%acc_count(:, :) = move_types%acc_count(:, :) + acc_counter(:, :)
          IF (prob_opt) THEN
             WHERE (move_types%mv_count .GT. 0) &
                move_types%acc_prob(:, :) = move_types%acc_count(:, :)/REAL(move_types%mv_count(:, :), KIND=dp)
@@ -844,8 +844,8 @@ CONTAINS
 
       IF (PRESENT(subbox_counter)) THEN
          CPASSERT(PRESENT(subbox_acc_counter))
-         move_types%subbox_count(:, :) = move_types%subbox_count(:, :)+subbox_counter(:, :)
-         move_types%subbox_acc_count(:, :) = move_types%subbox_acc_count(:, :)+subbox_acc_counter(:, :)
+         move_types%subbox_count(:, :) = move_types%subbox_count(:, :) + subbox_counter(:, :)
+         move_types%subbox_acc_count(:, :) = move_types%subbox_acc_count(:, :) + subbox_acc_counter(:, :)
       END IF
    END SUBROUTINE add_mv_prob
 

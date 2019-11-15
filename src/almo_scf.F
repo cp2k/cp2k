@@ -285,8 +285,8 @@ CONTAINS
          DO idomain = 1, ndomains
             nelec = almo_scf_env%nocc_of_domain(idomain, 1)
             multip = almo_scf_env%multiplicity_of_domain(idomain)
-            nelec_a = (nelec+multip-1)/2
-            nelec_b = nelec-nelec_a
+            nelec_a = (nelec + multip - 1)/2
+            nelec_b = nelec - nelec_a
             almo_scf_env%nocc_of_domain(idomain, 1) = nelec_a
             IF (nelec_a .NE. nelec_b) THEN
                IF (nspins .EQ. 1) THEN
@@ -305,14 +305,14 @@ CONTAINS
                !! Add a number of added_mos equal to the number of atoms in domain
                !! (since fragments were computed this way with smearing)
                almo_scf_env%nocc_of_domain(idomain, :) = almo_scf_env%nocc_of_domain(idomain, :) &
-                                                         +(almo_scf_env%last_atom_of_domain(idomain) &
-                                                           -almo_scf_env%first_atom_of_domain(idomain)+1)
+                                                         + (almo_scf_env%last_atom_of_domain(idomain) &
+                                                            - almo_scf_env%first_atom_of_domain(idomain) + 1)
             END IF
          ENDDO
          DO ispin = 1, nspins
             ! take care of the full virtual subspace
             almo_scf_env%nvirt_full_of_domain(:, ispin) = &
-               almo_scf_env%nbasis_of_domain(:)- &
+               almo_scf_env%nbasis_of_domain(:) - &
                almo_scf_env%nocc_of_domain(:, ispin)
             ! and the truncated virtual subspace
             SELECT CASE (almo_scf_env%deloc_truncate_virt)
@@ -326,7 +326,7 @@ CONTAINS
                      MIN(almo_scf_env%deloc_virt_per_domain, &
                          almo_scf_env%nvirt_full_of_domain(idomain, ispin))
                   almo_scf_env%nvirt_disc_of_domain(idomain, ispin) = &
-                     almo_scf_env%nvirt_full_of_domain(idomain, ispin)- &
+                     almo_scf_env%nvirt_full_of_domain(idomain, ispin) - &
                      almo_scf_env%nvirt_of_domain(idomain, ispin)
                ENDDO
             CASE (virt_occ_size)
@@ -335,7 +335,7 @@ CONTAINS
                      MIN(almo_scf_env%nocc_of_domain(idomain, ispin), &
                          almo_scf_env%nvirt_full_of_domain(idomain, ispin))
                   almo_scf_env%nvirt_disc_of_domain(idomain, ispin) = &
-                     almo_scf_env%nvirt_full_of_domain(idomain, ispin)- &
+                     almo_scf_env%nvirt_full_of_domain(idomain, ispin) - &
                      almo_scf_env%nvirt_of_domain(idomain, ispin)
                ENDDO
             CASE DEFAULT
@@ -351,7 +351,7 @@ CONTAINS
       DO idomain = 1, ndomains
          DO iao = 1, almo_scf_env%nbasis_of_domain(idomain)
             almo_scf_env%domain_index_of_ao(ao) = idomain
-            ao = ao+1
+            ao = ao + 1
          ENDDO
       ENDDO
 
@@ -401,7 +401,7 @@ CONTAINS
             CPABORT("Forces for perturbative methods are NYI. Change DELOCALIZE_METHOD")
          ENDIF
          ! switch to ASPC after a certain number of exact steps is done
-         IF (almo_scf_env%almo_history%istore .GT. (almo_scf_env%almo_history%nstore+1)) THEN
+         IF (almo_scf_env%almo_history%istore .GT. (almo_scf_env%almo_history%nstore + 1)) THEN
             IF (almo_scf_env%opt_block_diag_pcg%eps_error_early .GT. 0.0_dp) THEN
                almo_scf_env%opt_block_diag_pcg%eps_error = almo_scf_env%opt_block_diag_pcg%eps_error_early
                almo_scf_env%opt_block_diag_pcg%early_stopping_on = .TRUE.
@@ -426,7 +426,7 @@ CONTAINS
             almo_scf_env%opt_block_diag_diis%early_stopping_on = .FALSE.
             almo_scf_env%opt_block_diag_pcg%early_stopping_on = .FALSE.
          ENDIF
-         IF (almo_scf_env%xalmo_history%istore .GT. (almo_scf_env%xalmo_history%nstore+1)) THEN
+         IF (almo_scf_env%xalmo_history%istore .GT. (almo_scf_env%xalmo_history%nstore + 1)) THEN
             IF (almo_scf_env%opt_xalmo_pcg%eps_error_early .GT. 0.0_dp) THEN
                almo_scf_env%opt_xalmo_pcg%eps_error = almo_scf_env%opt_xalmo_pcg%eps_error_early
                almo_scf_env%opt_xalmo_pcg%early_stopping_on = .TRUE.
@@ -639,9 +639,9 @@ CONTAINS
 
             ! extrapolation
             DO iaspc = 1, naspc
-               istore = MOD(almo_scf_env%almo_history%istore-iaspc, almo_scf_env%almo_history%nstore)+1
-               alpha = (-1.0_dp)**(iaspc+1)*REAL(iaspc, KIND=dp)* &
-                       binomial(2*naspc, naspc-iaspc)/binomial(2*naspc-2, naspc-1)
+               istore = MOD(almo_scf_env%almo_history%istore - iaspc, almo_scf_env%almo_history%nstore) + 1
+               alpha = (-1.0_dp)**(iaspc + 1)*REAL(iaspc, KIND=dp)* &
+                       binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, FMT="(T3,A2,I0,A4,F10.6)") &
                      "B(", iaspc, ") = ", alpha
@@ -776,11 +776,11 @@ CONTAINS
 
       IF (almo_scf_env%almo_history%nstore > 0) THEN
 
-         almo_scf_env%almo_history%istore = almo_scf_env%almo_history%istore+1
+         almo_scf_env%almo_history%istore = almo_scf_env%almo_history%istore + 1
 
          DO ispin = 1, SIZE(almo_scf_env%matrix_t_blk)
 
-            istore = MOD(almo_scf_env%almo_history%istore-1, almo_scf_env%almo_history%nstore)+1
+            istore = MOD(almo_scf_env%almo_history%istore - 1, almo_scf_env%almo_history%nstore) + 1
 
             IF (almo_scf_env%almo_history%istore == 1) THEN
                CALL dbcsr_create(almo_scf_env%almo_history%matrix_t(ispin), &
@@ -830,11 +830,11 @@ CONTAINS
       IF (almo_scf_env%xalmo_history%nstore > 0 .AND. &
           delocalization_uses_extrapolation) THEN
 
-         almo_scf_env%xalmo_history%istore = almo_scf_env%xalmo_history%istore+1
+         almo_scf_env%xalmo_history%istore = almo_scf_env%xalmo_history%istore + 1
 
          DO ispin = 1, SIZE(almo_scf_env%matrix_t)
 
-            istore = MOD(almo_scf_env%xalmo_history%istore-1, almo_scf_env%xalmo_history%nstore)+1
+            istore = MOD(almo_scf_env%xalmo_history%istore - 1, almo_scf_env%xalmo_history%nstore) + 1
 
             IF (almo_scf_env%xalmo_history%istore == 1) THEN
                CALL dbcsr_create(almo_scf_env%xalmo_history%matrix_t(ispin), &
@@ -1073,16 +1073,16 @@ CONTAINS
             IF (idomain .EQ. 1) THEN
                index1_prev = 1
             ELSE
-               index1_prev = almo_scf_env%domain_map(1)%index1(idomain-1)
+               index1_prev = almo_scf_env%domain_map(1)%index1(idomain - 1)
             ENDIF
 
             SELECT CASE (almo_scf_env%deloc_method)
             CASE (almo_deloc_none)
                nneighbors(idomain) = 0
             CASE (almo_deloc_x, almo_deloc_scf, almo_deloc_x_then_scf)
-               nneighbors(idomain) = almo_scf_env%ndomains-1 ! minus self
+               nneighbors(idomain) = almo_scf_env%ndomains - 1 ! minus self
             CASE (almo_deloc_xalmo_1diag, almo_deloc_xalmo_x, almo_deloc_xalmo_scf)
-               nneighbors(idomain) = almo_scf_env%domain_map(1)%index1(idomain)-index1_prev-1 ! minus self
+               nneighbors(idomain) = almo_scf_env%domain_map(1)%index1(idomain) - index1_prev - 1 ! minus self
             CASE DEFAULT
                nneighbors(idomain) = -1
             END SELECT
@@ -1143,13 +1143,13 @@ CONTAINS
                   IF (idomain .EQ. 1) THEN
                      index1_prev = 1
                   ELSE
-                     index1_prev = almo_scf_env%domain_map(1)%index1(idomain-1)
+                     index1_prev = almo_scf_env%domain_map(1)%index1(idomain - 1)
                   ENDIF
 
                   WRITE (unit_nr, '(T2,I10,":")') idomain
                   WRITE (unit_nr, '(T12,11I6)') &
                      almo_scf_env%domain_map(1)%pairs &
-                     (index1_prev:almo_scf_env%domain_map(1)%index1(idomain)-1, 1) ! includes self
+                     (index1_prev:almo_scf_env%domain_map(1)%index1(idomain) - 1, 1) ! includes self
 
                ENDDO ! cycle over domains
 

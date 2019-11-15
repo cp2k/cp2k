@@ -62,7 +62,7 @@ CONTAINS
                            basis_type=basis_type_a)
       ldmem = MAX(maxc, maxs)
 
-      CALL init_orbital_pointers(maxl+2)
+      CALL init_orbital_pointers(maxl + 2)
 
    END FUNCTION get_memory_usage_a
 

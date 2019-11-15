@@ -414,8 +414,8 @@ CONTAINS
          IF (use_virial .AND. calculate_forces) THEN
             CALL sccs(qs_env, rho_tot_gspace%pw, v_hartree_gspace%pw, v_sccs_rspace%pw, &
                       h_stress=h_stress)
-            virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env%num_pe, dp)
-            virial%pv_hartree = virial%pv_hartree+h_stress/REAL(para_env%num_pe, dp)
+            virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
+            virial%pv_hartree = virial%pv_hartree + h_stress/REAL(para_env%num_pe, dp)
          ELSE
             CALL sccs(qs_env, rho_tot_gspace%pw, v_hartree_gspace%pw, v_sccs_rspace%pw)
          END IF
@@ -427,8 +427,8 @@ CONTAINS
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
                                   v_hartree_gspace%pw, h_stress=h_stress, &
                                   rho_core=rho_core)
-            virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env%num_pe, dp)
-            virial%pv_hartree = virial%pv_hartree+h_stress/REAL(para_env%num_pe, dp)
+            virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
+            virial%pv_hartree = virial%pv_hartree + h_stress/REAL(para_env%num_pe, dp)
          ELSE
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
                                   v_hartree_gspace%pw, rho_core=rho_core)
@@ -461,7 +461,7 @@ CONTAINS
 
       IF (dft_control%correct_surf_dip) THEN
          CALL calc_dipsurf_potential(qs_env, energy)
-         energy%hartree = energy%hartree+energy%surf_dipole
+         energy%hartree = energy%hartree + energy%surf_dipole
       END IF
 
       ! SIC
@@ -478,14 +478,14 @@ CONTAINS
          ! Compute the energy due to the external potential
          ee_ener = 0.0_dp
          DO ispin = 1, nspins
-            ee_ener = ee_ener+pw_integral_ab(rho_r(ispin)%pw, vee%pw)
+            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee%pw)
          END DO
          IF (.NOT. just_energy) THEN
             IF (gapw) THEN
                CALL get_qs_env(qs_env=qs_env, &
                                rho0_s_rs=rho0_s_rs)
                CPASSERT(ASSOCIATED(rho0_s_rs))
-               ee_ener = ee_ener+pw_integral_ab(rho0_s_rs%pw, vee%pw)
+               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs%pw, vee%pw)
             END IF
          END IF
          ! the sign accounts for the charge of the electrons
@@ -561,7 +561,7 @@ CONTAINS
          NULLIFY (rho_struct)
 
          IF (use_virial .AND. calculate_forces) THEN
-            virial%pv_virial = virial%pv_virial-virial%pv_xc
+            virial%pv_virial = virial%pv_virial - virial%pv_xc
             ! ** virial%pv_xc will be zeroed in the xc routines
          END IF
          xc_section => admm_env%xc_section_primary
@@ -606,15 +606,15 @@ CONTAINS
 
       NULLIFY (rho_struct)
       IF (use_virial .AND. calculate_forces) THEN
-         virial%pv_virial = virial%pv_virial-virial%pv_xc
+         virial%pv_virial = virial%pv_virial - virial%pv_xc
          virial%pv_exc = -virial%pv_xc
          DO idir = 1, 3
-            virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir)-energy%exc
-            virial%pv_hartree(idir, idir) = virial%pv_hartree(idir, idir)-2.0_dp*energy%hartree
+            virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir) - energy%exc
+            virial%pv_hartree(idir, idir) = virial%pv_hartree(idir, idir) - 2.0_dp*energy%hartree
          END DO
          IF (dft_control%do_admm) THEN
             DO idir = 1, 3
-               virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir)-energy%exc_aux_fit
+               virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir) - energy%exc_aux_fit
             END DO
          END IF
       ENDIF
@@ -649,7 +649,7 @@ CONTAINS
          CALL kg_ekin_subset(qs_env, ksmat, ekin_mol, calculate_forces)
 
          ! substract kg corr from the total energy
-         energy%exc = energy%exc-ekin_mol
+         energy%exc = energy%exc - ekin_mol
 
       END IF
 
@@ -692,7 +692,7 @@ CONTAINS
                                    cdft_control, calculate_forces)
 
          IF (use_virial .AND. calculate_forces) THEN
-            virial%pv_hartree = virial%pv_hartree+(virial%pv_virial-pv_loc)
+            virial%pv_hartree = virial%pv_hartree + (virial%pv_virial - pv_loc)
          END IF
          IF (dft_control%qs_control%do_kg) THEN
             CPASSERT(.NOT. (gapw .OR. gapw_xc))
@@ -700,10 +700,10 @@ CONTAINS
             ksmat => ks_matrix(:, 1)
             CALL kg_ekin_subset(qs_env, ksmat, ekin_mol, calculate_forces)
             ! substract kg corr from the total energy
-            energy%exc = energy%exc-ekin_mol
+            energy%exc = energy%exc - ekin_mol
             ! virial corrections
             IF (use_virial .AND. calculate_forces) THEN
-               virial%pv_virial = virial%pv_virial+virial%pv_xc
+               virial%pv_virial = virial%pv_virial + virial%pv_xc
                virial%pv_xc = 0.0_dp
             END IF
          END IF
@@ -834,11 +834,11 @@ CONTAINS
          ! update core energy for grid based local pseudopotential
          ecore_ppl = 0._dp
          DO ispin = 1, nspins
-            ecore_ppl = ecore_ppl+ &
+            ecore_ppl = ecore_ppl + &
                         SUM(vppl_rspace%pw%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
          END DO
          CALL mp_sum(ecore_ppl, para_env%group)
-         energy%core = energy%core+ecore_ppl
+         energy%core = energy%core + ecore_ppl
       END IF
 
       IF (lrigpw) THEN
@@ -850,21 +850,21 @@ CONTAINS
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL v_int_ppl_energy(qs_env, lri_v_int, ecore_ppl)
             END DO
-            energy%core = energy%core+ecore_ppl
+            energy%core = energy%core + ecore_ppl
          END IF
       END IF
 
       ! Sum all energy terms to obtain the total energy
-      energy%total = energy%core_overlap+energy%core_self+energy%core+energy%hartree+ &
-                     energy%hartree_1c+energy%exc+energy%exc1+energy%ex+ &
-                     energy%dispersion+energy%gcp+energy%qmmm_el+energy%mulliken+ &
-                     SUM(energy%ddapc_restraint)+energy%s2_restraint+ &
-                     energy%dft_plus_u+energy%kTS+ &
-                     energy%efield+energy%efield_core+energy%ee+ &
-                     energy%ee_core+energy%exc_aux_fit+energy%image_charge+ &
-                     energy%sccs_pol+energy%sccs_mpc+energy%cdft
+      energy%total = energy%core_overlap + energy%core_self + energy%core + energy%hartree + &
+                     energy%hartree_1c + energy%exc + energy%exc1 + energy%ex + &
+                     energy%dispersion + energy%gcp + energy%qmmm_el + energy%mulliken + &
+                     SUM(energy%ddapc_restraint) + energy%s2_restraint + &
+                     energy%dft_plus_u + energy%kTS + &
+                     energy%efield + energy%efield_core + energy%ee + &
+                     energy%ee_core + energy%exc_aux_fit + energy%image_charge + &
+                     energy%sccs_pol + energy%sccs_mpc + energy%cdft
 
-      IF (dft_control%apply_embed_pot) energy%total = energy%total+energy%embed_corr
+      IF (dft_control%apply_embed_pot) energy%total = energy%total + energy%embed_corr
 
       IF (abnormal_value(energy%total)) &
          CPABORT("KS energy is an abnormal value (NaN/Inf).")
@@ -1357,7 +1357,7 @@ CONTAINS
          CALL cp_fm_column_scale(weighted_vectors, scaling_factor)
          DEALLOCATE (scaling_factor)
 
-         WRITE (*, *) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
+         WRITE (*, *) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data - 2.0_dp*gradient%local_data))
          CALL cp_fm_release(gradient)
       ENDIF
 

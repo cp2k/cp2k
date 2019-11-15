@@ -63,7 +63,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(H0))
       CALL dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
       CPASSERT(ASSOCIATED(block_N))
-      IF (MAXVAL(ABS(V-TRANSPOSE(V))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
+      IF (MAXVAL(ABS(V - TRANSPOSE(V))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
 
       ! figure out basis sizes
       CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri, col_blk_size=blk_sizes_pao)
@@ -72,7 +72,7 @@ CONTAINS
 
       ! calculate H in the orthonormal basis
       ALLOCATE (H(n, n))
-      H = MATMUL(MATMUL(block_N, H0+V), block_N)
+      H = MATMUL(MATMUL(block_N, H0 + V), block_N)
 
       ! diagonalize H
       ALLOCATE (H_evals(n), H_evecs(n, n))
@@ -87,29 +87,29 @@ CONTAINS
          CPASSERT(MOD(SIZE(evals), 2) == 0) ! gap will be exactely in the middle
          i = SIZE(evals)/2
          j = MIN(m, i)
-         evals(1+i-j:i) = H_evals(1+m-j:m) ! eigenvalues below gap
-         j = MIN(n-m, i)
-         evals(i:i+j) = H_evals(m:m+j) ! eigenvalues above gap
+         evals(1 + i - j:i) = H_evals(1 + m - j:m) ! eigenvalues below gap
+         j = MIN(n - m, i)
+         evals(i:i + j) = H_evals(m:m + j) ! eigenvalues above gap
       ENDIF
 
       ! calculate homo-lumo gap (it's useful for detecting numerical issues)
       gap = HUGE(dp)
       IF (m < n) & ! catch special case n==m
-         gap = H_evals(m+1)-H_evals(m)
+         gap = H_evals(m + 1) - H_evals(m)
 
       IF (PRESENT(penalty)) THEN
          ! penalty terms: occupied and virtual eigenvalues repel each other
          alpha = pao%penalty_strength
          beta = pao%penalty_dist
          DO i = 1, m
-         DO j = m+1, n
-            diff = H_evals(i)-H_evals(j)
-            penalty = penalty+alpha*EXP(-(diff/beta)**2)
+         DO j = m + 1, n
+            diff = H_evals(i) - H_evals(j)
+            penalty = penalty + alpha*EXP(-(diff/beta)**2)
          ENDDO
          ENDDO
 
          ! regularization energy
-         penalty = penalty+pao%regularization*SUM(V**2)
+         penalty = penalty + pao%regularization*SUM(V**2)
       ENDIF
 
       IF (PRESENT(G)) THEN ! TURNING POINT (if calc grad) -------------------------
@@ -126,7 +126,7 @@ CONTAINS
             IF (i <= m .EQV. j <= m) THEN
                D1(i, j) = 0.0_dp
             ELSE
-               denom = H_evals(i)-H_evals(j)
+               denom = H_evals(i) - H_evals(j)
                IF (ABS(denom) > 1e-9_dp) THEN ! avoid division by zero
                   D1(i, j) = 1.0_dp/denom
                ELSE
@@ -150,11 +150,11 @@ CONTAINS
             DO i = 1, n
             DO j = 1, n
                IF (i <= m .EQV. j <= m) CYCLE
-               diff = H_evals(i)-H_evals(j)
-               D2(i, i) = D2(i, i)-2.0_dp*alpha*diff/beta**2*EXP(-(diff/beta)**2)
+               diff = H_evals(i) - H_evals(j)
+               D2(i, i) = D2(i, i) - 2.0_dp*alpha*diff/beta**2*EXP(-(diff/beta)**2)
             ENDDO
             ENDDO
-            M4 = M4+MATMUL(MATMUL(H_evecs, D2), TRANSPOSE(H_evecs))
+            M4 = M4 + MATMUL(MATMUL(H_evecs, D2), TRANSPOSE(H_evecs))
             DEALLOCATE (D2)
          ENDIF
 
@@ -164,10 +164,10 @@ CONTAINS
 
          ! add regularization gradient
          IF (PRESENT(penalty)) &
-            M5 = M5+2.0_dp*pao%regularization*V
+            M5 = M5 + 2.0_dp*pao%regularization*V
 
          ! symmetrize
-         G = 0.5_dp*(M5+TRANSPOSE(M5)) ! the final gradient
+         G = 0.5_dp*(M5 + TRANSPOSE(M5)) ! the final gradient
 
          DEALLOCATE (D1, M2, M3, M4, M5)
       ENDIF

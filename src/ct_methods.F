@@ -1001,7 +1001,7 @@ CONTAINS
                   CALL dbcsr_dot(n, m, numer)
                   tau = numer/denom
                   CALL dbcsr_dot(step, m, numer)
-                  beta = tau-kappa*numer/denom
+                  beta = tau - kappa*numer/denom
                CASE (cg_zero)
                   beta = 0.0_dp
                CASE DEFAULT
@@ -1097,7 +1097,7 @@ CONTAINS
             c1 = -3.0_dp*c1
 
             CALL dbcsr_dot(res, n, c2)
-            c2 = -2.0_dp*c2+(dbcsr_frobenius_norm(m))**2
+            c2 = -2.0_dp*c2 + (dbcsr_frobenius_norm(m))**2
 
             CALL dbcsr_dot(res, m, c3)
 
@@ -1148,14 +1148,14 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I4,1X,E12.3,F8.3)') &
-               "RICCATI iter ", iteration, best_norm, t2-t1
+               "RICCATI iter ", iteration, best_norm, t2 - t1
             !WRITE(unit_nr,'(T6,A,1X,I4,1X,F15.9,F15.9,E12.3,F8.3)') &
             !   "RICCATI iter ",iteration,ecorr,change_ecorr,best_norm,t2-t1
          ENDIF
 
          t1 = m_walltime()
 
-         iteration = iteration+1
+         iteration = iteration + 1
 
          IF (prepare_to_exit) EXIT
 
@@ -1394,11 +1394,11 @@ CONTAINS
             ENDIF
          ELSE
             ! Quadratic equation with max two roots.
-            DD = c*c-4.0_dp*b*d
+            DD = c*c - 4.0_dp*b*d
             IF (DD .GT. 0.0_dp) THEN
                nroots = 2
-               x(1) = (-c+SQRT(DD))/2.0_dp/b
-               x(2) = (-c-SQRT(DD))/2.0_dp/b
+               x(1) = (-c + SQRT(DD))/2.0_dp/b
+               x(2) = (-c - SQRT(DD))/2.0_dp/b
             ELSE IF (DD .LT. 0.0_dp) THEN
                nroots = 0
             ELSE
@@ -1409,38 +1409,38 @@ CONTAINS
       ELSE
          ! Cubic equation with max three roots
          ! Calculate p and q
-         p = c/a-b*b/a/a/3.0_dp
-         q = (2.0_dp*b*b*b/a/a/a-9.0_dp*b*c/a/a+27.0_dp*d/a)/27.0_dp
+         p = c/a - b*b/a/a/3.0_dp
+         q = (2.0_dp*b*b*b/a/a/a - 9.0_dp*b*c/a/a + 27.0_dp*d/a)/27.0_dp
 
          ! Calculate DD
-         DD = p*p*p/27.0_dp+q*q/4.0_dp
+         DD = p*p*p/27.0_dp + q*q/4.0_dp
 
          IF (DD .LT. 0.0_dp) THEN
             ! three real unequal roots -- use the trigonometric formulation
             phi = ACOS(-q/2.0_dp/SQRT(ABS(p*p*p)/27.0_dp))
             temp1 = 2.0_dp*SQRT(ABS(p)/3.0_dp)
             y1 = temp1*COS(phi/3.0_dp)
-            y2 = -temp1*COS((phi+pi)/3.0_dp)
-            y3 = -temp1*COS((phi-pi)/3.0_dp)
+            y2 = -temp1*COS((phi + pi)/3.0_dp)
+            y3 = -temp1*COS((phi - pi)/3.0_dp)
          ELSE
             ! 1 real & 2 conjugate complex roots OR 3 real roots (some are equal)
-            temp1 = -q/2.0_dp+SQRT(DD)
-            temp2 = -q/2.0_dp-SQRT(DD)
+            temp1 = -q/2.0_dp + SQRT(DD)
+            temp2 = -q/2.0_dp - SQRT(DD)
             u = ABS(temp1)**(1.0_dp/3.0_dp)
             v = ABS(temp2)**(1.0_dp/3.0_dp)
             IF (temp1 .LT. 0.0_dp) u = -u
             IF (temp2 .LT. 0.0_dp) v = -v
-            y1 = u+v
-            y2r = -(u+v)/2.0_dp
-            y2i = (u-v)*SQRT(3.0_dp)/2.0_dp
+            y1 = u + v
+            y2r = -(u + v)/2.0_dp
+            y2i = (u - v)*SQRT(3.0_dp)/2.0_dp
          ENDIF
 
          ! Final transformation
          temp1 = b/a/3.0_dp
-         y1 = y1-temp1
-         y2 = y2-temp1
-         y3 = y3-temp1
-         y2r = y2r-temp1
+         y1 = y1 - temp1
+         y2 = y2 - temp1
+         y3 = y3 - temp1
+         y2r = y2r - temp1
 
          ! Assign answers
          IF (DD .LT. 0.0_dp) THEN
@@ -1467,9 +1467,9 @@ CONTAINS
       DO i = 1, nroots
          ! maximum or minimum? use the derivative
          ! 3*a*x**2+2*b*x+c
-         der = 3.0_dp*a*x(i)*x(i)+2.0_dp*b*x(i)+c
+         der = 3.0_dp*a*x(i)*x(i) + 2.0_dp*b*x(i) + c
          IF (der .GT. 0.0_dp) THEN
-            nmins = nmins+1
+            nmins = nmins + 1
             minima(nmins) = x(i)
 !write(*,'(a,i2,a,f10.5)') 'Minimum ', i, ', value: ', x(i)
          ENDIF

@@ -216,12 +216,12 @@ CONTAINS
          CALL section_vals_val_get(nmr_section,&
               &                    "PRINT%SHIELDING_TENSOR%ATOMS_LU_BOUNDS", &
                                    i_vals=bounds)
-         nat_print = bounds(2)-bounds(1)+1
+         nat_print = bounds(2) - bounds(1) + 1
          IF (nat_print > 0) THEN
             ALLOCATE (nmr_env%cs_atom_list(nat_print))
             DO ir = 1, nat_print
-               nmr_env%cs_atom_list(ir) = bounds(1)+(ir-1)
-               nmr_env%do_calc_cs_atom(bounds(1)+(ir-1)) = 1
+               nmr_env%cs_atom_list(ir) = bounds(1) + (ir - 1)
+               nmr_env%do_calc_cs_atom(bounds(1) + (ir - 1)) = 1
             ENDDO
          ENDIF
 
@@ -234,12 +234,12 @@ CONTAINS
                CALL section_vals_val_get(nmr_section, "PRINT%SHIELDING_TENSOR%ATOMS_LIST", &
                                          i_rep_val=ir, i_vals=list)
                IF (ASSOCIATED(list)) THEN
-                  CALL reallocate(nmr_env%cs_atom_list, 1, nat_print+SIZE(list))
+                  CALL reallocate(nmr_env%cs_atom_list, 1, nat_print + SIZE(list))
                   DO ini = 1, SIZE(list)
-                     nmr_env%cs_atom_list(ini+nat_print) = list(ini)
+                     nmr_env%cs_atom_list(ini + nat_print) = list(ini)
                      nmr_env%do_calc_cs_atom(list(ini)) = 1
                   ENDDO
-                  nat_print = nat_print+SIZE(list)
+                  nat_print = nat_print + SIZE(list)
                ENDIF
             ENDDO ! ir
          ENDIF
@@ -312,7 +312,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
          routineP = moduleN//':'//routineN
 
-      nmr_env%ref_count = nmr_env%ref_count-1
+      nmr_env%ref_count = nmr_env%ref_count - 1
       IF (nmr_env%ref_count == 0) THEN
          IF (ASSOCIATED(nmr_env%cs_atom_list)) THEN
             DEALLOCATE (nmr_env%cs_atom_list)

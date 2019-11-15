@@ -196,11 +196,11 @@ CONTAINS
          END IF
       END IF
       ! shift other basis sets
-      DO i = ibas+1, SIZE(container)
+      DO i = ibas + 1, SIZE(container)
          IF (container(i)%basis_type_nr == 0) CYCLE
-         container(i-1)%basis_type = container(i)%basis_type
-         container(i-1)%basis_set => container(i)%basis_set
-         container(i-1)%basis_type_nr = container(i)%basis_type_nr
+         container(i - 1)%basis_type = container(i)%basis_type
+         container(i - 1)%basis_set => container(i)%basis_set
+         container(i - 1)%basis_type_nr = container(i)%basis_type_nr
          container(i)%basis_type = ""
          container(i)%basis_type_nr = 0
          NULLIFY (container(i)%basis_set)

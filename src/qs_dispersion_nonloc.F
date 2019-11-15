@@ -241,15 +241,15 @@ CONTAINS
       DO i = 1, 3
          lo(i) = LBOUND(tmp_r%cr3d, i)
          hi(i) = UBOUND(tmp_r%cr3d, i)
-         n(i) = hi(i)-lo(i)+1
+         n(i) = hi(i) - lo(i) + 1
       END DO
 !$OMP PARALLEL DO DEFAULT(NONE)              &
 !$OMP             SHARED(n,rho)              &
 !$OMP             COLLAPSE(3)
-      DO r = 0, n(3)-1
-         DO q = 0, n(2)-1
-            DO p = 0, n(1)-1
-               rho(r*n(2)*n(1)+q*n(1)+p+1) = 0.0_dp
+      DO r = 0, n(3) - 1
+         DO q = 0, n(2) - 1
+            DO p = 0, n(1) - 1
+               rho(r*n(2)*n(1) + q*n(1) + p + 1) = 0.0_dp
             END DO
          END DO
       END DO
@@ -258,10 +258,10 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE)              &
 !$OMP             SHARED(n,i,drho)           &
 !$OMP             COLLAPSE(3)
-         DO r = 0, n(3)-1
-            DO q = 0, n(2)-1
-               DO p = 0, n(1)-1
-                  drho(r*n(2)*n(1)+q*n(1)+p+1, i) = 0.0_dp
+         DO r = 0, n(3) - 1
+            DO q = 0, n(2) - 1
+               DO p = 0, n(1) - 1
+                  drho(r*n(2)*n(1) + q*n(1) + p + 1, i) = 0.0_dp
                END DO
             END DO
          END DO
@@ -275,11 +275,11 @@ CONTAINS
 !$OMP             SHARED(n,lo,rho,tmp_r)   &
 !$OMP             PRIVATE(s)               &
 !$OMP             COLLAPSE(3)
-         DO r = 0, n(3)-1
-            DO q = 0, n(2)-1
-               DO p = 0, n(1)-1
-                  s = r*n(2)*n(1)+q*n(1)+p+1
-                  rho(s) = rho(s)+tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3))
+         DO r = 0, n(3) - 1
+            DO q = 0, n(2) - 1
+               DO p = 0, n(1) - 1
+                  s = r*n(2)*n(1) + q*n(1) + p + 1
+                  rho(s) = rho(s) + tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3))
                END DO
             END DO
          END DO
@@ -289,11 +289,11 @@ CONTAINS
 !$OMP             SHARED(ispin,i,n,lo,drho,drho_r)   &
 !$OMP             PRIVATE(s)                         &
 !$OMP             COLLAPSE(3)
-            DO r = 0, n(3)-1
-               DO q = 0, n(2)-1
-                  DO p = 0, n(1)-1
-                     s = r*n(2)*n(1)+q*n(1)+p+1
-                     drho(s, i) = drho(s, i)+drho_r(i, ispin)%pw%cr3d(p+lo(1), q+lo(2), r+lo(3))
+            DO r = 0, n(3) - 1
+               DO q = 0, n(2) - 1
+                  DO p = 0, n(1) - 1
+                     s = r*n(2)*n(1) + q*n(1) + p + 1
+                     drho(s, i) = drho(s, i) + drho_r(i, ispin)%pw%cr3d(p + lo(1), q + lo(2), r + lo(3))
                   END DO
                END DO
             END DO
@@ -383,17 +383,17 @@ CONTAINS
       DO i = 1, 3
          lo(i) = LBOUND(tmp_r%cr3d, i)
          hi(i) = UBOUND(tmp_r%cr3d, i)
-         n(i) = hi(i)-lo(i)+1
+         n(i) = hi(i) - lo(i) + 1
       END DO
       ALLOCATE (thetas_g(dispersion_env%nqs))
       DO i = 1, dispersion_env%nqs
 !$OMP PARALLEL DO DEFAULT(NONE)                   &
 !$OMP             SHARED(i,n,lo,thetas,tmp_r)     &
 !$OMP             COLLAPSE(3)
-         DO r = 0, n(3)-1
-            DO q = 0, n(2)-1
-               DO p = 0, n(1)-1
-                  tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = thetas(r*n(2)*n(1)+q*n(1)+p+1, i)
+         DO r = 0, n(3) - 1
+            DO q = 0, n(2) - 1
+               DO p = 0, n(1) - 1
+                  tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = thetas(r*n(2)*n(1) + q*n(1) + p + 1, i)
                END DO
             END DO
          END DO
@@ -415,18 +415,18 @@ CONTAINS
          CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial)
          SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
-            Ec_nl = 0.5_dp*Ec_nl+beta*SUM(rho(:))*grid%vol/sumnp
+            Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
          END SELECT
          ! calculates energy contribution to stress
          ! potential contribution to stress is calculated together with other potentials (Hxc)
          DO idir = 1, 3
-            virial%pv_xc(idir, idir) = virial%pv_xc(idir, idir)+Ec_nl
+            virial%pv_xc(idir, idir) = virial%pv_xc(idir, idir) + Ec_nl
          END DO
       ELSE
          CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only)
          SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
-            Ec_nl = 0.5_dp*Ec_nl+beta*SUM(rho(:))*grid%vol/sumnp
+            Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
          END SELECT
       END IF
       CALL mp_sum(Ec_nl, para_env%group)
@@ -441,17 +441,17 @@ CONTAINS
          DO i = 1, 3
             lo(i) = LBOUND(tmp_r%cr3d, i)
             hi(i) = UBOUND(tmp_r%cr3d, i)
-            n(i) = hi(i)-lo(i)+1
+            n(i) = hi(i) - lo(i) + 1
          END DO
          DO i = 1, dispersion_env%nqs
             CALL pw_transfer(thetas_g(i)%pw, tmp_r)
 !$OMP PARALLEL DO DEFAULT(NONE)                        &
 !$OMP             SHARED(i,n,lo,thetas,tmp_r)          &
 !$OMP             COLLAPSE(3)
-            DO r = 0, n(3)-1
-               DO q = 0, n(2)-1
-                  DO p = 0, n(1)-1
-                     thetas(r*n(2)*n(1)+q*n(1)+p+1, i) = tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3))
+            DO r = 0, n(3) - 1
+               DO q = 0, n(2) - 1
+                  DO p = 0, n(1) - 1
+                     thetas(r*n(2)*n(1) + q*n(1) + p + 1, i) = tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3))
                   END DO
                END DO
             END DO
@@ -476,22 +476,22 @@ CONTAINS
          END IF
          SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
-            potential(:) = 0.5_dp*potential(:)+beta
+            potential(:) = 0.5_dp*potential(:) + beta
             hpot(:) = 0.5_dp*hpot(:)
          END SELECT
          CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
          DO i = 1, 3
             lo(i) = LBOUND(vxc_r%cr3d, i)
             hi(i) = UBOUND(vxc_r%cr3d, i)
-            n(i) = hi(i)-lo(i)+1
+            n(i) = hi(i) - lo(i) + 1
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE)                         &
 !$OMP             SHARED(i,n,lo,potential,vxc_r)        &
 !$OMP             COLLAPSE(3)
-         DO r = 0, n(3)-1
-            DO q = 0, n(2)-1
-               DO p = 0, n(1)-1
-                  vxc_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = potential(r*n(2)*n(1)+q*n(1)+p+1)
+         DO r = 0, n(3) - 1
+            DO q = 0, n(2) - 1
+               DO p = 0, n(1) - 1
+                  vxc_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = potential(r*n(2)*n(1) + q*n(1) + p + 1)
                END DO
             END DO
          END DO
@@ -499,16 +499,16 @@ CONTAINS
          DO i = 1, 3
             lo(i) = LBOUND(tmp_r%cr3d, i)
             hi(i) = UBOUND(tmp_r%cr3d, i)
-            n(i) = hi(i)-lo(i)+1
+            n(i) = hi(i) - lo(i) + 1
          END DO
          DO idir = 1, 3
 !$OMP PARALLEL DO DEFAULT(NONE)                     &
 !$OMP             SHARED(n,lo,tmp_r)                &
 !$OMP             COLLAPSE(3)
-            DO r = 0, n(3)-1
-               DO q = 0, n(2)-1
-                  DO p = 0, n(1)-1
-                     tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = 0.0_dp
+            DO r = 0, n(3) - 1
+               DO q = 0, n(2) - 1
+                  DO p = 0, n(1) - 1
+                     tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = 0.0_dp
                   END DO
                END DO
             END DO
@@ -517,12 +517,12 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE)                              &
 !$OMP             SHARED(n,lo,tmp_r,hpot,drho_r,idir,ispin)  &
 !$OMP             COLLAPSE(3)
-               DO r = 0, n(3)-1
-                  DO q = 0, n(2)-1
-                     DO p = 0, n(1)-1
-                        tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) &
-                                                                +hpot(r*n(2)*n(1)+q*n(1)+p+1) &
-                                                                *drho_r(idir, ispin)%pw%cr3d(p+lo(1), q+lo(2), r+lo(3))
+               DO r = 0, n(3) - 1
+                  DO q = 0, n(2) - 1
+                     DO p = 0, n(1) - 1
+                        tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) &
+                                                                      + hpot(r*n(2)*n(1) + q*n(1) + p + 1) &
+                                                                      *drho_r(idir, ispin)%pw%cr3d(p + lo(1), q + lo(2), r + lo(3))
                      END DO
                   END DO
                END DO
@@ -645,7 +645,7 @@ CONTAINS
 !$OMP DO
       DO ig = 1, grid%ngpts_cut_local
          g2 = grid%gsq(ig)
-         IF (ABS(g2-g2_last) > 1.e-10) THEN
+         IF (ABS(g2 - g2_last) > 1.e-10) THEN
             g2_last = g2
             g = SQRT(g2)
             CALL interpolate_kernel(g, kernel_of_k, dispersion_env)
@@ -657,12 +657,12 @@ CONTAINS
          DO q2_i = 1, nqs
             uu = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
             DO q1_i = 1, nqs
-               uu = uu+kernel_of_k(q2_i, q1_i)*theta(q1_i)
+               uu = uu + kernel_of_k(q2_i, q1_i)*theta(q1_i)
             END DO
             IF (ig < grid%first_gne0) THEN
-               vdW_xc_energy = vdW_xc_energy+REAL(uu*CONJG(theta(q2_i)), KIND=dp)
+               vdW_xc_energy = vdW_xc_energy + REAL(uu*CONJG(theta(q2_i)), KIND=dp)
             ELSE
-               vdW_xc_energy = vdW_xc_energy+g_multiplier*REAL(uu*CONJG(theta(q2_i)), KIND=dp)
+               vdW_xc_energy = vdW_xc_energy + g_multiplier*REAL(uu*CONJG(theta(q2_i)), KIND=dp)
             END IF
             IF (.NOT. energy_only) u_vdW(ig, q2_i) = uu
 
@@ -674,7 +674,7 @@ CONTAINS
                   END IF
                   DO l = 1, 3
                      DO m = 1, l
-                        virial_thread(l, m) = virial_thread(l, m)-gm*(grid%g(l, ig)*grid%g(m, ig))/g
+                        virial_thread(l, m) = virial_thread(l, m) - gm*(grid%g(l, ig)*grid%g(m, ig))/g
                      END DO
                   END DO
                END DO
@@ -707,12 +707,12 @@ CONTAINS
 
       IF (use_virial) THEN
          DO l = 1, 3
-            DO m = 1, (l-1)
-               virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+            DO m = 1, (l - 1)
+               virial%pv_xc(l, m) = virial%pv_xc(l, m) + virial_thread(l, m)
                virial%pv_xc(m, l) = virial%pv_xc(l, m)
             END DO
             m = l
-            virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+            virial%pv_xc(l, m) = virial%pv_xc(l, m) + virial_thread(l, m)
          END DO
       END IF
 
@@ -809,8 +809,8 @@ CONTAINS
          q_low = 1
          q_hi = nqs
          ! Figure out which bin our value of q0 is in in the q_mesh
-         DO WHILE ((q_hi-q_low) > 1)
-            q = INT((q_hi+q_low)/2)
+         DO WHILE ((q_hi - q_low) > 1)
+            q = INT((q_hi + q_low)/2)
             IF (q_mesh(q) > q0(i_grid)) THEN
                q_hi = q
             ELSE
@@ -819,27 +819,27 @@ CONTAINS
          END DO
          IF (q_hi == q_low) CPABORT("get_potential:  qhi == qlow")
 
-         dq = q_mesh(q_hi)-q_mesh(q_low)
+         dq = q_mesh(q_hi) - q_mesh(q_low)
          dq_6 = dq/6.0_dp
 
-         a = (q_mesh(q_hi)-q0(i_grid))/dq
-         b = (q0(i_grid)-q_mesh(q_low))/dq
-         c = (a**3-a)*dq*dq_6
-         d = (b**3-b)*dq*dq_6
-         e = (3.0_dp*a**2-1.0_dp)*dq_6
-         f = (3.0_dp*b**2-1.0_dp)*dq_6
+         a = (q_mesh(q_hi) - q0(i_grid))/dq
+         b = (q0(i_grid) - q_mesh(q_low))/dq
+         c = (a**3 - a)*dq*dq_6
+         d = (b**3 - b)*dq*dq_6
+         e = (3.0_dp*a**2 - 1.0_dp)*dq_6
+         f = (3.0_dp*b**2 - 1.0_dp)*dq_6
 
          DO P_i = 1, nqs
             y = 0.0_dp
             y(P_i) = 1.0_dp
-            dP_dq0 = (y(q_hi)-y(q_low))/dq-e*d2y_dx2(P_i, q_low)+f*d2y_dx2(P_i, q_hi)
-            P = a*y(q_low)+b*y(q_hi)+c*d2y_dx2(P_i, q_low)+d*d2y_dx2(P_i, q_hi)
+            dP_dq0 = (y(q_hi) - y(q_low))/dq - e*d2y_dx2(P_i, q_low) + f*d2y_dx2(P_i, q_hi)
+            P = a*y(q_low) + b*y(q_hi) + c*d2y_dx2(P_i, q_low) + d*d2y_dx2(P_i, q_hi)
             !! The first term in equation 13 of SOLER
             SELECT CASE (nl_type)
             CASE DEFAULT
                CPABORT("Unknown vdW-DF functional")
             CASE (vdw_nl_DRSLL, vdw_nl_LMKLL)
-               potential(i_grid) = potential(i_grid)+u_vdW(i_grid, P_i)*(P+dP_dq0*dq0_drho(i_grid))
+               potential(i_grid) = potential(i_grid) + u_vdW(i_grid, P_i)*(P + dP_dq0*dq0_drho(i_grid))
                prefactor = u_vdW(i_grid, P_i)*dP_dq0*dq0_dgradrho(i_grid)
             CASE (vdw_nl_RVV10)
                IF (total_rho(i_grid) > epsr) THEN
@@ -847,15 +847,15 @@ CONTAINS
                   tmp_1_4 = SQRT(tmp_1_2) ! == total_rho(i_grid)**(1.0_dp/4.0_dp)
                   tmp_3_4 = tmp_1_4*tmp_1_4*tmp_1_4 ! == total_rho(i_grid)**(3.0_dp/4.0_dp)
                   potential(i_grid) = potential(i_grid) &
-                                      +u_vdW(i_grid, P_i)*(const*0.75_dp/tmp_1_4*P &
-                                                           +const*tmp_3_4*dP_dq0*dq0_drho(i_grid))
+                                      + u_vdW(i_grid, P_i)*(const*0.75_dp/tmp_1_4*P &
+                                                            + const*tmp_3_4*dP_dq0*dq0_drho(i_grid))
                   prefactor = u_vdW(i_grid, P_i)*const*tmp_3_4*dP_dq0*dq0_dgradrho(i_grid)
                ELSE
                   prefactor = 0.0_dp
                ENDIF
             END SELECT
             IF (q0(i_grid) .NE. q_mesh(nqs)) THEN
-               h_prefactor(i_grid) = h_prefactor(i_grid)+prefactor
+               h_prefactor(i_grid) = h_prefactor(i_grid) + prefactor
             END IF
 
             IF (use_virial .AND. ABS(prefactor) > 0.0_dp) THEN
@@ -868,7 +868,7 @@ CONTAINS
                prefactor = prefactor*dvol
                DO l = 1, 3
                   DO m = 1, l
-                     virial_thread(l, m) = virial_thread(l, m)-prefactor*drho(i_grid, l)*drho(i_grid, m)
+                     virial_thread(l, m) = virial_thread(l, m) - prefactor*drho(i_grid, l)*drho(i_grid, m)
                   ENDDO
                ENDDO
             END IF
@@ -882,12 +882,12 @@ CONTAINS
 
       IF (use_virial) THEN
          DO l = 1, 3
-            DO m = 1, (l-1)
-               virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+            DO m = 1, (l - 1)
+               virial%pv_xc(l, m) = virial%pv_xc(l, m) + virial_thread(l, m)
                virial%pv_xc(m, l) = virial%pv_xc(l, m)
             ENDDO
             m = l
-            virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+            virial%pv_xc(l, m) = virial%pv_xc(l, m) + virial_thread(l, m)
          ENDDO
       END IF
 
@@ -915,7 +915,7 @@ CONTAINS
 
       DO i = 2, hi
          multiplier = multiplier*alpha
-         exponent = exponent+(multiplier/i)
+         exponent = exponent + (multiplier/i)
       END DO
    END SUBROUTINE calculate_exponent
 
@@ -942,9 +942,9 @@ CONTAINS
       exponent = 0.0d0
 
       DO i = 1, hi
-         derivative = derivative+multiplier
+         derivative = derivative + multiplier
          multiplier = multiplier*alpha
-         exponent = exponent+(multiplier/i)
+         exponent = exponent + (multiplier/i)
       END DO
    END SUBROUTINE calculate_exponent_derivative
 
@@ -1016,21 +1016,21 @@ CONTAINS
          sqrt_r_s = SQRT(r_s)
 
          gradient_correction = -Z_ab/(36.0_dp*kF*total_rho(i_grid)**2) &
-                               *(gradient_rho(i_grid, 1)**2+gradient_rho(i_grid, 2)**2+gradient_rho(i_grid, 3)**2)
+                               *(gradient_rho(i_grid, 1)**2 + gradient_rho(i_grid, 2)**2 + gradient_rho(i_grid, 3)**2)
 
-         LDA_1 = 8.0_dp*pi/3.0_dp*(LDA_A*(1.0_dp+LDA_a1*r_s))
-         LDA_2 = 2.0_dp*LDA_A*(LDA_b1*sqrt_r_s+LDA_b2*r_s+LDA_b3*r_s*sqrt_r_s+LDA_b4*r_s*r_s)
+         LDA_1 = 8.0_dp*pi/3.0_dp*(LDA_A*(1.0_dp + LDA_a1*r_s))
+         LDA_2 = 2.0_dp*LDA_A*(LDA_b1*sqrt_r_s + LDA_b2*r_s + LDA_b3*r_s*sqrt_r_s + LDA_b4*r_s*r_s)
          !! ---------------------------------------------------------------
          !! This is the q value defined in equations 11 and 12 of DION
          !! ---------------------------------------------------------------
-         q = kF+LDA_1*LOG(1.0_dp+1.0_dp/LDA_2)+gradient_correction
+         q = kF + LDA_1*LOG(1.0_dp + 1.0_dp/LDA_2) + gradient_correction
          !! ---------------------------------------------------------------
          !! Here, we calculate q0 by saturating q according to equation 5 of SOLER.  Also, we find
          !! the derivative dq0_dq needed for the derivatives dq0_drho and dq0_dgradrh0 discussed below.
          !! ---------------------------------------------------------------------------------------
          q__q_cut = q/q_cut
          CALL calculate_exponent_derivative(m_cut, q__q_cut, exponent, dq0_dq)
-         q0(i_grid) = q_cut*(1.0_dp-EXP(-exponent))
+         q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
          dq0_dq = dq0_dq*EXP(-exponent)
          !! ---------------------------------------------------------------------------------------
          !! This is to handle a case with q0 too small.  We simply set it to the smallest q value in
@@ -1051,11 +1051,11 @@ CONTAINS
          !! component.
          !! ------------------------------------------------------------------------------------------------
 
-         dq0_drho(i_grid) = dq0_dq*(kF/3.0_dp-7.0_dp/3.0_dp*gradient_correction &
-                                    -8.0_dp*pi/9.0_dp*LDA_A*LDA_a1*r_s*LOG(1.0_dp+1.0_dp/LDA_2) &
-                                    +LDA_1/(LDA_2*(1.0_dp+LDA_2)) &
-                                    *(2.0_dp*LDA_A*(LDA_b1/6.0_dp*sqrt_r_s+LDA_b2/3.0_dp*r_s+LDA_b3/2.0_dp*r_s*sqrt_r_s &
-                                                    +2.0_dp*LDA_b4/3.0_dp*r_s**2)))
+         dq0_drho(i_grid) = dq0_dq*(kF/3.0_dp - 7.0_dp/3.0_dp*gradient_correction &
+                                    - 8.0_dp*pi/9.0_dp*LDA_A*LDA_a1*r_s*LOG(1.0_dp + 1.0_dp/LDA_2) &
+                                    + LDA_1/(LDA_2*(1.0_dp + LDA_2)) &
+                                    *(2.0_dp*LDA_A*(LDA_b1/6.0_dp*sqrt_r_s + LDA_b2/3.0_dp*r_s + LDA_b3/2.0_dp*r_s*sqrt_r_s &
+                                                    + 2.0_dp*LDA_b4/3.0_dp*r_s**2)))
 
          dq0_dgradrho(i_grid) = total_rho(i_grid)*dq0_dq*2.0_dp*(-Z_ab)/(36.0_dp*kF*total_rho(i_grid)**2)
 
@@ -1103,7 +1103,7 @@ CONTAINS
 
       DO i_grid = 1, SIZE(total_rho)
 
-         gmod2 = gradient_rho(i_grid, 1)**2+gradient_rho(i_grid, 2)**2+gradient_rho(i_grid, 3)**2
+         gmod2 = gradient_rho(i_grid, 1)**2 + gradient_rho(i_grid, 2)**2 + gradient_rho(i_grid, 3)**2
 
          !if (total_rho(i_grid) > epsr .and. gmod2 > epsr) cycle
          IF (total_rho(i_grid) > epsr) THEN
@@ -1116,7 +1116,7 @@ CONTAINS
             wg2 = 4_dp*C_value*(mod_grad/total_rho(i_grid))**4
 
             k = b_value*3.0_dp*pi*((total_rho(i_grid)/(9.0_dp*pi))**(1.0_dp/6.0_dp))
-            w0 = SQRT(wg2+wp2/3.0_dp)
+            w0 = SQRT(wg2 + wp2/3.0_dp)
 
             q = w0/k
 
@@ -1124,7 +1124,7 @@ CONTAINS
             !! ---------------------------------------------------------------------------------------
             q__q_cut = q/q_cut
             CALL calculate_exponent_derivative(m_cut, q__q_cut, exponent, dq0_dq)
-            q0(i_grid) = q_cut*(1.0_dp-EXP(-exponent))
+            q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
             dq0_dq = dq0_dq*EXP(-exponent)
 
             !! ---------------------------------------------------------------------------------------
@@ -1133,10 +1133,10 @@ CONTAINS
             END IF
 
             !!---------------------------------Final values---------------------------------
-            dw0_dn = 1.0_dp/(2.0_dp*w0)*(16.0_dp/3.0_dp*pi-4.0_dp*wg2/total_rho(i_grid))
+            dw0_dn = 1.0_dp/(2.0_dp*w0)*(16.0_dp/3.0_dp*pi - 4.0_dp*wg2/total_rho(i_grid))
             dk_dn = k/(6.0_dp*total_rho(i_grid))
 
-            dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2.0)*(dw0_dn*k-dk_dn*w0)
+            dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2.0)*(dw0_dn*k - dk_dn*w0)
             dq0_dgradrho(i_grid) = dq0_dq*1.0_dp/(2.0_dp*k*w0)*4.0_dp*wg2/gmod2
          ENDIF
 
@@ -1197,14 +1197,14 @@ CONTAINS
          sqrt_r_s = SQRT(r_s)
 
          gradient_correction = -Z_ab/(36.0_dp*kF*total_rho(i_grid)**2) &
-                               *(gradient_rho(i_grid, 1)**2+gradient_rho(i_grid, 2)**2+gradient_rho(i_grid, 3)**2)
+                               *(gradient_rho(i_grid, 1)**2 + gradient_rho(i_grid, 2)**2 + gradient_rho(i_grid, 3)**2)
 
-         LDA_1 = 8.0_dp*pi/3.0_dp*(LDA_A*(1.0_dp+LDA_a1*r_s))
-         LDA_2 = 2.0_dp*LDA_A*(LDA_b1*sqrt_r_s+LDA_b2*r_s+LDA_b3*r_s*sqrt_r_s+LDA_b4*r_s*r_s)
+         LDA_1 = 8.0_dp*pi/3.0_dp*(LDA_A*(1.0_dp + LDA_a1*r_s))
+         LDA_2 = 2.0_dp*LDA_A*(LDA_b1*sqrt_r_s + LDA_b2*r_s + LDA_b3*r_s*sqrt_r_s + LDA_b4*r_s*r_s)
          !! ------------------------------------------------------------------------------------
          !! This is the q value defined in equations 11 and 12 of DION
          !! ---------------------------------------------------------------
-         q = kF+LDA_1*LOG(1.0_dp+1.0_dp/LDA_2)+gradient_correction
+         q = kF + LDA_1*LOG(1.0_dp + 1.0_dp/LDA_2) + gradient_correction
 
          !! ---------------------------------------------------------------
          !! Here, we calculate q0 by saturating q according to equation 5 of SOLER.  Also, we find
@@ -1212,7 +1212,7 @@ CONTAINS
          !! ---------------------------------------------------------------------------------------
          q__q_cut = q/q_cut
          CALL calculate_exponent(m_cut, q__q_cut, exponent)
-         q0(i_grid) = q_cut*(1.0_dp-EXP(-exponent))
+         q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
 
          !! ---------------------------------------------------------------------------------------
          !! This is to handle a case with q0 too small.  We simply set it to the smallest q value in
@@ -1254,7 +1254,7 @@ CONTAINS
 
       DO i_grid = 1, SIZE(total_rho)
 
-         gmod2 = gradient_rho(i_grid, 1)**2+gradient_rho(i_grid, 2)**2+gradient_rho(i_grid, 3)**2
+         gmod2 = gradient_rho(i_grid, 1)**2 + gradient_rho(i_grid, 2)**2 + gradient_rho(i_grid, 3)**2
 
          !if (total_rho(i_grid) > epsr .and. gmod2 > epsr) cycle
          IF (total_rho(i_grid) > epsr) THEN
@@ -1265,7 +1265,7 @@ CONTAINS
             wg2 = 4_dp*C_value*(gmod2*gmod2)/(total_rho(i_grid)**4)
 
             k = b_value*3.0_dp*pi*((total_rho(i_grid)/(9.0_dp*pi))**(1.0_dp/6.0_dp))
-            w0 = SQRT(wg2+wp2/3.0_dp)
+            w0 = SQRT(wg2 + wp2/3.0_dp)
 
             q = w0/k
 
@@ -1273,7 +1273,7 @@ CONTAINS
             !! ---------------------------------------------------------------------------------------
             q__q_cut = q/q_cut
             CALL calculate_exponent(m_cut, q__q_cut, exponent)
-            q0(i_grid) = q_cut*(1.0_dp-EXP(-exponent))
+            q0(i_grid) = q_cut*(1.0_dp - EXP(-exponent))
 
             IF (q0(i_grid) < q_min) THEN
                q0(i_grid) = q_min
@@ -1323,8 +1323,8 @@ CONTAINS
       DO i_grid = 1, Ngrid_points
          lower_bound = 1
          upper_bound = Nx
-         DO WHILE ((upper_bound-lower_bound) > 1)
-            index = (upper_bound+lower_bound)/2
+         DO WHILE ((upper_bound - lower_bound) > 1)
+            index = (upper_bound + lower_bound)/2
             IF (evaluation_points(i_grid) > x(index)) THEN
                lower_bound = index
             ELSE
@@ -1332,19 +1332,19 @@ CONTAINS
             END IF
          END DO
 
-         dx = x(upper_bound)-x(lower_bound)
+         dx = x(upper_bound) - x(lower_bound)
          const = dx*dx/6.0_dp
 
-         a = (x(upper_bound)-evaluation_points(i_grid))/dx
-         b = (evaluation_points(i_grid)-x(lower_bound))/dx
-         c = (a**3-a)*const
-         d = (b**3-b)*const
+         a = (x(upper_bound) - evaluation_points(i_grid))/dx
+         b = (evaluation_points(i_grid) - x(lower_bound))/dx
+         c = (a**3 - a)*const
+         d = (b**3 - b)*const
 
          DO P_i = 1, Nx
             y = 0
             y(P_i) = 1
-            values(i_grid, P_i) = a*y(lower_bound)+b*y(upper_bound) &
-                                  +(c*d2y_dx2(P_i, lower_bound)+d*d2y_dx2(P_i, upper_bound))
+            values(i_grid, P_i) = a*y(lower_bound) + b*y(upper_bound) &
+                                  + (c*d2y_dx2(P_i, lower_bound) + d*d2y_dx2(P_i, upper_bound))
          END DO
       END DO
 !$OMP END DO
@@ -1392,18 +1392,18 @@ CONTAINS
 
          d2y_dx2(P_i, 1) = 0.0_dp
          temp_array(1) = 0.0_dp
-         DO index = 2, Nx-1
-            temp1 = (x(index)-x(index-1))/(x(index+1)-x(index-1))
-            temp2 = temp1*d2y_dx2(P_i, index-1)+2.0_dp
-            d2y_dx2(P_i, index) = (temp1-1.0_dp)/temp2
-            temp_array(index) = (y(index+1)-y(index))/(x(index+1)-x(index)) &
-                                -(y(index)-y(index-1))/(x(index)-x(index-1))
-            temp_array(index) = (6.0_dp*temp_array(index)/(x(index+1)-x(index-1)) &
-                                 -temp1*temp_array(index-1))/temp2
+         DO index = 2, Nx - 1
+            temp1 = (x(index) - x(index - 1))/(x(index + 1) - x(index - 1))
+            temp2 = temp1*d2y_dx2(P_i, index - 1) + 2.0_dp
+            d2y_dx2(P_i, index) = (temp1 - 1.0_dp)/temp2
+            temp_array(index) = (y(index + 1) - y(index))/(x(index + 1) - x(index)) &
+                                - (y(index) - y(index - 1))/(x(index) - x(index - 1))
+            temp_array(index) = (6.0_dp*temp_array(index)/(x(index + 1) - x(index - 1)) &
+                                 - temp1*temp_array(index - 1))/temp2
          END DO
          d2y_dx2(P_i, Nx) = 0.0_dp
-         DO index = Nx-1, 1, -1
-            d2y_dx2(P_i, index) = d2y_dx2(P_i, index)*d2y_dx2(P_i, index+1)+temp_array(index)
+         DO index = Nx - 1, 1, -1
+            d2y_dx2(P_i, index) = d2y_dx2(P_i, index)*d2y_dx2(P_i, index + 1) + temp_array(index)
          END DO
       END DO
 !$OMP END DO
@@ -1472,14 +1472,14 @@ CONTAINS
       !! If we are not on a function point then we carry out the interpolation
       !! ----------------------------------------------------------------------------------------
       const = dk*dk/6.0_dp
-      A = (dk*(k_i+1.0_dp)-k)/dk
-      B = (k-dk*k_i)/dk
-      C = (A**3-A)*const
-      D = (B**3-B)*const
+      A = (dk*(k_i + 1.0_dp) - k)/dk
+      B = (k - dk*k_i)/dk
+      C = (A**3 - A)*const
+      D = (B**3 - B)*const
       DO q1_i = 1, dispersion_env%Nqs
          DO q2_i = 1, q1_i
-            kernel_of_k(q1_i, q2_i) = A*kernel(k_i, q1_i, q2_i)+B*kernel(k_i+1, q1_i, q2_i) &
-                                      +(C*d2phi_dk2(k_i, q1_i, q2_i)+D*d2phi_dk2(k_i+1, q1_i, q2_i))
+            kernel_of_k(q1_i, q2_i) = A*kernel(k_i, q1_i, q2_i) + B*kernel(k_i + 1, q1_i, q2_i) &
+                                      + (C*d2phi_dk2(k_i, q1_i, q2_i) + D*d2phi_dk2(k_i + 1, q1_i, q2_i))
             kernel_of_k(q2_i, q1_i) = kernel_of_k(q1_i, q2_i)
          END DO
       END DO
@@ -1517,16 +1517,16 @@ CONTAINS
       dkernel_of_dk = 0.0_dp
       k_i = INT(k/dk)
 
-      A = (dk*(k_i+1.0_dp)-k)/dk
-      B = (k-dk*k_i)/dk
+      A = (dk*(k_i + 1.0_dp) - k)/dk
+      B = (k - dk*k_i)/dk
       dAdk = -1.0_dp/dk
       dBdk = 1.0_dp/dk
-      dCdk = -(3*A**2-1.0_dp)*dk_6
-      dDdk = (3*B**2-1.0_dp)*dk_6
+      dCdk = -(3*A**2 - 1.0_dp)*dk_6
+      dDdk = (3*B**2 - 1.0_dp)*dk_6
       DO q1_i = 1, dispersion_env%Nqs
          DO q2_i = 1, q1_i
-            dkernel_of_dk(q1_i, q2_i) = dAdk*kernel(k_i, q1_i, q2_i)+dBdk*kernel(k_i+1, q1_i, q2_i) &
-                                        +dCdk*d2phi_dk2(k_i, q1_i, q2_i)+dDdk*d2phi_dk2(k_i+1, q1_i, q2_i)
+            dkernel_of_dk(q1_i, q2_i) = dAdk*kernel(k_i, q1_i, q2_i) + dBdk*kernel(k_i + 1, q1_i, q2_i) &
+                                        + dCdk*d2phi_dk2(k_i, q1_i, q2_i) + dDdk*d2phi_dk2(k_i + 1, q1_i, q2_i)
             dkernel_of_dk(q2_i, q1_i) = dkernel_of_dk(q1_i, q2_i)
          END DO
       END DO

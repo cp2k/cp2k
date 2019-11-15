@@ -105,8 +105,8 @@ CONTAINS
                "Dirac/Slater local exchange; parameter=", my_xparam
          END IF
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(reference)+6 < LEN(reference)) THEN
-               reference(LEN_TRIM(reference):LEN_TRIM(reference)+6) = ' {LDA}'
+            IF (LEN_TRIM(reference) + 6 < LEN(reference)) THEN
+               reference(LEN_TRIM(reference):LEN_TRIM(reference) + 6) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -117,8 +117,8 @@ CONTAINS
             WRITE (shortform, '(A,F8.4)') "Dirac/Slater exchange", my_xparam
          END IF
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(shortform)+6 < LEN(shortform)) THEN
-               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6) = ' {LDA}'
+            IF (LEN_TRIM(shortform) + 6 < LEN(shortform)) THEN
+               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform) + 6) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -171,7 +171,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=r13, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL xalpha_init(epsilon_rho, xa_parameter)
 
       IF (order >= 0) THEN
@@ -252,7 +252,7 @@ CONTAINS
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &
                           rhob=rho(2)%array, rho_cutoff=epsilon_rho, &
                           local_bounds=bo)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL xalpha_init(epsilon_rho, xa_parameter)
 
       DO ispin = 1, 2
@@ -320,7 +320,7 @@ CONTAINS
 
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
-            pot(ip) = pot(ip)+f*r13(ip)*rho(ip)
+            pot(ip) = pot(ip) + f*r13(ip)*rho(ip)
          END IF
       END DO
 
@@ -349,7 +349,7 @@ CONTAINS
 !$OMP SHARED(n,rho,eps_rho,pot,f,r13)
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
-            pot(ip) = pot(ip)+f*r13(ip)
+            pot(ip) = pot(ip) + f*r13(ip)
          END IF
       END DO
 
@@ -378,7 +378,7 @@ CONTAINS
 !$OMP SHARED(n,rho,eps_rho,pot,f,r13)
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
-            pot(ip) = pot(ip)+f*r13(ip)/rho(ip)
+            pot(ip) = pot(ip) + f*r13(ip)/rho(ip)
          END IF
       END DO
 
@@ -407,7 +407,7 @@ CONTAINS
 !$OMP SHARED(n,rho,eps_rho,pot,f,r13)
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
-            pot(ip) = pot(ip)+f*r13(ip)/(rho(ip)*rho(ip))
+            pot(ip) = pot(ip) + f*r13(ip)/(rho(ip)*rho(ip))
          END IF
       END DO
 
@@ -440,7 +440,7 @@ CONTAINS
       DO ip = 1, n
 
          IF (rhoa(ip) > eps_rho) THEN
-            pot(ip) = pot(ip)+f*r13a(ip)*rhoa(ip)
+            pot(ip) = pot(ip) + f*r13a(ip)*rhoa(ip)
          END IF
 
       END DO
@@ -474,7 +474,7 @@ CONTAINS
       DO ip = 1, n
 
          IF (rhoa(ip) > eps_rho) THEN
-            pota(ip) = pota(ip)+f*r13a(ip)
+            pota(ip) = pota(ip) + f*r13a(ip)
          END IF
 
       END DO
@@ -508,7 +508,7 @@ CONTAINS
       DO ip = 1, n
 
          IF (rhoa(ip) > eps_rho) THEN
-            potaa(ip) = potaa(ip)+f*r13a(ip)/rhoa(ip)
+            potaa(ip) = potaa(ip) + f*r13a(ip)/rhoa(ip)
          END IF
 
       END DO
@@ -542,7 +542,7 @@ CONTAINS
       DO ip = 1, n
 
          IF (rhoa(ip) > eps_rho) THEN
-            potaaa(ip) = potaaa(ip)+f*r13a(ip)/(rhoa(ip)*rhoa(ip))
+            potaaa(ip) = potaaa(ip) + f*r13a(ip)/(rhoa(ip)*rhoa(ip))
          END IF
 
       END DO

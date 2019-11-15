@@ -119,14 +119,14 @@ CONTAINS
                    print_section=print_section, keep_rotations=.FALSE., &
                    mass_weighted=.TRUE., natoms=natom)
 
-      roto_trasl_dof = roto_trasl_dof-MIN(SUM(cell%perd(1:3)), rot_dof)
+      roto_trasl_dof = roto_trasl_dof - MIN(SUM(cell%perd(1:3)), rot_dof)
 
       ! Saving this value of simpar preliminar to the real count of constraints..
       simpar%nfree_rot_transl = roto_trasl_dof
 
       ! compute the total number of degrees of freedom for temperature
-      nconstraint_ext = gci%ntot-gci%nrestraint
-      simpar%nfree = 3*natom-nconstraint_int-nconstraint_ext-roto_trasl_dof
+      nconstraint_ext = gci%ntot - gci%nrestraint
+      simpar%nfree = 3*natom - nconstraint_int - nconstraint_ext - roto_trasl_dof
 
    END SUBROUTINE compute_nfree
 
@@ -180,7 +180,7 @@ CONTAINS
                    print_section=print_section, keep_rotations=.FALSE., &
                    mass_weighted=.TRUE., natoms=natom)
 
-      roto_trasl_dof = roto_trasl_dof-MIN(SUM(cell%perd(1:3)), rot_dof)
+      roto_trasl_dof = roto_trasl_dof - MIN(SUM(cell%perd(1:3)), rot_dof)
 
       ! Collect info about thermostats
       CALL setup_thermostat_info(thermostats%thermostat_info_part, molecule_kind_set, &
@@ -191,8 +191,8 @@ CONTAINS
       simpar%nfree_rot_transl = roto_trasl_dof
 
       ! compute the total number of degrees of freedom for temperature
-      nconstraint_ext = gci%ntot-gci%nrestraint
-      simpar%nfree = 3*natom-nconstraint_int-nconstraint_ext-roto_trasl_dof
+      nconstraint_ext = gci%ntot - gci%nrestraint
+      simpar%nfree = 3*natom - nconstraint_int - nconstraint_ext - roto_trasl_dof
 
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", &
@@ -307,7 +307,7 @@ CONTAINS
                      END IF
                   END DO
                   IF (on_therm) THEN
-                     itherm = itherm+1
+                     itherm = itherm + 1
                      DO katom = first_atom, last_atom
                         thermolist(katom) = itherm
                      END DO
@@ -318,7 +318,7 @@ CONTAINS
                molecule_kind => molecule_kind_set(i)
                CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, nshell=nshell)
                IF ((do_shell) .AND. (nshell == 0)) nmolecule = 0
-               sum_of_thermostats = sum_of_thermostats+nmolecule
+               sum_of_thermostats = sum_of_thermostats + nmolecule
             END DO
             ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
             ! and the degrees of freedom will be computed correctly for this special case
@@ -330,7 +330,7 @@ CONTAINS
                CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, &
                                       natom=natom, nshell=nshell)
                IF (do_shell) natom = nshell
-               sum_of_thermostats = sum_of_thermostats+3*natom*nmolecule
+               sum_of_thermostats = sum_of_thermostats + 3*natom*nmolecule
             END DO
          END SELECT
 
@@ -342,7 +342,7 @@ CONTAINS
                molecule => molecule_set(i)
                CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
                DO ipart = first_atom, last_atom
-                  natom_local = natom_local+1
+                  natom_local = natom_local + 1
                END DO
             END DO
          END DO
@@ -359,7 +359,7 @@ CONTAINS
                molecule => molecule_set(i)
                CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
                DO ipart = first_atom, last_atom
-                  natom_local = natom_local+1
+                  natom_local = natom_local + 1
 ! only map the correct region to the thermostat
                   IF (thermolist(ipart) /= HUGE(0)) &
                      thermostat_info%map_loc_thermo_gen(natom_local) = thermolist(ipart)
@@ -385,9 +385,9 @@ CONTAINS
                   IF (nshell == 0) nmol_local = 0
                END IF
                IF (region == do_region_molecule) THEN
-                  number = number+nmol_local
+                  number = number + nmol_local
                ELSE IF (region == do_region_massive) THEN
-                  number = number+3*nmol_local*natom
+                  number = number + 3*nmol_local*natom
                ELSE
                   CPABORT('Invalid region setup')
                END IF
@@ -468,7 +468,7 @@ CONTAINS
                ipart = tmplist(i)
                CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
                IF (thermolist(ipart) == HUGE(0)) THEN
-                  itherm = itherm+1
+                  itherm = itherm + 1
                   thermolist(ipart) = itherm
                ELSE
                   CPABORT("")
@@ -487,7 +487,7 @@ CONTAINS
                         CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
                         DO ipart = first_atom, last_atom
                            IF (thermolist(ipart) == HUGE(0)) THEN
-                              itherm = itherm+1
+                              itherm = itherm + 1
                               thermolist(ipart) = itherm
                            ELSE
                               CPABORT("")
@@ -612,7 +612,7 @@ CONTAINS
                   molecule_kind => molecule_kind_set(i)
                   CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, nshell=nshell)
                   IF ((do_shell) .AND. (nshell == 0)) nmolecule = 0
-                  sum_of_thermostats = sum_of_thermostats+nmolecule
+                  sum_of_thermostats = sum_of_thermostats + nmolecule
                END DO
                ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
                ! and the degrees of freedom will be computed correctly for this special case
@@ -624,7 +624,7 @@ CONTAINS
                   CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, &
                                          natom=natom, nshell=nshell)
                   IF (do_shell) natom = nshell
-                  sum_of_thermostats = sum_of_thermostats+3*natom*nmolecule
+                  sum_of_thermostats = sum_of_thermostats + 3*natom*nmolecule
                END DO
             CASE (do_region_defined)
                ! User defined region to thermostat..
@@ -655,9 +655,9 @@ CONTAINS
                      IF (nshell == 0) nmol_local = 0
                   END IF
                   IF (region == do_region_molecule) THEN
-                     number = number+nmol_local
+                     number = number + nmol_local
                   ELSE IF (region == do_region_massive) THEN
-                     number = number+3*nmol_local*natom
+                     number = number + 3*nmol_local*natom
                   ELSE
                      CPABORT('Invalid region setup')
                   END IF
@@ -783,13 +783,13 @@ CONTAINS
 
       ! Dump IO warning for not thermalized particles
       IF (ANY(thermolist == HUGE(0))) THEN
-         nregions = nregions+1
-         sum_of_thermostats = sum_of_thermostats+1
+         nregions = nregions + 1
+         sum_of_thermostats = sum_of_thermostats + 1
          ALLOCATE (tmp(COUNT(thermolist == HUGE(0))))
          ilist = 0
          DO i = 1, SIZE(thermolist)
             IF (thermolist(i) == HUGE(0)) THEN
-               ilist = ilist+1
+               ilist = ilist + 1
                tmp(ilist) = i
                thermolist(i) = nregions
             END IF
@@ -814,7 +814,7 @@ CONTAINS
             molecule => molecule_set(i)
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
             DO ipart = first_atom, last_atom
-               natom_local = natom_local+1
+               natom_local = natom_local + 1
                tmp(thermolist(ipart)) = 1
             END DO
          END DO
@@ -832,7 +832,7 @@ CONTAINS
             molecule => molecule_set(i)
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
             DO ipart = first_atom, last_atom
-               natom_local = natom_local+1
+               natom_local = natom_local + 1
                map_loc_thermo_gen(natom_local) = thermolist(ipart)
             END DO
          END DO
@@ -925,8 +925,8 @@ CONTAINS
                END DO
             END SELECT
          ELSE
-            sum_of_thermostats = sum_of_thermostats-1
-            nregions = nregions-1
+            sum_of_thermostats = sum_of_thermostats - 1
+            nregions = nregions - 1
          END IF
       END IF
    END SUBROUTINE setup_thermostat_subsys
@@ -953,9 +953,9 @@ CONTAINS
       ncoef = 0
       DO i = 1, SIZE(npt, 1)
          DO j = 1, SIZE(npt, 2)
-            ncoef = ncoef+1
+            ncoef = ncoef + 1
             map_info%p_kin(1, ncoef)%point = map_info%p_kin(1, ncoef)%point &
-                                             +npt(i, j)%mass*npt(i, j)%v**2
+                                             + npt(i, j)%mass*npt(i, j)%v**2
          END DO
       END DO
 
@@ -982,7 +982,7 @@ CONTAINS
       ncoef = 0
       DO i = 1, SIZE(npt, 1)
          DO j = 1, SIZE(npt, 2)
-            ncoef = ncoef+1
+            ncoef = ncoef + 1
             npt(i, j)%v = npt(i, j)%v*map_info%p_scale(1, ncoef)%point
          END DO
       END DO
@@ -1032,23 +1032,23 @@ CONTAINS
             molecule => molecule_set(imol)
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
             DO ipart = first_atom, last_atom
-               ii = ii+1
+               ii = ii + 1
                atomic_kind => particle_set(ipart)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
                IF (present_vel) THEN
                   IF (ASSOCIATED(map_info%p_kin(1, ii)%point)) &
-                     map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point+mass*vel(1, ipart)**2
+                     map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + mass*vel(1, ipart)**2
                   IF (ASSOCIATED(map_info%p_kin(2, ii)%point)) &
-                     map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point+mass*vel(2, ipart)**2
+                     map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + mass*vel(2, ipart)**2
                   IF (ASSOCIATED(map_info%p_kin(3, ii)%point)) &
-                     map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point+mass*vel(3, ipart)**2
+                     map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + mass*vel(3, ipart)**2
                ELSE
                   IF (ASSOCIATED(map_info%p_kin(1, ii)%point)) &
-                     map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point+mass*particle_set(ipart)%v(1)**2
+                     map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + mass*particle_set(ipart)%v(1)**2
                   IF (ASSOCIATED(map_info%p_kin(2, ii)%point)) &
-                     map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point+mass*particle_set(ipart)%v(2)**2
+                     map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + mass*particle_set(ipart)%v(2)**2
                   IF (ASSOCIATED(map_info%p_kin(3, ii)%point)) &
-                     map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point+mass*particle_set(ipart)%v(3)**2
+                     map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + mass*particle_set(ipart)%v(3)**2
                END IF
             END DO
          END DO
@@ -1101,17 +1101,17 @@ CONTAINS
             molecule => molecule_set(imol)
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
             DO ipart = first_atom, last_atom
-               ii = ii+1
+               ii = ii + 1
                atomic_kind => particle_set(ipart)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
                IF (present_vel) THEN
-                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point+SQRT(mass)*vel(1, ipart)
-                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point+SQRT(mass)*vel(2, ipart)
-                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point+SQRT(mass)*vel(3, ipart)
+                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + SQRT(mass)*vel(1, ipart)
+                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + SQRT(mass)*vel(2, ipart)
+                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + SQRT(mass)*vel(3, ipart)
                ELSE
-                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point+SQRT(mass)*particle_set(ipart)%v(1)
-                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point+SQRT(mass)*particle_set(ipart)%v(2)
-                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point+SQRT(mass)*particle_set(ipart)%v(3)
+                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + SQRT(mass)*particle_set(ipart)%v(1)
+                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + SQRT(mass)*particle_set(ipart)%v(2)
+                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + SQRT(mass)*particle_set(ipart)%v(3)
                END IF
             END DO
          END DO
@@ -1185,7 +1185,7 @@ CONTAINS
             molecule => molecule_set(imol)
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
             Particle: DO ipart = first_atom, last_atom
-               ii = ii+1
+               ii = ii + 1
                IF (present_vel) THEN
                   vel(1, ipart) = vel(1, ipart)*map_info%p_scale(1, ii)%point
                   vel(2, ipart) = vel(2, ipart)*map_info%p_scale(2, ii)%point
@@ -1199,7 +1199,7 @@ CONTAINS
                IF (shell_adiabatic) THEN
                   shell_index = particle_set(ipart)%shell_index
                   IF (shell_index /= 0) THEN
-                     jj = jj+2
+                     jj = jj + 2
                      atomic_kind => particle_set(ipart)%atomic_kind
                      CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass, shell=shell)
                      fac_masss = shell%mass_shell/mass
@@ -1207,21 +1207,21 @@ CONTAINS
                      IF (present_vel) THEN
                         vs(1:3) = shell_vel(1:3, shell_index)
                         vc(1:3) = core_vel(1:3, shell_index)
-                        shell_vel(1, shell_index) = vel(1, ipart)+fac_massc*(vs(1)-vc(1))
-                        shell_vel(2, shell_index) = vel(2, ipart)+fac_massc*(vs(2)-vc(2))
-                        shell_vel(3, shell_index) = vel(3, ipart)+fac_massc*(vs(3)-vc(3))
-                        core_vel(1, shell_index) = vel(1, ipart)+fac_masss*(vc(1)-vs(1))
-                        core_vel(2, shell_index) = vel(2, ipart)+fac_masss*(vc(2)-vs(2))
-                        core_vel(3, shell_index) = vel(3, ipart)+fac_masss*(vc(3)-vs(3))
+                        shell_vel(1, shell_index) = vel(1, ipart) + fac_massc*(vs(1) - vc(1))
+                        shell_vel(2, shell_index) = vel(2, ipart) + fac_massc*(vs(2) - vc(2))
+                        shell_vel(3, shell_index) = vel(3, ipart) + fac_massc*(vs(3) - vc(3))
+                        core_vel(1, shell_index) = vel(1, ipart) + fac_masss*(vc(1) - vs(1))
+                        core_vel(2, shell_index) = vel(2, ipart) + fac_masss*(vc(2) - vs(2))
+                        core_vel(3, shell_index) = vel(3, ipart) + fac_masss*(vc(3) - vs(3))
                      ELSE
                         vs(1:3) = shell_particle_set(shell_index)%v(1:3)
                         vc(1:3) = core_particle_set(shell_index)%v(1:3)
-                        shell_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1)+fac_massc*(vs(1)-vc(1))
-                        shell_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2)+fac_massc*(vs(2)-vc(2))
-                        shell_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3)+fac_massc*(vs(3)-vc(3))
-                        core_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1)+fac_masss*(vc(1)-vs(1))
-                        core_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2)+fac_masss*(vc(2)-vs(2))
-                        core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3)+fac_masss*(vc(3)-vs(3))
+                        shell_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) + fac_massc*(vs(1) - vc(1))
+                        shell_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) + fac_massc*(vs(2) - vc(2))
+                        shell_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) + fac_massc*(vs(3) - vc(3))
+                        core_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) + fac_masss*(vc(1) - vs(1))
+                        core_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) + fac_masss*(vc(2) - vs(2))
+                        core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) + fac_masss*(vc(3) - vs(3))
                      END IF
                   END IF
                END IF
@@ -1291,21 +1291,21 @@ CONTAINS
             DO iparticle_local = 1, nparticle_local
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                shell_index = particle_set(iparticle)%shell_index
-               ii = ii+1
+               ii = ii + 1
                IF (present_vel) THEN
-                  v_sc(1) = core_vel(1, shell_index)-shell_vel(1, shell_index)
-                  v_sc(2) = core_vel(2, shell_index)-shell_vel(2, shell_index)
-                  v_sc(3) = core_vel(3, shell_index)-shell_vel(3, shell_index)
-                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point+mu_mass*v_sc(1)**2
-                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point+mu_mass*v_sc(2)**2
-                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point+mu_mass*v_sc(3)**2
+                  v_sc(1) = core_vel(1, shell_index) - shell_vel(1, shell_index)
+                  v_sc(2) = core_vel(2, shell_index) - shell_vel(2, shell_index)
+                  v_sc(3) = core_vel(3, shell_index) - shell_vel(3, shell_index)
+                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + mu_mass*v_sc(1)**2
+                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + mu_mass*v_sc(2)**2
+                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + mu_mass*v_sc(3)**2
                ELSE
-                  v_sc(1) = core_particle_set(shell_index)%v(1)-shell_particle_set(shell_index)%v(1)
-                  v_sc(2) = core_particle_set(shell_index)%v(2)-shell_particle_set(shell_index)%v(2)
-                  v_sc(3) = core_particle_set(shell_index)%v(3)-shell_particle_set(shell_index)%v(3)
-                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point+mu_mass*v_sc(1)**2
-                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point+mu_mass*v_sc(2)**2
-                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point+mu_mass*v_sc(3)**2
+                  v_sc(1) = core_particle_set(shell_index)%v(1) - shell_particle_set(shell_index)%v(1)
+                  v_sc(2) = core_particle_set(shell_index)%v(2) - shell_particle_set(shell_index)%v(2)
+                  v_sc(3) = core_particle_set(shell_index)%v(3) - shell_particle_set(shell_index)%v(3)
+                  map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + mu_mass*v_sc(1)**2
+                  map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + mu_mass*v_sc(2)**2
+                  map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + mu_mass*v_sc(3)**2
                END IF
             END DO
          END IF
@@ -1375,27 +1375,27 @@ CONTAINS
             Particles: DO iparticle_local = 1, nparticle_local
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                shell_index = particle_set(iparticle)%shell_index
-               ii = ii+1
+               ii = ii + 1
                IF (present_vel) THEN
                   vc(1:3) = core_vel(1:3, shell_index)
                   vs(1:3) = shell_vel(1:3, shell_index)
                   v(1:3) = vel(1:3, iparticle)
-                  shell_vel(1, shell_index) = v(1)+map_info%p_scale(1, ii)%point*massc*(vs(1)-vc(1))
-                  shell_vel(2, shell_index) = v(2)+map_info%p_scale(2, ii)%point*massc*(vs(2)-vc(2))
-                  shell_vel(3, shell_index) = v(3)+map_info%p_scale(3, ii)%point*massc*(vs(3)-vc(3))
-                  core_vel(1, shell_index) = v(1)+map_info%p_scale(1, ii)%point*masss*(vc(1)-vs(1))
-                  core_vel(2, shell_index) = v(2)+map_info%p_scale(2, ii)%point*masss*(vc(2)-vs(2))
-                  core_vel(3, shell_index) = v(3)+map_info%p_scale(3, ii)%point*masss*(vc(3)-vs(3))
+                  shell_vel(1, shell_index) = v(1) + map_info%p_scale(1, ii)%point*massc*(vs(1) - vc(1))
+                  shell_vel(2, shell_index) = v(2) + map_info%p_scale(2, ii)%point*massc*(vs(2) - vc(2))
+                  shell_vel(3, shell_index) = v(3) + map_info%p_scale(3, ii)%point*massc*(vs(3) - vc(3))
+                  core_vel(1, shell_index) = v(1) + map_info%p_scale(1, ii)%point*masss*(vc(1) - vs(1))
+                  core_vel(2, shell_index) = v(2) + map_info%p_scale(2, ii)%point*masss*(vc(2) - vs(2))
+                  core_vel(3, shell_index) = v(3) + map_info%p_scale(3, ii)%point*masss*(vc(3) - vs(3))
                ELSE
                   vc(1:3) = core_particle_set(shell_index)%v(1:3)
                   vs(1:3) = shell_particle_set(shell_index)%v(1:3)
                   v(1:3) = particle_set(iparticle)%v(1:3)
-                  shell_particle_set(shell_index)%v(1) = v(1)+map_info%p_scale(1, ii)%point*massc*(vs(1)-vc(1))
-                  shell_particle_set(shell_index)%v(2) = v(2)+map_info%p_scale(2, ii)%point*massc*(vs(2)-vc(2))
-                  shell_particle_set(shell_index)%v(3) = v(3)+map_info%p_scale(3, ii)%point*massc*(vs(3)-vc(3))
-                  core_particle_set(shell_index)%v(1) = v(1)+map_info%p_scale(1, ii)%point*masss*(vc(1)-vs(1))
-                  core_particle_set(shell_index)%v(2) = v(2)+map_info%p_scale(2, ii)%point*masss*(vc(2)-vs(2))
-                  core_particle_set(shell_index)%v(3) = v(3)+map_info%p_scale(3, ii)%point*masss*(vc(3)-vs(3))
+                  shell_particle_set(shell_index)%v(1) = v(1) + map_info%p_scale(1, ii)%point*massc*(vs(1) - vc(1))
+                  shell_particle_set(shell_index)%v(2) = v(2) + map_info%p_scale(2, ii)%point*massc*(vs(2) - vc(2))
+                  shell_particle_set(shell_index)%v(3) = v(3) + map_info%p_scale(3, ii)%point*massc*(vs(3) - vc(3))
+                  core_particle_set(shell_index)%v(1) = v(1) + map_info%p_scale(1, ii)%point*masss*(vc(1) - vs(1))
+                  core_particle_set(shell_index)%v(2) = v(2) + map_info%p_scale(2, ii)%point*masss*(vc(2) - vs(2))
+                  core_particle_set(shell_index)%v(3) = v(3) + map_info%p_scale(3, ii)%point*masss*(vc(3) - vs(3))
                END IF
             END DO Particles
          END IF
@@ -1435,8 +1435,8 @@ CONTAINS
       DO n = 1, nhc%loc_num_nhc
          imap = nhc%map_info%index(n)
          DO l = 1, nhc%nhc_len
-            akin(imap) = akin(imap)+0.5_dp*nhc%nvt(l, n)%mass*nhc%nvt(l, n)%v**2
-            vpot(imap) = vpot(imap)+nhc%nvt(l, n)%nkt*nhc%nvt(l, n)%eta
+            akin(imap) = akin(imap) + 0.5_dp*nhc%nvt(l, n)%mass*nhc%nvt(l, n)%v**2
+            vpot(imap) = vpot(imap) + nhc%nvt(l, n)%nkt*nhc%nvt(l, n)%eta
          END DO
       END DO
 
@@ -1835,11 +1835,11 @@ CONTAINS
                WRITE (UNIT=unit, FMT="(I8, F12.3,6X,2F20.10)") itimes, time*femtoseconds, thermo_kin, thermo_pot
                WRITE (unit, '(A,4F20.10)') "# KINETIC ENERGY REGIONS: ", array_kin(1:MIN(4, SIZE(array_kin)))
                DO i = 5, SIZE(array_kin), 4
-                  WRITE (UNIT=unit, FMT='("#",25X,4F20.10)') array_kin(i:MIN(i+3, SIZE(array_kin)))
+                  WRITE (UNIT=unit, FMT='("#",25X,4F20.10)') array_kin(i:MIN(i + 3, SIZE(array_kin)))
                END DO
                WRITE (unit, '(A,4F20.10)') "# POTENT. ENERGY REGIONS: ", array_pot(1:MIN(4, SIZE(array_pot)))
                DO i = 5, SIZE(array_pot), 4
-                  WRITE (UNIT=unit, FMT='("#",25X,4F20.10)') array_pot(i:MIN(i+3, SIZE(array_pot)))
+                  WRITE (UNIT=unit, FMT='("#",25X,4F20.10)') array_pot(i:MIN(i + 3, SIZE(array_pot)))
                END DO
                CALL m_flush(unit)
             END IF
@@ -1862,7 +1862,7 @@ CONTAINS
                WRITE (UNIT=unit, FMT="(I8, F12.3,3X,F20.10)") itimes, time*femtoseconds, tot_temperature
                WRITE (unit, '(A,I10)') "# TEMPERATURE REGIONS: ", SIZE(array_temp)
                DO i = 1, SIZE(array_temp), 4
-                  WRITE (UNIT=unit, FMT='("#",22X,4F20.10)') array_temp(i:MIN(i+3, SIZE(array_temp)))
+                  WRITE (UNIT=unit, FMT='("#",22X,4F20.10)') array_temp(i:MIN(i + 3, SIZE(array_temp)))
                END DO
                CALL m_flush(unit)
             END IF
@@ -1893,7 +1893,7 @@ CONTAINS
       ALLOCATE (work(para_env%num_pe))
       DO i = 1, number
          work = 0.0_dp
-         work(para_env%mepos+1) = array(i)
+         work(para_env%mepos + 1) = array(i)
          CALL mp_sum(work, para_env%group)
          ncheck = COUNT(work /= 0.0_dp)
          array(i) = 0.0_dp
@@ -1902,7 +1902,7 @@ CONTAINS
             ncheck = 0
             DO icheck = 1, para_env%num_pe
                IF (work(icheck) /= 0.0_dp) THEN
-                  ncheck = ncheck+1
+                  ncheck = ncheck + 1
                   work2(ncheck) = work(icheck)
                END IF
             END DO
@@ -1938,12 +1938,12 @@ CONTAINS
       ALLOCATE (work(number1, para_env%num_pe))
       DO i = 1, number2
          work = 0
-         work(:, para_env%mepos+1) = array(:, i)
+         work(:, para_env%mepos + 1) = array(:, i)
          CALL mp_sum(work, para_env%group)
          ncheck = 0
          DO j = 1, para_env%num_pe
             IF (ANY(work(:, j) /= 0)) THEN
-               ncheck = ncheck+1
+               ncheck = ncheck + 1
             END IF
          END DO
          array(:, i) = 0
@@ -1952,7 +1952,7 @@ CONTAINS
             ncheck = 0
             DO icheck = 1, para_env%num_pe
                IF (ANY(work(:, icheck) /= 0)) THEN
-                  ncheck = ncheck+1
+                  ncheck = ncheck + 1
                   work2(:, ncheck) = work(:, icheck)
                END IF
             END DO

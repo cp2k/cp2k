@@ -194,13 +194,13 @@ CONTAINS
          idim = 0
          DO iat = 1, pint_env%ndim/3
             DO idir = 1, 3
-               idim = idim+1
+               idim = idim + 1
                ss = 0.0_dp
                vv = 0.0_dp
 !          ss2=0.0_dp
                DO ib = 1, pint_env%p
-                  ss = ss+pint_env%x(ib, idim)
-                  vv = vv+pint_env%v(ib, idim)
+                  ss = ss + pint_env%x(ib, idim)
+                  vv = vv + pint_env%v(ib, idim)
 !            ss2=ss2+pint_env%x(ib,idim)**2
                END DO
                particles%els(iat)%r(idir) = ss/nb
@@ -354,7 +354,7 @@ CONTAINS
             idim = 0
             DO iat = 1, pint_env%ndim/3
                DO idir = 1, 3
-                  idim = idim+1
+                  idim = idim + 1
                   particles%els(iat)%r(idir) = pint_env%x(ib, idim)
                   particles%els(iat)%v(idir) = pint_env%v(ib, idim)
                   particles%els(iat)%f(idir) = pint_env%f(ib, idim)
@@ -542,7 +542,7 @@ CONTAINS
 
             ndof = pint_env%p
             IF (pint_env%first_propagated_mode .EQ. 2) THEN
-               ndof = ndof-1
+               ndof = ndof - 1
             END IF
             temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/ &
                                      REAL(ndof, dp)/REAL(pint_env%ndim, dp), &
@@ -746,10 +746,10 @@ CONTAINS
       idim = 0
       DO ia = 1, pint_env%ndim/3
          DO ic = 1, 3
-            idim = idim+1
+            idim = idim + 1
             ss = 0.0_dp
             DO ib = 1, pint_env%p
-               ss = ss+pint_env%x(ib, idim)
+               ss = ss + pint_env%x(ib, idim)
             END DO
             pint_env%rtmp_ndim(idim) = ss/nb
          END DO
@@ -760,9 +760,9 @@ CONTAINS
       DO ia = 1, pint_env%ndim/3
          ss = 0.0_dp
          DO ic = 1, 3
-            idim = idim+1
+            idim = idim + 1
             DO ib = 1, pint_env%p
-               ss = ss+(pint_env%x(ib, idim)-pint_env%rtmp_ndim(idim))**2
+               ss = ss + (pint_env%x(ib, idim) - pint_env%rtmp_ndim(idim))**2
             END DO
          END DO
          pint_env%rtmp_natom(ia) = SQRT(ss/nb)*unit_conv

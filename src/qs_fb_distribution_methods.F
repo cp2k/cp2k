@@ -164,7 +164,7 @@ CONTAINS
                       para_env=para_env, &
                       matrix_ks=mat_ks)
       nprocs = para_env%num_pe
-      my_pe = para_env%mepos+1 ! counting from 1
+      my_pe = para_env%mepos + 1 ! counting from 1
 
       ! for each global atom, build atomic halo and get the associated cost
       ALLOCATE (pair_radii(nkinds, nkinds))
@@ -214,7 +214,7 @@ CONTAINS
          i_common_set = common_set_ids(iatom)
          pos_in_preferred_list(i_common_set) = &
             MOD(pos_in_preferred_list(i_common_set), &
-                preferred_procs_set(iatom)%nprocs)+1
+                preferred_procs_set(iatom)%nprocs) + 1
          ipe = preferred_procs_set(iatom)%list(pos_in_preferred_list(i_common_set))
          CALL fb_distribution_add(dist(ipe), element)
       END DO
@@ -317,7 +317,7 @@ CONTAINS
                                           local_atoms_sizes)
       ALLOCATE (local_atoms(local_atoms_sizes(my_pe)))
       lb = local_atoms_starts(my_pe)
-      ub = local_atoms_starts(my_pe)+local_atoms_sizes(my_pe)-1
+      ub = local_atoms_starts(my_pe) + local_atoms_sizes(my_pe) - 1
       local_atoms(1:local_atoms_sizes(my_pe)) = local_atoms_all(lb:ub)
       CALL fb_env_set(fb_env=fb_env, &
                       local_atoms=local_atoms, &
@@ -360,7 +360,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL                                            :: acceptable
 
-      acceptable = (dist_to%cost+element%cost .LT. dist_from%cost) .AND. &
+      acceptable = (dist_to%cost + element%cost .LT. dist_from%cost) .AND. &
                    (dist_to%cost .LT. threshold)
    END FUNCTION fb_distribution_acceptable_move
 
@@ -388,8 +388,8 @@ CONTAINS
       natoms = 0
       total_cost = 0.0_dp
       DO ii = 1, nprocs
-         natoms = natoms+dist_set(ii)%nelements
-         total_cost = total_cost+dist_set(ii)%cost
+         natoms = natoms + dist_set(ii)%nelements
+         total_cost = total_cost + dist_set(ii)%cost
       END DO
       ave_natoms = REAL(natoms, dp)/REAL(nprocs, dp)
       ave_cost = total_cost/REAL(nprocs, dp)
@@ -482,15 +482,15 @@ CONTAINS
          ALLOCATE (preferred_procs_set(icol)%list(nprows))
          pcol = col_dist(icol)
          ! dbcsr prow and pcol counts from 0
-         DO prow = 0, nprows-1
+         DO prow = 0, nprows - 1
             ! here, we count processes from 1, so +1 from mpirank
-            preferred_procs_set(icol)%list(prow+1) = pgrid(prow, pcol)+1
+            preferred_procs_set(icol)%list(prow + 1) = pgrid(prow, pcol) + 1
          END DO
          preferred_procs_set(icol)%nprocs = nprows
       END DO
 
       common_set_ids(:) = 0
-      common_set_ids(1:natoms) = col_dist(1:natoms)+1
+      common_set_ids(1:natoms) = col_dist(1:natoms) + 1
 
    END SUBROUTINE fb_build_preferred_procs
 
@@ -552,8 +552,8 @@ CONTAINS
          local_atoms_starts(ipe) = pos
          DO iatom = 1, dist_set(ipe)%nelements
             local_atoms(pos) = dist_set(ipe)%list(iatom)%id
-            pos = pos+1
-            local_atoms_sizes(ipe) = local_atoms_sizes(ipe)+1
+            pos = pos + 1
+            local_atoms_sizes(ipe) = local_atoms_sizes(ipe) + 1
          END DO
       END DO
    END SUBROUTINE fb_distribution_to_local_atoms
@@ -640,7 +640,7 @@ CONTAINS
 
       INTEGER                                            :: ii, new_nelements, pos
 
-      new_nelements = dist%nelements+1
+      new_nelements = dist%nelements + 1
 
       ! resize list if necessary
       IF (.NOT. ASSOCIATED(dist%list)) THEN
@@ -655,12 +655,12 @@ CONTAINS
       ELSE
          pos = fb_distribution_find_slot(dist, element)
          DO ii = dist%nelements, pos, -1
-            dist%list(ii+1) = dist%list(ii)
+            dist%list(ii + 1) = dist%list(ii)
          END DO
          dist%list(pos) = element
       END IF
       dist%nelements = new_nelements
-      dist%cost = dist%cost+element%cost
+      dist%cost = dist%cost + element%cost
    END SUBROUTINE fb_distribution_add
 
 ! **************************************************************************************************
@@ -684,13 +684,13 @@ CONTAINS
          RETURN
       END IF
       IF (element%cost .GE. dist%list(N)%cost) THEN
-         pos = N+1
+         pos = N + 1
          RETURN
       END IF
       lower = 1
       upper = N
-      DO WHILE ((upper-lower) .GT. 1)
-         middle = (lower+upper)/2
+      DO WHILE ((upper - lower) .GT. 1)
+         middle = (lower + upper)/2
          IF (element%cost .LT. dist%list(middle)%cost) THEN
             upper = middle
          ELSE
@@ -719,13 +719,13 @@ CONTAINS
       check_ok = pos .GT. 0
       CPASSERT(check_ok)
       IF (pos .LE. dist%nelements) THEN
-         dist%cost = dist%cost-dist%list(pos)%cost
-         DO ii = pos, dist%nelements-1
-            dist%list(ii) = dist%list(ii+1)
+         dist%cost = dist%cost - dist%list(pos)%cost
+         DO ii = pos, dist%nelements - 1
+            dist%list(ii) = dist%list(ii + 1)
          END DO
          dist%list(dist%nelements)%id = 0
          dist%list(dist%nelements)%cost = 0.0_dp
-         dist%nelements = dist%nelements-1
+         dist%nelements = dist%nelements - 1
          ! auto resize if required
          IF (dist%nelements*REDUCE_RATIO .LT. SIZE(dist%list)) THEN
             CALL fb_distribution_resize(dist, dist%nelements/SHRINK_FACTOR)
@@ -748,7 +748,7 @@ CONTAINS
 
       INTEGER                                            :: ii, pos
 
-      pos = dist%nelements+1
+      pos = dist%nelements + 1
       DO ii = 1, dist%nelements
          IF (element%id == dist%list(ii)%id) THEN
             pos = ii

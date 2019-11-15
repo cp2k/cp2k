@@ -103,7 +103,7 @@ CONTAINS
                   nparticle_local = local_particles%n_el(iparticle_kind)
                   DO iparticle_local = 1, nparticle_local
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                     virial%pv_kinetic(i, j) = virial%pv_kinetic(i, j)+ &
+                     virial%pv_kinetic(i, j) = virial%pv_kinetic(i, j) + &
                                                mass*particle_set(iparticle)%v(i)*particle_set(iparticle)%v(j)
                   END DO
                END DO
@@ -114,7 +114,7 @@ CONTAINS
          CALL mp_sum(virial%pv_kinetic, igroup)
 
          ! total virial
-         virial%pv_total = virial%pv_virial+virial%pv_kinetic+virial%pv_constraint
+         virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
 
          CALL timestop(handle)
       ENDIF
@@ -145,7 +145,7 @@ CONTAINS
 
       DO i = 1, 3
          DO j = 1, 3
-            pv_virial(i, j) = pv_virial(i, j)+f0*force(i)*rab(j)
+            pv_virial(i, j) = pv_virial(i, j) + f0*force(i)*rab(j)
          END DO
       END DO
 
@@ -170,34 +170,34 @@ CONTAINS
       WRITE (UNIT=iounit, FMT="(T42,A,T64,A)") "       1/3 Trace", "     Determinant"
       pv = virial%pv_ekin
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Kinetic Energy Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       pv = virial%pv_overlap
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Basis Overlap Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = virial%pv_hartree+virial%pv_exc
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
+      pv = virial%pv_hartree + virial%pv_exc
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "ES + XC Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       pv = virial%pv_vdw
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "vdW correction (ff) Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       pv = virial%pv_ppl
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Local Pseudopotential/Core Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       pv = virial%pv_ppnl
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Nonlocal Pseudopotential Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       pv = -virial%pv_fock_4c
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Exact Exchange Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       !
-      pv = virial%pv_ekin+virial%pv_overlap+virial%pv_hartree+virial%pv_exc+virial%pv_vdw+ &
-           virial%pv_ppl+virial%pv_ppnl-virial%pv_fock_4c
+      pv = virial%pv_ekin + virial%pv_overlap + virial%pv_hartree + virial%pv_exc + virial%pv_vdw + &
+           virial%pv_ppl + virial%pv_ppnl - virial%pv_fock_4c
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Sum of Parts Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       !
       pv = virial%pv_virial
       WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Total Stress", &
-         (pv(1, 1)+pv(2, 2)+pv(3, 3))/3.0_dp, det_3x3(pv)
+         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
       WRITE (UNIT=iounit, FMT="(T3,A)") REPEAT("=", 78)
 
    END SUBROUTINE write_stress_components

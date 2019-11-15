@@ -142,7 +142,7 @@ CONTAINS
       open_shell_case = .FALSE.
       IF (PRESENT(homo_beta) .AND. PRESENT(C_beta) .AND. PRESENT(Auto_beta)) open_shell_case = .TRUE.
 
-      virtual = dimen-homo
+      virtual = dimen - homo
 
       eps_DRI = mp2_env%ri_opt_param%DRI
       eps_DI_rel = mp2_env%ri_opt_param%DI_rel
@@ -157,7 +157,7 @@ CONTAINS
       Emp2_T = 0.0_dp
       IF (open_shell_case) THEN
          ! open shell case
-         virtual_beta = dimen-homo_beta
+         virtual_beta = dimen - homo_beta
 
          ! alpha-aplha case
          Emp2_AA = 0.0_dp
@@ -201,12 +201,12 @@ CONTAINS
          CALL mp_sum(Emp2_AB, para_env%group)
          DEALLOCATE (ij_list_proc)
 
-         Emp2 = Emp2_AA+Emp2_BB+Emp2_AB*2.0_dp !+Emp2_BA
-         Emp2_Cou = Emp2_AA_Cou+Emp2_BB_Cou+Emp2_AB_Cou*2.0_dp !+Emp2_BA
-         Emp2_ex = Emp2_AA_ex+Emp2_BB_ex+Emp2_AB_ex*2.0_dp !+Emp2_BA
+         Emp2 = Emp2_AA + Emp2_BB + Emp2_AB*2.0_dp !+Emp2_BA
+         Emp2_Cou = Emp2_AA_Cou + Emp2_BB_Cou + Emp2_AB_Cou*2.0_dp !+Emp2_BA
+         Emp2_ex = Emp2_AA_ex + Emp2_BB_ex + Emp2_AB_ex*2.0_dp !+Emp2_BA
 
          Emp2_S = Emp2_AB*2.0_dp
-         Emp2_T = Emp2_AA+Emp2_BB
+         Emp2_T = Emp2_AA + Emp2_BB
 
          ! Replicate the MO-ERI's over all processes
          CALL mp_sum(Integ_MP2_AA, para_env%group)
@@ -258,7 +258,7 @@ CONTAINS
       max_l_am = 0
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
-            ndof = ndof+1
+            ndof = ndof + 1
             max_l_am = MAX(max_l_am, MAXVAL(RI_basis_parameter(ikind)%lmax))
          END DO
       END DO
@@ -348,7 +348,7 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I5)') 'OPTIMIZATION STEP NUMBER', iiter
 
          ! perform step
-         pnew(:) = p+xi
+         pnew(:) = p + xi
          CALL p2basis(nkind, RI_basis_parameter, lower_B, max_dev, pnew)
 
          ! check if we have to reset boundaries
@@ -357,7 +357,7 @@ CONTAINS
          i = 0
          DO ikind = 1, nkind
             DO iset = 1, RI_basis_parameter(ikind)%nset
-               i = i+1
+               i = i + 1
                CALL transf_val(lower_B(i), max_dev(i), pnew(i), expon)
                IF (ABS(pnew(i)) > reset_edge .OR. expon < exp_limits(1, ikind) .OR. expon > exp_limits(2, ikind)) THEN
                   reset_boundary = .TRUE.
@@ -403,7 +403,7 @@ CONTAINS
 
             g(:) = deriv
             xi(:) = -g
-            pnew(:) = p+xi
+            pnew(:) = p + xi
             CALL p2basis(nkind, RI_basis_parameter, lower_B, max_dev, pnew)
          END IF
 
@@ -418,7 +418,7 @@ CONTAINS
 
          ! update energy and direction
          DI = DI_new
-         xi(:) = pnew-p
+         xi(:) = pnew - p
          p(:) = pnew
 
          ! check for convergence
@@ -463,7 +463,7 @@ CONTAINS
                                    deriv)
 
          ! g is the vector containing the old gradient
-         dg(:) = deriv-g
+         dg(:) = deriv - g
          g(:) = deriv
          hdg(:) = MATMUL(hessin, dg)
 
@@ -476,12 +476,12 @@ CONTAINS
          IF (fac**2 > sumdg*sumxi*3.0E-8_dp) THEN
             fac = 1.0_dp/fac
             fad = 1.0_dp/fae
-            dg(:) = fac*xi-fad*hdg
+            dg(:) = fac*xi - fad*hdg
             DO i = 1, ndof
                DO j = 1, ndof
-                  hessin(i, j) = hessin(i, j)+fac*xi(i)*xi(j) &
-                                 -fad*hdg(i)*hdg(j) &
-                                 +fae*dg(i)*dg(j)
+                  hessin(i, j) = hessin(i, j) + fac*xi(i)*xi(j) &
+                                 - fad*hdg(i)*hdg(j) &
+                                 + fae*dg(i)*dg(j)
                END DO
             END DO
          ELSE
@@ -638,7 +638,7 @@ CONTAINS
          nseta = RI_basis_parameter(ikind)%nset
          DO iset = 1, nseta
             ! for now only uncontracted aux basis set
-            ideriv = ideriv+1
+            ideriv = ideriv + 1
             IF (MOD(ideriv, number_groups) /= color_sub) CYCLE
 
             ! ! calculate the numerical derivative
@@ -654,7 +654,7 @@ CONTAINS
 
             CPASSERT(RI_basis_parameter(ikind)%npgf(iset) == 1)
             orig_basis_val = RI_basis_parameter(ikind)%zet(1, iset)
-            temp = p(ideriv)+step
+            temp = p(ideriv) + step
             CALL transf_val(lower_B(ideriv), max_dev(ideriv), temp, new_basis_val)
             RI_basis_parameter(ikind)%zet(1, iset) = new_basis_val
 
@@ -790,9 +790,9 @@ CONTAINS
                                  Auto, Auto_beta, Integ_MP2_AB, &
                                  Lai, Lai_beta, para_env)
 
-         Emp2_RI = Emp2_RI_AA+Emp2_RI_BB+Emp2_RI_AB
-         DRI = DRI_AA+DRI_BB+DRI_AB
-         DI = DI_AA+DI_BB+DI_AB
+         Emp2_RI = Emp2_RI_AA + Emp2_RI_BB + Emp2_RI_AB
+         DRI = DRI_AA + DRI_BB + DRI_AB
+         DI = DI_AA + DI_BB + DI_AB
       ELSE
          CALL contract_integrals(DI, Emp2_RI, DRI, Emp2, homo, homo, virtual, virtual, &
                                  2.0_dp, 1.0_dp, .TRUE., &
@@ -834,8 +834,8 @@ CONTAINS
       ipos = 0
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
-            ipos = ipos+1
-            lower_B(ipos) = RI_basis_parameter(ikind)%zet(1, iset)*(1.0_dp-max_rel_dev(ipos))
+            ipos = ipos + 1
+            lower_B(ipos) = RI_basis_parameter(ikind)%zet(1, iset)*(1.0_dp - max_rel_dev(ipos))
             max_dev(ipos) = RI_basis_parameter(ikind)%zet(1, iset)*2.0_dp*max_rel_dev(ipos)
          END DO
       END DO
@@ -861,7 +861,7 @@ CONTAINS
       ipos = 0
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
-            ipos = ipos+1
+            ipos = ipos + 1
             CALL transf_val(lower_B(ipos), max_dev(ipos), p(ipos), valout)
             RI_basis_parameter(ikind)%zet(1, iset) = valout
          END DO
@@ -911,7 +911,7 @@ CONTAINS
       ipos = 0
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
-            ipos = ipos+1
+            ipos = ipos + 1
             old_expo(ipos) = RI_basis_parameter(ikind)%zet(1, iset)
          END DO
       END DO
@@ -937,7 +937,7 @@ CONTAINS
          DO iset = 1, RI_basis_parameter(ikind)%nset
             la = RI_basis_parameter(ikind)%lmax(iset)
             expo = RI_basis_parameter(ikind)%zet(1, iset)
-            nf_per_l(la) = nf_per_l(la)+1
+            nf_per_l(la) = nf_per_l(la) + 1
             IF (expo <= max_min_exp_per_l(1, la)) max_min_exp_per_l(1, la) = expo
             IF (expo >= max_min_exp_per_l(2, la)) max_min_exp_per_l(2, la) = expo
          END DO
@@ -956,7 +956,7 @@ CONTAINS
          DO la = 0, am_max
             pmax = -HUGE(0)
             DO iexpo = 1, nf_per_l(la)
-               ipos_p = ipos_p+1
+               ipos_p = ipos_p + 1
                IF (ABS(old_pnew(ipos_p)) >= pmax) pmax = ABS(old_pnew(ipos_p))
                ! check if any of the exponents go out of range
                CALL transf_val(old_lower_B(ipos_p), old_max_dev(ipos_p), old_pnew(ipos_p), expo)
@@ -967,14 +967,14 @@ CONTAINS
 
          DO la = 0, am_max
             IF (nf_per_l(la) == 1) THEN
-               ipos = ipos+1
+               ipos = ipos + 1
                new_expo(ipos) = max_min_exp_per_l(1, la)
                IF (new_expo(ipos) >= exp_limits(1, ikind) .AND. new_expo(ipos) <= exp_limits(2, ikind)) THEN
-                  max_rel_dev(ipos) = (new_expo(ipos)-old_lower_B(ipos))/new_expo(ipos)
+                  max_rel_dev(ipos) = (new_expo(ipos) - old_lower_B(ipos))/new_expo(ipos)
                   IF (max_rel_dev(ipos) <= 0.1_dp) max_rel_dev(ipos) = 0.8_dp
                ELSE
-                  new_expo(ipos) = (exp_limits(2, ikind)+exp_limits(1, ikind))/2.0_dp
-                  max_rel_dev(ipos) = (new_expo(ipos)-exp_limits(1, ikind))/new_expo(ipos)
+                  new_expo(ipos) = (exp_limits(2, ikind) + exp_limits(1, ikind))/2.0_dp
+                  max_rel_dev(ipos) = (new_expo(ipos) - exp_limits(1, ikind))/new_expo(ipos)
                END IF
                IF (has_to_be_changed(la)) change_expo(ipos) = 1
             ELSE
@@ -982,11 +982,11 @@ CONTAINS
                   max_min_exp_per_l(1, la) = max_min_exp_per_l(1, la)*0.5
                   max_min_exp_per_l(2, la) = max_min_exp_per_l(2, la)*1.5
                END IF
-               geom_fact = (max_min_exp_per_l(2, la)/max_min_exp_per_l(1, la))**(1.0_dp/REAL(nf_per_l(la)-1, dp))
+               geom_fact = (max_min_exp_per_l(2, la)/max_min_exp_per_l(1, la))**(1.0_dp/REAL(nf_per_l(la) - 1, dp))
                DO iexpo = 1, nf_per_l(la)
-                  ipos = ipos+1
-                  new_expo(ipos) = max_min_exp_per_l(1, la)*(geom_fact**(iexpo-1))
-                  max_rel_dev(ipos) = (geom_fact-1.0_dp)/(geom_fact+1.0_dp)*0.9_dp
+                  ipos = ipos + 1
+                  new_expo(ipos) = max_min_exp_per_l(1, la)*(geom_fact**(iexpo - 1))
+                  max_rel_dev(ipos) = (geom_fact - 1.0_dp)/(geom_fact + 1.0_dp)*0.9_dp
                   IF (has_to_be_changed(la)) change_expo(ipos) = 1
                END DO
             END IF
@@ -1001,7 +1001,7 @@ CONTAINS
       ipos = 0
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
-            ipos = ipos+1
+            ipos = ipos + 1
             RI_basis_parameter(ikind)%zet(1, iset) = new_expo(ipos)
          END DO
       END DO
@@ -1011,7 +1011,7 @@ CONTAINS
       ipos = 0
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
-            ipos = ipos+1
+            ipos = ipos + 1
             IF (change_expo(ipos) == 0) THEN
                ! restore original
                pnew(ipos) = old_pnew(ipos)
@@ -1072,25 +1072,25 @@ CONTAINS
       ij_counter = 0
       DO j = 1, homo_beta
          DO i = 1, homo
-            ij_counter = ij_counter+1
+            ij_counter = ij_counter + 1
             IF (MOD(ij_counter, para_env%num_pe) /= para_env%mepos) CYCLE
             mat_ab = 0.0_dp
             mat_ab(:, :) = MATMUL(TRANSPOSE(Lai(:, :, i)), Lai_beta(:, :, j))
             DO b = 1, virtual_beta
                DO a = 1, virtual
                   IF (calc_ex) THEN
-                     t_iajb = fact*abij(a, b, i, j)-abij(b, a, i, j)
-                     t_iajb_RI = fact*mat_ab(a, b)-mat_ab(b, a)
+                     t_iajb = fact*abij(a, b, i, j) - abij(b, a, i, j)
+                     t_iajb_RI = fact*mat_ab(a, b) - mat_ab(b, a)
                   ELSE
                      t_iajb = fact*abij(a, b, i, j)
                      t_iajb_RI = fact*mat_ab(a, b)
                   END IF
-                  t_iajb = t_iajb/(MOenerg(a+homo)+MOenerg_beta(b+homo_beta)-MOenerg(i)-MOenerg_beta(j))
-                  t_iajb_RI = t_iajb_RI/(MOenerg(a+homo)+MOenerg_beta(b+homo_beta)-MOenerg(i)-MOenerg_beta(j))
+                  t_iajb = t_iajb/(MOenerg(a + homo) + MOenerg_beta(b + homo_beta) - MOenerg(i) - MOenerg_beta(j))
+                  t_iajb_RI = t_iajb_RI/(MOenerg(a + homo) + MOenerg_beta(b + homo_beta) - MOenerg(i) - MOenerg_beta(j))
 
-                  Emp2_RI = Emp2_RI-t_iajb_RI*mat_ab(a, b)*fact2
+                  Emp2_RI = Emp2_RI - t_iajb_RI*mat_ab(a, b)*fact2
 
-                  DI = DI-t_iajb*mat_ab(a, b)*fact2
+                  DI = DI - t_iajb*mat_ab(a, b)*fact2
 
                END DO
             END DO
@@ -1099,8 +1099,8 @@ CONTAINS
       CALL mp_sum(DI, para_env%group)
       CALL mp_sum(Emp2_RI, para_env%group)
 
-      DRI = Emp2-Emp2_RI
-      DI = 2.0D+00*DI-Emp2-Emp2_RI
+      DRI = Emp2 - Emp2_RI
+      DI = 2.0D+00*DI - Emp2 - Emp2_RI
 
       DEALLOCATE (mat_ab)
 
@@ -1129,8 +1129,8 @@ CONTAINS
       ij_counter = -1
       DO i = 1, homo
          DO j = 1, homo_beta
-            ij_counter = ij_counter+1
-            IF (MOD(ij_counter, para_env%num_pe) == para_env%mepos) elements_ij_proc = elements_ij_proc+1
+            ij_counter = ij_counter + 1
+            IF (MOD(ij_counter, para_env%num_pe) == para_env%mepos) elements_ij_proc = elements_ij_proc + 1
          END DO
       END DO
 
@@ -1140,9 +1140,9 @@ CONTAINS
       elements_ij_proc = 0
       DO i = 1, homo
          DO j = 1, homo_beta
-            ij_counter = ij_counter+1
+            ij_counter = ij_counter + 1
             IF (MOD(ij_counter, para_env%num_pe) == para_env%mepos) THEN
-               elements_ij_proc = elements_ij_proc+1
+               elements_ij_proc = elements_ij_proc + 1
                ij_list_proc(elements_ij_proc, 1) = i
                ij_list_proc(elements_ij_proc, 2) = j
             END IF
@@ -1164,7 +1164,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: alpha = 2.633915794_dp
 
       valout = 0.0_dp
-      valout = lower_B+max_dev/(1.0_dp+EXP(-alpha*valin))
+      valout = lower_B + max_dev/(1.0_dp + EXP(-alpha*valin))
 
    END SUBROUTINE
 
@@ -1252,8 +1252,8 @@ CONTAINS
             RI_nset = 0
             DO iset = 1, nseta
                DO la = la_min(iset), la_max(iset)
-                  RI_nset = RI_nset+1
-                  RI_num_sgf_per_l(la) = RI_num_sgf_per_l(la)+1
+                  RI_nset = RI_nset + 1
+                  RI_num_sgf_per_l(la) = RI_num_sgf_per_l(la) + 1
                   IF (npgfa(iset) > 1) THEN
                      CALL cp_warn(__LOCATION__, &
                                   "The RI basis set optimizer can not handle contracted Gaussian. "// &
@@ -1269,7 +1269,7 @@ CONTAINS
                DO iset = 1, nseta
                   DO la = la_min(iset), la_max(iset)
                      IF (la /= iii) CYCLE
-                     iexpo = iexpo+1
+                     iexpo = iexpo + 1
                      exp_tab(iexpo, iii) = zet(1, iset)
                   END DO
                END DO
@@ -1291,7 +1291,7 @@ CONTAINS
             iset = 0
             DO iii = 0, RI_max_am
                DO iexpo = 1, RI_num_sgf_per_l(iii)
-                  iset = iset+1
+                  iset = iset + 1
                   RI_l_expo(iset) = iii
                   RI_exponents(iset) = exp_tab(iexpo, iii)
                END DO
@@ -1303,16 +1303,16 @@ CONTAINS
             iset = 0
             DO iii = 0, RI_max_am
                IF (RI_num_sgf_per_l(iii) == 1) THEN
-                  iset = iset+1
+                  iset = iset + 1
                   max_rel_dev(iset) = 0.35_dp
                ELSE
-                  iset = iset+1
-                  max_rel_dev(iset) = (RI_exponents(iset+1)+RI_exponents(iset))/2.0_dp
-                  max_rel_dev(iset) = max_rel_dev(iset)/RI_exponents(iset)-1.0_dp
+                  iset = iset + 1
+                  max_rel_dev(iset) = (RI_exponents(iset + 1) + RI_exponents(iset))/2.0_dp
+                  max_rel_dev(iset) = max_rel_dev(iset)/RI_exponents(iset) - 1.0_dp
                   DO iexpo = 2, RI_num_sgf_per_l(iii)
-                     iset = iset+1
-                     max_rel_dev(iset) = (RI_exponents(iset)+RI_exponents(iset-1))/2.0_dp
-                     max_rel_dev(iset) = 1.0_dp-max_rel_dev(iset)/RI_exponents(iset)
+                     iset = iset + 1
+                     max_rel_dev(iset) = (RI_exponents(iset) + RI_exponents(iset - 1))/2.0_dp
+                     max_rel_dev(iset) = 1.0_dp - max_rel_dev(iset)/RI_exponents(iset)
                   END DO
                END IF
             END DO
@@ -1345,10 +1345,10 @@ CONTAINS
                DO ishell = 1, nshell(iset)
                   DO la = la_min(iset), la_max(iset)
                      IF (ishell > 1) THEN
-                        IF (nl(ishell, iset) == nl(ishell-1, iset)) CYCLE
+                        IF (nl(ishell, iset) == nl(ishell - 1, iset)) CYCLE
                      END IF
                      IF (la /= nl(ishell, iset)) CYCLE
-                     nexpo_shell = nexpo_shell+npgfa(iset)
+                     nexpo_shell = nexpo_shell + npgfa(iset)
                   END DO
                END DO
             END DO
@@ -1364,15 +1364,15 @@ CONTAINS
                DO ishell = 1, nshell(iset)
                   DO la = la_min(iset), la_max(iset)
                      IF (ishell > 1) THEN
-                        IF (nl(ishell, iset) == nl(ishell-1, iset)) CYCLE
+                        IF (nl(ishell, iset) == nl(ishell - 1, iset)) CYCLE
                      END IF
                      IF (la /= nl(ishell, iset)) CYCLE
                      DO ipgf = 1, npgfa(iset)
-                        iexpo = iexpo+1
+                        iexpo = iexpo + 1
                         exponents(iexpo) = zet(ipgf, iset)
                         l_expo(iexpo) = la
                      END DO
-                     num_sgf_per_l(la) = num_sgf_per_l(la)+1
+                     num_sgf_per_l(la) = num_sgf_per_l(la) + 1
                   END DO
                END DO
             END DO
@@ -1385,11 +1385,11 @@ CONTAINS
             tot_num_exp_per_l = 0
             DO iexpo = 1, nexpo_shell
                DO jexpo = iexpo, nexpo_shell
-                  exp_tab(jexpo, iexpo) = exponents(jexpo)+exponents(iexpo)
+                  exp_tab(jexpo, iexpo) = exponents(jexpo) + exponents(iexpo)
                   exp_tab(iexpo, jexpo) = exp_tab(jexpo, iexpo)
-                  l_tab(jexpo, iexpo) = l_expo(jexpo)+l_expo(iexpo)
+                  l_tab(jexpo, iexpo) = l_expo(jexpo) + l_expo(iexpo)
                   l_tab(iexpo, jexpo) = l_tab(jexpo, iexpo)
-                  tot_num_exp_per_l(l_tab(jexpo, iexpo)) = tot_num_exp_per_l(l_tab(jexpo, iexpo))+1
+                  tot_num_exp_per_l(l_tab(jexpo, iexpo)) = tot_num_exp_per_l(l_tab(jexpo, iexpo)) + 1
                END DO
             END DO
             DEALLOCATE (l_expo)
@@ -1438,7 +1438,7 @@ CONTAINS
 
             IF (external_num_of_func) THEN
                ! cp2k can not exceed angular momentum 7
-               RI_max_am = MIN(SIZE(mp2_env%ri_opt_param%RI_nset_per_l)-1, 7)
+               RI_max_am = MIN(SIZE(mp2_env%ri_opt_param%RI_nset_per_l) - 1, 7)
                IF (RI_max_am > max_am*2) THEN
                   DEALLOCATE (RI_num_sgf_per_l)
                   ALLOCATE (RI_num_sgf_per_l(0:RI_max_am))
@@ -1448,16 +1448,16 @@ CONTAINS
                   RI_num_sgf_per_l(la) = mp2_env%ri_opt_param%RI_nset_per_l(la)
                END DO
             ELSE
-               RI_num_sgf_per_l(0) = num_sgf_per_l(0)*2+prog_func
+               RI_num_sgf_per_l(0) = num_sgf_per_l(0)*2 + prog_func
                DO la = 1, max_am
-                  RI_num_sgf_per_l(la) = RI_num_sgf_per_l(la-1)-1
+                  RI_num_sgf_per_l(la) = RI_num_sgf_per_l(la - 1) - 1
                   IF (RI_num_sgf_per_l(la) == 0) THEN
                      RI_num_sgf_per_l(la) = 1
                      EXIT
                   END IF
                END DO
-               DO la = max_am+1, max_am*2
-                  RI_num_sgf_per_l(la) = RI_num_sgf_per_l(la-1)-prog_l
+               DO la = max_am + 1, max_am*2
+                  RI_num_sgf_per_l(la) = RI_num_sgf_per_l(la - 1) - prog_l
                   IF (RI_num_sgf_per_l(la) == 0) THEN
                      RI_num_sgf_per_l(la) = 1
                   END IF
@@ -1466,7 +1466,7 @@ CONTAINS
                RI_max_am = MIN(max_am*2, 7)
                DO la = 0, MIN(max_am*2, 7)
                   IF (RI_num_sgf_per_l(la) == 0) THEN
-                     RI_max_am = la-1
+                     RI_max_am = la - 1
                      EXIT
                   END IF
                END DO
@@ -1479,11 +1479,11 @@ CONTAINS
                      iii = tot_num_exp_per_l(la)
                      jjj = la
                   END IF
-                  nsgfa_RI = nsgfa_RI+RI_num_sgf_per_l(la)*(la*2+1)
+                  nsgfa_RI = nsgfa_RI + RI_num_sgf_per_l(la)*(la*2 + 1)
                END DO
                DEALLOCATE (tot_num_exp_per_l)
                IF (REAL(nsgfa_RI, KIND=dp)/REAL(nsgfa, KIND=dp) <= 2.5_dp) THEN
-                  RI_num_sgf_per_l(jjj) = RI_num_sgf_per_l(jjj)+1
+                  RI_num_sgf_per_l(jjj) = RI_num_sgf_per_l(jjj) + 1
                END IF
             END IF
 
@@ -1501,19 +1501,19 @@ CONTAINS
             iset = 0
             DO la = 0, RI_max_am
                IF (RI_num_sgf_per_l(la) == 1) THEN
-                  iset = iset+1
-                  RI_exponents(iset) = (max_min_exp_l(2, la)+max_min_exp_l(1, la))/2.0_dp
+                  iset = iset + 1
+                  RI_exponents(iset) = (max_min_exp_l(2, la) + max_min_exp_l(1, la))/2.0_dp
                   RI_l_expo(iset) = la
                   geom_fact = max_min_exp_l(2, la)/max_min_exp_l(1, la)
 
-                  max_rel_dev(iset) = (geom_fact-1.0_dp)/(geom_fact+1.0_dp)*0.9_dp
+                  max_rel_dev(iset) = (geom_fact - 1.0_dp)/(geom_fact + 1.0_dp)*0.9_dp
                ELSE
-                  geom_fact = (max_min_exp_l(2, la)/max_min_exp_l(1, la))**(1.0_dp/REAL(RI_num_sgf_per_l(la)-1, dp))
+                  geom_fact = (max_min_exp_l(2, la)/max_min_exp_l(1, la))**(1.0_dp/REAL(RI_num_sgf_per_l(la) - 1, dp))
                   DO iexpo = 1, RI_num_sgf_per_l(la)
-                     iset = iset+1
-                     RI_exponents(iset) = max_min_exp_l(1, la)*(geom_fact**(iexpo-1))
+                     iset = iset + 1
+                     RI_exponents(iset) = max_min_exp_l(1, la)*(geom_fact**(iexpo - 1))
                      RI_l_expo(iset) = la
-                     max_rel_dev(iset) = (geom_fact-1.0_dp)/(geom_fact+1.0_dp)*0.9_dp
+                     max_rel_dev(iset) = (geom_fact - 1.0_dp)/(geom_fact + 1.0_dp)*0.9_dp
                   END DO
                END IF
             END DO
@@ -1542,9 +1542,9 @@ CONTAINS
             max_rel_dev_prev(:) = max_rel_dev_output
             DEALLOCATE (max_rel_dev_output)
             ! reallocate and copy
-            ALLOCATE (max_rel_dev_output(RI_prev_size+RI_nset))
+            ALLOCATE (max_rel_dev_output(RI_prev_size + RI_nset))
             max_rel_dev_output(1:RI_prev_size) = max_rel_dev_prev
-            max_rel_dev_output(RI_prev_size+1:RI_prev_size+RI_nset) = max_rel_dev
+            max_rel_dev_output(RI_prev_size + 1:RI_prev_size + RI_nset) = max_rel_dev
             DEALLOCATE (max_rel_dev_prev)
          END IF
          DEALLOCATE (max_rel_dev)
@@ -1649,9 +1649,9 @@ CONTAINS
          END IF
          nshell(iset) = 0
          DO lshell = lmin(iset), lmax(iset)
-            nmin = n(1, iset)+lshell-lmin(iset)
+            nmin = n(1, iset) + lshell - lmin(iset)
             ishell = 1
-            nshell(iset) = nshell(iset)+ishell
+            nshell(iset) = nshell(iset) + ishell
             IF (nshell(iset) > maxshell) THEN
                maxshell = nshell(iset)
                CALL reallocate(n, 1, maxshell, 1, nset)
@@ -1659,8 +1659,8 @@ CONTAINS
                CALL reallocate(gcc, 1, maxpgf, 1, maxshell, 1, nset)
             END IF
             DO i = 1, ishell
-               n(nshell(iset)-ishell+i, iset) = nmin+i-1
-               l(nshell(iset)-ishell+i, iset) = lshell
+               n(nshell(iset) - ishell + i, iset) = nmin + i - 1
+               l(nshell(iset) - ishell + i, iset) = lshell
             END DO
          END DO
 
@@ -1723,16 +1723,16 @@ CONTAINS
          gto_basis_set%nsgf_set(iset) = 0
          DO ishell = 1, nshell(iset)
             lshell = gto_basis_set%l(ishell, iset)
-            gto_basis_set%first_cgf(ishell, iset) = ncgf+1
-            ncgf = ncgf+nco(lshell)
+            gto_basis_set%first_cgf(ishell, iset) = ncgf + 1
+            ncgf = ncgf + nco(lshell)
             gto_basis_set%last_cgf(ishell, iset) = ncgf
             gto_basis_set%ncgf_set(iset) = &
-               gto_basis_set%ncgf_set(iset)+nco(lshell)
-            gto_basis_set%first_sgf(ishell, iset) = nsgf+1
-            nsgf = nsgf+nso(lshell)
+               gto_basis_set%ncgf_set(iset) + nco(lshell)
+            gto_basis_set%first_sgf(ishell, iset) = nsgf + 1
+            nsgf = nsgf + nso(lshell)
             gto_basis_set%last_sgf(ishell, iset) = nsgf
             gto_basis_set%nsgf_set(iset) = &
-               gto_basis_set%nsgf_set(iset)+nso(lshell)
+               gto_basis_set%nsgf_set(iset) + nso(lshell)
          END DO
          maxco = MAX(maxco, npgf(iset)*ncoset(lmax(iset)))
       END DO
@@ -1758,8 +1758,8 @@ CONTAINS
       DO iset = 1, nset
          DO ishell = 1, nshell(iset)
             lshell = gto_basis_set%l(ishell, iset)
-            DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-               ncgf = ncgf+1
+            DO ico = ncoset(lshell - 1) + 1, ncoset(lshell)
+               ncgf = ncgf + 1
                gto_basis_set%lx(ncgf) = indco(1, ico)
                gto_basis_set%ly(ncgf) = indco(2, ico)
                gto_basis_set%lz(ncgf) = indco(3, ico)
@@ -1769,7 +1769,7 @@ CONTAINS
                                                 gto_basis_set%lz(ncgf)/))
             END DO
             DO m = -lshell, lshell
-               nsgf = nsgf+1
+               nsgf = nsgf + 1
                gto_basis_set%m(nsgf) = m
                gto_basis_set%sgf_symbol(nsgf) = &
                   sgf_symbol(n(ishell, iset), lshell, m)

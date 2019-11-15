@@ -220,7 +220,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
          DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
-            ii = LBOUND(qs_loc_env%moloc_coeff, 1)+i-1
+            ii = LBOUND(qs_loc_env%moloc_coeff, 1) + i - 1
             CALL cp_fm_release(qs_loc_env%moloc_coeff(ii)%matrix)
          END DO
          DEALLOCATE (qs_loc_env%moloc_coeff)
@@ -266,7 +266,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_loc_env)) THEN
          CPASSERT(qs_loc_env%ref_count > 0)
-         qs_loc_env%ref_count = qs_loc_env%ref_count-1
+         qs_loc_env%ref_count = qs_loc_env%ref_count - 1
          IF (qs_loc_env%ref_count == 0) THEN
             CALL qs_loc_env_destroy(qs_loc_env)
          END IF
@@ -291,7 +291,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qs_loc_env))
       CPASSERT(qs_loc_env%ref_count > 0)
-      qs_loc_env%ref_count = qs_loc_env%ref_count+1
+      qs_loc_env%ref_count = qs_loc_env%ref_count + 1
    END SUBROUTINE qs_loc_env_retain
 
 ! **************************************************************************************************
@@ -338,7 +338,7 @@ CONTAINS
 
       IF (ASSOCIATED(localized_wfn_control)) THEN
          CPASSERT(localized_wfn_control%ref_count > 0)
-         localized_wfn_control%ref_count = localized_wfn_control%ref_count-1
+         localized_wfn_control%ref_count = localized_wfn_control%ref_count - 1
          IF (localized_wfn_control%ref_count == 0) THEN
             IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
                DEALLOCATE (localized_wfn_control%loc_states)
@@ -369,7 +369,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(localized_wfn_control))
 
-      localized_wfn_control%ref_count = localized_wfn_control%ref_count+1
+      localized_wfn_control%ref_count = localized_wfn_control%ref_count + 1
    END SUBROUTINE localized_wfn_control_retain
 
 !****f* qs_loc_types/get_qs_loc_env [1.0] *

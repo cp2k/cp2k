@@ -129,10 +129,10 @@ CONTAINS
          mbl(iatom)%n = n
          mbl(iatom)%ma = m
          DO i = 1, n
-            mbl(iatom)%eig(i) = w(n-i+1)
-            mbl(iatom)%mat(1:n, i) = amat(1:n, n-i+1)
+            mbl(iatom)%eig(i) = w(n - i + 1)
+            mbl(iatom)%mat(1:n, i) = amat(1:n, n - i + 1)
          END DO
-         cblock(1:n, 1:m) = amat(1:n, n:n-m+1:-1)
+         cblock(1:n, 1:m) = amat(1:n, n:n - m + 1:-1)
          DEALLOCATE (amat, bmat, w, work)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
@@ -372,7 +372,7 @@ CONTAINS
          CPASSERT(found)
          ALLOCATE (amat(m, m))
          amat(1:m, 1:m) = MATMUL(TRANSPOSE(cblock(1:n, 1:m)), MATMUL(sblock(1:n, 1:n), gblock(1:n, 1:m)))
-         gblock(1:n, 1:m) = gblock(1:n, 1:m)-MATMUL(cblock(1:n, 1:m), amat(1:m, 1:m))
+         gblock(1:n, 1:m) = gblock(1:n, 1:m) - MATMUL(cblock(1:n, 1:m), amat(1:m, 1:m))
          DEALLOCATE (amat)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
@@ -407,7 +407,7 @@ CONTAINS
          n = SIZE(ablock, 1)
          CALL dbcsr_get_block_p(matrix=fmat2, row=iatom, col=jatom, block=bblock, found=found)
          CPASSERT(found)
-         spro = spro+SUM(ablock(1:n, 1:m)*bblock(1:n, 1:m))
+         spro = spro + SUM(ablock(1:n, 1:m)*bblock(1:n, 1:m))
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
@@ -466,7 +466,7 @@ CONTAINS
 
       ! diagonalize
       CALL cp_fm_geeig(fmksmat, fmsmat, fmvec, eigenvalues, fmwork)
-      de = eigenvalues(nmos+1)-eigenvalues(nmos)
+      de = eigenvalues(nmos + 1) - eigenvalues(nmos)
       IF (de < 0.001_dp) THEN
          CALL cp_warn(__LOCATION__, "MAO: No band gap at "// &
                       "Gamma point. MAO analysis not reliable.")
@@ -662,7 +662,7 @@ CONTAINS
                      DO ishell = 1, basis_set%nshell(iset)
                         lshell = basis_set%l(ishell, iset)
                         DO m = -lshell, lshell
-                           iab = iab+1
+                           iab = iab + 1
                            IF (l == lshell) cmask(iab) = 1.0_dp
                         END DO
                      END DO
@@ -745,7 +745,7 @@ CONTAINS
          electra(ispin) = 0.0_dp
          DO im = 1, nim
             CALL dbcsr_dot(matrix_p(ispin, im)%matrix, matrix_s(1, im)%matrix, elex)
-            electra(ispin) = electra(ispin)+elex
+            electra(ispin) = electra(ispin) + elex
          END DO
       END DO
 
@@ -786,7 +786,7 @@ CONTAINS
             CALL rskp_transform(rmatrix=smat, rsmat=matrix_s, ispin=1, &
                                 xkp=xkp, cell_to_index=cell_to_index, sab_nl=sab_orb)
             norb = NINT(electra(ispin))
-            nocc = MOD(2, nspin)+1
+            nocc = MOD(2, nspin) + 1
             CALL calculate_p_gamma(pmat, ksmat, smat, kpoints, norb, REAL(nocc, KIND=dp))
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_smo(1)%matrix, pmat, &
                                 0.0_dp, tmat, filter_eps=eps_filter)

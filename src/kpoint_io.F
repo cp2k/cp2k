@@ -224,7 +224,7 @@ CONTAINS
             ELSEIF (ASSOCIATED(dftb_parameter)) THEN
                CALL get_dftb_atom_param(dftb_parameter, lmax=lmax)
                nset_max = MAX(nset_max, 1)
-               nshell_max = MAX(nshell_max, lmax+1)
+               nshell_max = MAX(nshell_max, lmax + 1)
             ELSE
                CPABORT("Unknown basis type.")
             END IF
@@ -247,7 +247,7 @@ CONTAINS
                              basis_set=orb_basis_set, dftb_parameter=dftb_parameter)
             IF (ASSOCIATED(orb_basis_set)) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nsgf, nset=nset, nshell=nshell, l=l)
-               nao = nao+nsgf
+               nao = nao + nsgf
                nset_info(iatom) = nset
                DO iset = 1, nset
                   nshell_info(iset, iatom) = nshell(iset)
@@ -259,12 +259,12 @@ CONTAINS
             ELSEIF (ASSOCIATED(dftb_parameter)) THEN
                CALL get_dftb_atom_param(dftb_parameter, lmax=lmax)
                nset_info(iatom) = 1
-               nshell_info(1, iatom) = lmax+1
-               DO ishell = 1, lmax+1
-                  lshell = ishell-1
+               nshell_info(1, iatom) = lmax + 1
+               DO ishell = 1, lmax + 1
+                  lshell = ishell - 1
                   nso_info(ishell, 1, iatom) = nso(lshell)
                END DO
-               nao = nao+(lmax+1)**2
+               nao = nao + (lmax + 1)**2
             ELSE
                CPABORT("Unknown basis set type.")
             END IF

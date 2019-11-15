@@ -97,7 +97,7 @@ CONTAINS
 
       IF (ASSOCIATED(fp_env)) THEN
          CPASSERT(fp_env%ref_count > 0)
-         fp_env%ref_count = fp_env%ref_count-1
+         fp_env%ref_count = fp_env%ref_count - 1
          IF (fp_env%ref_count == 0) THEN
             IF (ASSOCIATED(fp_env%inner_atoms)) DEALLOCATE (fp_env%inner_atoms)
             IF (ASSOCIATED(fp_env%outer_atoms)) DEALLOCATE (fp_env%outer_atoms)
@@ -120,7 +120,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_retain', routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(fp_env))
-      fp_env%ref_count = fp_env%ref_count+1
+      fp_env%ref_count = fp_env%ref_count + 1
 
    END SUBROUTINE fp_env_retain
 

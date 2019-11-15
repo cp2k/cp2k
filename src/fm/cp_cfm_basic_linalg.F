@@ -228,14 +228,14 @@ CONTAINS
                   !a(:, :) = a(:, :)+b(:, :)
                   DO icol_local = 1, ncol_local
                      DO irow_local = 1, nrow_local
-                        a(irow_local, icol_local) = a(irow_local, icol_local)+b(irow_local, icol_local)
+                        a(irow_local, icol_local) = a(irow_local, icol_local) + b(irow_local, icol_local)
                      END DO
                   END DO
                ELSE
                   !a(:, :) = a(:, :)+my_beta*b(:, :)
                   DO icol_local = 1, ncol_local
                      DO irow_local = 1, nrow_local
-                        a(irow_local, icol_local) = a(irow_local, icol_local)+my_beta*b(irow_local, icol_local)
+                        a(irow_local, icol_local) = a(irow_local, icol_local) + my_beta*b(irow_local, icol_local)
                      END DO
                   END DO
                END IF
@@ -243,7 +243,7 @@ CONTAINS
                !a(:, :) = alpha*a(:, :)+my_beta*b(:, :)
                DO icol_local = 1, ncol_local
                   DO irow_local = 1, nrow_local
-                     a(irow_local, icol_local) = alpha*a(irow_local, icol_local)+my_beta*b(irow_local, icol_local)
+                     a(irow_local, icol_local) = alpha*a(irow_local, icol_local) + my_beta*b(irow_local, icol_local)
                   END DO
                END DO
             END IF
@@ -338,14 +338,14 @@ CONTAINS
                   !a(:, :) = a(:, :)+b(:, :)
                   DO icol_local = 1, ncol_local
                      DO irow_local = 1, nrow_local
-                        a(irow_local, icol_local) = a(irow_local, icol_local)+b(irow_local, icol_local)
+                        a(irow_local, icol_local) = a(irow_local, icol_local) + b(irow_local, icol_local)
                      END DO
                   END DO
                ELSE
                   !a(:, :) = a(:, :)+beta*b(:, :)
                   DO icol_local = 1, ncol_local
                      DO irow_local = 1, nrow_local
-                        a(irow_local, icol_local) = a(irow_local, icol_local)+beta*b(irow_local, icol_local)
+                        a(irow_local, icol_local) = a(irow_local, icol_local) + beta*b(irow_local, icol_local)
                      END DO
                   END DO
                END IF
@@ -353,7 +353,7 @@ CONTAINS
                !a(:, :) = alpha*a(:, :)+beta*b(:, :)
                DO icol_local = 1, ncol_local
                   DO irow_local = 1, nrow_local
-                     a(irow_local, icol_local) = alpha*a(irow_local, icol_local)+beta*b(irow_local, icol_local)
+                     a(irow_local, icol_local) = alpha*a(irow_local, icol_local) + beta*b(irow_local, icol_local)
                   END DO
                END DO
             END IF
@@ -413,7 +413,7 @@ CONTAINS
 
       counter = 0
       DO irow = 1, nrow_local
-         IF (ipivot(irow) .NE. row_indices(irow)) counter = counter+1
+         IF (ipivot(irow) .NE. row_indices(irow)) counter = counter + 1
       END DO
 
       IF (MOD(counter, 2) == 0) THEN
@@ -427,13 +427,13 @@ CONTAINS
       icol = 1
       DO WHILE (irow <= nrow_local .AND. icol <= ncol_local)
          IF (row_indices(irow) < col_indices(icol)) THEN
-            irow = irow+1
+            irow = irow + 1
          ELSE IF (row_indices(irow) > col_indices(icol)) THEN
-            icol = icol+1
+            icol = icol + 1
          ELSE ! diagonal element
             determinant = determinant*a(irow, icol)
-            irow = irow+1
-            icol = icol+1
+            irow = irow + 1
+            icol = icol + 1
          END IF
       END DO
       CALL mp_prod(determinant, matrix_a%matrix_struct%para_env%group)
@@ -443,7 +443,7 @@ CONTAINS
       counter = 0
       determinant = z_one
       DO irow = 1, nrow_global
-         IF (ipivot(irow) .NE. irow) counter = counter+1
+         IF (ipivot(irow) .NE. irow) counter = counter + 1
          determinant = determinant*a(irow, irow)
       ENDDO
       IF (MOD(counter, 2) == 1) determinant = -1.0_dp*determinant
@@ -708,7 +708,7 @@ CONTAINS
 
          counter = 0
          DO irow = 1, nrow_local
-            IF (ipivot(irow) .NE. row_indices(irow)) counter = counter+1
+            IF (ipivot(irow) .NE. row_indices(irow)) counter = counter + 1
          END DO
 
          IF (MOD(counter, 2) == 0) THEN
@@ -722,13 +722,13 @@ CONTAINS
          icol = 1
          DO WHILE (irow <= nrow_local .AND. icol <= ncol_local)
             IF (row_indices(irow) < col_indices(icol)) THEN
-               irow = irow+1
+               irow = irow + 1
             ELSE IF (row_indices(irow) > col_indices(icol)) THEN
-               icol = icol+1
+               icol = icol + 1
             ELSE ! diagonal element
                determinant = determinant*a(irow, icol)
-               irow = irow+1
-               icol = icol+1
+               irow = irow + 1
+               icol = icol + 1
             END IF
          END DO
          CALL mp_prod(determinant, matrix_a%matrix_struct%para_env%group)
@@ -744,7 +744,7 @@ CONTAINS
          counter = 0
          determinant = z_one
          DO irow = 1, nrow_global
-            IF (ipivot(irow) .NE. irow) counter = counter+1
+            IF (ipivot(irow) .NE. irow) counter = counter + 1
             determinant = determinant*a(irow, irow)
          ENDDO
          IF (MOD(counter, 2) == 1) determinant = -1.0_dp*determinant

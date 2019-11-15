@@ -610,21 +610,21 @@ CONTAINS
 
       origin = particle_set(contact_control%atomlist_screening(1))%r
       DO iatom = 2, SIZE(contact_control%atomlist_screening)
-         origin = origin+particle_set(contact_control%atomlist_screening(iatom))%r
+         origin = origin + particle_set(contact_control%atomlist_screening(iatom))%r
       END DO
       origin = origin/REAL(SIZE(contact_control%atomlist_screening), kind=dp)
 
       DO icell = 1, 2
          direction_vector = particle_set(contact_control%atomlist_cell(icell)%vector(1))%r
          DO iatom = 2, SIZE(contact_control%atomlist_cell(icell)%vector)
-            direction_vector = direction_vector+particle_set(contact_control%atomlist_cell(icell)%vector(iatom))%r
+            direction_vector = direction_vector + particle_set(contact_control%atomlist_cell(icell)%vector(iatom))%r
          END DO
          direction_vector = direction_vector/REAL(SIZE(contact_control%atomlist_cell(icell)%vector), kind=dp)
-         direction_vector = direction_vector-origin
+         direction_vector = direction_vector - origin
          r2_origin_cell(icell) = DOT_PRODUCT(direction_vector, direction_vector)
       END DO
 
-      IF (SQRT(ABS(r2_origin_cell(1)-r2_origin_cell(2))) < eps_geometry) THEN
+      IF (SQRT(ABS(r2_origin_cell(1) - r2_origin_cell(2))) < eps_geometry) THEN
          ! primary and secondary bulk unit cells should not overlap;
          ! currently we check that they are different by at least one atom that is, indeed, not sufficient.
          CALL cp_abort(__LOCATION__, &
@@ -883,7 +883,7 @@ CONTAINS
       CPASSERT(SIZE(contact_control) == ncontacts)
       CPASSERT(ncontacts == 2)
 
-      dirvector_bias = contact_env(2)%origin_bias-contact_env(1)%origin_bias
+      dirvector_bias = contact_env(2)%origin_bias - contact_env(1)%origin_bias
       v1 = contact_control(1)%v_external
       v2 = contact_control(2)%v_external
 
@@ -901,17 +901,17 @@ CONTAINS
       dvol = v_hartree%pw_grid%dvol
 
       DO iz = lz, uz
-         point_indices(3) = REAL(iz+dz, kind=dp)
+         point_indices(3) = REAL(iz + dz, kind=dp)
          DO iy = ly, uy
-            point_indices(2) = REAL(iy+dy, kind=dp)
+            point_indices(2) = REAL(iy + dy, kind=dp)
 
             DO ix = lx, ux
-               point_indices(1) = REAL(ix+dx, kind=dp)
+               point_indices(1) = REAL(ix + dx, kind=dp)
                point_coord(:) = MATMUL(v_hartree%pw_grid%dh, point_indices)
 
-               vector = point_coord-contact_env(1)%origin_bias
+               vector = point_coord - contact_env(1)%origin_bias
                proj = projection_on_direction_vector(vector, dirvector_bias)
-               IF (proj+threshold >= 0.0_dp .AND. proj-threshold <= 1.0_dp) THEN
+               IF (proj + threshold >= 0.0_dp .AND. proj - threshold <= 1.0_dp) THEN
                   ! scattering region
                   ! proj == 0   we are at the first contact boundary
                   ! proj == 1   we are at the second contact boundary
@@ -920,14 +920,14 @@ CONTAINS
                   ELSE IF (proj > 1.0_dp) THEN
                      proj = 1.0_dp
                   END IF
-                  pot = v1+(v2-v1)*proj
+                  pot = v1 + (v2 - v1)*proj
                ELSE
                   pot = 0.0_dp
                   DO icontact = 1, ncontacts
-                     vector = point_coord-contact_env(icontact)%origin_bias
+                     vector = point_coord - contact_env(icontact)%origin_bias
                      proj = projection_on_direction_vector(vector, contact_env(icontact)%direction_vector_bias)
 
-                     IF (proj+threshold >= 0.0_dp .AND. proj-threshold <= 1.0_dp) THEN
+                     IF (proj + threshold >= 0.0_dp .AND. proj - threshold <= 1.0_dp) THEN
                         pot = contact_control(icontact)%v_external
                         EXIT
                      END IF
@@ -977,7 +977,7 @@ CONTAINS
             ELSE
                direction_axis = -i
             END IF
-            naxes = naxes+1
+            naxes = naxes + 1
          END IF
       END DO
 
@@ -1022,7 +1022,7 @@ CONTAINS
 
          ! looking for a processor that holds the gamma point
          IF (para_env_kp%mepos == 0 .AND. kp_range(1) <= gamma_point .AND. kp_range(2) >= gamma_point) THEN
-            kplocal = kp_range(2)-kp_range(1)+1
+            kplocal = kp_range(2) - kp_range(1) + 1
 
             DO ikpgr = 1, kplocal
                CALL get_kpoint_env(kp_env(ikpgr)%kpoint_env, nkpoint=ikpoint, mos=mos_kp)
@@ -1113,7 +1113,7 @@ CONTAINS
       proj_min = 1.0_dp
       atom_min = 1
       DO iatom = 1, natoms_bulk
-         vector = particle_set(atomlist_bulk(iatom))%r-origin
+         vector = particle_set(atomlist_bulk(iatom))%r - origin
          proj = projection_on_direction_vector(vector, direction_vector)
 
          IF (proj < proj_min) THEN
@@ -1127,7 +1127,7 @@ CONTAINS
       natoms_cell0 = 0
       DO iatom = 1, natoms_bulk
          IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min) &
-            natoms_cell0 = natoms_cell0+1
+            natoms_cell0 = natoms_cell0 + 1
       END DO
 
       ALLOCATE (atomlist_cell0(natoms_cell0))
@@ -1136,7 +1136,7 @@ CONTAINS
       natoms_cell0 = 0
       DO iatom = 1, natoms_bulk
          IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min) THEN
-            natoms_cell0 = natoms_cell0+1
+            natoms_cell0 = natoms_cell0 + 1
             atomlist_cell0(natoms_cell0) = atomlist_bulk(iatom)
             atom_map_cell0(natoms_cell0) = atom_map(iatom)
          END IF
@@ -1195,7 +1195,7 @@ CONTAINS
       proj_min = 1.0_dp
       atom_min = 1
       DO iatom = 1, natoms_bulk
-         vector = particle_set(atomlist_bulk(iatom))%r-origin
+         vector = particle_set(atomlist_bulk(iatom))%r - origin
          proj = projection_on_direction_vector(vector, direction_vector)
 
          IF (proj < proj_min) THEN
@@ -1208,8 +1208,8 @@ CONTAINS
 
       natoms_cell1 = 0
       DO iatom = 1, natoms_bulk
-         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min+offset) &
-            natoms_cell1 = natoms_cell1+1
+         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min + offset) &
+            natoms_cell1 = natoms_cell1 + 1
       END DO
 
       ALLOCATE (atomlist_cell1(natoms_cell1))
@@ -1217,8 +1217,8 @@ CONTAINS
 
       natoms_cell1 = 0
       DO iatom = 1, natoms_bulk
-         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min+offset) THEN
-            natoms_cell1 = natoms_cell1+1
+         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min + offset) THEN
+            natoms_cell1 = natoms_cell1 + 1
             atomlist_cell1(natoms_cell1) = atomlist_bulk(iatom)
             atom_map_cell1(natoms_cell1) = atom_map(iatom)
             atom_map_cell1(natoms_cell1)%cell(direction_axis_abs) = dir_axis_min

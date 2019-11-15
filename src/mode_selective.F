@@ -126,8 +126,8 @@ CONTAINS
       ALLOCATE (mass(3*natoms))
       DO i = 1, natoms
          DO j = 1, 3
-            mass((i-1)*3+j) = particles(i)%atomic_kind%mass
-            mass((i-1)*3+j) = SQRT(mass((i-1)*3+j))
+            mass((i - 1)*3 + j) = particles(i)%atomic_kind%mass
+            mass((i - 1)*3 + j) = SQRT(mass((i - 1)*3 + j))
          END DO
       END DO
       ! Allocate working arrays
@@ -150,7 +150,7 @@ CONTAINS
       ALLOCATE (ms_vib%ms_force(ncoord, nrep))
       DO i = 1, natoms
          DO j = 1, 3
-            pos0((i-1)*3+j) = particles((i))%r(j)
+            pos0((i - 1)*3 + j) = particles((i))%r(j)
          END DO
       END DO
       ncoord = 3*natoms
@@ -158,7 +158,7 @@ CONTAINS
          ms_vib%ms_force = HUGE(0.0_dp)
          DO i = 1, nrep
             DO j = 1, ncoord
-               rep_env%r(j, i) = pos0(j)+ms_vib%step_r(i)*ms_vib%delta_vec(j, i)
+               rep_env%r(j, i) = pos0(j) + ms_vib%step_r(i)*ms_vib%delta_vec(j, i)
             END DO
          END DO
          CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE.)
@@ -179,7 +179,7 @@ CONTAINS
          END DO
          DO i = 1, nrep
             DO j = 1, ncoord
-               rep_env%r(j, i) = pos0(j)-ms_vib%step_r(i)*ms_vib%delta_vec(j, i)
+               rep_env%r(j, i) = pos0(j) - ms_vib%step_r(i)*ms_vib%delta_vec(j, i)
             END DO
          END DO
          CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE.)
@@ -192,7 +192,7 @@ CONTAINS
                                 description=description, &
                                 values=tmp_dip(i, :, 2), &
                                 nval=ip1)
-               ms_vib%dip_deriv(:, ms_vib%mat_size+i) = (tmp_dip(i, :, 1)-tmp_dip(i, :, 2))/(2*ms_vib%step_b(i))
+               ms_vib%dip_deriv(:, ms_vib%mat_size + i) = (tmp_dip(i, :, 1) - tmp_dip(i, :, 2))/(2*ms_vib%step_b(i))
             END DO
          END IF
 
@@ -207,7 +207,7 @@ CONTAINS
             ALLOCATE (tmp_deriv(3, ms_vib%mat_size))
             tmp_deriv = ms_vib%dip_deriv
             DEALLOCATE (ms_vib%dip_deriv)
-            ALLOCATE (ms_vib%dip_deriv(3, ms_vib%mat_size+nrep))
+            ALLOCATE (ms_vib%dip_deriv(3, ms_vib%mat_size + nrep))
             ms_vib%dip_deriv(:, 1:ms_vib%mat_size) = tmp_deriv(:, 1:ms_vib%mat_size)
             DEALLOCATE (tmp_deriv)
          END IF
@@ -304,7 +304,7 @@ CONTAINS
          DO k = 1, n_rep_val
             CALL section_vals_val_get(involved_at_section, "INVOLVED_ATOMS", i_rep_val=k, i_vals=tmplist)
             DO j = 1, SIZE(tmplist)
-               jj = jj+1
+               jj = jj + 1
             END DO
          END DO
          IF (jj .GE. 1) THEN
@@ -340,7 +340,7 @@ CONTAINS
          DO k = 1, n_rep_val
             CALL section_vals_val_get(ms_vib_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
             DO j = 1, SIZE(tmplist)
-               jj = jj+1
+               jj = jj + 1
             END DO
          END DO
          IF (jj < 1) THEN
@@ -369,7 +369,7 @@ CONTAINS
          DO i = 1, nrep
             DO j = 1, natoms
                DO k = 1, 3
-                  jj = (map_atoms(j)-1)*3+k
+                  jj = (map_atoms(j) - 1)*3 + k
                   ms_vib%b_vec(jj, i) = ABS(next_random_number(globenv%gaussian_rng_stream))
                END DO
             END DO
@@ -383,7 +383,7 @@ CONTAINS
                   DO i = 1, nrep
                      IF (i .NE. j) THEN
                         ms_vib%b_vec(:, j) = &
-                           ms_vib%b_vec(:, j)-DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, i))*ms_vib%b_vec(:, i)
+                           ms_vib%b_vec(:, j) - DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, i))*ms_vib%b_vec(:, i)
                         ms_vib%b_vec(:, j) = &
                            ms_vib%b_vec(:, j)/SQRT(DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, j)))
                      END IF
@@ -498,17 +498,17 @@ CONTAINS
          CALL diamat_all(ms_vib%hes_bfgs, ms_vib%eig_bfgs)
          tmp(:) = 0._dp
          IF (ms_vib%select_id == 1) my_val = (ms_vib%sel_freq/vibfac)**2/massunit
-         IF (ms_vib%select_id == 2) my_val = (((ms_vib%f_range(2)+ms_vib%f_range(1))*0.5_dp)/vibfac)**2/massunit
+         IF (ms_vib%select_id == 2) my_val = (((ms_vib%f_range(2) + ms_vib%f_range(1))*0.5_dp)/vibfac)**2/massunit
          IF (ms_vib%select_id == 1 .OR. ms_vib%select_id == 2) THEN
             DO i = 1, ncoord
-               tmp(i) = ABS(my_val-ms_vib%eig_bfgs(i))
+               tmp(i) = ABS(my_val - ms_vib%eig_bfgs(i))
             END DO
          ELSE IF (ms_vib%select_id == 3) THEN
             DO i = 1, ncoord
                DO j = 1, SIZE(ms_vib%inv_atoms)
                   DO k = 1, 3
-                     jj = (ms_vib%inv_atoms(j)-1)*3+k
-                     tmp(i) = tmp(i)+SQRT(ms_vib%hes_bfgs(jj, i)**2)
+                     jj = (ms_vib%inv_atoms(j) - 1)*3 + k
+                     tmp(i) = tmp(i) + SQRT(ms_vib%hes_bfgs(jj, i)**2)
                   END DO
                END DO
                IF ((SIGN(1._dp, ms_vib%eig_bfgs(i))*SQRT(ABS(ms_vib%eig_bfgs(i))*massunit)*vibfac) .LE. 400._dp) tmp(i) = 0._dp
@@ -596,7 +596,7 @@ CONTAINS
       ALLOCATE (ms_vib%b_mat(ncoord, ms_vib%mat_size))
       ALLOCATE (ms_vib%s_mat(ncoord, ms_vib%mat_size))
       IF (calc_intens) THEN
-         ALLOCATE (ms_vib%dip_deriv(3, ms_vib%mat_size+nrep))
+         ALLOCATE (ms_vib%dip_deriv(3, ms_vib%mat_size + nrep))
       END IF
       IF (ionode) THEN
          statint = 0
@@ -631,7 +631,7 @@ CONTAINS
          ms_vib%b_vec = 0._dp
          DO i = 1, nrep
             DO j = 1, ms_vib%mat_size
-               ms_vib%b_vec(:, i) = ms_vib%b_vec(:, i)+approx_H(j, ind(i))*ms_vib%b_mat(:, j)
+               ms_vib%b_vec(:, i) = ms_vib%b_vec(:, i) + approx_H(j, ind(i))*ms_vib%b_mat(:, j)
             END DO
             ms_vib%b_vec(:, i) = ms_vib%b_vec(:, i)/SQRT(DOT_PRODUCT(ms_vib%b_vec(:, i), ms_vib%b_vec(:, i)))
          END DO
@@ -712,24 +712,24 @@ CONTAINS
          reading_vib = .FALSE.
          DO
             READ (iw, *, IOSTAT=stat) info
-            istat = istat+stat
+            istat = istat + stat
             IF (TRIM(ADJUSTL(info)) == "[FR-COORD]") EXIT
 
             CPASSERT(stat == 0)
 
-            IF (reading_vib) nvibs = nvibs+1
+            IF (reading_vib) nvibs = nvibs + 1
             IF (TRIM(ADJUSTL(info)) == "[FREQ]") reading_vib = .TRUE.
          END DO
          REWIND (iw)
          istat = 0
          READ (iw, *, IOSTAT=stat) info
-         istat = istat+stat
+         istat = istat + stat
          READ (iw, *, IOSTAT=stat) info
-         istat = istat+stat
+         istat = istat + stat
          ! Skip [Atoms] section
          DO
             READ (iw, *, IOSTAT=stat) info
-            istat = istat+stat
+            istat = istat + stat
             CPASSERT(stat == 0)
             IF (TRIM(ADJUSTL(info)) == "[FREQ]") EXIT
          END DO
@@ -739,21 +739,21 @@ CONTAINS
 
          DO i = 1, nvibs
             READ (iw, *, IOSTAT=stat) freq(i)
-            istat = istat+stat
+            istat = istat + stat
          END DO
          READ (iw, *) info
          DO i = 1, ncoord/3
             READ (iw, *, IOSTAT=stat) at_name, pos(:, i)
-            istat = istat+stat
+            istat = istat + stat
          END DO
          READ (iw, *) info
          DO i = 1, nvibs
             READ (iw, *) info
-            istat = istat+stat
+            istat = istat + stat
             DO j = 1, ncoord/3
-               k = (j-1)*3+1
-               READ (iw, *, IOSTAT=stat) modes(k:k+2, i)
-               istat = istat+stat
+               k = (j - 1)*3 + 1
+               READ (iw, *, IOSTAT=stat) modes(k:k + 2, i)
+               istat = istat + stat
             END DO
          END DO
          IF (ms_filename .NE. "") CALL close_file(iw)
@@ -769,17 +769,17 @@ CONTAINS
          tmp(:) = 0.0_dp
          ALLOCATE (tmplist(nvibs))
          IF (ms_vib%select_id == 1) my_val = ms_vib%sel_freq
-         IF (ms_vib%select_id == 2) my_val = (ms_vib%f_range(2)+ms_vib%f_range(1))*0.5_dp
+         IF (ms_vib%select_id == 2) my_val = (ms_vib%f_range(2) + ms_vib%f_range(1))*0.5_dp
          IF (ms_vib%select_id == 1 .OR. ms_vib%select_id == 2) THEN
             DO i = 1, nvibs
-               tmp(i) = ABS(my_val-freq(i))
+               tmp(i) = ABS(my_val - freq(i))
             END DO
          ELSE IF (ms_vib%select_id == 3) THEN
             DO i = 1, nvibs
                DO j = 1, SIZE(ms_vib%inv_atoms)
                   DO k = 1, 3
-                     jj = (ms_vib%inv_atoms(j)-1)*3+k
-                     tmp(i) = tmp(i)+SQRT(modes(jj, i)**2)
+                     jj = (ms_vib%inv_atoms(j) - 1)*3 + k
+                     tmp(i) = tmp(i) + SQRT(modes(jj, i)**2)
                   END DO
                END DO
                IF (freq(i) .LE. 400._dp) tmp(i) = 0._dp
@@ -870,8 +870,8 @@ CONTAINS
          DEALLOCATE (ms_vib%s_mat)
       ENDIF
 
-      ALLOCATE (ms_vib%b_mat(3*natoms, ms_vib%mat_size+nrep))
-      ALLOCATE (ms_vib%s_mat(3*natoms, ms_vib%mat_size+nrep))
+      ALLOCATE (ms_vib%b_mat(3*natoms, ms_vib%mat_size + nrep))
+      ALLOCATE (ms_vib%s_mat(3*natoms, ms_vib%mat_size + nrep))
 
       ms_vib%s_mat = 0.0_dp
 
@@ -883,7 +883,7 @@ CONTAINS
             END DO
          END IF
          DO j = 1, nrep
-            ms_vib%b_mat(i, ms_vib%mat_size+j) = ms_vib%b_vec(i, j)
+            ms_vib%b_mat(i, ms_vib%mat_size + j) = ms_vib%b_vec(i, j)
          END DO
       END DO
 
@@ -892,7 +892,7 @@ CONTAINS
          DEALLOCATE (tmp_b)
       END IF
 
-      ms_vib%mat_size = ms_vib%mat_size+nrep
+      ms_vib%mat_size = ms_vib%mat_size + nrep
 
       ALLOCATE (approx_H(ms_vib%mat_size, ms_vib%mat_size))
       ALLOCATE (H_save(ms_vib%mat_size, ms_vib%mat_size))
@@ -902,7 +902,7 @@ CONTAINS
 
       DO i = 1, nrep
          DO j = 1, 3*natoms
-            ms_vib%s_mat(j, ms_vib%mat_size-nrep+i) = -(ms_vib%ms_force(j, i)-rep_env%f(j, i))/(2*ms_vib%step_b(i)*mass(j))
+            ms_vib%s_mat(j, ms_vib%mat_size - nrep + i) = -(ms_vib%ms_force(j, i) - rep_env%f(j, i))/(2*ms_vib%step_b(i)*mass(j))
          END DO
       END DO
 
@@ -921,7 +921,7 @@ CONTAINS
       DO i = 1, nrep
          DO j = 1, natoms
             DO k = 1, 3
-               jj = (j-1)*3+k
+               jj = (j - 1)*3 + k
                ms_vib%delta_vec(jj, i) = ms_vib%b_vec(jj, i)/mass(jj)
             END DO
          END DO
@@ -952,14 +952,14 @@ CONTAINS
          END IF
          DO i = 1, ms_vib%mat_size
             DO j = 1, ms_vib%mat_size
-               tmp_b(:, i) = tmp_b(:, i)+approx_H(j, i)*ms_vib%b_mat(:, j)/mass(:)
+               tmp_b(:, i) = tmp_b(:, i) + approx_H(j, i)*ms_vib%b_mat(:, j)/mass(:)
             END DO
             tmp_b(:, i) = tmp_b(:, i)/SQRT(DOT_PRODUCT(tmp_b(:, i), tmp_b(:, i)))
          END DO
          IF (calc_intens) THEN
             DO i = 1, ms_vib%mat_size
                DO j = 1, ms_vib%mat_size
-                  tmp_s(:, i) = tmp_s(:, i)+ms_vib%dip_deriv(:, j)*approx_H(j, i)
+                  tmp_s(:, i) = tmp_s(:, i) + ms_vib%dip_deriv(:, j)*approx_H(j, i)
                END DO
                IF (calc_intens) intensities(i) = SQRT(DOT_PRODUCT(tmp_s(:, i), tmp_s(:, i)))
             END DO
@@ -1031,13 +1031,13 @@ CONTAINS
       CASE (1)
          my_val = (ms_vib%sel_freq/(vibfac))**2/massunit
          DO i = 1, ms_vib%mat_size
-            tmp(i) = ABS(my_val-eigenval(i))
+            tmp(i) = ABS(my_val - eigenval(i))
          END DO
          CALL sort(tmp, (ms_vib%mat_size), ind)
          residuum = 0._dp
          DO j = 1, nrep
             DO i = 1, ms_vib%mat_size
-               residuum(:, j) = residuum(:, j)+approx_H(i, ind(j))*(ms_vib%s_mat(:, i)-eigenval(ind(j))*ms_vib%b_mat(:, i))
+               residuum(:, j) = residuum(:, j) + approx_H(i, ind(j))*(ms_vib%s_mat(:, i) - eigenval(ind(j))*ms_vib%b_mat(:, i))
             END DO
          END DO
       CASE (2)
@@ -1049,7 +1049,7 @@ CONTAINS
 
          DO i = 1, ms_vib%mat_size
             DO j = 1, ms_vib%mat_size
-               tmp_b(:, i) = tmp_b(:, i)+approx_H(j, i)*ms_vib%b_mat(:, j)/mass(:)
+               tmp_b(:, i) = tmp_b(:, i) + approx_H(j, i)*ms_vib%b_mat(:, j)/mass(:)
             END DO
             tmp_b(:, i) = tmp_b(:, i)/SQRT(DOT_PRODUCT(tmp_b(:, i), tmp_b(:, i)))
          END DO
@@ -1057,8 +1057,8 @@ CONTAINS
          DO i = 1, ms_vib%mat_size
             DO j = 1, SIZE(ms_vib%inv_atoms)
                DO k = 1, 3
-                  jj = (ms_vib%inv_atoms(j)-1)*3+k
-                  tmp(i) = tmp(i)+SQRT(tmp_b(jj, i)**2)
+                  jj = (ms_vib%inv_atoms(j) - 1)*3 + k
+                  tmp(i) = tmp(i) + SQRT(tmp_b(jj, i)**2)
                END DO
             END DO
             IF (.NOT. ASSOCIATED(ms_vib%inv_range)) THEN
@@ -1074,7 +1074,7 @@ CONTAINS
 
          DO j = 1, nrep
             DO i = 1, ms_vib%mat_size
-               residuum(:, j) = residuum(:, j)+approx_H(i, ind(j))*(ms_vib%s_mat(:, i)-eigenval(ind(j))*ms_vib%b_mat(:, i))
+               residuum(:, j) = residuum(:, j) + approx_H(i, ind(j))*(ms_vib%s_mat(:, i) - eigenval(ind(j))*ms_vib%b_mat(:, i))
             END DO
          END DO
          DEALLOCATE (tmp_b)
@@ -1082,7 +1082,7 @@ CONTAINS
 
       DO j = 1, nrep
          DO i = 1, ms_vib%mat_size
-            residuum(:, j) = residuum(:, j)-DOT_PRODUCT(residuum(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
+            residuum(:, j) = residuum(:, j) - DOT_PRODUCT(residuum(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
          END DO
       END DO
       IF (PRESENT(criteria)) THEN
@@ -1100,13 +1100,13 @@ CONTAINS
       DO k = 1, 10
          DO j = 1, nrep
             DO i = 1, ms_vib%mat_size
-               residuum(:, j) = residuum(:, j)-DOT_PRODUCT(residuum(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
+               residuum(:, j) = residuum(:, j) - DOT_PRODUCT(residuum(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
                residuum(:, j) = residuum(:, j)/SQRT(DOT_PRODUCT(residuum(:, j), residuum(:, j)))
             END DO
             IF (nrep .GT. 1) THEN
                DO i = 1, nrep
                   IF (i .NE. j) THEN
-                     residuum(:, j) = residuum(:, j)-DOT_PRODUCT(residuum(:, j), residuum(:, i))*residuum(:, i)
+                     residuum(:, j) = residuum(:, j) - DOT_PRODUCT(residuum(:, j), residuum(:, i))*residuum(:, i)
                      residuum(:, j) = residuum(:, j)/SQRT(DOT_PRODUCT(residuum(:, j), residuum(:, j)))
                   END IF
                END DO
@@ -1176,10 +1176,10 @@ CONTAINS
             DO i = 1, SIZE(ms_vib%b_mat, 2)
                residuum = 0._dp
                DO j = 1, SIZE(ms_vib%b_mat, 2)
-                  residuum(:) = residuum(:)+approx_H(j, i)*(ms_vib%s_mat(:, j)-eigenval(i)*ms_vib%b_mat(:, j))
+                  residuum(:) = residuum(:) + approx_H(j, i)*(ms_vib%s_mat(:, j) - eigenval(i)*ms_vib%b_mat(:, j))
                END DO
                DO j = 1, ms_vib%mat_size
-                  residuum(:) = residuum(:)-DOT_PRODUCT(residuum(:), ms_vib%b_mat(:, j))*ms_vib%b_mat(:, j)
+                  residuum(:) = residuum(:) - DOT_PRODUCT(residuum(:), ms_vib%b_mat(:, j))*ms_vib%b_mat(:, j)
                END DO
                crit_a = MAXVAL(residuum(:))
                crit_b = SQRT(DOT_PRODUCT(residuum, residuum))
@@ -1282,21 +1282,21 @@ CONTAINS
       ALLOCATE (map1(SIZE(eigenval), 2))
       ALLOCATE (tmp(SIZE(eigenval)))
       DO i = 1, SIZE(eigenval)
-         IF (ABS(eigenval(i)-myrange(1))+ABS(eigenval(i)-myrange(2)) .LE. &
-             ABS(myrange(1)-myrange(2))+myrange(1)*0.001_dp) THEN
-            count1 = count1+1
+         IF (ABS(eigenval(i) - myrange(1)) + ABS(eigenval(i) - myrange(2)) .LE. &
+             ABS(myrange(1) - myrange(2)) + myrange(1)*0.001_dp) THEN
+            count1 = count1 + 1
             map1(count1, 1) = i
          ELSE
-            count2 = count2+1
+            count2 = count2 + 1
             map1(count2, 2) = i
-            tmp(count2) = MIN(ABS(eigenval(i)-myrange(1)), ABS(eigenval(i)-myrange(2)))
+            tmp(count2) = MIN(ABS(eigenval(i) - myrange(1)), ABS(eigenval(i) - myrange(2)))
          END IF
       END DO
 
       IF (count1 .EQ. nrep) THEN
          DO j = 1, count1
             DO i = 1, ms_vib%mat_size
-               residuum(:, j) = residuum(:, j)+approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
+            residuum(:, j) = residuum(:, j) + approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i) - eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
                ind(j) = map1(j, 1)
             END DO
          END DO
@@ -1307,21 +1307,21 @@ CONTAINS
          tmp_resid = 0._dp
          DO j = 1, count1
             DO i = 1, ms_vib%mat_size
-               tmp_resid(:, j) = tmp_resid(:, j)+approx_H(i, map1(j, 1))* &
-                                 (ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
+               tmp_resid(:, j) = tmp_resid(:, j) + approx_H(i, map1(j, 1))* &
+                                 (ms_vib%s_mat(:, i) - eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
             END DO
          END DO
 
          DO j = 1, count1
             DO i = 1, ms_vib%mat_size
-               tmp_resid(:, j) = tmp_resid(:, j)-DOT_PRODUCT(tmp_resid(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
+               tmp_resid(:, j) = tmp_resid(:, j) - DOT_PRODUCT(tmp_resid(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
             END DO
             tmp(j) = MAXVAL(tmp_resid(:, j))
          END DO
          CALL sort(tmp, count1, map2)
          DO j = 1, nrep
-            residuum(:, j) = tmp_resid(:, map2(count1+1-j))
-            ind(j) = map1(map2(count1+1-j), 1)
+            residuum(:, j) = tmp_resid(:, map2(count1 + 1 - j))
+            ind(j) = map1(map2(count1 + 1 - j), 1)
          END DO
          DEALLOCATE (tmp_resid)
          DEALLOCATE (tmp1)
@@ -1332,19 +1332,19 @@ CONTAINS
          IF (count1 .NE. 0) THEN
             DO j = 1, count1
                DO i = 1, ms_vib%mat_size
-                  residuum(:, j) = residuum(:, j)+approx_H(i, map1(j, 1))* &
-                                   (ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
+                  residuum(:, j) = residuum(:, j) + approx_H(i, map1(j, 1))* &
+                                   (ms_vib%s_mat(:, i) - eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
                END DO
                ind(j) = map1(j, 1)
             END DO
          END IF
          CALL sort(tmp, count2, map2)
-         DO j = 1, nrep-count1
+         DO j = 1, nrep - count1
             DO i = 1, ms_vib%mat_size
-               residuum(:, count1+j) = residuum(:, count1+j)+approx_H(i, map1(map2(j), 2)) &
-                                       *(ms_vib%s_mat(:, i)-eigenval(map1(map2(j), 2))*ms_vib%b_mat(:, i))
+               residuum(:, count1 + j) = residuum(:, count1 + j) + approx_H(i, map1(map2(j), 2)) &
+                                         *(ms_vib%s_mat(:, i) - eigenval(map1(map2(j), 2))*ms_vib%b_mat(:, i))
             END DO
-            ind(count1+j) = map1(map2(j), 2)
+            ind(count1 + j) = map1(map2(j), 2)
          END DO
 
          DEALLOCATE (map2)

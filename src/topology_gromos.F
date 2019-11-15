@@ -190,16 +190,16 @@ CONTAINS
       IF (found) THEN
          CALL parser_get_next_line(parser, 1)
          CALL parser_get_object(parser, natom)
-         CALL reallocate(atom_info%id_molname, 1, natom_prev+natom)
-         CALL reallocate(atom_info%resid, 1, natom_prev+natom)
-         CALL reallocate(atom_info%id_resname, 1, natom_prev+natom)
-         CALL reallocate(atom_info%id_atmname, 1, natom_prev+natom)
-         CALL reallocate(atom_info%id_element, 1, natom_prev+natom)
-         CALL reallocate(atom_info%atm_charge, 1, natom_prev+natom)
-         CALL reallocate(atom_info%atm_mass, 1, natom_prev+natom)
+         CALL reallocate(atom_info%id_molname, 1, natom_prev + natom)
+         CALL reallocate(atom_info%resid, 1, natom_prev + natom)
+         CALL reallocate(atom_info%id_resname, 1, natom_prev + natom)
+         CALL reallocate(atom_info%id_atmname, 1, natom_prev + natom)
+         CALL reallocate(atom_info%id_element, 1, natom_prev + natom)
+         CALL reallocate(atom_info%atm_charge, 1, natom_prev + natom)
+         CALL reallocate(atom_info%atm_mass, 1, natom_prev + natom)
          CALL parser_get_next_line(parser, 1)
          DO iatom = 1, natom
-            index_now = iatom+natom_prev
+            index_now = iatom + natom_prev
             CALL parser_get_object(parser, itemp)
             CALL parser_get_object(parser, itemp)
             atom_info%resid(index_now) = itemp
@@ -240,12 +240,12 @@ CONTAINS
             CALL parser_get_next_line(parser, 1)
             CALL parser_get_object(parser, ntype)
             IF (ntype /= 0) THEN
-               itemp = (itemp-1)/6+1
+               itemp = (itemp - 1)/6 + 1
                offset = 0
                IF (ASSOCIATED(conn_info%onfo_a)) offset = SIZE(conn_info%onfo_a)
-               CALL reallocate(conn_info%onfo_a, 1, offset+ntype)
-               CALL reallocate(conn_info%onfo_b, 1, offset+ntype)
-               conn_info%onfo_a(offset+1:offset+ntype) = index_now
+               CALL reallocate(conn_info%onfo_a, 1, offset + ntype)
+               CALL reallocate(conn_info%onfo_b, 1, offset + ntype)
+               conn_info%onfo_a(offset + 1:offset + ntype) = index_now
                DO i = 1, 50
                   ii(i) = -1
                END DO
@@ -267,7 +267,7 @@ CONTAINS
                      IF (stat .EQ. 0) EXIT
                   END DO
                   DO i = 1, ntype
-                     conn_info%onfo_b(offset+i) = ii(i)
+                     conn_info%onfo_b(offset + i) = ii(i)
                   END DO
                END IF
                CALL parser_get_next_line(parser, 1)
@@ -289,19 +289,19 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
-         CALL reallocate(conn_info%bond_a, 1, offset+ntype)
-         CALL reallocate(conn_info%bond_b, 1, offset+ntype)
-         CALL reallocate(conn_info%bond_type, 1, offset+ntype)
+         CALL reallocate(conn_info%bond_a, 1, offset + ntype)
+         CALL reallocate(conn_info%bond_b, 1, offset + ntype)
+         CALL reallocate(conn_info%bond_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%bond_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%bond_b(offset+itype))
+            CALL parser_get_object(parser, conn_info%bond_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%bond_b(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%bond_type(offset+itype) = itemp
+            conn_info%bond_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDH INFO HERE!!!!"
          END DO
-         conn_info%bond_a(offset+1:offset+ntype) = conn_info%bond_a(offset+1:offset+ntype)+natom_prev
-         conn_info%bond_b(offset+1:offset+ntype) = conn_info%bond_b(offset+1:offset+ntype)+natom_prev
+         conn_info%bond_a(offset + 1:offset + ntype) = conn_info%bond_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%bond_b(offset + 1:offset + ntype) = conn_info%bond_b(offset + 1:offset + ntype) + natom_prev
       END IF
       ! BOND SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the BOND section'
@@ -312,19 +312,19 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
-         CALL reallocate(conn_info%bond_a, 1, offset+ntype)
-         CALL reallocate(conn_info%bond_b, 1, offset+ntype)
-         CALL reallocate(conn_info%bond_type, 1, offset+ntype)
+         CALL reallocate(conn_info%bond_a, 1, offset + ntype)
+         CALL reallocate(conn_info%bond_b, 1, offset + ntype)
+         CALL reallocate(conn_info%bond_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%bond_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%bond_b(offset+itype))
+            CALL parser_get_object(parser, conn_info%bond_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%bond_b(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%bond_type(offset+itype) = itemp
+            conn_info%bond_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BOND INFO HERE!!!!"
          END DO
-         conn_info%bond_a(offset+1:offset+ntype) = conn_info%bond_a(offset+1:offset+ntype)+natom_prev
-         conn_info%bond_b(offset+1:offset+ntype) = conn_info%bond_b(offset+1:offset+ntype)+natom_prev
+         conn_info%bond_a(offset + 1:offset + ntype) = conn_info%bond_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%bond_b(offset + 1:offset + ntype) = conn_info%bond_b(offset + 1:offset + ntype) + natom_prev
       END IF
       ! BONDANGLEH SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the BONDANGLEH section'
@@ -335,22 +335,22 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%theta_a)) offset = SIZE(conn_info%theta_a)
-         CALL reallocate(conn_info%theta_a, 1, offset+ntype)
-         CALL reallocate(conn_info%theta_b, 1, offset+ntype)
-         CALL reallocate(conn_info%theta_c, 1, offset+ntype)
-         CALL reallocate(conn_info%theta_type, 1, offset+ntype)
+         CALL reallocate(conn_info%theta_a, 1, offset + ntype)
+         CALL reallocate(conn_info%theta_b, 1, offset + ntype)
+         CALL reallocate(conn_info%theta_c, 1, offset + ntype)
+         CALL reallocate(conn_info%theta_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%theta_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%theta_b(offset+itype))
-            CALL parser_get_object(parser, conn_info%theta_c(offset+itype))
+            CALL parser_get_object(parser, conn_info%theta_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%theta_b(offset + itype))
+            CALL parser_get_object(parser, conn_info%theta_c(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%theta_type(offset+itype) = itemp
+            conn_info%theta_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDANGLEH INFO HERE!!!!"
          END DO
-         conn_info%theta_a(offset+1:offset+ntype) = conn_info%theta_a(offset+1:offset+ntype)+natom_prev
-         conn_info%theta_b(offset+1:offset+ntype) = conn_info%theta_b(offset+1:offset+ntype)+natom_prev
-         conn_info%theta_c(offset+1:offset+ntype) = conn_info%theta_c(offset+1:offset+ntype)+natom_prev
+         conn_info%theta_a(offset + 1:offset + ntype) = conn_info%theta_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%theta_b(offset + 1:offset + ntype) = conn_info%theta_b(offset + 1:offset + ntype) + natom_prev
+         conn_info%theta_c(offset + 1:offset + ntype) = conn_info%theta_c(offset + 1:offset + ntype) + natom_prev
       END IF
       ! BONDANGLE SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the BONDANGLE section'
@@ -361,22 +361,22 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%theta_a)) offset = SIZE(conn_info%theta_a)
-         CALL reallocate(conn_info%theta_a, 1, offset+ntype)
-         CALL reallocate(conn_info%theta_b, 1, offset+ntype)
-         CALL reallocate(conn_info%theta_c, 1, offset+ntype)
-         CALL reallocate(conn_info%theta_type, 1, offset+ntype)
+         CALL reallocate(conn_info%theta_a, 1, offset + ntype)
+         CALL reallocate(conn_info%theta_b, 1, offset + ntype)
+         CALL reallocate(conn_info%theta_c, 1, offset + ntype)
+         CALL reallocate(conn_info%theta_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%theta_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%theta_b(offset+itype))
-            CALL parser_get_object(parser, conn_info%theta_c(offset+itype))
+            CALL parser_get_object(parser, conn_info%theta_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%theta_b(offset + itype))
+            CALL parser_get_object(parser, conn_info%theta_c(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%theta_type(offset+itype) = itemp
+            conn_info%theta_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDANGLE INFO HERE!!!!"
          END DO
-         conn_info%theta_a(offset+1:offset+ntype) = conn_info%theta_a(offset+1:offset+ntype)+natom_prev
-         conn_info%theta_b(offset+1:offset+ntype) = conn_info%theta_b(offset+1:offset+ntype)+natom_prev
-         conn_info%theta_c(offset+1:offset+ntype) = conn_info%theta_c(offset+1:offset+ntype)+natom_prev
+         conn_info%theta_a(offset + 1:offset + ntype) = conn_info%theta_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%theta_b(offset + 1:offset + ntype) = conn_info%theta_b(offset + 1:offset + ntype) + natom_prev
+         conn_info%theta_c(offset + 1:offset + ntype) = conn_info%theta_c(offset + 1:offset + ntype) + natom_prev
       END IF
       ! IMPDIHEDRALH SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the IMPDIHEDRALH section'
@@ -387,25 +387,25 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%impr_a)) offset = SIZE(conn_info%impr_a)
-         CALL reallocate(conn_info%impr_a, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_b, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_c, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_d, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_type, 1, offset+ntype)
+         CALL reallocate(conn_info%impr_a, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_b, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_c, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_d, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%impr_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%impr_b(offset+itype))
-            CALL parser_get_object(parser, conn_info%impr_c(offset+itype))
-            CALL parser_get_object(parser, conn_info%impr_d(offset+itype))
+            CALL parser_get_object(parser, conn_info%impr_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%impr_b(offset + itype))
+            CALL parser_get_object(parser, conn_info%impr_c(offset + itype))
+            CALL parser_get_object(parser, conn_info%impr_d(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%impr_type(offset+itype) = itemp
+            conn_info%impr_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT IMPDIHEDRALH INFO HERE!!!!"
          END DO
-         conn_info%impr_a(offset+1:offset+ntype) = conn_info%impr_a(offset+1:offset+ntype)+natom_prev
-         conn_info%impr_b(offset+1:offset+ntype) = conn_info%impr_b(offset+1:offset+ntype)+natom_prev
-         conn_info%impr_c(offset+1:offset+ntype) = conn_info%impr_c(offset+1:offset+ntype)+natom_prev
-         conn_info%impr_d(offset+1:offset+ntype) = conn_info%impr_d(offset+1:offset+ntype)+natom_prev
+         conn_info%impr_a(offset + 1:offset + ntype) = conn_info%impr_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%impr_b(offset + 1:offset + ntype) = conn_info%impr_b(offset + 1:offset + ntype) + natom_prev
+         conn_info%impr_c(offset + 1:offset + ntype) = conn_info%impr_c(offset + 1:offset + ntype) + natom_prev
+         conn_info%impr_d(offset + 1:offset + ntype) = conn_info%impr_d(offset + 1:offset + ntype) + natom_prev
       END IF
       ! IMPDIHEDRAL SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the IMPDIHEDRAL section'
@@ -416,25 +416,25 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%impr_a)) offset = SIZE(conn_info%impr_a)
-         CALL reallocate(conn_info%impr_a, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_b, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_c, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_d, 1, offset+ntype)
-         CALL reallocate(conn_info%impr_type, 1, offset+ntype)
+         CALL reallocate(conn_info%impr_a, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_b, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_c, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_d, 1, offset + ntype)
+         CALL reallocate(conn_info%impr_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%impr_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%impr_b(offset+itype))
-            CALL parser_get_object(parser, conn_info%impr_c(offset+itype))
-            CALL parser_get_object(parser, conn_info%impr_d(offset+itype))
+            CALL parser_get_object(parser, conn_info%impr_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%impr_b(offset + itype))
+            CALL parser_get_object(parser, conn_info%impr_c(offset + itype))
+            CALL parser_get_object(parser, conn_info%impr_d(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%impr_type(offset+itype) = itemp
+            conn_info%impr_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT IMPDIHEDRAL INFO HERE!!!!"
          END DO
-         conn_info%impr_a(offset+1:offset+ntype) = conn_info%impr_a(offset+1:offset+ntype)+natom_prev
-         conn_info%impr_b(offset+1:offset+ntype) = conn_info%impr_b(offset+1:offset+ntype)+natom_prev
-         conn_info%impr_c(offset+1:offset+ntype) = conn_info%impr_c(offset+1:offset+ntype)+natom_prev
-         conn_info%impr_d(offset+1:offset+ntype) = conn_info%impr_d(offset+1:offset+ntype)+natom_prev
+         conn_info%impr_a(offset + 1:offset + ntype) = conn_info%impr_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%impr_b(offset + 1:offset + ntype) = conn_info%impr_b(offset + 1:offset + ntype) + natom_prev
+         conn_info%impr_c(offset + 1:offset + ntype) = conn_info%impr_c(offset + 1:offset + ntype) + natom_prev
+         conn_info%impr_d(offset + 1:offset + ntype) = conn_info%impr_d(offset + 1:offset + ntype) + natom_prev
       END IF
       ! DIHEDRALH SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the DIHEDRALH section'
@@ -445,25 +445,25 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%phi_a)) offset = SIZE(conn_info%phi_a)
-         CALL reallocate(conn_info%phi_a, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_b, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_c, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_d, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_type, 1, offset+ntype)
+         CALL reallocate(conn_info%phi_a, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_b, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_c, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_d, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%phi_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%phi_b(offset+itype))
-            CALL parser_get_object(parser, conn_info%phi_c(offset+itype))
-            CALL parser_get_object(parser, conn_info%phi_d(offset+itype))
+            CALL parser_get_object(parser, conn_info%phi_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%phi_b(offset + itype))
+            CALL parser_get_object(parser, conn_info%phi_c(offset + itype))
+            CALL parser_get_object(parser, conn_info%phi_d(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%phi_type(offset+itype) = itemp
+            conn_info%phi_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT DIHEDRALH INFO HERE!!!!"
          END DO
-         conn_info%phi_a(offset+1:offset+ntype) = conn_info%phi_a(offset+1:offset+ntype)+natom_prev
-         conn_info%phi_b(offset+1:offset+ntype) = conn_info%phi_b(offset+1:offset+ntype)+natom_prev
-         conn_info%phi_c(offset+1:offset+ntype) = conn_info%phi_c(offset+1:offset+ntype)+natom_prev
-         conn_info%phi_d(offset+1:offset+ntype) = conn_info%phi_d(offset+1:offset+ntype)+natom_prev
+         conn_info%phi_a(offset + 1:offset + ntype) = conn_info%phi_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%phi_b(offset + 1:offset + ntype) = conn_info%phi_b(offset + 1:offset + ntype) + natom_prev
+         conn_info%phi_c(offset + 1:offset + ntype) = conn_info%phi_c(offset + 1:offset + ntype) + natom_prev
+         conn_info%phi_d(offset + 1:offset + ntype) = conn_info%phi_d(offset + 1:offset + ntype) + natom_prev
       END IF
       ! DIHEDRAL SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the DIHEDRAL section'
@@ -474,31 +474,31 @@ CONTAINS
          CALL parser_get_object(parser, ntype)
          offset = 0
          IF (ASSOCIATED(conn_info%phi_a)) offset = SIZE(conn_info%phi_a)
-         CALL reallocate(conn_info%phi_a, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_b, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_c, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_d, 1, offset+ntype)
-         CALL reallocate(conn_info%phi_type, 1, offset+ntype)
+         CALL reallocate(conn_info%phi_a, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_b, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_c, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_d, 1, offset + ntype)
+         CALL reallocate(conn_info%phi_type, 1, offset + ntype)
          DO itype = 1, ntype
             CALL parser_get_next_line(parser, 1)
-            CALL parser_get_object(parser, conn_info%phi_a(offset+itype))
-            CALL parser_get_object(parser, conn_info%phi_b(offset+itype))
-            CALL parser_get_object(parser, conn_info%phi_c(offset+itype))
-            CALL parser_get_object(parser, conn_info%phi_d(offset+itype))
+            CALL parser_get_object(parser, conn_info%phi_a(offset + itype))
+            CALL parser_get_object(parser, conn_info%phi_b(offset + itype))
+            CALL parser_get_object(parser, conn_info%phi_c(offset + itype))
+            CALL parser_get_object(parser, conn_info%phi_d(offset + itype))
             CALL parser_get_object(parser, itemp)
-            conn_info%phi_type(offset+itype) = itemp
+            conn_info%phi_type(offset + itype) = itemp
             IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT DIHEDRAL INFO HERE!!!!"
          END DO
-         conn_info%phi_a(offset+1:offset+ntype) = conn_info%phi_a(offset+1:offset+ntype)+natom_prev
-         conn_info%phi_b(offset+1:offset+ntype) = conn_info%phi_b(offset+1:offset+ntype)+natom_prev
-         conn_info%phi_c(offset+1:offset+ntype) = conn_info%phi_c(offset+1:offset+ntype)+natom_prev
-         conn_info%phi_d(offset+1:offset+ntype) = conn_info%phi_d(offset+1:offset+ntype)+natom_prev
+         conn_info%phi_a(offset + 1:offset + ntype) = conn_info%phi_a(offset + 1:offset + ntype) + natom_prev
+         conn_info%phi_b(offset + 1:offset + ntype) = conn_info%phi_b(offset + 1:offset + ntype) + natom_prev
+         conn_info%phi_c(offset + 1:offset + ntype) = conn_info%phi_c(offset + 1:offset + ntype) + natom_prev
+         conn_info%phi_d(offset + 1:offset + ntype) = conn_info%phi_d(offset + 1:offset + ntype) + natom_prev
       END IF
       CALL parser_release(parser)
 
       ! SOLVENTATOM and SOLVENTCONSTR SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the SOLVENTATOM section'
-      nsolvent = (SIZE(atom_info%r(1, :))-nsolute)/3
+      nsolvent = (SIZE(atom_info%r(1, :)) - nsolute)/3
 
       NULLIFY (na, am, ac, ba, bb)
       CALL parser_create(parser, file_name, para_env=para_env)
@@ -538,17 +538,17 @@ CONTAINS
 
       offset = 0
       IF (ASSOCIATED(atom_info%id_molname)) offset = SIZE(atom_info%id_molname)
-      CALL reallocate(atom_info%id_molname, 1, offset+nsolvent*natom)
-      CALL reallocate(atom_info%resid, 1, offset+nsolvent*natom)
-      CALL reallocate(atom_info%id_resname, 1, offset+nsolvent*natom)
-      CALL reallocate(atom_info%id_atmname, 1, offset+nsolvent*natom)
-      CALL reallocate(atom_info%id_element, 1, offset+nsolvent*natom)
-      CALL reallocate(atom_info%atm_charge, 1, offset+nsolvent*natom)
-      CALL reallocate(atom_info%atm_mass, 1, offset+nsolvent*natom)
+      CALL reallocate(atom_info%id_molname, 1, offset + nsolvent*natom)
+      CALL reallocate(atom_info%resid, 1, offset + nsolvent*natom)
+      CALL reallocate(atom_info%id_resname, 1, offset + nsolvent*natom)
+      CALL reallocate(atom_info%id_atmname, 1, offset + nsolvent*natom)
+      CALL reallocate(atom_info%id_element, 1, offset + nsolvent*natom)
+      CALL reallocate(atom_info%atm_charge, 1, offset + nsolvent*natom)
+      CALL reallocate(atom_info%atm_mass, 1, offset + nsolvent*natom)
       DO isolvent = 1, nsolvent
-         offset = nsolute+natom*isolvent-natom
+         offset = nsolute + natom*isolvent - natom
          DO iatom = 1, natom
-            index_now = offset+iatom
+            index_now = offset + iatom
             atom_info%id_atmname(index_now) = str2id(s2s(namearray1(na(iatom))))
             atom_info%id_element(index_now) = str2id(s2s(namearray1(na(iatom))))
             atom_info%id_molname(index_now) = str2id(s2s("SOL"))
@@ -562,16 +562,16 @@ CONTAINS
       offset = 0
       IF (ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
       offset2 = MAXVAL(conn_info%bond_type(:))
-      CALL reallocate(conn_info%bond_a, 1, offset+ncon*nsolvent)
-      CALL reallocate(conn_info%bond_b, 1, offset+ncon*nsolvent)
-      CALL reallocate(conn_info%bond_type, 1, offset+ncon*nsolvent)
-      offset = offset-ncon
+      CALL reallocate(conn_info%bond_a, 1, offset + ncon*nsolvent)
+      CALL reallocate(conn_info%bond_b, 1, offset + ncon*nsolvent)
+      CALL reallocate(conn_info%bond_type, 1, offset + ncon*nsolvent)
+      offset = offset - ncon
       DO isolvent = 1, nsolvent
-         offset = offset+ncon
+         offset = offset + ncon
          DO icon = 1, ncon
-            conn_info%bond_a(offset+icon) = nsolute+isolvent*ncon-ncon+ba(icon)
-            conn_info%bond_b(offset+icon) = nsolute+isolvent*ncon-ncon+bb(icon)
-            conn_info%bond_type(offset+icon) = offset2+isolvent*ncon-ncon+icon
+            conn_info%bond_a(offset + icon) = nsolute + isolvent*ncon - ncon + ba(icon)
+            conn_info%bond_b(offset + icon) = nsolute + isolvent*ncon - ncon + bb(icon)
+            conn_info%bond_type(offset + icon) = offset2 + isolvent*ncon - ncon + icon
          END DO
       END DO
       ! PARA_RES structure
@@ -579,7 +579,7 @@ CONTAINS
       nbond_prev = 0
       IF (ASSOCIATED(conn_info%c_bond_a)) i = SIZE(conn_info%c_bond_a)
       nbond = SIZE(conn_info%bond_a)
-      DO ibond = 1+nbond_prev, nbond+nbond_prev
+      DO ibond = 1 + nbond_prev, nbond + nbond_prev
          iatom = conn_info%bond_a(ibond)
          jatom = conn_info%bond_b(ibond)
          IF (topology%para_res) THEN
@@ -588,7 +588,7 @@ CONTAINS
                 (atom_info%id_resname(iatom) /= atom_info%id_resname(jatom))) THEN
                IF (iw > 0) WRITE (iw, '(T2,A,2I3)') "GTOP_INFO| PARA_RES, bond between molecules atom ", &
                   iatom, jatom
-               i = i+1
+               i = i + 1
                CALL reallocate(conn_info%c_bond_a, 1, i)
                CALL reallocate(conn_info%c_bond_b, 1, i)
                CALL reallocate(conn_info%c_bond_type, 1, i)
@@ -698,7 +698,7 @@ CONTAINS
          CALL parser_get_object(parser, string, string_length=default_string_length)
          DO
             IF (string == TRIM("END")) EXIT
-            natom = natom+1
+            natom = natom + 1
             IF (natom > SIZE(atom_info%id_molname)) THEN
                newsize = INT(pfactor*natom)
                CALL reallocate(atom_info%id_molname, 1, newsize)
@@ -741,7 +741,7 @@ CONTAINS
             CALL parser_get_object(parser, string, string_length=default_string_length)
             DO
                IF (string == TRIM("END")) EXIT
-               natom = natom+1
+               natom = natom + 1
                READ (string, *) &
                   atom_info%resid(natom), strtmp, strtmp2, &
                   itemp, velocity(1, natom), velocity(2, natom), velocity(3, natom)

@@ -182,7 +182,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
-      force_env%ref_count = force_env%ref_count+1
+      force_env%ref_count = force_env%ref_count + 1
    END SUBROUTINE force_env_retain
 
 ! **************************************************************************************************
@@ -205,7 +205,7 @@ CONTAINS
 
       IF (ASSOCIATED(force_env)) THEN
          CPASSERT(force_env%ref_count > 0)
-         force_env%ref_count = force_env%ref_count-1
+         force_env%ref_count = force_env%ref_count - 1
          IF (force_env%ref_count == 0) THEN
             ! Deallocate SUB_FORCE_ENV
             IF (ASSOCIATED(force_env%sub_force_env)) THEN
@@ -214,13 +214,13 @@ CONTAINS
                   ! Use the proper logger to deallocate..
                   IF (force_env%in_use == use_mixed_force) THEN
                      my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
-                     my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
+                     my_logger => force_env%mixed_env%sub_logger(my_group + 1)%p
                      CALL cp_add_default_logger(my_logger)
                   END IF
                   ! The same for embedding
                   IF (force_env%in_use == use_embed) THEN
                      my_group = force_env%embed_env%group_distribution(force_env%para_env%mepos)
-                     my_logger => force_env%embed_env%sub_logger(my_group+1)%p
+                     my_logger => force_env%embed_env%sub_logger(my_group + 1)%p
                      CALL cp_add_default_logger(my_logger)
                   END IF
                   CALL force_env_release(force_env%sub_force_env(i)%force_env)
@@ -434,23 +434,23 @@ CONTAINS
       ! adjust the total energy for the metadynamics
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (PRESENT(potential_energy)) THEN
-            potential_energy = potential_energy+ &
-                               force_env%meta_env%epot_s+ &
-                               force_env%meta_env%epot_walls+ &
+            potential_energy = potential_energy + &
+                               force_env%meta_env%epot_s + &
+                               force_env%meta_env%epot_walls + &
                                force_env%meta_env%hills_env%energy
          END IF
          IF (PRESENT(kinetic_energy)) THEN
-            kinetic_energy = kinetic_energy+force_env%meta_env%ekin_s
+            kinetic_energy = kinetic_energy + force_env%meta_env%ekin_s
          END IF
       END IF
       ! adjust the total energy for the flexible partitioning
       IF (ASSOCIATED(force_env%fp_env) .AND. PRESENT(potential_energy)) THEN
          IF (force_env%fp_env%use_fp) THEN
-            potential_energy = potential_energy+force_env%fp_env%energy
+            potential_energy = potential_energy + force_env%fp_env%energy
          ENDIF
       ENDIF
       IF (PRESENT(potential_energy)) THEN
-         potential_energy = potential_energy+force_env%additional_potential
+         potential_energy = potential_energy + force_env%additional_potential
       END IF
       IF (PRESENT(additional_potential)) THEN
          additional_potential = force_env%additional_potential
@@ -691,7 +691,7 @@ CONTAINS
             i_force_eval = my_i_force_eval
          ELSE
             ! The difference in the amount of defined force_env MUST be one..
-            CPASSERT(nforce_eval-SIZE(my_i_force_eval) == 1)
+            CPASSERT(nforce_eval - SIZE(my_i_force_eval) == 1)
             DO iforce_eval = 1, nforce_eval
                IF (ANY(my_i_force_eval == iforce_eval)) CYCLE
                main_force_eval = iforce_eval

@@ -119,9 +119,9 @@ CONTAINS
       alpha = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
       galpha = 1.0_dp/(4.0_dp*alpha*alpha)
       tol1 = SQRT(-LOG(eps*rcut*(2.0_dp*tol*alpha)**2))
-      nmax1 = NINT(0.25_dp+cell%hmat(1, 1)*alpha*tol1/pi)
-      nmax2 = NINT(0.25_dp+cell%hmat(2, 2)*alpha*tol1/pi)
-      nmax3 = NINT(0.25_dp+cell%hmat(3, 3)*alpha*tol1/pi)
+      nmax1 = NINT(0.25_dp + cell%hmat(1, 1)*alpha*tol1/pi)
+      nmax2 = NINT(0.25_dp + cell%hmat(2, 2)*alpha*tol1/pi)
+      nmax3 = NINT(0.25_dp + cell%hmat(3, 3)*alpha*tol1/pi)
 
       rmax1 = CEILING(rcut/cell%hmat(1, 1))
       rmax2 = CEILING(rcut/cell%hmat(2, 2))
@@ -136,18 +136,18 @@ CONTAINS
       DO iparticle1 = 1, SIZE(particle_set)
          !NB parallelization
          IF (MOD(iparticle1, para_env%num_pe) /= para_env%mepos) CYCLE
-         ip1 = (iparticle1-1)*SIZE(radii)
-         q1t = SUM(charges(ip1+1:ip1+SIZE(radii)))
+         ip1 = (iparticle1 - 1)*SIZE(radii)
+         q1t = SUM(charges(ip1 + 1:ip1 + SIZE(radii)))
          DO iparticle2 = 1, iparticle1
             ij_fac = 1.0_dp
             IF (iparticle1 == iparticle2) ij_fac = 0.5_dp
 
-            ip2 = (iparticle2-1)*SIZE(radii)
-            q2t = SUM(charges(ip2+1:ip2+SIZE(radii)))
+            ip2 = (iparticle2 - 1)*SIZE(radii)
+            q2t = SUM(charges(ip2 + 1:ip2 + SIZE(radii)))
             !
             ! Real-Space Contribution
             !
-            rvec = particle_set(iparticle1)%r-particle_set(iparticle2)%r
+            rvec = particle_set(iparticle1)%r - particle_set(iparticle2)%r
             IF (iparticle1 /= iparticle2) THEN
                ra = rvec
                r2tmp = DOT_PRODUCT(ra, ra)
@@ -155,30 +155,30 @@ CONTAINS
                   r = SQRT(r2tmp)
                   t1 = erfc(alpha*r)/r
                   drvec = ra/r*q1t*q2t*factor
-                  t2 = -2.0_dp*alpha*EXP(-alpha*alpha*r*r)/(r*rootpi)-t1/r
-                  d_el(1:3, iparticle1) = d_el(1:3, iparticle1)-t2*drvec
-                  d_el(1:3, iparticle2) = d_el(1:3, iparticle2)+t2*drvec
+                  t2 = -2.0_dp*alpha*EXP(-alpha*alpha*r*r)/(r*rootpi) - t1/r
+                  d_el(1:3, iparticle1) = d_el(1:3, iparticle1) - t2*drvec
+                  d_el(1:3, iparticle2) = d_el(1:3, iparticle2) + t2*drvec
                END IF
             END IF
             DO r1 = -rmax1, rmax1
                DO r2 = -rmax2, rmax2
                   DO r3 = -rmax3, rmax3
                      IF ((r1 == 0) .AND. (r2 == 0) .AND. (r3 == 0)) CYCLE
-                     ra(1) = rvec(1)+cell%hmat(1, 1)*r1
-                     ra(2) = rvec(2)+cell%hmat(2, 2)*r2
-                     ra(3) = rvec(3)+cell%hmat(3, 3)*r3
+                     ra(1) = rvec(1) + cell%hmat(1, 1)*r1
+                     ra(2) = rvec(2) + cell%hmat(2, 2)*r2
+                     ra(3) = rvec(3) + cell%hmat(3, 3)*r3
                      r2tmp = DOT_PRODUCT(ra, ra)
                      IF (r2tmp <= rcut2) THEN
                         r = SQRT(r2tmp)
                         t1 = erfc(alpha*r)/r
                         drvec = ra/r*q1t*q2t*factor*ij_fac
-                        t2 = -2.0_dp*alpha*EXP(-alpha*alpha*r*r)/(r*rootpi)-t1/r
-                        d_el(1, iparticle1) = d_el(1, iparticle1)-t2*drvec(1)
-                        d_el(2, iparticle1) = d_el(2, iparticle1)-t2*drvec(2)
-                        d_el(3, iparticle1) = d_el(3, iparticle1)-t2*drvec(3)
-                        d_el(1, iparticle2) = d_el(1, iparticle2)+t2*drvec(1)
-                        d_el(2, iparticle2) = d_el(2, iparticle2)+t2*drvec(2)
-                        d_el(3, iparticle2) = d_el(3, iparticle2)+t2*drvec(3)
+                        t2 = -2.0_dp*alpha*EXP(-alpha*alpha*r*r)/(r*rootpi) - t1/r
+                        d_el(1, iparticle1) = d_el(1, iparticle1) - t2*drvec(1)
+                        d_el(2, iparticle1) = d_el(2, iparticle1) - t2*drvec(2)
+                        d_el(3, iparticle1) = d_el(3, iparticle1) - t2*drvec(3)
+                        d_el(1, iparticle2) = d_el(1, iparticle2) + t2*drvec(1)
+                        d_el(2, iparticle2) = d_el(2, iparticle2) + t2*drvec(2)
+                        d_el(3, iparticle2) = d_el(3, iparticle2) + t2*drvec(3)
                      END IF
                   END DO
                END DO
@@ -197,23 +197,23 @@ CONTAINS
                         gsqi = fs/gsq
                         t1 = fac*gsqi*EXP(-galpha*gsq)
                         t2 = -SIN(DOT_PRODUCT(gvec, rvec))*t1*q1t*q2t*factor*fourpi
-                        d_el(1:3, iparticle1) = d_el(1:3, iparticle1)-t2*gvec
-                        d_el(1:3, iparticle2) = d_el(1:3, iparticle2)+t2*gvec
+                        d_el(1:3, iparticle1) = d_el(1:3, iparticle1) - t2*gvec
+                        d_el(1:3, iparticle2) = d_el(1:3, iparticle2) + t2*gvec
                      END DO
                   END DO
                END DO
             ELSE
                gvec = Eval_d_Interp_Spl3_pbc(rvec, coeff)*q1t*q2t*factor*fourpi
-               d_el(1:3, iparticle1) = d_el(1:3, iparticle1)-gvec
-               d_el(1:3, iparticle2) = d_el(1:3, iparticle2)+gvec
+               d_el(1:3, iparticle1) = d_el(1:3, iparticle1) - gvec
+               d_el(1:3, iparticle2) = d_el(1:3, iparticle2) + gvec
             END IF
             IF (iparticle1 /= iparticle2) THEN
                ra = rvec
                r = SQRT(DOT_PRODUCT(ra, ra))
                t2 = -1.0_dp/(r*r)*factor
                drvec = ra/r*q1t*q2t
-               d_el(1:3, iparticle1) = d_el(1:3, iparticle1)+t2*drvec
-               d_el(1:3, iparticle2) = d_el(1:3, iparticle2)-t2*drvec
+               d_el(1:3, iparticle1) = d_el(1:3, iparticle1) + t2*drvec
+               d_el(1:3, iparticle2) = d_el(1:3, iparticle2) - t2*drvec
             END IF
          END DO ! iparticle2
       END DO ! iparticle1
@@ -283,7 +283,7 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)
-         force(ikind)%ch_pulay(1:3, i) = force(ikind)%ch_pulay(1:3, i)+chf(1:3, iatom)+d_el(1:3, iatom)
+         force(ikind)%ch_pulay(1:3, i) = force(ikind)%ch_pulay(1:3, i) + chf(1:3, iatom) + d_el(1:3, iatom)
       END DO
       DEALLOCATE (atom_of_kind)
       DEALLOCATE (kind_of)
@@ -348,29 +348,29 @@ CONTAINS
 
       order_p = 0.0_dp
       DO I = 1, ddapc_restraint_control%natoms
-         ind = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-         order_p = order_p+ddapc_restraint_control%coeff(I)*SUM(charges(ind+1:ind+n_gauss))
+         ind = (ddapc_restraint_control%atoms(I) - 1)*n_gauss
+         order_p = order_p + ddapc_restraint_control%coeff(I)*SUM(charges(ind + 1:ind + n_gauss))
       ENDDO
       ddapc_restraint_control%ddapc_order_p = order_p
 
       SELECT CASE (ddapc_restraint_control%functional_form)
       CASE (do_ddapc_restraint)
          ! the restraint energy
-         energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
+         energy_res = ddapc_restraint_control%strength*(order_p - ddapc_restraint_control%target)**2.0_dp
 
          ! derivative of the energy
-         dE = 2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
+         dE = 2.0_dp*ddapc_restraint_control%strength*(order_p - ddapc_restraint_control%target)
          DO I = 1, ddapc_restraint_control%natoms
-            ind = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-            uv(ind+1:ind+n_gauss) = dE*ddapc_restraint_control%coeff(I)
+            ind = (ddapc_restraint_control%atoms(I) - 1)*n_gauss
+            uv(ind + 1:ind + n_gauss) = dE*ddapc_restraint_control%coeff(I)
          ENDDO
       CASE (do_ddapc_constraint)
-         energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
+         energy_res = ddapc_restraint_control%strength*(order_p - ddapc_restraint_control%target)
 
          ! derivative of the energy
          DO I = 1, ddapc_restraint_control%natoms
-            ind = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-            uv(ind+1:ind+n_gauss) = ddapc_restraint_control%strength*ddapc_restraint_control%coeff(I)
+            ind = (ddapc_restraint_control%atoms(I) - 1)*n_gauss
+            uv(ind + 1:ind + n_gauss) = ddapc_restraint_control%strength*ddapc_restraint_control%coeff(I)
          ENDDO
 
       CASE DEFAULT
@@ -443,7 +443,7 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)
-         force(ikind)%ch_pulay(1:3, i) = force(ikind)%ch_pulay(1:3, i)+chf(1:3, iatom)
+         force(ikind)%ch_pulay(1:3, i) = force(ikind)%ch_pulay(1:3, i) + chf(1:3, iatom)
       END DO
       DEALLOCATE (atom_of_kind)
       DEALLOCATE (kind_of)
@@ -510,15 +510,15 @@ CONTAINS
             CASE (weight_type_unit)
                R0 = 0.0_dp
                DO i = 1, SIZE(list)
-                  R0 = R0+particle_set(list(i))%r
+                  R0 = R0 + particle_set(list(i))%r
                END DO
                R0 = R0/REAL(SIZE(list), KIND=dp)
             CASE (weight_type_mass)
                R0 = 0.0_dp
                mass = 0.0_dp
                DO i = 1, SIZE(list)
-                  R0 = R0+particle_set(list(i))%r*particle_set(list(i))%atomic_kind%mass
-                  mass = mass+particle_set(list(i))%atomic_kind%mass
+                  R0 = R0 + particle_set(list(i))%r*particle_set(list(i))%atomic_kind%mass
+                  mass = mass + particle_set(list(i))%atomic_kind%mass
                END DO
                R0 = R0/mass
             END SELECT
@@ -534,28 +534,28 @@ CONTAINS
       d_el = 0.0_dp
       ! Determining the single atomic contribution to the dielectric dipole
       DO i = 1, SIZE(particle_set)
-         rvec = particle_set(i)%r-center
+         rvec = particle_set(i)%r - center
          r2s = DOT_PRODUCT(rvec, rvec)
          r1s = SQRT(r2s)
          LocP(:, i) = 0.0_dp
          IF (r1s /= 0.0_dp) THEN
             DO l = 0, lmax
-               LocP(l, i) = (r1s**l*REAL(l+1, KIND=dp)*(eps_in-eps_out))/ &
-                            (Rs**(2*l+1)*eps_in*(REAL(l, KIND=dp)*eps_in+REAL(l+1, KIND=dp)*eps_out))
+               LocP(l, i) = (r1s**l*REAL(l + 1, KIND=dp)*(eps_in - eps_out))/ &
+                            (Rs**(2*l + 1)*eps_in*(REAL(l, KIND=dp)*eps_in + REAL(l + 1, KIND=dp)*eps_out))
             END DO
          END IF
          pos(i) = r1s
       END DO
       ! Computes the full derivatives of the interaction energy
       DO iparticle1 = 1, SIZE(particle_set)
-         ip1 = (iparticle1-1)*SIZE(radii)
-         q1t = SUM(charges(ip1+1:ip1+SIZE(radii)))
+         ip1 = (iparticle1 - 1)*SIZE(radii)
+         q1t = SUM(charges(ip1 + 1:ip1 + SIZE(radii)))
          DO iparticle2 = 1, iparticle1
-            ip2 = (iparticle2-1)*SIZE(radii)
-            q2t = SUM(charges(ip2+1:ip2+SIZE(radii)))
+            ip2 = (iparticle2 - 1)*SIZE(radii)
+            q2t = SUM(charges(ip2 + 1:ip2 + SIZE(radii)))
             !
-            r1 = particle_set(iparticle1)%r-center
-            r2 = particle_set(iparticle2)%r-center
+            r1 = particle_set(iparticle1)%r - center
+            r2 = particle_set(iparticle2)%r - center
             pos1 = pos(iparticle1)
             pos2 = pos(iparticle2)
             factor1 = 0.0_dp
@@ -568,21 +568,21 @@ CONTAINS
                ptcos = DOT_PRODUCT(r1, r2)
                mycos = ptcos/(pos1*pos2)
                IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
-               dcos1 = (r2*(pos1*pos2)-pos2*dpos1*ptcos)/(pos1*pos2)**2
-               dcos2 = (r1*(pos1*pos2)-pos1*dpos2*ptcos)/(pos1*pos2)**2
+               dcos1 = (r2*(pos1*pos2) - pos2*dpos1*ptcos)/(pos1*pos2)**2
+               dcos2 = (r1*(pos1*pos2) - pos1*dpos2*ptcos)/(pos1*pos2)**2
 
                DO l = 1, lmax
                   lr = REAL(l, KIND=dp)
-                  factor1 = factor1+lr*LocP(l, iparticle2)*pos1**(l-1)*legendre(mycos, l, 0)*dpos1 &
-                            +LocP(l, iparticle2)*pos1**l*dlegendre(mycos, l, 0)*dcos1
-                  factor2 = factor2+lr*LocP(l, iparticle1)*pos2**(l-1)*legendre(mycos, l, 0)*dpos2 &
-                            +LocP(l, iparticle1)*pos2**l*dlegendre(mycos, l, 0)*dcos2
+                  factor1 = factor1 + lr*LocP(l, iparticle2)*pos1**(l - 1)*legendre(mycos, l, 0)*dpos1 &
+                            + LocP(l, iparticle2)*pos1**l*dlegendre(mycos, l, 0)*dcos1
+                  factor2 = factor2 + lr*LocP(l, iparticle1)*pos2**(l - 1)*legendre(mycos, l, 0)*dpos2 &
+                            + LocP(l, iparticle1)*pos2**l*dlegendre(mycos, l, 0)*dcos2
                END DO
             END IF
             factor1 = factor1*q1t*q2t
             factor2 = factor2*q1t*q2t
-            d_el(1:3, iparticle1) = d_el(1:3, iparticle1)+0.5_dp*factor1
-            d_el(1:3, iparticle2) = d_el(1:3, iparticle2)+0.5_dp*factor2
+            d_el(1:3, iparticle1) = d_el(1:3, iparticle1) + 0.5_dp*factor1
+            d_el(1:3, iparticle2) = d_el(1:3, iparticle2) + 0.5_dp*factor2
          END DO
       END DO
       DEALLOCATE (pos)

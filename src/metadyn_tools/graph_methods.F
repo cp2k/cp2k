@@ -84,21 +84,21 @@ CONTAINS
       k = nn(idim)
 
       DO i = -k, k
-         pos(idim) = ind(idim)+i
+         pos(idim) = ind(idim) + i
          IF (iperd(idim) == 0) THEN
             IF (pos(idim) .GT. ngrid(idim)) CYCLE
             IF (pos(idim) .LT. 1) CYCLE
          END IF
          IF (idim /= 1) THEN
-            CALL fes_compute_low(idim-1, nn, fes, gauss, pos, ind0, nfes, ndim, ngauss, ngrid, iperd)
+            CALL fes_compute_low(idim - 1, nn, fes, gauss, pos, ind0, nfes, ndim, ngauss, ngrid, iperd)
          ELSE
             pnt = point_pbc(pos, iperd, ngrid, ndim)
             prod = 1.0_dp
             DO j = 1, ndim
-               ll(j) = pos(j)-ind0(j)
+               ll(j) = pos(j) - ind0(j)
                prod = prod*gauss(ll(j), j)
             END DO
-            fes(pnt) = fes(pnt)+prod
+            fes(pnt) = fes(pnt) + prod
          END IF
       END DO
       DEALLOCATE (pos, ll)
@@ -143,48 +143,48 @@ CONTAINS
       xx = x0
       DO i = 1, ngrid(idim)
          pos(idim) = i
-         IF (idim /= ndim-ndw+1) THEN
+         IF (idim /= ndim - ndw + 1) THEN
             IF (PRESENT(array)) THEN
-               CALL fes_write(unit_nr, idim-1, fes, pos, ndim, ngrid, dp_grid, &
+               CALL fes_write(unit_nr, idim - 1, fes, pos, ndim, ngrid, dp_grid, &
                               x0, ndw, l_fes_int, array)
             ELSE
-               CALL fes_write(unit_nr, idim-1, fes, pos, ndim, ngrid, dp_grid, &
+               CALL fes_write(unit_nr, idim - 1, fes, pos, ndim, ngrid, dp_grid, &
                               x0, ndw, l_fes_int)
             END IF
          ELSE
             IF (PRESENT(array)) THEN
                ind = 1
-               np = ngrid(ndim)*ngrid(ndim-1)*ngrid(ndim-2)
+               np = ngrid(ndim)*ngrid(ndim - 1)*ngrid(ndim - 2)
                DO is = 1, ndw
                   itt = 1
-                  DO it = 1, is-1
-                     itt = itt*ngrid(ndim-it)
+                  DO it = 1, is - 1
+                     itt = itt*ngrid(ndim - it)
                   END DO
-                  ind = ind+(pos(ndim-is+1)-1)*itt
+                  ind = ind + (pos(ndim - is + 1) - 1)*itt
                END DO
                IF (ind > np) CPABORT("something wrong in indexing ..")
             END IF
             pnt = point_no_pbc(pos, ngrid, ndim)
-            xx = x0+dp_grid*(pos-1)
-            dimval = PRODUCT(ngrid(1:ndim-ndw))
+            xx = x0 + dp_grid*(pos - 1)
+            dimval = PRODUCT(ngrid(1:ndim - ndw))
 
             IF (.NOT. l_fes_int) THEN
                IF (PRESENT(array)) THEN
-                  array(ind) = MINVAL(-fes(pnt:pnt+dimval-1))
+                  array(ind) = MINVAL(-fes(pnt:pnt + dimval - 1))
                ELSE
-                  WRITE (unit_nr, '(10f20.10)') (xx(id), id=ndim, ndim-ndw+1, -1), MINVAL(-fes(pnt:pnt+dimval-1))
+                  WRITE (unit_nr, '(10f20.10)') (xx(id), id=ndim, ndim - ndw + 1, -1), MINVAL(-fes(pnt:pnt + dimval - 1))
                END IF
             ELSE
                sum_fes = 0.0_dp
                dvol = 1.0_dp
-               dvol = PRODUCT(dp_grid(1:ndim-ndw))
-               DO is = pnt, pnt+dimval-1
-                  sum_fes = sum_fes+fes(is)*dvol
+               dvol = PRODUCT(dp_grid(1:ndim - ndw))
+               DO is = pnt, pnt + dimval - 1
+                  sum_fes = sum_fes + fes(is)*dvol
                END DO
                IF (PRESENT(array)) THEN
                   array(ind) = -sum_fes
                ELSE
-                  WRITE (unit_nr, '(10f20.10)') (xx(id), id=ndim, ndim-ndw+1, -1), -sum_fes
+                  WRITE (unit_nr, '(10f20.10)') (xx(id), id=ndim, ndim - ndw + 1, -1), -sum_fes
                END IF
             END IF
          END IF
@@ -225,20 +225,20 @@ CONTAINS
 
       DO i = 1, ngrid(idim)
          pos(idim) = i
-         IF (idim /= ndim-ndw+1) THEN
-            CALL fes_only_write(idim-1, fes, pos, ndim, ngrid, dp_grid, ndw, l_fes_int, unit_nr)
+         IF (idim /= ndim - ndw + 1) THEN
+            CALL fes_only_write(idim - 1, fes, pos, ndim, ngrid, dp_grid, ndw, l_fes_int, unit_nr)
          ELSE
             pnt = point_no_pbc(pos, ngrid, ndim)
-            dimval = PRODUCT(ngrid(1:ndim-ndw))
+            dimval = PRODUCT(ngrid(1:ndim - ndw))
             IF (l_fes_int) THEN
-               WRITE (unit_nr, '(1f12.5)') MINVAL(-fes(pnt:pnt+dimval-1))
+               WRITE (unit_nr, '(1f12.5)') MINVAL(-fes(pnt:pnt + dimval - 1))
             ELSE
                sum_fes = 0.0_dp
-               dvol = PRODUCT(dp_grid(1:ndim-ndw))
-               DO is = pnt, pnt+dimval-1
-                  sum_fes = sum_fes+fes(is)*dvol
+               dvol = PRODUCT(dp_grid(1:ndim - ndw))
+               DO is = pnt, pnt + dimval - 1
+                  sum_fes = sum_fes + fes(is)*dvol
                END DO
-               WRITE (unit_nr, '(1f12.5)')-sum_fes
+               WRITE (unit_nr, '(1f12.5)') - sum_fes
             END IF
          END IF
       END DO
@@ -290,13 +290,13 @@ CONTAINS
          ! Loop over all points
          pnt = j
          DO k = ndim, 2, -1
-            pos0(k) = pnt/PRODUCT(ngrid(1:k-1))
-            resto = MOD(pnt, PRODUCT(ngrid(1:k-1)))
+            pos0(k) = pnt/PRODUCT(ngrid(1:k - 1))
+            resto = MOD(pnt, PRODUCT(ngrid(1:k - 1)))
             IF (resto /= 0) THEN
-               pnt = pnt-pos0(k)*PRODUCT(ngrid(1:k-1))
-               pos0(k) = pos0(k)+1
+               pnt = pnt - pos0(k)*PRODUCT(ngrid(1:k - 1))
+               pos0(k) = pos0(k) + 1
             ELSE
-               pnt = PRODUCT(ngrid(1:k-1))
+               pnt = PRODUCT(ngrid(1:k - 1))
             END IF
          END DO
          pos0(1) = pnt
@@ -304,12 +304,12 @@ CONTAINS
          ! Loop over the frame points unless it is periodic
          DO k = 1, ndim
             IF ((iperd(k) == 0) .AND. (pos0(k) < ntrust(k))) CYCLE Trials
-            IF ((iperd(k) == 0) .AND. (pos0(k) > ngrid(k)-ntrust(k))) CYCLE Trials
+            IF ((iperd(k) == 0) .AND. (pos0(k) > ngrid(k) - ntrust(k))) CYCLE Trials
          END DO
 
          ! Evaluate position and derivative
          pos = pos0
-         xx = x0+dp_grid*(pos-1)
+         xx = x0 + dp_grid*(pos - 1)
          dx = derivative(fes, pos, iperd, ndim, ngrid, dp_grid)
 
          ! Integrate till derivative is small enough..
@@ -324,16 +324,16 @@ CONTAINS
 
             norm_dx = SQRT(DOT_PRODUCT(dx, dx))
             IF (norm_dx == 0.0_dp) EXIT ! It is in a really flat region
-            xx = xx-MIN(0.1_dp, norm_dx)*dx/norm_dx
+            xx = xx - MIN(0.1_dp, norm_dx)*dx/norm_dx
             ! Re-evaluating pos
-            pos = CEILING((xx-x0)/dp_grid)+1
+            pos = CEILING((xx - x0)/dp_grid) + 1
             CALL pbc(pos, iperd, ngrid, ndim)
 
             ! Incremental pos
             dx = derivative(fes, pos, iperd, ndim, ngrid, dp_grid)
             pnt = point_no_pbc(pos, ngrid, ndim)
             fes_now = -fes(pnt)
-            i = i+1
+            i = i + 1
          END DO
          iter = i
 
@@ -342,7 +342,7 @@ CONTAINS
          do_save = fes(pnt) >= 1.0E-3_dp
          IF (do_save) THEN
             DO i = 1, nacc
-               Dpos = pos-history(:, i)
+               Dpos = pos - history(:, i)
                norm_dx = DOT_PRODUCT(Dpos, Dpos)
                max_ntrust = MAXVAL(ntrust)
                ! (SQRT(REAL(norm_dx, KIND=dp)) <= MAXVAL(ntrust)) ...
@@ -354,10 +354,10 @@ CONTAINS
          END IF
          IF (do_save) THEN
             pnt = point_no_pbc(pos, ngrid, ndim)
-            xx = x0+dp_grid*(pos-1)
-            WRITE (*, '(A,5F12.6)', ADVANCE="NO") "FES| Minimum found (", (xx(id), id=ndim, ndim-ndw+1, -1)
+            xx = x0 + dp_grid*(pos - 1)
+            WRITE (*, '(A,5F12.6)', ADVANCE="NO") "FES| Minimum found (", (xx(id), id=ndim, ndim - ndw + 1, -1)
             WRITE (*, '(A,F12.6,A,I6)') " ). FES value = ", -fes(pnt), " Hartree. Number of Iter: ", iter
-            nacc = nacc+1
+            nacc = nacc + 1
             history(:, nacc) = pos
          END IF
       END DO Trials
@@ -412,16 +412,16 @@ CONTAINS
 
       IF (l_int) THEN
          id = 0
-         DO i = ndim, ndim-ndw+1, -1
-            id = id+1
+         DO i = ndim, ndim - ndw + 1, -1
+            id = id + 1
             pos(i, 1) = mep_input_data%minima(id, 1)
             pos(i, nreplica) = mep_input_data%minima(id, 2)
          END DO
 
          ! Interpolate nreplica-2 points
-         xx = (pos(:, nreplica)-pos(:, 1))/REAL(nreplica-1, KIND=dp)
-         DO irep = 2, nreplica-1
-            pos(:, irep) = pos(:, 1)+xx(:)*REAL(irep-1, KIND=dp)
+         xx = (pos(:, nreplica) - pos(:, 1))/REAL(nreplica - 1, KIND=dp)
+         DO irep = 2, nreplica - 1
+            pos(:, irep) = pos(:, 1) + xx(:)*REAL(irep - 1, KIND=dp)
          END DO
 
       ELSE
@@ -430,7 +430,7 @@ CONTAINS
 
       ! Compute value and derivative in all replicas
       DO irep = 1, nreplica
-         ipos = FLOOR((pos(:, irep)-x0)/dp_grid)+1
+         ipos = FLOOR((pos(:, irep) - x0)/dp_grid) + 1
          pnt = point_no_pbc(ipos, ngrid, ndim)
          dx(:, irep) = derivative(fes, ipos, iperd, ndim, ngrid, dp_grid)
          fes_rep(irep) = -fes(pnt)
@@ -442,22 +442,22 @@ CONTAINS
       pos_old = pos
       iter = 0
       DO WHILE ((.NOT. converged) .AND. (iter <= mep_input_data%max_iter))
-         iter = iter+1
+         iter = iter + 1
          avg1 = 0.0_dp
          ! compute average length (distance 1)
          DO irep = 2, nreplica
-            xx = pos(:, irep)-pos(:, irep-1)
-            avg1 = avg1+SQRT(DOT_PRODUCT(xx, xx))
+            xx = pos(:, irep) - pos(:, irep - 1)
+            avg1 = avg1 + SQRT(DOT_PRODUCT(xx, xx))
          END DO
-         avg1 = avg1/REAL(nreplica-1, KIND=dp)
+         avg1 = avg1/REAL(nreplica - 1, KIND=dp)
 
          avg2 = 0.0_dp
          ! compute average length (distance 2)
          DO irep = 3, nreplica
-            xx = pos(:, irep)-pos(:, irep-2)
-            avg2 = avg2+SQRT(DOT_PRODUCT(xx, xx))
+            xx = pos(:, irep) - pos(:, irep - 2)
+            avg2 = avg2 + SQRT(DOT_PRODUCT(xx, xx))
          END DO
-         avg2 = avg2/REAL(nreplica-2, KIND=dp)
+         avg2 = avg2/REAL(nreplica - 2, KIND=dp)
 
          ! compute energy and derivatives
          dx = 0.0_dp
@@ -466,7 +466,7 @@ CONTAINS
          nf = nreplica
          DO irep = 1, nreplica
             ! compute energy and map point replica irep
-            ipos = FLOOR((pos(:, irep)-x0)/dp_grid)+1
+            ipos = FLOOR((pos(:, irep) - x0)/dp_grid) + 1
             pnt = point_no_pbc(ipos, ngrid, ndim)
             fes_rep(irep) = -fes(pnt)
             IF ((irep == 1) .OR. (irep == nreplica)) CYCLE
@@ -475,56 +475,56 @@ CONTAINS
             ! compute non-linear elastic terms : including only 2-d springs
             ! -------------------------------------------------------------
             davg2 = 0.0_dp
-            IF (irep < nf-1) THEN
-               xx = pos(:, irep)-pos(:, irep+2)
+            IF (irep < nf - 1) THEN
+               xx = pos(:, irep) - pos(:, irep + 2)
                xx0 = SQRT(DOT_PRODUCT(xx, xx))
                dxx = 1.0_dp/xx0*xx
-               ene = ene+0.25_dp*mep_input_data%kb*(xx0-avg2)**2
-               davg2 = davg2+dxx
+               ene = ene + 0.25_dp*mep_input_data%kb*(xx0 - avg2)**2
+               davg2 = davg2 + dxx
             END IF
 
-            IF (irep > ns+1) THEN
-               xx = pos(:, irep)-pos(:, irep-2)
+            IF (irep > ns + 1) THEN
+               xx = pos(:, irep) - pos(:, irep - 2)
                yy0 = SQRT(DOT_PRODUCT(xx, xx))
                dyy = 1.0_dp/yy0*xx
-               davg2 = davg2+dyy
+               davg2 = davg2 + dyy
             END IF
-            davg2 = davg2/REAL(nreplica-2, KIND=dp)
+            davg2 = davg2/REAL(nreplica - 2, KIND=dp)
 
-            IF (irep < nf-1) THEN
-               dx(:, irep) = dx(:, irep)+0.5_dp*mep_input_data%kb*(xx0-avg2)*(dxx-davg2)
+            IF (irep < nf - 1) THEN
+               dx(:, irep) = dx(:, irep) + 0.5_dp*mep_input_data%kb*(xx0 - avg2)*(dxx - davg2)
             END IF
-            IF (irep > ns+1) THEN
-               dx(:, irep) = dx(:, irep)+0.5_dp*mep_input_data%kb*(yy0-avg2)*(dyy-davg2)
+            IF (irep > ns + 1) THEN
+               dx(:, irep) = dx(:, irep) + 0.5_dp*mep_input_data%kb*(yy0 - avg2)*(dyy - davg2)
             END IF
 
             ! -------------------------------------------------------------
             ! Evaluation of the elastic term
             ! -------------------------------------------------------------
-            xx = pos(:, irep)-pos(:, irep+1)
+            xx = pos(:, irep) - pos(:, irep + 1)
             yy0 = SQRT(DOT_PRODUCT(xx, xx))
             dyy = 1.0_dp/yy0*xx
 
-            xx = pos(:, irep)-pos(:, irep-1)
+            xx = pos(:, irep) - pos(:, irep - 1)
             xx0 = SQRT(DOT_PRODUCT(xx, xx))
             dxx = 1.0_dp/xx0*xx
-            davg1 = (dxx+dyy)/REAL(nreplica-1, KIND=dp)
+            davg1 = (dxx + dyy)/REAL(nreplica - 1, KIND=dp)
 
-            ene = ene+0.5_dp*mep_input_data%kb*(xx0-avg1)**2
-            dx(:, irep) = dx(:, irep)+mep_input_data%kb*(xx0-avg1)*(dxx-davg1)+ &
-                          mep_input_data%kb*(yy0-avg1)*(dyy-davg1)
+            ene = ene + 0.5_dp*mep_input_data%kb*(xx0 - avg1)**2
+            dx(:, irep) = dx(:, irep) + mep_input_data%kb*(xx0 - avg1)*(dxx - davg1) + &
+                          mep_input_data%kb*(yy0 - avg1)*(dyy - davg1)
 
             ! Evaluate the tangent
-            xx = pos(:, irep+1)-pos(:, irep)
+            xx = pos(:, irep + 1) - pos(:, irep)
             xx = xx/SQRT(DOT_PRODUCT(xx, xx))
-            yy = pos(:, irep)-pos(:, irep-1)
+            yy = pos(:, irep) - pos(:, irep - 1)
             yy = yy/SQRT(DOT_PRODUCT(yy, yy))
-            tang = xx+yy
+            tang = xx + yy
             tang = tang/SQRT(DOT_PRODUCT(tang, tang))
 
             xx = derivative(fes, ipos, iperd, ndim, ngrid, dp_grid)
-            dx(:, irep) = DOT_PRODUCT(dx(:, irep), tang)*tang+ &
-                          xx-DOT_PRODUCT(xx, tang)*tang
+            dx(:, irep) = DOT_PRODUCT(dx(:, irep), tang)*tang + &
+                          xx - DOT_PRODUCT(xx, tang)*tang
          END DO
          dx(:, 1) = 0.0_dp
          dx(:, nreplica) = 0.0_dp
@@ -532,15 +532,15 @@ CONTAINS
          ! propagate the band with a SD step
          diff = 0.0_dp
          DO irep = 1, nreplica
-            ene = ene+fes_rep(irep)
+            ene = ene + fes_rep(irep)
             IF ((irep == 1) .OR. (irep == nreplica)) CYCLE
 
             norm_dx = SQRT(DOT_PRODUCT(dx(:, irep), dx(:, irep)))
             IF (norm_dx /= 0.0_dp) THEN
-               pos(:, irep) = pos(:, irep)-MIN(0.1_dp, norm_dx)*dx(:, irep)/norm_dx
+               pos(:, irep) = pos(:, irep) - MIN(0.1_dp, norm_dx)*dx(:, irep)/norm_dx
             END IF
-            xx = pos(:, irep)-pos_old(:, irep)
-            diff = diff+DOT_PRODUCT(xx, xx)
+            xx = pos(:, irep) - pos_old(:, irep)
+            diff = diff + DOT_PRODUCT(xx, xx)
          END DO
          ! SQRT(diff) <= 0.001_dp
          IF (diff <= 1.0e-6_dp) THEN
@@ -554,10 +554,10 @@ CONTAINS
       CALL open_file(unit_number=unit_nr, file_name="mep.data", file_action="WRITE", file_status="UNKNOWN", file_form="FORMATTED")
       DO irep = 1, nreplica
          ! compute energy and derivative for each single point of the replica
-         ipos = FLOOR((pos(:, irep)-x0)/dp_grid)+1
+         ipos = FLOOR((pos(:, irep) - x0)/dp_grid) + 1
          pnt = point_no_pbc(ipos, ngrid, ndim)
          fes_rep(irep) = -fes(pnt)
-         WRITE (unit_nr, *) irep, pos(:, nreplica-irep+1), fes_rep(nreplica-irep+1)
+         WRITE (unit_nr, *) irep, pos(:, nreplica - irep + 1), fes_rep(nreplica - irep + 1)
       END DO
       CALL close_file(unit_nr)
 
@@ -624,8 +624,8 @@ CONTAINS
 
       residual = 0.0d0
       DO ix = 1, 3
-         DO iy = ix+1, 3
-            residual = residual+cell(ix, iy)**2
+         DO iy = ix + 1, 3
+            residual = residual + cell(ix, iy)**2
          END DO
       END DO
 
@@ -654,21 +654,21 @@ CONTAINS
       DO ix = 1, 3
          delta(ix) = rt(ix)/dr(ix)
          id(ix) = INT(delta(ix))
-         delta(ix) = rt(ix)-id(ix)*dr(ix)
+         delta(ix) = rt(ix) - id(ix)*dr(ix)
       END DO
 
       DO iz = 1, ngrid(3)
          DO iy = 1, ngrid(2)
             DO ix = 1, ngrid(1)
-               iix = ix+id(1)
-               iiy = iy+id(2)
-               iiz = iz+id(3)
-               IF (iix .LT. 1) iix = iix+ngrid(1)
-               IF (iiy .LT. 1) iiy = iiy+ngrid(2)
-               IF (iiz .LT. 1) iiz = iiz+ngrid(3)
-               IF (iix .GT. ngrid(1)) iix = iix-ngrid(1)
-               IF (iiy .GT. ngrid(2)) iiy = iiy-ngrid(2)
-               IF (iiz .GT. ngrid(3)) iiz = iiz-ngrid(3)
+               iix = ix + id(1)
+               iiy = iy + id(2)
+               iiz = iz + id(3)
+               IF (iix .LT. 1) iix = iix + ngrid(1)
+               IF (iiy .LT. 1) iiy = iiy + ngrid(2)
+               IF (iiz .LT. 1) iiz = iiz + ngrid(3)
+               IF (iix .GT. ngrid(1)) iix = iix - ngrid(1)
+               IF (iiy .GT. ngrid(2)) iiy = iiy - ngrid(2)
+               IF (iiz .GT. ngrid(3)) iiz = iiz - ngrid(3)
 
                IF (iix .LT. 1) CPABORT("ix < 0")
                IF (iiy .LT. 1) CPABORT("iy < 0")
@@ -676,8 +676,8 @@ CONTAINS
                IF (iix .GT. ngrid(1)) CPABORT("ix > cell")
                IF (iiy .GT. ngrid(2)) CPABORT("iy > cell")
                IF (iiz .GT. ngrid(3)) CPABORT("iz > cell")
-               i = ix+(iy-1)*ngrid(1)+(iz-1)*ngrid(1)*ngrid(2)
-               ii = iix+(iiy-1)*ngrid(1)+(iiz-1)*ngrid(1)*ngrid(2)
+               i = ix + (iy - 1)*ngrid(1) + (iz - 1)*ngrid(1)*ngrid(2)
+               ii = iix + (iiy - 1)*ngrid(1) + (iiz - 1)*ngrid(1)*ngrid(2)
                rhot(ii) = rho(i)
             END DO
          END DO
@@ -691,7 +691,7 @@ CONTAINS
       DO WHILE (.TRUE.)
          READ (10, '(A)') line
          IF (INDEX(line, '&END') /= 0) EXIT
-         natoms = natoms+1
+         natoms = natoms + 1
          READ (line, *) label, (xat(natoms, ix), ix=1, 3)
          IF (natoms == SIZE(xat, 1)) THEN
             CALL reallocate(xat, 1, SIZE(xat, 1)*2, 1, 3)
@@ -703,7 +703,7 @@ CONTAINS
             CALL uppercase(labelp)
             IF (TRIM(label) == TRIM(labelp)) EXIT
          END DO
-         IF (i == nelem+1) THEN
+         IF (i == nelem + 1) THEN
             WRITE (*, *) TRIM(label), "In line: ", line
             CPABORT("Element not recognized!")
          END IF
@@ -714,9 +714,9 @@ CONTAINS
 
       DO i = 1, natoms
          DO ix = 1, 3
-            xat(i, ix) = xat(i, ix)+rt(ix)-delta(ix)
-            IF (xat(i, ix) .LT. rt(ix)) xat(i, ix) = xat(i, ix)+cell(ix, ix)
-            IF (xat(i, ix) .GT. -rt(ix)) xat(i, ix) = xat(i, ix)-cell(ix, ix)
+            xat(i, ix) = xat(i, ix) + rt(ix) - delta(ix)
+            IF (xat(i, ix) .LT. rt(ix)) xat(i, ix) = xat(i, ix) + cell(ix, ix)
+            IF (xat(i, ix) .GT. -rt(ix)) xat(i, ix) = xat(i, ix) - cell(ix, ix)
          END DO
       END DO
 
@@ -736,7 +736,7 @@ CONTAINS
       DO ix = 1, ngrid(1)
          DO iy = 1, ngrid(2)
 
-            WRITE (123, '(6e13.5)') (rhot(ix+(iy-1)*ngrid(1)+(iz-1)*ngrid(1)&
+            WRITE (123, '(6e13.5)') (rhot(ix + (iy - 1)*ngrid(1) + (iz - 1)*ngrid(1)&
                                          &*ngrid(2)), iz=1, ngrid(3))
          END DO
       END DO

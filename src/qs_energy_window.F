@@ -182,10 +182,10 @@ CONTAINS
 
       !diagonalize the full ks matrix
       CALL choose_eigv_solver(matrix_ks_fm, eigenvectors, eigenvalues)
-      fermi_level = eigenvalues((nelectron_total+MOD(nelectron_total, 2))/2)
+      fermi_level = eigenvalues((nelectron_total + MOD(nelectron_total, 2))/2)
       IF (restrict_range) THEN
-         lower_bound = MAX(fermi_level-energy_range, eigenvalues(1))
-         upper_bound = MIN(fermi_level+energy_range, eigenvalues(SIZE(eigenvalues)))
+         lower_bound = MAX(fermi_level - energy_range, eigenvalues(1))
+         upper_bound = MIN(fermi_level + energy_range, eigenvalues(SIZE(eigenvalues)))
       ELSE
          lower_bound = eigenvalues(1)
          upper_bound = eigenvalues(SIZE(eigenvalues))
@@ -237,7 +237,7 @@ CONTAINS
          CALL choose_eigv_solver(P_window_fm, window_eigenvectors, window_eigenvalues)
          DO i = 1, nao
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) i, "H:", eigenvalues(i), "P:", P_eigenvalues(nao-i+1), "Pnew:", window_eigenvalues(nao-i+1)
+              WRITE (unit_nr, *) i, "H:", eigenvalues(i), "P:", P_eigenvalues(nao - i + 1), "Pnew:", window_eigenvalues(nao - i + 1)
             ENDIF
          END DO
          DEALLOCATE (P_eigenvalues)
@@ -249,31 +249,31 @@ CONTAINS
       END IF
 
       !create energy windows
-      bin_width = (upper_bound-lower_bound)/nwindows
+      bin_width = (upper_bound - lower_bound)/nwindows
       next = 0
 
       DO i = 1, nwindows
-         DO WHILE (eigenvalues(next+1) < lower_bound)
-            next = next+1
+         DO WHILE (eigenvalues(next + 1) < lower_bound)
+            next = next + 1
          END DO
          last = next
-         DO WHILE (eigenvalues(next+1) < lower_bound+i*bin_width)
-            next = next+1
+         DO WHILE (eigenvalues(next + 1) < lower_bound + i*bin_width)
+            next = next + 1
             IF (next == SIZE(eigenvalues)) EXIT
          END DO
          !calculate the occupation
          !not sure how bad this is now load balanced due to using the same blacs_env
-         CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last)
+         CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next - last)
          CALL cp_fm_create(window_fm, window_fm_struct)
          !copy the mos in the energy window into a separate matrix
-         CALL cp_fm_to_fm(eigenvectors, window_fm, next-last, last+1, 1)
-         CALL cp_gemm("N", "T", nao, nao, next-last, one, window_fm, window_fm, zero, P_window_fm)
+         CALL cp_fm_to_fm(eigenvectors, window_fm, next - last, last + 1, 1)
+         CALL cp_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
          CALL cp_fm_trace(P_window_fm, rho_ao_ortho_fm, occupation)
          IF (print_cube) THEN
-            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last+1, 1)
+            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next - last, last + 1, 1)
             !print the energy window to a cube file
             !calculate the density caused by the mos in the energy window
-            CALL cp_gemm("N", "T", nao, nao, next-last, one, window_fm, window_fm, zero, P_window_fm)
+            CALL cp_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
             CALL dbcsr_copy(window, matrix_ks(1)%matrix)
@@ -294,12 +294,12 @@ CONTAINS
                                               "PRINT%ENERGY_WINDOWS", mpi_io=mpi_io)
             density_ewindow_total = pw_integrate_function(rho_r%pw)
             IF (unit_nr > 0) WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14,A,F20.14)") " Energy Level: ", &
-               lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", next-last, " Occupation: ", &
+               lower_bound + (i - 0.5_dp)*bin_width, " Number of states: ", next - last, " Occupation: ", &
                occupation, " Grid Density ", density_ewindow_total
          ELSE
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14)") " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, &
-                  " Number of states: ", next-last, " Occupation: ", occupation
+               WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14)") " Energy Level: ", lower_bound + (i - 0.5_dp)*bin_width, &
+                  " Number of states: ", next - last, " Occupation: ", occupation
             END IF
          END IF
          CALL cp_fm_release(window_fm)

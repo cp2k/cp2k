@@ -49,15 +49,15 @@ MODULE topology_psf
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
 
-  PRIVATE
-  PUBLIC :: read_topology_psf,&
-            write_topology_psf,&
-            psf_post_process,&
-            idm_psf
+   PRIVATE
+   PUBLIC :: read_topology_psf, &
+             write_topology_psf, &
+             psf_post_process, &
+             idm_psf
 
 CONTAINS
 
@@ -74,7 +74,7 @@ CONTAINS
 !>      This routine should contain only information read from the PSF format
 !>      and all post_process should be performef in the psf_post_process
 ! **************************************************************************************************
-  SUBROUTINE read_topology_psf (filename,topology,para_env,subsys_section, psf_type)
+   SUBROUTINE read_topology_psf(filename, topology, para_env, subsys_section, psf_type)
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -96,323 +96,323 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_parser_type), POINTER                      :: parser
 
-    NULLIFY(parser, logger)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog")
-    CALL timeset(routineN,handle)
-    CALL parser_create(parser,filename,para_env=para_env)
+      NULLIFY (parser, logger)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+      iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PSF_INFO", &
+                                extension=".subsysLog")
+      CALL timeset(routineN, handle)
+      CALL parser_create(parser, filename, para_env=para_env)
 
-    atom_info => topology%atom_info
-    conn_info => topology%conn_info
-    natom_prev = 0
-    IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
-    c_int      = 'I8'
-    label      = 'PSF'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF (.NOT. found) THEN
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(A)')"ERROR| Missing PSF specification line"
-       END IF
-       CPABORT("")
-    END IF
-    DO WHILE (parser_test_next_token(parser)/="EOL")
-       CALL parser_get_object  (parser,field)
-       SELECT CASE(field(1:3))
-       CASE ("PSF")
-          IF (psf_type==do_conn_psf) THEN
-            ! X-PLOR PSF format "similar" to the plain CHARMM PSF format
-            psf_format = '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
-          ENDIF
-       CASE ("EXT")
-          IF (psf_type==do_conn_psf) THEN
-            ! EXTEnded CHARMM31 format
-            psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
-            c_int      = 'I10'
-          ELSE
-            CPABORT("PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
-          ENDIF
-       CASE DEFAULT
-          CPABORT("PSF_INFO| "//field(1:3)//" :: Unimplemented keyword in CP2K PSF/UPSF format!")
-       END SELECT
-    END DO
-    IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NATOM section'
-    !
-    ! ATOM section
-    !
-    label = '!NATOM'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF ( .NOT. found ) THEN
-       IF(iw>0) WRITE (iw,'(T2,A)') 'PSF_INFO| No NATOM section '
-       natom = 0
-    ELSE
-       CALL parser_get_object  (parser,natom)
-       IF(natom_prev+natom>topology%natoms)&
-          CALL cp_abort(__LOCATION__,&
-               "Number of atoms in connectivity control is larger than the "//&
-               "number of atoms in coordinate control. check coordinates and "//&
-               "connectivity. ")
-       IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ',natom
-       !malloc the memory that we need
-       CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
-       CALL reallocate(atom_info%resid,1,natom_prev+natom)
-       CALL reallocate(atom_info%id_resname,1,natom_prev+natom)
-       CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
-       CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
-       CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
-       !Read in the atom info
-       IF (psf_type==do_conn_psf_u) THEN
-          DO iatom=1,natom
-             index_now=iatom+natom_prev
-             CALL parser_get_next_line(parser,1)
-             READ(parser%input_line,FMT=*,ERR=9)i,&
-                                      strtmp1,&
-                                      atom_info%resid(index_now),&
-                                      strtmp2,&
-                                      dummy_field,&
-                                      strtmp3,&
-                                      atom_info%atm_charge(index_now),&
-                                      atom_info%atm_mass(index_now)
-             atom_info%id_molname(index_now)=str2id(s2s(strtmp1))
-             atom_info%id_resname(index_now)=str2id(s2s(strtmp2))
-             atom_info%id_atmname(index_now)=str2id(s2s(strtmp3))
-          END DO
-       ELSE
-          DO iatom=1,natom
-             index_now=iatom+natom_prev
-             CALL parser_get_next_line(parser,1)
-             READ(parser%input_line,FMT=psf_format)&
-                  i,&
-                  strtmp1,&
-                  atom_info%resid(index_now),&
-                  strtmp2,&
-                  dummy_field,&
-                  strtmp3,&
-                  atom_info%atm_charge(index_now),&
-                  atom_info%atm_mass(index_now),&
+      atom_info => topology%atom_info
+      conn_info => topology%conn_info
+      natom_prev = 0
+      IF (ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
+      c_int = 'I8'
+      label = 'PSF'
+      CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
+      IF (.NOT. found) THEN
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(A)') "ERROR| Missing PSF specification line"
+         END IF
+         CPABORT("")
+      END IF
+      DO WHILE (parser_test_next_token(parser) /= "EOL")
+         CALL parser_get_object(parser, field)
+         SELECT CASE (field(1:3))
+         CASE ("PSF")
+            IF (psf_type == do_conn_psf) THEN
+               ! X-PLOR PSF format "similar" to the plain CHARMM PSF format
+               psf_format = '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
+            ENDIF
+         CASE ("EXT")
+            IF (psf_type == do_conn_psf) THEN
+               ! EXTEnded CHARMM31 format
+               psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
+               c_int = 'I10'
+            ELSE
+               CPABORT("PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
+            ENDIF
+         CASE DEFAULT
+            CPABORT("PSF_INFO| "//field(1:3)//" :: Unimplemented keyword in CP2K PSF/UPSF format!")
+         END SELECT
+      END DO
+      IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| Parsing the NATOM section'
+      !
+      ! ATOM section
+      !
+      label = '!NATOM'
+      CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
+      IF (.NOT. found) THEN
+         IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| No NATOM section '
+         natom = 0
+      ELSE
+         CALL parser_get_object(parser, natom)
+         IF (natom_prev + natom > topology%natoms) &
+            CALL cp_abort(__LOCATION__, &
+                          "Number of atoms in connectivity control is larger than the "// &
+                          "number of atoms in coordinate control. check coordinates and "// &
+                          "connectivity. ")
+         IF (iw > 0) WRITE (iw, '(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ', natom
+         !malloc the memory that we need
+         CALL reallocate(atom_info%id_molname, 1, natom_prev + natom)
+         CALL reallocate(atom_info%resid, 1, natom_prev + natom)
+         CALL reallocate(atom_info%id_resname, 1, natom_prev + natom)
+         CALL reallocate(atom_info%id_atmname, 1, natom_prev + natom)
+         CALL reallocate(atom_info%atm_charge, 1, natom_prev + natom)
+         CALL reallocate(atom_info%atm_mass, 1, natom_prev + natom)
+         !Read in the atom info
+         IF (psf_type == do_conn_psf_u) THEN
+            DO iatom = 1, natom
+               index_now = iatom + natom_prev
+               CALL parser_get_next_line(parser, 1)
+               READ (parser%input_line, FMT=*, ERR=9) i, &
+                  strtmp1, &
+                  atom_info%resid(index_now), &
+                  strtmp2, &
+                  dummy_field, &
+                  strtmp3, &
+                  atom_info%atm_charge(index_now), &
+                  atom_info%atm_mass(index_now)
+               atom_info%id_molname(index_now) = str2id(s2s(strtmp1))
+               atom_info%id_resname(index_now) = str2id(s2s(strtmp2))
+               atom_info%id_atmname(index_now) = str2id(s2s(strtmp3))
+            END DO
+         ELSE
+            DO iatom = 1, natom
+               index_now = iatom + natom_prev
+               CALL parser_get_next_line(parser, 1)
+               READ (parser%input_line, FMT=psf_format) &
+                  i, &
+                  strtmp1, &
+                  atom_info%resid(index_now), &
+                  strtmp2, &
+                  dummy_field, &
+                  strtmp3, &
+                  atom_info%atm_charge(index_now), &
+                  atom_info%atm_mass(index_now), &
                   idum
-             atom_info%id_molname(index_now)=str2id(s2s(strtmp1))
-             atom_info%id_resname(index_now)=str2id(s2s(strtmp2))
-             atom_info%id_atmname(index_now)=str2id(s2s(ADJUSTL(strtmp3)))
-          END DO
-       END IF
-    END IF
+               atom_info%id_molname(index_now) = str2id(s2s(strtmp1))
+               atom_info%id_resname(index_now) = str2id(s2s(strtmp2))
+               atom_info%id_atmname(index_now) = str2id(s2s(ADJUSTL(strtmp3)))
+            END DO
+         END IF
+      END IF
 
-    !
-    ! BOND section
-    !
-    nbond_prev = 0
-    IF(ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
+      !
+      ! BOND section
+      !
+      nbond_prev = 0
+      IF (ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
 
-    IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NBOND section'
-    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated BOND: ',nbond_prev
-    label = '!NBOND'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF ( .NOT. found ) THEN
-       IF(iw>0) WRITE (iw,'(T2,A)')'PSF_INFO| No NBOND section '
-       nbond = 0
-    ELSE
-       CALL parser_get_object  (parser,nbond)
-       IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')')'PSF_INFO| NBOND = ',nbond
-       !malloc the memory that we need
-       CALL reallocate(conn_info%bond_a,1,nbond_prev+nbond)
-       CALL reallocate(conn_info%bond_b,1,nbond_prev+nbond)
-       !Read in the bond info
-       IF (psf_type==do_conn_psf_u) THEN
-          DO ibond=1,nbond,4
-             CALL parser_get_next_line(parser,1)
-             index_now=nbond_prev+ibond-1
-             READ(parser%input_line,FMT=*,ERR=9)(conn_info%bond_a(index_now+i),&
-                                                 conn_info%bond_b(index_now+i),&
-                                                 i=1,MIN(4,(nbond-ibond+1)))
-          END DO
-       ELSE
-          DO ibond=1,nbond,4
-             CALL parser_get_next_line(parser,1)
-             index_now=nbond_prev+ibond-1
-             READ(parser%input_line,FMT='(8'//TRIM(c_int)//')')&
-                  (conn_info%bond_a(index_now+i),&
-                  conn_info%bond_b(index_now+i),&
-                  i=1,MIN(4,(nbond-ibond+1)))
-          END DO
-       END IF
-       IF ( ANY(conn_info%bond_a(nbond_prev+1:)<=0) .OR. &
-            ANY(conn_info%bond_a(nbond_prev+1:)>natom) .OR. &
-            ANY(conn_info%bond_b(nbond_prev+1:)<=0) .OR. &
-            ANY(conn_info%bond_b(nbond_prev+1:)>natom)) THEN
-          CPABORT("topology_read, invalid bond")
-       END IF
-       conn_info%bond_a(nbond_prev+1:)=conn_info%bond_a(nbond_prev+1:)+natom_prev
-       conn_info%bond_b(nbond_prev+1:)=conn_info%bond_b(nbond_prev+1:)+natom_prev
-    END IF
-    !
-    ! THETA section
-    !
-    ntheta_prev = 0
-    IF(ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
+      IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| Parsing the NBOND section'
+      IF (iw > 0) WRITE (iw, '(T2,A,I8)') 'PSF_INFO| Previous number of allocated BOND: ', nbond_prev
+      label = '!NBOND'
+      CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
+      IF (.NOT. found) THEN
+         IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| No NBOND section '
+         nbond = 0
+      ELSE
+         CALL parser_get_object(parser, nbond)
+         IF (iw > 0) WRITE (iw, '(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NBOND = ', nbond
+         !malloc the memory that we need
+         CALL reallocate(conn_info%bond_a, 1, nbond_prev + nbond)
+         CALL reallocate(conn_info%bond_b, 1, nbond_prev + nbond)
+         !Read in the bond info
+         IF (psf_type == do_conn_psf_u) THEN
+            DO ibond = 1, nbond, 4
+               CALL parser_get_next_line(parser, 1)
+               index_now = nbond_prev + ibond - 1
+               READ (parser%input_line, FMT=*, ERR=9) (conn_info%bond_a(index_now + i), &
+                                                       conn_info%bond_b(index_now + i), &
+                                                       i=1, MIN(4, (nbond - ibond + 1)))
+            END DO
+         ELSE
+            DO ibond = 1, nbond, 4
+               CALL parser_get_next_line(parser, 1)
+               index_now = nbond_prev + ibond - 1
+               READ (parser%input_line, FMT='(8'//TRIM(c_int)//')') &
+                  (conn_info%bond_a(index_now + i), &
+                   conn_info%bond_b(index_now + i), &
+                   i=1, MIN(4, (nbond - ibond + 1)))
+            END DO
+         END IF
+         IF (ANY(conn_info%bond_a(nbond_prev + 1:) <= 0) .OR. &
+             ANY(conn_info%bond_a(nbond_prev + 1:) > natom) .OR. &
+             ANY(conn_info%bond_b(nbond_prev + 1:) <= 0) .OR. &
+             ANY(conn_info%bond_b(nbond_prev + 1:) > natom)) THEN
+            CPABORT("topology_read, invalid bond")
+         END IF
+         conn_info%bond_a(nbond_prev + 1:) = conn_info%bond_a(nbond_prev + 1:) + natom_prev
+         conn_info%bond_b(nbond_prev + 1:) = conn_info%bond_b(nbond_prev + 1:) + natom_prev
+      END IF
+      !
+      ! THETA section
+      !
+      ntheta_prev = 0
+      IF (ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
 
-    IF(iw>0) WRITE(iw,'(T2,A)')'PSF_INFO| Parsing the NTHETA section'
-    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated THETA: ',ntheta_prev
-    label = '!NTHETA'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF ( .NOT. found ) THEN
-       IF(iw>0) WRITE (iw,'(T2,A)')'PSF_INFO| No NTHETA section '
-       ntheta = 0
-    ELSE
-       CALL parser_get_object  (parser,ntheta)
-       IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')')'PSF_INFO| NTHETA = ',ntheta
-       !malloc the memory that we need
-       CALL reallocate(conn_info%theta_a,1,ntheta_prev+ntheta)
-       CALL reallocate(conn_info%theta_b,1,ntheta_prev+ntheta)
-       CALL reallocate(conn_info%theta_c,1,ntheta_prev+ntheta)
-       !Read in the bend info
-       IF (psf_type==do_conn_psf_u) THEN
-          DO itheta=1,ntheta,3
-             CALL parser_get_next_line(parser,1)
-             index_now=ntheta_prev+itheta-1
-             READ(parser%input_line,FMT=*,ERR=9)(conn_info%theta_a(index_now+i),&
-                                                 conn_info%theta_b(index_now+i),&
-                                                 conn_info%theta_c(index_now+i),&
-                                                 i=1,MIN(3,(ntheta-itheta+1)))
-          END DO
-       ELSE
-          DO itheta=1,ntheta,3
-             CALL parser_get_next_line(parser,1)
-             index_now=ntheta_prev+itheta-1
-             READ(parser%input_line,FMT='(9'//TRIM(c_int)//')')&
-                  (conn_info%theta_a(index_now+i),&
-                  conn_info%theta_b(index_now+i),&
-                  conn_info%theta_c(index_now+i),&
-                  i=1,MIN(3,(ntheta-itheta+1)))
-          END DO
-       END IF
-       conn_info%theta_a(ntheta_prev+1:)=conn_info%theta_a(ntheta_prev+1:)+natom_prev
-       conn_info%theta_b(ntheta_prev+1:)=conn_info%theta_b(ntheta_prev+1:)+natom_prev
-       conn_info%theta_c(ntheta_prev+1:)=conn_info%theta_c(ntheta_prev+1:)+natom_prev
-    END IF
-    !
-    ! PHI section
-    !
-    nphi_prev  = 0
-    IF(ASSOCIATED(conn_info%phi_a))   nphi_prev = SIZE(conn_info%phi_a)
+      IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| Parsing the NTHETA section'
+      IF (iw > 0) WRITE (iw, '(T2,A,I8)') 'PSF_INFO| Previous number of allocated THETA: ', ntheta_prev
+      label = '!NTHETA'
+      CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
+      IF (.NOT. found) THEN
+         IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| No NTHETA section '
+         ntheta = 0
+      ELSE
+         CALL parser_get_object(parser, ntheta)
+         IF (iw > 0) WRITE (iw, '(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NTHETA = ', ntheta
+         !malloc the memory that we need
+         CALL reallocate(conn_info%theta_a, 1, ntheta_prev + ntheta)
+         CALL reallocate(conn_info%theta_b, 1, ntheta_prev + ntheta)
+         CALL reallocate(conn_info%theta_c, 1, ntheta_prev + ntheta)
+         !Read in the bend info
+         IF (psf_type == do_conn_psf_u) THEN
+            DO itheta = 1, ntheta, 3
+               CALL parser_get_next_line(parser, 1)
+               index_now = ntheta_prev + itheta - 1
+               READ (parser%input_line, FMT=*, ERR=9) (conn_info%theta_a(index_now + i), &
+                                                       conn_info%theta_b(index_now + i), &
+                                                       conn_info%theta_c(index_now + i), &
+                                                       i=1, MIN(3, (ntheta - itheta + 1)))
+            END DO
+         ELSE
+            DO itheta = 1, ntheta, 3
+               CALL parser_get_next_line(parser, 1)
+               index_now = ntheta_prev + itheta - 1
+               READ (parser%input_line, FMT='(9'//TRIM(c_int)//')') &
+                  (conn_info%theta_a(index_now + i), &
+                   conn_info%theta_b(index_now + i), &
+                   conn_info%theta_c(index_now + i), &
+                   i=1, MIN(3, (ntheta - itheta + 1)))
+            END DO
+         END IF
+         conn_info%theta_a(ntheta_prev + 1:) = conn_info%theta_a(ntheta_prev + 1:) + natom_prev
+         conn_info%theta_b(ntheta_prev + 1:) = conn_info%theta_b(ntheta_prev + 1:) + natom_prev
+         conn_info%theta_c(ntheta_prev + 1:) = conn_info%theta_c(ntheta_prev + 1:) + natom_prev
+      END IF
+      !
+      ! PHI section
+      !
+      nphi_prev = 0
+      IF (ASSOCIATED(conn_info%phi_a)) nphi_prev = SIZE(conn_info%phi_a)
 
-    IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NPHI section'
-    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated PHI: ',nphi_prev
-    label = '!NPHI'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF ( .NOT. found ) THEN
-       IF(iw>0) WRITE (iw,'(T2,A)') 'PSF_INFO| No NPHI section '
-       nphi = 0
-    ELSE
-       CALL parser_get_object  (parser,nphi)
-       IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NPHI = ',nphi
-       !malloc the memory that we need
-       CALL reallocate(conn_info%phi_a,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%phi_b,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%phi_c,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%phi_d,1,nphi_prev+nphi)
-       !Read in the torsion info
-       IF (psf_type==do_conn_psf_u) THEN
-          DO iphi=1,nphi,2
-             CALL parser_get_next_line(parser,1)
-             index_now=nphi_prev+iphi-1
-             READ(parser%input_line,FMT=*,ERR=9)(conn_info%phi_a(index_now+i),&
-                                                 conn_info%phi_b(index_now+i),&
-                                                 conn_info%phi_c(index_now+i),&
-                                                 conn_info%phi_d(index_now+i),&
-                                                 i=1,MIN(2,(nphi-iphi+1)))
-          END DO
-       ELSE
-          DO iphi=1,nphi,2
-             CALL parser_get_next_line(parser,1)
-             index_now=nphi_prev+iphi-1
-             READ(parser%input_line,FMT='(8'//TRIM(c_int)//')')&
-                  (conn_info%phi_a(index_now+i),&
-                  conn_info%phi_b(index_now+i),&
-                  conn_info%phi_c(index_now+i),&
-                  conn_info%phi_d(index_now+i),&
-                  i=1,MIN(2,(nphi-iphi+1)))
-          END DO
-       END IF
-       conn_info%phi_a(nphi_prev+1:)=conn_info%phi_a(nphi_prev+1:)+natom_prev
-       conn_info%phi_b(nphi_prev+1:)=conn_info%phi_b(nphi_prev+1:)+natom_prev
-       conn_info%phi_c(nphi_prev+1:)=conn_info%phi_c(nphi_prev+1:)+natom_prev
-       conn_info%phi_d(nphi_prev+1:)=conn_info%phi_d(nphi_prev+1:)+natom_prev
-    END IF
-    !
-    ! IMPHI section
-    !
-    nphi_prev = 0
-    IF(ASSOCIATED(conn_info%impr_a)) nphi_prev = SIZE(conn_info%impr_a)
+      IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| Parsing the NPHI section'
+      IF (iw > 0) WRITE (iw, '(T2,A,I8)') 'PSF_INFO| Previous number of allocated PHI: ', nphi_prev
+      label = '!NPHI'
+      CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
+      IF (.NOT. found) THEN
+         IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| No NPHI section '
+         nphi = 0
+      ELSE
+         CALL parser_get_object(parser, nphi)
+         IF (iw > 0) WRITE (iw, '(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NPHI = ', nphi
+         !malloc the memory that we need
+         CALL reallocate(conn_info%phi_a, 1, nphi_prev + nphi)
+         CALL reallocate(conn_info%phi_b, 1, nphi_prev + nphi)
+         CALL reallocate(conn_info%phi_c, 1, nphi_prev + nphi)
+         CALL reallocate(conn_info%phi_d, 1, nphi_prev + nphi)
+         !Read in the torsion info
+         IF (psf_type == do_conn_psf_u) THEN
+            DO iphi = 1, nphi, 2
+               CALL parser_get_next_line(parser, 1)
+               index_now = nphi_prev + iphi - 1
+               READ (parser%input_line, FMT=*, ERR=9) (conn_info%phi_a(index_now + i), &
+                                                       conn_info%phi_b(index_now + i), &
+                                                       conn_info%phi_c(index_now + i), &
+                                                       conn_info%phi_d(index_now + i), &
+                                                       i=1, MIN(2, (nphi - iphi + 1)))
+            END DO
+         ELSE
+            DO iphi = 1, nphi, 2
+               CALL parser_get_next_line(parser, 1)
+               index_now = nphi_prev + iphi - 1
+               READ (parser%input_line, FMT='(8'//TRIM(c_int)//')') &
+                  (conn_info%phi_a(index_now + i), &
+                   conn_info%phi_b(index_now + i), &
+                   conn_info%phi_c(index_now + i), &
+                   conn_info%phi_d(index_now + i), &
+                   i=1, MIN(2, (nphi - iphi + 1)))
+            END DO
+         END IF
+         conn_info%phi_a(nphi_prev + 1:) = conn_info%phi_a(nphi_prev + 1:) + natom_prev
+         conn_info%phi_b(nphi_prev + 1:) = conn_info%phi_b(nphi_prev + 1:) + natom_prev
+         conn_info%phi_c(nphi_prev + 1:) = conn_info%phi_c(nphi_prev + 1:) + natom_prev
+         conn_info%phi_d(nphi_prev + 1:) = conn_info%phi_d(nphi_prev + 1:) + natom_prev
+      END IF
+      !
+      ! IMPHI section
+      !
+      nphi_prev = 0
+      IF (ASSOCIATED(conn_info%impr_a)) nphi_prev = SIZE(conn_info%impr_a)
 
-    IF(iw>0) WRITE(iw,'(T2,A)')'PSF_INFO| Parsing the NIMPHI section'
-    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated IMPHI: ',nphi_prev
-    label = '!NIMPHI'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF ( .NOT. found ) THEN
-       IF(iw>0) WRITE (iw,'(T2,A)')'PSF_INFO| No NIMPHI section '
-       nphi = 0
-    ELSE
-       CALL parser_get_object  (parser,nphi)
-       IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')')'PSF_INFO| NIMPR = ',nphi
-       !malloc the memory that we need
-       CALL reallocate(conn_info%impr_a,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%impr_b,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%impr_c,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%impr_d,1,nphi_prev+nphi)
-       !Read in the improper torsion info
-       IF (psf_type==do_conn_psf_u) THEN
-          DO iphi=1,nphi,2
-             CALL parser_get_next_line(parser,1)
-             index_now=nphi_prev+iphi-1
-             READ(parser%input_line,FMT=*,ERR=9)(conn_info%impr_a(index_now+i),&
-                                                 conn_info%impr_b(index_now+i),&
-                                                 conn_info%impr_c(index_now+i),&
-                                                 conn_info%impr_d(index_now+i),&
-                                                 i=1,MIN(2,(nphi-iphi+1)))
-          END DO
-       ELSE
-          DO iphi=1,nphi,2
-             CALL parser_get_next_line(parser,1)
-             index_now=nphi_prev+iphi-1
-             READ(parser%input_line,FMT='(8'//TRIM(c_int)//')')&
-                  (conn_info%impr_a(index_now+i),&
-                  conn_info%impr_b(index_now+i),&
-                  conn_info%impr_c(index_now+i),&
-                  conn_info%impr_d(index_now+i),&
-                  i=1,MIN(2,(nphi-iphi+1)))
-          END DO
-       END IF
-       conn_info%impr_a(nphi_prev+1:)=conn_info%impr_a(nphi_prev+1:)+natom_prev
-       conn_info%impr_b(nphi_prev+1:)=conn_info%impr_b(nphi_prev+1:)+natom_prev
-       conn_info%impr_c(nphi_prev+1:)=conn_info%impr_c(nphi_prev+1:)+natom_prev
-       conn_info%impr_d(nphi_prev+1:)=conn_info%impr_d(nphi_prev+1:)+natom_prev
-    END IF
+      IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| Parsing the NIMPHI section'
+      IF (iw > 0) WRITE (iw, '(T2,A,I8)') 'PSF_INFO| Previous number of allocated IMPHI: ', nphi_prev
+      label = '!NIMPHI'
+      CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
+      IF (.NOT. found) THEN
+         IF (iw > 0) WRITE (iw, '(T2,A)') 'PSF_INFO| No NIMPHI section '
+         nphi = 0
+      ELSE
+         CALL parser_get_object(parser, nphi)
+         IF (iw > 0) WRITE (iw, '(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NIMPR = ', nphi
+         !malloc the memory that we need
+         CALL reallocate(conn_info%impr_a, 1, nphi_prev + nphi)
+         CALL reallocate(conn_info%impr_b, 1, nphi_prev + nphi)
+         CALL reallocate(conn_info%impr_c, 1, nphi_prev + nphi)
+         CALL reallocate(conn_info%impr_d, 1, nphi_prev + nphi)
+         !Read in the improper torsion info
+         IF (psf_type == do_conn_psf_u) THEN
+            DO iphi = 1, nphi, 2
+               CALL parser_get_next_line(parser, 1)
+               index_now = nphi_prev + iphi - 1
+               READ (parser%input_line, FMT=*, ERR=9) (conn_info%impr_a(index_now + i), &
+                                                       conn_info%impr_b(index_now + i), &
+                                                       conn_info%impr_c(index_now + i), &
+                                                       conn_info%impr_d(index_now + i), &
+                                                       i=1, MIN(2, (nphi - iphi + 1)))
+            END DO
+         ELSE
+            DO iphi = 1, nphi, 2
+               CALL parser_get_next_line(parser, 1)
+               index_now = nphi_prev + iphi - 1
+               READ (parser%input_line, FMT='(8'//TRIM(c_int)//')') &
+                  (conn_info%impr_a(index_now + i), &
+                   conn_info%impr_b(index_now + i), &
+                   conn_info%impr_c(index_now + i), &
+                   conn_info%impr_d(index_now + i), &
+                   i=1, MIN(2, (nphi - iphi + 1)))
+            END DO
+         END IF
+         conn_info%impr_a(nphi_prev + 1:) = conn_info%impr_a(nphi_prev + 1:) + natom_prev
+         conn_info%impr_b(nphi_prev + 1:) = conn_info%impr_b(nphi_prev + 1:) + natom_prev
+         conn_info%impr_c(nphi_prev + 1:) = conn_info%impr_c(nphi_prev + 1:) + natom_prev
+         conn_info%impr_d(nphi_prev + 1:) = conn_info%impr_d(nphi_prev + 1:) + natom_prev
+      END IF
 
-    CALL parser_release(parser)
-    CALL timestop(handle)
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/PSF_INFO")
-    RETURN
-9   CONTINUE
-    ! Print error and exit
-    IF (output_unit>0) THEN
-       WRITE(output_unit,'(T2,A)')&
-            "PSF_INFO| Error while reading PSF using the unformatted PSF reading option!",&
+      CALL parser_release(parser)
+      CALL timestop(handle)
+      CALL cp_print_key_finished_output(iw, logger, subsys_section, &
+                                        "PRINT%TOPOLOGY_INFO/PSF_INFO")
+      RETURN
+9     CONTINUE
+      ! Print error and exit
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(T2,A)') &
+            "PSF_INFO| Error while reading PSF using the unformatted PSF reading option!", &
             "PSF_INFO| Try using PSF instead of UPSF."
-    END IF
+      END IF
 
-    CPABORT("Error while reading PSF data!")
+      CPABORT("Error while reading PSF data!")
 
-  END SUBROUTINE read_topology_psf
+   END SUBROUTINE read_topology_psf
 
 ! **************************************************************************************************
 !> \brief Post processing of PSF informations
 !> \param topology ...
 !> \param subsys_section ...
 ! **************************************************************************************************
-  SUBROUTINE  psf_post_process(topology,subsys_section)
+   SUBROUTINE psf_post_process(topology, subsys_section)
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
@@ -427,130 +427,130 @@ CONTAINS
       TYPE(connectivity_info_type), POINTER              :: conn_info
       TYPE(cp_logger_type), POINTER                      :: logger
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog")
-    CALL timeset(routineN,handle)
-    atom_info => topology%atom_info
-    conn_info => topology%conn_info
-    !
-    ! PARA_RES structure
-    !
-    natom = 0
-    nbond = 0
-    i     = 0
-    IF(ASSOCIATED(atom_info%id_molname)) natom = SIZE(atom_info%id_molname)
-    IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
-    IF(ASSOCIATED(conn_info%c_bond_a))    i = SIZE(conn_info%c_bond_a)
-    DO ibond=1,nbond
-       iatom = conn_info%bond_a(ibond)
-       jatom = conn_info%bond_b(ibond)
-       IF(topology%para_res) THEN
-          IF((atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)).OR.&
-               (atom_info%resid(iatom)/=atom_info%resid(jatom)).OR.&
-               (atom_info%id_resname(iatom)/=atom_info%id_resname(jatom)))THEN
-             IF(iw>0) WRITE(iw,'(T2,A,2I6)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
-                  iatom,jatom
-             i = i + 1
-             CALL reallocate(conn_info%c_bond_a,1,i)
-             CALL reallocate(conn_info%c_bond_b,1,i)
-             conn_info%c_bond_a(i) = iatom
-             conn_info%c_bond_b(i) = jatom
-          END IF
-       ELSE
-          IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
-             CPABORT("")
-          END IF
-       END IF
-    END DO
-    !
-    ! UB structure
-    !
-    ntheta = 0
-    IF (ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
-    CALL reallocate(conn_info%ub_a,1,ntheta)
-    CALL reallocate(conn_info%ub_b,1,ntheta)
-    CALL reallocate(conn_info%ub_c,1,ntheta)
-    conn_info%ub_a(:) = conn_info%theta_a(:)
-    conn_info%ub_b(:) = conn_info%theta_b(:)
-    conn_info%ub_c(:) = conn_info%theta_c(:)
-    !
-    ! ONFO structure
-    !
-    nphi = 0
-    nonfo= 0
-    IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
-    CALL reallocate(conn_info%onfo_a,1,nphi)
-    CALL reallocate(conn_info%onfo_b,1,nphi)
-    conn_info%onfo_a(1:) = conn_info%phi_a(1:)
-    conn_info%onfo_b(1:) = conn_info%phi_d(1:)
-    ! Reorder bonds
-    ALLOCATE(ex_bond_list(natom))
-    DO I=1,natom
-       ALLOCATE(ex_bond_list(I)%array1(0))
-    ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-    CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N)
-    ! Reorder bends
-    ALLOCATE(ex_bend_list(natom))
-    DO I=1,natom
-       ALLOCATE(ex_bend_list(I)%array1(0))
-    ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
-    CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N)
-    DO ionfo=1, nphi
-    ! Check if the torsion is not shared between angles or bonds
-       IF ( ANY(ex_bond_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo)).OR.&
-            ANY(ex_bend_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo))) CYCLE
-       nonfo = nonfo + 1
-       conn_info%onfo_a(nonfo) = conn_info%onfo_a(ionfo)
-       conn_info%onfo_b(nonfo) = conn_info%onfo_b(ionfo)
-    END DO
-    ! deallocate bends
-    DO I=1,natom
-       DEALLOCATE(ex_bend_list(I)%array1)
-    ENDDO
-    DEALLOCATE(ex_bend_list)
-    ! deallocate bonds
-    DO I=1,natom
-       DEALLOCATE(ex_bond_list(I)%array1)
-    ENDDO
-    DEALLOCATE(ex_bond_list)
-    ! Get unique onfo
-    ALLOCATE(ex_bond_list(natom))
-    DO I=1,natom
-       ALLOCATE(ex_bond_list(I)%array1(0))
-    ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo
-    CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N)
-    nonfo = 0
-    DO I=1,natom
-       DO ionfo = 1, SIZE(ex_bond_list(I)%array1)
-          IF (COUNT(ex_bond_list(I)%array1==ex_bond_list(I)%array1(ionfo))/=1) THEN
-             ex_bond_list(I)%array1(ionfo) = 0
-          ELSE
-             IF (ex_bond_list(I)%array1(ionfo)<=I) CYCLE
-             nonfo = nonfo + 1
-             conn_info%onfo_a(nonfo) = I
-             conn_info%onfo_b(nonfo) = ex_bond_list(I)%array1(ionfo)
-          END IF
-       END DO
-    END DO
-    DO I=1,natom
-       DEALLOCATE(ex_bond_list(I)%array1)
-    ENDDO
-    DEALLOCATE(ex_bond_list)
-    CALL reallocate(conn_info%onfo_a,1,nonfo)
-    CALL reallocate(conn_info%onfo_b,1,nonfo)
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PSF_INFO", &
+                                extension=".subsysLog")
+      CALL timeset(routineN, handle)
+      atom_info => topology%atom_info
+      conn_info => topology%conn_info
+      !
+      ! PARA_RES structure
+      !
+      natom = 0
+      nbond = 0
+      i = 0
+      IF (ASSOCIATED(atom_info%id_molname)) natom = SIZE(atom_info%id_molname)
+      IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      IF (ASSOCIATED(conn_info%c_bond_a)) i = SIZE(conn_info%c_bond_a)
+      DO ibond = 1, nbond
+         iatom = conn_info%bond_a(ibond)
+         jatom = conn_info%bond_b(ibond)
+         IF (topology%para_res) THEN
+            IF ((atom_info%id_molname(iatom) /= atom_info%id_molname(jatom)) .OR. &
+                (atom_info%resid(iatom) /= atom_info%resid(jatom)) .OR. &
+                (atom_info%id_resname(iatom) /= atom_info%id_resname(jatom))) THEN
+               IF (iw > 0) WRITE (iw, '(T2,A,2I6)') "PSF_INFO| PARA_RES, bond between molecules atom ", &
+                  iatom, jatom
+               i = i + 1
+               CALL reallocate(conn_info%c_bond_a, 1, i)
+               CALL reallocate(conn_info%c_bond_b, 1, i)
+               conn_info%c_bond_a(i) = iatom
+               conn_info%c_bond_b(i) = jatom
+            END IF
+         ELSE
+            IF (atom_info%id_molname(iatom) /= atom_info%id_molname(jatom)) THEN
+               CPABORT("")
+            END IF
+         END IF
+      END DO
+      !
+      ! UB structure
+      !
+      ntheta = 0
+      IF (ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
+      CALL reallocate(conn_info%ub_a, 1, ntheta)
+      CALL reallocate(conn_info%ub_b, 1, ntheta)
+      CALL reallocate(conn_info%ub_c, 1, ntheta)
+      conn_info%ub_a(:) = conn_info%theta_a(:)
+      conn_info%ub_b(:) = conn_info%theta_b(:)
+      conn_info%ub_c(:) = conn_info%theta_c(:)
+      !
+      ! ONFO structure
+      !
+      nphi = 0
+      nonfo = 0
+      IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
+      CALL reallocate(conn_info%onfo_a, 1, nphi)
+      CALL reallocate(conn_info%onfo_b, 1, nphi)
+      conn_info%onfo_a(1:) = conn_info%phi_a(1:)
+      conn_info%onfo_b(1:) = conn_info%phi_d(1:)
+      ! Reorder bonds
+      ALLOCATE (ex_bond_list(natom))
+      DO I = 1, natom
+         ALLOCATE (ex_bond_list(I)%array1(0))
+      ENDDO
+      N = 0
+      IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+      CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N)
+      ! Reorder bends
+      ALLOCATE (ex_bend_list(natom))
+      DO I = 1, natom
+         ALLOCATE (ex_bend_list(I)%array1(0))
+      ENDDO
+      N = 0
+      IF (ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
+      CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N)
+      DO ionfo = 1, nphi
+         ! Check if the torsion is not shared between angles or bonds
+         IF (ANY(ex_bond_list(conn_info%onfo_a(ionfo))%array1 == conn_info%onfo_b(ionfo)) .OR. &
+             ANY(ex_bend_list(conn_info%onfo_a(ionfo))%array1 == conn_info%onfo_b(ionfo))) CYCLE
+         nonfo = nonfo + 1
+         conn_info%onfo_a(nonfo) = conn_info%onfo_a(ionfo)
+         conn_info%onfo_b(nonfo) = conn_info%onfo_b(ionfo)
+      END DO
+      ! deallocate bends
+      DO I = 1, natom
+         DEALLOCATE (ex_bend_list(I)%array1)
+      ENDDO
+      DEALLOCATE (ex_bend_list)
+      ! deallocate bonds
+      DO I = 1, natom
+         DEALLOCATE (ex_bond_list(I)%array1)
+      ENDDO
+      DEALLOCATE (ex_bond_list)
+      ! Get unique onfo
+      ALLOCATE (ex_bond_list(natom))
+      DO I = 1, natom
+         ALLOCATE (ex_bond_list(I)%array1(0))
+      ENDDO
+      N = 0
+      IF (ASSOCIATED(conn_info%onfo_a)) N = nonfo
+      CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N)
+      nonfo = 0
+      DO I = 1, natom
+         DO ionfo = 1, SIZE(ex_bond_list(I)%array1)
+            IF (COUNT(ex_bond_list(I)%array1 == ex_bond_list(I)%array1(ionfo)) /= 1) THEN
+               ex_bond_list(I)%array1(ionfo) = 0
+            ELSE
+               IF (ex_bond_list(I)%array1(ionfo) <= I) CYCLE
+               nonfo = nonfo + 1
+               conn_info%onfo_a(nonfo) = I
+               conn_info%onfo_b(nonfo) = ex_bond_list(I)%array1(ionfo)
+            END IF
+         END DO
+      END DO
+      DO I = 1, natom
+         DEALLOCATE (ex_bond_list(I)%array1)
+      ENDDO
+      DEALLOCATE (ex_bond_list)
+      CALL reallocate(conn_info%onfo_a, 1, nonfo)
+      CALL reallocate(conn_info%onfo_b, 1, nonfo)
 
-    CALL timestop(handle)
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/PSF_INFO")
-  END SUBROUTINE psf_post_process
+      CALL timestop(handle)
+      CALL cp_print_key_finished_output(iw, logger, subsys_section, &
+                                        "PRINT%TOPOLOGY_INFO/PSF_INFO")
+   END SUBROUTINE psf_post_process
 
 ! **************************************************************************************************
 !> \brief Input driven modification (IDM) of PSF defined structures
@@ -559,7 +559,7 @@ CONTAINS
 !> \param subsys_section ...
 !> \author Teodoro Laino - Zurich University 04.2007
 ! **************************************************************************************************
-  SUBROUTINE  idm_psf(topology,section,subsys_section)
+   SUBROUTINE idm_psf(topology, section, subsys_section)
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: section, subsys_section
 
@@ -576,139 +576,139 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: subsection
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog")
-    CALL timeset(routineN,handle)
-    CALL section_vals_get(section, explicit=explicit)
-    IF (explicit) THEN
-       atom_info => topology%atom_info
-       conn_info => topology%conn_info
-       natom = 0
-       IF(ASSOCIATED(atom_info%id_molname)) natom = SIZE(atom_info%id_molname)
-       nbond = 0
-       IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
-       ntheta = 0
-       IF (ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
-       nphi = 0
-       IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
-       nimpr = 0
-       IF (ASSOCIATED(conn_info%impr_a)) nimpr = SIZE(conn_info%impr_a)
-       ! Any new defined bond
-       subsection => section_vals_get_subs_vals(section,"BONDS")
-       CALL section_vals_get(subsection, explicit=explicit)
-       IF (explicit) THEN
-          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep)
-          CALL reallocate(conn_info%bond_a,1,n_rep+nbond)
-          CALL reallocate(conn_info%bond_b,1,n_rep+nbond)
-          DO i = 1, n_rep
-             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp)
-             conn_info%bond_a(nbond+i)=tmp(1)
-             conn_info%bond_b(nbond+i)=tmp(2)
-          END DO
-          ! And now modify the molecule name if two molecules have been bridged
-          ALLOCATE(ex_bond_list(natom))
-          ALLOCATE(tag_mols(natom))
-          ALLOCATE(wrk(natom))
-          DO j=1,natom
-             ALLOCATE(ex_bond_list(j)%array1(0))
-          ENDDO
-          CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, nbond+n_rep)
-          ! Loop over atoms to possiblyt change molecule name
-          tag_mols=-1
-          mol_id = 1
-          DO i = 1, natom
-             IF (tag_mols(i)/=-1) CYCLE
-             CALL tag_molecule(tag_mols, ex_bond_list, i, mol_id)
-             mol_id = mol_id + 1
-          END DO
-          mol_id = mol_id - 1
-          IF (iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Number of molecules detected after merging: ',mol_id
-          ! Now simply check about the contiguousness of molecule definition
-          CALL sort(tag_mols, natom, wrk)
-          item   = tag_mols(1)
-          istart = 1
-          DO i = 2, natom
-             IF (tag_mols(i)==item) CYCLE
-             iend = i-1
-             noe = iend-istart+1
-             istart1 = MINVAL(wrk(istart:iend))
-             iend1   = MAXVAL(wrk(istart:iend))
-             CPASSERT(iend1-istart1+1==noe)
-             atom_info%id_molname(istart1:iend1)=str2id(s2s("MOL"//cp_to_string(item)))
-             item = tag_mols(i)
-             istart = i
-          END DO
-          iend = i-1
-          noe  = iend-istart+1
-          istart1 = MINVAL(wrk(istart:iend))
-          iend1   = MAXVAL(wrk(istart:iend))
-          CPASSERT(iend1-istart1+1==noe)
-          atom_info%id_molname(istart1:iend1)=str2id(s2s("MOL"//cp_to_string(item)))
-          ! Deallocate bonds
-          DO i=1,natom
-             DEALLOCATE(ex_bond_list(i)%array1)
-          ENDDO
-          DEALLOCATE(ex_bond_list)
-          DEALLOCATE(tag_mols)
-          DEALLOCATE(wrk)
-       END IF
-       ! Any new defined angle
-       subsection => section_vals_get_subs_vals(section,"ANGLES")
-       CALL section_vals_get(subsection, explicit=explicit)
-       IF (explicit) THEN
-          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep)
-          CALL reallocate(conn_info%theta_a,1,n_rep+ntheta)
-          CALL reallocate(conn_info%theta_b,1,n_rep+ntheta)
-          CALL reallocate(conn_info%theta_c,1,n_rep+ntheta)
-          DO i = 1, n_rep
-             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp)
-             conn_info%theta_a(ntheta+i)=tmp(1)
-             conn_info%theta_b(ntheta+i)=tmp(2)
-             conn_info%theta_c(ntheta+i)=tmp(3)
-          END DO
-       END IF
-       ! Any new defined torsion
-       subsection => section_vals_get_subs_vals(section,"TORSIONS")
-       CALL section_vals_get(subsection, explicit=explicit)
-       IF (explicit) THEN
-          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep)
-          CALL reallocate(conn_info%phi_a,1,n_rep+nphi)
-          CALL reallocate(conn_info%phi_b,1,n_rep+nphi)
-          CALL reallocate(conn_info%phi_c,1,n_rep+nphi)
-          CALL reallocate(conn_info%phi_d,1,n_rep+nphi)
-          DO i = 1, n_rep
-             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp)
-             conn_info%phi_a(nphi+i)=tmp(1)
-             conn_info%phi_b(nphi+i)=tmp(2)
-             conn_info%phi_c(nphi+i)=tmp(3)
-             conn_info%phi_d(nphi+i)=tmp(4)
-          END DO
-       END IF
-       ! Any new defined improper
-       subsection => section_vals_get_subs_vals(section,"IMPROPERS")
-       CALL section_vals_get(subsection, explicit=explicit)
-       IF (explicit) THEN
-          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep)
-          CALL reallocate(conn_info%impr_a,1,n_rep+nimpr)
-          CALL reallocate(conn_info%impr_b,1,n_rep+nimpr)
-          CALL reallocate(conn_info%impr_c,1,n_rep+nimpr)
-          CALL reallocate(conn_info%impr_d,1,n_rep+nimpr)
-          DO i = 1, n_rep
-             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp)
-             conn_info%impr_a(nimpr+i)=tmp(1)
-             conn_info%impr_b(nimpr+i)=tmp(2)
-             conn_info%impr_c(nimpr+i)=tmp(3)
-             conn_info%impr_d(nimpr+i)=tmp(4)
-          END DO
-       END IF
-    END IF
-    CALL timestop(handle)
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/PSF_INFO")
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PSF_INFO", &
+                                extension=".subsysLog")
+      CALL timeset(routineN, handle)
+      CALL section_vals_get(section, explicit=explicit)
+      IF (explicit) THEN
+         atom_info => topology%atom_info
+         conn_info => topology%conn_info
+         natom = 0
+         IF (ASSOCIATED(atom_info%id_molname)) natom = SIZE(atom_info%id_molname)
+         nbond = 0
+         IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+         ntheta = 0
+         IF (ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
+         nphi = 0
+         IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
+         nimpr = 0
+         IF (ASSOCIATED(conn_info%impr_a)) nimpr = SIZE(conn_info%impr_a)
+         ! Any new defined bond
+         subsection => section_vals_get_subs_vals(section, "BONDS")
+         CALL section_vals_get(subsection, explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
+            CALL reallocate(conn_info%bond_a, 1, n_rep + nbond)
+            CALL reallocate(conn_info%bond_b, 1, n_rep + nbond)
+            DO i = 1, n_rep
+               CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", i_rep_val=i, i_vals=tmp)
+               conn_info%bond_a(nbond + i) = tmp(1)
+               conn_info%bond_b(nbond + i) = tmp(2)
+            END DO
+            ! And now modify the molecule name if two molecules have been bridged
+            ALLOCATE (ex_bond_list(natom))
+            ALLOCATE (tag_mols(natom))
+            ALLOCATE (wrk(natom))
+            DO j = 1, natom
+               ALLOCATE (ex_bond_list(j)%array1(0))
+            ENDDO
+            CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, nbond + n_rep)
+            ! Loop over atoms to possiblyt change molecule name
+            tag_mols = -1
+            mol_id = 1
+            DO i = 1, natom
+               IF (tag_mols(i) /= -1) CYCLE
+               CALL tag_molecule(tag_mols, ex_bond_list, i, mol_id)
+               mol_id = mol_id + 1
+            END DO
+            mol_id = mol_id - 1
+            IF (iw > 0) WRITE (iw, '(T2,A,I8)') 'PSF_INFO| Number of molecules detected after merging: ', mol_id
+            ! Now simply check about the contiguousness of molecule definition
+            CALL sort(tag_mols, natom, wrk)
+            item = tag_mols(1)
+            istart = 1
+            DO i = 2, natom
+               IF (tag_mols(i) == item) CYCLE
+               iend = i - 1
+               noe = iend - istart + 1
+               istart1 = MINVAL(wrk(istart:iend))
+               iend1 = MAXVAL(wrk(istart:iend))
+               CPASSERT(iend1 - istart1 + 1 == noe)
+               atom_info%id_molname(istart1:iend1) = str2id(s2s("MOL"//cp_to_string(item)))
+               item = tag_mols(i)
+               istart = i
+            END DO
+            iend = i - 1
+            noe = iend - istart + 1
+            istart1 = MINVAL(wrk(istart:iend))
+            iend1 = MAXVAL(wrk(istart:iend))
+            CPASSERT(iend1 - istart1 + 1 == noe)
+            atom_info%id_molname(istart1:iend1) = str2id(s2s("MOL"//cp_to_string(item)))
+            ! Deallocate bonds
+            DO i = 1, natom
+               DEALLOCATE (ex_bond_list(i)%array1)
+            ENDDO
+            DEALLOCATE (ex_bond_list)
+            DEALLOCATE (tag_mols)
+            DEALLOCATE (wrk)
+         END IF
+         ! Any new defined angle
+         subsection => section_vals_get_subs_vals(section, "ANGLES")
+         CALL section_vals_get(subsection, explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
+            CALL reallocate(conn_info%theta_a, 1, n_rep + ntheta)
+            CALL reallocate(conn_info%theta_b, 1, n_rep + ntheta)
+            CALL reallocate(conn_info%theta_c, 1, n_rep + ntheta)
+            DO i = 1, n_rep
+               CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", i_rep_val=i, i_vals=tmp)
+               conn_info%theta_a(ntheta + i) = tmp(1)
+               conn_info%theta_b(ntheta + i) = tmp(2)
+               conn_info%theta_c(ntheta + i) = tmp(3)
+            END DO
+         END IF
+         ! Any new defined torsion
+         subsection => section_vals_get_subs_vals(section, "TORSIONS")
+         CALL section_vals_get(subsection, explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
+            CALL reallocate(conn_info%phi_a, 1, n_rep + nphi)
+            CALL reallocate(conn_info%phi_b, 1, n_rep + nphi)
+            CALL reallocate(conn_info%phi_c, 1, n_rep + nphi)
+            CALL reallocate(conn_info%phi_d, 1, n_rep + nphi)
+            DO i = 1, n_rep
+               CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", i_rep_val=i, i_vals=tmp)
+               conn_info%phi_a(nphi + i) = tmp(1)
+               conn_info%phi_b(nphi + i) = tmp(2)
+               conn_info%phi_c(nphi + i) = tmp(3)
+               conn_info%phi_d(nphi + i) = tmp(4)
+            END DO
+         END IF
+         ! Any new defined improper
+         subsection => section_vals_get_subs_vals(section, "IMPROPERS")
+         CALL section_vals_get(subsection, explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
+            CALL reallocate(conn_info%impr_a, 1, n_rep + nimpr)
+            CALL reallocate(conn_info%impr_b, 1, n_rep + nimpr)
+            CALL reallocate(conn_info%impr_c, 1, n_rep + nimpr)
+            CALL reallocate(conn_info%impr_d, 1, n_rep + nimpr)
+            DO i = 1, n_rep
+               CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", i_rep_val=i, i_vals=tmp)
+               conn_info%impr_a(nimpr + i) = tmp(1)
+               conn_info%impr_b(nimpr + i) = tmp(2)
+               conn_info%impr_c(nimpr + i) = tmp(3)
+               conn_info%impr_d(nimpr + i) = tmp(4)
+            END DO
+         END IF
+      END IF
+      CALL timestop(handle)
+      CALL cp_print_key_finished_output(iw, logger, subsys_section, &
+                                        "PRINT%TOPOLOGY_INFO/PSF_INFO")
 
-  END SUBROUTINE idm_psf
+   END SUBROUTINE idm_psf
 
 ! **************************************************************************************************
 !> \brief Teodoro Laino - 01.2006
@@ -718,7 +718,7 @@ CONTAINS
 !> \param subsys_section ...
 !> \param force_env_section ...
 ! **************************************************************************************************
-  SUBROUTINE write_topology_psf (file_unit,topology,subsys_section,force_env_section)
+   SUBROUTINE write_topology_psf(file_unit, topology, subsys_section, force_env_section)
       INTEGER, INTENT(IN)                                :: file_unit
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section, force_env_section
@@ -738,164 +738,164 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key, tmp_section
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PSF")
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog")
-    CALL timeset(routineN,handle)
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      print_key => section_vals_get_subs_vals(subsys_section, "TOPOLOGY%DUMP_PSF")
+      iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PSF_INFO", &
+                                extension=".subsysLog")
+      CALL timeset(routineN, handle)
 
-    atom_info => topology%atom_info
-    conn_info => topology%conn_info
+      atom_info => topology%atom_info
+      conn_info => topology%conn_info
 
-    ! Check for charges.. (need to dump them in the PSF..)
-    ALLOCATE(charges(topology%natoms))
-    charges = atom_info%atm_charge
-    ! Collect charges from Input file..
-    NULLIFY(tmp_section)
-    tmp_section => section_vals_get_subs_vals(force_env_section,"MM%FORCEFIELD%CHARGE")
-    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg)
-    IF (explicit) THEN
-       ALLOCATE(charge_atm(nchg))
-       ALLOCATE(charge_inp(nchg))
-       CALL read_chrg_section(charge_atm,charge_inp,section=tmp_section,start=0)
-       DO j = 1, topology%natoms
-          record = id2str(atom_info%id_atmname(j))
-          ldum = qmmm_ff_precond_only_qm(record)
-          CALL uppercase(record)
-          DO i = 1, nchg
-             IF (record==charge_atm(i)) THEN
-                charges(j) = charge_inp(i)
-                EXIT
-             END IF
-          END DO
-       END DO
-       DEALLOCATE(charge_atm)
-       DEALLOCATE(charge_inp)
-    END IF
-    ! fixup for topology output
-    DO j = 1, topology%natoms
-       IF (charges(j).EQ.-HUGE(0.0_dp)) charges(j)=-99.0_dp
-    ENDDO
-    record = cp_print_key_generate_filename(logger,print_key,&
-         extension=".psf",my_local=.FALSE.)
-    ! build the EXT format
-    c_int="I10"
-    psf_format = '(I10,T12,A,T21,I0,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.3,T88,I1)'
-    IF(iw>0) WRITE(iw,'(T2,A)') &
-         "PSF_WRITE| Writing out PSF file with CHARMM31 EXTErnal format: ",TRIM(record)
+      ! Check for charges.. (need to dump them in the PSF..)
+      ALLOCATE (charges(topology%natoms))
+      charges = atom_info%atm_charge
+      ! Collect charges from Input file..
+      NULLIFY (tmp_section)
+      tmp_section => section_vals_get_subs_vals(force_env_section, "MM%FORCEFIELD%CHARGE")
+      CALL section_vals_get(tmp_section, explicit=explicit, n_repetition=nchg)
+      IF (explicit) THEN
+         ALLOCATE (charge_atm(nchg))
+         ALLOCATE (charge_inp(nchg))
+         CALL read_chrg_section(charge_atm, charge_inp, section=tmp_section, start=0)
+         DO j = 1, topology%natoms
+            record = id2str(atom_info%id_atmname(j))
+            ldum = qmmm_ff_precond_only_qm(record)
+            CALL uppercase(record)
+            DO i = 1, nchg
+               IF (record == charge_atm(i)) THEN
+                  charges(j) = charge_inp(i)
+                  EXIT
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (charge_atm)
+         DEALLOCATE (charge_inp)
+      END IF
+      ! fixup for topology output
+      DO j = 1, topology%natoms
+         IF (charges(j) .EQ. -HUGE(0.0_dp)) charges(j) = -99.0_dp
+      ENDDO
+      record = cp_print_key_generate_filename(logger, print_key, &
+                                              extension=".psf", my_local=.FALSE.)
+      ! build the EXT format
+      c_int = "I10"
+      psf_format = '(I10,T12,A,T21,I0,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.3,T88,I1)'
+      IF (iw > 0) WRITE (iw, '(T2,A)') &
+         "PSF_WRITE| Writing out PSF file with CHARMM31 EXTErnal format: ", TRIM(record)
 
-    WRITE(file_unit,FMT='(A)') "PSF EXT"
-    WRITE(file_unit,FMT='(A)') ""
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)') 1," !NTITLE"
-    WRITE(file_unit,FMT='(A)') "   CP2K generated DUMP of connectivity"
-    WRITE(file_unit,FMT='(A)') ""
+      WRITE (file_unit, FMT='(A)') "PSF EXT"
+      WRITE (file_unit, FMT='(A)') ""
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') 1, " !NTITLE"
+      WRITE (file_unit, FMT='(A)') "   CP2K generated DUMP of connectivity"
+      WRITE (file_unit, FMT='(A)') ""
 
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')topology%natoms," !NATOM"
-    my_index = 1
-    i        = 1
-    my_tag1 = id2str(atom_info%id_molname(i))
-    my_tag2 = id2str(atom_info%id_resname(i))
-    my_tag3 = id2str(atom_info%id_atmname(i))
-    ldum = qmmm_ff_precond_only_qm(my_tag1)
-    ldum = qmmm_ff_precond_only_qm(my_tag2)
-    ldum = qmmm_ff_precond_only_qm(my_tag3)
-    WRITE(file_unit,FMT=psf_format)&
-         i,&
-         TRIM(my_tag1),&
-         my_index,&
-         TRIM(my_tag2),&
-         TRIM(my_tag3),&
-         TRIM(my_tag3),&
-         charges(i),&
-         atom_info%atm_mass(i),&
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') topology%natoms, " !NATOM"
+      my_index = 1
+      i = 1
+      my_tag1 = id2str(atom_info%id_molname(i))
+      my_tag2 = id2str(atom_info%id_resname(i))
+      my_tag3 = id2str(atom_info%id_atmname(i))
+      ldum = qmmm_ff_precond_only_qm(my_tag1)
+      ldum = qmmm_ff_precond_only_qm(my_tag2)
+      ldum = qmmm_ff_precond_only_qm(my_tag3)
+      WRITE (file_unit, FMT=psf_format) &
+         i, &
+         TRIM(my_tag1), &
+         my_index, &
+         TRIM(my_tag2), &
+         TRIM(my_tag3), &
+         TRIM(my_tag3), &
+         charges(i), &
+         atom_info%atm_mass(i), &
          0
-    DO i=2,topology%natoms
-       IF  ((atom_info%map_mol_num(i)/=atom_info%map_mol_num(i-1)).OR.&
-            (atom_info%map_mol_res(i)/=atom_info%map_mol_res(i-1))) my_index = my_index + 1
-       my_tag1 = id2str(atom_info%id_molname(i))
-       my_tag2 = id2str(atom_info%id_resname(i))
-       my_tag3 = id2str(atom_info%id_atmname(i))
-       ldum = qmmm_ff_precond_only_qm(my_tag1)
-       ldum = qmmm_ff_precond_only_qm(my_tag2)
-       ldum = qmmm_ff_precond_only_qm(my_tag3)
-       WRITE(file_unit,FMT=psf_format)&
-            i,&
-            TRIM(my_tag1),&
-            my_index,&
-            TRIM(my_tag2),&
-            TRIM(my_tag3),&
-            TRIM(my_tag3),&
-            charges(i),&
-            atom_info%atm_mass(i),&
+      DO i = 2, topology%natoms
+         IF ((atom_info%map_mol_num(i) /= atom_info%map_mol_num(i - 1)) .OR. &
+             (atom_info%map_mol_res(i) /= atom_info%map_mol_res(i - 1))) my_index = my_index + 1
+         my_tag1 = id2str(atom_info%id_molname(i))
+         my_tag2 = id2str(atom_info%id_resname(i))
+         my_tag3 = id2str(atom_info%id_atmname(i))
+         ldum = qmmm_ff_precond_only_qm(my_tag1)
+         ldum = qmmm_ff_precond_only_qm(my_tag2)
+         ldum = qmmm_ff_precond_only_qm(my_tag3)
+         WRITE (file_unit, FMT=psf_format) &
+            i, &
+            TRIM(my_tag1), &
+            my_index, &
+            TRIM(my_tag2), &
+            TRIM(my_tag3), &
+            TRIM(my_tag3), &
+            charges(i), &
+            atom_info%atm_mass(i), &
             0
-    END DO
-    WRITE(file_unit,FMT='(/)')
-    DEALLOCATE(charges)
+      END DO
+      WRITE (file_unit, FMT='(/)')
+      DEALLOCATE (charges)
 
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')SIZE(conn_info%bond_a)," !NBOND"
-    DO i=1,SIZE(conn_info%bond_a),4
-       j=0
-       DO WHILE ((j<4).AND.((i+j)<=SIZE(conn_info%bond_a)))
-          WRITE(file_unit,FMT='(2('//TRIM(c_int)//'))',ADVANCE="NO") &
-               conn_info%bond_a(i+j),conn_info%bond_b(i+j)
-          j=j+1
-       END DO
-       WRITE(file_unit,FMT='(/)',ADVANCE="NO")
-    END DO
-    WRITE(file_unit,FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') SIZE(conn_info%bond_a), " !NBOND"
+      DO i = 1, SIZE(conn_info%bond_a), 4
+         j = 0
+         DO WHILE ((j < 4) .AND. ((i + j) <= SIZE(conn_info%bond_a)))
+            WRITE (file_unit, FMT='(2('//TRIM(c_int)//'))', ADVANCE="NO") &
+               conn_info%bond_a(i + j), conn_info%bond_b(i + j)
+            j = j + 1
+         END DO
+         WRITE (file_unit, FMT='(/)', ADVANCE="NO")
+      END DO
+      WRITE (file_unit, FMT='(/)')
 
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')SIZE(conn_info%theta_a)," !NTHETA"
-    DO i=1,SIZE(conn_info%theta_a),3
-       j=0
-       DO WHILE ((j<3).AND.((i+j)<=SIZE(conn_info%theta_a)))
-          WRITE(file_unit,FMT='(3('//TRIM(c_int)//'))',ADVANCE="NO") &
-               conn_info%theta_a(i+j),conn_info%theta_b(i+j),&
-               conn_info%theta_c(i+j)
-          j=j+1
-       END DO
-       WRITE(file_unit,FMT='(/)',ADVANCE="NO")
-    END DO
-    WRITE(file_unit,FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') SIZE(conn_info%theta_a), " !NTHETA"
+      DO i = 1, SIZE(conn_info%theta_a), 3
+         j = 0
+         DO WHILE ((j < 3) .AND. ((i + j) <= SIZE(conn_info%theta_a)))
+            WRITE (file_unit, FMT='(3('//TRIM(c_int)//'))', ADVANCE="NO") &
+               conn_info%theta_a(i + j), conn_info%theta_b(i + j), &
+               conn_info%theta_c(i + j)
+            j = j + 1
+         END DO
+         WRITE (file_unit, FMT='(/)', ADVANCE="NO")
+      END DO
+      WRITE (file_unit, FMT='(/)')
 
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')SIZE(conn_info%phi_a)," !NPHI"
-    DO i=1,SIZE(conn_info%phi_a),2
-       j=0
-       DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%phi_a)))
-          WRITE(file_unit,FMT='(4('//TRIM(c_int)//'))',ADVANCE="NO") &
-               conn_info%phi_a(i+j),conn_info%phi_b(i+j),&
-               conn_info%phi_c(i+j),conn_info%phi_d(i+j)
-          j=j+1
-       END DO
-       WRITE(file_unit,FMT='(/)',ADVANCE="NO")
-    END DO
-    WRITE(file_unit,FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') SIZE(conn_info%phi_a), " !NPHI"
+      DO i = 1, SIZE(conn_info%phi_a), 2
+         j = 0
+         DO WHILE ((j < 2) .AND. ((i + j) <= SIZE(conn_info%phi_a)))
+            WRITE (file_unit, FMT='(4('//TRIM(c_int)//'))', ADVANCE="NO") &
+               conn_info%phi_a(i + j), conn_info%phi_b(i + j), &
+               conn_info%phi_c(i + j), conn_info%phi_d(i + j)
+            j = j + 1
+         END DO
+         WRITE (file_unit, FMT='(/)', ADVANCE="NO")
+      END DO
+      WRITE (file_unit, FMT='(/)')
 
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')SIZE(conn_info%impr_a)," !NIMPHI"
-    DO i=1,SIZE(conn_info%impr_a),2
-       j=0
-       DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%impr_a)))
-          WRITE(file_unit,FMT='(4('//TRIM(c_int)//'))',ADVANCE="NO") &
-               conn_info%impr_a(i+j),conn_info%impr_b(i+j),&
-               conn_info%impr_c(i+j),conn_info%impr_d(i+j)
-          j=j+1
-       END DO
-       WRITE(file_unit,FMT='(/)',ADVANCE="NO")
-    END DO
-    WRITE(file_unit,FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') SIZE(conn_info%impr_a), " !NIMPHI"
+      DO i = 1, SIZE(conn_info%impr_a), 2
+         j = 0
+         DO WHILE ((j < 2) .AND. ((i + j) <= SIZE(conn_info%impr_a)))
+            WRITE (file_unit, FMT='(4('//TRIM(c_int)//'))', ADVANCE="NO") &
+               conn_info%impr_a(i + j), conn_info%impr_b(i + j), &
+               conn_info%impr_c(i + j), conn_info%impr_d(i + j)
+            j = j + 1
+         END DO
+         WRITE (file_unit, FMT='(/)', ADVANCE="NO")
+      END DO
+      WRITE (file_unit, FMT='(/)')
 
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)') 0," !NDON"
-    WRITE(file_unit,FMT='(/)')
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)') 0," !NACC"
-    WRITE(file_unit,FMT='(/)')
-    WRITE(file_unit,FMT='('//TRIM(c_int)//',A)') 0," !NNB"
-    WRITE(file_unit,FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') 0, " !NDON"
+      WRITE (file_unit, FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') 0, " !NACC"
+      WRITE (file_unit, FMT='(/)')
+      WRITE (file_unit, FMT='('//TRIM(c_int)//',A)') 0, " !NNB"
+      WRITE (file_unit, FMT='(/)')
 
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/PSF_INFO")
-    CALL timestop(handle)
+      CALL cp_print_key_finished_output(iw, logger, subsys_section, &
+                                        "PRINT%TOPOLOGY_INFO/PSF_INFO")
+      CALL timestop(handle)
 
-  END SUBROUTINE write_topology_psf
+   END SUBROUTINE write_topology_psf
 
 END MODULE topology_psf
 

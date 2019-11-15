@@ -244,7 +244,7 @@ CONTAINS
       CALL pao_opt_init(pao)
 
       DO WHILE (.TRUE.)
-         pao%istep = pao%istep+1
+         pao%istep = pao%istep + 1
 
          IF (pao%iw > 0) WRITE (pao%iw, "(A,I9,A)") " PAO| ======================= Iteration: ", &
             pao%istep, " ============================="
@@ -254,7 +254,7 @@ CONTAINS
          CALL pao_check_trace_PS(ls_scf_env)
 
          IF (pao%linesearch%starts) THEN
-            icycle = icycle+1
+            icycle = icycle + 1
             ! calc new gradient including penalty terms
             CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
             CALL pao_calc_U(pao, qs_env, matrix_M=matrix_M, matrix_G=pao%matrix_G, penalty=penalty)
@@ -306,7 +306,7 @@ CONTAINS
 
       ! perform mixing of matrix_X
       IF (do_mixing) THEN
-         CALL dbcsr_add(pao%matrix_X, matrix_X_mixing, pao%mixing, 1.0_dp-pao%mixing)
+         CALL dbcsr_add(pao%matrix_X, matrix_X_mixing, pao%mixing, 1.0_dp - pao%mixing)
          CALL dbcsr_release(matrix_X_mixing)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Recalculating energy after mixing."
          CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)

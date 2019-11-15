@@ -130,7 +130,7 @@ CONTAINS
 
          IF (drho_r_valid) THEN
             DO idir = 1, 3
-               drho_r(3*(ispin-1)+idir)%pw => drho_struct_r(3*(ispin-1)+idir)%pw
+               drho_r(3*(ispin - 1) + idir)%pw => drho_struct_r(3*(ispin - 1) + idir)%pw
             END DO
          ELSE
             deriv_pw = .FALSE.
@@ -141,23 +141,23 @@ CONTAINS
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                udvol = 1.0_dp/rho_struct_r(ispin)%pw%pw_grid%dvol
                DO idir = 1, 3
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_transfer(rho_struct_r(ispin)%pw, tmp_g)
                   CALL pw_derive(tmp_g, nd(:, idir))
-                  CALL pw_transfer(tmp_g, drho_r(3*(ispin-1)+idir)%pw)
+                  CALL pw_transfer(tmp_g, drho_r(3*(ispin - 1) + idir)%pw)
                END DO
 
             ELSE
                DO idir = 1, 3
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(3*(ispin-1)+idir)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(3*(ispin - 1) + idir)%pw, &
                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                   rho_ao => rho_struct_ao(ispin, :)
                   CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                          rho=drho_r(3*(ispin-1)+idir), &
-                                          rho_gspace=drho_g(3*(ispin-1)+idir), &
+                                          rho=drho_r(3*(ispin - 1) + idir), &
+                                          rho_gspace=drho_g(3*(ispin - 1) + idir), &
                                           total_rho=dum, &
                                           ks_env=ks_env, soft_valid=.FALSE., &
                                           compute_tau=.FALSE., compute_grad=.TRUE., idir=idir)
@@ -172,14 +172,14 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  norm_drho = drho_r(3*(ispin-1)+1)%pw%cr3d(i, j, k)**2+ &
-                              drho_r(3*(ispin-1)+2)%pw%cr3d(i, j, k)**2+ &
-                              drho_r(3*(ispin-1)+3)%pw%cr3d(i, j, k)**2
+                  norm_drho = drho_r(3*(ispin - 1) + 1)%pw%cr3d(i, j, k)**2 + &
+                              drho_r(3*(ispin - 1) + 2)%pw%cr3d(i, j, k)**2 + &
+                              drho_r(3*(ispin - 1) + 3)%pw%cr3d(i, j, k)**2
                   norm_drho = norm_drho/MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)
                   rho_53 = cfermi*MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)**f53
-                  elf_kernel = (tau_r(ispin)%pw%cr3d(i, j, k)-f18*norm_drho)+2.87E-5_dp
+                  elf_kernel = (tau_r(ispin)%pw%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
                   elf_kernel = (elf_kernel/rho_53)**2
-                  elf_r(ispin)%pw%cr3d(i, j, k) = 1.0_dp/(1.0_dp+elf_kernel)
+                  elf_r(ispin)%pw%cr3d(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
                   IF (elf_r(ispin)%pw%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%pw%cr3d(i, j, k) = 0.0_dp
                END DO
             END DO
@@ -193,12 +193,12 @@ CONTAINS
             IF (deriv_pw) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
                DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw)
                END DO
             ELSE
                DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(3*(ispin-1)+idir)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(3*(ispin - 1) + idir)%pw)
                END DO
             END IF
          END IF

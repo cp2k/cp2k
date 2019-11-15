@@ -108,12 +108,12 @@ CONTAINS
 
       ! create the RPA proc_map
       IF (.NOT. (ALLOCATED(RPA_proc_map))) THEN
-         ALLOCATE (RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe-1))
+         ALLOCATE (RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe - 1))
          RPA_proc_map = 0
-         DO i = 0, para_env_RPA%num_pe-1
+         DO i = 0, para_env_RPA%num_pe - 1
             RPA_proc_map(i) = i
-            RPA_proc_map(-i-1) = para_env_RPA%num_pe-i-1
-            RPA_proc_map(para_env_RPA%num_pe+i) = i
+            RPA_proc_map(-i - 1) = para_env_RPA%num_pe - i - 1
+            RPA_proc_map(para_env_RPA%num_pe + i) = i
          END DO
       END IF
 
@@ -144,14 +144,14 @@ CONTAINS
       npcol_d = fm_mat_dest%matrix_struct%context%num_pe(2)
 
       ! 0) create the map for the local sizes
-      ALLOCATE (local_size_source(2, 0:para_env_RPA%num_pe-1))
+      ALLOCATE (local_size_source(2, 0:para_env_RPA%num_pe - 1))
       local_size_source = 0
       local_size_source(1, para_env_RPA%mepos) = nrow_local_s
       local_size_source(2, para_env_RPA%mepos) = ncol_local_s
       CALL mp_sum(local_size_source, para_env_RPA%group)
 
       ! 1) loop over my local data and define a map for the proc to send data
-      ALLOCATE (map_send_size(0:para_env_RPA%num_pe-1))
+      ALLOCATE (map_send_size(0:para_env_RPA%num_pe - 1))
       map_send_size = 0
       dummy_proc = 0
       DO jjB = 1, ncol_local_s
@@ -163,12 +163,12 @@ CONTAINS
             send_prow = cp_fm_indxg2p(i_global, nrow_block_d, dummy_proc, &
                                       fm_mat_dest%matrix_struct%first_p_pos(1), nprow_d)
             proc_send = fm_mat_dest%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-            map_send_size(proc_send) = map_send_size(proc_send)+1
+            map_send_size(proc_send) = map_send_size(proc_send) + 1
          END DO
       END DO
 
       ! 2) loop over my local data of fm_mat_S and define a map for the proc from which rec data
-      ALLOCATE (map_rec_size(0:para_env_RPA%num_pe-1))
+      ALLOCATE (map_rec_size(0:para_env_RPA%num_pe - 1))
       map_rec_size = 0
       DO jjB = 1, ncol_local_d
          j_global = col_indices_d(jjB)
@@ -179,16 +179,16 @@ CONTAINS
             rec_prow = cp_fm_indxg2p(i_global, nrow_block_s, dummy_proc, &
                                      fm_mat_source%matrix_struct%first_p_pos(1), nprow_s)
             proc_receive = fm_mat_source%matrix_struct%context%blacs2mpi(rec_prow, rec_pcol)
-            map_rec_size(proc_receive) = map_rec_size(proc_receive)+1
+            map_rec_size(proc_receive) = map_rec_size(proc_receive) + 1
          END DO
       END DO
 
       ! 3) calculate the number of messages to send and allocate the send buffer
       number_of_send = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_send = RPA_proc_map(para_env_RPA%mepos+proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_send = RPA_proc_map(para_env_RPA%mepos + proc_shift)
          IF (map_send_size(proc_send) > 0) THEN
-            number_of_send = number_of_send+1
+            number_of_send = number_of_send + 1
          END IF
       END DO
 
@@ -196,16 +196,16 @@ CONTAINS
 
       ! 3.5) prepare the index map
       CALL timeset(routineN//"_bS", handle2)
-      ALLOCATE (proc2counter(0:para_env_RPA%num_pe-1))
+      ALLOCATE (proc2counter(0:para_env_RPA%num_pe - 1))
       proc2counter = 0
       ! allocate buffer for sending
       send_counter = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_send = RPA_proc_map(para_env_RPA%mepos+proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_send = RPA_proc_map(para_env_RPA%mepos + proc_shift)
          size_send_buffer = map_send_size(proc_send)
 
          IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter+1
+            send_counter = send_counter + 1
             ! prepare the sending buffer
             ALLOCATE (buffer_send(send_counter)%indx(2, size_send_buffer))
             buffer_send(send_counter)%indx = 0
@@ -214,7 +214,7 @@ CONTAINS
          END IF
       END DO
 
-      ALLOCATE (index_counter(0:para_env_RPA%num_pe-1))
+      ALLOCATE (index_counter(0:para_env_RPA%num_pe - 1))
       index_counter = 0
       DO iiB = 1, nrow_local_s
          i_global = row_indices_s(iiB)
@@ -226,7 +226,7 @@ CONTAINS
                                       fm_mat_dest%matrix_struct%first_p_pos(2), npcol_d)
             iii = fm_mat_dest%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             IF (iii == para_env_RPA%mepos) CYCLE
-            index_counter(iii) = index_counter(iii)+1
+            index_counter(iii) = index_counter(iii) + 1
             send_counter = proc2counter(iii)
             buffer_send(send_counter)%indx(1, index_counter(iii)) = iiB
             buffer_send(send_counter)%indx(2, index_counter(iii)) = jjB
@@ -239,10 +239,10 @@ CONTAINS
 
       ! 4) calculate the number of messages to receive and allocate the rec buffer
       number_of_rec = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_receive = RPA_proc_map(para_env_RPA%mepos - proc_shift)
          IF (map_rec_size(proc_receive) > 0) THEN
-            number_of_rec = number_of_rec+1
+            number_of_rec = number_of_rec + 1
          END IF
       END DO
 
@@ -252,12 +252,12 @@ CONTAINS
       CALL timeset(routineN//"_bR", handle2)
       rec_counter = 0
       proc2counter = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_receive = RPA_proc_map(para_env_RPA%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
 
          IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter+1
+            rec_counter = rec_counter + 1
             ! allocate the auxilliary index structure
             ALLOCATE (buffer_rec(rec_counter)%indx(2, size_rec_buffer))
             buffer_rec(rec_counter)%indx = 0
@@ -274,8 +274,8 @@ CONTAINS
 !$OMP                                         buffer_rec,proc2counter)&
 !$OMP     PRIVATE(proc_receive,size_rec_buffer,rec_local_row,rec_local_col,ref_rec_prow,ref_rec_pcol,&
 !$OMP             rec_counter,iii,i_global,rec_prow,i_local,j_global,rec_pcol,j_local)
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_receive = RPA_proc_map(para_env_RPA%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
 
          rec_local_row = local_size_source(1, proc_receive)
@@ -305,7 +305,7 @@ CONTAINS
                         j_local = cp_fm_indxg2l(j_global, ncol_block_d, dummy_proc, &
                                                 fm_mat_dest%matrix_struct%first_p_pos(2), npcol_d)
 
-                        iii = iii+1
+                        iii = iii + 1
                         buffer_rec(rec_counter)%indx(1, iii) = i_local
                         buffer_rec(rec_counter)%indx(2, iii) = j_local
                      END IF
@@ -422,12 +422,12 @@ CONTAINS
       ! 1) prepare receiving buffer
       CALL timeset(routineN//"_post", handle2)
       rec_counter = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_receive = RPA_proc_map(para_env_RPA%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
 
          IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter+1
+            rec_counter = rec_counter + 1
             ! prepare the buffer for receive
             ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
             buffer_rec(rec_counter)%msg = 0.0_dp
@@ -445,12 +445,12 @@ CONTAINS
       ! allocate buffer for sending, fill the buffer, send the message
       ALLOCATE (req_send(number_of_send))
       send_counter = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_send = RPA_proc_map(para_env_RPA%mepos+proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_send = RPA_proc_map(para_env_RPA%mepos + proc_shift)
          size_send_buffer = map_send_size(proc_send)
 
          IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter+1
+            send_counter = send_counter + 1
             ! allocate
             ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
             buffer_send(send_counter)%msg = 0.0_dp
@@ -478,8 +478,8 @@ CONTAINS
       ! 3) fill the fm_mat_dest matrix with the received data
       CALL timeset(routineN//"_fill", handle2)
       rec_counter = 0
-      DO proc_shift = 1, para_env_RPA%num_pe-1
-         proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
+      DO proc_shift = 1, para_env_RPA%num_pe - 1
+         proc_receive = RPA_proc_map(para_env_RPA%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
 
          rec_local_row = local_size_source(1, proc_receive)
@@ -489,7 +489,7 @@ CONTAINS
          ref_rec_pcol = fm_mat_source%matrix_struct%context%mpi2blacs(2, proc_receive)
 
          IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter+1
+            rec_counter = rec_counter + 1
 
             CALL mp_wait(buffer_rec(rec_counter)%msg_req)
 
@@ -679,9 +679,9 @@ CONTAINS
       npcol = fm_ia%matrix_struct%context%num_pe(2)
 
       ! 0) create array containing the processes position and supporting infos
-      ALLOCATE (grid_2_mepos(0:nprow-1, 0:npcol-1))
+      ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
       grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe-1, 2))
+      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe - 1, 2))
       mepos_2_grid = 0
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env_sub%mepos
@@ -692,22 +692,22 @@ CONTAINS
       CALL mp_sum(mepos_2_grid, para_env_sub%group)
 
       ! loop over local index range and define the sending map
-      ALLOCATE (map_send_size(0:para_env_sub%num_pe-1))
+      ALLOCATE (map_send_size(0:para_env_sub%num_pe - 1))
       map_send_size = 0
       dummy_proc = 0
       DO iaia = my_ia_start, my_ia_end
-         i_global = (iaia-1)/virtual+1
-         j_global = MOD(iaia-1, virtual)+1
+         i_global = (iaia - 1)/virtual + 1
+         j_global = MOD(iaia - 1, virtual) + 1
          send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
                                    fm_ia%matrix_struct%first_p_pos(1), nprow)
          send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
                                    fm_ia%matrix_struct%first_p_pos(2), npcol)
          proc_send = grid_2_mepos(send_prow, send_pcol)
-         map_send_size(proc_send) = map_send_size(proc_send)+1
+         map_send_size(proc_send) = map_send_size(proc_send) + 1
       END DO
 
       ! loop over local data of fm_ia and define the receiving map
-      ALLOCATE (map_rec_size(0:para_env_sub%num_pe-1))
+      ALLOCATE (map_rec_size(0:para_env_sub%num_pe - 1))
       map_rec_size = 0
       part_ia = REAL(dimen_ia, KIND=dp)/REAL(para_env_sub%num_pe, KIND=dp)
 
@@ -715,47 +715,47 @@ CONTAINS
          i_global = row_indices(iiB)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
-            iaia = (i_global-1)*virtual+j_global
-            proc_receive = INT(REAL(iaia-1, KIND=dp)/part_ia)
+            iaia = (i_global - 1)*virtual + j_global
+            proc_receive = INT(REAL(iaia - 1, KIND=dp)/part_ia)
             proc_receive = MAX(0, proc_receive)
-            proc_receive = MIN(proc_receive, para_env_sub%num_pe-1)
+            proc_receive = MIN(proc_receive, para_env_sub%num_pe - 1)
             DO
                itmp = get_limit(dimen_ia, para_env_sub%num_pe, proc_receive)
                IF (iaia >= itmp(1) .AND. iaia <= itmp(2)) EXIT
-               IF (iaia < itmp(1)) proc_receive = proc_receive-1
-               IF (iaia > itmp(2)) proc_receive = proc_receive+1
+               IF (iaia < itmp(1)) proc_receive = proc_receive - 1
+               IF (iaia > itmp(2)) proc_receive = proc_receive + 1
             END DO
-            map_rec_size(proc_receive) = map_rec_size(proc_receive)+1
+            map_rec_size(proc_receive) = map_rec_size(proc_receive) + 1
          END DO
       END DO
 
       ! create the sub_proc_map
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
-      DO i = 0, para_env_sub%num_pe-1
+      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
+      DO i = 0, para_env_sub%num_pe - 1
          sub_proc_map(i) = i
-         sub_proc_map(-i-1) = para_env_sub%num_pe-i-1
-         sub_proc_map(para_env_sub%num_pe+i) = i
+         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
+         sub_proc_map(para_env_sub%num_pe + i) = i
       END DO
       ! allocate the buffer for sending data
       number_of_send = 0
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          IF (map_send_size(proc_send) > 0) THEN
-            number_of_send = number_of_send+1
+            number_of_send = number_of_send + 1
          END IF
       END DO
       ! allocate the structure that will hold the messages to be sent
       ALLOCATE (buffer_send(number_of_send))
       ! and the map from the grid of processess to the message position
-      ALLOCATE (grid_ref_2_send_pos(0:nprow-1, 0:npcol-1))
+      ALLOCATE (grid_ref_2_send_pos(0:nprow - 1, 0:npcol - 1))
       grid_ref_2_send_pos = 0
       ! finally allocate each message
       send_counter = 0
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter+1
+            send_counter = send_counter + 1
             ! allocate the sending buffer (msg)
             ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
             buffer_send(send_counter)%proc = proc_send
@@ -770,10 +770,10 @@ CONTAINS
 
       ! allocate the buffer for receiving data
       number_of_rec = 0
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
          IF (map_rec_size(proc_receive) > 0) THEN
-            number_of_rec = number_of_rec+1
+            number_of_rec = number_of_rec + 1
          END IF
       END DO
 
@@ -783,11 +783,11 @@ CONTAINS
       ALLOCATE (indices_rec(number_of_rec))
       ! finally allocate each message and fill the array of indeces
       rec_counter = 0
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter+1
+            rec_counter = rec_counter + 1
             ! prepare the buffer for receive
             ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
             buffer_rec(rec_counter)%proc = proc_receive
@@ -797,14 +797,14 @@ CONTAINS
             CALL get_group_dist(gd_ia, proc_receive, rec_iaia_start, rec_iaia_end, rec_iaia_size)
             iii = 0
             DO iaia = rec_iaia_start, rec_iaia_end
-               i_global = (iaia-1)/virtual+1
-               j_global = MOD(iaia-1, virtual)+1
+               i_global = (iaia - 1)/virtual + 1
+               j_global = MOD(iaia - 1, virtual) + 1
                rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
                                         fm_ia%matrix_struct%first_p_pos(1), nprow)
                rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
                                         fm_ia%matrix_struct%first_p_pos(2), npcol)
                IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
-               iii = iii+1
+               iii = iii + 1
                i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
                                        fm_ia%matrix_struct%first_p_pos(1), nprow)
                j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
@@ -822,14 +822,14 @@ CONTAINS
          indices_map_my = 0
          iii = 0
          DO iaia = my_ia_start, my_ia_end
-            i_global = (iaia-1)/virtual+1
-            j_global = MOD(iaia-1, virtual)+1
+            i_global = (iaia - 1)/virtual + 1
+            j_global = MOD(iaia - 1, virtual) + 1
             rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
                                      fm_ia%matrix_struct%first_p_pos(1), nprow)
             rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
                                      fm_ia%matrix_struct%first_p_pos(2), npcol)
             IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
-            iii = iii+1
+            iii = iii + 1
             i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
                                     fm_ia%matrix_struct%first_p_pos(1), nprow)
             j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
@@ -857,10 +857,10 @@ CONTAINS
          ! zero the matries of the buffers and post the messages to be received
          CALL cp_fm_set_all(matrix=fm_ia, alpha=0.0_dp)
          rec_counter = 0
-         DO proc_shift = 1, para_env_sub%num_pe-1
-            proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
             IF (map_rec_size(proc_receive) > 0) THEN
-               rec_counter = rec_counter+1
+               rec_counter = rec_counter + 1
                buffer_rec(rec_counter)%msg = 0.0_dp
                CALL mp_irecv(buffer_rec(rec_counter)%msg, proc_receive, para_env_sub%group, &
                              buffer_rec(rec_counter)%msg_req)
@@ -873,8 +873,8 @@ CONTAINS
          iii_vet = 0
          jjj = 0
          DO iaia = my_ia_start, my_ia_end
-            i_global = (iaia-1)/virtual+1
-            j_global = MOD(iaia-1, virtual)+1
+            i_global = (iaia - 1)/virtual + 1
+            j_global = MOD(iaia - 1, virtual) + 1
             send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
                                       fm_ia%matrix_struct%first_p_pos(1), nprow)
             send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
@@ -883,26 +883,26 @@ CONTAINS
             ! we don't need to send to ourselves
             IF (grid_2_mepos(send_prow, send_pcol) == para_env_sub%mepos) THEN
                ! filling fm_ia with local data
-               jjj = jjj+1
+               jjj = jjj + 1
                i_local = indices_map_my(1, jjj)
                j_local = indices_map_my(2, jjj)
                fm_ia%local_data(i_local, j_local) = &
-                  Gamma_2D(iaia-my_ia_start+1, kkB)
+                  Gamma_2D(iaia - my_ia_start + 1, kkB)
 
             ELSE
                send_counter = grid_ref_2_send_pos(send_prow, send_pcol)
-               iii_vet(send_counter) = iii_vet(send_counter)+1
+               iii_vet(send_counter) = iii_vet(send_counter) + 1
                iii = iii_vet(send_counter)
                buffer_send(send_counter)%msg(iii) = &
-                  Gamma_2D(iaia-my_ia_start+1, kkB)
+                  Gamma_2D(iaia - my_ia_start + 1, kkB)
             END IF
          END DO
          req_send = 0
          send_counter = 0
-         DO proc_shift = 1, para_env_sub%num_pe-1
-            proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
             IF (map_send_size(proc_send) > 0) THEN
-               send_counter = send_counter+1
+               send_counter = send_counter + 1
                CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env_sub%group, &
                              buffer_send(send_counter)%msg_req)
                req_send(send_counter) = buffer_send(send_counter)%msg_req
@@ -911,11 +911,11 @@ CONTAINS
 
          ! receive the messages and fill the fm_ia
          rec_counter = 0
-         DO proc_shift = 1, para_env_sub%num_pe-1
-            proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
             size_rec_buffer = map_rec_size(proc_receive)
             IF (map_rec_size(proc_receive) > 0) THEN
-               rec_counter = rec_counter+1
+               rec_counter = rec_counter + 1
                ! wait for the message
                CALL mp_wait(buffer_rec(rec_counter)%msg_req)
                DO iii = 1, size_rec_buffer
@@ -1011,9 +1011,9 @@ CONTAINS
          send_counter = 0
          rec_counter = 0
 
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
             IF (num_entries_rec(imepos) > 0) THEN
-               rec_counter = rec_counter+1
+               rec_counter = rec_counter + 1
                IF (my_do_indx) THEN
                   CALL mp_irecv(buffer_rec(imepos)%indx, imepos, para_env%group, req_array(rec_counter, 3), tag=4)
                END IF
@@ -1023,9 +1023,9 @@ CONTAINS
             END IF
          END DO
 
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
             IF (num_entries_send(imepos) > 0) THEN
-               send_counter = send_counter+1
+               send_counter = send_counter + 1
                IF (my_do_indx) THEN
                   CALL mp_isend(buffer_send(imepos)%indx, imepos, para_env%group, req_array(send_counter, 1), tag=4)
                END IF

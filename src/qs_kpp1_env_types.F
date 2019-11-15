@@ -94,7 +94,7 @@ CONTAINS
 
       IF (ASSOCIATED(kpp1_env)) THEN
          CPASSERT(kpp1_env%ref_count > 0)
-         kpp1_env%ref_count = kpp1_env%ref_count-1
+         kpp1_env%ref_count = kpp1_env%ref_count - 1
          IF (kpp1_env%ref_count < 1) THEN
             IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
                DO ispin = 1, SIZE(kpp1_env%v_rspace)
@@ -150,7 +150,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(kpp1_env%ref_count > 0)
-      kpp1_env%ref_count = kpp1_env%ref_count+1
+      kpp1_env%ref_count = kpp1_env%ref_count + 1
    END SUBROUTINE kpp1_retain
 
 END MODULE qs_kpp1_env_types

@@ -119,11 +119,11 @@ CONTAINS
             !for different potentials we have to regard the differences in energy
             ! min(1,e^{-\beta*[(E_{exact}(n)-E_{approx}(n))-(E_{exact}(o)-E_{approx}(o))]})
             elem_ener = 1.0_dp/(kB*temperature)*tree_element%potential &
-                        -1.0_dp/(kB*tmc_params%Temp(tree_element%temp_created)) &
+                        - 1.0_dp/(kB*tmc_params%Temp(tree_element%temp_created)) &
                         *tree_element%e_pot_approx
          END IF
          parent_ener = 1.0_dp/(kB*temperature)*parent_element%potential &
-                       -1.0_dp/(kB*tmc_params%Temp(tree_element%temp_created)) &
+                       - 1.0_dp/(kB*tmc_params%Temp(tree_element%temp_created)) &
                        *parent_element%e_pot_approx
 
          !-- always accepted if new energy is smaller than old energy
@@ -132,7 +132,7 @@ CONTAINS
          ELSE
             !-- gaussian distributed acceptance if new energy is greater than old energy
             IF (rnd_nr .LT. &
-                EXP(-(elem_ener-parent_ener))) THEN
+                EXP(-(elem_ener - parent_ener))) THEN
                accept = .TRUE.
             ELSE
                accept = .FALSE.
@@ -149,14 +149,14 @@ CONTAINS
          ! comparing aproximated energies
          IF (PRESENT(approx_ener)) THEN
             elem_ener = tree_element%e_pot_approx &
-                        +tree_element%ekin
+                        + tree_element%ekin
             parent_ener = parent_element%e_pot_approx &
-                          +ekin_last_acc
+                          + ekin_last_acc
          ELSE
             elem_ener = tree_element%potential &
-                        +tree_element%ekin
+                        + tree_element%ekin
             parent_ener = parent_element%potential &
-                          +ekin_last_acc
+                          + ekin_last_acc
          END IF
 
          !-- always accepted if new energy is smaller than old energy
@@ -165,7 +165,7 @@ CONTAINS
          ELSE
             !-- gaussian distributed acceptance if new energy is greater than old energy
             IF (rnd_nr .LT. &
-                EXP(-1.0_dp/(kB*temperature)*(elem_ener-parent_ener))) THEN
+                EXP(-1.0_dp/(kB*temperature)*(elem_ener - parent_ener))) THEN
                accept = .TRUE.
             ELSE
                accept = .FALSE.
@@ -176,11 +176,11 @@ CONTAINS
       ! update the estimated energy acceptance probability distribution
       IF (diff_pot_check) THEN
          CPASSERT(ASSOCIATED(tmc_params%prior_NMC_acc))
-         tmc_params%prior_NMC_acc%counter = tmc_params%prior_NMC_acc%counter+1
-         tmc_params%prior_NMC_acc%aver = (tmc_params%prior_NMC_acc%aver*(tmc_params%prior_NMC_acc%counter-1)+ &
-                                          ((elem_ener-parent_ener)))/REAL(tmc_params%prior_NMC_acc%counter, KIND=dp)
-         tmc_params%prior_NMC_acc%aver_2 = (tmc_params%prior_NMC_acc%aver_2*(tmc_params%prior_NMC_acc%counter-1)+ &
-                                            (elem_ener-parent_ener)**2)/REAL(tmc_params%prior_NMC_acc%counter, KIND=dp)
+         tmc_params%prior_NMC_acc%counter = tmc_params%prior_NMC_acc%counter + 1
+         tmc_params%prior_NMC_acc%aver = (tmc_params%prior_NMC_acc%aver*(tmc_params%prior_NMC_acc%counter - 1) + &
+                                          ((elem_ener - parent_ener)))/REAL(tmc_params%prior_NMC_acc%counter, KIND=dp)
+         tmc_params%prior_NMC_acc%aver_2 = (tmc_params%prior_NMC_acc%aver_2*(tmc_params%prior_NMC_acc%counter - 1) + &
+                                            (elem_ener - parent_ener)**2)/REAL(tmc_params%prior_NMC_acc%counter, KIND=dp)
       END IF
 
       ! end the timing
@@ -228,14 +228,14 @@ CONTAINS
       IF (tmc_params%pressure .GT. 0.0_dp) THEN
          ! pt-NVT
          elem1_ener = conf1%potential &
-                      +conf1%ekin
+                      + conf1%ekin
          elem2_ener = conf2%potential &
-                      +conf2%ekin
+                      + conf2%ekin
          ! the swap is done with prob: exp((\beta_i-\beta_j)(U_i-U_j)),
          ! BUT because they are already swaped we exchange the energies.
-         IF (tree_elem%rnd_nr .LT. EXP((1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf))- &
-                                        1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf+1))) &
-                                       *(elem2_ener-elem1_ener))) THEN
+         IF (tree_elem%rnd_nr .LT. EXP((1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf)) - &
+                                        1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf + 1))) &
+                                       *(elem2_ener - elem1_ener))) THEN
             accept = .TRUE.
          ELSE
             accept = .FALSE.
@@ -248,11 +248,11 @@ CONTAINS
                               vol=vol2)
          ! delta= (beta_m-beta_n)(U_n-U_m) + (beta_m*P_m-beta_n*P_n)(V_n-V_m)
          delta = (1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf)) &
-                  -1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf+1)))* &
-                 ((conf2%potential+conf2%ekin)-(conf1%potential+conf1%ekin))+ &
+                  - 1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf + 1)))* &
+                 ((conf2%potential + conf2%ekin) - (conf1%potential + conf1%ekin)) + &
                  (1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf))*tmc_params%pressure &
-                  -1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf+1))*tmc_params%pressure)* &
-                 (vol2-vol1)
+                  - 1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf + 1))*tmc_params%pressure)* &
+                 (vol2 - vol1)
          IF (tree_elem%rnd_nr .LT. EXP(delta)) THEN
             accept = .TRUE.
          ELSE
@@ -309,21 +309,21 @@ CONTAINS
       ! delta_H  =      delta_U                               + P*delta_V           - kB*T*N*ln(V_n/V_p)
       IF (.FALSE.) THEN
          ! the volume move in volume space (dV)
-         d_enthalpy = (new_elem%potential-parent_elem%potential)+ &
-                      tmc_params%pressure*(n_vol-p_vol)- &
+         d_enthalpy = (new_elem%potential - parent_elem%potential) + &
+                      tmc_params%pressure*(n_vol - p_vol) - &
                       kB*temperature*(SIZE(new_elem%pos)/ &
                                       tmc_params%dim_per_elem)* &
                       LOG(n_vol/p_vol)
       ELSE
          IF (tmc_params%v_isotropic) THEN
-            d_enthalpy = (new_elem%potential-parent_elem%potential)+ &
-                         tmc_params%pressure*(n_vol-p_vol)- &
+            d_enthalpy = (new_elem%potential - parent_elem%potential) + &
+                         tmc_params%pressure*(n_vol - p_vol) - &
                          kB*temperature*((SIZE(new_elem%pos)/ &
-                                          tmc_params%dim_per_elem)+2/REAL(3, KIND=dp))* &
+                                          tmc_params%dim_per_elem) + 2/REAL(3, KIND=dp))* &
                          LOG(n_vol/p_vol)
          ELSE
-            d_enthalpy = (new_elem%potential-parent_elem%potential)+ &
-                         tmc_params%pressure*(n_vol-p_vol)- &
+            d_enthalpy = (new_elem%potential - parent_elem%potential) + &
+                         tmc_params%pressure*(n_vol - p_vol) - &
                          kB*temperature*(SIZE(new_elem%pos)/ &
                                          tmc_params%dim_per_elem)* &
                          LOG(n_vol/p_vol)
@@ -755,14 +755,14 @@ CONTAINS
          !-- set result counters
          ! counter for certain temperature
          tmc_env%m_env%result_count(gt_act_elem%mv_conf) = &
-            tmc_env%m_env%result_count(gt_act_elem%mv_conf)+1
+            tmc_env%m_env%result_count(gt_act_elem%mv_conf) + 1
          ! in case of swapped also count the result for
          !  the other swapped temperature
          IF (gt_act_elem%swaped) &
-            tmc_env%m_env%result_count(gt_act_elem%mv_conf+1) = &
-            tmc_env%m_env%result_count(gt_act_elem%mv_conf+1)+1
+            tmc_env%m_env%result_count(gt_act_elem%mv_conf + 1) = &
+            tmc_env%m_env%result_count(gt_act_elem%mv_conf + 1) + 1
          ! count also for global tree Markov Chain
-         tmc_env%m_env%result_count(0) = tmc_env%m_env%result_count(0)+1
+         tmc_env%m_env%result_count(0) = tmc_env%m_env%result_count(0) + 1
 
          ! flag for doing tree cleaning with canceling and deallocation
          something_updated = .TRUE.
@@ -779,11 +779,11 @@ CONTAINS
             IF (gt_act_elem%prob_acc .GT. 0.0_dp) THEN
                IF (gt_act_elem%prob_acc .GE. 0.5_dp) THEN
                   ! wrong estimate (estimated accepted)
-                  tmc_env%m_env%estim_corr_wrong(4) = tmc_env%m_env%estim_corr_wrong(4)+1
+                  tmc_env%m_env%estim_corr_wrong(4) = tmc_env%m_env%estim_corr_wrong(4) + 1
                   IF (DEBUG .GT. 0) WRITE (tmc_env%m_env%io_unit, *) &
                      "Wrong guess for NACC (elem/estim acc prob)", gt_act_elem%nr, gt_act_elem%prob_acc
                ELSE
-                  tmc_env%m_env%estim_corr_wrong(3) = tmc_env%m_env%estim_corr_wrong(3)+1
+                  tmc_env%m_env%estim_corr_wrong(3) = tmc_env%m_env%estim_corr_wrong(3) + 1
                END IF
             END IF
             gt_act_elem%stat = status_rejected_result
@@ -795,11 +795,11 @@ CONTAINS
             IF (gt_act_elem%prob_acc .GT. 0.0_dp) THEN
                IF (gt_act_elem%prob_acc .LE. 0.5_dp) THEN
                   ! wrong estimate (estimated NOT accepted)
-                  tmc_env%m_env%estim_corr_wrong(2) = tmc_env%m_env%estim_corr_wrong(2)+1
+                  tmc_env%m_env%estim_corr_wrong(2) = tmc_env%m_env%estim_corr_wrong(2) + 1
                   IF (DEBUG .GT. 0) WRITE (tmc_env%m_env%io_unit, *) &
                      "wrong guess for ACC  (elem/estim acc prob)", gt_act_elem%nr, gt_act_elem%prob_acc
                ELSE
-                  tmc_env%m_env%estim_corr_wrong(1) = tmc_env%m_env%estim_corr_wrong(1)+1
+                  tmc_env%m_env%estim_corr_wrong(1) = tmc_env%m_env%estim_corr_wrong(1) + 1
                END IF
             END IF
             gt_act_elem%stat = status_accepted_result
@@ -814,7 +814,7 @@ CONTAINS
                ! ATTENTION: act_element != gt_act_elem%conf(gt_act_elem%mv_conf),
                !   because we take the last accepted conf
                tmc_env%m_env%result_list(gt_act_elem%mv_conf)%elem => act_element
-               tmc_env%m_env%result_list(gt_act_elem%mv_conf+1)%elem => tmp_element
+               tmc_env%m_env%result_list(gt_act_elem%mv_conf + 1)%elem => tmp_element
             END IF
             tmc_env%m_env%gt_act => gt_act_elem
          END IF ! result acceptance check
@@ -842,7 +842,7 @@ CONTAINS
          IF (gt_act_elem%swaped) &
             CALL write_result_list_element(result_list=tmc_env%m_env%result_list, &
                                            result_count=tmc_env%m_env%result_count, &
-                                           conf_updated=gt_act_elem%mv_conf+1, accepted=result_acc, &
+                                           conf_updated=gt_act_elem%mv_conf + 1, accepted=result_acc, &
                                            tmc_params=tmc_env%params)
 
          ! save for analysis
@@ -852,10 +852,10 @@ CONTAINS
                              temp_ind=gt_act_elem%mv_conf, &
                              nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf))
             IF (gt_act_elem%swaped) THEN
-               CALL add_to_list(elem=tmc_env%m_env%result_list(gt_act_elem%mv_conf+1)%elem, &
+               CALL add_to_list(elem=tmc_env%m_env%result_list(gt_act_elem%mv_conf + 1)%elem, &
                                 list=tmc_env%m_env%analysis_list, &
-                                temp_ind=gt_act_elem%mv_conf+1, &
-                                nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf+1))
+                                temp_ind=gt_act_elem%mv_conf + 1, &
+                                nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf + 1))
             END IF
          END IF
       END DO search_calculated_element_loop
@@ -1019,8 +1019,8 @@ CONTAINS
                                                     elem_new=act_elem, &
                                                     E_classical_diff=0.0_dp, &
                                                     rnd_nr=tmp_pt_ptr%gt_elem%rnd_nr, &
-                                                    beta=1.0_dp/(kB*(tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf)- &
-                                                                     tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf+1))), &
+                                                    beta=1.0_dp/(kB*(tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf) - &
+                                                                     tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf + 1))), &
                                                     tmc_params=tmc_env%params)
                ELSE
                   tmp_pt_ptr => tmp_pt_ptr%next
@@ -1031,7 +1031,7 @@ CONTAINS
                IF (ready_for_update_acc_prob(parent_elem)) THEN
                   tmp_prob = compute_estimated_prob(elem_old=parent_elem, &
                                                     elem_new=act_elem, &
-                                                    E_classical_diff=act_elem%e_pot_approx-parent_elem%e_pot_approx, &
+                                                    E_classical_diff=act_elem%e_pot_approx - parent_elem%e_pot_approx, &
                                                     rnd_nr=tmp_pt_ptr%gt_elem%rnd_nr, &
                                                     beta=1.0_dp/(kB*tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf)), &
                                                     tmc_params=tmc_env%params)

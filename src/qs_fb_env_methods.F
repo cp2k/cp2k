@@ -916,7 +916,7 @@ CONTAINS
       CALL fb_build_pair_radii(rcut, nkinds_global, pair_radii)
       ihalo = 0
       DO iatom = 1, natoms_local
-         ihalo = ihalo+1
+         ihalo = ihalo + 1
          CALL fb_atomic_halo_build_halo_atoms(local_atoms(iatom), &
                                               particle_set, &
                                               cell, &
@@ -1041,11 +1041,11 @@ CONTAINS
                lshell = basis_set%l(ishell, iset)
                counter = 0
                ! loop over orbitals within the same l
-               DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-                  counter = counter+1
+               DO ico = ncoset(lshell - 1) + 1, ncoset(lshell)
+                  counter = counter + 1
                   ! only include the first zeta orbitals
                   IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
-                     nfunctions(ikind) = nfunctions(ikind)+1
+                     nfunctions(ikind) = nfunctions(ikind) + 1
                   END IF
                END DO
                ! we have got enough trial functions when we have enough
@@ -1084,12 +1084,12 @@ CONTAINS
                lshell = basis_set%l(ishell, iset)
                counter = 0
                ! loop over orbitals within the same l
-               DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-                  icgf = icgf+1
-                  counter = counter+1
+               DO ico = ncoset(lshell - 1) + 1, ncoset(lshell)
+                  icgf = icgf + 1
+                  counter = counter + 1
                   ! only include the first zeta orbitals
                   IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
-                     itrial = itrial+1
+                     itrial = itrial + 1
                      functions(itrial, ikind) = icgf
                   END IF
                END DO
@@ -1163,7 +1163,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
          rows(iblk) = iatom
          cols(iblk) = jatom
-         nblks = nblks+1
+         nblks = nblks + 1
       END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_reserve_blocks(matrix_out, rows(1:nblks), cols(1:nblks))

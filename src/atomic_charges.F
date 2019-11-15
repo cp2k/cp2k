@@ -96,19 +96,19 @@ CONTAINS
             CASE (0)
                IF (title == "RESP charges:") THEN
                   WRITE (scr, '(T3,A4,2X,I6,A2,A2,F12.6)') "RESP", iatom, "  ", element_symbol, atomic_charges(iatom)
-                  total_charge = total_charge+atomic_charges(iatom)
+                  total_charge = total_charge + atomic_charges(iatom)
                ELSE
                   WRITE (scr, '(I6,A2,A2,F12.6)') iatom, "  ", element_symbol, atomic_charges(iatom)
-                  total_charge = total_charge+atomic_charges(iatom)
+                  total_charge = total_charge + atomic_charges(iatom)
                ENDIF
             CASE (1)
-               WRITE (scr, '(I6,A2,A2,F12.6)') iatom, "  ", element_symbol, zeff-electronic_charges(iatom, 1)
-               total_charge = total_charge+zeff-electronic_charges(iatom, 1)
+               WRITE (scr, '(I6,A2,A2,F12.6)') iatom, "  ", element_symbol, zeff - electronic_charges(iatom, 1)
+               total_charge = total_charge + zeff - electronic_charges(iatom, 1)
             CASE DEFAULT
                WRITE (scr, '(I6,A2,A2,2F12.6)') iatom, "  ", element_symbol, &
-                  zeff-(electronic_charges(iatom, 1)+electronic_charges(iatom, 2)), &
-                  (electronic_charges(iatom, 1)-electronic_charges(iatom, 2))
-               total_charge = total_charge+zeff-(electronic_charges(iatom, 1)+electronic_charges(iatom, 2))
+                  zeff - (electronic_charges(iatom, 1) + electronic_charges(iatom, 2)), &
+                  (electronic_charges(iatom, 1) - electronic_charges(iatom, 2))
+               total_charge = total_charge + zeff - (electronic_charges(iatom, 1) + electronic_charges(iatom, 2))
             END SELECT
          ENDDO
          IF (title == "RESP charges:") THEN
@@ -214,7 +214,7 @@ CONTAINS
          WRITE (scr, '(T2,A,T20,A,T40,A)') "  Type  Atom 1  ", "  Type  Atom 2  ", " Bond Order "
          DO iatom = 1, natom
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, element_symbol=el1)
-            DO jatom = iatom+1, natom
+            DO jatom = iatom + 1, natom
                CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, element_symbol=el2)
                IF (bond_orders(iatom, jatom) > 0.1_dp) THEN
                   WRITE (scr, '(T6,A2,I6,T24,A2,I6,T40,F12.6)') el1, iatom, el2, jatom, bond_orders(iatom, jatom)

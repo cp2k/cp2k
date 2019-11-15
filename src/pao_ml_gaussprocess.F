@@ -57,7 +57,7 @@ CONTAINS
 
          ! add noise of training data
          DO i = 1, npoints
-            training_matrix%GP(i, i) = training_matrix%GP(i, i)+pao%gp_noise_var**2
+            training_matrix%GP(i, i) = training_matrix%GP(i, i) + pao%gp_noise_var**2
          ENDDO
 
          ! compute cholesky decomposition of covariance matrix
@@ -104,11 +104,11 @@ CONTAINS
       ! calculate predicted output
       output = 0.0_dp
       DO i = 1, npoints
-         output(:) = output+weights(i)*training_matrix%outputs(:, i)
+         output(:) = output + weights(i)*training_matrix%outputs(:, i)
       ENDDO
 
       ! calculate prediction's variance
-      variance = kernel(pao%gp_scale, descriptor, descriptor)-DOT_PRODUCT(weights, cov)
+      variance = kernel(pao%gp_scale, descriptor, descriptor) - DOT_PRODUCT(weights, cov)
 
       IF (variance < 0.0_dp) &
          CPABORT("PAO gaussian process found negative variance")
@@ -155,7 +155,7 @@ CONTAINS
       gradient(:) = 0.0_dp
       DO i = 1, npoints
          kg = kernel_grad(pao%gp_scale, descriptor, training_matrix%inputs(:, i))
-         gradient(:) = gradient(:)+kg(:)*cov_deriv(i)
+         gradient(:) = gradient(:) + kg(:)*cov_deriv(i)
       ENDDO
 
       DEALLOCATE (cov_deriv, weights_deriv)
@@ -176,7 +176,7 @@ CONTAINS
       REAL(dp)                                           :: fdist2
       REAL(dp), DIMENSION(SIZE(descr1))                  :: diff
 
-      diff = descr1-descr2
+      diff = descr1 - descr2
       fdist2 = SUM((diff/scale)**2)
       cov = EXP(-fdist2/2.0_dp)
    END FUNCTION kernel
@@ -196,7 +196,7 @@ CONTAINS
       REAL(dp)                                           :: cov, fdist2
       REAL(dp), DIMENSION(SIZE(descr1))                  :: diff
 
-      diff = descr1-descr2
+      diff = descr1 - descr2
       fdist2 = SUM((diff/scale)**2)
       cov = EXP(-fdist2/2.0_dp)
       grad(:) = cov*(-diff/scale**2)

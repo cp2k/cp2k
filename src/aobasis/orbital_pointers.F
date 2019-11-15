@@ -100,7 +100,7 @@ CONTAINS
       nco(-1) = 0
 
       DO l = 0, maxl
-         nco(l) = (l+1)*(l+2)/2
+         nco(l) = (l + 1)*(l + 2)/2
       END DO
 
 !   *** Number of Cartesian orbitals up to l ***
@@ -110,7 +110,7 @@ CONTAINS
       ncoset(-1) = 0
 
       DO l = 0, maxl
-         ncoset(l) = ncoset(l-1)+nco(l)
+         ncoset(l) = ncoset(l - 1) + nco(l)
       END DO
 
 !   *** Build the Cartesian orbital pointer and the shell orbital pointer ***
@@ -130,10 +130,10 @@ CONTAINS
       DO lx = 0, maxl
          DO ly = 0, maxl
             DO lz = 0, maxl
-               l = lx+ly+lz
+               l = lx + ly + lz
                IF (l > maxl) CYCLE
-               co(lx, ly, lz) = 1+(l-lx)*(l-lx+1)/2+lz
-               coset(lx, ly, lz) = ncoset(l-1)+co(lx, ly, lz)
+               co(lx, ly, lz) = 1 + (l - lx)*(l - lx + 1)/2 + lz
+               coset(lx, ly, lz) = ncoset(l - 1) + co(lx, ly, lz)
             END DO
          END DO
       END DO
@@ -144,8 +144,8 @@ CONTAINS
 
       DO l = 0, maxl
          DO lx = 0, l
-            DO ly = 0, l-lx
-               lz = l-lx-ly
+            DO ly = 0, l - lx
+               lz = l - lx - ly
                indco(1:3, coset(lx, ly, lz)) = (/lx, ly, lz/)
             END DO
          END DO
@@ -158,7 +158,7 @@ CONTAINS
       nso(-1) = 0
 
       DO l = 0, maxl
-         nso(l) = 2*l+1
+         nso(l) = 2*l + 1
       END DO
 
 !   *** Number of spherical orbitals up to l ***
@@ -167,7 +167,7 @@ CONTAINS
       nsoset(-1) = 0
 
       DO l = 0, maxl
-         nsoset(l) = nsoset(l-1)+nso(l)
+         nsoset(l) = nsoset(l - 1) + nso(l)
       END DO
 
       ALLOCATE (indso(2, nsoset(maxl)))
@@ -180,7 +180,7 @@ CONTAINS
       iso = 0
       DO l = 0, maxl
          DO m = -l, l
-            iso = iso+1
+            iso = iso + 1
             indso(1:2, iso) = (/l, m/)
             indso_inv(l, m) = iso
          END DO
@@ -191,8 +191,8 @@ CONTAINS
       soset(:, :) = 0
       DO l = 0, maxl
          DO m = -l, l
-            so(l, m) = nso(l)-(l-m)
-            soset(l, m) = nsoset(l-1)+nso(l)-(l-m)
+            so(l, m) = nso(l) - (l - m)
+            soset(l, m) = nsoset(l - 1) + nso(l) - (l - m)
          END DO
       END DO
 

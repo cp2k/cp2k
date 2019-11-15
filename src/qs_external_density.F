@@ -108,7 +108,7 @@ CONTAINS
             CALL rs_grid_zero(rs_rho_ext(igrid_level)%rs_grid)
          ENDDO
 
-         igrid_level = igrid_level-1
+         igrid_level = igrid_level - 1
 
          ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
          CALL section_vals_val_get(ext_den_section, "FILE_DENSITY", c_val=filename)
@@ -156,7 +156,7 @@ CONTAINS
                READ (extunit, *) nat, rdum
                DO i = 1, 3
                   READ (extunit, *) ndum, rdum
-                  IF (ndum /= npoints(i) .OR. (ABS(rdum(i)-dr(i)) > 1e-4)) THEN
+                  IF (ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) THEN
                      WRITE (*, *) "ZMP | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                      WRITE (*, *) "ZMP | ", ndum, " DIFFERS FROM ", npoints(i)
                      WRITE (*, *) "ZMP | ", rdum, " DIFFERS FROM ", dr(i)
@@ -172,7 +172,7 @@ CONTAINS
                   IF (my_rank .EQ. 0) THEN
                      READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                      IF (num_pe .GT. 1) THEN
-                        DO ip = 1, num_pe-1
+                        DO ip = 1, num_pe - 1
                            CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
 !                  WRITE(*,*) my_rank," sending to : ",ip
                         ENDDO

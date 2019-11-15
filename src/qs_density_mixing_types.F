@@ -238,7 +238,7 @@ CONTAINS
 
       IF (ASSOCIATED(mixing_store)) THEN
          CPASSERT(mixing_store%ref_count > 0)
-         mixing_store%ref_count = mixing_store%ref_count-1
+         mixing_store%ref_count = mixing_store%ref_count - 1
          IF (mixing_store%ref_count == 0) THEN
 
             IF (ASSOCIATED(mixing_store%kerker_factor)) THEN

@@ -368,19 +368,19 @@ CONTAINS
                DO jsgf = 1, SIZE(s_block, 2)
                   DO isgf = 1, SIZE(s_block, 1)
                      ps = p_block(isgf, jsgf)*s_block(isgf, jsgf)
-                     IF (ASSOCIATED(ps_block)) ps_block(isgf, jsgf) = ps_block(isgf, jsgf)+ps
-                     orbpop(sgfb, ispin) = orbpop(sgfb, ispin)+ps
+                     IF (ASSOCIATED(ps_block)) ps_block(isgf, jsgf) = ps_block(isgf, jsgf) + ps
+                     orbpop(sgfb, ispin) = orbpop(sgfb, ispin) + ps
                   END DO
-                  sgfb = sgfb+1
+                  sgfb = sgfb + 1
                END DO
                IF (iatom /= jatom) THEN
                   sgfa = first_sgf_atom(iatom)
                   DO isgf = 1, SIZE(s_block, 1)
                      DO jsgf = 1, SIZE(s_block, 2)
                         ps = p_block(isgf, jsgf)*s_block(isgf, jsgf)
-                        orbpop(sgfa, ispin) = orbpop(sgfa, ispin)+ps
+                        orbpop(sgfa, ispin) = orbpop(sgfa, ispin) + ps
                      END DO
-                     sgfa = sgfa+1
+                     sgfa = sgfa + 1
                   END DO
                END IF
             END DO
@@ -520,7 +520,7 @@ CONTAINS
                   l = lshell(ishell, iset)
                   DO iso = 1, nso(l)
                      IF (nspin == 1) THEN
-                        sumorbpop(1) = sumorbpop(1)+orbpop(iao, 1)
+                        sumorbpop(1) = sumorbpop(1) + orbpop(iao, 1)
                         IF (print_orbital_contributions) THEN
                            IF (isgf == 1) WRITE (UNIT=output_unit, FMT="(A)") ""
                            WRITE (UNIT=output_unit, &
@@ -528,34 +528,34 @@ CONTAINS
                               iao, element_symbol, sgf_symbol(isgf), orbpop(iao, 1)
                         END IF
                      ELSE
-                        sumorbpop(1:2) = sumorbpop(1:2)+orbpop(iao, 1:2)
-                        sumorbpop(3) = sumorbpop(3)+orbpop(iao, 1)-orbpop(iao, 2)
+                        sumorbpop(1:2) = sumorbpop(1:2) + orbpop(iao, 1:2)
+                        sumorbpop(3) = sumorbpop(3) + orbpop(iao, 1) - orbpop(iao, 2)
                         IF (print_orbital_contributions) THEN
                            IF (isgf == 1) WRITE (UNIT=output_unit, FMT="(A)") ""
                            WRITE (UNIT=output_unit, &
                                   FMT="(T2,I9,2X,A2,1X,A,T29,2(1X,F12.6),T68,F12.6)") &
                               iao, element_symbol, sgf_symbol(isgf), orbpop(iao, 1:2), &
-                              orbpop(iao, 1)-orbpop(iao, 2)
+                              orbpop(iao, 1) - orbpop(iao, 2)
                         END IF
                      END IF
-                     isgf = isgf+1
-                     iao = iao+1
+                     isgf = isgf + 1
+                     iao = iao + 1
                   END DO
                END DO
             END DO
             IF (nspin == 1) THEN
-               totsumorbpop(1) = totsumorbpop(1)+sumorbpop(1)
-               totsumorbpop(3) = totsumorbpop(3)+zeff-sumorbpop(1)
+               totsumorbpop(1) = totsumorbpop(1) + sumorbpop(1)
+               totsumorbpop(3) = totsumorbpop(3) + zeff - sumorbpop(1)
                WRITE (UNIT=output_unit, &
                       FMT="(T2,I7,5X,A2,2X,I6,T30,F12.6,T68,F12.6)") &
-                  iatom, element_symbol, ikind, sumorbpop(1), zeff-sumorbpop(1)
+                  iatom, element_symbol, ikind, sumorbpop(1), zeff - sumorbpop(1)
             ELSE
-               totsumorbpop(1:2) = totsumorbpop(1:2)+sumorbpop(1:2)
-               totsumorbpop(3) = totsumorbpop(3)+zeff-sumorbpop(1)-sumorbpop(2)
+               totsumorbpop(1:2) = totsumorbpop(1:2) + sumorbpop(1:2)
+               totsumorbpop(3) = totsumorbpop(3) + zeff - sumorbpop(1) - sumorbpop(2)
                WRITE (UNIT=output_unit, &
                       FMT="(T2,I7,5X,A2,2X,I6,T28,4(1X,F12.6))") &
                   iatom, element_symbol, ikind, sumorbpop(1:2), &
-                  zeff-sumorbpop(1)-sumorbpop(2), sumorbpop(3)
+                  zeff - sumorbpop(1) - sumorbpop(2), sumorbpop(3)
             END IF
          END IF ! atom has an orbital basis
       END DO ! next atom iatom
@@ -570,7 +570,7 @@ CONTAINS
          WRITE (UNIT=output_unit, &
                 FMT="(T2,A,T28,4(1X,F12.6),/)") &
             "# Total charge and spin", totsumorbpop(1:2), totsumorbpop(3), &
-            totsumorbpop(1)-totsumorbpop(2)
+            totsumorbpop(1) - totsumorbpop(2)
       END IF
 
       IF (output_unit > 0) CALL m_flush(output_unit)

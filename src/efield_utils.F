@@ -97,16 +97,16 @@ CONTAINS
       DO k = bo_local(1, 3), bo_local(2, 3)
          DO j = bo_local(1, 2), bo_local(2, 2)
             DO i = bo_local(1, 1), bo_local(2, 1)
-               grid_p(1) = (i-bo_global(1, 1))*dr(1)
-               grid_p(2) = (j-bo_global(1, 2))*dr(2)
-               grid_p(3) = (k-bo_global(1, 3))*dr(3)
-               v_efield_rspace%pw%cr3d(i, j, k) = v_efield_rspace%pw%cr3d(i, j, k)+DOT_PRODUCT(field(:), grid_p(:))
+               grid_p(1) = (i - bo_global(1, 1))*dr(1)
+               grid_p(2) = (j - bo_global(1, 2))*dr(2)
+               grid_p(3) = (k - bo_global(1, 3))*dr(3)
+               v_efield_rspace%pw%cr3d(i, j, k) = v_efield_rspace%pw%cr3d(i, j, k) + DOT_PRODUCT(field(:), grid_p(:))
             END DO
          END DO
       END DO
       efield_ener = 0.0_dp
       DO i = 1, dft_control%nspins
-         efield_ener = efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
+         efield_ener = efield_ener + accurate_sum(v_efield_rspace%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
       END DO
       CALL mp_sum(efield_ener, para_env%group)
       energy%efield = efield_ener
@@ -149,33 +149,33 @@ CONTAINS
          IF (efield%envelop_id == constant_env) THEN
             IF (sim_step .GE. efield%envelop_i_vars(1) .AND. &
                 (sim_step .LE. efield%envelop_i_vars(2) .OR. efield%envelop_i_vars(2) .LT. 0)) THEN
-               field = field+strength*COS(sim_time*nu*2.0_dp*pi+ &
-                                          efield%phase_offset*pi)*pol(:)
+               field = field + strength*COS(sim_time*nu*2.0_dp*pi + &
+                                            efield%phase_offset*pi)*pol(:)
             END IF
          ELSE IF (efield%envelop_id == ramp_env) THEN
             IF (sim_step .GE. efield%envelop_i_vars(1) .AND. sim_step .LE. efield%envelop_i_vars(2)) &
-               strength = strength*(sim_step-efield%envelop_i_vars(1))/(efield%envelop_i_vars(2)-efield%envelop_i_vars(1))
+               strength = strength*(sim_step - efield%envelop_i_vars(1))/(efield%envelop_i_vars(2) - efield%envelop_i_vars(1))
             IF (sim_step .GE. efield%envelop_i_vars(3) .AND. sim_step .LE. efield%envelop_i_vars(4)) &
-               strength = strength*(efield%envelop_i_vars(4)-sim_step)/(efield%envelop_i_vars(4)-efield%envelop_i_vars(3))
+               strength = strength*(efield%envelop_i_vars(4) - sim_step)/(efield%envelop_i_vars(4) - efield%envelop_i_vars(3))
             IF (sim_step .GT. efield%envelop_i_vars(4) .AND. efield%envelop_i_vars(4) .GT. 0) strength = 0.0_dp
             IF (sim_step .LE. efield%envelop_i_vars(1)) strength = 0.0_dp
-            field = field+strength*COS(sim_time*nu*2.0_dp*pi+ &
-                                       efield%phase_offset*pi)*pol(:)
+            field = field + strength*COS(sim_time*nu*2.0_dp*pi + &
+                                         efield%phase_offset*pi)*pol(:)
          ELSE IF (efield%envelop_id == gaussian_env) THEN
-            env = EXP(-0.5_dp*((sim_time-efield%envelop_r_vars(1))/efield%envelop_r_vars(2))**2.0_dp)
-            field = field+strength*env*COS(sim_time*nu*2.0_dp*pi+ &
-                                           efield%phase_offset*pi)*pol(:)
+            env = EXP(-0.5_dp*((sim_time - efield%envelop_r_vars(1))/efield%envelop_r_vars(2))**2.0_dp)
+            field = field + strength*env*COS(sim_time*nu*2.0_dp*pi + &
+                                             efield%phase_offset*pi)*pol(:)
          ELSE IF (efield%envelop_id == custom_env) THEN
             dt = efield%envelop_r_vars(1)
-            IF (sim_time .LT. (SIZE(efield%envelop_r_vars)-2)*dt) THEN
+            IF (sim_time .LT. (SIZE(efield%envelop_r_vars) - 2)*dt) THEN
                !make a linear interpolation between the two next points
                lower = FLOOR(sim_time/dt)
-               upper = lower+1
-               strength = (efield%envelop_r_vars(lower+2)*(upper*dt-sim_time)+efield%envelop_r_vars(upper+2)*(sim_time-lower*dt))/dt
+               upper = lower + 1
+     strength = (efield%envelop_r_vars(lower + 2)*(upper*dt - sim_time) + efield%envelop_r_vars(upper + 2)*(sim_time - lower*dt))/dt
             ELSE
                strength = 0.0_dp
             ENDIF
-            field = field+strength*pol(:)
+            field = field + strength*pol(:)
          END IF
       END DO
 
@@ -236,10 +236,10 @@ CONTAINS
 
                atom_a = list(iatom)
                r(:) = pbc(particle_set(atom_a)%r(:), cell)
-               efield_ener = efield_ener-zeff*DOT_PRODUCT(r, field)
+               efield_ener = efield_ener - zeff*DOT_PRODUCT(r, field)
                IF (my_force) THEN
                   CALL get_qs_env(qs_env=qs_env, force=force)
-                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom)-field*zeff
+                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) - field*zeff
                END IF
             END DO
 

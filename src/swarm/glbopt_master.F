@@ -231,7 +231,7 @@ CONTAINS
       INTEGER                                            :: gopt_steps, md_steps, report_worker_id
       REAL(KIND=dp)                                      :: report_Epot
 
-      this%i_iteration = this%i_iteration+1
+      this%i_iteration = this%i_iteration + 1
 
       CALL swarm_message_get(report, "worker_id", report_worker_id)
       CALL swarm_message_get(report, "status", status)
@@ -240,9 +240,9 @@ CONTAINS
          CALL swarm_message_get(report, "Epot", report_Epot)
          CALL swarm_message_get(report, "md_steps", md_steps)
          CALL swarm_message_get(report, "gopt_steps", gopt_steps)
-         this%total_md_steps = this%total_md_steps+md_steps
-         this%total_gopt_steps = this%total_gopt_steps+gopt_steps
-         this%count_reports = this%count_reports+1
+         this%total_md_steps = this%total_md_steps + md_steps
+         this%total_gopt_steps = this%total_gopt_steps + gopt_steps
+         this%count_reports = this%count_reports + 1
 
          IF (report_Epot < this%E_lowest) THEN
             this%E_lowest = report_Epot

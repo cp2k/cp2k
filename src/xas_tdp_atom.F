@@ -271,21 +271,21 @@ CONTAINS
 
       ALLOCATE (rga(lcleb, 2))
       DO lc1 = 0, maxlgto
-         DO iso1 = nsoset(lc1-1)+1, nsoset(lc1)
+         DO iso1 = nsoset(lc1 - 1) + 1, nsoset(lc1)
             l1 = indso(1, iso1)
             m1 = indso(2, iso1)
             DO lc2 = 0, maxlgto
-               DO iso2 = nsoset(lc2-1)+1, nsoset(lc2)
+               DO iso2 = nsoset(lc2 - 1) + 1, nsoset(lc2)
                   l2 = indso(1, iso2)
                   m2 = indso(2, iso2)
                   CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                  IF (l1+l2 > llmax) THEN
+                  IF (l1 + l2 > llmax) THEN
                      l1l2 = llmax
                   ELSE
-                     l1l2 = l1+l2
+                     l1l2 = l1 + l2
                   END IF
-                  mp = m1+m2
-                  mm = m1-m2
+                  mp = m1 + m2
+                  mm = m1 - m2
                   IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
                      mp = -ABS(mp)
                      mm = -ABS(mm)
@@ -293,21 +293,21 @@ CONTAINS
                      mp = ABS(mp)
                      mm = ABS(mm)
                   END IF
-                  DO lp = MOD(l1+l2, 2), l1l2, 2
-                     il = lp/2+1
+                  DO lp = MOD(l1 + l2, 2), l1l2, 2
+                     il = lp/2 + 1
                      IF (ABS(mp) <= lp) THEN
                      IF (mp >= 0) THEN
-                        iso = nsoset(lp-1)+lp+1+mp
+                        iso = nsoset(lp - 1) + lp + 1 + mp
                      ELSE
-                        iso = nsoset(lp-1)+lp+1-ABS(mp)
+                        iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 1)
                      ENDIF
                      IF (mp /= mm .AND. ABS(mm) <= lp) THEN
                      IF (mm >= 0) THEN
-                        iso = nsoset(lp-1)+lp+1+mm
+                        iso = nsoset(lp - 1) + lp + 1 + mm
                      ELSE
-                        iso = nsoset(lp-1)+lp+1-ABS(mm)
+                        iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 2)
                      ENDIF
@@ -405,7 +405,7 @@ CONTAINS
 
       nr = grid_atom%nr
       na = grid_atom%ng_sphere
-      llmax_p1 = SIZE(grid_atom%rad2l, 2)-1
+      llmax_p1 = SIZE(grid_atom%rad2l, 2) - 1
 
 !     Find the index corresponding to the limiting radius (small ir => large radius)
       DO ir = 1, nr
@@ -414,7 +414,7 @@ CONTAINS
             EXIT
          END IF
       END DO
-      new_nr = nr-first_ir+1
+      new_nr = nr - first_ir + 1
 
 !     Reallcoate everything that depends on r
       grid_atom%nr = new_nr
@@ -475,23 +475,23 @@ CONTAINS
       DO iset = 1, nset
          sgfi = first_sgf(1, iset)
          DO ipgf = 1, npgf(iset)
-            start_s = (ipgf-1)*nsoset(lmax(iset))
-            start_c = (ipgf-1)*ncoset(lmax(iset))
+            start_s = (ipgf - 1)*nsoset(lmax(iset))
+            start_c = (ipgf - 1)*ncoset(lmax(iset))
 
             DO l = lmin(iset), lmax(iset)
                DO iso = 1, nso(l)
                   DO ico = 1, nco(l)
 
-                     lx = indco(1, ico+ncoset(l-1))
-                     ly = indco(2, ico+ncoset(l-1))
-                     lz = indco(3, ico+ncoset(l-1))
+                     lx = indco(1, ico + ncoset(l - 1))
+                     ly = indco(2, ico + ncoset(l - 1))
+                     lz = indco(3, ico + ncoset(l - 1))
 
                      factor = orbtramat(l)%s2c(iso, ico) &
-                              *SQRT(4.0_dp*pi/dfac(2*l+1)*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+                              *SQRT(4.0_dp*pi/dfac(2*l + 1)*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
 
                      CALL daxpy(nsgf_set(iset), factor, &
-                                sphi(start_c+ncoset(l-1)+ico, sgfi:sgfi+nsgf_set(iset)-1), 1, &
-                                sphi_so(start_s+nsoset(l-1)+iso, sgfi:sgfi+nsgf_set(iset)-1), 1)
+                                sphi(start_c + ncoset(l - 1) + ico, sgfi:sgfi + nsgf_set(iset) - 1), 1, &
+                                sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1), 1)
 
                   END DO !ico
                END DO !iso
@@ -555,7 +555,7 @@ CONTAINS
       END DO
 
       ! First loop over S => count the number of neighbors
-      ALLOCATE (n_neighbors(nbase, 0:para_env%num_pe-1))
+      ALLOCATE (n_neighbors(nbase, 0:para_env%num_pe - 1))
       n_neighbors = 0
 
       CALL dbcsr_iterator_start(iter, mat_s)
@@ -575,11 +575,11 @@ CONTAINS
 
          IF (is_base_atom(iblk)) THEN
             ibase = blk_to_base(iblk)
-            n_neighbors(ibase, mepos) = n_neighbors(ibase, mepos)+1
+            n_neighbors(ibase, mepos) = n_neighbors(ibase, mepos) + 1
          END IF
          IF (is_base_atom(jblk)) THEN
             ibase = blk_to_base(jblk)
-            n_neighbors(ibase, mepos) = n_neighbors(ibase, mepos)+1
+            n_neighbors(ibase, mepos) = n_neighbors(ibase, mepos) + 1
          END IF
 
       END DO !iter
@@ -610,13 +610,13 @@ CONTAINS
 
          IF (is_base_atom(iblk)) THEN
             ibase = blk_to_base(iblk)
-            my_neighbor_set(ibase)%array(SUM(n_neighbors(ibase, 0:mepos-1))+inb(ibase)) = jblk
-            inb(ibase) = inb(ibase)+1
+            my_neighbor_set(ibase)%array(SUM(n_neighbors(ibase, 0:mepos - 1)) + inb(ibase)) = jblk
+            inb(ibase) = inb(ibase) + 1
          END IF
          IF (is_base_atom(jblk)) THEN
             ibase = blk_to_base(jblk)
-            my_neighbor_set(ibase)%array(SUM(n_neighbors(ibase, 0:mepos-1))+inb(ibase)) = iblk
-            inb(ibase) = inb(ibase)+1
+            my_neighbor_set(ibase)%array(SUM(n_neighbors(ibase, 0:mepos - 1)) + inb(ibase)) = iblk
+            inb(ibase) = inb(ibase) + 1
          END IF
 
       END DO !iter
@@ -643,7 +643,7 @@ CONTAINS
          i = 0
          DO iat = 1, natom
             IF (who_is_there(iat) == 1) THEN
-               i = i+1
+               i = i + 1
                all_neighbors(i) = iat
             END IF
          END DO
@@ -726,8 +726,8 @@ CONTAINS
 
       ALLOCATE (row_dist(nnb), col_dist(nnb))
       DO inb = 1, nnb
-         row_dist(inb) = MODULO(nprows-inb, nprows)
-         col_dist(inb) = MODULO(npcols-inb, npcols)
+         row_dist(inb) = MODULO(nprows - inb, nprows)
+         col_dist(inb) = MODULO(npcols - inb, npcols)
       END DO
 
       CALL dbcsr_distribution_new(sinv_dist, group=group, pgrid=pgrid, row_dist=row_dist, &
@@ -743,7 +743,7 @@ CONTAINS
             !do the atom overlap ?
             rj = pbc(particle_set(neighbors(jnb))%r, cell)
             rij = pbc(ri, rj, cell)
-            IF (SUM(rij**2) > (radius(inb)+radius(jnb))**2) CYCLE
+            IF (SUM(rij**2) > (radius(inb) + radius(jnb))**2) CYCLE
 
             CALL dbcsr_get_stored_coordinates(ri_sinv, inb, jnb, blk)
             IF (para_env%mepos == blk) THEN
@@ -788,9 +788,9 @@ CONTAINS
 
             !send the block with unique tag to the proc where inb,jnb is in ri_sinv
             CALL dbcsr_get_stored_coordinates(ri_sinv, inb, jnb, dest)
-            is = is+1
+            is = is + 1
             send_buff(is)%array => block_whole
-            tag = natom*iat+jat
+            tag = natom*iat + jat
             CALL mp_isend(msgin=send_buff(is)%array, dest=dest, comm=group, request=send_req(is), tag=tag)
 
          END IF
@@ -814,8 +814,8 @@ CONTAINS
          CALL dbcsr_get_stored_coordinates(whole_s, iat, jat, source)
          IF (para_env%mepos == source) CYCLE
 
-         tag = natom*iat+jat
-         ir = ir+1
+         tag = natom*iat + jat
+         ir = ir + 1
          recv_buff(ir)%array => block_risinv
          CALL mp_irecv(msgout=recv_buff(ir)%array, source=source, request=recv_req(ir), &
                        tag=tag, comm=group)
@@ -973,18 +973,18 @@ CONTAINS
       DO ibatch = 1, nbatch
 
          !excited atoms in that batch
-         bo = get_limit(nex, nbatch, ibatch-1)
+         bo = get_limit(nex, nbatch, ibatch - 1)
 
          !Get all ri atoms belonging to that batch in an array (ex atoms + neighbors in RI_REGION)
-         nat_batch = bo(2)-bo(1)+1
+         nat_batch = bo(2) - bo(1) + 1
          ALLOCATE (batch_atoms(nat_batch))
          batch_atoms(:) = xas_atom_env%excited_atoms(bo(1):bo(2))
          DO iex = bo(1), bo(2)
             DO inb = 1, SIZE(xas_atom_env%exat_neighbors(iex)%array)
                IF (.NOT. ANY(batch_atoms == xas_atom_env%exat_neighbors(iex)%array(inb))) THEN
-                  CALL reallocate(batch_atoms, 1, nat_batch+1)
-                  batch_atoms(nat_batch+1) = xas_atom_env%exat_neighbors(iex)%array(inb)
-                  nat_batch = nat_batch+1
+                  CALL reallocate(batch_atoms, 1, nat_batch + 1)
+                  batch_atoms(nat_batch + 1) = xas_atom_env%exat_neighbors(iex)%array(inb)
+                  nat_batch = nat_batch + 1
                END IF
             END DO !inb
          END DO !iex
@@ -1024,7 +1024,7 @@ CONTAINS
 
             !get the neighbors of current excited atom
             exat = xas_atom_env%excited_atoms(iex)
-            nnb = 1+SIZE(xas_atom_env%exat_neighbors(iex)%array)
+            nnb = 1 + SIZE(xas_atom_env%exat_neighbors(iex)%array)
             ALLOCATE (neighbors(nnb))
             neighbors(1) = exat
             neighbors(2:nnb) = xas_atom_env%exat_neighbors(iex)%array(:)
@@ -1197,7 +1197,7 @@ CONTAINS
 !  Get the grid and the info we need from it
       grid_atom => xas_atom_env%grid_atom_set(atom_kind)%grid_atom
       na = grid_atom%ng_sphere
-      nr = bounds(2, 2)-bounds(1, 2)+1
+      nr = bounds(2, 2) - bounds(1, 2) + 1
       n = na*nr
       nspins = xas_atom_env%nspins
       ri_sphi_so => xas_atom_env%ri_sphi_so(atom_kind)%array
@@ -1231,24 +1231,24 @@ CONTAINS
          IF (do_gga) ALLOCATE (dso(na, nr, 3, npgf(iset)*nsoset(lmax(iset))))
 
          DO ipgf = 1, npgf(iset)
-            start_pgf = (ipgf-1)*nsoset(lmax(iset))
-            start = (iset-1)*maxso+start_pgf
+            start_pgf = (ipgf - 1)*nsoset(lmax(iset))
+            start = (iset - 1)*maxso + start_pgf
 
             !loop over the spherical gaussian orbitals
-            DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
+            DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
 
                !the spherical orbital on the grid
-               CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, ga(:, start+iso:start+iso), na, &
-                          gr(:, start+iso:start+iso), nr, 0.0_dp, so(:, :, start_pgf+iso), na)
+               CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, ga(:, start + iso:start + iso), na, &
+                          gr(:, start + iso:start + iso), nr, 0.0_dp, so(:, :, start_pgf + iso), na)
 
                !the gradient on the grid
                IF (do_gga) THEN
 
                   DO dir = 1, 3
-                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, start+iso:start+iso, dir), na, &
-                                dgr1(:, start+iso:start+iso), nr, 0.0_dp, dso(:, :, dir, start_pgf+iso), na)
-                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, start+iso:start+iso, dir), na, &
-                                dgr2(:, start+iso:start+iso), nr, 1.0_dp, dso(:, :, dir, start_pgf+iso), na)
+                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, start + iso:start + iso, dir), na, &
+                                dgr1(:, start + iso:start + iso), nr, 0.0_dp, dso(:, :, dir, start_pgf + iso), na)
+                     CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, start + iso:start + iso, dir), na, &
+                                dgr2(:, start + iso:start + iso), nr, 1.0_dp, dso(:, :, dir, start_pgf + iso), na)
                   END DO
                END IF
 
@@ -1261,7 +1261,7 @@ CONTAINS
          IF (do_gga) THEN
             ALLOCATE (dsgf(na, nr, 3))
          END IF
-         sgfi = first_sgf(1, iset)-1
+         sgfi = first_sgf(1, iset) - 1
 
          DO isgf = 1, nsgf_set(iset)
 
@@ -1270,26 +1270,26 @@ CONTAINS
 
             !so -> sgf
             DO ipgf = 1, npgf(iset)
-               start_pgf = (ipgf-1)*nsoset(lmax(iset))
-               DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
-                  CALL daxpy(n, ri_sphi_so(start_pgf+iso, sgfi+isgf), so(:, :, start_pgf+iso), 1, &
+               start_pgf = (ipgf - 1)*nsoset(lmax(iset))
+               DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
+                  CALL daxpy(n, ri_sphi_so(start_pgf + iso, sgfi + isgf), so(:, :, start_pgf + iso), 1, &
                              sgf(:, :), 1)
                END DO !iso
             END DO !ipgf
 
             !put the sgf on the grid with the approriate coefficients and sum
-            CALL daxpy(n, ri_dcoeff(1)%array(sgfi+isgf), sgf(:, :), 1, rhoa(:, :, 1), 1)
+            CALL daxpy(n, ri_dcoeff(1)%array(sgfi + isgf), sgf(:, :), 1, rhoa(:, :, 1), 1)
 
             IF (nspins == 2) THEN
-               CALL daxpy(n, ri_dcoeff(2)%array(sgfi+isgf), sgf(:, :), 1, rhob(:, :, 1), 1)
+               CALL daxpy(n, ri_dcoeff(2)%array(sgfi + isgf), sgf(:, :), 1, rhob(:, :, 1), 1)
             END IF
 
             IF (do_gga) THEN
                DO ipgf = 1, npgf(iset)
-                  start_pgf = (ipgf-1)*nsoset(lmax(iset))
-                  DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
+                  start_pgf = (ipgf - 1)*nsoset(lmax(iset))
+                  DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
                      DO dir = 1, 3
-                        CALL daxpy(n, ri_sphi_so(start_pgf+iso, sgfi+isgf), dso(:, :, dir, start_pgf+iso), &
+                        CALL daxpy(n, ri_sphi_so(start_pgf + iso, sgfi + isgf), dso(:, :, dir, start_pgf + iso), &
                                    1, dsgf(:, :, dir), 1)
                      END DO !dir
                   END DO !iso
@@ -1297,11 +1297,11 @@ CONTAINS
 
                !put the gradient of the sgf on the grid with correspond RI coeff
                DO dir = 1, 3
-                  CALL daxpy(n, ri_dcoeff(1)%array(sgfi+isgf), dsgf(:, :, dir), &
+                  CALL daxpy(n, ri_dcoeff(1)%array(sgfi + isgf), dsgf(:, :, dir), &
                              1, rho_set%drhoa(dir)%array(:, :, 1), 1)
 
                   IF (nspins == 2) THEN
-                     CALL daxpy(n, ri_dcoeff(2)%array(sgfi+isgf), dsgf(:, :, dir), &
+                     CALL daxpy(n, ri_dcoeff(2)%array(sgfi + isgf), dsgf(:, :, dir), &
                                 1, rho_set%drhob(dir)%array(:, :, 1), 1)
                   END IF
                END DO !dir
@@ -1399,7 +1399,7 @@ CONTAINS
       harmonics => xas_atom_env%harmonics_atom_set(target_ikind)%harmonics_atom
       na = grid_atom%ng_sphere
       sr = bounds(1, 2); er = bounds(2, 2)
-      nr = er-sr+1
+      nr = er - sr + 1
       n = na*nr
       nspins = xas_atom_env%nspins
 
@@ -1419,8 +1419,8 @@ CONTAINS
 !$OMP PRIVATE(ia,ir)
       DO ir = sr, er
          DO ia = 1, na
-            pos(ia, ir, 1:3) = harmonics%a(:, ia)*grid_atom%rad(ir)+rst
-            pos(ia, ir, 4) = pos(ia, ir, 1)**2+pos(ia, ir, 2)**2+pos(ia, ir, 3)**2
+            pos(ia, ir, 1:3) = harmonics%a(:, ia)*grid_atom%rad(ir) + rst
+            pos(ia, ir, 4) = pos(ia, ir, 1)**2 + pos(ia, ir, 2)**2 + pos(ia, ir, 3)**2
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -1448,10 +1448,10 @@ CONTAINS
 !$OMP END DO NOWAIT
 
          DO ipgf = 1, npgf(iset)
-            start = (ipgf-1)*ncoset(lmax(iset))
+            start = (ipgf - 1)*ncoset(lmax(iset))
 
             !loop over the cartesian orbitals
-            DO ico = ncoset(lmin(iset)-1)+1, ncoset(lmax(iset))
+            DO ico = ncoset(lmin(iset) - 1) + 1, ncoset(lmax(iset))
                lx = indco(1, ico)
                ly = indco(2, ico)
                lz = indco(3, ico)
@@ -1460,8 +1460,8 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                DO ir = sr, er
                   DO ia = 1, na
-                     co(ia, ir, start+ico) = pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
-                                             *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                     co(ia, ir, start + ico) = pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
+                                               *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                   END DO
                END DO
 !$OMP END DO NOWAIT
@@ -1476,9 +1476,9 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 1, start+ico) = -2.0_dp*pos(ia, ir, 1)*zet(ipgf, iset) &
-                                                       *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
-                                                       *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           dco(ia, ir, 1, start + ico) = -2.0_dp*pos(ia, ir, 1)*zet(ipgf, iset) &
+                                                         *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
+                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1486,10 +1486,10 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 1, start+ico) = (lx*pos(ia, ir, 1)**(lx-1) &
-                                                        -2.0_dp*pos(ia, ir, 1)**(lx+1)*zet(ipgf, iset)) &
-                                                       *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
-                                                       *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           dco(ia, ir, 1, start + ico) = (lx*pos(ia, ir, 1)**(lx - 1) &
+                                                          - 2.0_dp*pos(ia, ir, 1)**(lx + 1)*zet(ipgf, iset)) &
+                                                         *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
+                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1500,9 +1500,9 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 2, start+ico) = -2.0_dp*pos(ia, ir, 2)*zet(ipgf, iset) &
-                                                       *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
-                                                       *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           dco(ia, ir, 2, start + ico) = -2.0_dp*pos(ia, ir, 2)*zet(ipgf, iset) &
+                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
+                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1510,10 +1510,10 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 2, start+ico) = (ly*pos(ia, ir, 2)**(ly-1) &
-                                                        -2.0_dp*pos(ia, ir, 2)**(ly+1)*zet(ipgf, iset)) &
-                                                       *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
-                                                       *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           dco(ia, ir, 2, start + ico) = (ly*pos(ia, ir, 2)**(ly - 1) &
+                                                          - 2.0_dp*pos(ia, ir, 2)**(ly + 1)*zet(ipgf, iset)) &
+                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
+                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1524,9 +1524,9 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 3, start+ico) = -2.0_dp*pos(ia, ir, 3)*zet(ipgf, iset) &
-                                                       *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
-                                                       *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           dco(ia, ir, 3, start + ico) = -2.0_dp*pos(ia, ir, 3)*zet(ipgf, iset) &
+                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
+                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1534,10 +1534,10 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 3, start+ico) = (lz*pos(ia, ir, 3)**(lz-1) &
-                                                        -2.0_dp*pos(ia, ir, 3)**(lz+1)*zet(ipgf, iset)) &
-                                                       *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
-                                                       *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           dco(ia, ir, 3, start + ico) = (lz*pos(ia, ir, 3)**(lz - 1) &
+                                                          - 2.0_dp*pos(ia, ir, 3)**(lz + 1)*zet(ipgf, iset)) &
+                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
+                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1553,44 +1553,44 @@ CONTAINS
          !contract the co into sgf
          ALLOCATE (sgf(na, nr))
          IF (do_gga) ALLOCATE (dsgf(na, nr, 3))
-         sgfi = first_sgf(1, iset)-1
+         sgfi = first_sgf(1, iset) - 1
 
          DO isgf = 1, nsgf_set(iset)
             sgf = 0.0_dp
             IF (do_gga) dsgf = 0.0_dp
 
             DO ipgf = 1, npgf(iset)
-               start = (ipgf-1)*ncoset(lmax(iset))
-               DO ico = ncoset(lmin(iset)-1)+1, ncoset(lmax(iset))
-                  CALL daxpy(n, ri_sphi(start+ico, sgfi+isgf), co(:, :, start+ico), 1, sgf(:, :), 1)
+               start = (ipgf - 1)*ncoset(lmax(iset))
+               DO ico = ncoset(lmin(iset) - 1) + 1, ncoset(lmax(iset))
+                  CALL daxpy(n, ri_sphi(start + ico, sgfi + isgf), co(:, :, start + ico), 1, sgf(:, :), 1)
                END DO !ico
             END DO !ipgf
 
             !add the density to the grid
-            CALL daxpy(n, ri_dcoeff(1)%array(sgfi+isgf), sgf(:, :), 1, rhoa(:, :, 1), 1)
+            CALL daxpy(n, ri_dcoeff(1)%array(sgfi + isgf), sgf(:, :), 1, rhoa(:, :, 1), 1)
 
             IF (nspins == 2) THEN
-               CALL daxpy(n, ri_dcoeff(2)%array(sgfi+isgf), sgf(:, :), 1, rhob(:, :, 1), 1)
+               CALL daxpy(n, ri_dcoeff(2)%array(sgfi + isgf), sgf(:, :), 1, rhob(:, :, 1), 1)
             END IF
 
             !deal with the gradient
             IF (do_gga) THEN
 
                DO ipgf = 1, npgf(iset)
-                  start = (ipgf-1)*ncoset(lmax(iset))
-                  DO ico = ncoset(lmin(iset)-1)+1, ncoset(lmax(iset))
+                  start = (ipgf - 1)*ncoset(lmax(iset))
+                  DO ico = ncoset(lmin(iset) - 1) + 1, ncoset(lmax(iset))
                      DO dir = 1, 3
-                        CALL daxpy(n, ri_sphi(start+ico, sgfi+isgf), dco(:, :, dir, start+ico), 1, dsgf(:, :, dir), 1)
+                        CALL daxpy(n, ri_sphi(start + ico, sgfi + isgf), dco(:, :, dir, start + ico), 1, dsgf(:, :, dir), 1)
                      END DO
                   END DO !ico
                END DO !ipgf
 
                DO dir = 1, 3
-                  CALL daxpy(n, ri_dcoeff(1)%array(sgfi+isgf), dsgf(:, :, dir), 1, &
+                  CALL daxpy(n, ri_dcoeff(1)%array(sgfi + isgf), dsgf(:, :, dir), 1, &
                              rho_set%drhoa(dir)%array(:, :, 1), 1)
 
                   IF (nspins == 2) THEN
-                     CALL daxpy(n, ri_dcoeff(2)%array(sgfi+isgf), dsgf(:, :, dir), 1, &
+                     CALL daxpy(n, ri_dcoeff(2)%array(sgfi + isgf), dsgf(:, :, dir), 1, &
                                 rho_set%drhob(dir)%array(:, :, 1), 1)
                   END IF
                END DO
@@ -1639,7 +1639,7 @@ CONTAINS
 
       na = xas_atom_env%grid_atom_set(atom_kind)%grid_atom%ng_sphere
       sr = bounds(1, 2); er = bounds(2, 2)
-      nr = er-sr+1
+      nr = er - sr + 1
       n = na*nr
       nspins = xas_atom_env%nspins
 
@@ -1651,7 +1651,7 @@ CONTAINS
          DO ir = sr, er
             DO ia = 1, na
                rho_set%norm_drhoa(ia, ir, 1) = rho_set%norm_drhoa(ia, ir, 1) &
-                                               +rho_set%drhoa(dir)%array(ia, ir, 1)**2
+                                               + rho_set%drhoa(dir)%array(ia, ir, 1)**2
             END DO !ia
          END DO !ir
       END DO !dir
@@ -1665,7 +1665,7 @@ CONTAINS
             DO ir = sr, er
                DO ia = 1, na
                   rho_set%norm_drhob(ia, ir, 1) = rho_set%norm_drhob(ia, ir, 1) &
-                                                  +rho_set%drhob(dir)%array(ia, ir, 1)**2
+                                                  + rho_set%drhob(dir)%array(ia, ir, 1)**2
                END DO
             END DO
          END DO
@@ -1675,8 +1675,8 @@ CONTAINS
       DO dir = 1, 3
          DO ir = sr, er
             DO ia = 1, na
-               rho_set%norm_drho(ia, ir, 1) = rho_set%norm_drho(ia, ir, 1)+ &
-                                              (rho_set%drhoa(dir)%array(ia, ir, 1)+rho_set%drhob(dir)%array(ia, ir, 1))**2
+               rho_set%norm_drho(ia, ir, 1) = rho_set%norm_drho(ia, ir, 1) + &
+                                              (rho_set%drhoa(dir)%array(ia, ir, 1) + rho_set%drhob(dir)%array(ia, ir, 1))**2
             END DO
          END DO
       END DO
@@ -1747,7 +1747,7 @@ CONTAINS
          !Split the grid
          bo = get_limit(nr, batch_size, ipe)
          sr = bo(1); er = bo(2)
-         nr = er-sr+1
+         nr = er - sr + 1
 
          slm => harmonics%slm
          dslm_dxyz => harmonics%dslm_dxyz
@@ -1780,27 +1780,27 @@ CONTAINS
 
          DO iset = 1, nset
             DO ipgf = 1, npgf(iset)
-               starti = (iset-1)*maxso+(ipgf-1)*nsoset(lmax(iset))
-               DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
+               starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+               DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
                   l = indso(1, iso)
 
                   !radial part of the gaussian
-                  gr(1:nr, starti+iso) = grid_atom%rad(sr:er)**l*EXP(-zet(ipgf, iset)*grid_atom%rad2(sr:er))
+                  gr(1:nr, starti + iso) = grid_atom%rad(sr:er)**l*EXP(-zet(ipgf, iset)*grid_atom%rad2(sr:er))
 
                   !angular part of the gaussian
-                  ga(1:na, starti+iso) = slm(1:na, iso)
+                  ga(1:na, starti + iso) = slm(1:na, iso)
 
                   IF (do_gga) THEN
                      !radial part of the gradient => same in all three direction
-                     dgr1(1:nr, starti+iso) = grid_atom%rad(sr:er)**(l-1) &
-                                              *EXP(-zet(ipgf, iset)*grid_atom%rad2(sr:er))
-                     dgr2(1:nr, starti+iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(sr:er)**(l+1) &
-                                              *EXP(-zet(ipgf, iset)*grid_atom%rad2(sr:er))
+                     dgr1(1:nr, starti + iso) = grid_atom%rad(sr:er)**(l - 1) &
+                                                *EXP(-zet(ipgf, iset)*grid_atom%rad2(sr:er))
+                     dgr2(1:nr, starti + iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(sr:er)**(l + 1) &
+                                                *EXP(-zet(ipgf, iset)*grid_atom%rad2(sr:er))
 
                      !angular part of the gradient
                      DO dir = 1, 3
-                        dga1(1:na, starti+iso, dir) = dslm_dxyz(dir, 1:na, iso)
-                        dga2(1:na, starti+iso, dir) = harmonics%a(dir, 1:na)*slm(1:na, iso)
+                        dga1(1:na, starti + iso, dir) = dslm_dxyz(dir, 1:na, iso)
+                        dga2(1:na, starti + iso, dir) = harmonics%a(dir, 1:na)*slm(1:na, iso)
                      END DO
                   END IF
 
@@ -1885,9 +1885,9 @@ CONTAINS
       !the proc index within the batch
       ipe = MODULO(mepos, batch_size)
       !make sure we include last procs if batch_size is not divisor of total num_procs
-      IF (nbatch*batch_size .NE. num_pe) nbatch = nbatch+1
+      IF (nbatch*batch_size .NE. num_pe) nbatch = nbatch + 1
       !the size of the last batch might be less than nominal one
-      IF ((ibatch+1)*batch_size > num_pe) batch_size = num_pe-ibatch*batch_size
+      IF ((ibatch + 1)*batch_size > num_pe) batch_size = num_pe - ibatch*batch_size
       !distribute the excted atoms over the batches
       bo = get_limit(nex_atom, nbatch, ibatch)
       !create a subcommunicator for this batch
@@ -2046,7 +2046,7 @@ CONTAINS
       grid_atom => xas_atom_env%grid_atom_set(ikind)%grid_atom
       na = grid_atom%ng_sphere
       sr = bounds(1, 2); er = bounds(2, 2)
-      nr = er-sr+1
+      nr = er - sr + 1
       weight => grid_atom%weight
 
       !get the ri_basis indo
@@ -2088,21 +2088,21 @@ CONTAINS
 
       DO jset = 1, nset
          DO jpgf = 1, npgf(jset)
-            startj = (jset-1)*maxso+(jpgf-1)*nsoset(lmax(jset))
-            DO jso = nsoset(lmin(jset)-1)+1, nsoset(lmax(jset))
+            startj = (jset - 1)*maxso + (jpgf - 1)*nsoset(lmax(jset))
+            DO jso = nsoset(lmin(jset) - 1) + 1, nsoset(lmax(jset))
 
                !put the so phi_j and its gradient on the grid
 
                !so
-               CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, ga(:, startj+jso:startj+jso), na, &
-                          gr(:, startj+jso:startj+jso), nr, 0.0_dp, so(:, :), na)
+               CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, ga(:, startj + jso:startj + jso), na, &
+                          gr(:, startj + jso:startj + jso), nr, 0.0_dp, so(:, :), na)
 
                !dso
                DO dir = 1, 3
-                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, startj+jso:startj+jso, dir), &
-                             na, dgr1(:, startj+jso:startj+jso), nr, 0.0_dp, dso(:, :, dir), na)
-                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, startj+jso:startj+jso, dir), &
-                             na, dgr2(:, startj+jso:startj+jso), nr, 1.0_dp, dso(:, :, dir), na)
+                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga1(:, startj + jso:startj + jso, dir), &
+                             na, dgr1(:, startj + jso:startj + jso), nr, 0.0_dp, dso(:, :, dir), na)
+                  CALL dgemm('N', 'T', na, nr, 1, 1.0_dp, dga2(:, startj + jso:startj + jso, dir), &
+                             na, dgr2(:, startj + jso:startj + jso), nr, 1.0_dp, dso(:, :, dir), na)
                END DO !dir
 
                !Perform the first integration (analytically)
@@ -2111,7 +2111,7 @@ CONTAINS
                !For a given phi_j, compute the second integration with all phi_i at once
                !=> allows for efficient gemm to take place
                !kernl is symmetric => avoid double computing
-               nsoi = startj+jso
+               nsoi = startj + jso
                ALLOCATE (res(nsoi, nsoi), work(na, nsoi))
                res = 0.0_dp; work = 0.0_dp
 
@@ -2122,7 +2122,7 @@ CONTAINS
                              gr(:, 1:nsoi), nr, 0.0_dp, work, na)
                   CALL dgemm('T', 'N', nsoi, nsoi, na, 1.0_dp, work, na, &
                              ga(:, 1:nsoi), na, 0.0_dp, res, nsoi)
-                  int_so(i)%array(1:nsoi, startj+jso) = get_diag(res)
+                  int_so(i)%array(1:nsoi, startj + jso) = get_diag(res)
 
                   DO dir = 1, 3
 
@@ -2131,18 +2131,18 @@ CONTAINS
                                 dgr1(:, 1:nsoi), nr, 0.0_dp, work, na)
                      CALL dgemm('T', 'N', nsoi, nsoi, na, 1.0_dp, work, na, &
                                 dga1(:, 1:nsoi, dir), na, 0.0_dp, res, nsoi)
-                     CALL daxpy(nsoi, 1.0_dp, get_diag(res), 1, int_so(i)%array(1:nsoi, startj+jso), 1)
+                     CALL daxpy(nsoi, 1.0_dp, get_diag(res), 1, int_so(i)%array(1:nsoi, startj + jso), 1)
 
                      CALL dgemm('N', 'N', na, nsoi, nr, 1.0_dp, vxg(i)%array(:, :, dir), na, &
                                 dgr2(:, 1:nsoi), nr, 0.0_dp, work, na)
                      CALL dgemm('T', 'N', nsoi, nsoi, na, 1.0_dp, work, na, &
                                 dga2(:, 1:nsoi, dir), na, 0.0_dp, res, nsoi)
-                     CALL daxpy(nsoi, 1.0_dp, get_diag(res), 1, int_so(i)%array(1:nsoi, startj+jso), 1)
+                     CALL daxpy(nsoi, 1.0_dp, get_diag(res), 1, int_so(i)%array(1:nsoi, startj + jso), 1)
 
                   END DO
 
                   !symmetry
-                  int_so(i)%array(startj+jso, 1:nsoi) = int_so(i)%array(1:nsoi, startj+jso)
+                  int_so(i)%array(startj + jso, 1:nsoi) = int_so(i)%array(1:nsoi, startj + jso)
 
                END DO !i
                DEALLOCATE (res, work)
@@ -2245,10 +2245,10 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
-               dot_proda(ia, ir) = dot_proda(ia, ir)+rho_set%drhoa(dir)%array(ia, ir, 1)*dso(ia, jr, dir)
-               dot_prodb(ia, ir) = dot_prodb(ia, ir)+rho_set%drhob(dir)%array(ia, ir, 1)*dso(ia, jr, dir)
+               dot_proda(ia, ir) = dot_proda(ia, ir) + rho_set%drhoa(dir)%array(ia, ir, 1)*dso(ia, jr, dir)
+               dot_prodb(ia, ir) = dot_prodb(ia, ir) + rho_set%drhob(dir)%array(ia, ir, 1)*dso(ia, jr, dir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2261,7 +2261,7 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             vxc(1)%array(ia, jr) = d2e(ia, ir, 1)*dot_proda(ia, ir)
          END DO !ia
@@ -2273,9 +2273,9 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
-            vxc(1)%array(ia, jr) = vxc(1)%array(ia, jr)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+            vxc(1)%array(ia, jr) = vxc(1)%array(ia, jr) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2283,7 +2283,7 @@ CONTAINS
       !Vxc, take the grid weight into acocunt
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             vxc(1)%array(ia, jr) = vxc(1)%array(ia, jr)*weight(ia, ir)
          END DO !ia
@@ -2295,7 +2295,7 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, jr)
          END DO !ia
@@ -2308,7 +2308,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2319,7 +2319,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_proda(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2330,7 +2330,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)-d1e(ia, ir, 1)*dot_proda(ia, ir) &
+            tmp(ia, ir) = tmp(ia, ir) - d1e(ia, ir, 1)*dot_proda(ia, ir) &
                           /MAX(norm_drhoa(ia, ir, 1), rho_set%drho_cutoff)**2
          END DO !ia
       END DO !ir
@@ -2340,7 +2340,7 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                vxg(1)%array(ia, jr, dir) = tmp(ia, ir)*rho_set%drhoa(dir)%array(ia, ir, 1)
             END DO !ia
@@ -2353,7 +2353,7 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, jr)
          END DO !ia
@@ -2366,7 +2366,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_proda(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2377,7 +2377,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2386,9 +2386,9 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
-               vxg(1)%array(ia, jr, dir) = vxg(1)%array(ia, jr, dir)+tmp(ia, ir)*rho_set%drhob(dir)%array(ia, ir, 1)
+               vxg(1)%array(ia, jr, dir) = vxg(1)%array(ia, jr, dir) + tmp(ia, ir)*rho_set%drhob(dir)%array(ia, ir, 1)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2400,9 +2400,9 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
-               vxg(1)%array(ia, jr, dir) = vxg(1)%array(ia, jr, dir)+d1e(ia, ir, 1)*dso(ia, jr, dir)
+               vxg(1)%array(ia, jr, dir) = vxg(1)%array(ia, jr, dir) + d1e(ia, ir, 1)*dso(ia, jr, dir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2412,7 +2412,7 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                vxg(1)%array(ia, jr, dir) = vxg(1)%array(ia, jr, dir)*weight(ia, ir)
             END DO !ia
@@ -2427,7 +2427,7 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             vxc(2)%array(ia, jr) = d2e(ia, ir, 1)*dot_prodb(ia, ir)
          END DO !ia
@@ -2439,9 +2439,9 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
-            vxc(2)%array(ia, jr) = vxc(2)%array(ia, jr)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+            vxc(2)%array(ia, jr) = vxc(2)%array(ia, jr) + d2e(ia, ir, 1)*dot_proda(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2449,7 +2449,7 @@ CONTAINS
       !Vxc, take the grid weight into acocunt
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             vxc(2)%array(ia, jr) = vxc(2)%array(ia, jr)*weight(ia, ir)
          END DO !ia
@@ -2461,7 +2461,7 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, jr)
          END DO !ia
@@ -2474,7 +2474,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_proda(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2485,7 +2485,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2494,7 +2494,7 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                vxg(2)%array(ia, jr, dir) = tmp(ia, ir)*rho_set%drhoa(dir)%array(ia, ir, 1)
             END DO !ia
@@ -2507,7 +2507,7 @@ CONTAINS
       CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
-         jr = ir-sr+1
+         jr = ir - sr + 1
          DO ia = 1, na
             tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, jr)
          END DO !ia
@@ -2520,7 +2520,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2531,7 +2531,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
       DO ir = sr, er
          DO ia = 1, na
-            tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+            tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_proda(ia, ir)
          END DO !ia
       END DO !ir
 !$OMP END DO NOWAIT
@@ -2540,9 +2540,9 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
-               vxg(2)%array(ia, jr, dir) = vxg(2)%array(ia, jr, dir)+tmp(ia, ir)*rho_set%drhob(dir)%array(ia, ir, 1)
+               vxg(2)%array(ia, jr, dir) = vxg(2)%array(ia, jr, dir) + tmp(ia, ir)*rho_set%drhob(dir)%array(ia, ir, 1)
             END DO
          END DO
 !$OMP END DO NOWAIT
@@ -2554,9 +2554,9 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
-               vxg(2)%array(ia, jr, dir) = vxg(2)%array(ia, jr, dir)+d1e(ia, ir, 1)*dso(ia, jr, dir)
+               vxg(2)%array(ia, jr, dir) = vxg(2)%array(ia, jr, dir) + d1e(ia, ir, 1)*dso(ia, jr, dir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2566,7 +2566,7 @@ CONTAINS
       DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                vxg(2)%array(ia, jr, dir) = vxg(2)%array(ia, jr, dir)*weight(ia, ir)
             END DO !ia
@@ -2582,7 +2582,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                vxc(3)%array(ia, jr) = d2e(ia, ir, 1)*dot_prodb(ia, ir)
             END DO !ia
@@ -2594,9 +2594,9 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
-               vxc(3)%array(ia, jr) = vxc(3)%array(ia, jr)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+               vxc(3)%array(ia, jr) = vxc(3)%array(ia, jr) + d2e(ia, ir, 1)*dot_proda(ia, ir)
             END DO !i
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2604,7 +2604,7 @@ CONTAINS
          !Vxc, take the grid weight into acocunt
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                vxc(3)%array(ia, jr) = vxc(3)%array(ia, jr)*weight(ia, ir)
             END DO !ia
@@ -2616,7 +2616,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, jr)
             END DO !ia
@@ -2629,7 +2629,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
             DO ia = 1, na
-               tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+               tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_proda(ia, ir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2640,7 +2640,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
             DO ia = 1, na
-               tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+               tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2651,7 +2651,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
             DO ia = 1, na
-               tmp(ia, ir) = tmp(ia, ir)-d1e(ia, ir, 1)*dot_prodb(ia, ir) &
+               tmp(ia, ir) = tmp(ia, ir) - d1e(ia, ir, 1)*dot_prodb(ia, ir) &
                              /MAX(norm_drhob(ia, ir, 1), rho_set%drho_cutoff)**2
             END DO !ia
          END DO !ir
@@ -2661,7 +2661,7 @@ CONTAINS
          DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
             DO ir = sr, er
-               jr = ir-sr+1
+               jr = ir - sr + 1
                DO ia = 1, na
                   vxg(3)%array(ia, jr, dir) = tmp(ia, ir)*rho_set%drhob(dir)%array(ia, ir, 1)
                END DO !ia
@@ -2674,7 +2674,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
-            jr = ir-sr+1
+            jr = ir - sr + 1
             DO ia = 1, na
                tmp(ia, ir) = d2e(ia, ir, 1)*so(ia, jr)
             END DO !ia
@@ -2687,7 +2687,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
             DO ia = 1, na
-               tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_prodb(ia, ir)
+               tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_prodb(ia, ir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2698,7 +2698,7 @@ CONTAINS
 !$OMP DO SCHEDULE(STATIC)
          DO ir = sr, er
             DO ia = 1, na
-               tmp(ia, ir) = tmp(ia, ir)+d2e(ia, ir, 1)*dot_proda(ia, ir)
+               tmp(ia, ir) = tmp(ia, ir) + d2e(ia, ir, 1)*dot_proda(ia, ir)
             END DO !ia
          END DO !ir
 !$OMP END DO NOWAIT
@@ -2707,9 +2707,9 @@ CONTAINS
          DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
             DO ir = sr, er
-               jr = ir-sr+1
+               jr = ir - sr + 1
                DO ia = 1, na
-                  vxg(3)%array(ia, jr, dir) = vxg(3)%array(ia, jr, dir)+tmp(ia, ir)*rho_set%drhoa(dir)%array(ia, ir, 1)
+                  vxg(3)%array(ia, jr, dir) = vxg(3)%array(ia, jr, dir) + tmp(ia, ir)*rho_set%drhoa(dir)%array(ia, ir, 1)
                END DO !ia
             END DO !ir
 !$OMP END DO NOWAIT
@@ -2721,9 +2721,9 @@ CONTAINS
          DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
             DO ir = sr, er
-               jr = ir-sr+1
+               jr = ir - sr + 1
                DO ia = 1, na
-                  vxg(3)%array(ia, jr, dir) = vxg(3)%array(ia, jr, dir)+d1e(ia, ir, 1)*dso(ia, jr, dir)
+                  vxg(3)%array(ia, jr, dir) = vxg(3)%array(ia, jr, dir) + d1e(ia, ir, 1)*dso(ia, jr, dir)
                END DO !ia
             END DO !ir
 !$OMP END DO NOWAIT
@@ -2733,7 +2733,7 @@ CONTAINS
          DO dir = 1, 3
 !$OMP DO SCHEDULE(STATIC)
             DO ir = sr, er
-               jr = ir-sr+1
+               jr = ir - sr + 1
                DO ia = 1, na
                   vxg(3)%array(ia, jr, dir) = vxg(3)%array(ia, jr, dir)*weight(ia, ir)
                END DO !ia
@@ -2789,7 +2789,7 @@ CONTAINS
       grid_atom => xas_atom_env%grid_atom_set(ikind)%grid_atom
       na = grid_atom%ng_sphere
       sr = bounds(1, 2); er = bounds(2, 2)
-      nr = er-er+1
+      nr = er - er + 1
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_XAS")
       CALL get_gto_basis_set(ri_basis, nset=nset, maxso=maxso, nsgf=ri_nsgf)
       nsotot = nset*maxso
@@ -2870,7 +2870,7 @@ CONTAINS
       grid_atom => xas_atom_env%grid_atom_set(ikind)%grid_atom
       na = grid_atom%ng_sphere
       sr = bounds(1, 2); er = bounds(2, 2)
-      nr = er-sr+1
+      nr = er - sr + 1
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_XAS")
       CALL get_gto_basis_set(ri_basis, nset=nset, maxso=maxso, nsgf=ri_nsgf)
       nsotot = nset*maxso
@@ -2903,12 +2903,12 @@ CONTAINS
 
             !Need to be careful not to devide by zero. Assume that if rhoa == rhob, then
             !take the limit fxc = 0.5* (f_aa + f_bb - 2f_ab)
-            IF (ABS(rhoa(ia, ir, 1)-rhob(ia, ir, 1)) > dft_control%qs_control%eps_rho_rspace) THEN
-               fxc(ia, ir) = grid_atom%weight(ia, ir)/(rhoa(ia, ir, 1)-rhob(ia, ir, 1)) &
-                             *(d1e(1)%array(ia, ir, 1)-d1e(2)%array(ia, ir, 1))
+            IF (ABS(rhoa(ia, ir, 1) - rhob(ia, ir, 1)) > dft_control%qs_control%eps_rho_rspace) THEN
+               fxc(ia, ir) = grid_atom%weight(ia, ir)/(rhoa(ia, ir, 1) - rhob(ia, ir, 1)) &
+                             *(d1e(1)%array(ia, ir, 1) - d1e(2)%array(ia, ir, 1))
             ELSE
                fxc(ia, ir) = 0.5_dp*grid_atom%weight(ia, ir)* &
-                             (d2e(1)%array(ia, ir, 1)+d2e(3)%array(ia, ir, 1)-2._dp*d2e(2)%array(ia, ir, 1))
+                             (d2e(1)%array(ia, ir, 1) + d2e(3)%array(ia, ir, 1) - 2._dp*d2e(2)%array(ia, ir, 1))
             END IF
 
          END DO
@@ -2953,17 +2953,17 @@ CONTAINS
                              npgf=npgf, lmax=lmax)
 
       DO iset = 1, nset
-         starti = (iset-1)*maxso+1
+         starti = (iset - 1)*maxso + 1
          nsoi = npgf(iset)*nsoset(lmax(iset))
          sgfi = first_sgf(1, iset)
 
          DO jset = 1, nset
-            startj = (jset-1)*maxso+1
+            startj = (jset - 1)*maxso + 1
             nsoj = npgf(jset)*nsoset(lmax(jset))
             sgfj = first_sgf(1, jset)
 
-            CALL ab_contract(int_sgf(sgfi:sgfi+nsgf_set(iset)-1, sgfj:sgfj+nsgf_set(jset)-1), &
-                             int_so(starti:starti+nsoi-1, startj:startj+nsoj-1), &
+            CALL ab_contract(int_sgf(sgfi:sgfi + nsgf_set(iset) - 1, sgfj:sgfj + nsgf_set(jset) - 1), &
+                             int_so(starti:starti + nsoi - 1, startj:startj + nsoj - 1), &
                              sphi_so(:, sgfi:), sphi_so(:, sgfj:), nsoi, nsoj, &
                              nsgf_set(iset), nsgf_set(jset))
          END DO !jset
@@ -3026,7 +3026,7 @@ CONTAINS
 
       na = grid_atom%ng_sphere
       sr = bounds(1, 2); er = bounds(2, 2)
-      nr = er-sr+1
+      nr = er - sr + 1
       my_CG => harmonics%my_CG
       max_iso_not0 = harmonics%max_iso_not0
       max_s_harm = harmonics%max_s_harm
@@ -3046,23 +3046,23 @@ CONTAINS
          m2 = 0
          DO iset2 = 1, nset
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
-                                   max_s_harm, lmax(iset1)+lmax(iset2), cg_list, cg_n_list, &
+                                   max_s_harm, lmax(iset1) + lmax(iset2), cg_list, cg_n_list, &
                                    max_iso_not0_local)
             CPASSERT(max_iso_not0_local .LE. max_iso_not0)
 
             n2 = nsoset(lmax(iset2))
             DO ipgf1 = 1, npgf(iset1)
-               ngau1 = n1*(ipgf1-1)+m1
-               size1 = nsoset(lmax(iset1))-nsoset(lmin(iset1)-1)
-               nngau1 = nsoset(lmin(iset1)-1)+ngau1
+               ngau1 = n1*(ipgf1 - 1) + m1
+               size1 = nsoset(lmax(iset1)) - nsoset(lmin(iset1) - 1)
+               nngau1 = nsoset(lmin(iset1) - 1) + ngau1
 
                g1(:) = EXP(-zet(ipgf1, iset1)*grid_atom%rad2(sr:er))
                DO ipgf2 = 1, npgf(iset2)
-                  ngau2 = n2*(ipgf2-1)+m2
+                  ngau2 = n2*(ipgf2 - 1) + m2
 
                   g2(:) = EXP(-zet(ipgf2, iset2)*grid_atom%rad2(sr:er))
-                  lmin12 = lmin(iset1)+lmin(iset2)
-                  lmax12 = lmax(iset1)+lmax(iset2)
+                  lmin12 = lmin(iset1) + lmin(iset2)
+                  lmax12 = lmax(iset1) + lmax(iset2)
 
                   !get the gaussian product
                   gg = 0.0_dp
@@ -3072,11 +3072,11 @@ CONTAINS
                      gg(:, lmin12) = grid_atom%rad2l(sr:er, lmin12)*g1(:)*g2(:)
                   END IF
 
-                  DO l = lmin12+1, lmax12
-                     gg(:, l) = grid_atom%rad(sr:er)*gg(:, l-1)
+                  DO l = lmin12 + 1, lmax12
+                     gg(:, l) = grid_atom%rad(sr:er)*gg(:, l - 1)
                   END DO
 
-                  ld = lmax12+1
+                  ld = lmax12 + 1
                   CALL dgemm('N', 'N', na, ld, nr, 1.0_dp, fxc(1:na, 1:nr), na, gg(:, 0:lmax12), &
                              nr, 0.0_dp, gfxcg(1:na, 0:lmax12), na)
 
@@ -3086,27 +3086,27 @@ CONTAINS
                      DO icg = 1, cg_n_list(iso)
                         iso1 = cg_list(1, icg, iso)
                         iso2 = cg_list(2, icg, iso)
-                        l = indso(1, iso1)+indso(1, iso2)
+                        l = indso(1, iso1) + indso(1, iso2)
 
                         DO ia = 1, na
-                           matso(iso1, iso2) = matso(iso1, iso2)+gfxcg(ia, l)* &
+                           matso(iso1, iso2) = matso(iso1, iso2) + gfxcg(ia, l)* &
                                                my_CG(iso1, iso2, iso)*harmonics%slm(ia, iso)
                         END DO !ia
                      END DO !icg
                   END DO !iso
 
                   !write in integral matrix
-                  DO ic = nsoset(lmin(iset2)-1)+1, nsoset(lmax(iset2))
-                     iso1 = nsoset(lmin(iset1)-1)+1
-                     iso2 = ngau2+ic
-                     CALL daxpy(size1, 1.0_dp, matso(iso1, ic), 1, intso(nngau1+1, iso2), 1)
+                  DO ic = nsoset(lmin(iset2) - 1) + 1, nsoset(lmax(iset2))
+                     iso1 = nsoset(lmin(iset1) - 1) + 1
+                     iso2 = ngau2 + ic
+                     CALL daxpy(size1, 1.0_dp, matso(iso1, ic), 1, intso(nngau1 + 1, iso2), 1)
                   END DO !ic
 
                END DO !ipgf2
             END DO ! ipgf1
-            m2 = m2+maxso
+            m2 = m2 + maxso
          END DO !iset2
-         m1 = m1+maxso
+         m1 = m1 + maxso
       END DO !iset1
 
       CALL timestop(handle)
@@ -3178,26 +3178,26 @@ CONTAINS
 
       DO iset = 1, nset
          DO ipgf = 1, npgf(iset)
-            starti = (iset-1)*maxso+(ipgf-1)*nsoset(lmax(iset))
-            DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
+            starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+            DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
                l = indso(1, iso)
 
                ! The x derivitive of the spherical orbital, divided in angular and radial parts
                ! Two of each are needed because d/dx(r^l Y_lm) * exp(-al*r^2) + r^l Y_lm * ! d/dx(exp-al*r^2)
 
                ! the purely radial part of d/dx(r^l Y_lm) * exp(-al*r^2) (same for y)
-               r1(1:nr, starti+iso) = grid_atom%rad(1:nr)**(l-1)*EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+               r1(1:nr, starti + iso) = grid_atom%rad(1:nr)**(l - 1)*EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
 
                ! the purely radial part of r^l Y_lm * d/dx(exp-al*r^2) (same for y)
-               r2(1:nr, starti+iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(1:nr)**(l+1) &
-                                      *EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+               r2(1:nr, starti + iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(1:nr)**(l + 1) &
+                                        *EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
 
                DO i = 1, 3
                   ! the purely angular part of d/dx(r^l Y_lm) * exp(-al*r^2)
-                  a1(1:na, starti+iso, i) = dslm_dxyz(i, 1:na, iso)
+                  a1(1:na, starti + iso, i) = dslm_dxyz(i, 1:na, iso)
 
                   ! the purely angular part of r^l Y_lm * d/dx(exp-al*r^2)
-                  a2(1:na, starti+iso, i) = harmonics%a(i, 1:na)*slm(1:na, iso)
+                  a2(1:na, starti + iso, i) = harmonics%a(i, 1:na)*slm(1:na, iso)
                END DO
 
             END DO !iso
@@ -3214,50 +3214,50 @@ CONTAINS
       DO iset = 1, nset
          DO jset = 1, nset
             DO ipgf = 1, npgf(iset)
-               starti = (iset-1)*maxso+(ipgf-1)*nsoset(lmax(iset))
+               starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
                DO jpgf = 1, npgf(jset)
-                  startj = (jset-1)*maxso+(jpgf-1)*nsoset(lmax(jset))
+                  startj = (jset - 1)*maxso + (jpgf - 1)*nsoset(lmax(jset))
 
                   DO i = 1, 3
-                     j = MOD(i, 3)+1
-                     k = MOD(i+1, 3)+1
+                     j = MOD(i, 3) + 1
+                     k = MOD(i + 1, 3) + 1
 
-                     DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
-                        DO jso = nsoset(lmin(jset)-1)+1, nsoset(lmax(jset))
+                     DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
+                        DO jso = nsoset(lmin(jset) - 1) + 1, nsoset(lmax(jset))
 
                            !Two component per function => 4 terms in total
 
                            ! take r1*a1(j) * V * r1*a1(k)
-                           fgr(1:nr, 1) = r1(1:nr, starti+iso)*r1(1:nr, startj+jso)
-                           fga(1:na, 1) = a1(1:na, starti+iso, j)*a1(1:na, startj+jso, k)
+                           fgr(1:nr, 1) = r1(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                           fga(1:na, 1) = a1(1:na, starti + iso, j)*a1(1:na, startj + jso, k)
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 0.0_dp, &
-                                      intso(starti+iso, startj+jso, i), 1)
+                                      intso(starti + iso, startj + jso, i), 1)
 
                            ! add r1*a1(j) * V * r2*a2(k)
-                           fgr(1:nr, 1) = r1(1:nr, starti+iso)*r2(1:nr, startj+jso)
-                           fga(1:na, 1) = a1(1:na, starti+iso, j)*a2(1:na, startj+jso, k)
+                           fgr(1:nr, 1) = r1(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                           fga(1:na, 1) = a1(1:na, starti + iso, j)*a2(1:na, startj + jso, k)
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                      intso(starti+iso, startj+jso, i), 1)
+                                      intso(starti + iso, startj + jso, i), 1)
 
                            ! add r2*a2(j) * V * r1*a1(k)
-                           fgr(1:nr, 1) = r2(1:nr, starti+iso)*r1(1:nr, startj+jso)
-                           fga(1:na, 1) = a2(1:na, starti+iso, j)*a1(1:na, startj+jso, k)
+                           fgr(1:nr, 1) = r2(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                           fga(1:na, 1) = a2(1:na, starti + iso, j)*a1(1:na, startj + jso, k)
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                      intso(starti+iso, startj+jso, i), 1)
+                                      intso(starti + iso, startj + jso, i), 1)
 
                            ! add the last term: r2*a2(j) * V * r2*a2(k)
-                           fgr(1:nr, 1) = r2(1:nr, starti+iso)*r2(1:nr, startj+jso)
-                           fga(1:na, 1) = a2(1:na, starti+iso, j)*a2(1:na, startj+jso, k)
+                           fgr(1:nr, 1) = r2(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                           fga(1:na, 1) = a2(1:na, starti + iso, j)*a2(1:na, startj + jso, k)
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                      intso(starti+iso, startj+jso, i), 1)
+                                      intso(starti + iso, startj + jso, i), 1)
 
                         END DO !jso
                      END DO !iso
@@ -3269,7 +3269,7 @@ CONTAINS
       END DO !iset
 
       DO i = 1, 3
-         intso(:, :, i) = intso(:, :, i)-TRANSPOSE(intso(:, :, i))
+         intso(:, :, i) = intso(:, :, i) - TRANSPOSE(intso(:, :, i))
       END DO
 
    END SUBROUTINE integrate_so_dxdy_prod
@@ -3337,7 +3337,7 @@ CONTAINS
          ALLOCATE (V(na, nr))
          V = 0.0_dp
          DO ir = 1, nr
-            CALL daxpy(na, Vr(ir)/(4.0_dp*c_light_au**2-2.0_dp*Vr(ir)), grid%weight(1:na, ir), 1, &
+            CALL daxpy(na, Vr(ir)/(4.0_dp*c_light_au**2 - 2.0_dp*Vr(ir)), grid%weight(1:na, ir), 1, &
                        V(1:na, ir), 1)
          END DO
          DEALLOCATE (Vr)

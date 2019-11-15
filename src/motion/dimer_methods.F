@@ -101,13 +101,13 @@ CONTAINS
             ELSE
                angle1 = dimer_env%rot%angle1
                angle2 = dimer_env%rot%angle2
-               dimer_env%rot%g1 = SIN(angle1-angle2)/SIN(angle1)*dimer_env%rot%g1+ &
-                                  SIN(angle2)/SIN(angle1)*dimer_env%rot%g1p+ &
-                                  (1.0_dp-COS(angle2)-SIN(angle2)*TAN(angle1/2.0_dp))*dimer_env%rot%g0
+               dimer_env%rot%g1 = SIN(angle1 - angle2)/SIN(angle1)*dimer_env%rot%g1 + &
+                                  SIN(angle2)/SIN(angle1)*dimer_env%rot%g1p + &
+                                  (1.0_dp - COS(angle2) - SIN(angle2)*TAN(angle1/2.0_dp))*dimer_env%rot%g0
             END IF
 
             ! Determine the theta vector (i.e. the search direction for line minimization)
-            gradient = -2.0_dp*(dimer_env%rot%g1-dimer_env%rot%g0)
+            gradient = -2.0_dp*(dimer_env%rot%g1 - dimer_env%rot%g0)
             IF (debug_this_module .AND. (iw > 0)) THEN
                WRITE (iw, '(A)') "G1 vector:"
                WRITE (iw, '(3F15.9)') dimer_env%rot%g1
@@ -125,21 +125,21 @@ CONTAINS
             END IF
 
             ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
-            dimer_env%rot%curvature = DOT_PRODUCT(dimer_env%rot%g1-dimer_env%rot%g0, dimer_env%nvec)/dimer_env%dr
-            dimer_env%rot%dCdp = 2.0_dp*DOT_PRODUCT(dimer_env%rot%g1-dimer_env%rot%g0, gradient)/dimer_env%dr
+            dimer_env%rot%curvature = DOT_PRODUCT(dimer_env%rot%g1 - dimer_env%rot%g0, dimer_env%nvec)/dimer_env%dr
+            dimer_env%rot%dCdp = 2.0_dp*DOT_PRODUCT(dimer_env%rot%g1 - dimer_env%rot%g0, gradient)/dimer_env%dr
 
             dimer_env%rot%rotation_step = do_second_rotation_step
             gradient = -gradient
          CASE (do_second_rotation_step)
             ! Compute energy, gradients and rotation vector for R1
             CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%rot%g1p)
-            dimer_env%rot%curvature = DOT_PRODUCT(dimer_env%rot%g1p-dimer_env%rot%g0, dimer_env%nvec)/dimer_env%dr
+            dimer_env%rot%curvature = DOT_PRODUCT(dimer_env%rot%g1p - dimer_env%rot%g0, dimer_env%nvec)/dimer_env%dr
             dimer_env%rot%rotation_step = do_third_rotation_step
 
             ! Determine the theta vector (i.e. the search direction for line minimization)
             ! This is never used for getting a new theta but is consistent in order to
             ! give back the right value of f
-            gradient = -2.0_dp*(dimer_env%rot%g1p-dimer_env%rot%g0)
+            gradient = -2.0_dp*(dimer_env%rot%g1p - dimer_env%rot%g0)
             CALL get_theta(gradient, dimer_env, norm)
             f = norm
 
@@ -173,11 +173,11 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with K-DIMER method"
             END IF
-            swf = 1.0_dp+EXP(dimer_env%beta*dimer_env%rot%curvature)
-            gm2 = 1.0_dp-(1.0_dp/swf)
-            gm1 = (2.0_dp/swf)-1.0_dp
-            gradient = gm2*(dimer_env%rot%g0-2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec) &
-                       -gm1*(DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec)
+            swf = 1.0_dp + EXP(dimer_env%beta*dimer_env%rot%curvature)
+            gm2 = 1.0_dp - (1.0_dp/swf)
+            gm1 = (2.0_dp/swf) - 1.0_dp
+            gradient = gm2*(dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec) &
+                       - gm1*(DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec)
             CALL remove_rot_transl_component(gopt_env, gradient, print_section)
             IF (debug_this_module .AND. (iw > 0)) WRITE (iw, *) "K-DIMER", dimer_env%beta, dimer_env%rot%curvature, &
                dimer_env%rot%dCdp, gm1, gm2, swf
@@ -189,7 +189,7 @@ CONTAINS
                gradient = -DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
                CALL remove_rot_transl_component(gopt_env, gradient, print_section)
             ELSE
-               gradient = dimer_env%rot%g0-2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
+               gradient = dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
                CALL remove_rot_transl_component(gopt_env, gradient, print_section)
             END IF
          END IF
@@ -247,14 +247,14 @@ CONTAINS
             ! Check First orthogonality in the first element of the basis set
             DO i = 1, dof
                D(:, i) = mat(:, i)
-               DO j = i+1, dof
+               DO j = i + 1, dof
                   norm = DOT_PRODUCT(mat(:, i), mat(:, j))
                   CPASSERT(ABS(norm) < thrs_motion)
                END DO
             END DO
             DO i = 1, dof
                norm = DOT_PRODUCT(gradient, D(:, i))
-               gradient = gradient-norm*D(:, i)
+               gradient = gradient - norm*D(:, i)
             END DO
             DEALLOCATE (D)
             DEALLOCATE (mat)
@@ -301,8 +301,8 @@ CONTAINS
       CALL cp_subsys_get(subsys, particles=particles)
       DO ip = 1, particles%n_els
          DO idir = 1, 3
-            idg = idg+1
-            particles%els(ip)%r(idir) = x(idg)+REAL(dimer_index, KIND=dp)*dimer_env%nvec(idg)*dimer_env%dr
+            idg = idg + 1
+            particles%els(ip)%r(idir) = x(idg) + REAL(dimer_index, KIND=dp)*dimer_env%nvec(idg)*dimer_env%dr
          END DO
       END DO
 
@@ -320,7 +320,7 @@ CONTAINS
          CALL cp_subsys_get(subsys, particles=particles)
          DO ip = 1, particles%n_els
             DO idir = 1, 3
-               idg = idg+1
+               idg = idg + 1
                CPASSERT(SIZE(gradient) >= idg)
                gradient(idg) = -particles%els(ip)%f(idir)
             END DO

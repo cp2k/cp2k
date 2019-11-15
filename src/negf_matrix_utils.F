@@ -70,7 +70,7 @@ CONTAINS
          nao = 0
 
          DO iatom = 1, natoms
-            nao = nao+nsgfs(atom_list(iatom))
+            nao = nao + nsgfs(atom_list(iatom))
          END DO
       ELSE
          nao = SUM(nsgfs)
@@ -142,14 +142,14 @@ CONTAINS
                ncols = nsgfs(atomlist_col(iatom_col))
                DO icol = 1, ncols
                   DO irow = 1, nrows
-                     sm_block(irow, icol) = fm_block(first_sgf_row+irow-1, first_sgf_col+icol-1)
+                     sm_block(irow, icol) = fm_block(first_sgf_row + irow - 1, first_sgf_col + icol - 1)
                   END DO
                END DO
             END IF
 
-            first_sgf_row = first_sgf_row+nsgfs(atomlist_row(iatom_row))
+            first_sgf_row = first_sgf_row + nsgfs(atomlist_row(iatom_row))
          END DO
-         first_sgf_col = first_sgf_col+nsgfs(atomlist_col(iatom_col))
+         first_sgf_col = first_sgf_col + nsgfs(atomlist_col(iatom_col))
       END DO
 
       DEALLOCATE (fm_block)
@@ -247,7 +247,7 @@ CONTAINS
                   IF (do_upper_diag) THEN
                      DO icol = nsgfs(atomlist_col(iatom_col)), 1, -1
                         DO irow = nsgfs(atomlist_row(iatom_row)), 1, -1
-                           r2d(offset_sgf_row+irow, offset_sgf_col+icol) = sm_block(irow, icol)
+                           r2d(offset_sgf_row + irow, offset_sgf_col + icol) = sm_block(irow, icol)
                         END DO
                      END DO
                   END IF
@@ -255,16 +255,16 @@ CONTAINS
                   IF (do_lower) THEN
                      DO icol = nsgfs(atomlist_col(iatom_col)), 1, -1
                         DO irow = nsgfs(atomlist_row(iatom_row)), 1, -1
-                           r2d(offset_sgf_row+irow, offset_sgf_col+icol) = sm_block(icol, irow)
+                           r2d(offset_sgf_row + irow, offset_sgf_col + icol) = sm_block(icol, irow)
                         END DO
                      END DO
                   END IF
                END IF
             END IF
 
-            offset_sgf_row = offset_sgf_row+nsgfs(atomlist_row(iatom_row))
+            offset_sgf_row = offset_sgf_row + nsgfs(atomlist_row(iatom_row))
          END DO
-         offset_sgf_col = offset_sgf_col+nsgfs(atomlist_col(iatom_col))
+         offset_sgf_col = offset_sgf_col + nsgfs(atomlist_col(iatom_col))
       END DO
 
       CALL mp_sum(r2d, mpi_comm_global)
@@ -379,7 +379,7 @@ CONTAINS
                IF (found) THEN
                   ! it should be much safe to rely on atomic indices (iatom / jatom) obtained using a neighbour list iterator:
                   ! phase == 1 when iatom <= jatom, and phase == -1 when iatom > jatom
-                  IF (MOD(iatom_col-iatom_row, 2) == 0) THEN
+                  IF (MOD(iatom_col - iatom_row, 2) == 0) THEN
                      phase = 1
                   ELSE
                      phase = -1
@@ -390,13 +390,13 @@ CONTAINS
                                          block=block_dest, found=found)
                   CPASSERT(found)
 
-                  error_same = MAXVAL(ABS(block_dest(:, :)-block_src(:, :)))
+                  error_same = MAXVAL(ABS(block_dest(:, :) - block_src(:, :)))
 
                   CALL dbcsr_get_block_p(matrix=matrix_cells_raw(phase)%matrix, &
                                          row=iatom_row, col=iatom_col, &
                                          block=block_dest, found=found)
                   CPASSERT(found)
-                  error_diff = MAXVAL(ABS(block_dest(:, :)-block_src(:, :)))
+                  error_diff = MAXVAL(ABS(block_dest(:, :) - block_src(:, :)))
 
                   IF (error_same <= error_diff) THEN
                      is_same_cell(iatom_row, iatom_col) = 0
@@ -415,7 +415,7 @@ CONTAINS
 
             IF (found) THEN
                ! it should be much safe to rely on a neighbour list iterator
-               IF (MOD(iatom_col-iatom_row, 2) == 0) THEN
+               IF (MOD(iatom_col - iatom_row, 2) == 0) THEN
                   phase = 1
                ELSE
                   phase = -1
@@ -436,7 +436,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
                                       row=iatom_row, col=iatom_col, block=block_dest, found=found)
                CPASSERT(found)
-               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep+phase)%matrix, &
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep + phase)%matrix, &
                                       row=iatom_row, col=iatom_col, block=block_src, found=found)
                CPASSERT(found)
                block_dest(:, :) = block_src(:, :)
@@ -447,7 +447,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
                                       row=iatom_row, col=iatom_col, block=block_dest, found=found)
                CPASSERT(found)
-               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep-phase)%matrix, &
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep - phase)%matrix, &
                                       row=iatom_row, col=iatom_col, block=block_src, found=found)
                CPASSERT(found)
                block_dest(:, :) = block_src(:, :)
@@ -519,7 +519,7 @@ CONTAINS
          DIMENSION(:)                                    :: recv_packed_blocks, send_packed_blocks
 
       CALL timeset(routineN, handle)
-      mepos_plus1 = para_env%mepos+1
+      mepos_plus1 = para_env%mepos + 1
 
       natoms = SIZE(atom_list)
       max_atom = 0
@@ -579,14 +579,14 @@ CONTAINS
             IF (found) THEN
                iproc = rank_contact(irow, icol)
                IF (iproc > 0) &
-                  send_nelems(iproc) = send_nelems(iproc)+SIZE(rblock)
+                  send_nelems(iproc) = send_nelems(iproc) + SIZE(rblock)
             END IF
 
             CALL dbcsr_get_block_p(matrix=matrix_contact, row=irow, col=icol, block=rblock, found=found)
             IF (found) THEN
                iproc = rank_device(irow, icol)
                IF (iproc > 0) &
-                  recv_nelems(iproc) = recv_nelems(iproc)+SIZE(rblock)
+                  recv_nelems(iproc) = recv_nelems(iproc) + SIZE(rblock)
             END IF
          END DO
       END DO
@@ -630,16 +630,16 @@ CONTAINS
                   IF (transp) THEN
                      DO i1 = 1, n1
                         DO i2 = 1, n2
-                           send_packed_blocks(iproc)%vector(offset+i2) = rblock(i1, i2)
+                           send_packed_blocks(iproc)%vector(offset + i2) = rblock(i1, i2)
                         END DO
-                        offset = offset+n2
+                        offset = offset + n2
                      END DO
                   ELSE
                      DO i2 = 1, n2
                         DO i1 = 1, n1
-                           send_packed_blocks(iproc)%vector(offset+i1) = rblock(i1, i2)
+                           send_packed_blocks(iproc)%vector(offset + i1) = rblock(i1, i2)
                         END DO
-                        offset = offset+n1
+                        offset = offset + n1
                      END DO
                   END IF
 
@@ -654,7 +654,7 @@ CONTAINS
 
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) THEN
-            CALL mp_isend(send_packed_blocks(iproc)%vector, iproc-1, para_env%group, send_handlers(iproc), 1)
+            CALL mp_isend(send_packed_blocks(iproc)%vector, iproc - 1, para_env%group, send_handlers(iproc), 1)
          END IF
       END DO
 
@@ -662,7 +662,7 @@ CONTAINS
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1) THEN
             IF (recv_nelems(iproc) > 0) THEN
-               CALL mp_irecv(recv_packed_blocks(iproc)%vector, iproc-1, para_env%group, recv_handlers(iproc), 1)
+               CALL mp_irecv(recv_packed_blocks(iproc)%vector, iproc - 1, para_env%group, recv_handlers(iproc), 1)
             END IF
          ELSE
             IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &
@@ -698,9 +698,9 @@ CONTAINS
 
                   DO i2 = 1, n2
                      DO i1 = 1, n1
-                        rblock(i1, i2) = recv_packed_blocks(iproc)%vector(offset+i1)
+                        rblock(i1, i2) = recv_packed_blocks(iproc)%vector(offset + i1)
                      END DO
-                     offset = offset+n1
+                     offset = offset + n1
                   END DO
 
                   recv_nelems(iproc) = offset

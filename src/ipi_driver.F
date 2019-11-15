@@ -393,7 +393,7 @@ CONTAINS
          IF (ionode) THEN
             CALL readbuffer(socket, header, MSGLEN)
             wait_msg = 0
-            DO iwait = 0, para_env%num_pe-1
+            DO iwait = 0, para_env%num_pe - 1
                IF (iwait /= para_env%source) THEN
                   CALL mp_send(msg=wait_msg, dest=iwait, gid=para_env%group, tag=666)
                ENDIF
@@ -447,7 +447,7 @@ CONTAINS
             ii = 0
             DO ip = 1, subsys%particles%n_els
                DO idir = 1, 3
-                  ii = ii+1
+                  ii = ii + 1
                   subsys%particles%els(ip)%r(idir) = combuf(ii)
                END DO
             END DO
@@ -462,7 +462,7 @@ CONTAINS
             ii = 0
             DO ip = 1, subsys%particles%n_els
                DO idir = 1, 3
-                  ii = ii+1
+                  ii = ii + 1
                   combuf(ii) = subsys%particles%els(ip)%f(idir)
                END DO
             END DO

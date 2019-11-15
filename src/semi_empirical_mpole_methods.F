@@ -75,7 +75,7 @@ CONTAINS
       ! If there are atomic orbitals proceed with the expansion in multipoles
       natorb = se_parameter%natorb
       IF (natorb /= 0) THEN
-         ndim = natorb*(natorb+1)/2
+         ndim = natorb*(natorb + 1)/2
          CALL semi_empirical_mpole_p_create(mpoles, ndim)
 
          ! Select method for multipolar expansion
@@ -104,7 +104,7 @@ CONTAINS
 
                ! Charge
                IF (alm(ind1, 0, 0) /= 0.0_dp) THEN
-                  dlm = 1.0_dp/SQRT(REAL((2*0+1), KIND=dp))
+                  dlm = 1.0_dp/SQRT(REAL((2*0 + 1), KIND=dp))
                   tmp = -dlm*amn(indexb(a, b), 0)
                   mpole%c = tmp*alm(ind1, 0, 0)
                   mpole%task(1) = .TRUE.
@@ -112,7 +112,7 @@ CONTAINS
 
                ! Dipole
                IF (ANY(alm(ind1, 1, -1:1) /= 0.0_dp)) THEN
-                  dlm = 1.0_dp/SQRT(REAL((2*1+1), KIND=dp))
+                  dlm = 1.0_dp/SQRT(REAL((2*1 + 1), KIND=dp))
                   tmp = -dlm*amn(indexb(a, b), 1)
                   mpole%d(1) = tmp*alm(ind1, 1, 1)
                   mpole%d(2) = tmp*alm(ind1, 1, -1)
@@ -122,7 +122,7 @@ CONTAINS
 
                ! Quadrupole
                IF (ANY(alm(ind1, 2, -2:2) /= 0.0_dp)) THEN
-                  dlm = 1.0_dp/SQRT(REAL((2*2+1), KIND=dp))
+                  dlm = 1.0_dp/SQRT(REAL((2*2 + 1), KIND=dp))
                   tmp = -dlm*amn(indexb(a, b), 2)
 
                   ! Spherical components
@@ -164,34 +164,34 @@ CONTAINS
             ZP = se_parameter%sto_exponents(1)
             nr = se_parameter%nr
 
-            ws = REAL((2*nr+2)*(2*nr+1), dp)/(24.0_dp*ZS**2)
+            ws = REAL((2*nr + 2)*(2*nr + 1), dp)/(24.0_dp*ZS**2)
             DO k = 1, 3
                M2(k, k, indexb(1, 1)) = ws
             ENDDO
 
             IF (ZP > 0._dp) THEN
                zt = SQRT(ZS*ZP)
-               zb = 0.5_dp*(ZS+ZP)
+               zb = 0.5_dp*(ZS + ZP)
                DO k = 1, 3
-                  M1(k, indexb(1, 1+k)) = (zt/zb)**(2*nr+1)*REAL(2*nr+1, dp)/(2.0*zb*SQRT(3.0_dp))
+                  M1(k, indexb(1, 1 + k)) = (zt/zb)**(2*nr + 1)*REAL(2*nr + 1, dp)/(2.0*zb*SQRT(3.0_dp))
                ENDDO
 
-               wp = REAL((2*nr+2)*(2*nr+1), dp)/(40.0_dp*ZP**2)
+               wp = REAL((2*nr + 2)*(2*nr + 1), dp)/(40.0_dp*ZP**2)
                DO k1 = 1, 3
                   DO k2 = 1, 3
                      IF (k1 == k2) THEN
-                        M2(k2, k2, indexb(1+k1, 1+k1)) = 3.0_dp*wp
+                        M2(k2, k2, indexb(1 + k1, 1 + k1)) = 3.0_dp*wp
                      ELSE
-                        M2(k2, k2, indexb(1+k1, 1+k1)) = wp
+                        M2(k2, k2, indexb(1 + k1, 1 + k1)) = wp
                      ENDIF
                   ENDDO
                ENDDO
-               M2(1, 2, indexb(1+1, 1+2)) = wp
-               M2(2, 1, indexb(1+1, 1+2)) = wp
-               M2(2, 3, indexb(1+2, 1+3)) = wp
-               M2(3, 2, indexb(1+2, 1+3)) = wp
-               M2(3, 1, indexb(1+3, 1+1)) = wp
-               M2(1, 3, indexb(1+3, 1+1)) = wp
+               M2(1, 2, indexb(1 + 1, 1 + 2)) = wp
+               M2(2, 1, indexb(1 + 1, 1 + 2)) = wp
+               M2(2, 3, indexb(1 + 2, 1 + 3)) = wp
+               M2(3, 2, indexb(1 + 2, 1 + 3)) = wp
+               M2(3, 1, indexb(1 + 3, 1 + 1)) = wp
+               M2(1, 3, indexb(1 + 3, 1 + 1)) = wp
             ENDIF
 
             DO i = 1, natorb
@@ -248,10 +248,10 @@ CONTAINS
 !          qs(5) - dxy
 ! Cartesian components
 
-      qcart(1, 1) = (qsph(4)-qsph(1)/SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
+      qcart(1, 1) = (qsph(4) - qsph(1)/SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
       qcart(2, 1) = qsph(5)*SQRT(3.0_dp)/2.0_dp
       qcart(3, 1) = qsph(2)*SQRT(3.0_dp)/2.0_dp
-      qcart(2, 2) = -(qsph(4)+qsph(1)/SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
+      qcart(2, 2) = -(qsph(4) + qsph(1)/SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
       qcart(3, 2) = qsph(3)*SQRT(3.0_dp)/2.0_dp
       qcart(3, 3) = qsph(1)
       ! Symmetrize tensor

@@ -110,7 +110,7 @@ CONTAINS
          DO jatom = 1, natoms
             IF (jatom == iatom) CYCLE ! waste some storage to simplify things later
             DO iterm = 1, nterms(jatom)
-               idx = SUM(nterms(1:jatom-1))+iterm
+               idx = SUM(nterms(1:jatom - 1)) + iterm
                block_V_term(1:n, 1:n) => vec_V_terms(:, idx) ! map column into matrix
                CALL gth_calc_term(qs_env, block_V_term, iatom, jatom, iterm)
             ENDDO
@@ -180,8 +180,8 @@ CONTAINS
 
       DO iatom = 1, natoms
       DO jatom = 1, natoms
-         ioffset = SUM(nterms(1:iatom-1))
-         joffset = SUM(nterms(1:jatom-1))
+         ioffset = SUM(nterms(1:iatom - 1))
+         joffset = SUM(nterms(1:jatom - 1))
          n = nterms(iatom)
          m = nterms(jatom)
 
@@ -195,7 +195,7 @@ CONTAINS
             CPASSERT(arow == acol)
             DO i = 1, n
             DO j = 1, m
-               block(i, j) = block(i, j)+SUM(block_V_term(:, ioffset+i)*block_V_term(:, joffset+j))
+               block(i, j) = block(i, j) + SUM(block_V_term(:, ioffset + i)*block_V_term(:, joffset + j))
             ENDDO
             ENDDO
          ENDDO
@@ -275,8 +275,8 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
-         idx = SUM(nterms(1:iatom-1))
-         world_X(idx+1:idx+nterms(iatom)) = block_X(:, 1)
+         idx = SUM(nterms(1:iatom - 1))
+         world_X(idx + 1:idx + nterms(iatom)) = block_X(:, 1)
       ENDDO
       CALL dbcsr_iterator_stop(iter)
       CALL mp_sum(world_X, group) ! sync world view across MPI ranks
@@ -295,7 +295,7 @@ CONTAINS
          block_V = 0.0_dp
          DO iterm = 1, SIZE(world_X)
             block_V_term(1:n, 1:n) => vec_V_terms(:, iterm) ! map column into matrix
-            block_V = block_V+world_X(iterm)*block_V_term
+            block_V = block_V + world_X(iterm)*block_V_term
          ENDDO
 
          ! calculate gradient block of i'th atom
@@ -310,7 +310,7 @@ CONTAINS
                                        M1=block_M1, G=block_M2, gap=gaps(iatom))
             DO iterm = 1, SIZE(world_G)
                block_V_term(1:n, 1:n) => vec_V_terms(:, iterm) ! map column into matrix
-               world_G(iterm) = world_G(iterm)+SUM(block_V_term*block_M2)
+               world_G(iterm) = world_G(iterm) + SUM(block_V_term*block_M2)
             ENDDO
             DEALLOCATE (block_M2)
          ENDIF
@@ -325,8 +325,8 @@ CONTAINS
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, arow, acol, block_G)
             iatom = arow; CPASSERT(arow == acol)
-            idx = SUM(nterms(1:iatom-1))
-            block_G(:, 1) = world_G(idx+1:idx+nterms(iatom))
+            idx = SUM(nterms(1:iatom - 1))
+            block_G(:, 1) = world_G(idx + 1:idx + nterms(iatom))
          ENDDO
          CALL dbcsr_iterator_stop(iter)
       ENDIF
@@ -389,8 +389,8 @@ CONTAINS
       IF (MOD(maxl, 2) /= 0) &
          CPABORT("GTH parametrization requires even-numbered PAO_POTENTIAL%MAXL")
 
-      ncombis = (max_projector+1)*(max_projector+2)/2
-      nparams = ncombis*(maxl/2+1)
+      ncombis = (max_projector + 1)*(max_projector + 2)/2
+      nparams = ncombis*(maxl/2 + 1)
 
    END SUBROUTINE pao_param_count_gth
 
@@ -434,7 +434,7 @@ CONTAINS
       outer: DO lpot = 0, pot_maxl, 2
          DO max_l = 0, pot_max_projector
          DO min_l = 0, max_l
-            c = c+1
+            c = c + 1
             IF (c == kterm) EXIT outer
          ENDDO
          ENDDO

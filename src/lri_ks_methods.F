@@ -124,7 +124,7 @@ CONTAINS
                                    jatom=jatom, nlist=nlist, ilist=ilist, inode=jneighbor, &
                                    r=rab, cell=cell)
 
-            iac = ikind+nkind*(jkind-1)
+            iac = ikind + nkind*(jkind - 1)
             dab = SQRT(SUM(rab*rab))
 
             IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
@@ -138,7 +138,7 @@ CONTAINS
             nfb = lrii%nfb
             nba = lrii%nba
             nbb = lrii%nbb
-            nn = nfa+nfb
+            nn = nfa + nfb
 
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
@@ -162,24 +162,24 @@ CONTAINS
                   nm = nn
                   ALLOCATE (vi(nn))
                   vi(1:nfa) = lri_v_int(ikind)%v_int(atom_a, 1:nfa)
-                  vi(nfa+1:nn) = lri_v_int(jkind)%v_int(atom_b, 1:nfb)
+                  vi(nfa + 1:nn) = lri_v_int(jkind)%v_int(atom_b, 1:nfb)
                END IF
                isn = SUM(lrii%sn(1:nm)*vi(1:nm))/lrii%nsn
-               vi(1:nm) = MATMUL(lrii%sinv(1:nm, 1:nm), vi(1:nm))-isn*lrii%sn(1:nm)
+               vi(1:nm) = MATMUL(lrii%sinv(1:nm, 1:nm), vi(1:nm)) - isn*lrii%sn(1:nm)
                hs_work(1:nba, 1:nbb) = isn*lrii%soo(1:nba, 1:nbb)
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                   DO i = 1, nfa
                      CALL lri_decomp_i(int3, lrii%cabai, i)
-                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*int3(1:nba, 1:nbb)
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb) + vi(i)*int3(1:nba, 1:nbb)
                   ENDDO
                ELSE
                   DO i = 1, nfa
                      CALL lri_decomp_i(int3, lrii%cabai, i)
-                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*int3(1:nba, 1:nbb)
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb) + vi(i)*int3(1:nba, 1:nbb)
                   ENDDO
                   DO i = 1, nfb
                      CALL lri_decomp_i(int3, lrii%cabbi, i)
-                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(nfa+i)*int3(1:nba, 1:nbb)
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb) + vi(nfa + i)*int3(1:nba, 1:nbb)
                   ENDDO
                END IF
                DEALLOCATE (vi)
@@ -188,7 +188,7 @@ CONTAINS
             IF (lrii%lriff) THEN
                ALLOCATE (hf_work(nba, nbb), wab(nba, nbb), wbb(nba, nbb))
                wab(1:nba, 1:nbb) = lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
-               wbb(1:nba, 1:nbb) = 1.0_dp-lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
+               wbb(1:nba, 1:nbb) = 1.0_dp - lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
                !
                ALLOCATE (via(nfa), vib(nfb))
                via(1:nfa) = lri_v_int(ikind)%v_int(atom_a, 1:nfa)
@@ -196,22 +196,22 @@ CONTAINS
                !
                isna = SUM(lrii%sna(1:nfa)*via(1:nfa))/lrii%nsna
                isnb = SUM(lrii%snb(1:nfb)*vib(1:nfb))/lrii%nsnb
-               via(1:nfa) = MATMUL(lrii%asinv(1:nfa, 1:nfa), via(1:nfa))-isna*lrii%sna(1:nfa)
-               vib(1:nfb) = MATMUL(lrii%bsinv(1:nfb, 1:nfb), vib(1:nfb))-isnb*lrii%snb(1:nfb)
+               via(1:nfa) = MATMUL(lrii%asinv(1:nfa, 1:nfa), via(1:nfa)) - isna*lrii%sna(1:nfa)
+               vib(1:nfb) = MATMUL(lrii%bsinv(1:nfb, 1:nfb), vib(1:nfb)) - isnb*lrii%snb(1:nfb)
                !
-               hf_work(1:nba, 1:nbb) = (isna*wab(1:nba, 1:nbb)+isnb*wbb(1:nba, 1:nbb))*lrii%soo(1:nba, 1:nbb)
+               hf_work(1:nba, 1:nbb) = (isna*wab(1:nba, 1:nbb) + isnb*wbb(1:nba, 1:nbb))*lrii%soo(1:nba, 1:nbb)
                !
                DO i = 1, nfa
                   IF (lrii%abascr(i) > threshold) THEN
                      CALL lri_decomp_i(int3, lrii%cabai, i)
-                     hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb)+ &
+                     hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb) + &
                                              via(i)*int3(1:nba, 1:nbb)*wab(1:nba, 1:nbb)
                   END IF
                ENDDO
                DO i = 1, nfb
                   IF (lrii%abbscr(i) > threshold) THEN
                      CALL lri_decomp_i(int3, lrii%cabbi, i)
-                     hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb)+ &
+                     hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb) + &
                                              vib(i)*int3(1:nba, 1:nbb)*wbb(1:nba, 1:nbb)
                   END IF
                ENDDO
@@ -239,17 +239,17 @@ CONTAINS
             IF (lrii%lrisr) THEN
                fw = lrii%wsr
                IF (trans) THEN
-                  h_block(1:nbb, 1:nba) = h_block(1:nbb, 1:nba)+fw*TRANSPOSE(hs_work(1:nba, 1:nbb))
+                  h_block(1:nbb, 1:nba) = h_block(1:nbb, 1:nba) + fw*TRANSPOSE(hs_work(1:nba, 1:nbb))
                ELSE
-                  h_block(1:nba, 1:nbb) = h_block(1:nba, 1:nbb)+fw*hs_work(1:nba, 1:nbb)
+                  h_block(1:nba, 1:nbb) = h_block(1:nba, 1:nbb) + fw*hs_work(1:nba, 1:nbb)
                ENDIF
             END IF
             IF (lrii%lriff) THEN
                fw = lrii%wff
                IF (trans) THEN
-                  h_block(1:nbb, 1:nba) = h_block(1:nbb, 1:nba)+fw*TRANSPOSE(hf_work(1:nba, 1:nbb))
+                  h_block(1:nbb, 1:nba) = h_block(1:nbb, 1:nba) + fw*TRANSPOSE(hf_work(1:nba, 1:nbb))
                ELSE
-                  h_block(1:nba, 1:nbb) = h_block(1:nba, 1:nbb)+fw*hf_work(1:nba, 1:nbb)
+                  h_block(1:nba, 1:nbb) = h_block(1:nba, 1:nbb) + fw*hf_work(1:nba, 1:nbb)
                ENDIF
             END IF
 !$OMP END CRITICAL(addhamiltonian)
@@ -316,7 +316,7 @@ CONTAINS
          atom_a = atom_of_kind(iatom)
          i1 = bas_ptr(1, iatom)
          i2 = bas_ptr(2, iatom)
-         n = i2-i1+1
+         n = i2 - i1 + 1
          fvec(i1:i2) = lri_v_int(ikind)%v_int(atom_a, 1:n)
       END DO
       DEALLOCATE (atom_of_kind, kind_of)
@@ -325,7 +325,7 @@ CONTAINS
       lri_env%ri_fit%ftrm1n(ispin) = ftrm1n
       fscal = ftrm1n/lri_env%ri_fit%ntrm1n
       ! renormalize fvec -> fvec - fscal * n
-      fvec(:) = fvec(:)-fscal*lri_env%ri_fit%nvec(:)
+      fvec(:) = fvec(:) - fscal*lri_env%ri_fit%nvec(:)
       ! solve Rx=f'
       CALL ri_metric_solver(mat=lri_env%ri_smat(1)%matrix, &
                             vecr=fvec(:), &
@@ -343,7 +343,7 @@ CONTAINS
       DO iatom = 1, natom
          i1 = bas_ptr(1, iatom)
          i2 = bas_ptr(2, iatom)
-         n = i2-i1+1
+         n = i2 - i1 + 1
          nsize(iatom) = n
       END DO
       CALL o3c_vec_create(o3c_vec, nsize)
@@ -351,7 +351,7 @@ CONTAINS
       DO iatom = 1, natom
          i1 = bas_ptr(1, iatom)
          i2 = bas_ptr(2, iatom)
-         n = i2-i1+1
+         n = i2 - i1 + 1
          CALL get_o3c_vec(o3c_vec, iatom, v)
          v(1:n) = fout(i1:i2)
       END DO

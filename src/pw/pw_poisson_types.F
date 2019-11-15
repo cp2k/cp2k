@@ -213,7 +213,7 @@ CONTAINS
       green%slab_size = 0.0_dp
       green%alpha = 0.0_dp
       green%method = PERIODIC3D
-      last_greens_fn_id_nr = last_greens_fn_id_nr+1
+      last_greens_fn_id_nr = last_greens_fn_id_nr + 1
       green%id_nr = last_greens_fn_id_nr
       green%ref_count = 1
       green%MT_alpha = 1.0_dp
@@ -313,7 +313,7 @@ CONTAINS
             green%p3m_order = poisson_params%ewald_o_spline
             green%p3m_alpha = poisson_params%ewald_alpha
             n = green%p3m_order
-            ALLOCATE (green%p3m_coeff(-(n-1):n-1, 0:n-1))
+            ALLOCATE (green%p3m_coeff(-(n - 1):n - 1, 0:n - 1))
             CALL spme_coeff_calculate(n, green%p3m_coeff)
             CALL pw_pool_create_pw(pw_pool, green%p3m_charge, use_data=REALDATA1D, &
                                    in_space=RECIPROCALSPACE)
@@ -364,7 +364,7 @@ CONTAINS
             g2 = grid%gsq(ig)
             g3d = fourpi/g2
             gg = 0.5_dp*SQRT(g2)
-            gf%cc(ig) = g3d*(1.0_dp-(-1.0_dp)**nz*EXP(-gg*zlength))
+            gf%cc(ig) = g3d*(1.0_dp - (-1.0_dp)**nz*EXP(-gg*zlength))
          END DO
          IF (grid%have_g0) gf%cc(1) = 0.0_dp
 
@@ -377,7 +377,7 @@ CONTAINS
          DO ig = grid%first_gne0, grid%ngpts_cut_local
             g2 = grid%gsq(ig)
             g3d = fourpi/g2
-            gxy = SQRT(MAX(0.0_dp, g2-grid%g(iz, ig)*grid%g(iz, ig)))
+            gxy = SQRT(MAX(0.0_dp, g2 - grid%g(iz, ig)*grid%g(iz, ig)))
             gz = ABS(grid%g(iz, ig))
             j0g = bessj0(rlength*gxy)
             j1g = bessj1(rlength*gxy)
@@ -388,8 +388,8 @@ CONTAINS
                k0g = 0
                k1g = 0
             ENDIF
-            gf%cc(ig) = g3d*(1.0_dp+rlength* &
-                             (gxy*j1g*k0g-gz*j0g*k1g))
+            gf%cc(ig) = g3d*(1.0_dp + rlength* &
+                             (gxy*j1g*k0g - gz*j0g*k1g))
          END DO
          IF (grid%have_g0) gf%cc(1) = 0.0_dp
 
@@ -400,7 +400,7 @@ CONTAINS
             g2 = grid%gsq(ig)
             gg = SQRT(g2)
             g3d = fourpi/g2
-            gf%cc(ig) = g3d*(1.0_dp-COS(rlength*gg))
+            gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
          END DO
          IF (grid%have_g0) &
             gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
@@ -453,7 +453,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(gftype))
       CPASSERT(gftype%ref_count > 0)
-      gftype%ref_count = gftype%ref_count+1
+      gftype%ref_count = gftype%ref_count + 1
    END SUBROUTINE pw_green_retain
 
 ! **************************************************************************************************
@@ -476,7 +476,7 @@ CONTAINS
 
       IF (ASSOCIATED(gftype)) THEN
          CPASSERT(gftype%ref_count > 0)
-         gftype%ref_count = gftype%ref_count-1
+         gftype%ref_count = gftype%ref_count - 1
          IF (gftype%ref_count == 0) THEN
             can_give_back = PRESENT(pw_pool)
             IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
@@ -544,29 +544,29 @@ CONTAINS
          ALLOCATE (gftype%p3m_bm2(3, MINVAL(lb(:)):MAXVAL(ub(:))))
       END IF
 
-      ALLOCATE (m_assign(0:n-2))
+      ALLOCATE (m_assign(0:n - 2))
       m_assign = 0.0_dp
-      DO k = 0, n-2
-         j = -(n-1)+2*k
-         DO l = 0, n-1
+      DO k = 0, n - 2
+         j = -(n - 1) + 2*k
+         DO l = 0, n - 1
             l_arg = 0.5_dp**l
             prod_arg = gftype%p3m_coeff(j, l)*l_arg
-            m_assign(k) = m_assign(k)+prod_arg
+            m_assign(k) = m_assign(k) + prod_arg
          END DO
       END DO
 
       ! calculate the absolute b values
 
-      npts(:) = ub(:)-lb(:)+1
+      npts(:) = ub(:) - lb(:) + 1
       DO dim = 1, 3
          DO pt = lb(dim), ub(dim)
             val = twopi*(REAL(pt, KIND=dp)/REAL(npts(dim), KIND=dp))
             exp_m = CMPLX(COS(val), -SIN(val), KIND=dp)
             sum_m = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-            DO k = 0, n-2
-               sum_m = sum_m+m_assign(k)*exp_m**k
+            DO k = 0, n - 2
+               sum_m = sum_m + m_assign(k)*exp_m**k
             END DO
-            b_m = exp_m**(n-1)/sum_m
+            b_m = exp_m**(n - 1)/sum_m
             gftype%p3m_bm2(dim, pt) = SQRT(REAL(b_m*CONJG(b_m), KIND=dp))
          END DO
       END DO
@@ -625,7 +625,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(poisson_env))
       ALLOCATE (poisson_env)
-      last_poisson_id = last_poisson_id+1
+      last_poisson_id = last_poisson_id + 1
       poisson_env%id_nr = last_poisson_id
       poisson_env%ref_count = 1
       poisson_env%method = pw_poisson_none
@@ -655,7 +655,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(poisson_env))
       CPASSERT(poisson_env%ref_count > 0)
-      poisson_env%ref_count = poisson_env%ref_count+1
+      poisson_env%ref_count = poisson_env%ref_count + 1
    END SUBROUTINE pw_poisson_retain
 
 ! **************************************************************************************************
@@ -674,7 +674,7 @@ CONTAINS
 
       IF (ASSOCIATED(poisson_env)) THEN
          CPASSERT(poisson_env%ref_count > 0)
-         poisson_env%ref_count = poisson_env%ref_count-1
+         poisson_env%ref_count = poisson_env%ref_count - 1
          IF (poisson_env%ref_count == 0) THEN
             IF (ASSOCIATED(poisson_env%pw_pools)) THEN
                CALL pw_pools_dealloc(poisson_env%pw_pools)
@@ -717,24 +717,24 @@ CONTAINS
       a(1, 0, 0) = 1.0_dp
 
       DO i = 2, n
-         m = i-1
+         m = i - 1
          DO j = -m, m, 2
-            DO l = 0, m-1
-               b = (a(m, j-1, l)+ &
-                    REAL((-1)**l, KIND=dp)*a(m, j+1, l))/ &
-                   REAL((l+1)*2**(l+1), KIND=dp)
-               a(i, j, 0) = a(i, j, 0)+b
+            DO l = 0, m - 1
+               b = (a(m, j - 1, l) + &
+                    REAL((-1)**l, KIND=dp)*a(m, j + 1, l))/ &
+                   REAL((l + 1)*2**(l + 1), KIND=dp)
+               a(i, j, 0) = a(i, j, 0) + b
             END DO
-            DO l = 0, m-1
-               a(i, j, l+1) = (a(m, j+1, l)- &
-                               a(m, j-1, l))/REAL(l+1, KIND=dp)
+            DO l = 0, m - 1
+               a(i, j, l + 1) = (a(m, j + 1, l) - &
+                                 a(m, j - 1, l))/REAL(l + 1, KIND=dp)
             END DO
          END DO
       END DO
 
       coeff = 0.0_dp
-      DO i = 0, n-1
-         DO j = -(n-1), n-1, 2
+      DO i = 0, n - 1
+         DO j = -(n - 1), n - 1, 2
             coeff(j, i) = a(n, j, i)
          END DO
       END DO

@@ -189,12 +189,12 @@ CONTAINS
          ijdir = 0
          DO idir = 1, 3
          DO jdir = idir, 3
-            ijdir = ijdir+1
+            ijdir = ijdir + 1
             DO ispin = 1, nspins
                CALL cp_fm_set_all(psi1_efg(ispin, ijdir)%matrix, 0.0_dp)
             ENDDO
             IF (output_unit > 0) THEN
-               WRITE (output_unit, "(T10,A)") "Response to the perturbation operator efg_"//ACHAR(idir+119)//ACHAR(jdir+119)
+               WRITE (output_unit, "(T10,A)") "Response to the perturbation operator efg_"//ACHAR(idir + 119)//ACHAR(jdir + 119)
             ENDIF
             !
             !Initial guess for psi1
@@ -220,7 +220,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_efg(ispin, ijdir)%matrix)
                CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
-               chk = chk+fro
+               chk = chk + fro
             ENDDO
             !
             ! print response functions
@@ -252,7 +252,7 @@ CONTAINS
                CALL cp_fm_set_all(psi1_pso(ispin, idir)%matrix, 0.0_dp)
             ENDDO
             IF (output_unit > 0) THEN
-               WRITE (output_unit, "(T10,A)") "Response to the perturbation operator pso_"//ACHAR(idir+119)
+               WRITE (output_unit, "(T10,A)") "Response to the perturbation operator pso_"//ACHAR(idir + 119)
             ENDIF
             !
             !Initial guess for psi1
@@ -278,7 +278,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_pso(ispin, idir)%matrix)
                CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
-               chk = chk+fro
+               chk = chk + fro
             ENDDO
             !
             ! print response functions
@@ -334,7 +334,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_fc(ispin)%matrix)
             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
-            chk = chk+fro
+            chk = chk + fro
          ENDDO
          !
          ! print response functions
@@ -366,7 +366,7 @@ CONTAINS
                CALL cp_fm_set_all(psi1_dso(ispin, idir)%matrix, 0.0_dp)
             ENDDO
             IF (output_unit > 0) THEN
-               WRITE (output_unit, "(T10,A)") "Response to the perturbation operator r_"//ACHAR(idir+119)
+               WRITE (output_unit, "(T10,A)") "Response to the perturbation operator r_"//ACHAR(idir + 119)
             ENDIF
             !
             !Initial guess for psi1
@@ -392,7 +392,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_dso(ispin, idir)%matrix)
                CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
-               chk = chk+fro
+               chk = chk + fro
             ENDDO
             !
             ! print response functions
@@ -522,7 +522,7 @@ CONTAINS
          DO jatom = 1, natom
             r_i = particle_set(iatom)%r
             r_j = particle_set(jatom)%r
-            r_j = pbc(r_i, r_j, cell)+r_i
+            r_j = pbc(r_i, r_j, cell) + r_i
             !
             !
             !
@@ -545,9 +545,9 @@ CONTAINS
 
                CALL cp_fm_trace(fc_psi0(ispin)%matrix, psi1_fc(ispin)%matrix, buf)
                issc_fc = 2.0_dp*2.0_dp*maxocc*facfc*buf
-               issc(1, 1, iatom, jatom, 1) = issc(1, 1, iatom, jatom, 1)+issc_fc
-               issc(2, 2, iatom, jatom, 1) = issc(2, 2, iatom, jatom, 1)+issc_fc
-               issc(3, 3, iatom, jatom, 1) = issc(3, 3, iatom, jatom, 1)+issc_fc
+               issc(1, 1, iatom, jatom, 1) = issc(1, 1, iatom, jatom, 1) + issc_fc
+               issc(2, 2, iatom, jatom, 1) = issc(2, 2, iatom, jatom, 1) + issc_fc
+               issc(3, 3, iatom, jatom, 1) = issc(3, 3, iatom, jatom, 1) + issc_fc
             ENDIF
             !
             ! SD term
@@ -593,7 +593,7 @@ CONTAINS
                   DO jxyz = 1, 3
                      CALL cp_fm_trace(fc_psi0(ispin)%matrix, psi1_pso(ispin, jxyz)%matrix, buf)
                      issc_pso = -2.0_dp*maxocc*facpso*buf
-                     issc(ixyz, jxyz, iatom, jatom, 3) = issc(ixyz, jxyz, iatom, jatom, 3)+issc_pso
+                     issc(ixyz, jxyz, iatom, jatom, 3) = issc(ixyz, jxyz, iatom, jatom, 3) + issc_pso
                   ENDDO
                ENDDO
             ENDIF
@@ -632,7 +632,7 @@ CONTAINS
                      ! we save the polarizability for a checksum later on !
                      issc_dso = 2.0_dp*maxocc*buf
                      !WRITE(*,*) ixyz,jxyz,'tr(P_r*r)=',2.0_dp * maxocc * buf
-                     issc(ixyz, jxyz, iatom, jatom, 4) = issc(ixyz, jxyz, iatom, jatom, 4)+issc_dso
+                     issc(ixyz, jxyz, iatom, jatom, 4) = issc(ixyz, jxyz, iatom, jatom, 4) + issc_dso
                   ENDDO
                ENDDO
 
@@ -725,30 +725,30 @@ CONTAINS
                   !
                   ! FC
                   issc_tmp(:, :) = issc(:, :, iatom, jatom, 1)
-                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :)+TRANSPOSE(issc_tmp(:, :)))
+                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :) + TRANSPOSE(issc_tmp(:, :)))
                   CALL diamat_all(issc_tmp, eig)
-                  issc_iso_fc = (eig(1)+eig(2)+eig(3))/3.0_dp
+                  issc_iso_fc = (eig(1) + eig(2) + eig(3))/3.0_dp
                   !
                   ! SD
                   issc_tmp(:, :) = issc(:, :, iatom, jatom, 2)
-                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :)+TRANSPOSE(issc_tmp(:, :)))
+                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :) + TRANSPOSE(issc_tmp(:, :)))
                   CALL diamat_all(issc_tmp, eig)
-                  issc_iso_sd = (eig(1)+eig(2)+eig(3))/3.0_dp
+                  issc_iso_sd = (eig(1) + eig(2) + eig(3))/3.0_dp
                   !
                   ! PSO
                   issc_tmp(:, :) = issc(:, :, iatom, jatom, 3)
-                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :)+TRANSPOSE(issc_tmp(:, :)))
+                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :) + TRANSPOSE(issc_tmp(:, :)))
                   CALL diamat_all(issc_tmp, eig)
-                  issc_iso_pso = (eig(1)+eig(2)+eig(3))/3.0_dp
+                  issc_iso_pso = (eig(1) + eig(2) + eig(3))/3.0_dp
                   !
                   ! DSO
                   issc_tmp(:, :) = issc(:, :, iatom, jatom, 4)
-                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :)+TRANSPOSE(issc_tmp(:, :)))
+                  issc_tmp(:, :) = 0.5_dp*(issc_tmp(:, :) + TRANSPOSE(issc_tmp(:, :)))
                   CALL diamat_all(issc_tmp, eig)
-                  issc_iso_dso = (eig(1)+eig(2)+eig(3))/3.0_dp
+                  issc_iso_dso = (eig(1) + eig(2) + eig(3))/3.0_dp
                   !
                   ! TOT
-                  issc_iso_tot = issc_iso_fc+issc_iso_sd+issc_iso_dso+issc_iso_pso
+                  issc_iso_tot = issc_iso_fc + issc_iso_sd + issc_iso_dso + issc_iso_pso
                   !
                   !
                   WRITE (unit_atoms, *)
@@ -876,11 +876,11 @@ CONTAINS
          NULLIFY (list)
          CALL section_vals_val_get(issc_section, "ISSC_ON_ATOM_LIST", i_rep_val=ir, i_vals=list)
          IF (ASSOCIATED(list)) THEN
-            CALL reallocate(issc_env%issc_on_atom_list, 1, n+SIZE(list))
+            CALL reallocate(issc_env%issc_on_atom_list, 1, n + SIZE(list))
             DO ini = 1, SIZE(list)
-               issc_env%issc_on_atom_list(ini+n) = list(ini)
+               issc_env%issc_on_atom_list(ini + n) = list(ini)
             ENDDO
-            n = n+SIZE(list)
+            n = n + SIZE(list)
          ENDIF
       ENDDO
       !
@@ -1047,7 +1047,7 @@ CONTAINS
 
       INTEGER                                            :: idir, ispin
 
-      issc_env%ref_count = issc_env%ref_count-1
+      issc_env%ref_count = issc_env%ref_count - 1
       IF (issc_env%ref_count == 0) THEN
          IF (ASSOCIATED(issc_env%issc_on_atom_list)) THEN
             DEALLOCATE (issc_env%issc_on_atom_list)

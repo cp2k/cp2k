@@ -132,7 +132,7 @@ CONTAINS
       dg_rho0%grid = 0
       dg_rho0%kind = 0
       dg_rho0%type = do_ewald_none
-      last_dg_rho0_id_nr = last_dg_rho0_id_nr+1
+      last_dg_rho0_id_nr = last_dg_rho0_id_nr + 1
       dg_rho0%id_nr = last_dg_rho0_id_nr
       dg_rho0%ref_count = 1
       NULLIFY (dg_rho0%density%pw)
@@ -155,7 +155,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(dg_rho0))
       CPASSERT(dg_rho0%ref_count > 0)
-      dg_rho0%ref_count = dg_rho0%ref_count+1
+      dg_rho0%ref_count = dg_rho0%ref_count + 1
    END SUBROUTINE dg_rho0_retain
 
 ! **************************************************************************************************
@@ -175,7 +175,7 @@ CONTAINS
 
       IF (ASSOCIATED(dg_rho0)) THEN
          CPASSERT(dg_rho0%ref_count > 0)
-         dg_rho0%ref_count = dg_rho0%ref_count-1
+         dg_rho0%ref_count = dg_rho0%ref_count - 1
          IF (dg_rho0%ref_count == 0) THEN
             IF (ASSOCIATED(dg_rho0%gcc)) THEN
                DEALLOCATE (dg_rho0%gcc)
@@ -278,12 +278,12 @@ CONTAINS
          e_gsq = EXP(-const*pw_grid%gsq(gpt))/pw_grid%vol
 
          !*apsi
-         lp = lp+bds(1, 1)
-         mp = mp+bds(1, 2)
-         np = np+bds(1, 3)
-         ln = ln+bds(1, 1)
-         mn = mn+bds(1, 2)
-         nn = nn+bds(1, 3)
+         lp = lp + bds(1, 1)
+         mp = mp + bds(1, 2)
+         np = np + bds(1, 3)
+         ln = ln + bds(1, 1)
+         mn = mn + bds(1, 2)
+         nn = nn + bds(1, 3)
 
          rho0(lp, mp, np) = e_gsq
          rho0(ln, mn, nn) = e_gsq

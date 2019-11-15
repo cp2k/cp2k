@@ -100,7 +100,7 @@ CONTAINS
       NULLIFY (diis_buffer%parameter)
       diis_buffer%nbuffer = nbuffer
       diis_buffer%ncall = 0
-      last_diis_b_id = last_diis_b_id+1
+      last_diis_b_id = last_diis_b_id + 1
       diis_buffer%id_nr = last_diis_b_id
       diis_buffer%ref_count = 1
 
@@ -184,7 +184,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(diis_buffer%b_matrix)) THEN
-         ALLOCATE (diis_buffer%b_matrix(nbuffer+1, nbuffer+1))
+         ALLOCATE (diis_buffer%b_matrix(nbuffer + 1, nbuffer + 1))
          diis_buffer%b_matrix = 0.0_dp
          output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DIIS_INFO", &
                                             extension=".scfLog")
@@ -290,8 +290,8 @@ CONTAINS
 
       error_max = 0.0_dp
 
-      ib = MODULO(diis_buffer%ncall, diis_buffer%nbuffer)+1
-      diis_buffer%ncall = diis_buffer%ncall+1
+      ib = MODULO(diis_buffer%ncall, diis_buffer%nbuffer) + 1
+      diis_buffer%ncall = diis_buffer%ncall + 1
       nb = MIN(diis_buffer%ncall, diis_buffer%nbuffer)
 
       DO ispin = 1, nspin
@@ -320,7 +320,7 @@ CONTAINS
                             occupation_numbers=occb)
 
             DO imo = 1, nmo
-               occ(imo) = SQRT(occa(imo)+occb(imo))
+               occ(imo) = SQRT(occa(imo) + occb(imo))
             END DO
 
             CALL cp_fm_to_fm(c, sc)
@@ -410,7 +410,7 @@ CONTAINS
                old_errors => diis_buffer%error(jb, ispin)%matrix
                new_errors => diis_buffer%error(ib, ispin)%matrix
                CALL cp_fm_trace(old_errors, new_errors, tmp)
-               b(jb, ib) = b(jb, ib)+tmp
+               b(jb, ib) = b(jb, ib) + tmp
             END DO
             b(ib, jb) = b(jb, ib)
          END DO
@@ -425,7 +425,7 @@ CONTAINS
 
       IF (diis_step) THEN
 
-         nb1 = nb+1
+         nb1 = nb + 1
 
          ALLOCATE (a(nb1, nb1))
          ALLOCATE (b(nb1, nb1))
@@ -605,8 +605,8 @@ CONTAINS
          nspin)
       error_max = 0.0_dp
 
-      ib = MODULO(diis_buffer%ncall, diis_buffer%nbuffer)+1
-      diis_buffer%ncall = diis_buffer%ncall+1
+      ib = MODULO(diis_buffer%ncall, diis_buffer%nbuffer) + 1
+      diis_buffer%ncall = diis_buffer%ncall + 1
       nb = MIN(diis_buffer%ncall, diis_buffer%nbuffer)
 ! Create scratch arrays
       CALL dbcsr_create(matrix_tmp, &
@@ -696,7 +696,7 @@ CONTAINS
                CALL dbcsr_dot(old_errors, &
                               new_errors, &
                               tmp) ! out : < f_i | f_j >
-               b(jb, ib) = b(jb, ib)+tmp
+               b(jb, ib) = b(jb, ib) + tmp
             END DO ! end-loop-ispin
             b(ib, jb) = b(jb, ib)
          END DO ! end-loop-jb
@@ -706,7 +706,7 @@ CONTAINS
 
       ! Perform DIIS step
       IF (diis_step) THEN
-         nb1 = nb+1
+         nb1 = nb + 1
          ALLOCATE (a(nb1, nb1))
          ALLOCATE (b(nb1, nb1))
          ALLOCATE (ev(nb1))
@@ -828,7 +828,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(diis_buffer%b_matrix)) THEN
-         ALLOCATE (diis_buffer%b_matrix(nbuffer+1, nbuffer+1))
+         ALLOCATE (diis_buffer%b_matrix(nbuffer + 1, nbuffer + 1))
 
          diis_buffer%b_matrix = 0.0_dp
       END IF
@@ -896,7 +896,7 @@ CONTAINS
       NULLIFY (diis_buffer%parameter)
       diis_buffer%nbuffer = nbuffer
       diis_buffer%ncall = 0
-      last_diis_b_id = last_diis_b_id+1
+      last_diis_b_id = last_diis_b_id + 1
       diis_buffer%id_nr = last_diis_b_id
       diis_buffer%ref_count = 1
 

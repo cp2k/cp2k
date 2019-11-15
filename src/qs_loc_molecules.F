@@ -80,7 +80,7 @@ CONTAINS
             i = local_molecules%list(ikind)%array(imol)
             molecule_kind => molecule_set(i)%molecule_kind
             CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom)
-            natom_max = natom_max+natom
+            natom_max = natom_max + natom
             IF (.NOT. ASSOCIATED(molecule_set(i)%lmi)) THEN
                ALLOCATE (molecule_set(i)%lmi(nspins))
                DO k = 1, nspins
@@ -119,8 +119,8 @@ CONTAINS
             CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom)
 
             DO iatom = 1, natom
-               counter = counter+1
-               r(:, counter) = particle_set(first_atom+iatom-1)%r(:)
+               counter = counter + 1
+               r(:, counter) = particle_set(first_atom + iatom - 1)%r(:)
             END DO
          END DO
       END DO
@@ -130,9 +130,9 @@ CONTAINS
       DO istate = 1, nstate
          distance(:) = 1.E10_dp
          DO iatom = 1, natom_loc
-            dr(1) = r(1, iatom)-center(1, istate)
-            dr(2) = r(2, iatom)-center(2, istate)
-            dr(3) = r(3, iatom)-center(3, istate)
+            dr(1) = r(1, iatom) - center(1, istate)
+            dr(2) = r(2, iatom) - center(2, istate)
+            dr(3) = r(3, iatom) - center(3, istate)
             ria = pbc(dr, qs_loc_env%cell)
             distance(iatom) = SQRT(DOT_PRODUCT(ria, ria))
          END DO
@@ -165,13 +165,13 @@ CONTAINS
                      imol_now = local_molecules%list(ikind)%array(imol)
                      molecule_kind => molecule_set(imol_now)%molecule_kind
                      CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom)
-                     counter = counter+natom
+                     counter = counter + natom
                      IF (counter >= iatom) EXIT
                   END DO
                   IF (counter >= iatom) EXIT
                END DO
                i = molecule_set(imol_now)%lmi(ispin)%nstates
-               i = i+1
+               i = i + 1
                molecule_set(imol_now)%lmi(ispin)%nstates = i
                CALL reallocate(molecule_set(imol_now)%lmi(ispin)%states, 1, i)
                molecule_set(imol_now)%lmi(ispin)%states(i) = istate

@@ -88,7 +88,7 @@ CONTAINS
 
       ! Calculate number of rows
 
-      nrow = msglen/(rowlen+1)+1
+      nrow = msglen/(rowlen + 1) + 1
 
       ! Calculate appropriate row length
 
@@ -112,16 +112,16 @@ CONTAINS
             IF (i == 0) THEN
                ibreak = ipos2
             ELSE
-               ibreak = ipos1+i-2
+               ibreak = ipos1 + i - 2
             END IF
          ELSE
             ibreak = ipos2
          END IF
 
-         maxrowlen = MAX(maxrowlen, ibreak-ipos1+1)
+         maxrowlen = MAX(maxrowlen, ibreak - ipos1 + 1)
 
-         ipos1 = ibreak+2
-         ipos2 = MIN(msglen, ipos1+rowlen-1)
+         ipos1 = ibreak + 2
+         ipos2 = MIN(msglen, ipos1 + rowlen - 1)
 
          ! When the last row is processed, exit loop
 
@@ -132,8 +132,8 @@ CONTAINS
       ! Generate the first set of star rows
 
       IF (decoration_level > 1) THEN
-         DO i = 1, decoration_level-1
-            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", maxrowlen+8)
+         DO i = 1, decoration_level - 1
+            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", maxrowlen + 8)
          END DO
       END IF
 
@@ -148,7 +148,7 @@ CONTAINS
             IF (i == 0) THEN
                ibreak = ipos2
             ELSE
-               ibreak = ipos1+i-2
+               ibreak = ipos1 + i - 2
             END IF
          ELSE
             ibreak = ipos2
@@ -158,11 +158,11 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A)") message(ipos1:ibreak)
          ELSE IF (decoration_level > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "*** "//message(ipos1:ibreak)//REPEAT(" ", ipos1+maxrowlen-ibreak)//"***"
+               "*** "//message(ipos1:ibreak)//REPEAT(" ", ipos1 + maxrowlen - ibreak)//"***"
          END IF
 
-         ipos1 = ibreak+2
-         ipos2 = MIN(msglen, ipos1+rowlen-1)
+         ipos1 = ibreak + 2
+         ipos2 = MIN(msglen, ipos1 + rowlen - 1)
 
          ! When the last row is processed, exit loop
 
@@ -172,8 +172,8 @@ CONTAINS
       ! Generate the second set star rows
 
       IF (decoration_level > 1) THEN
-         DO i = 1, decoration_level-1
-            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", maxrowlen+8)
+         DO i = 1, decoration_level - 1
+            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", maxrowlen + 8)
          END DO
       END IF
 

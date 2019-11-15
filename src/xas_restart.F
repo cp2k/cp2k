@@ -238,7 +238,7 @@ CONTAINS
             END DO
             ! Skip extra MOs if there any
             IF (para_env%ionode) THEN
-               DO i = nmo+1, nmo_read
+               DO i = nmo + 1, nmo_read
                   READ (rst_unit) vecbuffer
                END DO
             END IF
@@ -400,7 +400,7 @@ CONTAINS
          IF (ispin == my_spin) THEN
             IF (xas_env%homo_occ == 0) THEN
                CALL get_mo_set(mos(ispin)%mo_set, nelectron=nelectron)
-               nelectron = nelectron-1
+               nelectron = nelectron - 1
                CALL set_mo_set(mos(ispin)%mo_set, nelectron=nelectron)
             END IF
             CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=scf_control%smear, &

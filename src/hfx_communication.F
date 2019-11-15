@@ -125,30 +125,30 @@ CONTAINS
             DO iset = 1, nseta
                pb = 0
                DO jset = 1, nsetb
-                  DO pa1 = pa+1, pa+nsgfa(iset)
-                     DO pb1 = pb+1, pb+nsgfb(jset)
+                  DO pa1 = pa + 1, pa + nsgfa(iset)
+                     DO pb1 = pb + 1, pb + nsgfb(jset)
                         sendbuffer(i) = MAX(ABS(sparse_block(pa1, pb1)), ABS(sparse_block_beta(pa1, pb1)))
-                        i = i+1
+                        i = i + 1
                      END DO
                   END DO
-                  pb = pb+nsgfb(jset)
+                  pb = pb + nsgfb(jset)
                END DO
-               pa = pa+nsgfa(iset)
+               pa = pa + nsgfa(iset)
             END DO
          ELSE
             pa = 0
             DO iset = 1, nseta
                pb = 0
                DO jset = 1, nsetb
-                  DO pa1 = pa+1, pa+nsgfa(iset)
-                     DO pb1 = pb+1, pb+nsgfb(jset)
+                  DO pa1 = pa + 1, pa + nsgfa(iset)
+                     DO pb1 = pb + 1, pb + nsgfb(jset)
                         sendbuffer(i) = sparse_block(pa1, pb1)*symmfac
-                        i = i+1
+                        i = i + 1
                      END DO
                   END DO
-                  pb = pb+nsgfb(jset)
+                  pb = pb + nsgfb(jset)
                END DO
-               pa = pa+nsgfa(iset)
+               pa = pa + nsgfa(iset)
             END DO
          END IF
       END DO
@@ -158,19 +158,19 @@ CONTAINS
       CALL mp_sync(para_env%group)
       ncpu = para_env%num_pe
       mepos = para_env%mepos
-      dest = MODULO(mepos+1, ncpu)
-      source = MODULO(mepos-1, ncpu)
-      DO icpu = 0, ncpu-1
-         IF (icpu .NE. ncpu-1) THEN
+      dest = MODULO(mepos + 1, ncpu)
+      source = MODULO(mepos - 1, ncpu)
+      DO icpu = 0, ncpu - 1
+         IF (icpu .NE. ncpu - 1) THEN
             CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                               para_env%group, req(1), req(2), 13)
          ENDIF
-         data_from = MODULO(mepos-icpu, ncpu)
-         source_cpu = MODULO(data_from, ncpu)+1
-         block_size = block_offset(source_cpu+1)-block_offset(source_cpu)
-         full_density(block_offset(source_cpu):block_offset(source_cpu)+block_size-1) = sendbuffer(1:block_size)
+         data_from = MODULO(mepos - icpu, ncpu)
+         source_cpu = MODULO(data_from, ncpu) + 1
+         block_size = block_offset(source_cpu + 1) - block_offset(source_cpu)
+         full_density(block_offset(source_cpu):block_offset(source_cpu) + block_size - 1) = sendbuffer(1:block_size)
 
-         IF (icpu .NE. ncpu-1) THEN
+         IF (icpu .NE. ncpu - 1) THEN
             CALL mp_waitall(req)
          ENDIF
          swapbuffer => sendbuffer
@@ -235,17 +235,17 @@ CONTAINS
 
       ncpu = para_env%num_pe
       mepos = para_env%mepos
-      dest = MODULO(mepos+1, ncpu)
-      source = MODULO(mepos-1, ncpu)
+      dest = MODULO(mepos + 1, ncpu)
+      source = MODULO(mepos - 1, ncpu)
 
       ! sync before/after a ring of isendrecv
       CALL mp_sync(para_env%group)
       DO icpu = 1, ncpu
          i = 1
-         data_to = mepos-icpu
-         dest_cpu = MODULO(data_to, ncpu)+1
-         block_size = block_offset(dest_cpu+1)-block_offset(dest_cpu)
-         sendbuffer(1:block_size) = sendbuffer(1:block_size)+full_ks(block_offset(dest_cpu):block_offset(dest_cpu)+block_size-1)
+         data_to = mepos - icpu
+         dest_cpu = MODULO(data_to, ncpu) + 1
+         block_size = block_offset(dest_cpu + 1) - block_offset(dest_cpu)
+       sendbuffer(1:block_size) = sendbuffer(1:block_size) + full_ks(block_offset(dest_cpu):block_offset(dest_cpu) + block_size - 1)
          IF (icpu .EQ. ncpu) EXIT
          CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                            para_env%group, req(1), req(2), 13)
@@ -273,19 +273,19 @@ CONTAINS
          DO iset = 1, nseta
             pb = 0
             DO jset = 1, nsetb
-               DO pa1 = pa+1, pa+nsgfa(iset)
-                  DO pb1 = pb+1, pb+nsgfb(jset)
+               DO pa1 = pa + 1, pa + nsgfa(iset)
+                  DO pb1 = pb + 1, pb + nsgfb(jset)
                      IF (iatom == jatom .AND. pa1 == pb1) THEN
-                        sparse_block(pa1, pb1) = sendbuffer(i)*myd_fac+sparse_block(pa1, pb1)
+                        sparse_block(pa1, pb1) = sendbuffer(i)*myd_fac + sparse_block(pa1, pb1)
                      ELSE
-                        sparse_block(pa1, pb1) = sendbuffer(i)*my_fac+sparse_block(pa1, pb1)
+                        sparse_block(pa1, pb1) = sendbuffer(i)*my_fac + sparse_block(pa1, pb1)
                      END IF
-                     i = i+1
+                     i = i + 1
                   END DO
                END DO
-               pb = pb+nsgfb(jset)
+               pb = pb + nsgfb(jset)
             END DO
-            pa = pa+nsgfa(iset)
+            pa = pa + nsgfa(iset)
          END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -355,7 +355,7 @@ CONTAINS
       last_sgf_global(0) = 0
       DO iatom = 1, natom
          ikind = kind_of(iatom)
-         last_sgf_global(iatom) = last_sgf_global(iatom-1)+basis_parameter(ikind)%nsgf_total
+         last_sgf_global(iatom) = last_sgf_global(iatom - 1) + basis_parameter(ikind)%nsgf_total
       END DO
       full_ks => actual_x_data%full_ks_alpha
       IF (scaling_factor /= 1.0_dp) THEN
@@ -406,7 +406,7 @@ CONTAINS
       INTEGER(int_8)                                     :: min_ij
 
       min_ij = MIN(i, j)
-      get_1D_idx = min_ij*N+MAX(i, j)-(min_ij-1)*min_ij/2-N
+      get_1D_idx = min_ij*N + MAX(i, j) - (min_ij - 1)*min_ij/2 - N
 
    END FUNCTION get_1D_idx
 
@@ -473,8 +473,8 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
          ikind = kind_of(iatom)
          jkind = kind_of(jatom)
-         number_of_p_blocks = number_of_p_blocks+1
-         number_of_p_entries = number_of_p_entries+ &
+         number_of_p_blocks = number_of_p_blocks + 1
+         number_of_p_entries = number_of_p_entries + &
                                basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -498,27 +498,27 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
 
-         buffer_in(ibuf+1) = iatom
-         buffer_in(ibuf+2) = jatom
-         buffer_in(ibuf+3) = para_env%mepos+1
-         ibuf = ibuf+3
+         buffer_in(ibuf + 1) = iatom
+         buffer_in(ibuf + 2) = jatom
+         buffer_in(ibuf + 3) = para_env%mepos + 1
+         ibuf = ibuf + 3
       END DO
       CALL dbcsr_iterator_stop(iter)
 
       rcount = SIZE(buffer_in)
       rdispl(1) = 0
       DO icpu = 2, para_env%num_pe
-         rdispl(icpu) = rdispl(icpu-1)+rcount(icpu-1)
+         rdispl(icpu) = rdispl(icpu - 1) + rcount(icpu - 1)
       ENDDO
       CALL mp_allgather(buffer_in, buffer_out, rcount, rdispl, para_env%group)
 
-      DO ibuf = 0, number_of_p_blocks*para_env%num_pe*3-3, 3
-         itask = buffer_out(ibuf+3)
+      DO ibuf = 0, number_of_p_blocks*para_env%num_pe*3 - 3, 3
+         itask = buffer_out(ibuf + 3)
          ! buffer_out can be 0 if buffer_in contained less elements than the max number of atom pairs
          ! is_assoc_atomic_block is a map for atom pairs to a processor (assumes symmetry, i,j on the ame as j,i)
          IF (itask .NE. 0) THEN
-            iatom = buffer_out(ibuf+1)
-            jatom = buffer_out(ibuf+2)
+            iatom = buffer_out(ibuf + 1)
+            jatom = buffer_out(ibuf + 2)
             is_assoc_atomic_block(iatom, jatom) = itask
             is_assoc_atomic_block(jatom, iatom) = itask
          ENDIF
@@ -540,7 +540,7 @@ CONTAINS
       DO iatom = 1, natom
          DO jatom = iatom, natom
             icpu = is_assoc_atomic_block(jatom, iatom)
-            IF (icpu > 0) counter(icpu) = counter(icpu)+1
+            IF (icpu > 0) counter(icpu) = counter(icpu) + 1
          END DO
       END DO
       DO icpu = 1, para_env%num_pe
@@ -552,7 +552,7 @@ CONTAINS
          DO jatom = iatom, natom
             icpu = is_assoc_atomic_block(jatom, iatom)
             IF (icpu > 0) THEN
-               counter(icpu) = counter(icpu)+1
+               counter(icpu) = counter(icpu) + 1
                map_atoms_to_cpus(icpu)%jatom_list(counter(icpu)) = jatom
                map_atoms_to_cpus(icpu)%iatom_list(counter(icpu)) = iatom
             END IF
@@ -576,10 +576,10 @@ CONTAINS
             jkind = kind_of(jatom)
             atomic_block_offset(iatom, jatom) = offset
             atomic_block_offset(jatom, iatom) = offset
-            offset = offset+basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
+            offset = offset + basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
          END DO
       END DO
-      block_offset(ncpu+1) = offset
+      block_offset(ncpu + 1) = offset
       set_offset = 0
       DO ikind = 1, nkind
          nseta = basis_parameter(ikind)%nset
@@ -591,7 +591,7 @@ CONTAINS
             DO iset = 1, nseta
                DO jset = 1, nsetb
                   set_offset(jset, iset, jkind, ikind) = offset
-                  offset = offset+nsgfa(iset)*nsgfb(jset)
+                  offset = offset + nsgfa(iset)*nsgfb(jset)
                END DO
             END DO
          END DO

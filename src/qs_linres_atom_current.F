@@ -67,10 +67,10 @@ MODULE qs_linres_atom_current
    USE util,                            ONLY: get_limit
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
-!$    omp_get_thread_num, &
-!$    omp_lock_kind, &
-!$    omp_init_lock, omp_set_lock, &
-!$    omp_unset_lock, omp_destroy_lock
+!$                    omp_get_thread_num, &
+!$                    omp_lock_kind, &
+!$                    omp_init_lock, omp_set_lock, &
+!$                    omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 
@@ -325,19 +325,19 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=mat_a(ispin)%matrix, &
                                    row=iatom, col=jatom, block=a_block(ispin)%r_coef, &
                                    found=den_found)
-            jmax = jmax+MAXVAL(ABS(a_block(ispin)%r_coef))
+            jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
             CALL dbcsr_get_block_p(matrix=mat_b(ispin)%matrix, &
                                    row=iatom, col=jatom, block=b_block(ispin)%r_coef, &
                                    found=den_found)
-            jmax = jmax+MAXVAL(ABS(b_block(ispin)%r_coef))
+            jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
             CALL dbcsr_get_block_p(matrix=mat_c(ispin)%matrix, &
                                    row=iatom, col=jatom, block=c_block(ispin)%r_coef, &
                                    found=den_found)
-            jmax = jmax+MAXVAL(ABS(c_block(ispin)%r_coef))
+            jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
             CALL dbcsr_get_block_p(matrix=mat_d(ispin)%matrix, &
                                    row=iatom, col=jatom, block=d_block(ispin)%r_coef, &
                                    found=den_found)
-            jmax = jmax+MAXVAL(ABS(d_block(ispin)%r_coef))
+            jmax = jmax + MAXVAL(ABS(d_block(ispin)%r_coef))
          ENDDO
 
          ! Loop over atoms
@@ -355,8 +355,8 @@ CONTAINS
             CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas)
             nsoctot = nsatbas
 
-            iac = ikind+nkind*(kkind-1)
-            ibc = jkind+nkind*(kkind-1)
+            iac = ikind + nkind*(kkind - 1)
+            ibc = jkind + nkind*(kkind - 1)
             IF (.NOT. ASSOCIATED(oce%intac(iac)%alist)) CYCLE
             IF (.NOT. ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
 
@@ -369,7 +369,7 @@ CONTAINS
                DO kbc = 1, alist_bc%nclist
                   IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
 
-                  IF (ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
+                  IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                      IF (jmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
 
                      n_cont_a = alist_ac%clist(kac)%nsgf_cnt
@@ -450,7 +450,7 @@ CONTAINS
                                                  d_matrix, SIZE(d_matrix, 1), &
                                                  list_a, n_cont_a, list_b, n_cont_b)
 
-!$                      CALL omp_set_lock(proj_blk_lock((katom-1)*nspins+ispin))
+!$                      CALL omp_set_lock(proj_blk_lock((katom - 1)*nspins + ispin))
                         !------------------------------------------------------------------
                         ! P_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef
@@ -484,7 +484,7 @@ CONTAINS
                                       d_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
                                       len_PC1, len_CPC, 1.0_dp, distab)
                         !------------------------------------------------------------------
-!$                      CALL omp_unset_lock(proj_blk_lock((katom-1)*nspins+ispin))
+!$                      CALL omp_unset_lock(proj_blk_lock((katom - 1)*nspins + ispin))
 
                      ENDDO ! ispin
 
@@ -608,7 +608,7 @@ CONTAINS
                CALL mp_sum(tmp_coeff, para_env%group)
 
                IF (ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef)) &
-                  nbr_dbl = nbr_dbl+8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef), dp)
+                  nbr_dbl = nbr_dbl + 8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef), dp)
             ENDDO ! ispin
          ENDDO ! iat
 
@@ -793,32 +793,32 @@ CONTAINS
 
                n1s = nsoset(lmax(iset1))
                DO ipgf1 = 1, npgf(iset1)
-                  iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
-                  iso1_last = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
-                  size1 = iso1_last-iso1_first+1
+                  iso1_first = nsoset(lmin(iset1) - 1) + 1 + n1s*(ipgf1 - 1) + m1s
+                  iso1_last = nsoset(lmax(iset1)) + n1s*(ipgf1 - 1) + m1s
+                  size1 = iso1_last - iso1_first + 1
                   iso1_first = o2nindex(iso1_first)
                   iso1_last = o2nindex(iso1_last)
-                  i1 = iso1_last-iso1_first+1
+                  i1 = iso1_last - iso1_first + 1
                   CPASSERT(size1 == i1)
-                  i1 = nsoset(lmin(iset1)-1)+1
+                  i1 = nsoset(lmin(iset1) - 1) + 1
                   !
                   g1(1:nr) = EXP(-zet(ipgf1, iset1)*grid_atom%rad2(1:nr))
                   !
                   n2s = nsoset(lmax(iset2))
                   DO ipgf2 = 1, npgf(iset2)
-                     iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
-                     iso2_last = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
-                     size2 = iso2_last-iso2_first+1
+                     iso2_first = nsoset(lmin(iset2) - 1) + 1 + n2s*(ipgf2 - 1) + m2s
+                     iso2_last = nsoset(lmax(iset2)) + n2s*(ipgf2 - 1) + m2s
+                     size2 = iso2_last - iso2_first + 1
                      iso2_first = o2nindex(iso2_first)
                      iso2_last = o2nindex(iso2_last)
-                     i2 = iso2_last-iso2_first+1
+                     i2 = iso2_last - iso2_first + 1
                      CPASSERT(size2 == i2)
-                     i2 = nsoset(lmin(iset2)-1)+1
+                     i2 = nsoset(lmin(iset2) - 1) + 1
                      !
                      g2(1:nr) = EXP(-zet(ipgf2, iset2)*grid_atom%rad2(1:nr))
                      !
-                     lmin12 = lmin(iset1)+lmin(iset2)
-                     lmax12 = lmax(iset1)+lmax(iset2)
+                     lmin12 = lmin(iset1) + lmin(iset2)
+                     lmax12 = lmax(iset1) + lmax(iset2)
                      !
                      gg = 0.0_dp
                      gg_lm1 = 0.0_dp
@@ -834,16 +834,16 @@ CONTAINS
                            gg_lm1(1:nr, lmin12) = 0.0_dp
                         ELSE
                            gg(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12)*g1(1:nr)*g2(1:nr)
-                           gg_lm1(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12-1)*g1(1:nr)*g2(1:nr)
+                           gg_lm1(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12 - 1)*g1(1:nr)*g2(1:nr)
                         ENDIF
                         !
-                        DO l = lmin12+1, lmax12
-                           gg(1:nr, l) = grid_atom%rad(1:nr)*gg(1:nr, l-1)
-                           gg_lm1(1:nr, l) = gg(1:nr, l-1)
+                        DO l = lmin12 + 1, lmax12
+                           gg(1:nr, l) = grid_atom%rad(1:nr)*gg(1:nr, l - 1)
+                           gg_lm1(1:nr, l) = gg(1:nr, l - 1)
                         ENDDO
                         !
                         DO l = lmin12, lmax12
-                           dgg_1(1:nr, l) = 2.0_dp*(zet(ipgf1, iset1)-zet(ipgf2, iset2))&
+                           dgg_1(1:nr, l) = 2.0_dp*(zet(ipgf1, iset1) - zet(ipgf2, iset2))&
                                            &              *gg(1:nr, l)*grid_atom%rad(1:nr)
                         ENDDO
                      ELSE
@@ -861,12 +861,12 @@ CONTAINS
                            !
                            ! Hard term
                            coeff => jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef
-                           cjc0_h_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc0_h_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !
                            ! Soft term
                            coeff => jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef
-                           cjc0_s_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc0_s_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !------------------------------------------------------------------
                            ! mQai_\alpha\alpha'
@@ -875,12 +875,12 @@ CONTAINS
                            !
                            ! Hard term
                            coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
-                           cjc_h_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc_h_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !
                            ! Soft term
                            coeff => jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef
-                           cjc_s_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc_s_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !------------------------------------------------------------------
                            ! Qci_\alpha\alpha'
@@ -889,12 +889,12 @@ CONTAINS
                            !
                            ! Hard term
                            coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
-                           cjc_ii_h_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc_ii_h_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !
                            ! Soft term
                            coeff => jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef
-                           cjc_ii_s_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc_ii_s_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !------------------------------------------------------------------
                            ! Qbi_\alpha\alpha'
@@ -904,12 +904,12 @@ CONTAINS
                            !
                            ! Hard term
                            coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
-                           cjc_iii_h_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc_iii_h_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !
                            ! Soft term
                            coeff => jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef
-                           cjc_iii_s_block(i1:i1+size1-1, i2:i2+size2-1) = &
+                           cjc_iii_s_block(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                               coeff(iso1_first:iso1_last, iso2_first:iso2_last)
                            !------------------------------------------------------------------
                            !
@@ -964,7 +964,7 @@ CONTAINS
                                  ENDIF
                                  CPASSERT(iso2 > 0 .AND. iso1 > 0)
                                  !
-                                 l = indso(1, iso1)+indso(1, iso2)
+                                 l = indso(1, iso1) + indso(1, iso2)
                                  IF (l .GT. lmax_expansion .OR. l .LT. .0) THEN
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 l', l
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 lmax_expansion', lmax_expansion
@@ -976,33 +976,33 @@ CONTAINS
                                  !
                                  IF (current_env%gauge .EQ. current_gauge_atom) THEN
                                     ! Hard term
-                                    Fr_h(1:nr, iso) = Fr_h(1:nr, iso)+ &
+                                    Fr_h(1:nr, iso) = Fr_h(1:nr, iso) + &
                                                       gg(1:nr, l)*cjc0_h_block(iso1, iso2)* &
                                                       my_CG(iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_s(1:nr, iso) = Fr_s(1:nr, iso)+ &
+                                    Fr_s(1:nr, iso) = Fr_s(1:nr, iso) + &
                                                       gg(1:nr, l)*cjc0_s_block(iso1, iso2)* &
                                                       my_CG(iso1, iso2, iso)
                                  ELSE
                                     ! Hard term
-                                    Fr_h(1:nr, iso) = Fr_h(1:nr, iso)+ &
+                                    Fr_h(1:nr, iso) = Fr_h(1:nr, iso) + &
                                                       gg(1:nr, l)*cjc0_h_block(iso1, iso2)* &
-                                                      my_CG(iso1, iso2, iso)*(grid_atom%rad(1:nr)-gauge_h(1:nr))
+                                                      my_CG(iso1, iso2, iso)*(grid_atom%rad(1:nr) - gauge_h(1:nr))
                                     ! Soft term
-                                    Fr_s(1:nr, iso) = Fr_s(1:nr, iso)+ &
+                                    Fr_s(1:nr, iso) = Fr_s(1:nr, iso) + &
                                                       gg(1:nr, l)*cjc0_s_block(iso1, iso2)* &
-                                                      my_CG(iso1, iso2, iso)*(grid_atom%rad(1:nr)-gauge_s(1:nr))
+                                                      my_CG(iso1, iso2, iso)*(grid_atom%rad(1:nr) - gauge_s(1:nr))
                                  ENDIF
                                  !------------------------------------------------------------------
                                  ! Rai
                                  !
                                  ! Hard term
-                                 Fr_a_h(1:nr, iso) = Fr_a_h(1:nr, iso)+ &
+                                 Fr_a_h(1:nr, iso) = Fr_a_h(1:nr, iso) + &
                                                      dgg_1(1:nr, l)*cjc_h_block(iso1, iso2)* &
                                                      my_CG(iso1, iso2, iso)
                                  !
                                  ! Soft term
-                                 Fr_a_s(1:nr, iso) = Fr_a_s(1:nr, iso)+ &
+                                 Fr_a_s(1:nr, iso) = Fr_a_s(1:nr, iso) + &
                                                      dgg_1(1:nr, l)*cjc_s_block(iso1, iso2)* &
                                                      my_CG(iso1, iso2, iso)
                                  !------------------------------------------------------------------
@@ -1010,23 +1010,23 @@ CONTAINS
                                  !
                                  IF (current_env%gauge .EQ. current_gauge_atom) THEN
                                     ! Hard term
-                                    Fr_a_h_ii(1:nr, iso) = Fr_a_h_ii(1:nr, iso)+ &
+                                    Fr_a_h_ii(1:nr, iso) = Fr_a_h_ii(1:nr, iso) + &
                                                            dgg_1(1:nr, l)* &
                                                            cjc_ii_h_block(iso1, iso2)* &
                                                            my_CG(iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_a_s_ii(1:nr, iso) = Fr_a_s_ii(1:nr, iso)+ &
+                                    Fr_a_s_ii(1:nr, iso) = Fr_a_s_ii(1:nr, iso) + &
                                                            dgg_1(1:nr, l)* &
                                                            cjc_ii_s_block(iso1, iso2)* &
                                                            my_CG(iso1, iso2, iso)
                                  ELSE
                                     ! Hard term
-                                    Fr_a_h_ii(1:nr, iso) = Fr_a_h_ii(1:nr, iso)+ &
+                                    Fr_a_h_ii(1:nr, iso) = Fr_a_h_ii(1:nr, iso) + &
                                                            dgg_1(1:nr, l)*gauge_h(1:nr)* &
                                                            cjc_ii_h_block(iso1, iso2)* &
                                                            my_CG(iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_a_s_ii(1:nr, iso) = Fr_a_s_ii(1:nr, iso)+ &
+                                    Fr_a_s_ii(1:nr, iso) = Fr_a_s_ii(1:nr, iso) + &
                                                            dgg_1(1:nr, l)*gauge_s(1:nr)* &
                                                            cjc_ii_s_block(iso1, iso2)* &
                                                            my_CG(iso1, iso2, iso)
@@ -1036,23 +1036,23 @@ CONTAINS
                                  !
                                  IF (current_env%gauge .EQ. current_gauge_atom) THEN
                                     ! Hard term
-                                    Fr_a_h_iii(1:nr, iso) = Fr_a_h_iii(1:nr, iso)+ &
+                                    Fr_a_h_iii(1:nr, iso) = Fr_a_h_iii(1:nr, iso) + &
                                                             dgg_1(1:nr, l)* &
                                                             cjc_iii_h_block(iso1, iso2)* &
                                                             my_CG(iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_a_s_iii(1:nr, iso) = Fr_a_s_iii(1:nr, iso)+ &
+                                    Fr_a_s_iii(1:nr, iso) = Fr_a_s_iii(1:nr, iso) + &
                                                             dgg_1(1:nr, l)* &
                                                             cjc_iii_s_block(iso1, iso2)* &
                                                             my_CG(iso1, iso2, iso)
                                  ELSE
                                     ! Hard term
-                                    Fr_a_h_iii(1:nr, iso) = Fr_a_h_iii(1:nr, iso)+ &
+                                    Fr_a_h_iii(1:nr, iso) = Fr_a_h_iii(1:nr, iso) + &
                                                             dgg_1(1:nr, l)*gauge_h(1:nr)* &
                                                             cjc_iii_h_block(iso1, iso2)* &
                                                             my_CG(iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_a_s_iii(1:nr, iso) = Fr_a_s_iii(1:nr, iso)+ &
+                                    Fr_a_s_iii(1:nr, iso) = Fr_a_s_iii(1:nr, iso) + &
                                                             dgg_1(1:nr, l)*gauge_s(1:nr)* &
                                                             cjc_iii_s_block(iso1, iso2)* &
                                                             my_CG(iso1, iso2, iso)
@@ -1078,7 +1078,7 @@ CONTAINS
                                  ENDIF
                                  CPASSERT(iso2 > 0 .AND. iso1 > 0)
                                  !
-                                 l = indso(1, iso1)+indso(1, iso2)
+                                 l = indso(1, iso1) + indso(1, iso2)
                                  IF (l .GT. lmax_expansion) THEN
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 l', l
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 lmax_expansion', lmax_expansion
@@ -1089,12 +1089,12 @@ CONTAINS
                                  ! Daij
                                  !
                                  ! Hard term
-                                 Fr_b_h(1:nr, iso) = Fr_b_h(1:nr, iso)+ &
+                                 Fr_b_h(1:nr, iso) = Fr_b_h(1:nr, iso) + &
                                                      gg_lm1(1:nr, l)*cjc_h_block(iso1, iso2)* &
                                                      my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                  !
                                  ! Soft term
-                                 Fr_b_s(1:nr, iso) = Fr_b_s(1:nr, iso)+ &
+                                 Fr_b_s(1:nr, iso) = Fr_b_s(1:nr, iso) + &
                                                      gg_lm1(1:nr, l)*cjc_s_block(iso1, iso2)* &
                                                      my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                  !
@@ -1103,23 +1103,23 @@ CONTAINS
                                  !
                                  IF (current_env%gauge .EQ. current_gauge_atom) THEN
                                     ! Hard term
-                                    Fr_b_h_ii(1:nr, iso) = Fr_b_h_ii(1:nr, iso)+ &
+                                    Fr_b_h_ii(1:nr, iso) = Fr_b_h_ii(1:nr, iso) + &
                                                            gg_lm1(1:nr, l)* &
                                                            cjc_ii_h_block(iso1, iso2)* &
                                                            my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_b_s_ii(1:nr, iso) = Fr_b_s_ii(1:nr, iso)+ &
+                                    Fr_b_s_ii(1:nr, iso) = Fr_b_s_ii(1:nr, iso) + &
                                                            gg_lm1(1:nr, l)* &
                                                            cjc_ii_s_block(iso1, iso2)* &
                                                            my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                  ELSE
                                     ! Hard term
-                                    Fr_b_h_ii(1:nr, iso) = Fr_b_h_ii(1:nr, iso)+ &
+                                    Fr_b_h_ii(1:nr, iso) = Fr_b_h_ii(1:nr, iso) + &
                                                            gg_lm1(1:nr, l)*gauge_h(1:nr)* &
                                                            cjc_ii_h_block(iso1, iso2)* &
                                                            my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_b_s_ii(1:nr, iso) = Fr_b_s_ii(1:nr, iso)+ &
+                                    Fr_b_s_ii(1:nr, iso) = Fr_b_s_ii(1:nr, iso) + &
                                                            gg_lm1(1:nr, l)*gauge_s(1:nr)* &
                                                            cjc_ii_s_block(iso1, iso2)* &
                                                            my_CG_dxyz_asym(idir, iso1, iso2, iso)
@@ -1129,23 +1129,23 @@ CONTAINS
                                  !
                                  IF (current_env%gauge .EQ. current_gauge_atom) THEN
                                     ! Hard term
-                                    Fr_b_h_iii(1:nr, iso) = Fr_b_h_iii(1:nr, iso)+ &
+                                    Fr_b_h_iii(1:nr, iso) = Fr_b_h_iii(1:nr, iso) + &
                                                             gg_lm1(1:nr, l)* &
                                                             cjc_iii_h_block(iso1, iso2)* &
                                                             my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_b_s_iii(1:nr, iso) = Fr_b_s_iii(1:nr, iso)+ &
+                                    Fr_b_s_iii(1:nr, iso) = Fr_b_s_iii(1:nr, iso) + &
                                                             gg_lm1(1:nr, l)* &
                                                             cjc_iii_s_block(iso1, iso2)* &
                                                             my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                  ELSE
                                     ! Hard term
-                                    Fr_b_h_iii(1:nr, iso) = Fr_b_h_iii(1:nr, iso)+ &
+                                    Fr_b_h_iii(1:nr, iso) = Fr_b_h_iii(1:nr, iso) + &
                                                             gg_lm1(1:nr, l)*gauge_h(1:nr)* &
                                                             cjc_iii_h_block(iso1, iso2)* &
                                                             my_CG_dxyz_asym(idir, iso1, iso2, iso)
                                     ! Soft term
-                                    Fr_b_s_iii(1:nr, iso) = Fr_b_s_iii(1:nr, iso)+ &
+                                    Fr_b_s_iii(1:nr, iso) = Fr_b_s_iii(1:nr, iso) + &
                                                             gg_lm1(1:nr, l)*gauge_s(1:nr)* &
                                                             cjc_iii_s_block(iso1, iso2)* &
                                                             my_CG_dxyz_asym(idir, iso1, iso2, iso)
@@ -1161,9 +1161,9 @@ CONTAINS
                      !
                   ENDDO !ipgf2
                ENDDO ! ipgf1
-               m2s = m2s+maxso
+               m2s = m2s + maxso
             ENDDO ! iset2
-            m1s = m1s+maxso
+            m1s = m1s + maxso
          ENDDO ! iset1
          !
          DEALLOCATE (cjc0_h_block, cjc0_s_block, cjc_h_block, cjc_s_block, cjc_ii_h_block, cjc_ii_s_block, &
@@ -1305,20 +1305,20 @@ CONTAINS
                   !                  -  aii(ia) * ( aj(ia) * Rbi(ir,iso) + Dbij )
                   !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij )
                   !                 ) * Ylm(ia)
-                  rad_part = a(idir, ia)*Fr_a_h(ir, iso)+Fr_b_h(ir, iso) &
-                       &   -g(iiB, ir, ia)*(a(idir, ia)*Fr_a_h_iii(ir, iso)+Fr_b_h_iii(ir, iso))&
-                       &   +g(iiiB, ir, ia)*(a(idir, ia)*Fr_a_h_ii(ir, iso)+Fr_b_h_ii(ir, iso))&
-                       &   +scale*(a(idir2, ia)*r(ir)-g(idir2, ir, ia))*Fr_h(ir, iso)
+                  rad_part = a(idir, ia)*Fr_a_h(ir, iso) + Fr_b_h(ir, iso) &
+                       &   - g(iiB, ir, ia)*(a(idir, ia)*Fr_a_h_iii(ir, iso) + Fr_b_h_iii(ir, iso))&
+                       &   + g(iiiB, ir, ia)*(a(idir, ia)*Fr_a_h_ii(ir, iso) + Fr_b_h_ii(ir, iso))&
+                       &   + scale*(a(idir2, ia)*r(ir) - g(idir2, ir, ia))*Fr_h(ir, iso)
                   !
-                  jrho_h(ir, ia) = jrho_h(ir, ia)+rad_part*slm(ia, iso)
+                  jrho_h(ir, ia) = jrho_h(ir, ia) + rad_part*slm(ia, iso)
                   !------------------------------------------------------------------
                   ! Soft current density response
-                  rad_part = a(idir, ia)*Fr_a_s(ir, iso)+Fr_b_s(ir, iso) &
-                       &   -g(iiB, ir, ia)*(a(idir, ia)*Fr_a_s_iii(ir, iso)+Fr_b_s_iii(ir, iso))&
-                       &   +g(iiiB, ir, ia)*(a(idir, ia)*Fr_a_s_ii(ir, iso)+Fr_b_s_ii(ir, iso))&
-                       &   +scale*(a(idir2, ia)*r(ir)-g(idir2, ir, ia))*Fr_s(ir, iso)
+                  rad_part = a(idir, ia)*Fr_a_s(ir, iso) + Fr_b_s(ir, iso) &
+                       &   - g(iiB, ir, ia)*(a(idir, ia)*Fr_a_s_iii(ir, iso) + Fr_b_s_iii(ir, iso))&
+                       &   + g(iiiB, ir, ia)*(a(idir, ia)*Fr_a_s_ii(ir, iso) + Fr_b_s_ii(ir, iso))&
+                       &   + scale*(a(idir2, ia)*r(ir) - g(idir2, ir, ia))*Fr_s(ir, iso)
                   !
-                  jrho_s(ir, ia) = jrho_s(ir, ia)+rad_part*slm(ia, iso)
+                  jrho_s(ir, ia) = jrho_s(ir, ia) + rad_part*slm(ia, iso)
                   !------------------------------------------------------------------
                ELSE
                   !------------------------------------------------------------------
@@ -1327,20 +1327,20 @@ CONTAINS
                   !                  -  aii(ia) * ( aj(ia) * Rbi(ir,iso) + Dbij )
                   !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij )
                   !                 ) * Ylm(ia)
-                  rad_part = a(idir, ia)*Fr_a_h(ir, iso)+Fr_b_h(ir, iso) &
-                       &   -a(iiB, ia)*(a(idir, ia)*Fr_a_h_iii(ir, iso)+Fr_b_h_iii(ir, iso))&
-                       &   +a(iiiB, ia)*(a(idir, ia)*Fr_a_h_ii(ir, iso)+Fr_b_h_ii(ir, iso))&
-                       &   +scale*a(idir2, ia)*Fr_h(ir, iso)
+                  rad_part = a(idir, ia)*Fr_a_h(ir, iso) + Fr_b_h(ir, iso) &
+                       &   - a(iiB, ia)*(a(idir, ia)*Fr_a_h_iii(ir, iso) + Fr_b_h_iii(ir, iso))&
+                       &   + a(iiiB, ia)*(a(idir, ia)*Fr_a_h_ii(ir, iso) + Fr_b_h_ii(ir, iso))&
+                       &   + scale*a(idir2, ia)*Fr_h(ir, iso)
                   !
-                  jrho_h(ir, ia) = jrho_h(ir, ia)+rad_part*slm(ia, iso)
+                  jrho_h(ir, ia) = jrho_h(ir, ia) + rad_part*slm(ia, iso)
                   !------------------------------------------------------------------
                   ! Soft current density response
-                  rad_part = a(idir, ia)*Fr_a_s(ir, iso)+Fr_b_s(ir, iso) &
-                       &   -a(iiB, ia)*(a(idir, ia)*Fr_a_s_iii(ir, iso)+Fr_b_s_iii(ir, iso))&
-                       &   +a(iiiB, ia)*(a(idir, ia)*Fr_a_s_ii(ir, iso)+Fr_b_s_ii(ir, iso))&
-                       &   +scale*a(idir2, ia)*Fr_s(ir, iso)
+                  rad_part = a(idir, ia)*Fr_a_s(ir, iso) + Fr_b_s(ir, iso) &
+                       &   - a(iiB, ia)*(a(idir, ia)*Fr_a_s_iii(ir, iso) + Fr_b_s_iii(ir, iso))&
+                       &   + a(iiiB, ia)*(a(idir, ia)*Fr_a_s_ii(ir, iso) + Fr_b_s_ii(ir, iso))&
+                       &   + scale*a(idir2, ia)*Fr_s(ir, iso)
                   !
-                  jrho_s(ir, ia) = jrho_s(ir, ia)+rad_part*slm(ia, iso)
+                  jrho_s(ir, ia) = jrho_s(ir, ia) + rad_part*slm(ia, iso)
                   !------------------------------------------------------------------
                ENDIF
             ENDDO ! ia
@@ -1371,25 +1371,25 @@ CONTAINS
             point(3) = r(ir)*a(3, ia)
             DO iatom = 1, natm_gauge
                buf(iatom) = 1.0_dp
-               pra = point-ratom(:, iatom)
-               pa = SQRT(pra(1)**2+pra(2)**2+pra(3)**2)
+               pra = point - ratom(:, iatom)
+               pa = SQRT(pra(1)**2 + pra(2)**2 + pra(3)**2)
                DO jatom = 1, natm_gauge
                   IF (iatom .EQ. jatom) CYCLE
-                  prb = point-ratom(:, jatom)
-                  pb = SQRT(prb(1)**2+prb(2)**2+prb(3)**2)
-                  ab = SQRT((pra(1)-prb(1))**2+(pra(2)-prb(2))**2+(pra(3)-prb(3))**2)
+                  prb = point - ratom(:, jatom)
+                  pb = SQRT(prb(1)**2 + prb(2)**2 + prb(3)**2)
+                  ab = SQRT((pra(1) - prb(1))**2 + (pra(2) - prb(2))**2 + (pra(3) - prb(3))**2)
                   !
-                  tmp = (pa-pb)/ab
-                  tmp = 0.5_dp*(3.0_dp-tmp**2)*tmp
-                  tmp = 0.5_dp*(3.0_dp-tmp**2)*tmp
-                  tmp = 0.5_dp*(3.0_dp-tmp**2)*tmp
-                  buf(iatom) = buf(iatom)*0.5_dp*(1.0_dp-tmp)
+                  tmp = (pa - pb)/ab
+                  tmp = 0.5_dp*(3.0_dp - tmp**2)*tmp
+                  tmp = 0.5_dp*(3.0_dp - tmp**2)*tmp
+                  tmp = 0.5_dp*(3.0_dp - tmp**2)*tmp
+                  buf(iatom) = buf(iatom)*0.5_dp*(1.0_dp - tmp)
                ENDDO
             ENDDO
             DO ixyz = 1, 3
                res = 0.0_dp
                DO iatom = 1, natm_gauge
-                  res = res+ratom(ixyz, iatom)*buf(iatom)
+                  res = res + ratom(ixyz, iatom)*buf(iatom)
                ENDDO
                res = res/SUM(buf(1:natm_gauge))
                !
@@ -1482,10 +1482,10 @@ CONTAINS
 
                natm_gauge = 0
                DO jatom = 1, natm_tot
-                  r(:) = pbc(particle_set(jatom)%r(:)-particle_set(iatom)%r(:), cell)
+                  r(:) = pbc(particle_set(jatom)%r(:) - particle_set(iatom)%r(:), cell)
                   ! SQRT(SUM(r(:)**2)) .LE. 2.0_dp*hard_radius
                   IF (SUM(r(:)**2) .LE. (4.0_dp*hard_radius*hard_radius)) THEN
-                     natm_gauge = natm_gauge+1
+                     natm_gauge = natm_gauge + 1
                      ratom(:, natm_gauge) = r(:)
                   ENDIF
                ENDDO

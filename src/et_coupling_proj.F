@@ -265,7 +265,7 @@ CONTAINS
                                 nset=n_set, nshell=n_shell, l=ang_mom_id)
          DO j = 1, n_set
             DO k = 1, n_shell(j)
-               atom_nf(i) = atom_nf(i)+nso(ang_mom_id(k, j))
+               atom_nf(i) = atom_nf(i) + nso(ang_mom_id(k, j))
             END DO
          END DO
       END DO
@@ -273,7 +273,7 @@ CONTAINS
       ! Sanity check
       n = 0
       DO i = 1, n_atoms
-         n = n+atom_nf(i)
+         n = n + atom_nf(i)
       END DO
       CPASSERT(n == n_ao)
 
@@ -281,8 +281,8 @@ CONTAINS
       ALLOCATE (atom_ps(n_atoms))
       CPASSERT(ASSOCIATED(atom_ps))
       atom_ps = 1
-      DO i = 1, n_atoms-1
-         atom_ps(i+1) = atom_ps(i)+atom_nf(i)
+      DO i = 1, n_atoms - 1
+         atom_ps(i + 1) = atom_ps(i) + atom_nf(i)
       END DO
 
       ! Number of blocks
@@ -321,7 +321,7 @@ CONTAINS
                CPABORT('invalid fragment atom ID ('//TRIM(ADJUSTL(cp_to_string(atom_id(j))))//')')
             ! Check if the atom is not in previously-defined blocks
             found = .FALSE.
-            DO k = 1, i-1
+            DO k = 1, i - 1
                DO l = 1, ec%block(k)%n_atoms
                   IF (ec%block(k)%atom(l)%id == atom_id(j)) THEN
                      CPWARN('multiple definition of atom'//TRIM(ADJUSTL(cp_to_string(atom_id(j)))))
@@ -342,7 +342,7 @@ CONTAINS
             END IF
             ! Save the atom
             IF (.NOT. found) THEN
-               ec%block(i)%n_atoms = ec%block(i)%n_atoms+1
+               ec%block(i)%n_atoms = ec%block(i)%n_atoms + 1
                t(ec%block(i)%n_atoms) = atom_id(j)
             END IF
          END DO
@@ -356,10 +356,10 @@ CONTAINS
             ec%block(i)%atom(j)%id = t(j)
             ec%block(i)%atom(j)%n_ao = atom_nf(ec%block(i)%atom(j)%id)
             ec%block(i)%atom(j)%ao_pos = atom_ps(ec%block(i)%atom(j)%id)
-            ec%block(i)%n_ao = ec%block(i)%n_ao+ec%block(i)%atom(j)%n_ao
+            ec%block(i)%n_ao = ec%block(i)%n_ao + ec%block(i)%atom(j)%n_ao
          END DO
 
-         ec%n_atoms = ec%n_atoms+ec%block(i)%n_atoms
+         ec%n_atoms = ec%n_atoms + ec%block(i)%n_atoms
       END DO
 
       ! Clean memory
@@ -534,8 +534,8 @@ CONTAINS
                                      nw_p_rows, nw_p_cols, cw_row, cw_col, &
                                      iw_p_row, iw_p_col, cw_row_f, cw_col_f)
                         CALL infog2l( &
-                           ec%block(ir)%atom(jr)%ao_pos+kr-1, &
-                           ec%block(ic)%atom(jc)%ao_pos+kc-1, &
+                           ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
+                           ec%block(ic)%atom(jc)%ao_pos + kc - 1, &
                            mat_h%matrix_struct%descriptor, &
                            nh_p_rows, nh_p_cols, ch_row, ch_col, &
                            ih_p_row, ih_p_col, ch_row_f, ch_col_f)
@@ -556,14 +556,14 @@ CONTAINS
                         END IF
 #else
                         mat_w%local_data(nr, nc) = mat_h%local_data( &
-                                                   ec%block(ir)%atom(jr)%ao_pos+kr-1, &
-                                                   ec%block(ic)%atom(jc)%ao_pos+kc-1)
+                                                   ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
+                                                   ec%block(ic)%atom(jc)%ao_pos + kc - 1)
 #endif
-                        nc = nc+1
+                        nc = nc + 1
                      END DO
                   END DO
                END DO
-               nr = nr+1
+               nr = nr + 1
             END DO
          END DO
       END DO
@@ -769,7 +769,7 @@ CONTAINS
             DEALLOCATE (vec_e)
 
             ! Off-set for next block
-            j = j+ec%block(i)%n_ao
+            j = j + ec%block(i)%n_ao
 
          END DO
 
@@ -804,10 +804,10 @@ CONTAINS
 
                END IF
                ! Off-set for next block
-               l = l+ec%block(j)%n_ao
+               l = l + ec%block(j)%n_ao
             END DO
             ! Off-set for next block
-            k = k+ec%block(i)%n_ao
+            k = k + ec%block(i)%n_ao
          END DO
 
          ! Clean memory
@@ -891,7 +891,7 @@ CONTAINS
          DO k = 1, blk_at(j)%n_ao
 #if defined(__SCALAPACK)
             c = 0.0_dp
-            CALL infog2l(blk_at(j)%ao_pos+k-1, id, mo%matrix_struct%descriptor, &
+            CALL infog2l(blk_at(j)%ao_pos + k - 1, id, mo%matrix_struct%descriptor, &
                          n_p_rows, n_p_cols, c_row, c_col, &
                          i_p_row, i_p_col, c_row_f, c_col_f)
             ! local element
@@ -903,9 +903,9 @@ CONTAINS
                CALL dgebr2d(mo%matrix_struct%context%group, 'All', ' ', 1, 1, c, 1, c_row_f, c_col_f)
             END IF
 #else
-            c = mo%local_data(blk_at(j)%ao_pos+k-1, id)
+            c = mo%local_data(blk_at(j)%ao_pos + k - 1, id)
 #endif
-            c2 = c2+c*c
+            c2 = c2 + c*c
          END DO
 
       END DO
@@ -1185,7 +1185,7 @@ CONTAINS
 #if defined(__SCALAPACK)
 
          DO i = 1, ec%n_blocks
-            DO j = i+1, ec%n_blocks
+            DO j = i + 1, ec%n_blocks
 
                nr = ec%block(i)%hab(1, j)%matrix%matrix_struct%nrow_global
                nc = ec%block(i)%hab(1, j)%matrix%matrix_struct%ncol_global
@@ -1254,7 +1254,7 @@ CONTAINS
          IF (output_unit > 0) THEN
 
             DO i = 1, ec%n_blocks
-               DO j = i+1, ec%n_blocks
+               DO j = i + 1, ec%n_blocks
 
                   WRITE (filename, '(a5,I1.1,a1,I1.1)') "ET_BL_", i, "-", j
                   unit_nr = cp_print_key_unit_nr(logger, ec_sec, "PRINT%COUPLINGS", extension=".elcoup", &
@@ -1447,7 +1447,7 @@ CONTAINS
             DO ic = 1, ec%block(id)%n_atoms
                DO jc = 1, ec%block(id)%atom(ic)%n_ao
 #if defined(__SCALAPACK)
-                  CALL infog2l(ec%block(id)%atom(ir)%ao_pos+jr-1, nc, &
+                  CALL infog2l(ec%block(id)%atom(ir)%ao_pos + jr - 1, nc, &
                                mat_w%matrix_struct%descriptor, &
                                ns_p_rows, ns_p_cols, cs_row, cs_col, &
                                is_p_row, is_p_col, cs_row_f, cs_col_f)
@@ -1470,13 +1470,13 @@ CONTAINS
                      END IF
                   END IF
 #else
-                  mat_w%local_data(ec%block(id)%atom(ir)%ao_pos+jr-1, nc) = &
+                  mat_w%local_data(ec%block(id)%atom(ir)%ao_pos + jr - 1, nc) = &
                      mat_u%local_data(nr, nc)
 #endif
-                  nc = nc+1
+                  nc = nc + 1
                END DO
             END DO
-            nr = nr+1
+            nr = nr + 1
          END DO
       END DO
 
@@ -1554,7 +1554,7 @@ CONTAINS
          n_el = n_el/2
          IF (MOD(ec%block(id)%n_electrons, 2) == 1) THEN
             IF (spin == 1) &
-               n_el = n_el+1
+               n_el = n_el + 1
          END IF
       END IF
 
@@ -1755,7 +1755,7 @@ CONTAINS
                   CALL section_vals_val_get(mo_sec, keyword_name='NHOMO', i_val=n)
 
                   IF (n > 0) THEN
-                     DO k = MAX(1, mo%homo-n+1), mo%homo
+                     DO k = MAX(1, mo%homo - n + 1), mo%homo
                         CALL save_mo_cube(qs_env, logger, print_sec, mo, i, k, j)
                      END DO
                   END IF
@@ -1764,7 +1764,7 @@ CONTAINS
                   CALL section_vals_val_get(mo_sec, keyword_name='NLUMO', i_val=n)
 
                   IF (n > 0) THEN
-                     DO k = mo%lfomo, MIN(mo%lfomo+n-1, mo%nmo)
+                     DO k = mo%lfomo, MIN(mo%lfomo + n - 1, mo%nmo)
                         CALL save_mo_cube(qs_env, logger, print_sec, mo, i, k, j)
                      END DO
                   END IF
@@ -1872,7 +1872,7 @@ CONTAINS
          WRITE (output_unit, '(T3,A,I10)') &
             'Number of fragment atoms           = ', ec%n_atoms
          WRITE (output_unit, '(T3,A,I10)') &
-            'Number of unassigned atoms         = ', n_atoms-ec%n_atoms
+            'Number of unassigned atoms         = ', n_atoms - ec%n_atoms
          WRITE (output_unit, '(T3,A,I10)') &
             'Number of AO basis functions       = ', n_ao
 
@@ -1898,11 +1898,11 @@ CONTAINS
                WRITE (output_unit, '(T3,A)') 'Block atom IDs                     ='
                DO j = 1, ec%block(i)%n_atoms/10
                   WRITE (output_unit, '(T3,A,10I6)') '      ', &
-                     (ec%block(i)%atom((j-1)*10+k)%id, k=1, 10)
+                     (ec%block(i)%atom((j - 1)*10 + k)%id, k=1, 10)
                END DO
                IF (MOD(ec%block(i)%n_atoms, 10) /= 0) THEN
                   WRITE (output_unit, '(T3,A,10I6)') '      ', &
-                     (ec%block(i)%atom(k+10*(ec%block(i)%n_atoms/10))%id, &
+                     (ec%block(i)%atom(k + 10*(ec%block(i)%n_atoms/10))%id, &
                       k=1, MOD(ec%block(i)%n_atoms, 10))
                END IF
 

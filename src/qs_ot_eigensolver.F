@@ -146,7 +146,7 @@ CONTAINS
             CALL cp_fm_get_info(matrix_orthogonal_space_fm, ncol_global=ortho_space_k)
 
             IF (PRESENT(size_ortho_space)) ortho_space_k = size_ortho_space
-            ortho_k = ortho_space_k+k
+            ortho_k = ortho_space_k + k
          ELSE
             ortho_k = k
          ENDIF
@@ -203,7 +203,7 @@ CONTAINS
             CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_s_ortho, ortho_space_k, 1, 1, &
                                          para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
             !CALL dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1)
-            CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_c, k, 1, ortho_space_k+1, &
+            CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_c, k, 1, ortho_space_k + 1, &
                                          para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
 
             CALL dbcsr_release_p(matrix_buf1_ortho)
@@ -250,8 +250,8 @@ CONTAINS
          ieigensolver = 0
          eigensolver_loop: DO
 
-            ieigensolver = ieigensolver+1
-            iter_total = iter_total+1
+            ieigensolver = ieigensolver + 1
+            iter_total = iter_total + 1
 
             ! the energy is cHc, the gradient is 2*H*c
             CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h, matrix_c, &

@@ -216,7 +216,7 @@ CONTAINS
 
       i_counter = 0
       DO LLL = my_group_L_start, my_group_L_end
-         i_counter = i_counter+1
+         i_counter = i_counter + 1
 
          wf_vector = 0.0_dp
          wf_vector(LLL) = 1.0_dp
@@ -280,14 +280,14 @@ CONTAINS
                      tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
                      tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
                      IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
+                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
                      ELSE
                         lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
                         ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
                      ENDIF
                      ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                     location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
                   ENDDO
                   IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                       lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -299,13 +299,13 @@ CONTAINS
                   IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
                ENDIF
 
-               offset = offset+nsgfa(iset)
+               offset = offset + nsgfa(iset)
 
                IF (map_it_here) THEN
                   DO ipgf = 1, npgfa(iset)
                      sgfa = first_sgfa(1, iset)
 
-                     na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                     na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                      na2 = ipgf*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
@@ -317,7 +317,7 @@ CONTAINS
                         cell=cell, &
                         cube_info=pw_env_sub%cube_info(igrid_level), &
                         hab=I_tmp2, &
-                        o1=na1-1, &
+                        o1=na1 - 1, &
                         o2=0, &
                         map_consistent=.TRUE., &
                         eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
@@ -329,7 +329,7 @@ CONTAINS
                              I_tmp2(1, 1), SIZE(I_tmp2, 1), &
                              1.0_dp, I_ab(1, 1), SIZE(I_ab, 1))
 
-                  L_local_col(offset-nsgfa(iset)+1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)
+                  L_local_col(offset - nsgfa(iset) + 1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)
                END IF
 
                DEALLOCATE (I_tmp2)
@@ -410,7 +410,7 @@ CONTAINS
       dft_control%qs_control%cutoff = qs_env%mp2_env%mp2_gpw%cutoff*0.5_dp
       dft_control%qs_control%e_cutoff(1) = dft_control%qs_control%cutoff
       DO i_multigrid = 2, n_multigrid
-         dft_control%qs_control%e_cutoff(i_multigrid) = dft_control%qs_control%e_cutoff(i_multigrid-1) &
+         dft_control%qs_control%e_cutoff(i_multigrid) = dft_control%qs_control%e_cutoff(i_multigrid - 1) &
                                                         /progression_factor
       END DO
 

@@ -208,7 +208,7 @@ CONTAINS
                           usage="silent", &
                           default_i_val=my_print_level, lone_keyword_i_val=silent_print_level, &
                           enum_c_vals=s2a("on", "off", "silent", "low", "medium", "high", "debug"), &
-                          enum_i_vals=(/silent_print_level-1, debug_print_level+1, &
+                          enum_i_vals=(/silent_print_level - 1, debug_print_level + 1, &
                                         silent_print_level, low_print_level, &
                                         medium_print_level, high_print_level, debug_print_level/))
       CALL section_add_keyword(print_key_section, keyword)
@@ -373,19 +373,19 @@ CONTAINS
          end_str = LEN_TRIM(print_key_path)
          to_path = INDEX(print_key_path, "/")
          IF (to_path < 1) THEN
-            to_path = end_str+1
+            to_path = end_str + 1
          END IF
 
          IF (to_path > 1) THEN
             print_key => section_vals_get_subs_vals(basis_section, &
-                                                    print_key_path(1:(to_path-1)))
+                                                    print_key_path(1:(to_path - 1)))
          ELSE
             print_key => basis_section
          END IF
          CPASSERT(ASSOCIATED(print_key))
          CPASSERT(print_key%ref_count > 0)
-         IF (to_path+1 < end_str) THEN
-            CALL section_vals_val_get(print_key, print_key_path((to_path+1):end_str), &
+         IF (to_path + 1 < end_str) THEN
+            CALL section_vals_val_get(print_key, print_key_path((to_path + 1):end_str), &
                                       l_val=flags)
          ELSE
             flags = .TRUE.
@@ -556,21 +556,21 @@ CONTAINS
          CALL section_vals_val_get(my_print_key, "ADD_LAST", i_val=add_last)
          CALL section_vals_val_get(my_print_key, "COMMON_ITERATION_LEVELS", i_val=c_i_level)
          n_rlevel = iter_info%n_rlevel
-         IF (my_for_file) n_rlevel = MIN(n_rlevel, MAX(0, n_rlevel-c_i_level))
+         IF (my_for_file) n_rlevel = MIN(n_rlevel, MAX(0, n_rlevel - c_i_level))
          DO ilevel = s_level, n_rlevel
             IF (iter_info%last_iter(ilevel)) THEN
                IF (add_last == add_last_symbolic) THEN
-                  WRITE (res(9*ilevel-8:9*ilevel), "('l_')")
+                  WRITE (res(9*ilevel - 8:9*ilevel), "('l_')")
                ELSE
-                  WRITE (res(9*ilevel-8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
+                  WRITE (res(9*ilevel - 8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
                END IF
             ELSE
-               WRITE (res(9*ilevel-8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
+               WRITE (res(9*ilevel - 8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
             END IF
          END DO
       ELSE
          DO ilevel = s_level, iter_info%n_rlevel
-            WRITE (res(9*ilevel-8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
+            WRITE (res(9*ilevel - 8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
          END DO
       END IF
       CALL compress(res, .TRUE.)
@@ -613,7 +613,7 @@ CONTAINS
          iteration_info%iteration(iteration_info%n_rlevel) = iter_nr
       ELSE
          iteration_info%iteration(iteration_info%n_rlevel) = &
-            iteration_info%iteration(iteration_info%n_rlevel)+my_increment
+            iteration_info%iteration(iteration_info%n_rlevel) + my_increment
       END IF
       ! If requested provide the value of the iteration level
       IF (PRESENT(iter_nr_out)) iter_nr_out = iteration_info%iteration(iteration_info%n_rlevel)
@@ -652,7 +652,7 @@ CONTAINS
       END DO
       IF (found) THEN
          CALL cp_iteration_info_retain(iteration_info)
-         iteration_info%n_rlevel = iteration_info%n_rlevel+1
+         iteration_info%n_rlevel = iteration_info%n_rlevel + 1
          CALL reallocate(iteration_info%iteration, 1, iteration_info%n_rlevel)
          CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
          CALL reallocate(iteration_info%last_iter, 1, iteration_info%n_rlevel)
@@ -696,7 +696,7 @@ CONTAINS
       ! Never remove this check..
       check = iteration_info%level_name(iteration_info%n_rlevel) == level_name
       CPASSERT(check)
-      iteration_info%n_rlevel = iteration_info%n_rlevel-1
+      iteration_info%n_rlevel = iteration_info%n_rlevel - 1
       CALL reallocate(iteration_info%iteration, 1, iteration_info%n_rlevel)
       CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
       CALL reallocate(iteration_info%last_iter, 1, iteration_info%n_rlevel)
@@ -743,7 +743,7 @@ CONTAINS
 
       CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
       IF (outPath(1:1) == '=') THEN
-         CPASSERT(LEN(outPath)-1 <= LEN(filename))
+         CPASSERT(LEN(outPath) - 1 <= LEN(filename))
          filename = outPath(2:)
          RETURN
       END IF
@@ -754,13 +754,13 @@ CONTAINS
       my_ind2 = LEN_TRIM(outPath)
       IF (my_ind1 /= 0) THEN
          has_root = .TRUE.
-         DO WHILE (INDEX(outPath(my_ind1+1:my_ind2), "/") /= 0)
-            my_ind1 = INDEX(outPath(my_ind1+1:my_ind2), "/")+my_ind1
+         DO WHILE (INDEX(outPath(my_ind1 + 1:my_ind2), "/") /= 0)
+            my_ind1 = INDEX(outPath(my_ind1 + 1:my_ind2), "/") + my_ind1
          END DO
          IF (my_ind1 == my_ind2) THEN
             outName = ""
          ELSE
-            outName = outPath(my_ind1+1:my_ind2)
+            outName = outPath(my_ind1 + 1:my_ind2)
          END IF
       END IF
 
@@ -945,21 +945,21 @@ CONTAINS
                   s_backup_level = 0
                   IF (ASSOCIATED(print_key%ibackup)) s_backup_level = SIZE(print_key%ibackup)
                   CALL section_vals_val_get(print_key, "COMMON_ITERATION_LEVELS", i_val=c_i_level)
-                  my_backup_level = MAX(1, iteration_info%n_rlevel-c_i_level+1)
+                  my_backup_level = MAX(1, iteration_info%n_rlevel - c_i_level + 1)
                   f_backup_level = MAX(s_backup_level, my_backup_level)
                   IF (f_backup_level > s_backup_level) THEN
                      CALL reallocate(print_key%ibackup, 1, f_backup_level)
-                     DO i = s_backup_level+1, f_backup_level
+                     DO i = s_backup_level + 1, f_backup_level
                         print_key%ibackup(i) = 0
                      END DO
                   END IF
                   IF (found) THEN
-                     print_key%ibackup(my_backup_level) = print_key%ibackup(my_backup_level)+1
+                     print_key%ibackup(my_backup_level) = print_key%ibackup(my_backup_level) + 1
                      my_nbak = print_key%ibackup(my_backup_level)
                      ! Recent backup copies correspond to lower backup indexes
                      DO i = MIN(nbak, my_nbak), 2, -1
                         filename_bak_1 = TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i))
-                        filename_bak_2 = TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i-1))
+                        filename_bak_2 = TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i - 1))
                         IF (do_log) THEN
                            unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
                            IF (unit_nr > 0) &

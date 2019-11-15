@@ -134,8 +134,8 @@ CONTAINS
       DO iatom = 1, natom
          ikind = particle_set(iatom)%atomic_kind%kind_number
 
-         IF (dist1_prv(iatom, 1) == mp_coor(1)) nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
-         IF (dist2_prv(iatom, 1) == mp_coor(2)) nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
+         IF (dist1_prv(iatom, 1) == mp_coor(1)) nparticle_local_row(ikind) = nparticle_local_row(ikind) + 1
+         IF (dist2_prv(iatom, 1) == mp_coor(2)) nparticle_local_col(ikind) = nparticle_local_col(ikind) + 1
       END DO
 
       DO ikind = 1, nkind
@@ -151,11 +151,11 @@ CONTAINS
          ikind = particle_set(iatom)%atomic_kind%kind_number
 
          IF (dist1_prv(iatom, 1) == mp_coor(1)) THEN
-            nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
+            nparticle_local_row(ikind) = nparticle_local_row(ikind) + 1
             local_particle_row(ikind)%array(nparticle_local_row(ikind)) = iatom
          END IF
          IF (dist2_prv(iatom, 1) == mp_coor(2)) THEN
-            nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
+            nparticle_local_col(ikind) = nparticle_local_col(ikind) + 1
             local_particle_col(ikind)%array(nparticle_local_col(ikind)) = iatom
          END IF
       END DO
@@ -353,7 +353,7 @@ CONTAINS
             IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
                j_present(ikind) = .TRUE.
                CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
-               j_radius(ikind) = j_radius(ikind)+x_range
+               j_radius(ikind) = j_radius(ikind) + x_range
             END IF
          END DO
 
@@ -428,21 +428,21 @@ CONTAINS
       IF (PRESENT(sym_ij)) THEN
          IF (sym_ij) THEN
             ijk_list%sym = symmetric_ij
-            sym_level = sym_level+1
+            sym_level = sym_level + 1
          ENDIF
       ENDIF
 
       IF (PRESENT(sym_jk)) THEN
          IF (sym_jk) THEN
             ijk_list%sym = symmetric_jk
-            sym_level = sym_level+1
+            sym_level = sym_level + 1
          ENDIF
       ENDIF
 
       IF (PRESENT(sym_ik)) THEN
          IF (sym_ik) THEN
             ijk_list%sym = symmetrik_ik
-            sym_level = sym_level+1
+            sym_level = sym_level + 1
          ENDIF
       ENDIF
 
@@ -471,9 +471,9 @@ CONTAINS
       LOGICAL                                            :: include_symmetric
 
       IF (a > b) THEN
-         include_symmetric = (MODULO(a+b, 2) /= 0)
+         include_symmetric = (MODULO(a + b, 2) /= 0)
       ELSE
-         include_symmetric = (MODULO(a+b, 2) == 0)
+         include_symmetric = (MODULO(a + b, 2) == 0)
       END IF
 
    END FUNCTION
@@ -680,10 +680,10 @@ CONTAINS
 
       IF (PRESENT(rij)) rij = r_1
       IF (PRESENT(rjk)) rjk = r_2
-      IF (PRESENT(rik)) rik = r_1+r_2
+      IF (PRESENT(rik)) rik = r_1 + r_2
 
       IF (PRESENT(cell_j)) cell_j = cell_1
-      IF (PRESENT(cell_k)) cell_k = cell_1+cell_2
+      IF (PRESENT(cell_k)) cell_k = cell_1 + cell_2
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -781,9 +781,9 @@ CONTAINS
          CALL get_gto_basis_set(basis_j(jkind)%gto_basis_set, kind_radius=kind_radius_j)
          CALL get_gto_basis_set(basis_k(kkind)%gto_basis_set, kind_radius=kind_radius_k)
 
-         IF (kind_radius_j+kind_radius_i < dij) CYCLE
-         IF (kind_radius_j+kind_radius_k < djk) CYCLE
-         IF (kind_radius_k+kind_radius_i < dik) CYCLE
+         IF (kind_radius_j + kind_radius_i < dij) CYCLE
+         IF (kind_radius_j + kind_radius_k < djk) CYCLE
+         IF (kind_radius_k + kind_radius_i < dik) CYCLE
 
          ! tensor is not symmetric therefore need to allocate rows and columns in
          ! correspondence with neighborlist. Note that this only allocates half
@@ -812,9 +812,9 @@ CONTAINS
                      ALLOCATE (tmp(blk_cnt))
                      tmp(:) = ai%array(:)
                      DEALLOCATE (ai%array)
-                     ALLOCATE (ai%array(blk_cnt+1))
+                     ALLOCATE (ai%array(blk_cnt + 1))
                      ai%array(1:blk_cnt) = tmp(:)
-                     ai%array(blk_cnt+1) = iatom
+                     ai%array(blk_cnt + 1) = iatom
                   ELSE
                      ALLOCATE (ai%array(1))
                      ai%array(1) = iatom
@@ -823,9 +823,9 @@ CONTAINS
                   IF (ALLOCATED(aj%array)) THEN
                      tmp(:) = aj%array(:)
                      DEALLOCATE (aj%array)
-                     ALLOCATE (aj%array(blk_cnt+1))
+                     ALLOCATE (aj%array(blk_cnt + 1))
                      aj%array(1:blk_cnt) = tmp(:)
-                     aj%array(blk_cnt+1) = jatom
+                     aj%array(blk_cnt + 1) = jatom
                   ELSE
                      ALLOCATE (aj%array(1))
                      aj%array(1) = jatom
@@ -834,9 +834,9 @@ CONTAINS
                   IF (ALLOCATED(ak%array)) THEN
                      tmp(:) = ak%array(:)
                      DEALLOCATE (ak%array)
-                     ALLOCATE (ak%array(blk_cnt+1))
+                     ALLOCATE (ak%array(blk_cnt + 1))
                      ak%array(1:blk_cnt) = tmp(:)
-                     ak%array(blk_cnt+1) = katom
+                     ak%array(blk_cnt + 1) = katom
                   ELSE
                      ALLOCATE (ak%array(1))
                      ak%array(1) = katom
@@ -996,9 +996,9 @@ CONTAINS
          dij = SQRT(SUM(rij**2))
          dik = SQRT(SUM(rik**2))
 
-         IF (kind_radius_j+kind_radius_i < dij) CYCLE
-         IF (kind_radius_j+kind_radius_k < djk) CYCLE
-         IF (kind_radius_k+kind_radius_i < dik) CYCLE
+         IF (kind_radius_j + kind_radius_i < dij) CYCLE
+         IF (kind_radius_j + kind_radius_k < djk) CYCLE
+         IF (kind_radius_k + kind_radius_i < dik) CYCLE
 
          CALL dbcsr_t_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
          ALLOCATE (block_t(blk_size(1), blk_size(2), blk_size(3)))
@@ -1008,12 +1008,12 @@ CONTAINS
 
             DO jset = 1, nsetj
 
-               IF (set_radius_j(jset)+set_radius_i(iset) < dij) CYCLE
+               IF (set_radius_j(jset) + set_radius_i(iset) < dij) CYCLE
 
                DO kset = 1, nsetk
 
-                  IF (set_radius_j(jset)+set_radius_k(kset) < djk) CYCLE
-                  IF (set_radius_k(kset)+set_radius_i(iset) < dik) CYCLE
+                  IF (set_radius_j(jset) + set_radius_k(kset) < djk) CYCLE
+                  IF (set_radius_k(kset) + set_radius_i(iset) < dik) CYCLE
 
                   ncoi = npgfi(iset)*ncoset(lmax_i(iset))
                   ncoj = npgfj(jset)*ncoset(lmax_j(jset))
@@ -1046,11 +1046,11 @@ CONTAINS
                                        ncoi, ncoj, ncok, nsgfi(iset), nsgfj(jset), nsgfk(kset))
 
                      block_start_j = sgfj
-                     block_end_j = sgfj+nsgfj(jset)-1
+                     block_end_j = sgfj + nsgfj(jset) - 1
                      block_start_k = sgfk
-                     block_end_k = sgfk+nsgfk(kset)-1
+                     block_end_k = sgfk + nsgfk(kset) - 1
                      block_start_i = sgfi
-                     block_end_i = sgfi+nsgfi(iset)-1
+                     block_end_i = sgfi + nsgfi(iset) - 1
 
                      IF (do_kpoints_prv) THEN
                         prefac = 0.5_dp
@@ -1070,7 +1070,7 @@ CONTAINS
                              block_start_k:block_end_k) = &
                         block_t(block_start_i:block_end_i, &
                                 block_start_j:block_end_j, &
-                                block_start_k:block_end_k)+ &
+                                block_start_k:block_end_k) + &
                         prefac*sijk_contr(:, :, :)
                      DEALLOCATE (sijk, sijk_contr)
 
@@ -1115,7 +1115,7 @@ CONTAINS
          ENDDO
       ENDDO
       DO jcell = 1, nimg
-         DO kcell = jcell+1, nimg
+         DO kcell = jcell + 1, nimg
             CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
             CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
             CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
@@ -1155,18 +1155,18 @@ CONTAINS
       DO ibin = 1, nbin
          nel_split = nel_div
          IF (ibin <= nel_rem) THEN
-            nel_split = nel_split+1
+            nel_split = nel_split + 1
          ENDIF
-         el_start = el_end+1
+         el_start = el_end + 1
          el_end = el_start
-         w_partialsum = w_partialsum+weights(el_end)
-         end_weight = end_weight+nel_split
+         w_partialsum = w_partialsum + weights(el_end)
+         end_weight = end_weight + nel_split
          DO WHILE (w_partialsum < end_weight)
             !IF (ABS(w_partialsum + weights(el_end) - end_weight) > ABS(w_partialsum - end_weight)) EXIT
-            el_end = el_end+1
-            w_partialsum = w_partialsum+weights(el_end)
+            el_end = el_end + 1
+            w_partialsum = w_partialsum + weights(el_end)
          ENDDO
-         IF (PRESENT(dist)) dist(el_start:el_end) = ibin-1
+         IF (PRESENT(dist)) dist(el_start:el_end) = ibin - 1
          IF (PRESENT(limits_start)) limits_start(ibin) = el_start
          IF (PRESENT(limits_end)) limits_end(ibin) = el_end
       ENDDO
@@ -1192,14 +1192,14 @@ CONTAINS
       ibin = 0
       DO iel = 1, nel
          niter = 0
-         ibin = MOD(ibin+1, nbin)
-         DO WHILE (occup(ibin+1)+weights(iel) .GE. MAXVAL(occup))
-            IF (MINLOC(occup, DIM=1) == ibin+1) EXIT
-            ibin = MOD(ibin+1, nbin)
-            niter = niter+1
+         ibin = MOD(ibin + 1, nbin)
+         DO WHILE (occup(ibin + 1) + weights(iel) .GE. MAXVAL(occup))
+            IF (MINLOC(occup, DIM=1) == ibin + 1) EXIT
+            ibin = MOD(ibin + 1, nbin)
+            niter = niter + 1
          ENDDO
          dist(iel) = ibin
-         occup(ibin+1) = occup(ibin+1)+weights(iel)
+         occup(ibin + 1) = occup(ibin + 1) + weights(iel)
       ENDDO
 
    END SUBROUTINE cyclic_tensor_dist

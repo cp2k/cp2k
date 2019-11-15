@@ -231,7 +231,7 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,T51,A,i2,T71,I10)') 'MOs in Occupied Valence Set', 'Spin ', ispin, homo
             END IF
-            nvirt = nmo-homo
+            nvirt = nmo - homo
             NULLIFY (fm_struct_c)
             CALL cp_fm_struct_create(fm_struct_c, nrow_global=nvirt, ncol_global=nvirt, &
                                      para_env=para_env, context=blacs_env)
@@ -239,12 +239,12 @@ CONTAINS
             CALL cp_fm_create(fm4, fm_struct_c)
             ! B(vw) = a(vj)* * a(wj)*
             CALL cp_gemm("N", "T", nvirt, nvirt, nmao, 1.0_dp, fm2, fm2, 0.0_dp, fm3, &
-                         a_first_row=homo+1, b_first_row=homo+1)
+                         a_first_row=homo + 1, b_first_row=homo + 1)
             ALLOCATE (eigval(nvirt))
             CALL choose_eigv_solver(fm3, fm4, eigval)
             ! SVD(B) -> select p largest eigenvalues and vectors
-            np = nmao-homo
-            np1 = nvirt-np+1
+            np = nmao - homo
+            np1 = nvirt - np + 1
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,T51,A,i2,T71,I10)') 'MOs in Virtual Valence Set', 'Spin ', ispin, np
             END IF
@@ -263,18 +263,18 @@ CONTAINS
             CALL cp_fm_create(fm6, fm_struct_e)
             ! D(j) = SUM_n (a(nj)*)^2 + SUM_vw R(vw) * a(vj)* * a(wj)*
             CALL cp_gemm("N", "N", nvirt, nmao, nvirt, 1.0_dp, fm3, fm2, 0.0_dp, fm5, &
-                         b_first_row=homo+1)
+                         b_first_row=homo + 1)
             CALL cp_gemm("T", "N", nmao, nmao, nvirt, 1.0_dp, fm2, fm5, 0.0_dp, fm6, &
-                         a_first_row=homo+1)
+                         a_first_row=homo + 1)
             CALL cp_fm_get_diag(fm6, dvalv(1:nmao))
             CALL cp_gemm("T", "N", nmao, nmao, homo, 1.0_dp, fm2, fm2, 0.0_dp, fm6)
             CALL cp_fm_get_diag(fm6, dvalo(1:nmao))
             DO i = 1, nmao
-               dval(i) = 1.0_dp/SQRT(dvalo(i)+dvalv(i))
+               dval(i) = 1.0_dp/SQRT(dvalo(i) + dvalv(i))
             END DO
             ! scale intermediate expansion
             CALL cp_fm_to_fm_submat(fm2, fma, homo, nmao, 1, 1, 1, 1)
-            CALL cp_fm_to_fm_submat(fm5, fma, nvirt, nmao, 1, 1, homo+1, 1)
+            CALL cp_fm_to_fm_submat(fm5, fma, nvirt, nmao, 1, 1, homo + 1, 1)
             CALL cp_fm_column_scale(fma, dval)
             ! Orthogonalization
             CALL cp_fm_create(fmwork, fm_struct_e)

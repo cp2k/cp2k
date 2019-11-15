@@ -98,7 +98,7 @@ CONTAINS
          IF (iw2 > 0) WRITE (iw2, '(A)') "Applying DIIS equations"
          ! Apply DIIS..
          DO jv = 2, n_diis
-            np = jv+1
+            np = jv + 1
             IF (iw2 > 0) WRITE (iw2, '(A,I5,A)') "Applying DIIS equations with the last", &
                jv, " error vectors"
             ALLOCATE (wrk(np, np))
@@ -111,9 +111,9 @@ CONTAINS
             wrk(np, np) = 0.0_dp
             awrk(np) = 1.0_dp
             DO i = 1, jv
-               indi = n_diis-i+1
+               indi = n_diis - i + 1
                DO j = i, jv
-                  indj = n_diis-j+1
+                  indj = n_diis - j + 1
                   wrk(i, j) = DOT_PRODUCT(err(:, indi), err(:, indj))
                   wrk(j, i) = wrk(i, j)
                END DO
@@ -157,11 +157,11 @@ CONTAINS
             ! Check the DIIS solution
             step = 0.0_dp
             ind = 0
-            DO i = n_diis, n_diis-jv+1, -1
-               ind = ind+1
-               step = step+(crr(:, i)+err(:, i))*cwrk(ind)
+            DO i = n_diis, n_diis - jv + 1, -1
+               ind = ind + 1
+               step = step + (crr(:, i) + err(:, i))*cwrk(ind)
             END DO
-            step = step-crr(:, n_diis)
+            step = step - crr(:, n_diis)
             ref = err(:, n_diis)
             increase_error = check_diis_solution(jv, cwrk, step, ref, &
                                                  iw2, check_diis)
@@ -192,16 +192,16 @@ CONTAINS
          ! always delete the last error vector from the history vectors
          ! move error vectors and the set_err in order to have free space
          ! at the end of the err array
-         istart = MAX(2, n_diis-jv+2)
+         istart = MAX(2, n_diis - jv + 2)
          iend = n_diis
          indi = 0
          DO iv = istart, iend
-            indi = indi+1
+            indi = indi + 1
             err(:, indi) = err(:, iv)
             crr(:, indi) = crr(:, iv)
             set_err(indi) = 1
          END DO
-         DO iv = indi+1, iend
+         DO iv = indi + 1, iend
             set_err(iv) = -1
          END DO
       END IF
@@ -335,20 +335,20 @@ CONTAINS
       Icoord(:, :) = coords%wrk
       xa = 0.0_dp
       ya = SUM(sline%wrk*forces%wrk)
-      xb = xa+MIN(ya*stepsize, max_stepsize)
+      xb = xa + MIN(ya*stepsize, max_stepsize)
       xc_cray = xb
       i = 1
-      DO WHILE (i <= np-1)
-         i = i+1
-         coords%wrk = Icoord+xb*sline%wrk
+      DO WHILE (i <= np - 1)
+         i = i + 1
+         coords%wrk = Icoord + xb*sline%wrk
          CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels, &
                               output_unit, distances, neb_env%number_of_replica)
          neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances), KIND=dp))
          CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces, &
                                      particle_set, iw)
          yb = SUM(sline%wrk*forces%wrk)
-         a = (ya-yb)/(2.0_dp*(xa-xb))
-         b = ya-2.0_dp*a*xa
+         a = (ya - yb)/(2.0_dp*(xa - xb))
+         b = ya - 2.0_dp*a*xa
          xc_cray = -b/(2.0_dp*a)
          IF (xc_cray > max_stepsize) THEN
             IF (iw2 > 0) WRITE (iw2, '(T2,2(A,F6.3),A)') &
@@ -358,10 +358,10 @@ CONTAINS
             EXIT
          END IF
          ! No Extrapolation .. only interpolation
-         IF ((xc_cray <= MIN(xa, xb) .OR. xc_cray >= MAX(xa, xb)) .AND. (ABS(xa-xb) > 1.0E-5_dp)) THEN
+         IF ((xc_cray <= MIN(xa, xb) .OR. xc_cray >= MAX(xa, xb)) .AND. (ABS(xa - xb) > 1.0E-5_dp)) THEN
             IF (iw2 > 0) WRITE (iw2, '(T2,2(A,I5),A)') &
-               "LS| Increasing the number of point from ", np, " to ", np+1, "."
-            np = np+1
+               "LS| Increasing the number of point from ", np, " to ", np + 1, "."
+            np = np + 1
          END IF
          !
          IF (ABS(yb) < ABS(ya)) THEN

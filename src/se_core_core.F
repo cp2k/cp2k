@@ -178,7 +178,7 @@ CONTAINS
          IF (.NOT. se_defined(jkind)) CYCLE
          se_kind_a => se_kind_param(ikind)%se_param
          se_kind_b => se_kind_param(jkind)%se_param
-         iab = ikind+nkind*(jkind-1)
+         iab = ikind + nkind*(jkind - 1)
          dr1 = DOT_PRODUCT(rij, rij)
          enucij = 0._dp
          IF (dr1 > rij_threshold) THEN
@@ -189,14 +189,14 @@ CONTAINS
                ! Core-Core energy term
                CALL corecore(se_kind_a, se_kind_b, rij, enuc=enuc, itype=itype, anag=anag, &
                              se_int_control=se_int_control, se_taper=se_taper)
-               enucij = enucij+enuc
+               enucij = enucij + enuc
                ! Residual integral (1/R^3) correction
                IF (se_int_control%do_ewald_r3) THEN
                   r2inv = 1.0_dp/dr1
                   rinv = SQRT(r2inv)
                   r3inv = rinv**3
                   ! Core-Core term
-                  enucij = enucij+se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
+                  enucij = enucij + se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
                END IF
 
                ! Core-Core Derivatives
@@ -211,21 +211,21 @@ CONTAINS
                   IF (se_int_control%do_ewald_r3) THEN
                      dr3inv = -3.0_dp*rij*r3inv*r2inv
                      ! Derivatives of core-core terms
-                     force_ab = force_ab+se_kind_a%expns3_int(jkind)%expns3%core_core*dr3inv
+                     force_ab = force_ab + se_kind_a%expns3_int(jkind)%expns3%core_core*dr3inv
                   END IF
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1.0_dp, force_ab, rij)
                   END IF
 
                   ! Sum up force components
-                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a)-force_ab(1)
-                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b)+force_ab(1)
+                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a) - force_ab(1)
+                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b) + force_ab(1)
 
-                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a)-force_ab(2)
-                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b)+force_ab(2)
+                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a) - force_ab(2)
+                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b) + force_ab(2)
 
-                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a)-force_ab(3)
-                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b)+force_ab(3)
+                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a) - force_ab(3)
+                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
                CPABORT("")
@@ -235,14 +235,14 @@ CONTAINS
                ! Core-Core energy term (self term in periodic systems)
                CALL corecore(se_kind_a, se_kind_b, rij, enuc=enuc, itype=itype, anag=anag, &
                              se_int_control=se_int_control, se_taper=se_taper)
-               enucij = enucij+0.5_dp*enuc
+               enucij = enucij + 0.5_dp*enuc
             END IF
          END IF
          IF (atener) THEN
-            atprop%atecc(iatom) = atprop%atecc(iatom)+0.5_dp*enucij
-            atprop%atecc(jatom) = atprop%atecc(jatom)+0.5_dp*enucij
+            atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*enucij
+            atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*enucij
          END IF
-         enuclear = enuclear+enucij
+         enuclear = enuclear + enucij
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 

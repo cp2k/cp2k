@@ -82,7 +82,7 @@ CONTAINS
       DO iset = 1, nsets
          aux_basis%nshell(iset) = 0
          DO l = lmin(iset), lmax(iset)
-            aux_basis%nshell(iset) = aux_basis%nshell(iset)+nl(l, iset)
+            aux_basis%nshell(iset) = aux_basis%nshell(iset) + nl(l, iset)
          END DO
       END DO
       maxpgf = MAXVAL(npgf(1:nsets))
@@ -98,9 +98,9 @@ CONTAINS
          ns = 0
          DO l = lmin(iset), lmax(iset)
             DO i = 1, nl(l, iset)
-               ns = ns+1
+               ns = ns + 1
                aux_basis%l(ns, iset) = l
-               aux_basis%n(ns, iset) = l+i
+               aux_basis%n(ns, iset) = l + i
             END DO
          END DO
       END DO
@@ -114,11 +114,11 @@ CONTAINS
             ALLOCATE (so(nx, nx))
             CPASSERT(nx >= nl(l, iset))
             DO i = 1, nx
-               za = (2.0_dp*zet(i, iset))**(0.25_dp*(2*l+3))
+               za = (2.0_dp*zet(i, iset))**(0.25_dp*(2*l + 3))
                DO j = i, nx
-                  zb = (2.0_dp*zet(j, iset))**(0.25_dp*(2*l+3))
-                  zetab = zet(i, iset)+zet(j, iset)
-                  so(i, j) = za*zb/zetab**(l+1.5_dp)
+                  zb = (2.0_dp*zet(j, iset))**(0.25_dp*(2*l + 3))
+                  zetab = zet(i, iset) + zet(j, iset)
+                  so(i, j) = za*zb/zetab**(l + 1.5_dp)
                   so(j, i) = so(i, j)
                END DO
             END DO
@@ -127,18 +127,18 @@ CONTAINS
             CPASSERT(info == 0)
             CALL dtrtri("U", "N", nx, so, nx, info)
             CPASSERT(info == 0)
-            DO i = ns+1, ns+nl(l, iset)
-               DO j = 1, i-ns
-                  aux_basis%gcc(j, i, iset) = so(j, i-ns)
+            DO i = ns + 1, ns + nl(l, iset)
+               DO j = 1, i - ns
+                  aux_basis%gcc(j, i, iset) = so(j, i - ns)
                END DO
             END DO
             IF (nl(l, iset) < nx) THEN
-               i = ns+nl(l, iset)
-               DO j = nl(l, iset)+1, nx
+               i = ns + nl(l, iset)
+               DO j = nl(l, iset) + 1, nx
                   aux_basis%gcc(j, i, iset) = 1.0_dp
                END DO
             END IF
-            ns = ns+nl(l, iset)
+            ns = ns + nl(l, iset)
             DEALLOCATE (so)
          END DO
       END DO
@@ -159,16 +159,16 @@ CONTAINS
          aux_basis%nsgf_set(iset) = 0
          DO ishell = 1, aux_basis%nshell(iset)
             lshell = aux_basis%l(ishell, iset)
-            aux_basis%first_cgf(ishell, iset) = ncgf+1
-            ncgf = ncgf+nco(lshell)
+            aux_basis%first_cgf(ishell, iset) = ncgf + 1
+            ncgf = ncgf + nco(lshell)
             aux_basis%last_cgf(ishell, iset) = ncgf
             aux_basis%ncgf_set(iset) = &
-               aux_basis%ncgf_set(iset)+nco(lshell)
-            aux_basis%first_sgf(ishell, iset) = nsgf+1
-            nsgf = nsgf+nso(lshell)
+               aux_basis%ncgf_set(iset) + nco(lshell)
+            aux_basis%first_sgf(ishell, iset) = nsgf + 1
+            nsgf = nsgf + nso(lshell)
             aux_basis%last_sgf(ishell, iset) = nsgf
             aux_basis%nsgf_set(iset) = &
-               aux_basis%nsgf_set(iset)+nso(lshell)
+               aux_basis%nsgf_set(iset) + nso(lshell)
          END DO
          maxco = MAX(maxco, npgf(iset)*ncoset(lmax(iset)))
       END DO
@@ -188,8 +188,8 @@ CONTAINS
       DO iset = 1, nsets
          DO ishell = 1, aux_basis%nshell(iset)
             lshell = aux_basis%l(ishell, iset)
-            DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-               ncgf = ncgf+1
+            DO ico = ncoset(lshell - 1) + 1, ncoset(lshell)
+               ncgf = ncgf + 1
                aux_basis%lx(ncgf) = indco(1, ico)
                aux_basis%ly(ncgf) = indco(2, ico)
                aux_basis%lz(ncgf) = indco(3, ico)
@@ -199,7 +199,7 @@ CONTAINS
                                                           aux_basis%lz(ncgf)/))
             END DO
             DO m = -lshell, lshell
-               nsgf = nsgf+1
+               nsgf = nsgf + 1
                aux_basis%m(nsgf) = m
                aux_basis%sgf_symbol(nsgf) = &
                   sgf_symbol(aux_basis%n(ishell, iset), lshell, m)

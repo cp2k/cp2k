@@ -213,7 +213,7 @@ CONTAINS
             ! First determine if the calculation is pure DFT or QMMM and find the qs force_env
             DO iforce_eval = 1, nforce_eval
                IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
-               SELECT CASE (force_env%sub_force_env (iforce_eval)%force_env%in_use)
+               SELECT CASE (force_env%sub_force_env(iforce_eval)%force_env%in_use)
                CASE (use_qs_force)
                   force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
                CASE (use_qmmm)
@@ -314,7 +314,7 @@ CONTAINS
             md_section => section_vals_get_subs_vals(root_section, "MOTION%MD")
             CALL section_vals_val_get(md_section, "TIMESTEP", r_val=mixed_cdft%sim_dt)
             CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=mixed_cdft%sim_step)
-            mixed_cdft%sim_step = mixed_cdft%sim_step-1 ! to get the first step correct
+            mixed_cdft%sim_step = mixed_cdft%sim_step - 1 ! to get the first step correct
             mixed_cdft%sim_dt = cp_unit_from_cp2k(mixed_cdft%sim_dt, "fs")
             ! Parse constraint settings from the individual force_evals and check consistency
             CALL mixed_cdft_parse_settings(force_env, mixed_env, mixed_cdft, &
@@ -500,7 +500,7 @@ CONTAINS
                          particles=particles_mix)
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
-         SELECT CASE (force_env%sub_force_env (iforce_eval)%force_env%in_use)
+         SELECT CASE (force_env%sub_force_env(iforce_eval)%force_env%in_use)
          CASE (use_qs_force)
             force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          CASE (use_qmmm)
@@ -533,7 +533,7 @@ CONTAINS
       natom = SIZE(particles_mix%els)
       CALL mixed_becke_constraint(force_env, calculate_forces)
       ! Start replicating the working arrays on both np/2 processor groups
-      mixed_cdft%sim_step = mixed_cdft%sim_step+1
+      mixed_cdft%sim_step = mixed_cdft%sim_step + 1
       CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control)
       cdft_control_target => dft_control%qs_control%cdft_control
       CPASSERT(dft_control%qs_control%cdft)
@@ -547,7 +547,7 @@ CONTAINS
          my_special_work = 1
       END IF
       ALLOCATE (recvbuffer(SIZE(mixed_cdft%source_list)))
-      ALLOCATE (req_total(my_special_work*SIZE(mixed_cdft%dest_list)+SIZE(mixed_cdft%source_list)))
+      ALLOCATE (req_total(my_special_work*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)))
       ALLOCATE (lb(SIZE(mixed_cdft%source_list)), ub(SIZE(mixed_cdft%source_list)))
       IF (cdft_control%becke_control%cavity_confine) THEN
          ! Gaussian confinement => the bounds depend on the processor and need to be communicated
@@ -561,9 +561,9 @@ CONTAINS
          END DO
          DO i = 1, my_special_work
             DO j = 1, SIZE(mixed_cdft%dest_list)
-               ind = j+(i-1)*SIZE(mixed_cdft%dest_list)+SIZE(mixed_cdft%source_list)
+               ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
                CALL mp_isend(msgin=sendbuffer_i, &
-                             dest=mixed_cdft%dest_list(j)+(i-1)*force_env%para_env%num_pe/2, &
+                             dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
                              request=req_total(ind), &
                              comm=force_env%para_env%group)
             END DO
@@ -605,15 +605,15 @@ CONTAINS
       ! Determine the sender specific indices of grid slices that are to be received
       CALL timeset(routineN//"_comm", handle2)
       DO j = 1, SIZE(recvbuffer)
-         ind = j+(j/2)
+         ind = j + (j/2)
          IF (mixed_cdft%is_special) THEN
             recvbuffer(j)%imap = (/mixed_cdft%source_list_bo(1, j), mixed_cdft%source_list_bo(2, j), &
                                    mixed_cdft%source_list_bo(3, j), mixed_cdft%source_list_bo(4, j), &
                                    lb(j), ub(j)/)
          ELSE IF (mixed_cdft%is_pencil) THEN
-            recvbuffer(j)%imap = (/bo(1, 1), bo(2, 1), mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind+1), lb(j), ub(j)/)
+            recvbuffer(j)%imap = (/bo(1, 1), bo(2, 1), mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind + 1), lb(j), ub(j)/)
          ELSE
-            recvbuffer(j)%imap = (/mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind+1), bo(1, 2), bo(2, 2), lb(j), ub(j)/)
+            recvbuffer(j)%imap = (/mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind + 1), bo(1, 2), bo(2, 2), lb(j), ub(j)/)
          END IF
       END DO
       IF (mixed_cdft%dlb .AND. .NOT. mixed_cdft%is_special) THEN
@@ -623,9 +623,9 @@ CONTAINS
                IF (mixed_cdft%dlb_control%recv_work_repl(j)) &
                   recv_offset = SUM(mixed_cdft%dlb_control%recv_info(j)%target_list(2, :))
                IF (mixed_cdft%is_pencil) THEN
-                  recvbuffer(j)%imap(1) = recvbuffer(j)%imap(1)+recv_offset
+                  recvbuffer(j)%imap(1) = recvbuffer(j)%imap(1) + recv_offset
                ELSE
-                  recvbuffer(j)%imap(3) = recvbuffer(j)%imap(3)+recv_offset
+                  recvbuffer(j)%imap(3) = recvbuffer(j)%imap(3) + recv_offset
                END IF
             END DO
          END IF
@@ -642,10 +642,10 @@ CONTAINS
       END DO
       DO i = 1, my_special_work
          DO j = 1, SIZE(mixed_cdft%dest_list)
-            ind = j+(i-1)*SIZE(mixed_cdft%dest_list)+SIZE(mixed_cdft%source_list)
+            ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
             IF (mixed_cdft%is_special) THEN
                CALL mp_isend(msgin=mixed_cdft%sendbuff(j)%weight, &
-                             dest=mixed_cdft%dest_list(j)+(i-1)*force_env%para_env%num_pe/2, &
+                             dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
                              request=req_total(ind), &
                              comm=force_env%para_env%group)
             ELSE
@@ -703,10 +703,10 @@ CONTAINS
          END DO
          DO i = 1, my_special_work
             DO j = 1, SIZE(mixed_cdft%dest_list)
-               ind = j+(i-1)*SIZE(mixed_cdft%dest_list)+SIZE(mixed_cdft%source_list)
+               ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
                IF (mixed_cdft%is_special) THEN
                   CALL mp_isend(msgin=mixed_cdft%sendbuff(j)%cavity, &
-                                dest=mixed_cdft%dest_list(j)+(i-1)*force_env%para_env%num_pe/2, &
+                                dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
                                 request=req_total(ind), &
                                 comm=force_env%para_env%group)
                ELSE
@@ -770,10 +770,10 @@ CONTAINS
          END DO
          DO i = 1, my_special_work
             DO j = 1, SIZE(mixed_cdft%dest_list)
-               ind = j+(i-1)*SIZE(mixed_cdft%dest_list)+SIZE(mixed_cdft%source_list)
+               ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
                IF (mixed_cdft%is_special) THEN
                   CALL mp_isend(msgin=mixed_cdft%sendbuff(j)%gradients, &
-                                dest=mixed_cdft%dest_list(j)+(i-1)*force_env%para_env%num_pe/2, &
+                                dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
                                 request=req_total(ind), &
                                 comm=force_env%para_env%group)
                ELSE
@@ -866,7 +866,7 @@ CONTAINS
       t2 = m_walltime()
       IF (iounit > 0) THEN
          WRITE (iounit, '(A)') ' '
-         WRITE (iounit, '(T2,A,F6.1,A)') 'MIXED_CDFT| Becke constraint built in ', t2-t1, ' seconds'
+         WRITE (iounit, '(T2,A,F6.1,A)') 'MIXED_CDFT| Becke constraint built in ', t2 - t1, ' seconds'
          WRITE (iounit, '(A)') ' '
       END IF
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
@@ -914,10 +914,10 @@ CONTAINS
       IF (iforce_eval == 1) THEN
          jforce_eval = 1
       ELSE
-         jforce_eval = iforce_eval-1
+         jforce_eval = iforce_eval - 1
       END IF
       nforce_eval = SIZE(force_env%sub_force_env)
-      SELECT CASE (force_env%sub_force_env (jforce_eval)%force_env%in_use)
+      SELECT CASE (force_env%sub_force_env(jforce_eval)%force_env%in_use)
       CASE (use_qs_force, use_qmmm)
          force_env_qs_source => force_env%sub_force_env(jforce_eval)%force_env
          force_env_qs_target => force_env%sub_force_env(iforce_eval)%force_env
@@ -945,7 +945,7 @@ CONTAINS
          ELSE
             cdft_control_source%transfer_pot = .FALSE.
          END IF
-         mixed_cdft%sim_step = mixed_cdft%sim_step+1
+         mixed_cdft%sim_step = mixed_cdft%sim_step + 1
       ELSE
          ! Transfer the constraint from the ith force_eval to the i+1th
          CALL get_qs_env(qs_env_source, dft_control=dft_control_source, &
@@ -1083,7 +1083,7 @@ CONTAINS
       nforce_eval = SIZE(force_env%sub_force_env)
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
-         SELECT CASE (force_env%sub_force_env (iforce_eval)%force_env%in_use)
+         SELECT CASE (force_env%sub_force_env(iforce_eval)%force_env%in_use)
          CASE (use_qs_force, use_qmmm)
             force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          CASE DEFAULT
@@ -1117,7 +1117,7 @@ CONTAINS
             END IF
          END IF
       END DO
-      mixed_cdft%sim_step = mixed_cdft%sim_step+1
+      mixed_cdft%sim_step = mixed_cdft%sim_step + 1
       IF (first_call) first_call = .FALSE.
       CALL timestop(handle)
 
@@ -1259,7 +1259,7 @@ CONTAINS
          END DO
       END DO
       ! Allocate work
-      npermutations = nforce_eval*(nforce_eval-1)/2 ! Size of upper triangular part
+      npermutations = nforce_eval*(nforce_eval - 1)/2 ! Size of upper triangular part
       ALLOCATE (w_matrix_mo(nforce_eval, nforce_eval, nvar))
       ALLOCATE (mo_overlap(npermutations), S_det(npermutations, nspins))
       ALLOCATE (a(nspins, nvar, npermutations), b(nspins, nvar, npermutations))
@@ -1325,7 +1325,7 @@ CONTAINS
             nelectron_mismatch = .FALSE.
             nelectron_tot = SUM(mixed_cdft%occupations(1, ispin)%array(1:nmo))
             DO istate = 2, nforce_eval
-               IF (ABS(SUM(mixed_cdft%occupations(istate, ispin)%array(1:nmo))-nelectron_tot) .GT. 1.0E-4_dp) &
+               IF (ABS(SUM(mixed_cdft%occupations(istate, ispin)%array(1:nmo)) - nelectron_tot) .GT. 1.0E-4_dp) &
                   nelectron_mismatch = .TRUE.
             END DO
             IF (ANY(homo(:, ispin) /= nmo)) THEN
@@ -1399,8 +1399,8 @@ CONTAINS
          ! calculate the MO overlaps (C_j)^T S C_i
          ipermutation = 0
          DO istate = 1, nforce_eval
-            DO jstate = istate+1, nforce_eval
-               ipermutation = ipermutation+1
+            DO jstate = istate + 1, nforce_eval
+               ipermutation = ipermutation + 1
                CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mixed_mo_coeff(istate, ispin)%matrix, &
                                             tmp2, nmo, 1.0_dp, 0.0_dp)
                CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
@@ -1462,7 +1462,7 @@ CONTAINS
             DO j = 1, ncol_local
                DO k = 1, nrow_local
                   DO ivar = 1, nvar
-                     b(ispin, ivar, ipermutation) = b(ispin, ivar, ipermutation)+ &
+                     b(ispin, ivar, ipermutation) = b(ispin, ivar, ipermutation) + &
                                                     w_matrix_mo(jstate, istate, ivar)%matrix%local_data(k, j)* &
                                                     inverse_mat%local_data(k, j)
                   END DO
@@ -1473,7 +1473,7 @@ CONTAINS
             DO j = 1, ncol_local
                DO k = 1, nrow_local
                   DO ivar = 1, nvar
-                     a(ispin, ivar, ipermutation) = a(ispin, ivar, ipermutation)+ &
+                     a(ispin, ivar, ipermutation) = a(ispin, ivar, ipermutation) + &
                                                     w_matrix_mo(istate, jstate, ivar)%matrix%local_data(k, j)* &
                                                     Tinverse%local_data(k, j)
                   END DO
@@ -1481,7 +1481,7 @@ CONTAINS
             END DO
             ! Handle different constraint types
             DO ivar = 1, nvar
-               SELECT CASE (mixed_cdft%constraint_type (ivar, istate))
+               SELECT CASE (mixed_cdft%constraint_type(ivar, istate))
                CASE (cdft_charge_constraint)
                   ! No action needed
                CASE (cdft_magnetization_constraint)
@@ -1495,7 +1495,7 @@ CONTAINS
                CASE DEFAULT
                   CPABORT("Unknown constraint type.")
                END SELECT
-               SELECT CASE (mixed_cdft%constraint_type (ivar, jstate))
+               SELECT CASE (mixed_cdft%constraint_type(ivar, jstate))
                CASE (cdft_charge_constraint)
                   ! No action needed
                CASE (cdft_magnetization_constraint)
@@ -1559,7 +1559,7 @@ CONTAINS
          ! Finalize <Psi_j | w_i(r) | Psi_i> by multiplication with Sda
          DO ivar = 1, nvar
             IF (mixed_cdft%identical_constraints) THEN
-               Wda(ivar, ipermutation) = (SUM(a(:, ivar, ipermutation))+SUM(b(:, ivar, ipermutation)))* &
+               Wda(ivar, ipermutation) = (SUM(a(:, ivar, ipermutation)) + SUM(b(:, ivar, ipermutation)))* &
                                          Sda(ipermutation)/2.0_dp
             ELSE
                Wda(ivar, ipermutation) = SUM(a(:, ivar, ipermutation))*Sda(ipermutation)
@@ -1635,28 +1635,28 @@ CONTAINS
          sum_b = 0.0_dp
          DO ivar = 1, nvar
             ! V_J * <Psi_J | w_J(r) | Psi_J>
-            sum_b(1) = sum_b(1)+strength(ivar, jstate)*W_diagonal(ivar, jstate)
+            sum_b(1) = sum_b(1) + strength(ivar, jstate)*W_diagonal(ivar, jstate)
             ! V_I * <Psi_I | w_I(r) | Psi_I>
-            sum_a(1) = sum_a(1)+strength(ivar, istate)*W_diagonal(ivar, istate)
+            sum_a(1) = sum_a(1) + strength(ivar, istate)*W_diagonal(ivar, istate)
             IF (mixed_cdft%identical_constraints) THEN
                ! V_J * W_IJ
-               sum_b(2) = sum_b(2)+strength(ivar, jstate)*Wda(ivar, ipermutation)
+               sum_b(2) = sum_b(2) + strength(ivar, jstate)*Wda(ivar, ipermutation)
                ! V_I * W_JI
-               sum_a(2) = sum_a(2)+strength(ivar, istate)*Wda(ivar, ipermutation)
+               sum_a(2) = sum_a(2) + strength(ivar, istate)*Wda(ivar, ipermutation)
             ELSE
                ! V_J * W_IJ
-               sum_b(2) = sum_b(2)+strength(ivar, jstate)*Wad(ivar, ipermutation)
+               sum_b(2) = sum_b(2) + strength(ivar, jstate)*Wad(ivar, ipermutation)
                ! V_I * W_JI
-               sum_a(2) = sum_a(2)+strength(ivar, istate)*Wda(ivar, ipermutation)
+               sum_a(2) = sum_a(2) + strength(ivar, istate)*Wda(ivar, ipermutation)
             END IF
          END DO
          ! Denote F_X = <Psi_X | H_X + V_X*w_X(r) | Psi_X> = E_X + V_X*<Psi_X | w_X(r) | Psi_X>
          ! H_IJ = F_J*S_IJ - V_J * W_IJ
-         c(1) = (energy(jstate)+sum_b(1))*Sda(ipermutation)-sum_b(2)
+         c(1) = (energy(jstate) + sum_b(1))*Sda(ipermutation) - sum_b(2)
          ! H_JI = F_I*S_JI - V_I * W_JI
-         c(2) = (energy(istate)+sum_a(1))*Sda(ipermutation)-sum_a(2)
+         c(2) = (energy(istate) + sum_a(1))*Sda(ipermutation) - sum_a(2)
          ! H''(I,J) = 0.5*(H_IJ+H_JI) = H''(J,I)
-         H_mat(istate, jstate) = (c(1)+c(2))*0.5_dp
+         H_mat(istate, jstate) = (c(1) + c(2))*0.5_dp
          H_mat(jstate, istate) = H_mat(istate, jstate)
          IF (mixed_cdft%nonortho_coupling) coupling_nonortho(ipermutation) = H_mat(istate, jstate)
       END DO
@@ -1719,7 +1719,7 @@ CONTAINS
       ! Possibly computes the coupling additionally with the wavefunction overlap method
       nforce_eval = SIZE(mixed_cdft%results%H, 1)
       nvar = SIZE(mixed_cdft%results%Wda, 1)
-      npermutations = nforce_eval*(nforce_eval-1)/2
+      npermutations = nforce_eval*(nforce_eval - 1)/2
       ALLOCATE (tmp_mat(nforce_eval, nforce_eval))
       IF (nvar == 1 .AND. mixed_cdft%identical_constraints) THEN
          use_rotation = .TRUE.
@@ -1857,14 +1857,14 @@ CONTAINS
             IF (ivar == 1) THEN
                WRITE (iounit, '(T3,A,T58,(3X,F20.14))') 'Ground state energy:', eigenv(ivar)
             ELSE
-               WRITE (iounit, '(/,T3,A,I2,A,T58,(3X,F20.14))') 'Excited state (', ivar-1, ' ) energy:', eigenv(ivar)
+               WRITE (iounit, '(/,T3,A,I2,A,T58,(3X,F20.14))') 'Excited state (', ivar - 1, ' ) energy:', eigenv(ivar)
             END IF
             DO istate = 1, nforce_eval, 2
                IF (istate == 1) THEN
                   WRITE (iounit, '(T3,A,T54,(3X,2F12.6))') &
-                     'Expansion coefficients:', H_mat(istate, ivar), H_mat(istate+1, ivar)
+                     'Expansion coefficients:', H_mat(istate, ivar), H_mat(istate + 1, ivar)
                ELSE IF (istate .LT. nforce_eval) THEN
-                  WRITE (iounit, '(T54,(3X,2F12.6))') H_mat(istate, ivar), H_mat(istate+1, ivar)
+                  WRITE (iounit, '(T54,(3X,2F12.6))') H_mat(istate, ivar), H_mat(istate + 1, ivar)
                ELSE
                   WRITE (iounit, '(T54,(3X,F12.6))') H_mat(istate, ivar)
                END IF
@@ -1948,8 +1948,8 @@ CONTAINS
             DO i = 1, nblk
                NULLIFY (blocks(i)%array)
                ALLOCATE (blocks(i)%array(2))
-               blocks(i)%array = (/j, j+1/)
-               j = j+2
+               blocks(i)%array = (/j, j + 1/)
+               j = j + 2
             END DO
             ! Print info
             IF (iounit > 0) THEN
@@ -1957,7 +1957,7 @@ CONTAINS
                WRITE (iounit, '(T6,A)') 'Block diagonalization is continued until only two matrix blocks remain.'
                WRITE (iounit, '(T6,A)') 'The new blocks are formed by collecting pairs of blocks from the previous'
                WRITE (iounit, '(T6,A)') 'block diagonalized matrix in ascending order.'
-               WRITE (iounit, '(/,T3,A,I3,A,I3)') 'Recursion step:', irecursion-1, ' of ', nrecursion-1
+               WRITE (iounit, '(/,T3,A,I3,A,I3)') 'Recursion step:', irecursion - 1, ' of ', nrecursion - 1
                WRITE (iounit, '(/,T3,A)') 'List of old block indices for each new block'
                DO i = 1, nblk
                   WRITE (iounit, '(T6,A,I3,A,6I3)') 'Block', i, ':', (blocks(i)%array(j), j=1, SIZE(blocks(i)%array))
@@ -2019,7 +2019,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       nforce_eval = SIZE(mixed_cdft%results%H, 1)
-      npermutations = nforce_eval*(nforce_eval-1)/2
+      npermutations = nforce_eval*(nforce_eval - 1)/2
       nspins = SIZE(density_matrix_diff, 2)
       ALLOCATE (metric(npermutations, nspins))
       metric = 0.0_dp
@@ -2035,7 +2035,7 @@ CONTAINS
                                 para_env=force_env%para_env, blacs_env=mixed_cdft%blacs_env)
             CALL dbcsr_release_p(density_matrix_diff(ipermutation, ispin)%matrix)
             DO j = 1, ncol_mo(ispin)
-               metric(ipermutation, ispin) = metric(ipermutation, ispin)+(evals(j)**2-evals(j)**4)
+               metric(ipermutation, ispin) = metric(ipermutation, ispin) + (evals(j)**2 - evals(j)**4)
             END DO
          END DO
          DEALLOCATE (evals)
@@ -2092,7 +2092,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       nforce_eval = SIZE(mixed_cdft%results%H, 1)
-      npermutations = nforce_eval*(nforce_eval-1)/2
+      npermutations = nforce_eval*(nforce_eval - 1)/2
       nspins = SIZE(nrow_mo)
       mixed_mo_coeff => mixed_cdft%matrix%mixed_mo_coeff
       mixed_matrix_s => mixed_cdft%matrix%mixed_matrix_s
@@ -2208,19 +2208,19 @@ CONTAINS
          END IF
          ! Calculate coupling using eq. 12c
          ! The coupling is singular if A = B (i.e. states I/J are identical or charge in ground state is fully delocalized)
-         IF (ABS(overlaps(1, ipermutation, 1)-overlaps(2, ipermutation, 1)) .LE. 1.0e-14_dp) THEN
+         IF (ABS(overlaps(1, ipermutation, 1) - overlaps(2, ipermutation, 1)) .LE. 1.0e-14_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "Coupling between states is singular and set to zero. "// &
                          "Potential causes: coupling is computed between identical CDFT states or the spin/charge "// &
                          "density is fully delocalized in the unconstrained ground state.")
             coupling_wfn(ipermutation) = 0.0_dp
          ELSE
-            energy_diff = mixed_cdft%results%energy(jstate)-mixed_cdft%results%energy(istate)
+            energy_diff = mixed_cdft%results%energy(jstate) - mixed_cdft%results%energy(istate)
             Sda = mixed_cdft%results%S(istate, jstate)
             coupling_wfn(ipermutation) = ABS((overlaps(1, ipermutation, 1)*overlaps(2, ipermutation, 1)/ &
-                                              (overlaps(1, ipermutation, 1)**2-overlaps(2, ipermutation, 1)**2))* &
-                                             (energy_diff)/(1.0_dp-Sda**2)* &
-                                             (1.0_dp-(overlaps(1, ipermutation, 1)**2+overlaps(2, ipermutation, 1)**2)/ &
+                                              (overlaps(1, ipermutation, 1)**2 - overlaps(2, ipermutation, 1)**2))* &
+                                             (energy_diff)/(1.0_dp - Sda**2)* &
+                                             (1.0_dp - (overlaps(1, ipermutation, 1)**2 + overlaps(2, ipermutation, 1)**2)/ &
                                               (2.0_dp*overlaps(1, ipermutation, 1)*overlaps(2, ipermutation, 1))* &
                                               Sda))
          END IF
@@ -2438,15 +2438,15 @@ CONTAINS
          cell_v(i) = cell%hmat(i, i)
       END DO
       ALLOCATE (R12(natom, natom))
-      DO iatom = 1, natom-1
-         DO jatom = iatom+1, natom
+      DO iatom = 1, natom - 1
+         DO jatom = iatom + 1, natom
             r = particle_set(iatom)%r
             r1 = particle_set(jatom)%r
             DO i = 1, 3
-               r(i) = MODULO(r(i), cell%hmat(i, i))-cell%hmat(i, i)/2._dp
-               r1(i) = MODULO(r1(i), cell%hmat(i, i))-cell%hmat(i, i)/2._dp
+               r(i) = MODULO(r(i), cell%hmat(i, i)) - cell%hmat(i, i)/2._dp
+               r1(i) = MODULO(r1(i), cell%hmat(i, i)) - cell%hmat(i, i)/2._dp
             END DO
-            dist_vec = (r-r1)-ANINT((r-r1)/cell_v)*cell_v
+            dist_vec = (r - r1) - ANINT((r - r1)/cell_v)*cell_v
             IF (store_vectors) THEN
                position_vecs(:, iatom) = r(:)
                IF (iatom == 1 .AND. jatom == natom) position_vecs(:, jatom) = r1(:)
@@ -2466,8 +2466,8 @@ CONTAINS
                jrcov = cdft_control%becke_control%radii(ikind)
                IF (ircov .NE. jrcov) THEN
                   chi = ircov/jrcov
-                  uij = (chi-1.0_dp)/(chi+1.0_dp)
-                  cdft_control%becke_control%aij(iatom, jatom) = uij/(uij**2-1.0_dp)
+                  uij = (chi - 1.0_dp)/(chi + 1.0_dp)
+                  cdft_control%becke_control%aij(iatom, jatom) = uij/(uij**2 - 1.0_dp)
                   IF (cdft_control%becke_control%aij(iatom, jatom) &
                       .GT. 0.5_dp) THEN
                      cdft_control%becke_control%aij(iatom, jatom) = 0.5_dp
@@ -2578,11 +2578,11 @@ CONTAINS
                   IF (rs_cavity%desc%parallel .AND. .NOT. rs_cavity%desc%distributed) THEN
                      ! replicated realspace grid, split the atoms up between procs
                      IF (MODULO(iatom, rs_cavity%desc%group_size) == rs_cavity%desc%my_pos) THEN
-                        npme = npme+1
+                        npme = npme + 1
                         cores(npme) = iatom
                      ENDIF
                   ELSE
-                     npme = npme+1
+                     npme = npme + 1
                      cores(npme) = iatom
                   ENDIF
                END DO
@@ -2591,7 +2591,7 @@ CONTAINS
                   atom_a = atom_list(iatom)
                   pab(1, 1) = coef
                   IF (store_vectors) THEN
-                     ra(:) = position_vecs(:, atom_a)+cell_v(:)/2._dp
+                     ra(:) = position_vecs(:, atom_a) + cell_v(:)/2._dp
                   ELSE
                      ra(:) = pbc(particle_set(atom_a)%r, cell)
                   END IF
@@ -2615,7 +2615,7 @@ CONTAINS
                         cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)
          IF (bounds(2) .LT. bo(2, 3)) THEN
-            bounds(2) = bounds(2)-1
+            bounds(2) = bounds(2) - 1
          ELSE
             bounds(2) = bo(2, 3)
          END IF
@@ -2623,18 +2623,18 @@ CONTAINS
             ! In the special case bounds(1) == bounds(2) == bo(2, 3), after this check
             ! bounds(1) > bounds(2) and the subsequent gradient allocation (:, :, :, bounds(1):bounds(2))
             ! will correctly allocate a 0-sized array
-            bounds(1) = bounds(1)+1
+            bounds(1) = bounds(1) + 1
          ELSE
             bounds(1) = bo(1, 3)
          END IF
          IF (bounds(1) > bounds(2)) THEN
             my_work_size = 0
          ELSE
-            my_work_size = (bounds(2)-bounds(1)+1)
+            my_work_size = (bounds(2) - bounds(1) + 1)
             IF (mixed_cdft%is_pencil .OR. mixed_cdft%is_special) THEN
-               my_work_size = my_work_size*(bo(2, 2)-bo(1, 2)+1)
+               my_work_size = my_work_size*(bo(2, 2) - bo(1, 2) + 1)
             ELSE
-               my_work_size = my_work_size*(bo(2, 1)-bo(1, 1)+1)
+               my_work_size = my_work_size*(bo(2, 1) - bo(1, 1) + 1)
             END IF
          END IF
          cdft_control%becke_control%confine_bounds = bounds
@@ -2685,14 +2685,14 @@ CONTAINS
                                                                                          bo_conf(1, 3):bo_conf(2, 3))
             END DO
          ELSE IF (mixed_cdft%is_pencil) THEN
-            ALLOCATE (mixed_cdft%cavity(bo(1, 1)+offset_dlb:bo(2, 1), bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%cavity = cdft_control%becke_control%cavity%pw%cr3d(bo(1, 1)+offset_dlb:bo(2, 1), &
+            ALLOCATE (mixed_cdft%cavity(bo(1, 1) + offset_dlb:bo(2, 1), bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
+            mixed_cdft%cavity = cdft_control%becke_control%cavity%pw%cr3d(bo(1, 1) + offset_dlb:bo(2, 1), &
                                                                           bo(1, 2):bo(2, 2), &
                                                                           bo_conf(1, 3):bo_conf(2, 3))
          ELSE
-            ALLOCATE (mixed_cdft%cavity(bo(1, 1):bo(2, 1), bo(1, 2)+offset_dlb:bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
+            ALLOCATE (mixed_cdft%cavity(bo(1, 1):bo(2, 1), bo(1, 2) + offset_dlb:bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
             mixed_cdft%cavity = cdft_control%becke_control%cavity%pw%cr3d(bo(1, 1):bo(2, 1), &
-                                                                          bo(1, 2)+offset_dlb:bo(2, 2), &
+                                                                          bo(1, 2) + offset_dlb:bo(2, 2), &
                                                                           bo_conf(1, 3):bo_conf(2, 3))
          END IF
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
@@ -2704,10 +2704,10 @@ CONTAINS
             mixed_cdft%sendbuff(i)%weight = 0.0_dp
          END DO
       ELSE IF (mixed_cdft%is_pencil) THEN
-         ALLOCATE (mixed_cdft%weight(bo(1, 1)+offset_dlb:bo(2, 1), bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
+         ALLOCATE (mixed_cdft%weight(bo(1, 1) + offset_dlb:bo(2, 1), bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
          mixed_cdft%weight = 0.0_dp
       ELSE
-         ALLOCATE (mixed_cdft%weight(bo(1, 1):bo(2, 1), bo(1, 2)+offset_dlb:bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
+         ALLOCATE (mixed_cdft%weight(bo(1, 1):bo(2, 1), bo(1, 2) + offset_dlb:bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
          mixed_cdft%weight = 0.0_dp
       END IF
       IF (in_memory) THEN
@@ -2720,13 +2720,13 @@ CONTAINS
                mixed_cdft%sendbuff(i)%gradients = 0.0_dp
             END DO
          ELSE IF (mixed_cdft%is_pencil) THEN
-            ALLOCATE (cdft_control%group(1)%gradients(3*natom, bo(1, 1)+offset_dlb:bo(2, 1), &
+            ALLOCATE (cdft_control%group(1)%gradients(3*natom, bo(1, 1) + offset_dlb:bo(2, 1), &
                                                       bo(1, 2):bo(2, 2), &
                                                       bo_conf(1, 3):bo_conf(2, 3)))
             cdft_control%group(1)%gradients = 0.0_dp
          ELSE
             ALLOCATE (cdft_control%group(1)%gradients(3*natom, bo(1, 1):bo(2, 1), &
-                                                      bo(1, 2)+offset_dlb:bo(2, 2), &
+                                                      bo(1, 2) + offset_dlb:bo(2, 2), &
                                                       bo_conf(1, 3):bo_conf(2, 3)))
             cdft_control%group(1)%gradients = 0.0_dp
          END IF
@@ -2827,20 +2827,20 @@ CONTAINS
          should_warn = 0
       END IF
       expected_work = 0
-      expected_work(force_env%para_env%mepos+1) = my_work
+      expected_work(force_env%para_env%mepos + 1) = my_work
       work_size = 0
-      work_size(force_env%para_env%mepos+1) = my_work_size
+      work_size(force_env%para_env%mepos + 1) = my_work_size
       IF (ASSOCIATED(mixed_cdft%dlb_control%prediction_error)) THEN
          IF (mixed_cdft%is_pencil .OR. mixed_cdft%is_special) THEN
-            work_size(force_env%para_env%mepos+1) = work_size(force_env%para_env%mepos+1)- &
-                                                    NINT(REAL(mixed_cdft%dlb_control% &
-                                                              prediction_error(force_env%para_env%mepos+1), dp)/ &
-                                                         REAL(bo(2, 1)-bo(1, 1)+1, dp))
+            work_size(force_env%para_env%mepos + 1) = work_size(force_env%para_env%mepos + 1) - &
+                                                      NINT(REAL(mixed_cdft%dlb_control% &
+                                                                prediction_error(force_env%para_env%mepos + 1), dp)/ &
+                                                           REAL(bo(2, 1) - bo(1, 1) + 1, dp))
          ELSE
-            work_size(force_env%para_env%mepos+1) = work_size(force_env%para_env%mepos+1)- &
-                                                    NINT(REAL(mixed_cdft%dlb_control% &
-                                                              prediction_error(force_env%para_env%mepos+1), dp)/ &
-                                                         REAL(bo(2, 2)-bo(1, 2)+1, dp))
+            work_size(force_env%para_env%mepos + 1) = work_size(force_env%para_env%mepos + 1) - &
+                                                      NINT(REAL(mixed_cdft%dlb_control% &
+                                                                prediction_error(force_env%para_env%mepos + 1), dp)/ &
+                                                           REAL(bo(2, 2) - bo(1, 2) + 1, dp))
          END IF
       END IF
       CALL mp_sum(expected_work, force_env%para_env%group)
@@ -2849,23 +2849,23 @@ CONTAINS
       mixed_cdft%dlb_control%expected_work = expected_work
       ! Take into account the prediction error of the last step
       IF (ASSOCIATED(mixed_cdft%dlb_control%prediction_error)) &
-         expected_work = expected_work-mixed_cdft%dlb_control%prediction_error
+         expected_work = expected_work - mixed_cdft%dlb_control%prediction_error
       !
       average_work = REAL(SUM(expected_work), dp)/REAL(force_env%para_env%num_pe, dp)
       ALLOCATE (work_index(force_env%para_env%num_pe), &
                 load_imbalance(force_env%para_env%num_pe), &
                 targets(2, force_env%para_env%num_pe))
-      load_imbalance = expected_work-NINT(average_work)
+      load_imbalance = expected_work - NINT(average_work)
       no_overloaded = 0
       no_underloaded = 0
       targets = 0
       ! Convert the load imbalance to a multiple of the actual work size
       DO i = 1, force_env%para_env%num_pe
          IF (load_imbalance(i) .GT. 0) THEN
-            no_overloaded = no_overloaded+1
+            no_overloaded = no_overloaded + 1
             ! Allow heavily overloaded processors to dump more data since most likely they have a lot of 'real' work
             IF (expected_work(i) .GT. NINT(very_overloaded*average_work)) THEN
-               load_imbalance(i) = (CEILING(REAL(load_imbalance(i), dp)/REAL(work_size(i), dp))+more_work)*work_size(i)
+               load_imbalance(i) = (CEILING(REAL(load_imbalance(i), dp)/REAL(work_size(i), dp)) + more_work)*work_size(i)
             ELSE
                load_imbalance(i) = CEILING(REAL(load_imbalance(i), dp)/REAL(work_size(i), dp))*work_size(i)
             END IF
@@ -2873,27 +2873,27 @@ CONTAINS
             ! Allow the underloaded processors to take load_scale amount of additional work
             ! otherwise we may be unable to exhaust all overloaded processors
             load_imbalance(i) = NINT(load_imbalance(i)*load_scale)
-            no_underloaded = no_underloaded+1
+            no_underloaded = no_underloaded + 1
          END IF
       END DO
       CALL sort(expected_work, force_env%para_env%num_pe, indices=work_index)
       ! Redistribute work in order from the most overloaded processors to the most underloaded processors
       ! Each underloaded processor is limited to one overloaded processor
-      IF (load_imbalance(force_env%para_env%mepos+1) > 0) THEN
+      IF (load_imbalance(force_env%para_env%mepos + 1) > 0) THEN
          offset = 0
          mixed_cdft%dlb_control%send_work = .TRUE.
          ! Build up the total amount of work that needs redistribution
          ALLOCATE (cumulative_work(force_env%para_env%num_pe))
          cumulative_work = 0
-         DO i = force_env%para_env%num_pe, force_env%para_env%num_pe-no_overloaded+1, -1
-            IF (work_index(i) == force_env%para_env%mepos+1) THEN
+         DO i = force_env%para_env%num_pe, force_env%para_env%num_pe - no_overloaded + 1, -1
+            IF (work_index(i) == force_env%para_env%mepos + 1) THEN
                EXIT
             ELSE
-               offset = offset+load_imbalance(work_index(i))
+               offset = offset + load_imbalance(work_index(i))
                IF (i == force_env%para_env%num_pe) THEN
                   cumulative_work(i) = load_imbalance(work_index(i))
                ELSE
-                  cumulative_work(i) = cumulative_work(i+1)+load_imbalance(work_index(i))
+                  cumulative_work(i) = cumulative_work(i + 1) + load_imbalance(work_index(i))
                END IF
             END IF
          END DO
@@ -2906,13 +2906,13 @@ CONTAINS
             IF (my_pos == force_env%para_env%num_pe) EXIT
             nsend = -load_imbalance(work_index(i))/work_size(work_index(j))
             IF (nsend .LT. 1) nsend = 1
-            nsend_max = nsend_max-nsend
-            IF (nsend_max .LT. 0) nsend = nsend+nsend_max
-            exhausted_work = exhausted_work+nsend*work_size(work_index(j))
-            offset = offset-nsend*work_size(work_index(j))
+            nsend_max = nsend_max - nsend
+            IF (nsend_max .LT. 0) nsend = nsend + nsend_max
+            exhausted_work = exhausted_work + nsend*work_size(work_index(j))
+            offset = offset - nsend*work_size(work_index(j))
             IF (offset .LT. 0) EXIT
             IF (exhausted_work .EQ. cumulative_work(j)) THEN
-               j = j-1
+               j = j - 1
                nsend_max = load_imbalance(work_index(j))/work_size(work_index(j))
             END IF
          END DO
@@ -2924,17 +2924,17 @@ CONTAINS
          my_target = i
          DEALLOCATE (cumulative_work)
          ! Determine how much and who to send slices of my grid points
-         nsend_max = load_imbalance(force_env%para_env%mepos+1)/work_size(force_env%para_env%mepos+1)
+         nsend_max = load_imbalance(force_env%para_env%mepos + 1)/work_size(force_env%para_env%mepos + 1)
          ! This the actual number of available array slices
          IF (mixed_cdft%is_pencil .OR. mixed_cdft%is_special) THEN
-            nsend_limit = bo(2, 1)-bo(1, 1)+1
+            nsend_limit = bo(2, 1) - bo(1, 1) + 1
          ELSE
-            nsend_limit = bo(2, 2)-bo(1, 2)+1
+            nsend_limit = bo(2, 2) - bo(1, 2) + 1
          END IF
          IF (.NOT. mixed_cdft%is_special) THEN
             ALLOCATE (mixed_cdft%dlb_control%target_list(3, max_targets))
          ELSE
-            ALLOCATE (mixed_cdft%dlb_control%target_list(3+2*SIZE(mixed_cdft%dest_list), max_targets))
+            ALLOCATE (mixed_cdft%dlb_control%target_list(3 + 2*SIZE(mixed_cdft%dest_list), max_targets))
             ALLOCATE (touched(SIZE(mixed_cdft%dest_list)))
             touched = .FALSE.
          END IF
@@ -2946,55 +2946,55 @@ CONTAINS
          send_total = 0
          ! Main loop. Note, we actually allow my_pos to offload more slices than nsend_max
          DO
-            nsend = -load_imbalance(work_index(my_target))/work_size(force_env%para_env%mepos+1)
+            nsend = -load_imbalance(work_index(my_target))/work_size(force_env%para_env%mepos + 1)
             IF (nsend .LT. 1) nsend = 1 ! send at least one block
             ! Prevent over redistribution: leave at least (1-work_factor)*nsend_limit slices to my_pos
-            IF (nsend .GT. NINT(work_factor*nsend_limit-send_total)) THEN
-               nsend = NINT(work_factor*nsend_limit-send_total)
+            IF (nsend .GT. NINT(work_factor*nsend_limit - send_total)) THEN
+               nsend = NINT(work_factor*nsend_limit - send_total)
                IF (debug_this_module) &
-                  should_warn(force_env%para_env%mepos+1) = 1
+                  should_warn(force_env%para_env%mepos + 1) = 1
             END IF
-            mixed_cdft%dlb_control%target_list(1, i) = work_index(my_target)-1 ! This is the actual processor rank
+            mixed_cdft%dlb_control%target_list(1, i) = work_index(my_target) - 1 ! This is the actual processor rank
             IF (mixed_cdft%is_special) THEN
                mixed_cdft%dlb_control%target_list(2, i) = 0
                actually_sent = nsend
                DO j = ispecial, SIZE(mixed_cdft%dest_list)
-                  mixed_cdft%dlb_control%target_list(2, i) = mixed_cdft%dlb_control%target_list(2, i)+1
+                  mixed_cdft%dlb_control%target_list(2, i) = mixed_cdft%dlb_control%target_list(2, i) + 1
                   touched(j) = .TRUE.
-                  IF (nsend .LT. mixed_cdft%dest_list_bo(2, j)-mixed_cdft%dest_list_bo(1, j)+1) THEN
-                     mixed_cdft%dlb_control%target_list(3+2*j-1, i) = mixed_cdft%dest_list_bo(1, j)
-                     mixed_cdft%dlb_control%target_list(3+2*j, i) = mixed_cdft%dest_list_bo(1, j)+nsend-1
-                     mixed_cdft%dest_list_bo(1, j) = mixed_cdft%dest_list_bo(1, j)+nsend
+                  IF (nsend .LT. mixed_cdft%dest_list_bo(2, j) - mixed_cdft%dest_list_bo(1, j) + 1) THEN
+                     mixed_cdft%dlb_control%target_list(3 + 2*j - 1, i) = mixed_cdft%dest_list_bo(1, j)
+                     mixed_cdft%dlb_control%target_list(3 + 2*j, i) = mixed_cdft%dest_list_bo(1, j) + nsend - 1
+                     mixed_cdft%dest_list_bo(1, j) = mixed_cdft%dest_list_bo(1, j) + nsend
                      nsend = 0
                      EXIT
                   ELSE
-                     mixed_cdft%dlb_control%target_list(3+2*j-1, i) = mixed_cdft%dest_list_bo(1, j)
-                     mixed_cdft%dlb_control%target_list(3+2*j, i) = mixed_cdft%dest_list_bo(2, j)
-                     nsend = nsend-(mixed_cdft%dest_list_bo(2, j)-mixed_cdft%dest_list_bo(1, j)+1)
+                     mixed_cdft%dlb_control%target_list(3 + 2*j - 1, i) = mixed_cdft%dest_list_bo(1, j)
+                     mixed_cdft%dlb_control%target_list(3 + 2*j, i) = mixed_cdft%dest_list_bo(2, j)
+                     nsend = nsend - (mixed_cdft%dest_list_bo(2, j) - mixed_cdft%dest_list_bo(1, j) + 1)
                      mixed_cdft%dest_list_bo(1:2, j) = should_deallocate
                   END IF
                   IF (nsend .LE. 0) EXIT
                END DO
-               IF (mixed_cdft%dest_list_bo(1, ispecial) .EQ. should_deallocate) ispecial = j+1
-               actually_sent = actually_sent-nsend
-               nsend_max = nsend_max-actually_sent
-               send_total = send_total+actually_sent
+               IF (mixed_cdft%dest_list_bo(1, ispecial) .EQ. should_deallocate) ispecial = j + 1
+               actually_sent = actually_sent - nsend
+               nsend_max = nsend_max - actually_sent
+               send_total = send_total + actually_sent
             ELSE
                mixed_cdft%dlb_control%target_list(2, i) = nsend
-               nsend_max = nsend_max-nsend
-               send_total = send_total+nsend
+               nsend_max = nsend_max - nsend
+               send_total = send_total + nsend
             END IF
             IF (nsend_max .LT. 0) nsend_max = 0
             IF (nsend_max .EQ. 0) EXIT
             IF (my_target /= no_underloaded) THEN
-               my_target = my_target+1
+               my_target = my_target + 1
             ELSE
                ! If multiple processors execute this block load balancing will fail
-               mixed_cdft%dlb_control%target_list(2, i) = mixed_cdft%dlb_control%target_list(2, i)+nsend_max
+               mixed_cdft%dlb_control%target_list(2, i) = mixed_cdft%dlb_control%target_list(2, i) + nsend_max
                nsend_max = 0
                EXIT
             END IF
-            i = i+1
+            i = i + 1
             IF (i .GT. max_targets) &
                CALL cp_abort(__LOCATION__, &
                              "Load balancing error: increase max_targets")
@@ -3002,18 +3002,18 @@ CONTAINS
          IF (.NOT. mixed_cdft%is_special) THEN
             CALL reallocate(mixed_cdft%dlb_control%target_list, 1, 3, 1, i)
          ELSE
-            CALL reallocate(mixed_cdft%dlb_control%target_list, 1, 3+2*SIZE(mixed_cdft%dest_list), 1, i)
+            CALL reallocate(mixed_cdft%dlb_control%target_list, 1, 3 + 2*SIZE(mixed_cdft%dest_list), 1, i)
          END IF
          targets(2, my_pos) = my_target
          ! Equalize the load on the target processors
          IF (.NOT. mixed_cdft%is_special) THEN
-            IF (send_total .GT. NINT(work_factor*nsend_limit)) send_total = NINT(work_factor*nsend_limit)-1
+            IF (send_total .GT. NINT(work_factor*nsend_limit)) send_total = NINT(work_factor*nsend_limit) - 1
             nsend = NINT(REAL(send_total, dp)/REAL(SIZE(mixed_cdft%dlb_control%target_list, 2), dp))
             mixed_cdft%dlb_control%target_list(2, :) = nsend
          END IF
       ELSE
          DO i = 1, no_underloaded
-            IF (work_index(i) == force_env%para_env%mepos+1) EXIT
+            IF (work_index(i) == force_env%para_env%mepos + 1) EXIT
          END DO
          my_pos = i
       END IF
@@ -3030,9 +3030,9 @@ CONTAINS
       ! check that there is one-to-one mapping between over- and underloaded processors
       IF (force_env%para_env%ionode) THEN
          consistent = .TRUE.
-         DO i = force_env%para_env%num_pe-1, force_env%para_env%num_pe-no_overloaded+1, -1
+         DO i = force_env%para_env%num_pe - 1, force_env%para_env%num_pe - no_overloaded + 1, -1
             IF (targets(1, i) .GT. no_underloaded) consistent = .FALSE.
-            IF (targets(1, i) .GT. targets(2, i+1)) THEN
+            IF (targets(1, i) .GT. targets(2, i + 1)) THEN
                CYCLE
             ELSE
                consistent = .FALSE.
@@ -3040,7 +3040,7 @@ CONTAINS
          END DO
          IF (.NOT. consistent) THEN
             IF (debug_this_module .AND. iounit > 0) THEN
-               DO i = force_env%para_env%num_pe-1, force_env%para_env%num_pe-no_overloaded+1, -1
+               DO i = force_env%para_env%num_pe - 1, force_env%para_env%num_pe - no_overloaded + 1, -1
                   WRITE (iounit, '(A,I8,I8,I8,I8,I8)') &
                      'load balancing info', load_imbalance(i), work_index(i), &
                      work_size(i), targets(1, i), targets(2, i)
@@ -3055,10 +3055,10 @@ CONTAINS
       END IF
       ! Tell the target processors which grid points they should compute
       IF (my_pos .LE. no_underloaded) THEN
-         DO i = force_env%para_env%num_pe, force_env%para_env%num_pe-no_overloaded+1, -1
+         DO i = force_env%para_env%num_pe, force_env%para_env%num_pe - no_overloaded + 1, -1
             IF (targets(1, i) .LE. my_pos .AND. targets(2, i) .GE. my_pos) THEN
                mixed_cdft%dlb_control%recv_work = .TRUE.
-               mixed_cdft%dlb_control%my_source = work_index(i)-1
+               mixed_cdft%dlb_control%my_source = work_index(i) - 1
                EXIT
             END IF
          END DO
@@ -3099,34 +3099,34 @@ CONTAINS
                DEALLOCATE (buffsize)
                CALL mp_wait(req(1))
                DO j = 1, SIZE(mixed_cdft%dlb_control%sendbuff)
-                  ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%cavity(mixed_cdft%dlb_control%bo(12*(j-1)+1): &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+2), &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+3): &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+4), &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+7): &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+8)))
+                  ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%cavity(mixed_cdft%dlb_control%bo(12*(j - 1) + 1): &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 2), &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 3): &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 4), &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 7): &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 8)))
                   CALL mp_irecv(msgout=mixed_cdft%dlb_control%sendbuff(j)%cavity, &
                                 source=mixed_cdft%dlb_control%my_source, &
                                 request=req_recv(j), comm=force_env%para_env%group)
-                  ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%weight(mixed_cdft%dlb_control%bo(12*(j-1)+1): &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+2), &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+3): &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+4), &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+7): &
-                                                                      mixed_cdft%dlb_control%bo(12*(j-1)+8)))
+                  ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%weight(mixed_cdft%dlb_control%bo(12*(j - 1) + 1): &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 2), &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 3): &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 4), &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 7): &
+                                                                      mixed_cdft%dlb_control%bo(12*(j - 1) + 8)))
                   ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%gradients(3*natom, &
-                                                                         mixed_cdft%dlb_control%bo(12*(j-1)+1): &
-                                                                         mixed_cdft%dlb_control%bo(12*(j-1)+2), &
-                                                                         mixed_cdft%dlb_control%bo(12*(j-1)+3): &
-                                                                         mixed_cdft%dlb_control%bo(12*(j-1)+4), &
-                                                                         mixed_cdft%dlb_control%bo(12*(j-1)+7): &
-                                                                         mixed_cdft%dlb_control%bo(12*(j-1)+8)))
+                                                                         mixed_cdft%dlb_control%bo(12*(j - 1) + 1): &
+                                                                         mixed_cdft%dlb_control%bo(12*(j - 1) + 2), &
+                                                                         mixed_cdft%dlb_control%bo(12*(j - 1) + 3): &
+                                                                         mixed_cdft%dlb_control%bo(12*(j - 1) + 4), &
+                                                                         mixed_cdft%dlb_control%bo(12*(j - 1) + 7): &
+                                                                         mixed_cdft%dlb_control%bo(12*(j - 1) + 8)))
                   mixed_cdft%dlb_control%sendbuff(j)%weight = 0.0_dp
                   mixed_cdft%dlb_control%sendbuff(j)%gradients = 0.0_dp
-                  mixed_cdft%dlb_control%sendbuff(j)%tag = (/mixed_cdft%dlb_control%bo(12*(j-1)+9), &
-                                                             mixed_cdft%dlb_control%bo(12*(j-1)+10)/)
-                  mixed_cdft%dlb_control%sendbuff(j)%rank = (/mixed_cdft%dlb_control%bo(12*(j-1)+11), &
-                                                              mixed_cdft%dlb_control%bo(12*(j-1)+12)/)
+                  mixed_cdft%dlb_control%sendbuff(j)%tag = (/mixed_cdft%dlb_control%bo(12*(j - 1) + 9), &
+                                                             mixed_cdft%dlb_control%bo(12*(j - 1) + 10)/)
+                  mixed_cdft%dlb_control%sendbuff(j)%rank = (/mixed_cdft%dlb_control%bo(12*(j - 1) + 11), &
+                                                              mixed_cdft%dlb_control%bo(12*(j - 1) + 12)/)
                END DO
                CALL mp_waitall(req_recv)
                DEALLOCATE (req_recv)
@@ -3138,58 +3138,58 @@ CONTAINS
             ALLOCATE (sendbuffer(12))
             send_total = 0
             DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
-               tags = (/(i-1)*3+1+force_env%para_env%mepos*6*max_targets, &
-                        (i-1)*3+1+3*max_targets+force_env%para_env%mepos*6*max_targets/) ! Unique communicator tags
+               tags = (/(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
+                        (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets/) ! Unique communicator tags
                mixed_cdft%dlb_control%target_list(3, i) = tags(1)
                IF (mixed_cdft%is_pencil) THEN
-                  sendbuffer = (/bo_conf(1, 1)+offset, &
-                                 bo_conf(1, 1)+offset+(mixed_cdft%dlb_control%target_list(2, i)-1), &
+                  sendbuffer = (/bo_conf(1, 1) + offset, &
+                                 bo_conf(1, 1) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                  bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), bo_conf(1, 3), bo_conf(2, 3), &
                                  tags(1), tags(2), mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)/)
                ELSE
                   sendbuffer = (/bo_conf(1, 1), bo_conf(2, 1), &
-                                 bo_conf(1, 2)+offset, &
-                                 bo_conf(1, 2)+offset+(mixed_cdft%dlb_control%target_list(2, i)-1), &
+                                 bo_conf(1, 2) + offset, &
+                                 bo_conf(1, 2) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                  bo(1, 3), bo(2, 3), bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
                                  mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)/)
                END IF
-               send_total = send_total+mixed_cdft%dlb_control%target_list(2, i)-1
+               send_total = send_total + mixed_cdft%dlb_control%target_list(2, i) - 1
                CALL mp_isend(msgin=sendbuffer, dest=mixed_cdft%dlb_control%target_list(1, i), &
                              request=req(1), comm=force_env%para_env%group)
                CALL mp_wait(req(1))
                IF (mixed_cdft%is_pencil) THEN
-                  ALLOCATE (cavity(bo_conf(1, 1)+offset: &
-                                   bo_conf(1, 1)+offset+(mixed_cdft%dlb_control%target_list(2, i)-1), &
+                  ALLOCATE (cavity(bo_conf(1, 1) + offset: &
+                                   bo_conf(1, 1) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                    bo_conf(1, 2):bo_conf(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = cdft_control%becke_control%cavity%pw%cr3d(bo_conf(1, 1)+offset: &
-                                                                     bo_conf(1, 1)+offset+ &
-                                                                     (mixed_cdft%dlb_control%target_list(2, i)-1), &
+                  cavity = cdft_control%becke_control%cavity%pw%cr3d(bo_conf(1, 1) + offset: &
+                                                                     bo_conf(1, 1) + offset + &
+                                                                     (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                                                      bo_conf(1, 2):bo_conf(2, 2), &
                                                                      bo_conf(1, 3):bo_conf(2, 3))
                ELSE
                   ALLOCATE (cavity(bo_conf(1, 1):bo_conf(2, 1), &
-                                   bo_conf(1, 2)+offset: &
-                                   bo_conf(1, 2)+offset+(mixed_cdft%dlb_control%target_list(2, i)-1), &
+                                   bo_conf(1, 2) + offset: &
+                                   bo_conf(1, 2) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                    bo_conf(1, 3):bo_conf(2, 3)))
                   cavity = cdft_control%becke_control%cavity%pw%cr3d(bo_conf(1, 1):bo_conf(2, 1), &
-                                                                     bo_conf(1, 2)+offset: &
-                                                                     bo_conf(1, 2)+offset+ &
-                                                                     (mixed_cdft%dlb_control%target_list(2, i)-1), &
+                                                                     bo_conf(1, 2) + offset: &
+                                                                     bo_conf(1, 2) + offset + &
+                                                                     (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                                                      bo_conf(1, 3):bo_conf(2, 3))
                END IF
                CALL mp_isend(msgin=cavity, &
                              dest=mixed_cdft%dlb_control%target_list(1, i), &
                              request=req(1), comm=force_env%para_env%group)
                CALL mp_wait(req(1))
-               offset = offset+mixed_cdft%dlb_control%target_list(2, i)
+               offset = offset + mixed_cdft%dlb_control%target_list(2, i)
                DEALLOCATE (cavity)
             END DO
             IF (mixed_cdft%is_pencil) THEN
                mixed_cdft%dlb_control%distributed(1) = bo_conf(1, 1)
-               mixed_cdft%dlb_control%distributed(2) = bo_conf(1, 1)+offset-1
+               mixed_cdft%dlb_control%distributed(2) = bo_conf(1, 1) + offset - 1
             ELSE
                mixed_cdft%dlb_control%distributed(1) = bo_conf(1, 2)
-               mixed_cdft%dlb_control%distributed(2) = bo_conf(1, 2)+offset-1
+               mixed_cdft%dlb_control%distributed(2) = bo_conf(1, 2) + offset - 1
             END IF
             DEALLOCATE (sendbuffer)
          ELSE
@@ -3197,25 +3197,25 @@ CONTAINS
             DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
                buffsize = mixed_cdft%dlb_control%target_list(2, i)
                ! Unique communicator tags (dont actually need these, should be removed)
-               tags = (/(i-1)*3+1+force_env%para_env%mepos*6*max_targets, &
-                        (i-1)*3+1+3*max_targets+force_env%para_env%mepos*6*max_targets/)
+               tags = (/(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
+                        (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets/)
                DO j = 4, SIZE(mixed_cdft%dlb_control%target_list, 1)
                   IF (mixed_cdft%dlb_control%target_list(j, i) .GT. uninitialized) EXIT
                END DO
                offset_special = j
-               offset_proc = j-4-(j-4)/2
+               offset_proc = j - 4 - (j - 4)/2
                CALL mp_isend(msgin=buffsize, &
                              dest=mixed_cdft%dlb_control%target_list(1, i), &
                              request=req(1), comm=force_env%para_env%group)
                CALL mp_wait(req(1))
                ALLOCATE (sendbuffer(12*buffsize(1)))
                DO j = 1, buffsize(1)
-                  sendbuffer(12*(j-1)+1:12*(j-1)+12) = (/mixed_cdft%dlb_control%target_list(offset_special+2*(j-1), i), &
-                                                         mixed_cdft%dlb_control%target_list(offset_special+2*j-1, i), &
-                                                         bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), &
-                                                         bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
-                                                         mixed_cdft%dest_list(j+offset_proc), &
-                                                         mixed_cdft%dest_list(j+offset_proc)+force_env%para_env%num_pe/2/)
+                 sendbuffer(12*(j - 1) + 1:12*(j - 1) + 12) = (/mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i), &
+                                                                 mixed_cdft%dlb_control%target_list(offset_special + 2*j - 1, i), &
+                                                                 bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), &
+                                                                 bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
+                                                                 mixed_cdft%dest_list(j + offset_proc), &
+                                                               mixed_cdft%dest_list(j + offset_proc) + force_env%para_env%num_pe/2/)
                END DO
                CALL mp_isend(msgin=sendbuffer, &
                              dest=mixed_cdft%dlb_control%target_list(1, i), &
@@ -3223,8 +3223,8 @@ CONTAINS
                CALL mp_wait(req(1))
                DEALLOCATE (sendbuffer)
                DO j = 1, buffsize(1)
-                  ALLOCATE (cavity(mixed_cdft%dlb_control%target_list(offset_special+2*(j-1), i): &
-                                   mixed_cdft%dlb_control%target_list(offset_special+2*j-1, i), &
+                  ALLOCATE (cavity(mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i): &
+                                   mixed_cdft%dlb_control%target_list(offset_special + 2*j - 1, i), &
                                    bo_conf(1, 2):bo_conf(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
                   cavity = cdft_control%becke_control%cavity%pw%cr3d(LBOUND(cavity, 1):UBOUND(cavity, 1), &
                                                                      bo_conf(1, 2):bo_conf(2, 2), &
@@ -3255,7 +3255,7 @@ CONTAINS
          my_special_work = 1
       END IF
       ALLOCATE (recvbuffer(SIZE(mixed_cdft%source_list)), sbuff(SIZE(mixed_cdft%dest_list)))
-      ALLOCATE (req_total(my_special_work*SIZE(mixed_cdft%source_list)+(my_special_work**2)*SIZE(mixed_cdft%dest_list)))
+      ALLOCATE (req_total(my_special_work*SIZE(mixed_cdft%source_list) + (my_special_work**2)*SIZE(mixed_cdft%dest_list)))
       ALLOCATE (mixed_cdft%dlb_control%recv_work_repl(SIZE(mixed_cdft%source_list)))
       DO i = 1, SIZE(mixed_cdft%source_list)
          NULLIFY (recvbuffer(i)%bv, recvbuffer(i)%iv)
@@ -3266,7 +3266,7 @@ CONTAINS
          IF (mixed_cdft%is_special) &
             CALL mp_irecv(msgout=recvbuffer(i)%iv, &
                           source=mixed_cdft%source_list(i), &
-                          request=req_total(i+SIZE(mixed_cdft%source_list)), &
+                          request=req_total(i + SIZE(mixed_cdft%source_list)), &
                           tag=2, comm=force_env%para_env%group)
       END DO
       DO i = 1, my_special_work
@@ -3285,8 +3285,8 @@ CONTAINS
                      IF (touched(j)) THEN
                         nsend = 0
                         DO ispecial = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
-                           IF (mixed_cdft%dlb_control%target_list(4+2*(j-1), ispecial) .NE. uninitialized) &
-                              nsend = nsend+1
+                           IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), ispecial) .NE. uninitialized) &
+                              nsend = nsend + 1
                         END DO
                         sbuff(j)%iv(3) = nsend
                         nsend_proc(j) = nsend
@@ -3294,15 +3294,15 @@ CONTAINS
                   END IF
                END IF
             END IF
-            ind = j+(i-1)*SIZE(mixed_cdft%dest_list)+my_special_work*SIZE(mixed_cdft%source_list)
+            ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + my_special_work*SIZE(mixed_cdft%source_list)
             CALL mp_isend(msgin=sbuff(j)%bv, &
-                          dest=mixed_cdft%dest_list(j)+(i-1)*force_env%para_env%num_pe/2, &
+                          dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
                           request=req_total(ind), tag=1, &
                           comm=force_env%para_env%group)
             IF (mixed_cdft%is_special) &
                CALL mp_isend(msgin=sbuff(j)%iv, &
-                             dest=mixed_cdft%dest_list(j)+(i-1)*force_env%para_env%num_pe/2, &
-                             request=req_total(ind+2*SIZE(mixed_cdft%dest_list)), tag=2, &
+                             dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                             request=req_total(ind + 2*SIZE(mixed_cdft%dest_list)), tag=2, &
                              comm=force_env%para_env%group)
          END DO
       END DO
@@ -3331,7 +3331,7 @@ CONTAINS
 
       IF (.NOT. mixed_cdft%is_special) THEN
          IF (mixed_cdft%dlb_control%send_work) THEN
-            ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl)+2))
+            ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl) + 2))
             ALLOCATE (sendbuffer(6))
             IF (mixed_cdft%is_pencil) THEN
                sendbuffer = (/SIZE(mixed_cdft%dlb_control%target_list, 2), bo_conf(1, 3), bo_conf(2, 3), &
@@ -3351,12 +3351,12 @@ CONTAINS
          END IF
          ! First communicate which grid points were distributed
          IF (mixed_cdft%dlb_control%send_work) THEN
-            ind = COUNT(mixed_cdft%dlb_control%recv_work_repl)+1
+            ind = COUNT(mixed_cdft%dlb_control%recv_work_repl) + 1
             DO i = 1, 2
                CALL mp_isend(msgin=sendbuffer, &
                              dest=mixed_cdft%dest_list(i), &
                              request=req_total(ind), comm=force_env%para_env%group)
-               ind = ind+1
+               ind = ind + 1
             END DO
          END IF
          IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
@@ -3367,7 +3367,7 @@ CONTAINS
                   CALL mp_irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%matrix_info, &
                                 source=mixed_cdft%source_list(i), &
                                 request=req_total(ind), comm=force_env%para_env%group)
-                  ind = ind+1
+                  ind = ind + 1
                END IF
             END DO
          END IF
@@ -3376,14 +3376,14 @@ CONTAINS
          END IF
          ! Now communicate which processor handles which grid points
          IF (mixed_cdft%dlb_control%send_work) THEN
-            ind = COUNT(mixed_cdft%dlb_control%recv_work_repl)+1
+            ind = COUNT(mixed_cdft%dlb_control%recv_work_repl) + 1
             DO i = 1, 2
                IF (i == 2) &
-                  mixed_cdft%dlb_control%target_list(3, :) = mixed_cdft%dlb_control%target_list(3, :)+3*max_targets
+                  mixed_cdft%dlb_control%target_list(3, :) = mixed_cdft%dlb_control%target_list(3, :) + 3*max_targets
                CALL mp_isend(msgin=mixed_cdft%dlb_control%target_list, &
                              dest=mixed_cdft%dest_list(i), &
                              request=req_total(ind), comm=force_env%para_env%group)
-               ind = ind+1
+               ind = ind + 1
             END DO
          END IF
          IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
@@ -3395,7 +3395,7 @@ CONTAINS
                   CALL mp_irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%target_list, &
                                 source=mixed_cdft%source_list(i), &
                                 request=req_total(ind), comm=force_env%para_env%group)
-                  ind = ind+1
+                  ind = ind + 1
                END IF
             END DO
          END IF
@@ -3406,7 +3406,7 @@ CONTAINS
          IF (ASSOCIATED(sendbuffer)) DEALLOCATE (sendbuffer)
       ELSE
          IF (mixed_cdft%dlb_control%send_work) THEN
-            ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl)+2*COUNT(touched)))
+            ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl) + 2*COUNT(touched)))
          ELSE IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
             ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl)))
          END IF
@@ -3414,23 +3414,23 @@ CONTAINS
             ind = COUNT(mixed_cdft%dlb_control%recv_work_repl)
             DO j = 1, SIZE(mixed_cdft%dest_list)
                IF (touched(j)) THEN
-                  ALLOCATE (sbuff(j)%iv(4+3*nsend_proc(j)))
+                  ALLOCATE (sbuff(j)%iv(4 + 3*nsend_proc(j)))
                   sbuff(j)%iv(1:4) = (/bo_conf(1, 2), bo_conf(2, 2), bo_conf(1, 3), bo_conf(2, 3)/)
                   offset = 5
                   DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
-                     IF (mixed_cdft%dlb_control%target_list(4+2*(j-1), i) .NE. uninitialized) THEN
-                        sbuff(j)%iv(offset:offset+2) = (/mixed_cdft%dlb_control%target_list(1, i), &
-                                                         mixed_cdft%dlb_control%target_list(4+2*(j-1), i), &
-                                                         mixed_cdft%dlb_control%target_list(4+2*j-1, i)/)
-                        offset = offset+3
+                     IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i) .NE. uninitialized) THEN
+                        sbuff(j)%iv(offset:offset + 2) = (/mixed_cdft%dlb_control%target_list(1, i), &
+                                                           mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i), &
+                                                           mixed_cdft%dlb_control%target_list(4 + 2*j - 1, i)/)
+                        offset = offset + 3
                      END IF
                   END DO
                   DO ispecial = 1, my_special_work
                      CALL mp_isend(msgin=sbuff(j)%iv, &
-                                   dest=mixed_cdft%dest_list(j)+(ispecial-1)*force_env%para_env%num_pe/2, &
-                                   request=req_total(ind+ispecial), comm=force_env%para_env%group)
+                                   dest=mixed_cdft%dest_list(j) + (ispecial - 1)*force_env%para_env%num_pe/2, &
+                                   request=req_total(ind + ispecial), comm=force_env%para_env%group)
                   END DO
-                  ind = ind+my_special_work
+                  ind = ind + my_special_work
                END IF
             END DO
          END IF
@@ -3442,11 +3442,11 @@ CONTAINS
                NULLIFY (mixed_cdft%dlb_control%recv_info(j)%target_list, &
                         mixed_cdft%dlb_control%recvbuff(j)%buffs)
                IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
-                  ALLOCATE (mixed_cdft%dlb_control%recv_info(j)%matrix_info(4+3*nrecv(j)))
+                  ALLOCATE (mixed_cdft%dlb_control%recv_info(j)%matrix_info(4 + 3*nrecv(j)))
                   CALL mp_irecv(mixed_cdft%dlb_control%recv_info(j)%matrix_info, &
                                 source=mixed_cdft%source_list(j), &
                                 request=req_total(ind), comm=force_env%para_env%group)
-                  ind = ind+1
+                  ind = ind + 1
                END IF
             END DO
          END IF
@@ -3455,14 +3455,14 @@ CONTAINS
             DEALLOCATE (req_total)
          END IF
          IF (ANY(mask_send)) THEN
-            ALLOCATE (tmp(SIZE(mixed_cdft%dest_list)-COUNT(mask_send)), &
-                      tmp_bo(2, SIZE(mixed_cdft%dest_list)-COUNT(mask_send)))
+            ALLOCATE (tmp(SIZE(mixed_cdft%dest_list) - COUNT(mask_send)), &
+                      tmp_bo(2, SIZE(mixed_cdft%dest_list) - COUNT(mask_send)))
             i = 1
             DO j = 1, SIZE(mixed_cdft%dest_list)
                IF (.NOT. mask_send(j)) THEN
                   tmp(i) = mixed_cdft%dest_list(j)
                   tmp_bo(1:2, i) = mixed_cdft%dest_list_bo(1:2, j)
-                  i = i+1
+                  i = i + 1
                END IF
             END DO
             DEALLOCATE (mixed_cdft%dest_list, mixed_cdft%dest_list_bo)
@@ -3472,14 +3472,14 @@ CONTAINS
             DEALLOCATE (tmp, tmp_bo)
          END IF
          IF (ANY(mask_recv)) THEN
-            ALLOCATE (tmp(SIZE(mixed_cdft%source_list)-COUNT(mask_recv)), &
-                      tmp_bo(4, SIZE(mixed_cdft%source_list)-COUNT(mask_recv)))
+            ALLOCATE (tmp(SIZE(mixed_cdft%source_list) - COUNT(mask_recv)), &
+                      tmp_bo(4, SIZE(mixed_cdft%source_list) - COUNT(mask_recv)))
             i = 1
             DO j = 1, SIZE(mixed_cdft%source_list)
                IF (.NOT. mask_recv(j)) THEN
                   tmp(i) = mixed_cdft%source_list(j)
                   tmp_bo(1:4, i) = mixed_cdft%source_list_bo(1:4, j)
-                  i = i+1
+                  i = i + 1
                END IF
             END DO
             DEALLOCATE (mixed_cdft%source_list, mixed_cdft%source_list_bo)
@@ -3642,7 +3642,7 @@ CONTAINS
             IF (.NOT. mixed_cdft%is_special) THEN
                offset_repl = 0
                IF (mixed_cdft%dlb_control%recv_work_repl(1) .AND. mixed_cdft%dlb_control%recv_work_repl(2)) THEN
-                  ALLOCATE (req_recv(3*(SIZE(mixed_cdft%dlb_control%recv_info(1)%target_list, 2)+ &
+                  ALLOCATE (req_recv(3*(SIZE(mixed_cdft%dlb_control%recv_info(1)%target_list, 2) + &
                                         SIZE(mixed_cdft%dlb_control%recv_info(2)%target_list, 2))))
                   offset_repl = 3*SIZE(mixed_cdft%dlb_control%recv_info(1)%target_list, 2)
                ELSE IF (mixed_cdft%dlb_control%recv_work_repl(1)) THEN
@@ -3655,7 +3655,7 @@ CONTAINS
                offset_repl = 1
                DO j = 1, SIZE(mixed_cdft%dlb_control%recv_work_repl)
                   IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
-                     nbuffs = nbuffs+(SIZE(mixed_cdft%dlb_control%recv_info(j)%matrix_info)-4)/3
+                     nbuffs = nbuffs + (SIZE(mixed_cdft%dlb_control%recv_info(j)%matrix_info) - 4)/3
                   END IF
                END DO
                ALLOCATE (req_recv(3*nbuffs))
@@ -3664,31 +3664,31 @@ CONTAINS
                IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
                   IF (.NOT. mixed_cdft%is_special) THEN
                      offset = 0
-                     index = j+(j/2)
+                     index = j + (j/2)
                      ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(SIZE(mixed_cdft%dlb_control%recv_info(j)%target_list, 2)))
                      DO i = 1, SIZE(mixed_cdft%dlb_control%recv_info(j)%target_list, 2)
                         IF (mixed_cdft%is_pencil) THEN
                            ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
-                                     weight(mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset: &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset+ &
-                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)-1), &
+                                     weight(mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset: &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset + &
+                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i) - 1), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(5): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(6), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(2): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(3)))
                            ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
-                                     cavity(mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset: &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset+ &
-                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)-1), &
+                                     cavity(mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset: &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset + &
+                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i) - 1), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(5): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(6), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(2): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(3)))
                            ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                      gradients(3*natom, &
-                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset: &
-                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset+ &
-                                               (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)-1), &
+                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset: &
+                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset + &
+                                               (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i) - 1), &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(5): &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(6), &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(2): &
@@ -3697,88 +3697,88 @@ CONTAINS
                            ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                      weight(mixed_cdft%dlb_control%recv_info(j)%matrix_info(5): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(6), &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset: &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset+ &
-                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)-1), &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset: &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset + &
+                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i) - 1), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(2): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(3)))
                            ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                      cavity(mixed_cdft%dlb_control%recv_info(j)%matrix_info(5): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(6), &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset: &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset+ &
-                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)-1), &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset: &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset + &
+                                            (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i) - 1), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(2): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(3)))
                            ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                      gradients(3*natom, &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(5): &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(6), &
-                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset: &
-                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)+offset+ &
-                                               (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)-1), &
+                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset: &
+                                               mixed_cdft%dlb_control%recv_info(j)%matrix_info(4) + offset + &
+                                               (mixed_cdft%dlb_control%recv_info(j)%target_list(2, i) - 1), &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(2): &
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(3)))
                         END IF
 
                         CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, &
                                       source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
-                                      request=req_recv(3*(i-1)+(j-1)*offset_repl+1), &
+                                      request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 1), &
                                       comm=force_env%para_env%group, &
                                       tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i))
                         CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, &
                                       source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
-                                      request=req_recv(3*(i-1)+(j-1)*offset_repl+2), &
+                                      request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 2), &
                                       comm=force_env%para_env%group, &
-                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i)+1)
+                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i) + 1)
                         CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, &
                                       source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
-                                      request=req_recv(3*(i-1)+(j-1)*offset_repl+3), &
+                                      request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 3), &
                                       comm=force_env%para_env%group, &
-                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i)+2)
-                        offset = offset+mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)
+                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i) + 2)
+                        offset = offset + mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)
                      END DO
                      DEALLOCATE (mixed_cdft%dlb_control%recv_info(j)%matrix_info)
                   ELSE
                      ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)% &
-                               buffs((SIZE(mixed_cdft%dlb_control%recv_info(j)%matrix_info)-4)/3))
+                               buffs((SIZE(mixed_cdft%dlb_control%recv_info(j)%matrix_info) - 4)/3))
                      index = 6
                      DO i = 1, SIZE(mixed_cdft%dlb_control%recvbuff(j)%buffs)
                         ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                   weight(mixed_cdft%dlb_control%recv_info(j)%matrix_info(index): &
-                                         mixed_cdft%dlb_control%recv_info(j)%matrix_info(index+1), &
+                                         mixed_cdft%dlb_control%recv_info(j)%matrix_info(index + 1), &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(1): &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(2), &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(3): &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)))
                         ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                   cavity(mixed_cdft%dlb_control%recv_info(j)%matrix_info(index): &
-                                         mixed_cdft%dlb_control%recv_info(j)%matrix_info(index+1), &
+                                         mixed_cdft%dlb_control%recv_info(j)%matrix_info(index + 1), &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(1): &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(2), &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(3): &
                                          mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)))
                         ALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)% &
                                   gradients(3*natom, mixed_cdft%dlb_control%recv_info(j)%matrix_info(index): &
-                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(index+1), &
+                                            mixed_cdft%dlb_control%recv_info(j)%matrix_info(index + 1), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(1): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(2), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(3): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)))
                         CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index-1), &
+                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
                                       request=req_recv(offset_repl), &
                                       comm=force_env%para_env%group, tag=1)
                         CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index-1), &
-                                      request=req_recv(offset_repl+1), &
+                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
+                                      request=req_recv(offset_repl + 1), &
                                       comm=force_env%para_env%group, tag=2)
                         CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index-1), &
-                                      request=req_recv(offset_repl+2), &
+                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
+                                      request=req_recv(offset_repl + 2), &
                                       comm=force_env%para_env%group, tag=3)
-                        index = index+3
-                        offset_repl = offset_repl+3
+                        index = index + 3
+                        offset_repl = offset_repl + 3
                      END DO
                      DEALLOCATE (mixed_cdft%dlb_control%recv_info(j)%matrix_info)
                   END IF
@@ -3851,8 +3851,8 @@ CONTAINS
                            IF (nsent(jcomm, icomm) == 1) CYCLE
                            CALL mp_test(req_send(jcomm, icomm), completed(jcomm, icomm))
                            IF (completed(jcomm, icomm)) THEN
-                              nsent(jcomm, icomm) = nsent(jcomm, icomm)+1
-                              nsent_total = nsent_total+1
+                              nsent(jcomm, icomm) = nsent(jcomm, icomm) + 1
+                              nsent_total = nsent_total + 1
                               IF (nsent_total == SIZE(nsent, 1)*SIZE(nsent, 2)) should_communicate = .FALSE.
                            END IF
                            IF (ALL(completed(:, icomm))) THEN
@@ -3860,19 +3860,19 @@ CONTAINS
                                  IF (.NOT. mixed_cdft%is_special) THEN
                                     DEALLOCATE (mixed_cdft%dlb_control%cavity)
                                  ELSE
-                                    DEALLOCATE (mixed_cdft%dlb_control%sendbuff((icomm-1)/3+1)%cavity)
+                                    DEALLOCATE (mixed_cdft%dlb_control%sendbuff((icomm - 1)/3 + 1)%cavity)
                                  END IF
                               ELSE IF (MODULO(icomm, 3) == 2) THEN
                                  IF (.NOT. mixed_cdft%is_special) THEN
                                     DEALLOCATE (mixed_cdft%dlb_control%weight)
                                  ELSE
-                                    DEALLOCATE (mixed_cdft%dlb_control%sendbuff((icomm-1)/3+1)%weight)
+                                    DEALLOCATE (mixed_cdft%dlb_control%sendbuff((icomm - 1)/3 + 1)%weight)
                                  END IF
                               ELSE
                                  IF (.NOT. mixed_cdft%is_special) THEN
                                     DEALLOCATE (mixed_cdft%dlb_control%gradients)
                                  ELSE
-                                    DEALLOCATE (mixed_cdft%dlb_control%sendbuff((icomm-1)/3+1)%gradients)
+                                    DEALLOCATE (mixed_cdft%dlb_control%sendbuff((icomm - 1)/3 + 1)%gradients)
                                  END IF
                               END IF
                            END IF
@@ -3887,9 +3887,9 @@ CONTAINS
                      IF (cdft_control%becke_control%cavity_confine) THEN
                         IF (cavity(k, j, i) < cdft_control%becke_control%eps_cavity) CYCLE
                      END IF
-                     grid_p(1) = k*dr(1)+shift(1)
-                     grid_p(2) = j*dr(2)+shift(2)
-                     grid_p(3) = i*dr(3)+shift(3)
+                     grid_p(1) = k*dr(1) + shift(1)
+                     grid_p(2) = j*dr(2) + shift(2)
+                     grid_p(3) = i*dr(3) + shift(3)
                      nskipped = 0
                      cell_functions = 1.0_dp
                      skip_me = .FALSE.
@@ -3903,7 +3903,7 @@ CONTAINS
                         IF (skip_me(iatom)) THEN
                            cell_functions(iatom) = 0.0_dp
                            IF (cdft_control%becke_control%should_skip) THEN
-                              IF (is_constraint(iatom)) nskipped = nskipped+1
+                              IF (is_constraint(iatom)) nskipped = nskipped + 1
                               IF (nskipped == cdft_control%natoms) THEN
                                  IF (in_memory) THEN
                                     IF (cdft_control%becke_control%cavity_confine) THEN
@@ -3918,7 +3918,7 @@ CONTAINS
                         IF (store_vectors) THEN
                            IF (distances(iatom) .EQ. 0.0_dp) THEN
                               r = position_vecs(:, iatom)
-                              dist_vec = (r-grid_p)-ANINT((r-grid_p)/cell_v)*cell_v
+                              dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                               dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                               distance_vecs(:, iatom) = dist_vec
                               distances(iatom) = dist1
@@ -3929,9 +3929,9 @@ CONTAINS
                         ELSE
                            r = particle_set(iatom)%r
                            DO ip = 1, 3
-                              r(ip) = MODULO(r(ip), cell%hmat(ip, ip))-cell%hmat(ip, ip)/2._dp
+                              r(ip) = MODULO(r(ip), cell%hmat(ip, ip)) - cell%hmat(ip, ip)/2._dp
                            END DO
-                           dist_vec = (r-grid_p)-ANINT((r-grid_p)/cell_v)*cell_v
+                           dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                            dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                         END IF
                         IF (dist1 .LE. cutoffs(iatom)) THEN
@@ -3947,7 +3947,7 @@ CONTAINS
                                  IF (store_vectors) THEN
                                     IF (distances(jatom) .EQ. 0.0_dp) THEN
                                        r1 = position_vecs(:, jatom)
-                                       dist_vec = (r1-grid_p)-ANINT((r1-grid_p)/cell_v)*cell_v
+                                       dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
                                        dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                                        distance_vecs(:, jatom) = dist_vec
                                        distances(jatom) = dist2
@@ -3958,63 +3958,63 @@ CONTAINS
                                  ELSE
                                     r1 = particle_set(jatom)%r
                                     DO ip = 1, 3
-                                       r1(ip) = MODULO(r1(ip), cell%hmat(ip, ip))-cell%hmat(ip, ip)/2._dp
+                                       r1(ip) = MODULO(r1(ip), cell%hmat(ip, ip)) - cell%hmat(ip, ip)/2._dp
                                     END DO
-                                    dist_vec = (r1-grid_p)-ANINT((r1-grid_p)/cell_v)*cell_v
+                                    dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
                                     dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                                  END IF
                                  IF (in_memory) THEN
                                     IF (store_vectors) THEN
                                        dr1_r2 = pair_dist_vecs(:, iatom, jatom)
                                     ELSE
-                                       dr1_r2 = (r-r1)-ANINT((r-r1)/cell_v)*cell_v
+                                       dr1_r2 = (r - r1) - ANINT((r - r1)/cell_v)*cell_v
                                     END IF
                                     IF (dist2 .LE. th) dist2 = th
                                     tmp_const = (R12(iatom, jatom)**3)
                                     dr_ij_dR(:) = dr1_r2(:)/tmp_const
                                     !derivativ w.r.t. Rj
                                     dr_j_dR = dist_vec(:)/dist2
-                                    dmy_dR_j(:) = -(dr_j_dR(:)/R12(iatom, jatom)-(dist1-dist2)*dr_ij_dR(:))
+                                    dmy_dR_j(:) = -(dr_j_dR(:)/R12(iatom, jatom) - (dist1 - dist2)*dr_ij_dR(:))
                                     !derivativ w.r.t. Ri
-                                    dmy_dR_i(:) = dr_i_dR(:)/R12(iatom, jatom)-(dist1-dist2)*dr_ij_dR(:)
+                                    dmy_dR_i(:) = dr_i_dR(:)/R12(iatom, jatom) - (dist1 - dist2)*dr_ij_dR(:)
                                  END IF
-                                 my1 = (dist1-dist2)/R12(iatom, jatom)
+                                 my1 = (dist1 - dist2)/R12(iatom, jatom)
                                  IF (cdft_control%becke_control%adjust) THEN
                                     my1_homo = my1
-                                    my1 = my1+ &
-                                          cdft_control%becke_control%aij(iatom, jatom)*(1.0_dp-my1**2)
+                                    my1 = my1 + &
+                                          cdft_control%becke_control%aij(iatom, jatom)*(1.0_dp - my1**2)
                                  END IF
-                                 myexp = 1.5_dp*my1-0.5_dp*my1**3
+                                 myexp = 1.5_dp*my1 - 0.5_dp*my1**3
                                  IF (in_memory) THEN
-                                    dmyexp = 1.5_dp-1.5_dp*my1**2
-                                    tmp_const = (1.5_dp**2)*dmyexp*(1-myexp**2)* &
-                                                (1.0_dp-((1.5_dp*myexp-0.5_dp*(myexp**3))**2))
+                                    dmyexp = 1.5_dp - 1.5_dp*my1**2
+                                    tmp_const = (1.5_dp**2)*dmyexp*(1 - myexp**2)* &
+                                                (1.0_dp - ((1.5_dp*myexp - 0.5_dp*(myexp**3))**2))
 
                                     ds_dR_i(:) = -0.5_dp*tmp_const*dmy_dR_i(:)
                                     ds_dR_j(:) = -0.5_dp*tmp_const*dmy_dR_j(:)
                                     IF (cdft_control%becke_control%adjust) THEN
-                                       tmp_const = 1.0_dp-2.0_dp*my1_homo*cdft_control%becke_control%aij(iatom, jatom)
+                                       tmp_const = 1.0_dp - 2.0_dp*my1_homo*cdft_control%becke_control%aij(iatom, jatom)
                                        ds_dR_i(:) = ds_dR_i(:)*tmp_const
                                        ds_dR_j(:) = ds_dR_j(:)*tmp_const
                                     END IF
                                  END IF
-                                 myexp = 1.5_dp*myexp-0.5_dp*myexp**3
-                                 myexp = 1.5_dp*myexp-0.5_dp*myexp**3
-                                 tmp_const = 0.5_dp*(1.0_dp-myexp)
+                                 myexp = 1.5_dp*myexp - 0.5_dp*myexp**3
+                                 myexp = 1.5_dp*myexp - 0.5_dp*myexp**3
+                                 tmp_const = 0.5_dp*(1.0_dp - myexp)
                                  cell_functions(iatom) = cell_functions(iatom)*tmp_const
                                  IF (in_memory) THEN
-                                    IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const+th
-                                    dP_i_dRi(:, iatom) = dP_i_dRi(:, iatom)+ds_dR_i(:)/tmp_const
+                                    IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
+                                    dP_i_dRi(:, iatom) = dP_i_dRi(:, iatom) + ds_dR_i(:)/tmp_const
                                     dP_i_dRj(:, iatom, jatom) = ds_dR_j(:)/tmp_const
                                  END IF
 
                                  IF (dist2 .LE. cutoffs(jatom)) THEN
-                                    tmp_const = 0.5_dp*(1.0_dp+myexp)
+                                    tmp_const = 0.5_dp*(1.0_dp + myexp)
                                     cell_functions(jatom) = cell_functions(jatom)*tmp_const
                                     IF (in_memory) THEN
-                                       IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const+th
+                                       IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
                                        dP_i_dRj(:, jatom, iatom) = -ds_dR_i(:)/tmp_const
-                                       dP_i_dRi(:, jatom) = dP_i_dRi(:, jatom)-ds_dR_j(:)/tmp_const
+                                       dP_i_dRi(:, jatom) = dP_i_dRi(:, jatom) - ds_dR_j(:)/tmp_const
                                     END IF
                                  ELSE
                                     skip_me(jatom) = .TRUE.
@@ -4023,27 +4023,27 @@ CONTAINS
                            END DO
                            IF (in_memory) THEN
                               dP_i_dRi(:, iatom) = cell_functions(iatom)*dP_i_dRi(:, iatom)
-                              d_sum_Pm_dR(:, iatom) = d_sum_Pm_dR(:, iatom)+dP_i_dRi(:, iatom)
+                              d_sum_Pm_dR(:, iatom) = d_sum_Pm_dR(:, iatom) + dP_i_dRi(:, iatom)
                               IF (is_constraint(iatom)) &
-                                 d_sum_const_dR(:, iatom) = d_sum_const_dR(:, iatom)+dP_i_dRi(:, iatom)* &
+                                 d_sum_const_dR(:, iatom) = d_sum_const_dR(:, iatom) + dP_i_dRi(:, iatom)* &
                                                             coefficients(iatom)
                               DO jatom = 1, natom
                                  IF (jatom .NE. iatom) THEN
                                     IF (jatom < iatom) THEN
                                        IF (.NOT. skip_me(jatom)) THEN
                                           dP_i_dRj(:, iatom, jatom) = cell_functions(iatom)*dP_i_dRj(:, iatom, jatom)
-                                          d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)
+                                          d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom) + dP_i_dRj(:, iatom, jatom)
                                           IF (is_constraint(iatom)) &
-                                             d_sum_const_dR(:, jatom) = d_sum_const_dR(:, jatom)+ &
+                                             d_sum_const_dR(:, jatom) = d_sum_const_dR(:, jatom) + &
                                                                         dP_i_dRj(:, iatom, jatom)* &
                                                                         coefficients(iatom)
                                           CYCLE
                                        END IF
                                     END IF
                                     dP_i_dRj(:, iatom, jatom) = cell_functions(iatom)*dP_i_dRj(:, iatom, jatom)
-                                    d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)
+                                    d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom) + dP_i_dRj(:, iatom, jatom)
                                     IF (is_constraint(iatom)) &
-                                       d_sum_const_dR(:, jatom) = d_sum_const_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)* &
+                                       d_sum_const_dR(:, jatom) = d_sum_const_dR(:, jatom) + dP_i_dRj(:, iatom, jatom)* &
                                                                   coefficients(iatom)
                                  END IF
                               END DO
@@ -4052,7 +4052,7 @@ CONTAINS
                            cell_functions(iatom) = 0.0_dp
                            skip_me(iatom) = .TRUE.
                            IF (cdft_control%becke_control%should_skip) THEN
-                              IF (is_constraint(iatom)) nskipped = nskipped+1
+                              IF (is_constraint(iatom)) nskipped = nskipped + 1
                               IF (nskipped == cdft_control%natoms) THEN
                                  IF (in_memory) THEN
                                     IF (cdft_control%becke_control%cavity_confine) THEN
@@ -4067,19 +4067,19 @@ CONTAINS
                      IF (nskipped == cdft_control%natoms) CYCLE
                      sum_cell_f_constr = 0.0_dp
                      DO ip = 1, cdft_control%natoms
-                        sum_cell_f_constr = sum_cell_f_constr+cell_functions(catom(ip))* &
+                        sum_cell_f_constr = sum_cell_f_constr + cell_functions(catom(ip))* &
                                             cdft_control%group(1)%coeff(ip)
                      END DO
                      sum_cell_f_all = 0.0_dp
-                     nwork = nwork+1
+                     nwork = nwork + 1
                      DO ip = 1, natom
-                        sum_cell_f_all = sum_cell_f_all+cell_functions(ip)
+                        sum_cell_f_all = sum_cell_f_all + cell_functions(ip)
                      END DO
                      IF (in_memory) THEN
                         DO iatom = 1, natom
                            IF (ABS(sum_cell_f_all) .GT. 0.0_dp) THEN
-                              gradients(3*(iatom-1)+1:3*(iatom-1)+3, k, j, i) = &
-                                 d_sum_const_dR(:, iatom)/sum_cell_f_all-sum_cell_f_constr* &
+                              gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i) = &
+                                 d_sum_const_dR(:, iatom)/sum_cell_f_all - sum_cell_f_constr* &
                                  d_sum_Pm_dR(:, iatom)/(sum_cell_f_all**2)
                            END IF
                         END DO
@@ -4100,11 +4100,11 @@ CONTAINS
                      CALL mp_isend(msgin=mixed_cdft%dlb_control%weight, &
                                    dest=mixed_cdft%dlb_control%my_dest_repl(i), &
                                    request=req_send(i, 2), comm=force_env%para_env%group, &
-                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i)+1)
+                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i) + 1)
                      CALL mp_isend(msgin=mixed_cdft%dlb_control%gradients, &
                                    dest=mixed_cdft%dlb_control%my_dest_repl(i), &
                                    request=req_send(i, 3), comm=force_env%para_env%group, &
-                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i)+2)
+                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i) + 2)
                   END DO
                   should_communicate = .TRUE.
                   nsent_total = 0
@@ -4112,15 +4112,15 @@ CONTAINS
                   DO i = 1, SIZE(req_send, 1)
                      CALL mp_isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%cavity, &
                                    dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
-                                   request=req_send(i, 3*(ispecial-1)+1), &
+                                   request=req_send(i, 3*(ispecial - 1) + 1), &
                                    comm=force_env%para_env%group, tag=1)
                      CALL mp_isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%weight, &
                                    dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
-                                   request=req_send(i, 3*(ispecial-1)+2), &
+                                   request=req_send(i, 3*(ispecial - 1) + 2), &
                                    comm=force_env%para_env%group, tag=2)
                      CALL mp_isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%gradients, &
                                    dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
-                                   request=req_send(i, 3*(ispecial-1)+3), &
+                                   request=req_send(i, 3*(ispecial - 1) + 3), &
                                    comm=force_env%para_env%group, tag=3)
                   END DO
                   IF (ispecial .EQ. my_special_work) THEN
@@ -4128,11 +4128,11 @@ CONTAINS
                      nsent_total = 0
                   END IF
                END IF
-               work(mixed_cdft%dlb_control%my_source+1) = work(mixed_cdft%dlb_control%my_source+1)+nwork
-               work_dlb(force_env%para_env%mepos+1) = work_dlb(force_env%para_env%mepos+1)+nwork
+               work(mixed_cdft%dlb_control%my_source + 1) = work(mixed_cdft%dlb_control%my_source + 1) + nwork
+               work_dlb(force_env%para_env%mepos + 1) = work_dlb(force_env%para_env%mepos + 1) + nwork
             ELSE
-               IF (mixed_cdft%dlb) work(force_env%para_env%mepos+1) = work(force_env%para_env%mepos+1)+nwork
-               IF (mixed_cdft%dlb) work_dlb(force_env%para_env%mepos+1) = work_dlb(force_env%para_env%mepos+1)+nwork
+               IF (mixed_cdft%dlb) work(force_env%para_env%mepos + 1) = work(force_env%para_env%mepos + 1) + nwork
+               IF (mixed_cdft%dlb) work_dlb(force_env%para_env%mepos + 1) = work_dlb(force_env%para_env%mepos + 1) + nwork
             END IF
          END DO ! ispecial
       END DO ! iwork
@@ -4140,12 +4140,12 @@ CONTAINS
       IF (mixed_cdft%dlb) THEN
          IF (mixed_cdft%dlb_control%recv_work .AND. &
              ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
-            ALLOCATE (req_total(SIZE(req_recv)+SIZE(req_send, 1)*SIZE(req_send, 2)))
+            ALLOCATE (req_total(SIZE(req_recv) + SIZE(req_send, 1)*SIZE(req_send, 2)))
             index = SIZE(req_recv)
             req_total(1:index) = req_recv
             DO i = 1, SIZE(req_send, 2)
                DO j = 1, SIZE(req_send, 1)
-                  index = index+1
+                  index = index + 1
                   req_total(index) = req_send(j, i)
                END DO
             END DO
@@ -4201,7 +4201,7 @@ CONTAINS
          CALL mp_sum(work_dlb, force_env%para_env%group)
          IF (.NOT. ASSOCIATED(mixed_cdft%dlb_control%prediction_error)) &
             ALLOCATE (mixed_cdft%dlb_control%prediction_error(force_env%para_env%num_pe))
-         mixed_cdft%dlb_control%prediction_error = mixed_cdft%dlb_control%expected_work-work
+         mixed_cdft%dlb_control%prediction_error = mixed_cdft%dlb_control%expected_work - work
          IF (debug_this_module .AND. iounit > 0) THEN
             DO i = 1, SIZE(work, 1)
                WRITE (iounit, '(A,I10,I10,I10)') &

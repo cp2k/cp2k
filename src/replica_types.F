@@ -144,7 +144,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(rep_env)) THEN
          CPASSERT(rep_env%ref_count > 0)
-         rep_env%ref_count = rep_env%ref_count-1
+         rep_env%ref_count = rep_env%ref_count - 1
          IF (rep_env%ref_count == 0) THEN
             CALL rep_env_destroy_low(rep_env%id_nr, ierr)
             IF (rep_env%f_env_id > 0) THEN
@@ -335,7 +335,7 @@ CONTAINS
                IF (.NOT. ASSOCIATED(rep_envs)) THEN
                   ALLOCATE (rep_envs(1))
                ELSE
-                  ALLOCATE (new_rep_envs(SIZE(rep_envs)+1))
+                  ALLOCATE (new_rep_envs(SIZE(rep_envs) + 1))
                   DO i = 1, SIZE(rep_envs)
                      new_rep_envs(i)%rep_env => rep_envs(i)%rep_env
                   END DO
@@ -367,11 +367,11 @@ CONTAINS
 
       IF (ASSOCIATED(rep_env)) THEN
          CPASSERT(module_initialized)
-         ALLOCATE (new_rep_envs(SIZE(rep_envs)-1))
+         ALLOCATE (new_rep_envs(SIZE(rep_envs) - 1))
          ii = 0
          DO i = 1, SIZE(rep_envs)
             IF (rep_envs(i)%rep_env%id_nr /= rep_env%id_nr) THEN
-               ii = ii+1
+               ii = ii + 1
                new_rep_envs(ii)%rep_env => rep_envs(i)%rep_env
             END IF
          END DO

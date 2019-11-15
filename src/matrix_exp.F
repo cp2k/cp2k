@@ -113,7 +113,7 @@ CONTAINS
       nloop = CEILING(REAL(ntaylor, dp)/2.0_dp)
 
       DO i = 1, nloop
-         tmp = tmp*(REAL(i, dp)*2.0_dp-1.0_dp)
+         tmp = tmp*(REAL(i, dp)*2.0_dp - 1.0_dp)
          CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_matrix, T1, zero, &
                       !       CALL cp_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T1,zero,&
                       T2)
@@ -266,23 +266,23 @@ CONTAINS
             new_scale = .FALSE.
             eval = norm/(2.0_dp**REAL(iscale, dp))
             DO q = 1, 12
-               DO p = MAX(1, q-1), q
+               DO p = MAX(1, q - 1), q
                   IF (p > q) EXIT
                   D = 1.0_dp
                   N = 1.0_dp
                   DO i = 1, q
-                     IF (i .LE. p) scaleN = fac(p+q-i)*fac(p)/(fac(p+q)*fac(i)*fac(p-i))
-                     scaleD = (-1.0)**i*fac(p+q-i)*fac(q)/(fac(p+q)*fac(i)*fac(q-i))
-                     IF (i .LE. p) N = N+scaleN*eval**i
-                     D = D+scaleD*eval**i
+                     IF (i .LE. p) scaleN = fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i))
+                     scaleD = (-1.0)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i))
+                     IF (i .LE. p) N = N + scaleN*eval**i
+                     D = D + scaleD*eval**i
                   END DO
-                  IF (ABS((EXP(norm)-(N/D)**(2.0_dp**iscale))/MAX(1.0_dp, EXP(norm))) .LE. eps_exp) THEN
+                  IF (ABS((EXP(norm) - (N/D)**(2.0_dp**iscale))/MAX(1.0_dp, EXP(norm))) .LE. eps_exp) THEN
                      IF (do_emd) THEN
-                        cost = iscale+q
-                        prev_cost = orders(1)+orders(2)
+                        cost = iscale + q
+                        prev_cost = orders(1) + orders(2)
                      ELSE
-                        cost = iscale+CEILING(REAL(q, dp)/3.0_dp)
-                        prev_cost = orders(1)+CEILING(REAL(orders(2), dp)/3.0_dp)
+                        cost = iscale + CEILING(REAL(q, dp)/3.0_dp)
+                        prev_cost = orders(1) + CEILING(REAL(orders(2), dp)/3.0_dp)
                      END IF
                      IF (cost .LT. prev_cost) THEN
                         orders(:) = (/iscale, q, p/)
@@ -294,7 +294,7 @@ CONTAINS
                END DO
                IF (new_scale) EXIT
             END DO
-            IF (iscale .GE. orders(1)+orders(2) .AND. new_scale) EXIT
+            IF (iscale .GE. orders(1) + orders(2) .AND. new_scale) EXIT
          END DO
       ELSE IF (method == 1) THEN
          q = 0
@@ -307,15 +307,15 @@ CONTAINS
                N = 1.0_dp
                DO i = 1, p
                   scaleN = 1.0_dp/fac(i)
-                  N = N+scaleN*(eval**REAL(i, dp))
+                  N = N + scaleN*(eval**REAL(i, dp))
                END DO
-               IF (ABS((EXP(norm)-N**(2.0_dp**REAL(iscale, dp)))/MAX(1.0_dp, EXP(norm))) .LE. eps_exp) THEN
+               IF (ABS((EXP(norm) - N**(2.0_dp**REAL(iscale, dp)))/MAX(1.0_dp, EXP(norm))) .LE. eps_exp) THEN
                   IF (do_emd) THEN
-                     cost = iscale+p
-                     prev_cost = orders(1)+orders(2)
+                     cost = iscale + p
+                     prev_cost = orders(1) + orders(2)
                   ELSE
-                     cost = iscale+CEILING(REAL(p, dp)/3.0_dp)
-                     prev_cost = orders(1)+CEILING(REAL(orders(2), dp)/3.0_dp)
+                     cost = iscale + CEILING(REAL(p, dp)/3.0_dp)
+                     prev_cost = orders(1) + CEILING(REAL(orders(2), dp)/3.0_dp)
                   END IF
                   IF (cost .LT. prev_cost) THEN
                      orders(:) = (/iscale, p, 0/)
@@ -325,7 +325,7 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            IF (iscale .GE. orders(1)+orders(2) .AND. new_scale) EXIT
+            IF (iscale .GE. orders(1) + orders(2) .AND. new_scale) EXIT
          END DO
       END IF
 
@@ -405,12 +405,12 @@ CONTAINS
 
       IF (npade .GT. 2) THEN
          DO i = 2, npade
-            IF (i .LE. p) scaleN = CMPLX(fac(p+q-i)*fac(p)/(fac(p+q)*fac(i)*fac(p-i)), 0.0_dp, kind=dp)
-            scaleD = CMPLX((-1.0_dp)**i*fac(p+q-i)*fac(q)/(fac(p+q)*fac(i)*fac(q-i)), 0.0_dp, kind=dp)
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2)+1)%matrix, z_zero, &
-                             mult_p(MOD(i+1, 2)+1)%matrix)
-            IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i+1, 2)+1)%matrix)
-            IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i+1, 2)+1)%matrix)
+            IF (i .LE. p) scaleN = CMPLX(fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, kind=dp)
+            scaleD = CMPLX((-1.0_dp)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, kind=dp)
+            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
+                             mult_p(MOD(i + 1, 2) + 1)%matrix)
+            IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i + 1, 2) + 1)%matrix)
+            IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i + 1, 2) + 1)%matrix)
          END DO
       END IF
 
@@ -420,9 +420,9 @@ CONTAINS
       mult_p(1)%matrix => Tres
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2)+1)%matrix, mult_p(MOD(i, 2)+1)%matrix, z_zero, &
-                             mult_p(MOD(i+1, 2)+1)%matrix)
-            fin_p => mult_p(MOD(i+1, 2)+1)%matrix
+           CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
+                             mult_p(MOD(i + 1, 2) + 1)%matrix)
+            fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
       ELSE
          fin_p => Npq
@@ -507,32 +507,32 @@ CONTAINS
       CALL cp_cfm_set_all(Dpq, z_zero, z_one)
 
       DO i = 1, ldim
-         Npq%local_data(:, i) = Npq%local_data(:, i)+CMPLX(rzero, 0.5_dp*square_fac*local_data_im(:, i), dp)
-         Dpq%local_data(:, i) = Dpq%local_data(:, i)-CMPLX(rzero, 0.5_dp*square_fac*local_data_im(:, i), dp)
+         Npq%local_data(:, i) = Npq%local_data(:, i) + CMPLX(rzero, 0.5_dp*square_fac*local_data_im(:, i), dp)
+         Dpq%local_data(:, i) = Dpq%local_data(:, i) - CMPLX(rzero, 0.5_dp*square_fac*local_data_im(:, i), dp)
       END DO
 
       IF (npade .GT. 2) THEN
          DO j = 1, FLOOR(npade/2.0_dp)
             i = 2*j
             my_fac = (-rone)**j
-            IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p+q-i)*fac(p)/(fac(p+q)*fac(i)*fac(p-i)), 0.0_dp, dp)
-            scaleD = CMPLX(my_fac*fac(p+q-i)*fac(q)/(fac(p+q)*fac(i)*fac(q-i)), 0.0_dp, dp)
+            IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, dp)
+            scaleD = CMPLX(my_fac*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, dp)
             CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, T2, rzero, Tres)
 
             DO k = 1, ldim
-               Npq%local_data(:, k) = Npq%local_data(:, k)+scaleN*Tres%local_data(:, k)
-               Dpq%local_data(:, k) = Dpq%local_data(:, k)+scaleD*Tres%local_data(:, k)
+               Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*Tres%local_data(:, k)
+               Dpq%local_data(:, k) = Dpq%local_data(:, k) + scaleD*Tres%local_data(:, k)
             END DO
 
-            IF (2*j+1 .LE. q) THEN
-               i = 2*j+1
-               IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p+q-i)*fac(p)/(fac(p+q)*fac(i)*fac(p-i)), rzero, dp)
-               scaleD = CMPLX(-my_fac*fac(p+q-i)*fac(q)/(fac(p+q)*fac(i)*fac(q-i)), rzero, dp)
+            IF (2*j + 1 .LE. q) THEN
+               i = 2*j + 1
+               IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), rzero, dp)
+               scaleD = CMPLX(-my_fac*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), rzero, dp)
                CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, Tres, rzero, T2)
 
                DO k = 1, ldim
-                  Npq%local_data(:, k) = Npq%local_data(:, k)+scaleN*CMPLX(rzero, T2%local_data(:, k), dp)
-                  Dpq%local_data(:, k) = Dpq%local_data(:, k)+scaleD*CMPLX(rzero, T2%local_data(:, k), dp)
+                  Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*CMPLX(rzero, T2%local_data(:, k), dp)
+                  Dpq%local_data(:, k) = Dpq%local_data(:, k) + scaleD*CMPLX(rzero, T2%local_data(:, k), dp)
                END DO
             ENDIF
          END DO
@@ -544,9 +544,9 @@ CONTAINS
       cmult_p(1)%matrix => T1
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2)+1)%matrix, cmult_p(MOD(i, 2)+1)%matrix, z_zero, &
-                             cmult_p(MOD(i+1, 2)+1)%matrix)
-            fin_p => cmult_p(MOD(i+1, 2)+1)%matrix
+         CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2) + 1)%matrix, cmult_p(MOD(i, 2) + 1)%matrix, z_zero, &
+                             cmult_p(MOD(i + 1, 2) + 1)%matrix)
+            fin_p => cmult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
       ELSE
          fin_p => Npq
@@ -627,8 +627,8 @@ CONTAINS
       CALL cp_fm_set_all(Dpq, zero, one)
 
       DO i = 1, ldim
-         Npq%local_data(:, i) = Npq%local_data(:, i)+0.5_dp*local_data(:, i)
-         Dpq%local_data(:, i) = Dpq%local_data(:, i)-0.5_dp*local_data(:, i)
+         Npq%local_data(:, i) = Npq%local_data(:, i) + 0.5_dp*local_data(:, i)
+         Dpq%local_data(:, i) = Dpq%local_data(:, i) - 0.5_dp*local_data(:, i)
       END DO
 
       mult_p(1)%matrix => T2
@@ -637,14 +637,14 @@ CONTAINS
       IF (npade .GE. 2) THEN
          DO j = 2, npade
             my_fac = (-1.0_dp)**j
-            scaleN = fac(p+q-j)*fac(p)/(fac(p+q)*fac(j)*fac(p-j))
-            scaleD = my_fac*fac(p+q-j)*fac(q)/(fac(p+q)*fac(j)*fac(q-j))
-            CALL cp_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(j, 2)+1)%matrix, T1, &
-                         zero, mult_p(MOD(j+1, 2)+1)%matrix)
+            scaleN = fac(p + q - j)*fac(p)/(fac(p + q)*fac(j)*fac(p - j))
+            scaleD = my_fac*fac(p + q - j)*fac(q)/(fac(p + q)*fac(j)*fac(q - j))
+            CALL cp_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(j, 2) + 1)%matrix, T1, &
+                         zero, mult_p(MOD(j + 1, 2) + 1)%matrix)
 
             DO k = 1, ldim
-               Npq%local_data(:, k) = Npq%local_data(:, k)+scaleN*mult_p(MOD(j+1, 2)+1)%matrix%local_data(:, k)
-               Dpq%local_data(:, k) = Dpq%local_data(:, k)+scaleD*mult_p(MOD(j+1, 2)+1)%matrix%local_data(:, k)
+               Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*mult_p(MOD(j + 1, 2) + 1)%matrix%local_data(:, k)
+               Dpq%local_data(:, k) = Dpq%local_data(:, k) + scaleD*mult_p(MOD(j + 1, 2) + 1)%matrix%local_data(:, k)
             END DO
          END DO
       END IF
@@ -655,9 +655,9 @@ CONTAINS
       mult_p(1)%matrix => T1
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2)+1)%matrix, mult_p(MOD(i, 2)+1)%matrix, zero, &
-                         mult_p(MOD(i+1, 2)+1)%matrix)
-            fin_p => mult_p(MOD(i+1, 2)+1)%matrix
+            CALL cp_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, zero, &
+                         mult_p(MOD(i + 1, 2) + 1)%matrix)
+            fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
       ELSE
          fin_p => Npq
@@ -726,7 +726,7 @@ CONTAINS
 
       ALLOCATE (results(ncol_local))
       ALLOCATE (norm1(ncol_local))
-      ALLOCATE (V_mats(narnoldi+1))
+      ALLOCATE (V_mats(narnoldi + 1))
       ALLOCATE (last_norm(ncol_local))
       ALLOCATE (H_approx(narnoldi, narnoldi, ncol_local))
       ALLOCATE (H_approx_save(narnoldi, narnoldi, ncol_local))
@@ -738,7 +738,7 @@ CONTAINS
       CALL cp_fm_struct_double(newstruct, mo_struct, mo_struct%context, double_col, double_row)
       H_approx_save = rzero
 
-      DO i = 1, narnoldi+1
+      DO i = 1, narnoldi + 1
          CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct, &
                            name="V_mat"//cp_to_string(i))
       END DO
@@ -748,9 +748,9 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,mos_old,ncol_local)
       DO icol_local = 1, ncol_local
          V_mats(1)%matrix%local_data(:, icol_local) = mos_old(1)%matrix%local_data(:, icol_local)
-         V_mats(1)%matrix%local_data(:, icol_local+ncol_local) = mos_old(2)%matrix%local_data(:, icol_local)
+         V_mats(1)%matrix%local_data(:, icol_local + ncol_local) = mos_old(2)%matrix%local_data(:, icol_local)
          norm1(icol_local) = SUM(V_mats(1)%matrix%local_data(:, icol_local)**2) &
-                             +SUM(V_mats(1)%matrix%local_data(:, icol_local+ncol_local)**2)
+                             + SUM(V_mats(1)%matrix%local_data(:, icol_local + ncol_local)**2)
       END DO
 
       CALL mp_sum(norm1, col_group)
@@ -760,51 +760,51 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,ncol_local)
       DO icol_local = 1, ncol_local
          V_mats(1)%matrix%local_data(:, icol_local) = V_mats(1)%matrix%local_data(:, icol_local)/norm1(icol_local)
-         V_mats(1)%matrix%local_data(:, icol_local+ncol_local) = &
-            V_mats(1)%matrix%local_data(:, icol_local+ncol_local)/norm1(icol_local)
+         V_mats(1)%matrix%local_data(:, icol_local + ncol_local) = &
+            V_mats(1)%matrix%local_data(:, icol_local + ncol_local)/norm1(icol_local)
       END DO
 
       ! arnoldi subspace procedure to get H_approx
-      DO i = 2, narnoldi+1
+      DO i = 2, narnoldi + 1
          !Be careful, imaginary matrix multiplied with complex. Unfortunately requires a swap of arrays afterwards
-         CALL cp_gemm("N", "N", nao, newdim, nao, 1.0_dp, Him, V_mats(i-1)%matrix, 0.0_dp, V_mats(i)%matrix)
+         CALL cp_gemm("N", "N", nao, newdim, nao, 1.0_dp, Him, V_mats(i - 1)%matrix, 0.0_dp, V_mats(i)%matrix)
 
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(mos_new,V_mats,ncol_local,i)
          DO icol_local = 1, ncol_local
             mos_new(1)%matrix%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local)
-            V_mats(i)%matrix%local_data(:, icol_local) = -V_mats(i)%matrix%local_data(:, icol_local+ncol_local)
-            V_mats(i)%matrix%local_data(:, icol_local+ncol_local) = mos_new(1)%matrix%local_data(:, icol_local)
+            V_mats(i)%matrix%local_data(:, icol_local) = -V_mats(i)%matrix%local_data(:, icol_local + ncol_local)
+            V_mats(i)%matrix%local_data(:, icol_local + ncol_local) = mos_new(1)%matrix%local_data(:, icol_local)
          END DO
 
          IF (PRESENT(Hre)) THEN
-            CALL cp_gemm("N", "N", nao, newdim, nao, 1.0_dp, Hre, V_mats(i-1)%matrix, 1.0_dp, V_mats(i)%matrix)
+            CALL cp_gemm("N", "N", nao, newdim, nao, 1.0_dp, Hre, V_mats(i - 1)%matrix, 1.0_dp, V_mats(i)%matrix)
          END IF
 
-         DO l = 1, i-1
+         DO l = 1, i - 1
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(results,V_mats,ncol_local,l,i)
             DO icol_local = 1, ncol_local
-               results(icol_local) = SUM(V_mats(l)%matrix%local_data(:, icol_local)*V_mats(i)%matrix%local_data(:, icol_local))+ &
-                                     SUM(V_mats(l)%matrix%local_data(:, icol_local+ncol_local)* &
-                                         V_mats(i)%matrix%local_data(:, icol_local+ncol_local))
+               results(icol_local) = SUM(V_mats(l)%matrix%local_data(:, icol_local)*V_mats(i)%matrix%local_data(:, icol_local)) + &
+                                     SUM(V_mats(l)%matrix%local_data(:, icol_local + ncol_local)* &
+                                         V_mats(i)%matrix%local_data(:, icol_local + ncol_local))
             END DO
 
             CALL mp_sum(results, col_group)
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(H_approx_save,V_mats,ncol_local,l,i,results)
             DO icol_local = 1, ncol_local
-               H_approx_save(l, i-1, icol_local) = results(icol_local)
-               V_mats(i)%matrix%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local)- &
+               H_approx_save(l, i - 1, icol_local) = results(icol_local)
+               V_mats(i)%matrix%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local) - &
                                                             results(icol_local)*V_mats(l)%matrix%local_data(:, icol_local)
-               V_mats(i)%matrix%local_data(:, icol_local+ncol_local) = &
-                  V_mats(i)%matrix%local_data(:, icol_local+ncol_local)- &
-                  results(icol_local)*V_mats(l)%matrix%local_data(:, icol_local+ncol_local)
+               V_mats(i)%matrix%local_data(:, icol_local + ncol_local) = &
+                  V_mats(i)%matrix%local_data(:, icol_local + ncol_local) - &
+                  results(icol_local)*V_mats(l)%matrix%local_data(:, icol_local + ncol_local)
             END DO
          END DO
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(ncol_local,V_mats,results,i)
          DO icol_local = 1, ncol_local
-            results(icol_local) = SUM(V_mats(i)%matrix%local_data(:, icol_local)**2)+ &
-                                  SUM(V_mats(i)%matrix%local_data(:, icol_local+ncol_local)**2)
+            results(icol_local) = SUM(V_mats(i)%matrix%local_data(:, icol_local)**2) + &
+                                  SUM(V_mats(i)%matrix%local_data(:, icol_local + ncol_local)**2)
          END DO
 
          CALL mp_sum(results, col_group)
@@ -813,11 +813,11 @@ CONTAINS
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(H_approx_save,last_norm,V_mats,ncol_local,i,results)
             DO icol_local = 1, ncol_local
-               H_approx_save(i, i-1, icol_local) = SQRT(results(icol_local))
+               H_approx_save(i, i - 1, icol_local) = SQRT(results(icol_local))
                last_norm(icol_local) = SQRT(results(icol_local))
                V_mats(i)%matrix%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local)/SQRT(results(icol_local))
-               V_mats(i)%matrix%local_data(:, icol_local+ncol_local) = &
-                  V_mats(i)%matrix%local_data(:, icol_local+ncol_local)/SQRT(results(icol_local))
+               V_mats(i)%matrix%local_data(:, icol_local + ncol_local) = &
+                  V_mats(i)%matrix%local_data(:, icol_local + ncol_local)/SQRT(results(icol_local))
             END DO
          ELSE
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(ncol_local,last_norm,results)
@@ -853,28 +853,28 @@ CONTAINS
                   N(idim, idim) = rone
                   D(idim, idim) = rone
                END DO
-               N(:, :) = N+0.5_dp*mat1
-               D(:, :) = D-0.5_dp*mat1
+               N(:, :) = N + 0.5_dp*mat1
+               D(:, :) = D - 0.5_dp*mat1
                pade_step = 1
                DO idim = 1, 4
-                  pade_step = pade_step+1
+                  pade_step = pade_step + 1
                   CALL dgemm("N", 'N', mydim, mydim, mydim, rone, mat1(1, 1), &
                              mydim, mat3(1, 1), mydim, rzero, mat2(1, 1), mydim)
-                  scaleN = REAL(fac(2*npade-pade_step)*fac(npade)/ &
-                                (fac(2*npade)*fac(pade_step)*fac(npade-pade_step)), dp)
-                  scaleD = REAL((-1.0_dp)**pade_step*fac(2*npade-pade_step)*fac(npade)/ &
-                                (fac(2*npade)*fac(pade_step)*fac(npade-pade_step)), dp)
-                  N(:, :) = N+scaleN*mat2
-                  D(:, :) = D+scaleD*mat2
-                  pade_step = pade_step+1
+                  scaleN = REAL(fac(2*npade - pade_step)*fac(npade)/ &
+                                (fac(2*npade)*fac(pade_step)*fac(npade - pade_step)), dp)
+                  scaleD = REAL((-1.0_dp)**pade_step*fac(2*npade - pade_step)*fac(npade)/ &
+                                (fac(2*npade)*fac(pade_step)*fac(npade - pade_step)), dp)
+                  N(:, :) = N + scaleN*mat2
+                  D(:, :) = D + scaleD*mat2
+                  pade_step = pade_step + 1
                   CALL dgemm("N", 'N', mydim, mydim, mydim, rone, mat2(1, 1), &
                              mydim, mat1(1, 1), mydim, rzero, mat3(1, 1), mydim)
-                  scaleN = REAL(fac(2*npade-pade_step)*fac(npade)/ &
-                                (fac(2*npade)*fac(pade_step)*fac(npade-pade_step)), dp)
-                  scaleD = REAL((-1.0_dp)**pade_step*fac(2*npade-pade_step)*fac(npade)/ &
-                                (fac(2*npade)*fac(pade_step)*fac(npade-pade_step)), dp)
-                  N(:, :) = N+scaleN*mat3
-                  D(:, :) = D+scaleD*mat3
+                  scaleN = REAL(fac(2*npade - pade_step)*fac(npade)/ &
+                                (fac(2*npade)*fac(pade_step)*fac(npade - pade_step)), dp)
+                  scaleD = REAL((-1.0_dp)**pade_step*fac(2*npade - pade_step)*fac(npade)/ &
+                                (fac(2*npade)*fac(pade_step)*fac(npade - pade_step)), dp)
+                  N(:, :) = N + scaleN*mat3
+                  D(:, :) = D + scaleD*mat3
                END DO
 
                CALL dgetrf(mydim, mydim, D(1, 1), mydim, ipivot, info)
@@ -893,7 +893,7 @@ CONTAINS
             conv_norm = 0.0_dp
             results = 0.0_dp
             DO icol_local = 1, ncol_local
-               results(icol_local) = last_norm(icol_local)*H_approx(i-1, 1, icol_local)
+               results(icol_local) = last_norm(icol_local)*H_approx(i - 1, 1, icol_local)
                conv_norm = MAX(conv_norm, ABS(results(icol_local)))
             END DO
 
@@ -906,10 +906,10 @@ CONTAINS
                DO icol_local = 1, ncol_local
                   DO idim = 1, mydim
                      prefac = H_approx(idim, 1, icol_local)*norm1(icol_local)
-                     mos_new(1)%matrix%local_data(:, icol_local) = mos_new(1)%matrix%local_data(:, icol_local)+ &
+                     mos_new(1)%matrix%local_data(:, icol_local) = mos_new(1)%matrix%local_data(:, icol_local) + &
                                                                    V_mats(idim)%matrix%local_data(:, icol_local)*prefac
-                     mos_new(2)%matrix%local_data(:, icol_local) = mos_new(2)%matrix%local_data(:, icol_local)+ &
-                                                                   V_mats(idim)%matrix%local_data(:, icol_local+ncol_local)*prefac
+                     mos_new(2)%matrix%local_data(:, icol_local) = mos_new(2)%matrix%local_data(:, icol_local) + &
+                                                                   V_mats(idim)%matrix%local_data(:, icol_local + ncol_local)*prefac
                   END DO
                END DO
 
@@ -933,17 +933,17 @@ CONTAINS
                      DO idim = 1, mydim
                         prefac = H_approx(idim, 1, icol_local)*norm1(icol_local)
                         mos_next(1)%matrix%local_data(:, icol_local) = &
-                           mos_next(1)%matrix%local_data(:, icol_local)+ &
+                           mos_next(1)%matrix%local_data(:, icol_local) + &
                            V_mats(idim)%matrix%local_data(:, icol_local)*prefac
                         mos_next(2)%matrix%local_data(:, icol_local) = &
-                           mos_next(2)%matrix%local_data(:, icol_local)+ &
-                           V_mats(idim)%matrix%local_data(:, icol_local+ncol_local)*prefac
+                           mos_next(2)%matrix%local_data(:, icol_local) + &
+                           V_mats(idim)%matrix%local_data(:, icol_local + ncol_local)*prefac
                      END DO
                   END DO
                END IF
                IF (conv_norm .LT. eps_exp) THEN
                   convergence = .TRUE.
-                  narn_old = i-1
+                  narn_old = i - 1
                END IF
             END IF
 

@@ -135,22 +135,22 @@ CONTAINS
          move_elements_loop: DO
             ! select atom
             IF (tmc_params%nr_elem_mv .EQ. 0) THEN
-               ind = (i-1)*(tmc_params%dim_per_elem)+1
+               ind = (i - 1)*(tmc_params%dim_per_elem) + 1
             ELSE
                rnd = next_random_number(rng_stream) ! next random number
                ind = tmc_params%dim_per_elem* &
-                     INT(rnd*(SIZE(elem%pos)/tmc_params%dim_per_elem))+1
+                     INT(rnd*(SIZE(elem%pos)/tmc_params%dim_per_elem)) + 1
             END IF
             ! apply move
             IF (elem%elem_stat(ind) .EQ. status_ok) THEN
                ! displace atom
-               DO d = 0, tmc_params%dim_per_elem-1
+               DO d = 0, tmc_params%dim_per_elem - 1
                   rnd = next_random_number(rng_stream) ! next random number
-                  elem%pos(ind+d) = elem%pos(ind+d)+(rnd-0.5)*2.0* &
-                                    move_types%mv_size(mv_type_atom_trans, mv_conf)
+                  elem%pos(ind + d) = elem%pos(ind + d) + (rnd - 0.5)*2.0* &
+                                      move_types%mv_size(mv_type_atom_trans, mv_conf)
                END DO
                ! check if new position is in subbox
-               elem_center = elem%pos(ind:ind+tmc_params%dim_per_elem-1)
+               elem_center = elem%pos(ind:ind + tmc_params%dim_per_elem - 1)
                IF (.NOT. check_pos_in_subbox(pos=elem_center, &
                                              subbox_center=elem%subbox_center, &
                                              box_scale=elem%box_scale, tmc_params=tmc_params) &
@@ -160,9 +160,9 @@ CONTAINS
                END IF
             ELSE
                ! element was not in sub box, search new one instead
-               IF (tmc_params%nr_elem_mv .GT. 0) i = i-1
+               IF (tmc_params%nr_elem_mv .GT. 0) i = i - 1
             END IF
-            i = i+1
+            i = i + 1
             IF (i .GT. act_nr_elem_mv) EXIT move_elements_loop
          END DO move_elements_loop
          DEALLOCATE (elem_center)
@@ -180,7 +180,7 @@ CONTAINS
          DO m = 1, nr_molec
             CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                  start_ind=ind, end_ind=ind_e)
-            CALL geometrical_center(pos=elem%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
+            CALL geometrical_center(pos=elem%pos(ind:ind_e + tmc_params%dim_per_elem - 1), &
                                     center=elem_center)
             IF (check_pos_in_subbox(pos=elem_center, &
                                     subbox_center=elem%subbox_center, &
@@ -198,7 +198,7 @@ CONTAINS
                   m = counter
                ELSE
                   rnd = next_random_number(rng_stream) ! next random number
-                  m = INT(rnd*nr_molec)+1
+                  m = INT(rnd*nr_molec) + 1
                END IF
                CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                     start_ind=ind, end_ind=ind_e)
@@ -211,19 +211,19 @@ CONTAINS
                   ! calculate displacement
                   DO d = 1, tmc_params%dim_per_elem
                      rnd = next_random_number(rng_stream) ! next random number
-                     direction(d) = (rnd-0.5)*2.0_dp*move_types%mv_size( &
+                     direction(d) = (rnd - 0.5)*2.0_dp*move_types%mv_size( &
                                     mv_type_mol_trans, mv_conf)
                   END DO
                   ! check if displaced position is still in subbox
-                  elem_center(:) = elem_center(:)+direction(:)
+                  elem_center(:) = elem_center(:) + direction(:)
                   IF (check_pos_in_subbox(pos=elem_center, &
                                           subbox_center=elem%subbox_center, &
                                           box_scale=elem%box_scale, tmc_params=tmc_params) &
                       ) THEN
                      ! apply move
-                     atom_in_mol_loop: DO i = ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
-                        dim_loop: DO d = 0, tmc_params%dim_per_elem-1
-                           elem%pos(i+d) = elem%pos(i+d)+direction(d+1)
+                     atom_in_mol_loop: DO i = ind, ind_e + tmc_params%dim_per_elem - 1, tmc_params%dim_per_elem
+                        dim_loop: DO d = 0, tmc_params%dim_per_elem - 1
+                           elem%pos(i + d) = elem%pos(i + d) + direction(d + 1)
                         END DO dim_loop
                      END DO atom_in_mol_loop
                   ELSE
@@ -233,9 +233,9 @@ CONTAINS
                   END IF
                ELSE
                   ! element was not in sub box, search new one instead
-                  IF (tmc_params%nr_elem_mv .GT. 0) counter = counter-1
+                  IF (tmc_params%nr_elem_mv .GT. 0) counter = counter - 1
                END IF
-               counter = counter+1
+               counter = counter + 1
                IF (counter .GT. act_nr_elem_mv) EXIT move_molecule_loop
             END DO move_molecule_loop
             DEALLOCATE (direction)
@@ -255,7 +255,7 @@ CONTAINS
          DO m = 1, nr_molec
             CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                  start_ind=ind, end_ind=ind_e)
-            CALL geometrical_center(pos=elem%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
+            CALL geometrical_center(pos=elem%pos(ind:ind_e + tmc_params%dim_per_elem - 1), &
                                     center=elem_center)
             IF (check_pos_in_subbox(pos=elem_center, &
                                     subbox_center=elem%subbox_center, &
@@ -272,7 +272,7 @@ CONTAINS
                   m = counter
                ELSE
                   rnd = next_random_number(rng_stream) ! next random number
-                  m = INT(rnd*nr_molec)+1
+                  m = INT(rnd*nr_molec) + 1
                END IF
                CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                     start_ind=ind, end_ind=ind_e)
@@ -287,22 +287,22 @@ CONTAINS
                                   move_types=move_types, rng_stream=rng_stream, &
                                   dim_per_elem=tmc_params%dim_per_elem)
                   ! update sub box status of single atom
-                  DO i = ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
-                     elem_center = elem%pos(i:i+tmc_params%dim_per_elem-1)
+                  DO i = ind, ind_e + tmc_params%dim_per_elem - 1, tmc_params%dim_per_elem
+                     elem_center = elem%pos(i:i + tmc_params%dim_per_elem - 1)
                      IF (check_pos_in_subbox(pos=elem_center, &
                                              subbox_center=elem%subbox_center, &
                                              box_scale=elem%box_scale, tmc_params=tmc_params) &
                          ) THEN
-                        elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_ok
+                        elem%elem_stat(i:i + tmc_params%dim_per_elem - 1) = status_ok
                      ELSE
-                        elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_frozen
+                        elem%elem_stat(i:i + tmc_params%dim_per_elem - 1) = status_frozen
                      END IF
                   END DO
                ELSE
                   ! element was not in sub box, search new one instead
-                  IF (tmc_params%nr_elem_mv .GT. 0) counter = counter-1
+                  IF (tmc_params%nr_elem_mv .GT. 0) counter = counter - 1
                END IF
-               counter = counter+1
+               counter = counter + 1
                IF (counter .GT. act_nr_elem_mv) EXIT rot_molecule_loop
             END DO rot_molecule_loop
          END IF
@@ -317,7 +317,7 @@ CONTAINS
             !-- attention, move type size is in atomic units of velocity
             IF (elem%elem_stat(i) .NE. status_frozen) THEN
                CALL vel_change(vel=elem%vel(i), &
-                               atom_kind=tmc_params%atoms(INT(i/REAL(tmc_params%dim_per_elem, KIND=dp))+1), &
+                               atom_kind=tmc_params%atoms(INT(i/REAL(tmc_params%dim_per_elem, KIND=dp)) + 1), &
                                phi=move_types%mv_size(mv_type_MD, 1), & ! TODO parallel tempering move sizes for vel_change
                                temp=tmc_params%Temp(mv_conf), &
                                rnd_sign_change=.TRUE., & ! MD_vel_invert, &
@@ -401,8 +401,8 @@ CONTAINS
       CPASSERT(start_ind .GT. 0)
       CPASSERT(end_ind .GT. 0)
       ! convert to indeces mapped for the position array (multiple dim per atom)
-      start_ind = (start_ind-1)*tmc_params%dim_per_elem+1
-      end_ind = (end_ind-1)*tmc_params%dim_per_elem+1
+      start_ind = (start_ind - 1)*tmc_params%dim_per_elem + 1
+      end_ind = (end_ind - 1)*tmc_params%dim_per_elem + 1
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -445,7 +445,7 @@ CONTAINS
       inside = .TRUE.
       ! return if no subbox is defined
       IF (.NOT. ANY(tmc_params%sub_box_size(:) .LE. 0.1_dp)) THEN
-         pos_tmp(:) = pos(:)-subbox_center(:)
+         pos_tmp(:) = pos(:) - subbox_center(:)
          CALL get_scaled_cell(cell=tmc_params%cell, box_scale=box_scale, &
                               vec=pos_tmp)
          ! check
@@ -518,14 +518,14 @@ CONTAINS
 
          ! check all elements if they are in subbox
          DO i = 1, SIZE(elem%pos), tmc_params%dim_per_elem
-            atom_tmp(:) = elem%pos(i:i+tmc_params%dim_per_elem-1)
+            atom_tmp(:) = elem%pos(i:i + tmc_params%dim_per_elem - 1)
             IF (check_pos_in_subbox(pos=atom_tmp, &
                                     subbox_center=center_of_sub_box, box_scale=elem%box_scale, &
                                     tmc_params=tmc_params)) THEN
-               elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_ok
-               nr_of_sub_box_elements = nr_of_sub_box_elements+1
+               elem%elem_stat(i:i + tmc_params%dim_per_elem - 1) = status_ok
+               nr_of_sub_box_elements = nr_of_sub_box_elements + 1
             ELSE
-               elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_frozen
+               elem%elem_stat(i:i + tmc_params%dim_per_elem - 1) = status_frozen
             END IF
          END DO
          DEALLOCATE (atom_tmp)
@@ -572,27 +572,27 @@ CONTAINS
 
       ! calculate rotation matrix (using quanternions)
       rnd = next_random_number(rng_stream) ! next random number
-      a1 = (rnd-0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
+      a1 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
       rnd = next_random_number(rng_stream) ! next random number
-      a2 = (rnd-0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
+      a2 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
       rnd = next_random_number(rng_stream) ! next random number
-      a3 = (rnd-0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
-      q0 = COS(a2/2)*COS((a1+a3)/2.0_dp)
-      q1 = SIN(a2/2)*COS((a1-a3)/2.0_dp)
-      q2 = SIN(a2/2)*SIN((a1-a3)/2.0_dp)
-      q3 = COS(a2/2)*SIN((a1+a3)/2.0_dp)
-      rot = RESHAPE((/q0*q0+q1*q1-q2*q2-q3*q3, 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2), &
-                      2*(q1*q2+q0*q3), q0*q0-q1*q1+q2*q2-q3*q3, 2*(q2*q3-q0*q1), &
-                      2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0*q0-q1*q1-q2*q2+q3*q3/), (/3, 3/))
+      a3 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
+      q0 = COS(a2/2)*COS((a1 + a3)/2.0_dp)
+      q1 = SIN(a2/2)*COS((a1 - a3)/2.0_dp)
+      q2 = SIN(a2/2)*SIN((a1 - a3)/2.0_dp)
+      q3 = COS(a2/2)*SIN((a1 + a3)/2.0_dp)
+      rot = RESHAPE((/q0*q0 + q1*q1 - q2*q2 - q3*q3, 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2), &
+                      2*(q1*q2 + q0*q3), q0*q0 - q1*q1 + q2*q2 - q3*q3, 2*(q2*q3 - q0*q1), &
+                      2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), q0*q0 - q1*q1 - q2*q2 + q3*q3/), (/3, 3/))
 
       ALLOCATE (elem_center(dim_per_elem))
       ! calculate geometrical center
-      CALL geometrical_center(pos=pos(ind_start:ind_end+dim_per_elem-1), &
+      CALL geometrical_center(pos=pos(ind_start:ind_end + dim_per_elem - 1), &
                               center=elem_center)
 
       ! proceed rotation
-      atom_loop: DO i = ind_start, ind_end+dim_per_elem-1, dim_per_elem
-         pos(i:i+2) = MATMUL(pos(i:i+2)-elem_center(:), rot)+elem_center(:)
+      atom_loop: DO i = ind_start, ind_end + dim_per_elem - 1, dim_per_elem
+         pos(i:i + 2) = MATMUL(pos(i:i + 2) - elem_center(:), rot) + elem_center(:)
       END DO atom_loop
       DEALLOCATE (elem_center)
    END SUBROUTINE do_mol_rot
@@ -649,7 +649,7 @@ CONTAINS
       ELSE
          d = 1
       END IF
-      vel = SIN(phi)*delta_vel+COS(phi)*vel*d*1.0_dp
+      vel = SIN(phi)*delta_vel + COS(phi)*vel*d*1.0_dp
    END SUBROUTINE vel_change
 
 ! **************************************************************************************************
@@ -708,14 +708,14 @@ CONTAINS
       !  select randomly one atom
       rnd = next_random_number(rng_stream)
       ! the randomly selected first atom
-      mol = INT(rnd*nr_mol)+1
-      counter = counter+1
+      mol = INT(rnd*nr_mol) + 1
+      counter = counter + 1
       mol_arr(counter) = mol
 
       ! do until the loop is closed
       !  (until path connects back to any spot of the path)
       chain_completition_loop: DO
-         counter = counter+1
+         counter = counter + 1
          ! find nearest neighbor
          !  (with same state, in the chain, proton donator or proton accptor)
          CALL find_nearest_proton_acceptor_donator(elem=elem, mol=mol, &
@@ -725,15 +725,15 @@ CONTAINS
             EXIT chain_completition_loop
          mol_arr(counter) = mol
       END DO chain_completition_loop
-      counter = counter-1 ! last searched element is equal to one other in list
+      counter = counter - 1 ! last searched element is equal to one other in list
 
       ! just take the loop of molecules out of the chain
       DO k = 1, counter
          IF (mol_arr(k) .EQ. mol) &
             EXIT
       END DO
-      mol_arr(1:counter-k+1) = mol_arr(k:counter)
-      counter = counter-k+1
+      mol_arr(1:counter - k + 1) = mol_arr(k:counter)
+      counter = counter - k + 1
 
       ! check if loop is minimum size of 6 molecules
       IF (counter .LT. 6) THEN
@@ -815,7 +815,7 @@ CONTAINS
          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
                               mol=mol_tmp, start_ind=ind_n, end_ind=ind_e)
          ! check if selected molecule is water respectively consists of 3 atoms
-         IF (MOD(ind_e-ind_n, 3) .GT. 0) THEN
+         IF (MOD(ind_e - ind_n, 3) .GT. 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "selected a molecule with more than 3 atoms, "// &
                          "the proton reordering does not support, skip molecule")
@@ -826,15 +826,15 @@ CONTAINS
                                      tmc_params=tmc_params) .EQ. proton_acceptor) THEN
                !distance of fist proton to certain O
                distH1(mol_tmp) = nearest_distance( &
-                                 x1=elem%pos(ind+tmc_params%dim_per_elem: &
-                                             ind+2*tmc_params%dim_per_elem-1), &
-                                 x2=elem%pos(ind_n:ind_n+tmc_params%dim_per_elem-1), &
+                                 x1=elem%pos(ind + tmc_params%dim_per_elem: &
+                                             ind + 2*tmc_params%dim_per_elem - 1), &
+                                 x2=elem%pos(ind_n:ind_n + tmc_params%dim_per_elem - 1), &
                                  cell=tmc_params%cell, box_scale=elem%box_scale)
                !distance of second proton to certain O
                distH2(mol_tmp) = nearest_distance( &
-                                 x1=elem%pos(ind+2*tmc_params%dim_per_elem: &
-                                             ind+3*tmc_params%dim_per_elem-1), &
-                                 x2=elem%pos(ind_n:ind_n+tmc_params%dim_per_elem-1), &
+                                 x1=elem%pos(ind + 2*tmc_params%dim_per_elem: &
+                                             ind + 3*tmc_params%dim_per_elem - 1), &
+                                 x2=elem%pos(ind_n:ind_n + tmc_params%dim_per_elem - 1), &
                                  cell=tmc_params%cell, box_scale=elem%box_scale)
             END IF
          END IF
@@ -844,14 +844,14 @@ CONTAINS
                                      tmc_params=tmc_params) .EQ. proton_donor) THEN
                !distance of selected O to all first protons of other melecules
                distO(mol_tmp) = nearest_distance( &
-                                x1=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
-                                x2=elem%pos(ind_n+tmc_params%dim_per_elem: &
-                                            ind_n+2*tmc_params%dim_per_elem-1), &
+                                x1=elem%pos(ind:ind + tmc_params%dim_per_elem - 1), &
+                                x2=elem%pos(ind_n + tmc_params%dim_per_elem: &
+                                            ind_n + 2*tmc_params%dim_per_elem - 1), &
                                 cell=tmc_params%cell, box_scale=elem%box_scale)
                dist_tmp = nearest_distance( &
-                          x1=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
-                          x2=elem%pos(ind_n+2*tmc_params%dim_per_elem: &
-                                      ind_n+3*tmc_params%dim_per_elem-1), &
+                          x1=elem%pos(ind:ind + tmc_params%dim_per_elem - 1), &
+                          x2=elem%pos(ind_n + 2*tmc_params%dim_per_elem: &
+                                      ind_n + 3*tmc_params%dim_per_elem - 1), &
                           cell=tmc_params%cell, box_scale=elem%box_scale)
                IF (dist_tmp .LT. distO(mol_tmp)) distO(mol_tmp) = dist_tmp
             END IF
@@ -863,31 +863,31 @@ CONTAINS
       !check for neighboring proton acceptors
       IF (donor_acceptor .EQ. proton_acceptor) THEN
          neighbor_mol(mol_tmp) = MINLOC(distH1(:), 1)
-         neighbor_mol(mol_tmp+1) = MINLOC(distH2(:), 1)
+         neighbor_mol(mol_tmp + 1) = MINLOC(distH2(:), 1)
          ! if both smallest distances points to the shortest molecule search also the second next shortest distance
-         IF (neighbor_mol(mol_tmp) .EQ. neighbor_mol(mol_tmp+1)) THEN
+         IF (neighbor_mol(mol_tmp) .EQ. neighbor_mol(mol_tmp + 1)) THEN
             distH1(neighbor_mol(mol_tmp)) = HUGE(distH1(1))
-            distH2(neighbor_mol(mol_tmp+1)) = HUGE(distH2(1))
+            distH2(neighbor_mol(mol_tmp + 1)) = HUGE(distH2(1))
             IF (MINVAL(distH1(:), 1) .LT. MINVAL(distH2(:), 1)) THEN
                neighbor_mol(mol_tmp) = MINLOC(distH1(:), 1)
             ELSE
-               neighbor_mol(mol_tmp+1) = MINLOC(distH2(:), 1)
+               neighbor_mol(mol_tmp + 1) = MINLOC(distH2(:), 1)
             END IF
          END IF
-         mol_tmp = mol_tmp+2
+         mol_tmp = mol_tmp + 2
       END IF
 
       !check for neighboring proton donors
       IF (donor_acceptor .EQ. proton_donor) THEN
          neighbor_mol(mol_tmp) = MINLOC(distO(:), 1)
          distO(neighbor_mol(mol_tmp)) = HUGE(distO(1))
-         neighbor_mol(mol_tmp+1) = MINLOC(distO(:), 1)
+         neighbor_mol(mol_tmp + 1) = MINLOC(distO(:), 1)
       END IF
 
       ! select randomly the next neighboring molecule
       rnd = next_random_number(rng_stream)
       ! the randomly selected atom: return value!
-      mol_tmp = neighbor_mol(INT(rnd*SIZE(neighbor_mol(:)))+1)
+      mol_tmp = neighbor_mol(INT(rnd*SIZE(neighbor_mol(:))) + 1)
       mol = mol_tmp
 
       DEALLOCATE (distO)
@@ -927,27 +927,27 @@ CONTAINS
 
       ! 1. proton of orig with neighbor O
       distances(1) = nearest_distance( &
-                     x1=elem%pos(i_neighbor:i_neighbor+tmc_params%dim_per_elem-1), &
-                     x2=elem%pos(i_orig+tmc_params%dim_per_elem: &
-                                 i_orig+2*tmc_params%dim_per_elem-1), &
+                     x1=elem%pos(i_neighbor:i_neighbor + tmc_params%dim_per_elem - 1), &
+                     x2=elem%pos(i_orig + tmc_params%dim_per_elem: &
+                                 i_orig + 2*tmc_params%dim_per_elem - 1), &
                      cell=tmc_params%cell, box_scale=elem%box_scale)
       ! 2. proton of orig with neighbor O
       distances(2) = nearest_distance( &
-                     x1=elem%pos(i_neighbor:i_neighbor+tmc_params%dim_per_elem-1), &
-                     x2=elem%pos(i_orig+2*tmc_params%dim_per_elem: &
-                                 i_orig+3*tmc_params%dim_per_elem-1), &
+                     x1=elem%pos(i_neighbor:i_neighbor + tmc_params%dim_per_elem - 1), &
+                     x2=elem%pos(i_orig + 2*tmc_params%dim_per_elem: &
+                                 i_orig + 3*tmc_params%dim_per_elem - 1), &
                      cell=tmc_params%cell, box_scale=elem%box_scale)
       ! 1. proton of neighbor with orig O
       distances(3) = nearest_distance( &
-                     x1=elem%pos(i_orig:i_orig+tmc_params%dim_per_elem-1), &
-                     x2=elem%pos(i_neighbor+tmc_params%dim_per_elem: &
-                                 i_neighbor+2*tmc_params%dim_per_elem-1), &
+                     x1=elem%pos(i_orig:i_orig + tmc_params%dim_per_elem - 1), &
+                     x2=elem%pos(i_neighbor + tmc_params%dim_per_elem: &
+                                 i_neighbor + 2*tmc_params%dim_per_elem - 1), &
                      cell=tmc_params%cell, box_scale=elem%box_scale)
       ! 2. proton of neigbor with orig O
       distances(4) = nearest_distance( &
-                     x1=elem%pos(i_orig:i_orig+tmc_params%dim_per_elem-1), &
-                     x2=elem%pos(i_neighbor+2*tmc_params%dim_per_elem: &
-                                 i_neighbor+3*tmc_params%dim_per_elem-1), &
+                     x1=elem%pos(i_orig:i_orig + tmc_params%dim_per_elem - 1), &
+                     x2=elem%pos(i_neighbor + 2*tmc_params%dim_per_elem: &
+                                 i_neighbor + 3*tmc_params%dim_per_elem - 1), &
                      cell=tmc_params%cell, box_scale=elem%box_scale)
 
       IF (MINLOC(distances(:), 1) .LE. 2) THEN
@@ -993,14 +993,14 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
 
-      ALLOCATE (ind_arr(0:SIZE(mol_arr_in)+1))
+      ALLOCATE (ind_arr(0:SIZE(mol_arr_in) + 1))
       DO i = 1, SIZE(mol_arr_in)
          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
                               mol=mol_arr_in(i), &
                               start_ind=ind_arr(i), end_ind=ind)
       END DO
-      ind_arr(0) = ind_arr(SIZE(ind_arr)-2)
-      ind_arr(SIZE(ind_arr)-1) = ind_arr(1)
+      ind_arr(0) = ind_arr(SIZE(ind_arr) - 2)
+      ind_arr(SIZE(ind_arr) - 1) = ind_arr(1)
 
       ! get the scaled cell
       ALLOCATE (tmp_cell)
@@ -1008,59 +1008,59 @@ CONTAINS
                            scaled_cell=tmp_cell)
 
       ! rotate single molecules
-      DO i = 1, SIZE(ind_arr)-2
+      DO i = 1, SIZE(ind_arr) - 2
          ! the 3 O atoms
-         vec_1O(:) = elem%pos(ind_arr(i-1):ind_arr(i-1)+tmc_params%dim_per_elem-1)
-         vec_2O(:) = elem%pos(ind_arr(i):ind_arr(i)+tmc_params%dim_per_elem-1)
-         vec_3O(:) = elem%pos(ind_arr(i+1):ind_arr(i+1)+tmc_params%dim_per_elem-1)
+         vec_1O(:) = elem%pos(ind_arr(i - 1):ind_arr(i - 1) + tmc_params%dim_per_elem - 1)
+         vec_2O(:) = elem%pos(ind_arr(i):ind_arr(i) + tmc_params%dim_per_elem - 1)
+         vec_3O(:) = elem%pos(ind_arr(i + 1):ind_arr(i + 1) + tmc_params%dim_per_elem - 1)
          ! the H atoms
          ! distinguished between the one fixed (rotation axis with 2 O)
          ! and the moved one
          ! if true the first H atom is between the O atoms
          IF (nearest_distance( &
-             x1=elem%pos(ind_arr(i+donor_acceptor): &
-                         ind_arr(i+donor_acceptor)+tmc_params%dim_per_elem-1), &
-             x2=elem%pos(ind_arr(i)+tmc_params%dim_per_elem: &
-                         ind_arr(i)+2*tmc_params%dim_per_elem-1), &
+             x1=elem%pos(ind_arr(i + donor_acceptor): &
+                         ind_arr(i + donor_acceptor) + tmc_params%dim_per_elem - 1), &
+             x2=elem%pos(ind_arr(i) + tmc_params%dim_per_elem: &
+                         ind_arr(i) + 2*tmc_params%dim_per_elem - 1), &
              cell=tmc_params%cell, box_scale=elem%box_scale) &
              .LT. &
              nearest_distance( &
-             x1=elem%pos(ind_arr(i+donor_acceptor): &
-                         ind_arr(i+donor_acceptor)+tmc_params%dim_per_elem-1), &
-             x2=elem%pos(ind_arr(i)+2*tmc_params%dim_per_elem: &
-                         ind_arr(i)+3*tmc_params%dim_per_elem-1), &
+             x1=elem%pos(ind_arr(i + donor_acceptor): &
+                         ind_arr(i + donor_acceptor) + tmc_params%dim_per_elem - 1), &
+             x2=elem%pos(ind_arr(i) + 2*tmc_params%dim_per_elem: &
+                         ind_arr(i) + 3*tmc_params%dim_per_elem - 1), &
              cell=tmc_params%cell, box_scale=elem%box_scale) &
              ) THEN
-            vec_2H_m = elem%pos(ind_arr(i)+tmc_params%dim_per_elem: &
-                                ind_arr(i)+2*tmc_params%dim_per_elem-1)
-            vec_2H_f = elem%pos(ind_arr(i)+2*tmc_params%dim_per_elem: &
-                                ind_arr(i)+3*tmc_params%dim_per_elem-1)
+            vec_2H_m = elem%pos(ind_arr(i) + tmc_params%dim_per_elem: &
+                                ind_arr(i) + 2*tmc_params%dim_per_elem - 1)
+            vec_2H_f = elem%pos(ind_arr(i) + 2*tmc_params%dim_per_elem: &
+                                ind_arr(i) + 3*tmc_params%dim_per_elem - 1)
             H_offset = 1
          ELSE
-            vec_2H_f = elem%pos(ind_arr(i)+tmc_params%dim_per_elem: &
-                                ind_arr(i)+2*tmc_params%dim_per_elem-1)
-            vec_2H_m = elem%pos(ind_arr(i)+2*tmc_params%dim_per_elem: &
-                                ind_arr(i)+3*tmc_params%dim_per_elem-1)
+            vec_2H_f = elem%pos(ind_arr(i) + tmc_params%dim_per_elem: &
+                                ind_arr(i) + 2*tmc_params%dim_per_elem - 1)
+            vec_2H_m = elem%pos(ind_arr(i) + 2*tmc_params%dim_per_elem: &
+                                ind_arr(i) + 3*tmc_params%dim_per_elem - 1)
             H_offset = 2
          END IF
 
          IF (.TRUE.) THEN !TODO find a better switch for the pauling model
 
             ! do rotation (NOT pauling model)
-            tmp_1 = pbc(vec_2O-vec_1O, tmp_cell)
-            tmp_2 = pbc(vec_3O-vec_2H_f, tmp_cell)
+            tmp_1 = pbc(vec_2O - vec_1O, tmp_cell)
+            tmp_2 = pbc(vec_3O - vec_2H_f, tmp_cell)
 
-            dihe_angle = donor_acceptor*dihedral_angle(tmp_1, vec_2H_f-vec_2O, tmp_2)
-            DO ind = ind_arr(i), ind_arr(i)+tmc_params%dim_per_elem*3-1, tmc_params%dim_per_elem
+            dihe_angle = donor_acceptor*dihedral_angle(tmp_1, vec_2H_f - vec_2O, tmp_2)
+            DO ind = ind_arr(i), ind_arr(i) + tmc_params%dim_per_elem*3 - 1, tmc_params%dim_per_elem
                ! set rotation vector
                !vec_rotated = rotate_vector(vec_2H_m-vec_2O, dihe_angle, vec_2H_f-vec_2O)
                vec_rotated = rotate_vector(elem%pos(ind: &
-                                                    ind+tmc_params%dim_per_elem-1)-vec_2O, &
-                                           dihe_angle, vec_2H_f-vec_2O)
+                                                    ind + tmc_params%dim_per_elem - 1) - vec_2O, &
+                                           dihe_angle, vec_2H_f - vec_2O)
 
                ! set new position
                !elem%pos(ind_arr(i)+H_offset*dim_per_elem:ind_arr(i)+(H_offset+1)*dim_per_elem-1) = vec_2O+vec_rotated
-               elem%pos(ind:ind+tmc_params%dim_per_elem-1) = vec_2O+vec_rotated
+               elem%pos(ind:ind + tmc_params%dim_per_elem - 1) = vec_2O + vec_rotated
             END DO
          ELSE
             ! using the pauling model
@@ -1073,31 +1073,31 @@ CONTAINS
                tmc_params%dim_per_elem*3
                IF (ind .EQ. ind_arr(i)) CYCLE search_O_loop
                tmp = nearest_distance(x1=vec_2H_f, &
-                                      x2=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
+                                      x2=elem%pos(ind:ind + tmc_params%dim_per_elem - 1), &
                                       cell=tmc_params%cell, box_scale=elem%box_scale)
                IF (dist_near .GT. tmp) THEN
                   dist_near = tmp
-                  vec_4O = elem%pos(ind:ind+tmc_params%dim_per_elem-1)
+                  vec_4O = elem%pos(ind:ind + tmc_params%dim_per_elem - 1)
                END IF
             END DO search_O_loop
-            rot_axis = pbc(-vec_2O(:)+vec_4O(:), tmp_cell)
-            tmp_1 = pbc(vec_2O-vec_1O, tmp_cell)
-            tmp_2 = pbc(vec_3O-vec_4O, tmp_cell)
+            rot_axis = pbc(-vec_2O(:) + vec_4O(:), tmp_cell)
+            tmp_1 = pbc(vec_2O - vec_1O, tmp_cell)
+            tmp_2 = pbc(vec_3O - vec_4O, tmp_cell)
             dihe_angle = donor_acceptor*dihedral_angle(tmp_1, rot_axis, tmp_2)
-            vec_rotated = rotate_vector(vec_2H_m-vec_2O, dihe_angle, rot_axis)
+            vec_rotated = rotate_vector(vec_2H_m - vec_2O, dihe_angle, rot_axis)
             ! set new position
-            elem%pos(ind_arr(i)+H_offset*tmc_params%dim_per_elem: &
-                     ind_arr(i)+(H_offset+1)*tmc_params%dim_per_elem-1) &
-               = vec_2O+vec_rotated
-            vec_rotated = rotate_vector(vec_2H_f-vec_2O, dihe_angle, rot_axis)
+            elem%pos(ind_arr(i) + H_offset*tmc_params%dim_per_elem: &
+                     ind_arr(i) + (H_offset + 1)*tmc_params%dim_per_elem - 1) &
+               = vec_2O + vec_rotated
+            vec_rotated = rotate_vector(vec_2H_f - vec_2O, dihe_angle, rot_axis)
             IF (H_offset .EQ. 1) THEN
                H_offset = 2
             ELSE
                H_offset = 1
             END IF
-            elem%pos(ind_arr(i)+H_offset*tmc_params%dim_per_elem: &
-                     ind_arr(i)+(H_offset+1)*tmc_params%dim_per_elem-1) &
-               = vec_2O+vec_rotated
+            elem%pos(ind_arr(i) + H_offset*tmc_params%dim_per_elem: &
+                     ind_arr(i) + (H_offset + 1)*tmc_params%dim_per_elem - 1) &
+               = vec_2O + vec_rotated
          END IF
       END DO
       DEALLOCATE (tmp_cell)
@@ -1164,15 +1164,15 @@ CONTAINS
             CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
                                  abc=box_length_new, vol=vol)
             rnd = next_random_number(rng_stream)
-            vol = vol+(rnd-0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
+            vol = vol + (rnd - 0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
             box_length_new(:) = vol**(1/REAL(3, KIND=dp))
          ELSE
             CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
                                  abc=box_length_new, vol=vol)
             rnd = next_random_number(rng_stream)
-            vol = vol+(rnd-0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
+            vol = vol + (rnd - 0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
             rnd = next_random_number(rng_stream)
-            dir = 1+INT(rnd*3)
+            dir = 1 + INT(rnd*3)
             box_length_new(dir) = 1.0_dp
             box_length_new(dir) = vol/PRODUCT(box_length_new(:))
          END IF
@@ -1182,16 +1182,16 @@ CONTAINS
          ! l_n = l_o +- rnd * mv_size
          IF (tmc_params%v_isotropic) THEN
             rnd = next_random_number(rng_stream)
-            box_length_new(:) = box_length_new(:)+ &
-                                (rnd-0.5_dp)*2.0_dp* &
+            box_length_new(:) = box_length_new(:) + &
+                                (rnd - 0.5_dp)*2.0_dp* &
                                 move_types%mv_size(mv_type_volume_move, T_ind)
          ELSE
             ! select a random direction
             rnd = next_random_number(rng_stream)
-            dir = 1+INT(rnd*3)
+            dir = 1 + INT(rnd*3)
             rnd = next_random_number(rng_stream)
-            box_length_new(dir) = box_length_new(dir)+ &
-                                  (rnd-0.5_dp)*2.0_dp* &
+            box_length_new(dir) = box_length_new(dir) + &
+                                  (rnd - 0.5_dp)*2.0_dp* &
                                   move_types%mv_size(mv_type_volume_move, T_ind)
          END IF
       END IF
@@ -1209,8 +1209,8 @@ CONTAINS
       IF (mv_cen_of_mass .EQV. .FALSE.) THEN
          ! homogene scaling of atomic coordinates
          DO atom = 1, SIZE(conf%pos), tmc_params%dim_per_elem
-            conf%pos(atom:atom+tmc_params%dim_per_elem-1) = &
-               conf%pos(atom:atom+tmc_params%dim_per_elem-1)*scaling(:)
+            conf%pos(atom:atom + tmc_params%dim_per_elem - 1) = &
+               conf%pos(atom:atom + tmc_params%dim_per_elem - 1)*scaling(:)
          END DO
       ELSE
          DO mol = 1, MAXVAL(conf%mol(:))
@@ -1221,16 +1221,16 @@ CONTAINS
             CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=conf%mol, mol=mol, &
                                  start_ind=ind, end_ind=ind_e)
             CALL center_of_mass( &
-               pos=conf%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
-               atoms=tmc_params%atoms(INT(ind/REAL(tmc_params%dim_per_elem, KIND=dp))+1: &
-                                      INT(ind_e/REAL(tmc_params%dim_per_elem, KIND=dp))+1), &
+               pos=conf%pos(ind:ind_e + tmc_params%dim_per_elem - 1), &
+               atoms=tmc_params%atoms(INT(ind/REAL(tmc_params%dim_per_elem, KIND=dp)) + 1: &
+                                      INT(ind_e/REAL(tmc_params%dim_per_elem, KIND=dp)) + 1), &
                center=disp)
             ! calculate the center of mass DISPLACEMENT
-            disp(:) = disp(:)*(scaling(:)-1.0_dp)
+            disp(:) = disp(:)*(scaling(:) - 1.0_dp)
             ! displace all atoms of the molecule
-            DO atom = ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
-               conf%pos(atom:atom+tmc_params%dim_per_elem-1) = &
-                  conf%pos(atom:atom+tmc_params%dim_per_elem-1)+disp(:)
+            DO atom = ind, ind_e + tmc_params%dim_per_elem - 1, tmc_params%dim_per_elem
+               conf%pos(atom:atom + tmc_params%dim_per_elem - 1) = &
+                  conf%pos(atom:atom + tmc_params%dim_per_elem - 1) + disp(:)
             END DO
          END DO
       END IF
@@ -1273,10 +1273,10 @@ CONTAINS
       atom_search_loop: DO
          ! select one atom randomly
          a_1 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem, KIND=dp)* &
-                   next_random_number(rng_stream))+1
+                   next_random_number(rng_stream)) + 1
          ! select the second atom randomly
          a_2 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem, KIND=dp)* &
-                   next_random_number(rng_stream))+1
+                   next_random_number(rng_stream)) + 1
          ! check if they have different kinds
          IF (tmc_params%atoms(a_1)%name .NE. tmc_params%atoms(a_2)%name) THEN
             ! if present, check if atoms have different type related to the specified table
@@ -1299,12 +1299,12 @@ CONTAINS
       IF (found) THEN
          ! perform coordinate exchange
          ALLOCATE (pos_tmp(tmc_params%dim_per_elem))
-         ind_1 = (a_1-1)*tmc_params%dim_per_elem+1
-         pos_tmp(:) = conf%pos(ind_1:ind_1+tmc_params%dim_per_elem-1)
-         ind_2 = (a_2-1)*tmc_params%dim_per_elem+1
-         conf%pos(ind_1:ind_1+tmc_params%dim_per_elem-1) = &
-            conf%pos(ind_2:ind_2+tmc_params%dim_per_elem-1)
-         conf%pos(ind_2:ind_2+tmc_params%dim_per_elem-1) = pos_tmp(:)
+         ind_1 = (a_1 - 1)*tmc_params%dim_per_elem + 1
+         pos_tmp(:) = conf%pos(ind_1:ind_1 + tmc_params%dim_per_elem - 1)
+         ind_2 = (a_2 - 1)*tmc_params%dim_per_elem + 1
+         conf%pos(ind_1:ind_1 + tmc_params%dim_per_elem - 1) = &
+            conf%pos(ind_2:ind_2 + tmc_params%dim_per_elem - 1)
+         conf%pos(ind_2:ind_2 + tmc_params%dim_per_elem - 1) = pos_tmp(:)
          DEALLOCATE (pos_tmp)
       END IF
    END SUBROUTINE swap_atoms

@@ -202,7 +202,7 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                sbuf(ii) = density%cr3d(i, j, k)
-               ii = ii+1
+               ii = ii + 1
             END DO
          END DO
       END DO
@@ -235,39 +235,39 @@ CONTAINS
       IF (should_warn > 0 .AND. iproc == 0) &
          CPWARN("Density non-zero on the edges of the unit cell: wrong results in WAVELET solver")
 
-      DO i = 0, pw_grid%para%rs_dims(1)-1
-         DO j = 0, pw_grid%para%rs_dims(2)-1
+      DO i = 0, pw_grid%para%rs_dims(1) - 1
+         DO j = 0, pw_grid%para%rs_dims(2) - 1
             cart_pos = (/i, j/)
             CALL mp_cart_rank(pw_grid%para%rs_group, &
                               cart_pos, &
                               dest)
             IF ((ub(1) .GE. lb(1)) .AND. (ub(2) .GE. lb(2))) THEN
                IF (dest*local_z_dim .LE. m2) THEN
-                  IF ((dest+1)*local_z_dim .LE. m2) THEN
-                     scount(dest+1) = ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                  IF ((dest + 1)*local_z_dim .LE. m2) THEN
+                     scount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*local_z_dim)
                   ELSE
-                     scount(dest+1) = ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2, local_z_dim))
+                     scount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*MOD(m2, local_z_dim))
                   END IF
                ELSE
-                  scount(dest+1) = 0
+                  scount(dest + 1) = 0
                END IF
             ELSE
-               scount(dest+1) = 0
+               scount(dest + 1) = 0
             END IF
             lox = get_limit(pw_grid%npts(1), pw_grid%para%rs_dims(1), i)
             loy = get_limit(pw_grid%npts(2), pw_grid%para%rs_dims(2), j)
             IF ((lox(2) .GE. lox(1)) .AND. (loy(2) .GE. loy(1))) THEN
                IF (iproc*local_z_dim .LE. m2) THEN
-                  IF ((iproc+1)*local_z_dim .LE. m2) THEN
-                     rcount(dest+1) = ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+                  IF ((iproc + 1)*local_z_dim .LE. m2) THEN
+                     rcount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*local_z_dim)
                   ELSE
-                     rcount(dest+1) = ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2, local_z_dim))
+                     rcount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*MOD(m2, local_z_dim))
                   END IF
                ELSE
-                  rcount(dest+1) = 0
+                  rcount(dest + 1) = 0
                END IF
             ELSE
-               rcount(dest+1) = 0
+               rcount(dest + 1) = 0
             END IF
 
          END DO
@@ -275,16 +275,16 @@ CONTAINS
       sdispl(1) = 0
       rdispl(1) = 0
       DO i = 2, nproc
-         sdispl(i) = sdispl(i-1)+scount(i-1)
-         rdispl(i) = rdispl(i-1)+rcount(i-1)
+         sdispl(i) = sdispl(i - 1) + scount(i - 1)
+         rdispl(i) = rdispl(i - 1) + rcount(i - 1)
       END DO
       CALL mp_alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl, pw_grid%para%rs_group)
       !!!! and now, how to put the right cubes to the right position!!!!!!
 
       wavelet%rho_z_sliced = 0.0_dp
 
-      DO i = 0, pw_grid%para%rs_dims(1)-1
-         DO j = 0, pw_grid%para%rs_dims(2)-1
+      DO i = 0, pw_grid%para%rs_dims(1) - 1
+         DO j = 0, pw_grid%para%rs_dims(2) - 1
             cart_pos = (/i, j/)
             CALL mp_cart_rank(pw_grid%para%rs_group, &
                               cart_pos, &
@@ -293,7 +293,7 @@ CONTAINS
             lox = get_limit(pw_grid%npts(1), pw_grid%para%rs_dims(1), i)
             loy = get_limit(pw_grid%npts(2), pw_grid%para%rs_dims(2), j)
             IF (iproc*local_z_dim .LE. m2) THEN
-               IF ((iproc+1)*local_z_dim .LE. m2) THEN
+               IF ((iproc + 1)*local_z_dim .LE. m2) THEN
                   loz = local_z_dim
                ELSE
                   loz = MOD(m2, local_z_dim)
@@ -302,8 +302,8 @@ CONTAINS
                DO k = 1, loz
                   DO l = loy(1), loy(2)
                      DO m = lox(1), lox(2)
-                        wavelet%rho_z_sliced(m, l, k) = rbuf(ii+rdispl(dest+1))
-                        ii = ii+1
+                        wavelet%rho_z_sliced(m, l, k) = rbuf(ii + rdispl(dest + 1))
+                        ii = ii + 1
                      END DO
                   END DO
                END DO
@@ -359,7 +359,7 @@ CONTAINS
       rbuf = 0.0_dp
       ii = 1
       IF (iproc*local_z_dim .LE. m2) THEN
-         IF ((iproc+1)*local_z_dim .LE. m2) THEN
+         IF ((iproc + 1)*local_z_dim .LE. m2) THEN
             loz = local_z_dim
          ELSE
             loz = MOD(m2, local_z_dim)
@@ -370,71 +370,71 @@ CONTAINS
 
       min_x = get_limit(pw_grid%npts(1), pw_grid%para%rs_dims(1), 0)
       min_y = get_limit(pw_grid%npts(2), pw_grid%para%rs_dims(2), 0)
-      DO i = 0, pw_grid%para%rs_dims(1)-1
-         DO j = 0, pw_grid%para%rs_dims(2)-1
+      DO i = 0, pw_grid%para%rs_dims(1) - 1
+         DO j = 0, pw_grid%para%rs_dims(2) - 1
             cart_pos = (/i, j/)
             CALL mp_cart_rank(pw_grid%para%rs_group, &
                               cart_pos, &
                               dest)
             IF ((ub(1) .GE. lb(1)) .AND. (ub(2) .GE. lb(2))) THEN
                IF (dest*local_z_dim .LE. m2) THEN
-                  IF ((dest+1)*local_z_dim .LE. m2) THEN
-                     rcount(dest+1) = ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                  IF ((dest + 1)*local_z_dim .LE. m2) THEN
+                     rcount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*local_z_dim)
                   ELSE
-                     rcount(dest+1) = ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2, local_z_dim))
+                     rcount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*MOD(m2, local_z_dim))
                   END IF
                ELSE
-                  rcount(dest+1) = 0
+                  rcount(dest + 1) = 0
                END IF
             ELSE
-               rcount(dest+1) = 0
+               rcount(dest + 1) = 0
             END IF
             lox = get_limit(pw_grid%npts(1), pw_grid%para%rs_dims(1), i)
             loy = get_limit(pw_grid%npts(2), pw_grid%para%rs_dims(2), j)
             IF ((lox(2) .GE. lox(1)) .AND. (loy(2) .GE. loy(1))) THEN
-               scount(dest+1) = ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*loz)
-               DO k = lox(1)-min_x(1)+1, lox(2)-min_x(1)+1
-                  DO l = loy(1)-min_y(1)+1, loy(2)-min_y(1)+1
+               scount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*loz)
+               DO k = lox(1) - min_x(1) + 1, lox(2) - min_x(1) + 1
+                  DO l = loy(1) - min_y(1) + 1, loy(2) - min_y(1) + 1
                      DO m = 1, loz
                         sbuf(ii) = wavelet%rho_z_sliced(k, l, m)
-                        ii = ii+1
+                        ii = ii + 1
                      END DO
                   END DO
                END DO
             ELSE
-               scount(dest+1) = 0
+               scount(dest + 1) = 0
             END IF
          END DO
       END DO
       sdispl(1) = 0
       rdispl(1) = 0
       DO i = 2, nproc
-         sdispl(i) = sdispl(i-1)+scount(i-1)
-         rdispl(i) = rdispl(i-1)+rcount(i-1)
+         sdispl(i) = sdispl(i - 1) + scount(i - 1)
+         rdispl(i) = rdispl(i - 1) + rcount(i - 1)
       END DO
       CALL mp_alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl, pw_grid%para%rs_group)
 
       !!!! and now, how to put the right cubes to the right position!!!!!!
 
-      DO i = 0, pw_grid%para%rs_dims(1)-1
-         DO j = 0, pw_grid%para%rs_dims(2)-1
+      DO i = 0, pw_grid%para%rs_dims(1) - 1
+         DO j = 0, pw_grid%para%rs_dims(2) - 1
             cart_pos = (/i, j/)
             CALL mp_cart_rank(pw_grid%para%rs_group, &
                               cart_pos, &
                               dest)
             IF (dest*local_z_dim .LE. m2) THEN
-               IF ((dest+1)*local_z_dim .LE. m2) THEN
+               IF ((dest + 1)*local_z_dim .LE. m2) THEN
                   loz = local_z_dim
                ELSE
                   loz = MOD(m2, local_z_dim)
                END IF
                ii = 1
-               IF (lb(3)+(dest*local_z_dim) .LE. ub(3)) THEN
+               IF (lb(3) + (dest*local_z_dim) .LE. ub(3)) THEN
                   DO m = lb(1), ub(1)
                      DO l = lb(2), ub(2)
-                        DO k = lb(3)+(dest*local_z_dim), lb(3)+(dest*local_z_dim)+loz-1
-                           density%cr3d(m, l, k) = rbuf(ii+rdispl(dest+1))
-                           ii = ii+1
+                        DO k = lb(3) + (dest*local_z_dim), lb(3) + (dest*local_z_dim) + loz - 1
+                           density%cr3d(m, l, k) = rbuf(ii + rdispl(dest + 1))
+                           ii = ii + 1
                         END DO
                      END DO
                   END DO

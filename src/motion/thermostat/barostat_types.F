@@ -99,7 +99,7 @@ CONTAINS
           simpar%ensemble == nph_uniaxial_ensemble .OR. &
           simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          ALLOCATE (barostat)
-         last_barostat_id_nr = last_barostat_id_nr+1
+         last_barostat_id_nr = last_barostat_id_nr + 1
          barostat%id_nr = last_barostat_id_nr
          barostat%ref_count = 1
          barostat%section => barostat_section
@@ -148,7 +148,7 @@ CONTAINS
 
       IF (ASSOCIATED(barostat)) THEN
          CPASSERT(barostat%ref_count > 0)
-         barostat%ref_count = barostat%ref_count+1
+         barostat%ref_count = barostat%ref_count + 1
       END IF
    END SUBROUTINE retain_barostat_type
 
@@ -170,7 +170,7 @@ CONTAINS
       IF (ASSOCIATED(barostat)) THEN
          check = barostat%ref_count > 0
          CPASSERT(check)
-         barostat%ref_count = barostat%ref_count-1
+         barostat%ref_count = barostat%ref_count - 1
          IF (barostat%ref_count < 1) THEN
             IF (ASSOCIATED(barostat%npt)) THEN
                DEALLOCATE (barostat%npt)

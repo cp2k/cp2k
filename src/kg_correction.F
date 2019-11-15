@@ -182,7 +182,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3) - virial%pv_xc(1:3, 1:3)
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -194,7 +194,7 @@ CONTAINS
          ! calc Hohenberg-Kohn kin. energy of the density corresp. to the remaining molecular block(s)
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
                             vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
-         ekin_mol = ekin_mol+ekin_imol
+         ekin_mol = ekin_mol + ekin_imol
 
          DO ispin = 1, nspins
             vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
@@ -210,7 +210,7 @@ CONTAINS
          DEALLOCATE (vxc_rho)
 
          IF (use_virial) THEN
-            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3) + virial%pv_xc(1:3, 1:3)
          END IF
 
       END DO
@@ -330,7 +330,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3) - virial%pv_xc(1:3, 1:3)
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -346,7 +346,7 @@ CONTAINS
          ! calc Hohenberg-Kohn kin. energy of the density corresp. to the remaining molecular block(s)
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
                             vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
-         ekin_mol = ekin_mol+ekin_imol
+         ekin_mol = ekin_mol + ekin_imol
 
          DO ispin = 1, nspins
             vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
@@ -360,7 +360,7 @@ CONTAINS
          DEALLOCATE (vxc_rho)
 
          IF (use_virial) THEN
-            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3) + virial%pv_xc(1:3, 1:3)
          END IF
 
       END DO
@@ -485,7 +485,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3) - virial%pv_xc(1:3, 1:3)
 !deb
 !     WRITE(6,*) " E KIN (full)       ",-ekin_mol
 !deb
@@ -506,7 +506,7 @@ CONTAINS
          NULLIFY (vxc_rho, vxc_tau)
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
                             vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
-         ekin_mol = ekin_mol+ekin_imol
+         ekin_mol = ekin_mol + ekin_imol
 !deb
 !     WRITE(6,*) " E KIN (molecule)    ",isub,ekin_imol
 !deb
@@ -523,7 +523,7 @@ CONTAINS
          DEALLOCATE (vxc_rho)
 
          IF (use_virial) THEN
-            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3) + virial%pv_xc(1:3, 1:3)
          END IF
 
       END DO

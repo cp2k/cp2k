@@ -98,7 +98,7 @@ PROGRAM cp2k
    DO i = l, 1, -1
       IF (command(i:i) == "/" .OR. command(i:i) == "\") EXIT
    END DO
-   command = command(i+1:l)
+   command = command(i + 1:l)
 
    ! check if binary was invoked as cp2k_shell
    IF (command(1:10) == "cp2k_shell") THEN
@@ -112,7 +112,7 @@ PROGRAM cp2k
 
    i_arg = 0
    arg_loop: DO WHILE (i_arg < COMMAND_ARGUMENT_COUNT())
-      i_arg = i_arg+1
+      i_arg = i_arg + 1
       CALL GET_COMMAND_ARGUMENT(i_arg, arg_att, status=ierr)
       CPASSERT(ierr == 0)
       SELECT CASE (arg_att)
@@ -139,7 +139,7 @@ PROGRAM cp2k
          usage = .TRUE.
          run_it = .FALSE.
       CASE ("-i")
-         i_arg = i_arg+1
+         i_arg = i_arg + 1
          CALL GET_COMMAND_ARGUMENT(i_arg, arg_att, status=ierr)
          CPASSERT(ierr == 0)
          ! argument does not start with a - it is an filename
@@ -153,7 +153,7 @@ PROGRAM cp2k
             EXIT arg_loop
          ENDIF
       CASE ("-o")
-         i_arg = i_arg+1
+         i_arg = i_arg + 1
          CALL GET_COMMAND_ARGUMENT(i_arg, arg_att, status=ierr)
          CPASSERT(ierr == 0)
          ! argument does not start with a - it is an filename

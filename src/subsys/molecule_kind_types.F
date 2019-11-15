@@ -265,69 +265,69 @@ CONTAINS
 
       IF (ASSOCIATED(colv_list)) THEN
          DO k = 1, SIZE(colv_list)
-            IF (colv_list(k)%restraint%active) ncolv%nrestraint = ncolv%nrestraint+1
-            SELECT CASE (colv_list (k)%type_id)
+            IF (colv_list(k)%restraint%active) ncolv%nrestraint = ncolv%nrestraint + 1
+            SELECT CASE (colv_list(k)%type_id)
             CASE (angle_colvar_id)
-               ncolv%nangle = ncolv%nangle+1
+               ncolv%nangle = ncolv%nangle + 1
             CASE (coord_colvar_id)
-               ncolv%ncoord = ncolv%ncoord+1
+               ncolv%ncoord = ncolv%ncoord + 1
             CASE (population_colvar_id)
-               ncolv%npopulation = ncolv%npopulation+1
+               ncolv%npopulation = ncolv%npopulation + 1
             CASE (gyration_colvar_id)
-               ncolv%ngyration = ncolv%ngyration+1
+               ncolv%ngyration = ncolv%ngyration + 1
             CASE (rotation_colvar_id)
-               ncolv%nrot = ncolv%nrot+1
+               ncolv%nrot = ncolv%nrot + 1
             CASE (dist_colvar_id)
-               ncolv%ndist = ncolv%ndist+1
+               ncolv%ndist = ncolv%ndist + 1
             CASE (dfunct_colvar_id)
-               ncolv%ndfunct = ncolv%ndfunct+1
+               ncolv%ndfunct = ncolv%ndfunct + 1
             CASE (plane_distance_colvar_id)
-               ncolv%nplane_dist = ncolv%nplane_dist+1
+               ncolv%nplane_dist = ncolv%nplane_dist + 1
             CASE (plane_plane_angle_colvar_id)
-               ncolv%nplane_angle = ncolv%nplane_angle+1
+               ncolv%nplane_angle = ncolv%nplane_angle + 1
             CASE (torsion_colvar_id)
-               ncolv%ntorsion = ncolv%ntorsion+1
+               ncolv%ntorsion = ncolv%ntorsion + 1
             CASE (qparm_colvar_id)
-               ncolv%nqparm = ncolv%nqparm+1
+               ncolv%nqparm = ncolv%nqparm + 1
             CASE (xyz_diag_colvar_id)
-               ncolv%nxyz_diag = ncolv%nxyz_diag+1
+               ncolv%nxyz_diag = ncolv%nxyz_diag + 1
             CASE (xyz_outerdiag_colvar_id)
-               ncolv%nxyz_outerdiag = ncolv%nxyz_outerdiag+1
+               ncolv%nxyz_outerdiag = ncolv%nxyz_outerdiag + 1
             CASE (hydronium_shell_colvar_id)
-               ncolv%nhydronium_shell = ncolv%nhydronium_shell+1
+               ncolv%nhydronium_shell = ncolv%nhydronium_shell + 1
             CASE (hydronium_dist_colvar_id)
-               ncolv%nhydronium_dist = ncolv%nhydronium_dist+1
+               ncolv%nhydronium_dist = ncolv%nhydronium_dist + 1
             CASE (acid_hyd_dist_colvar_id)
-               ncolv%nacid_hyd_dist = ncolv%nacid_hyd_dist+1
+               ncolv%nacid_hyd_dist = ncolv%nacid_hyd_dist + 1
             CASE (acid_hyd_shell_colvar_id)
-               ncolv%nacid_hyd_shell = ncolv%nacid_hyd_shell+1
+               ncolv%nacid_hyd_shell = ncolv%nacid_hyd_shell + 1
             CASE (reaction_path_colvar_id)
-               ncolv%nreactionpath = ncolv%nreactionpath+1
+               ncolv%nreactionpath = ncolv%nreactionpath + 1
             CASE (combine_colvar_id)
-               ncolv%ncombinecvs = ncolv%ncombinecvs+1
+               ncolv%ncombinecvs = ncolv%ncombinecvs + 1
             CASE DEFAULT
                CPABORT("")
             END SELECT
          END DO
       END IF
-      ncolv%ntot = ncolv%ndist+ &
-                   ncolv%nangle+ &
-                   ncolv%ntorsion+ &
-                   ncolv%ncoord+ &
-                   ncolv%nplane_dist+ &
-                   ncolv%nplane_angle+ &
-                   ncolv%ndfunct+ &
-                   ncolv%nrot+ &
-                   ncolv%nqparm+ &
-                   ncolv%nxyz_diag+ &
-                   ncolv%nxyz_outerdiag+ &
-                   ncolv%nhydronium_shell+ &
-                   ncolv%nhydronium_dist+ &
-                   ncolv%nacid_hyd_dist+ &
-                   ncolv%nacid_hyd_shell+ &
-                   ncolv%nreactionpath+ &
-                   ncolv%ncombinecvs+ &
-                   ncolv%npopulation+ &
+      ncolv%ntot = ncolv%ndist + &
+                   ncolv%nangle + &
+                   ncolv%ntorsion + &
+                   ncolv%ncoord + &
+                   ncolv%nplane_dist + &
+                   ncolv%nplane_angle + &
+                   ncolv%ndfunct + &
+                   ncolv%nrot + &
+                   ncolv%nqparm + &
+                   ncolv%nxyz_diag + &
+                   ncolv%nxyz_outerdiag + &
+                   ncolv%nhydronium_shell + &
+                   ncolv%nhydronium_dist + &
+                   ncolv%nacid_hyd_dist + &
+                   ncolv%nacid_hyd_shell + &
+                   ncolv%nreactionpath + &
+                   ncolv%ncombinecvs + &
+                   ncolv%npopulation + &
                    ncolv%ngyration
 
    END SUBROUTINE setup_colvar_counters
@@ -661,10 +661,10 @@ CONTAINS
          IF (PRESENT(nub)) nub = molecule_kind%nub
          IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
          IF (PRESENT(nopbend)) nopbend = molecule_kind%nopbend
-         IF (PRESENT(nconstraint)) nconstraint = (molecule_kind%ncolv%ntot-molecule_kind%ncolv%nrestraint)+ &
-                                                 3*(molecule_kind%ng3x3-molecule_kind%ng3x3_restraint)+ &
-                                                 6*(molecule_kind%ng4x6-molecule_kind%ng4x6_restraint)+ &
-                                                 3*(molecule_kind%nvsite-molecule_kind%nvsite_restraint)
+         IF (PRESENT(nconstraint)) nconstraint = (molecule_kind%ncolv%ntot - molecule_kind%ncolv%nrestraint) + &
+                                                 3*(molecule_kind%ng3x3 - molecule_kind%ng3x3_restraint) + &
+                                                 6*(molecule_kind%ng4x6 - molecule_kind%ng4x6_restraint) + &
+                                                 3*(molecule_kind%nvsite - molecule_kind%nvsite_restraint)
          IF (PRESENT(ncolv)) ncolv = molecule_kind%ncolv
          IF (PRESENT(ng3x3)) ng3x3 = molecule_kind%ng3x3
          IF (PRESENT(ng4x6)) ng4x6 = molecule_kind%ng4x6
@@ -677,13 +677,13 @@ CONTAINS
             IF (molecule_kind%nfixd /= 0) THEN
                DO i = 1, SIZE(molecule_kind%fixd_list)
                   IF (molecule_kind%fixd_list(i)%restraint%active) CYCLE
-                  SELECT CASE (molecule_kind%fixd_list (i)%itype)
+                  SELECT CASE (molecule_kind%fixd_list(i)%itype)
                   CASE (use_perd_x, use_perd_y, use_perd_z)
-                     nconstraint_fixd = nconstraint_fixd+1
+                     nconstraint_fixd = nconstraint_fixd + 1
                   CASE (use_perd_xy, use_perd_xz, use_perd_yz)
-                     nconstraint_fixd = nconstraint_fixd+2
+                     nconstraint_fixd = nconstraint_fixd + 2
                   CASE (use_perd_xyz)
-                     nconstraint_fixd = nconstraint_fixd+3
+                     nconstraint_fixd = nconstraint_fixd + 3
                   END SELECT
                END DO
             END IF
@@ -692,9 +692,9 @@ CONTAINS
          IF (PRESENT(ng4x6_restraint)) ng4x6_restraint = molecule_kind%ng4x6_restraint
          IF (PRESENT(nvsite_restraint)) nvsite_restraint = molecule_kind%nvsite_restraint
          IF (PRESENT(nfixd_restraint)) nfixd_restraint = molecule_kind%nfixd_restraint
-         IF (PRESENT(nrestraints)) nrestraints = molecule_kind%ncolv%nrestraint+ &
-                                                 molecule_kind%ng3x3_restraint+ &
-                                                 molecule_kind%ng4x6_restraint+ &
+         IF (PRESENT(nrestraints)) nrestraints = molecule_kind%ncolv%nrestraint + &
+                                                 molecule_kind%ng3x3_restraint + &
+                                                 molecule_kind%ng4x6_restraint + &
                                                  molecule_kind%nvsite_restraint
          IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
          IF (PRESENT(nshell)) nshell = molecule_kind%nshell
@@ -785,17 +785,17 @@ CONTAINS
                                    nrestraints=nrestraints_tot, &
                                    nmolecule=nm)
             IF (PRESENT(maxatom)) maxatom = MAX(maxatom, na)
-            IF (PRESENT(natom)) natom = natom+na*nm
-            IF (PRESENT(nbond)) nbond = nbond+ibond*nm
-            IF (PRESENT(nbend)) nbend = nbend+ibend*nm
-            IF (PRESENT(nub)) nub = nub+iub*nm
-            IF (PRESENT(ntorsion)) ntorsion = ntorsion+itorsion*nm
-            IF (PRESENT(nimpr)) nimpr = nimpr+iimpr*nm
-            IF (PRESENT(nopbend)) nopbend = nopbend+iopbend*nm
-            IF (PRESENT(nconstraint)) nconstraint = nconstraint+nc*nm+nc_fixd
-            IF (PRESENT(nconstraint_fixd)) nconstraint_fixd = nconstraint_fixd+nc_fixd
-            IF (PRESENT(nmolecule)) nmolecule = nmolecule+nm
-            IF (PRESENT(nrestraints)) nrestraints = nrestraints+nm*nrestraints_tot+nfixd_restraint
+            IF (PRESENT(natom)) natom = natom + na*nm
+            IF (PRESENT(nbond)) nbond = nbond + ibond*nm
+            IF (PRESENT(nbend)) nbend = nbend + ibend*nm
+            IF (PRESENT(nub)) nub = nub + iub*nm
+            IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
+            IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
+            IF (PRESENT(nopbend)) nopbend = nopbend + iopbend*nm
+            IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + nc_fixd
+            IF (PRESENT(nconstraint_fixd)) nconstraint_fixd = nconstraint_fixd + nc_fixd
+            IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
+            IF (PRESENT(nrestraints)) nrestraints = nrestraints + nm*nrestraints_tot + nfixd_restraint
 
          END DO
 
@@ -1127,7 +1127,7 @@ CONTAINS
                                        ntorsion=ntors, &
                                        nimpr=nimpr, &
                                        nopbend=nopbend)
-            ntotal = nbond+nbend+nub+ntors+nimpr+nopbend
+            ntotal = nbond + nbend + nub + ntors + nimpr + nopbend
             IF (ntotal > 0) THEN
                WRITE (UNIT=output_unit, FMT="(/,/,T2,A,T45,A30,I6)") &
                   "MOLECULE KIND SET INFORMATION", &

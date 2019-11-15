@@ -135,19 +135,19 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               end_c = LEN(line_att)+1
+               end_c = LEN(line_att) + 1
                DO j = start_c, LEN(line_att)
                   IF (line_att(j:j) == ' ') THEN
                      end_c = j
                      EXIT
                   END IF
                END DO
-               IF (LEN_TRIM(line_att(start_c:end_c-1)) == 0) &
+               IF (LEN_TRIM(line_att(start_c:end_c - 1)) == 0) &
                   CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
                IF (wrd == 1) THEN
-                  atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
+                  atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c - 1)))
                ELSE
-                  READ (line_att(start_c:end_c-1), *) atom_info%r(wrd-1, iatom)
+                  READ (line_att(start_c:end_c - 1), *) atom_info%r(wrd - 1, iatom)
                END IF
                start_c = end_c
             END DO
@@ -186,14 +186,14 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               end_c = LEN(line_att)+1
+               end_c = LEN(line_att) + 1
                DO j = start_c, LEN(line_att)
                   IF (line_att(j:j) == ' ') THEN
                      end_c = j
                      EXIT
                   END IF
                END DO
-               IF (LEN_TRIM(line_att(start_c:end_c-1)) == 0) &
+               IF (LEN_TRIM(line_att(start_c:end_c - 1)) == 0) &
                   CALL cp_abort(__LOCATION__, &
                                 "Incorrectly formatted input line for atom "// &
                                 TRIM(ADJUSTL(cp_to_string(iatom)))// &
@@ -201,10 +201,10 @@ CONTAINS
                                 TRIM(line_att)//"> ")
                SELECT CASE (wrd)
                CASE (1)
-                  atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
+                  atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c - 1)))
                CASE (2:4)
-                  CALL read_float_object(line_att(start_c:end_c-1), &
-                                         atom_info%r(wrd-1, iatom), error_message)
+                  CALL read_float_object(line_att(start_c:end_c - 1), &
+                                         atom_info%r(wrd - 1, iatom), error_message)
                   IF (LEN_TRIM(error_message) /= 0) &
                      CALL cp_abort(__LOCATION__, &
                                    "Incorrectly formatted input line for atom "// &
@@ -212,12 +212,12 @@ CONTAINS
                                    " found in COORD section. "//TRIM(error_message)// &
                                    " Input line: <"//TRIM(line_att)//"> ")
                CASE (5)
-                  READ (line_att(start_c:end_c-1), *) strtmp
+                  READ (line_att(start_c:end_c - 1), *) strtmp
                   atom_info%id_molname(iatom) = str2id(strtmp)
                   atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
                   topology%molname_generated = .FALSE.
                CASE (6)
-                  READ (line_att(start_c:end_c-1), *) strtmp
+                  READ (line_att(start_c:end_c - 1), *) strtmp
                   atom_info%id_resname(iatom) = str2id(strtmp)
                END SELECT
                start_c = end_c
@@ -334,22 +334,22 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               end_c = LEN(line_att)+1
+               end_c = LEN(line_att) + 1
                DO j = start_c, LEN(line_att)
                   IF (line_att(j:j) == ' ') THEN
                      end_c = j
                      EXIT
                   END IF
                END DO
-               IF (wrd /= 5 .AND. end_c >= LEN(line_att)+1) &
+               IF (wrd /= 5 .AND. end_c >= LEN(line_att) + 1) &
                   CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
                IF (wrd == 1) THEN
-                  at_name(ishell) = line_att(start_c:end_c-1)
+                  at_name(ishell) = line_att(start_c:end_c - 1)
                   CALL uppercase(at_name(ishell))
                ELSE IF (wrd == 5) THEN
-                  READ (line_att(start_c:end_c-1), *) at_index(ishell)
+                  READ (line_att(start_c:end_c - 1), *) at_index(ishell)
                ELSE
-                  READ (line_att(start_c:end_c-1), *) r(wrd-1, ishell)
+                  READ (line_att(start_c:end_c - 1), *) r(wrd - 1, ishell)
                END IF
                start_c = end_c
             END DO
@@ -384,22 +384,22 @@ CONTAINS
                            EXIT
                         END IF
                      END DO
-                     end_c = LEN(line_att)+1
+                     end_c = LEN(line_att) + 1
                      DO j = start_c, LEN(line_att)
                         IF (line_att(j:j) == ' ') THEN
                            end_c = j
                            EXIT
                         END IF
                      END DO
-                     IF (wrd /= 5 .AND. end_c >= LEN(line_att)+1) &
+                     IF (wrd /= 5 .AND. end_c >= LEN(line_att) + 1) &
                         CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
                      IF (wrd == 1) THEN
-                        at_name_c(ishell) = line_att(start_c:end_c-1)
+                        at_name_c(ishell) = line_att(start_c:end_c - 1)
                         CALL uppercase(at_name_c(ishell))
                      ELSE IF (wrd == 5) THEN
-                        READ (line_att(start_c:end_c-1), *) at_index_c(ishell)
+                        READ (line_att(start_c:end_c - 1), *) at_index_c(ishell)
                      ELSE
-                        READ (line_att(start_c:end_c-1), *) rc(wrd-1, ishell)
+                        READ (line_att(start_c:end_c - 1), *) rc(wrd - 1, ishell)
                      END IF
                      start_c = end_c
                   END DO
@@ -426,11 +426,11 @@ CONTAINS
                shell_particle_set(sh_index)%atom_index = at_index(ishell)
 
                IF (PRESENT(core_particle_set) .AND. .NOT. explicit) THEN
-                  core_particle_set(sh_index)%r(1) = (mass_com*particle_set(at_index(ishell))%r(1)- &
+                  core_particle_set(sh_index)%r(1) = (mass_com*particle_set(at_index(ishell))%r(1) - &
                                                       shell%mass_shell*shell_particle_set(sh_index)%r(1))/shell%mass_core
-                  core_particle_set(sh_index)%r(2) = (mass_com*particle_set(at_index(ishell))%r(2)- &
+                  core_particle_set(sh_index)%r(2) = (mass_com*particle_set(at_index(ishell))%r(2) - &
                                                       shell%mass_shell*shell_particle_set(sh_index)%r(2))/shell%mass_core
-                  core_particle_set(sh_index)%r(3) = (mass_com*particle_set(at_index(ishell))%r(3)- &
+                  core_particle_set(sh_index)%r(3) = (mass_com*particle_set(at_index(ishell))%r(3) - &
                                                       shell%mass_shell*shell_particle_set(sh_index)%r(3))/shell%mass_core
                   core_particle_set(sh_index)%atom_index = at_index(ishell)
                   rab = pbc(shell_particle_set(sh_index)%r, core_particle_set(sh_index)%r, cell)
@@ -448,7 +448,7 @@ CONTAINS
                   rab = pbc(shell_particle_set(sh_index)%r, particle_set(at_index(ishell))%r, cell)
                END IF
 
-               dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+               dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
                IF (shell%max_dist > 0.0_dp .AND. shell%max_dist < dab) THEN
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, *) "WARNING : shell and core for atom ", at_index(ishell), " seem to be too distant. "

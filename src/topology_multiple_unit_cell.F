@@ -94,28 +94,28 @@ CONTAINS
          CALL reallocate(topology%atom_info%id_element, 1, natoms)
          ind = 0
          DO k = 1, multiple_unit_cell(3)
-            trsl_k = cell%hmat(:, 3)*REAL(k-1, KIND=dp)
+            trsl_k = cell%hmat(:, 3)*REAL(k - 1, KIND=dp)
             DO j = 1, multiple_unit_cell(2)
-               trsl_j = cell%hmat(:, 2)*REAL(j-1, KIND=dp)
+               trsl_j = cell%hmat(:, 2)*REAL(j - 1, KIND=dp)
                DO i = 1, multiple_unit_cell(1)
-                  trsl_i = cell%hmat(:, 1)*REAL(i-1, KIND=dp)
-                  trsl = trsl_i+trsl_j+trsl_k
-                  ind = ind+1
+                  trsl_i = cell%hmat(:, 1)*REAL(i - 1, KIND=dp)
+                  trsl = trsl_i + trsl_j + trsl_k
+                  ind = ind + 1
                   IF (ind == 1) CYCLE
 
                   ! loop over atoms
-                  n = (ind-1)*topology%natoms
+                  n = (ind - 1)*topology%natoms
                   DO m = 1, topology%natoms
-                     topology%atom_info%id_atmname(n+m) = topology%atom_info%id_atmname(m)
-                     topology%atom_info%r(1, n+m) = topology%atom_info%r(1, m)+trsl(1)
-                     topology%atom_info%r(2, n+m) = topology%atom_info%r(2, m)+trsl(2)
-                     topology%atom_info%r(3, n+m) = topology%atom_info%r(3, m)+trsl(3)
-                     topology%atom_info%id_molname(n+m) = topology%atom_info%id_molname(m)
-                     topology%atom_info%id_resname(n+m) = topology%atom_info%id_resname(m)
-                     topology%atom_info%resid(n+m) = topology%atom_info%resid(m)
-                     topology%atom_info%id_element(n+m) = topology%atom_info%id_element(m)
-                     topology%atom_info%atm_mass(n+m) = topology%atom_info%atm_mass(m)
-                     topology%atom_info%atm_charge(n+m) = topology%atom_info%atm_charge(m)
+                     topology%atom_info%id_atmname(n + m) = topology%atom_info%id_atmname(m)
+                     topology%atom_info%r(1, n + m) = topology%atom_info%r(1, m) + trsl(1)
+                     topology%atom_info%r(2, n + m) = topology%atom_info%r(2, m) + trsl(2)
+                     topology%atom_info%r(3, n + m) = topology%atom_info%r(3, m) + trsl(3)
+                     topology%atom_info%id_molname(n + m) = topology%atom_info%id_molname(m)
+                     topology%atom_info%id_resname(n + m) = topology%atom_info%id_resname(m)
+                     topology%atom_info%resid(n + m) = topology%atom_info%resid(m)
+                     topology%atom_info%id_element(n + m) = topology%atom_info%id_element(m)
+                     topology%atom_info%atm_mass(n + m) = topology%atom_info%atm_mass(m)
+                     topology%atom_info%atm_charge(n + m) = topology%atom_info%atm_charge(m)
                   END DO
                END DO
             END DO

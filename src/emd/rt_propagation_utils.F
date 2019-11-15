@@ -144,7 +144,7 @@ CONTAINS
          ALLOCATE (tmp_mat2)
          CALL dbcsr_create(tmp_mat2, template=S_der(1)%matrix, matrix_type="S")
          DO m = 1, 9
-            CALL dbcsr_copy(tmp_mat2, s_derivs(m+1)%matrix)
+            CALL dbcsr_copy(tmp_mat2, s_derivs(m + 1)%matrix)
             CALL dbcsr_desymmetrize(tmp_mat2, S_der(m)%matrix)
             CALL dbcsr_scale(S_der(m)%matrix, -one)
             CALL dbcsr_filter(S_der(m)%matrix, rtp%filter_eps)
@@ -181,7 +181,7 @@ CONTAINS
       n = 0
       DO j = 1, 3
          DO m = j, 3
-            n = n+1
+            n = n + 1
             c_map_mat(n, 1) = j
             IF (m == j) CYCLE
             c_map_mat(n, 2) = m
@@ -192,7 +192,7 @@ CONTAINS
          CALL dbcsr_set(C_mat(i)%matrix, zero)
       END DO
       DO m = 1, 6
-         CALL dbcsr_copy(tmp_mat, S_der(m+3)%matrix)
+         CALL dbcsr_copy(tmp_mat, S_der(m + 3)%matrix)
          DO j = 1, 2
             IF (c_map_mat(m, j) == 0) CYCLE
             CALL dbcsr_add(C_mat(c_map_mat(m, j))%matrix, tmp_mat, one, one)
@@ -276,7 +276,7 @@ CONTAINS
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
             DO ispin = 1, nspin
-               re = 2*ispin-1
+               re = 2*ispin - 1
                im = 2*ispin
                CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, ncol_global=ncol)
                alpha = 1.0_dp
@@ -293,7 +293,7 @@ CONTAINS
          ELSE
             CALL get_rtp(rtp=rtp, mos_old=mos_old)
             DO i = 1, SIZE(qs_env%mos)
-               CALL cp_fm_to_fm(mo_array(i)%mo_set%mo_coeff, mos_old(2*i-1)%matrix)
+               CALL cp_fm_to_fm(mo_array(i)%mo_set%mo_coeff, mos_old(2*i - 1)%matrix)
                CALL cp_fm_set_all(mos_old(2*i)%matrix, zero, zero)
             END DO
          ENDIF
@@ -302,7 +302,7 @@ CONTAINS
             CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
             project_name = logger%iter_info%project_name
             DO ispin = 1, nspin
-               re = 2*ispin-1
+               re = 2*ispin - 1
                im = 2*ispin
                WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE", ispin, "_RESTART.dm"
                CALL dbcsr_get_info(rho_old(re)%matrix, distribution=dist)
@@ -372,8 +372,8 @@ CONTAINS
       CALL get_rtp(rtp=rtp, mos_new=mos_new)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
       DO i = 1, SIZE(mos_new)/2
-         re = 2*i-1; im = 2*i
-         alpha = 3*one-REAL(SIZE(mos_new)/2, dp)
+         re = 2*i - 1; im = 2*i
+         alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
          CALL dbcsr_set(rho_ao(i)%matrix, zero)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
          CALL cp_fm_create(mos_occ%matrix, &
@@ -443,7 +443,7 @@ CONTAINS
       IF (rtp%do_hfx .OR. rtp%magnetic) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
       DO ispin = 1, SIZE(rho_ao)
          CALL dbcsr_set(rho_ao(ispin)%matrix, zero)
-         CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2-1)%matrix)
+         CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix)
          IF (rtp%do_hfx .OR. rtp%magnetic) CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
       END DO
 
@@ -484,8 +484,8 @@ CONTAINS
       ALLOCATE (mos_occ(SIZE(mos)*2))
 
       DO i = 1, SIZE(mos_new)/2
-         re = 2*i-1; im = 2*i
-         alpha = 3.0_dp-REAL(SIZE(matrix_p_im), dp)
+         re = 2*i - 1; im = 2*i
+         alpha = 3.0_dp - REAL(SIZE(matrix_p_im), dp)
          CALL cp_fm_create(mos_occ(re)%matrix, &
                            matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
                            name="mos_occ")

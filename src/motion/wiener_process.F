@@ -119,7 +119,7 @@ CONTAINS
          seed(:, :, 1) = subsys%seed(:, :)
 
          DO iparticle = 2, nparticle
-            seed(:, :, iparticle) = next_rng_seed(seed(:, :, iparticle-1))
+            seed(:, :, iparticle) = next_rng_seed(seed(:, :, iparticle - 1))
          END DO
 
          ! Update initial seed
@@ -238,7 +238,7 @@ CONTAINS
 
       seed(:, :, 1) = initial_seed
       DO i_c = 2, meta_env%n_colvar
-         seed(:, :, i_c) = next_rng_seed(seed(:, :, i_c-1))
+         seed(:, :, i_c) = next_rng_seed(seed(:, :, i_c - 1))
       END DO
 
       ! Update initial seed

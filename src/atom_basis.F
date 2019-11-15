@@ -123,7 +123,7 @@ CONTAINS
       maxn = 0
       CALL section_vals_val_get(atom_section, "CALCULATE_STATES", i_vals=cn)
       DO in = 1, MIN(SIZE(cn), 4)
-         maxn(in-1) = cn(in)
+         maxn(in - 1) = cn(in)
       END DO
       DO in = 0, lmat
          maxn(in) = MIN(maxn(in), ae_basis%nbas(in))
@@ -185,7 +185,7 @@ CONTAINS
                ! get and set the core occupations
                CALL section_vals_val_get(atom_section, "CORE", c_vals=tmpstringlist)
                CALL atom_set_occupation(tmpstringlist, state%core, pocc)
-               zcore = zval-NINT(SUM(state%core))
+               zcore = zval - NINT(SUM(state%core))
                CALL set_atom(atom_info(in, im)%atom, zcore=zcore, pp_calc=.TRUE.)
                had_pp = .TRUE.
                CALL set_atom(atom_info(in, im)%atom, basis=pp_basis, potential=p_pot)

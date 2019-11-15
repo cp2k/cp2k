@@ -75,7 +75,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(enum))
       CPASSERT(SIZE(c_vals) == SIZE(i_vals))
       ALLOCATE (enum)
-      last_enumeration_id = last_enumeration_id+1
+      last_enumeration_id = last_enumeration_id + 1
       enum%id_nr = last_enumeration_id
       enum%ref_count = 1
       ALLOCATE (enum%c_vals(SIZE(c_vals)))
@@ -117,7 +117,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(enum))
       CPASSERT(enum%ref_count > 0)
-      enum%ref_count = enum%ref_count+1
+      enum%ref_count = enum%ref_count + 1
    END SUBROUTINE enum_retain
 
 ! **************************************************************************************************
@@ -134,7 +134,7 @@ CONTAINS
 
       IF (ASSOCIATED(enum)) THEN
          CPASSERT(enum%ref_count > 0)
-         enum%ref_count = enum%ref_count-1
+         enum%ref_count = enum%ref_count - 1
          IF (enum%ref_count == 0) THEN
             DEALLOCATE (enum%c_vals)
             DEALLOCATE (enum%i_vals)

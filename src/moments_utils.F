@@ -112,12 +112,12 @@ CONTAINS
             ENDDO
             DO iatom = ifirst, ilast
                ria = particle_set(iatom)%r
-               ria = pbc(ria-center, cell)+center
+               ria = pbc(ria - center, cell) + center
                atomic_kind => particle_set(iatom)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-               rpoint(:) = rpoint(:)+mass*ria(:)
-               IF (PRESENT(drpoint)) drpoint = drpoint+mass*particle_set(iatom)%v
-               mtot = mtot+mass
+               rpoint(:) = rpoint(:) + mass*ria(:)
+               IF (PRESENT(drpoint)) drpoint = drpoint + mass*particle_set(iatom)%v
+               mtot = mtot + mass
             END DO
          ELSE
             DO ikind = 1, SIZE(local_particles%n_el)
@@ -127,9 +127,9 @@ CONTAINS
                   ria = pbc(ria, cell)
                   atomic_kind => particle_set(iatom)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-                  rpoint(:) = rpoint(:)+mass*ria(:)
-                  IF (PRESENT(drpoint)) drpoint = drpoint+mass*particle_set(iatom)%v
-                  mtot = mtot+mass
+                  rpoint(:) = rpoint(:) + mass*ria(:)
+                  IF (PRESENT(drpoint)) drpoint = drpoint + mass*particle_set(iatom)%v
+                  mtot = mtot + mass
                END DO
             END DO
             CALL mp_sum(rpoint, para_env%group)
@@ -155,13 +155,13 @@ CONTAINS
             ENDDO
             DO iatom = ifirst, ilast
                ria = particle_set(iatom)%r
-               ria = pbc(ria-center, cell)+center
+               ria = pbc(ria - center, cell) + center
                atomic_kind => particle_set(iatom)%atomic_kind
                CALL get_atomic_kind(atomic_kind, kind_number=akind)
                CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
-               rpoint(:) = rpoint(:)+charge*ria(:)
-               IF (PRESENT(drpoint)) drpoint = drpoint+charge*particle_set(iatom)%v
-               ztot = ztot+charge
+               rpoint(:) = rpoint(:) + charge*ria(:)
+               IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
+               ztot = ztot + charge
             END DO
          ELSE
             DO ikind = 1, SIZE(local_particles%n_el)
@@ -172,9 +172,9 @@ CONTAINS
                   atomic_kind => particle_set(iatom)%atomic_kind
                   CALL get_atomic_kind(atomic_kind, kind_number=akind)
                   CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
-                  rpoint(:) = rpoint(:)+charge*ria(:)
-                  IF (PRESENT(drpoint)) drpoint = drpoint+charge*particle_set(iatom)%v
-                  ztot = ztot+charge
+                  rpoint(:) = rpoint(:) + charge*ria(:)
+                  IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
+                  ztot = ztot + charge
                END DO
             END DO
             CALL mp_sum(rpoint, para_env%group)

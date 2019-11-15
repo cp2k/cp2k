@@ -103,7 +103,7 @@ CONTAINS
       para_env => qs_loc_env%para_env
       local_molecules => qs_loc_env%local_molecules
       nkind = SIZE(local_molecules%n_el)
-      zwfc = 3.0_dp-REAL(nspins, KIND=dp)
+      zwfc = 3.0_dp - REAL(nspins, KIND=dp)
 
       ALLOCATE (dipole_set(3, SIZE(molecule_set)))
       ALLOCATE (charge_set(SIZE(molecule_set)))
@@ -125,25 +125,25 @@ CONTAINS
                ! Get reference point for this molecule
                CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, &
                                         ref_point=ref_point, ifirst=first_atom, &
-                                        ilast=first_atom+natom-1)
+                                        ilast=first_atom + natom - 1)
 
                dipole = 0.0_dp
                IF (do_berry) THEN
                   rcc = pbc(rcc, cell)
                   ! Find out the total charge of the molecule
                   DO iatom = 1, natom
-                     i = first_atom+iatom-1
+                     i = first_atom + iatom - 1
                      atomic_kind => particle_set(i)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
                      CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
                      IF (.NOT. ghost .AND. .NOT. floating) THEN
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
-                        charge_set(imol_now) = charge_set(imol_now)+zeff
+                        charge_set(imol_now) = charge_set(imol_now) + zeff
                      END IF
                   END DO
                   ! Charges of the wfc involved
                   DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
-                     charge_set(imol_now) = charge_set(imol_now)-zwfc
+                     charge_set(imol_now) = charge_set(imol_now) - zwfc
                   ENDDO
 
                   charge_tot = charge_set(imol_now)
@@ -154,7 +154,7 @@ CONTAINS
                   ! Nuclear charges
                   IF (ispin == 1) THEN
                   DO iatom = 1, natom
-                     i = first_atom+iatom-1
+                     i = first_atom + iatom - 1
                      atomic_kind => particle_set(i)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
                      CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
@@ -190,15 +190,15 @@ CONTAINS
                   IF (ispin == 1) THEN
                      ! Nuclear charges
                      DO iatom = 1, natom
-                        i = first_atom+iatom-1
+                        i = first_atom + iatom - 1
                         atomic_kind => particle_set(i)%atomic_kind
                         CALL get_atomic_kind(atomic_kind, kind_number=akind)
                         CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
                         IF (.NOT. ghost .AND. .NOT. floating) THEN
                            CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
-                           ria = pbc(particle_set(i)%r, cell)-rcc
-                           dipole = dipole+zeff*(ria-rcc)
-                           charge_set(imol_now) = charge_set(imol_now)+zeff
+                           ria = pbc(particle_set(i)%r, cell) - rcc
+                           dipole = dipole + zeff*(ria - rcc)
+                           charge_set(imol_now) = charge_set(imol_now) + zeff
                         END IF
                      END DO
                   END IF
@@ -206,11 +206,11 @@ CONTAINS
                   DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
                      i = molecule_set(imol_now)%lmi(ispin)%states(istate)
                      ria = pbc(center(1:3, i), cell)
-                     dipole = dipole-zwfc*(ria-rcc)
-                     charge_set(imol_now) = charge_set(imol_now)-zwfc
+                     dipole = dipole - zwfc*(ria - rcc)
+                     charge_set(imol_now) = charge_set(imol_now) - zwfc
                   ENDDO
                END IF
-               dipole_set(:, imol_now) = dipole_set(:, imol_now)+dipole ! a.u.
+               dipole_set(:, imol_now) = dipole_set(:, imol_now) + dipole ! a.u.
             ENDDO
          ENDDO
       END DO

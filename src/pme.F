@@ -267,22 +267,22 @@ CONTAINS
             ! add boxes to real space grid (big box)
             CALL dg_sum_patch_force_1d(rpot, rhos1, exp_igr%centre(:, p1), fat1)
             IF (atprop%energy) THEN
-               atprop%atener(p1) = atprop%atener(p1)+0.5_dp*fat1*dvols
+               atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
             END IF
             IF (atprop%stress) THEN
-               atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1)+0.5_dp*fat1*dvols
-               atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1)+0.5_dp*fat1*dvols
-               atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1)+0.5_dp*fat1*dvols
+               atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*fat1*dvols
+               atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1) + 0.5_dp*fat1*dvols
+               atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*fat1*dvols
             END IF
             IF (p2 /= 0) THEN
                CALL dg_sum_patch_force_1d(rpot, rhos2, exp_igr%centre(:, p2), fat1)
                IF (atprop%energy) THEN
-                  atprop%atener(p2) = atprop%atener(p2)+0.5_dp*fat1*dvols
+                  atprop%atener(p2) = atprop%atener(p2) + 0.5_dp*fat1*dvols
                END IF
                IF (atprop%stress) THEN
-                  atprop%atstress(1, 1, p2) = atprop%atstress(1, 1, p2)+0.5_dp*fat1*dvols
-                  atprop%atstress(2, 2, p2) = atprop%atstress(2, 2, p2)+0.5_dp*fat1*dvols
-                  atprop%atstress(3, 3, p2) = atprop%atstress(3, 3, p2)+0.5_dp*fat1*dvols
+                  atprop%atstress(1, 1, p2) = atprop%atstress(1, 1, p2) + 0.5_dp*fat1*dvols
+                  atprop%atstress(2, 2, p2) = atprop%atstress(2, 2, p2) + 0.5_dp*fat1*dvols
+                  atprop%atstress(3, 3, p2) = atprop%atstress(3, 3, p2) + 0.5_dp*fat1*dvols
                END IF
             END IF
          END DO
@@ -297,7 +297,7 @@ CONTAINS
             ffb = 1.0_dp/fourpi
             DO i = 1, 3
                DO ig = grid_b%first_gne0, grid_b%ngpts_cut_local
-                  phi_g%cc(ig) = ffb*dphi_g(i)%pw%cc(ig)*(ffa*grid_b%gsq(ig)+1.0_dp)
+                  phi_g%cc(ig) = ffb*dphi_g(i)%pw%cc(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
                   phi_g%cc(ig) = phi_g%cc(ig)*poisson_env%green_fft%influence_fn%cc(ig)
                END DO
                IF (grid_b%have_g0) phi_g%cc(1) = 0.0_dp
@@ -319,12 +319,12 @@ CONTAINS
                                     rhos1, rhos2, charges=charges)
                      ! add boxes to real space grid (big box)
                      CALL dg_sum_patch_force_1d(rpot, rhos1, exp_igr%centre(:, p1), fat1)
-                     atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1)+fat1*dvols
-                     IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1)+fat1*dvols
+                     atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fat1*dvols
+                     IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fat1*dvols
                      IF (p2 /= 0) THEN
                         CALL dg_sum_patch_force_1d(rpot, rhos2, exp_igr%centre(:, p2), fat1)
-                        atprop%atstress(i, j, p2) = atprop%atstress(i, j, p2)+fat1*dvols
-                        IF (i /= j) atprop%atstress(j, i, p2) = atprop%atstress(j, i, p2)+fat1*dvols
+                        atprop%atstress(i, j, p2) = atprop%atstress(i, j, p2) + fat1*dvols
+                        IF (i /= j) atprop%atstress(j, i, p2) = atprop%atstress(j, i, p2) + fat1*dvols
                      END IF
                   END DO
                END DO
@@ -350,7 +350,7 @@ CONTAINS
          END DO
          ffa = (1.0_dp/fourpi)*(0.5_dp/dg_rho0%zet(1))**2
          f_stress = -ffa*f_stress
-         pv_g = h_stress+f_stress
+         pv_g = h_stress + f_stress
       END IF
 
       !--------END OF STRESS TENSOR CALCULATION -----------
@@ -397,31 +397,31 @@ CONTAINS
                CALL dg_sum_patch_force_3d(drpot, rhos1, &
                                           exp_igr%core_centre(:, particle_set(p1)%shell_index), fat)
                fgcore_coulomb(1, particle_set(p1)%shell_index) = &
-                  fgcore_coulomb(1, particle_set(p1)%shell_index)-fat(1)*dvols
+                  fgcore_coulomb(1, particle_set(p1)%shell_index) - fat(1)*dvols
                fgcore_coulomb(2, particle_set(p1)%shell_index) = &
-                  fgcore_coulomb(2, particle_set(p1)%shell_index)-fat(2)*dvols
+                  fgcore_coulomb(2, particle_set(p1)%shell_index) - fat(2)*dvols
                fgcore_coulomb(3, particle_set(p1)%shell_index) = &
-                  fgcore_coulomb(3, particle_set(p1)%shell_index)-fat(3)*dvols
+                  fgcore_coulomb(3, particle_set(p1)%shell_index) - fat(3)*dvols
             ELSE
                CALL dg_sum_patch_force_3d(drpot, rhos1, exp_igr%centre(:, p1), fat)
-               fg_coulomb(1, p1) = fg_coulomb(1, p1)-fat(1)*dvols
-               fg_coulomb(2, p1) = fg_coulomb(2, p1)-fat(2)*dvols
-               fg_coulomb(3, p1) = fg_coulomb(3, p1)-fat(3)*dvols
+               fg_coulomb(1, p1) = fg_coulomb(1, p1) - fat(1)*dvols
+               fg_coulomb(2, p1) = fg_coulomb(2, p1) - fat(2)*dvols
+               fg_coulomb(3, p1) = fg_coulomb(3, p1) - fat(3)*dvols
             END IF
             IF (p2 /= 0 .AND. is2_core) THEN
                CALL dg_sum_patch_force_3d(drpot, rhos1, &
                                           exp_igr%core_centre(:, particle_set(p2)%shell_index), fat)
                fgcore_coulomb(1, particle_set(p2)%shell_index) = &
-                  fgcore_coulomb(1, particle_set(p2)%shell_index)-fat(1)*dvols
+                  fgcore_coulomb(1, particle_set(p2)%shell_index) - fat(1)*dvols
                fgcore_coulomb(2, particle_set(p2)%shell_index) = &
-                  fgcore_coulomb(2, particle_set(p2)%shell_index)-fat(2)*dvols
+                  fgcore_coulomb(2, particle_set(p2)%shell_index) - fat(2)*dvols
                fgcore_coulomb(3, particle_set(p2)%shell_index) = &
-                  fgcore_coulomb(3, particle_set(p2)%shell_index)-fat(3)*dvols
+                  fgcore_coulomb(3, particle_set(p2)%shell_index) - fat(3)*dvols
             ELSEIF (p2 /= 0) THEN
                CALL dg_sum_patch_force_3d(drpot, rhos2, exp_igr%centre(:, p2), fat)
-               fg_coulomb(1, p2) = fg_coulomb(1, p2)-fat(1)*dvols
-               fg_coulomb(2, p2) = fg_coulomb(2, p2)-fat(2)*dvols
-               fg_coulomb(3, p2) = fg_coulomb(3, p2)-fat(3)*dvols
+               fg_coulomb(1, p2) = fg_coulomb(1, p2) - fat(1)*dvols
+               fg_coulomb(2, p2) = fg_coulomb(2, p2) - fat(2)*dvols
+               fg_coulomb(3, p2) = fg_coulomb(3, p2) - fat(3)*dvols
             END IF
 
          END DO
@@ -442,14 +442,14 @@ CONTAINS
 
             ! sum boxes on real space grids (big box)
             CALL dg_sum_patch_force_3d(drpot, rhos1, exp_igr%shell_centre(:, p1), fat)
-            fgshell_coulomb(1, p1) = fgshell_coulomb(1, p1)-fat(1)*dvols
-            fgshell_coulomb(2, p1) = fgshell_coulomb(2, p1)-fat(2)*dvols
-            fgshell_coulomb(3, p1) = fgshell_coulomb(3, p1)-fat(3)*dvols
+            fgshell_coulomb(1, p1) = fgshell_coulomb(1, p1) - fat(1)*dvols
+            fgshell_coulomb(2, p1) = fgshell_coulomb(2, p1) - fat(2)*dvols
+            fgshell_coulomb(3, p1) = fgshell_coulomb(3, p1) - fat(3)*dvols
             IF (p2 /= 0) THEN
                CALL dg_sum_patch_force_3d(drpot, rhos2, exp_igr%shell_centre(:, p2), fat)
-               fgshell_coulomb(1, p2) = fgshell_coulomb(1, p2)-fat(1)*dvols
-               fgshell_coulomb(2, p2) = fgshell_coulomb(2, p2)-fat(2)*dvols
-               fgshell_coulomb(3, p2) = fgshell_coulomb(3, p2)-fat(3)*dvols
+               fgshell_coulomb(1, p2) = fgshell_coulomb(1, p2) - fat(1)*dvols
+               fgshell_coulomb(2, p2) = fgshell_coulomb(2, p2) - fat(2)*dvols
+               fgshell_coulomb(3, p2) = fgshell_coulomb(3, p2) - fat(3)*dvols
             END IF
          END DO
 

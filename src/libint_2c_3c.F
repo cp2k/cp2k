@@ -146,49 +146,49 @@ CONTAINS
       !Looping over the pgfs
       DO ipgf = 1, npgfa
          zeti = zeta(ipgf)
-         a_start = (ipgf-1)*ncoset(la_max)
+         a_start = (ipgf - 1)*ncoset(la_max)
 
          DO jpgf = 1, npgfb
 
             ! screening
-            IF (rpgfa(ipgf)+rpgfb(jpgf)+dr_ab < dab) CYCLE
+            IF (rpgfa(ipgf) + rpgfb(jpgf) + dr_ab < dab) CYCLE
 
             zetj = zetb(jpgf)
-            b_start = (jpgf-1)*ncoset(lb_max)
+            b_start = (jpgf - 1)*ncoset(lb_max)
 
             DO kpgf = 1, npgfc
 
                ! screening
-               IF (rpgfb(jpgf)+rpgfc(kpgf)+dr_bc < dbc) CYCLE
-               IF (rpgfa(ipgf)+rpgfc(kpgf)+dr_ac < dac) CYCLE
+               IF (rpgfb(jpgf) + rpgfc(kpgf) + dr_bc < dbc) CYCLE
+               IF (rpgfa(ipgf) + rpgfc(kpgf) + dr_ac < dac) CYCLE
 
                zetk = zetc(kpgf)
-               c_start = (kpgf-1)*ncoset(lc_max)
+               c_start = (kpgf - 1)*ncoset(lc_max)
 
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
                CALL set_params_3c(lib, ra, rb, rc, la_max, lb_max, lc_max, zeti, zetj, zetk, op, &
                                   params_out=params, r_cutoff=my_r_cutoff, omega=my_omega)
 
                DO li = la_min, la_max
-                  a_offset = a_start+ncoset(li-1)
+                  a_offset = a_start + ncoset(li - 1)
                   ncoa = nco(li)
                   DO lj = MAX(li, lb_min), lb_max
-                     b_offset = b_start+ncoset(lj-1)
+                     b_offset = b_start + ncoset(lj - 1)
                      ncob = nco(lj)
                      DO lk = lc_min, lc_max
-                        c_offset = c_start+ncoset(lk-1)
+                        c_offset = c_start + ncoset(lk - 1)
                         ncoc = nco(lk)
 
                         a_mysize(1) = ncoa*ncob*ncoc
                         CALL cp_libint_get_3eris(li, lj, lk, lib, p_work, a_mysize)
 
                         DO k = 1, ncoc
-                           p1 = (k-1)*ncob
+                           p1 = (k - 1)*ncob
                            DO j = 1, ncob
-                              p2 = (p1+j-1)*ncoa
+                              p2 = (p1 + j - 1)*ncoa
                               DO i = 1, ncoa
-                                 p3 = p2+i
-                                 int_abc(a_offset+i, b_offset+j, c_offset+k) = p_work(p3)
+                                 p3 = p2 + i
+                                 int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
                               END DO
                            END DO
                         END DO
@@ -201,25 +201,25 @@ CONTAINS
                CALL set_params_3c(lib, rb, ra, rc, params_in=params)
 
                DO lj = lb_min, lb_max
-                  b_offset = b_start+ncoset(lj-1)
+                  b_offset = b_start + ncoset(lj - 1)
                   ncob = nco(lj)
-                  DO li = MAX(lj+1, la_min), la_max
-                     a_offset = a_start+ncoset(li-1)
+                  DO li = MAX(lj + 1, la_min), la_max
+                     a_offset = a_start + ncoset(li - 1)
                      ncoa = nco(li)
                      DO lk = lc_min, lc_max
-                        c_offset = c_start+ncoset(lk-1)
+                        c_offset = c_start + ncoset(lk - 1)
                         ncoc = nco(lk)
 
                         a_mysize(1) = ncoa*ncob*ncoc
                         CALL cp_libint_get_3eris(lj, li, lk, lib, p_work, a_mysize)
 
                         DO k = 1, ncoc
-                           p1 = (k-1)*ncoa
+                           p1 = (k - 1)*ncoa
                            DO i = 1, ncoa
-                              p2 = (p1+i-1)*ncob
+                              p2 = (p1 + i - 1)*ncob
                               DO j = 1, ncob
-                                 p3 = p2+j
-                                 int_abc(a_offset+i, b_offset+j, c_offset+k) = p_work(p3)
+                                 p3 = p2 + j
+                                 int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
                               END DO
                            END DO
                         END DO
@@ -295,28 +295,28 @@ CONTAINS
 
          !Note: some variable of 4-center integrals simplify with a dummy center:
          !      P -> rk, gammap -> zetk
-         params%m_max = li_max+lj_max+lk_max
-         gammaq = zeti+zetj
+         params%m_max = li_max + lj_max + lk_max
+         gammaq = zeti + zetj
          params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/gammaq
-         params%ZetapEtaInv = 1._dp/(zetk+gammaq)
+         params%ZetapEtaInv = 1._dp/(zetk + gammaq)
 
-         params%Q = (zeti*ri+zetj*rj)*params%EtaInv
-         params%W = (zetk*rk+gammaq*params%Q)*params%ZetapEtaInv
-         params%Rho = zetk*gammaq/(zetk+gammaq)
+         params%Q = (zeti*ri + zetj*rj)*params%EtaInv
+         params%W = (zetk*rk + gammaq*params%Q)*params%ZetapEtaInv
+         params%Rho = zetk*gammaq/(zetk + gammaq)
 
          params%Fm = 0.0_dp
          SELECT CASE (op)
          CASE (do_potential_coulomb)
-            T = params%Rho*SUM((params%Q-rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2))
+            T = params%Rho*SUM((params%Q - rk)**2)
+            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
             CALL fgamma(params%m_max, T, params%Fm)
             params%Fm = prefac*params%Fm
          CASE (do_potential_truncated)
             R = r_cutoff*SQRT(params%Rho)
-            T = params%Rho*SUM((params%Q-rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2))
+            T = params%Rho*SUM((params%Q - rk)**2)
+            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
             CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
@@ -324,22 +324,22 @@ CONTAINS
             IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
             params%Fm = prefac*params%Fm
          CASE (do_potential_short)
-            T = params%Rho*SUM((params%Q-rk)**2)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2))
+            T = params%Rho*SUM((params%Q - rk)**2)
+            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
             CALL fgamma(params%m_max, T, params%Fm)
 
             omega2 = omega**2
-            omega_corr2 = omega2/(omega2+params%Rho)
+            omega_corr2 = omega2/(omega2 + params%Rho)
             omega_corr = SQRT(omega_corr2)
             T = T*omega_corr2
             ALLOCATE (Fm(prim_data_f_size))
 
             CALL fgamma(params%m_max, T, Fm)
             tmp = -omega_corr
-            DO l = 1, params%m_max+1
-               params%Fm(l) = params%Fm(l)+Fm(l)*tmp
+            DO l = 1, params%m_max + 1
+               params%Fm(l) = params%Fm(l) + Fm(l)*tmp
                tmp = tmp*omega_corr2
             END DO
             params%Fm = prefac*params%Fm
@@ -411,30 +411,30 @@ CONTAINS
       !Looping over the pgfs
       DO ipgf = 1, npgfa
          zeti = zeta(ipgf)
-         a_start = (ipgf-1)*ncoset(la_max)
+         a_start = (ipgf - 1)*ncoset(la_max)
 
          DO jpgf = 1, npgfb
             zetj = zetb(jpgf)
-            b_start = (jpgf-1)*ncoset(lb_max)
+            b_start = (jpgf - 1)*ncoset(lb_max)
 
             CALL set_params_2c(lib, ra, rb, la_max, lb_max, zeti, zetj, op, &
                                r_cutoff=my_r_cutoff, omega=my_omega)
 
             DO li = la_min, la_max
-               a_offset = a_start+ncoset(li-1)
+               a_offset = a_start + ncoset(li - 1)
                ncoa = nco(li)
                DO lj = lb_min, lb_max
-                  b_offset = b_start+ncoset(lj-1)
+                  b_offset = b_start + ncoset(lj - 1)
                   ncob = nco(lj)
 
                   a_mysize(1) = ncoa*ncob
                   CALL cp_libint_get_2eris(li, lj, lib, p_work, a_mysize)
 
                   DO j = 1, ncob
-                     p1 = (j-1)*ncoa
+                     p1 = (j - 1)*ncoa
                      DO i = 1, ncoa
-                        p2 = p1+i
-                        int_ab(a_offset+i, b_offset+j) = p_work(p2)
+                        p2 = p1 + i
+                        int_ab(a_offset + i, b_offset + j) = p_work(p2)
                      END DO
                   END DO
 
@@ -486,23 +486,23 @@ CONTAINS
       !Note: some variable of 4-center integrals simplify due to dummy centers:
       !      P -> rk, gammap -> zetk
       !      Q -> rj, gammaq -> zetj
-      params%m_max = lj_max+lk_max
+      params%m_max = lj_max + lk_max
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
-      params%ZetapEtaInv = 1._dp/(zetk+zetj)
+      params%ZetapEtaInv = 1._dp/(zetk + zetj)
 
-      params%W = (zetk*rk+zetj*rj)*params%ZetapEtaInv
-      params%Rho = zetk*zetj/(zetk+zetj)
+      params%W = (zetk*rk + zetj*rj)*params%ZetapEtaInv
+      params%Rho = zetk*zetj/(zetk + zetj)
 
       params%Fm = 0.0_dp
       SELECT CASE (op)
       CASE (do_potential_coulomb)
-         T = params%Rho*SUM((rj-rk)**2)
+         T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
          CALL fgamma(params%m_max, T, params%Fm)
          params%Fm = prefac*params%Fm
       CASE (do_potential_truncated)
          R = r_cutoff*SQRT(params%Rho)
-         T = params%Rho*SUM((rj-rk)**2)
+         T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
          CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
@@ -510,21 +510,21 @@ CONTAINS
          IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
          params%Fm = prefac*params%Fm
       CASE (do_potential_short)
-         T = params%Rho*SUM((rj-rk)**2)
+         T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
          CALL fgamma(params%m_max, T, params%Fm)
 
          omega2 = omega**2
-         omega_corr2 = omega2/(omega2+params%Rho)
+         omega_corr2 = omega2/(omega2 + params%Rho)
          omega_corr = SQRT(omega_corr2)
          T = T*omega_corr2
          ALLOCATE (Fm(prim_data_f_size))
 
          CALL fgamma(params%m_max, T, Fm)
          tmp = -omega_corr
-         DO l = 1, params%m_max+1
-            params%Fm(l) = params%Fm(l)+Fm(l)*tmp
+         DO l = 1, params%m_max + 1
+            params%Fm(l) = params%Fm(l) + Fm(l)*tmp
             tmp = tmp*omega_corr2
          END DO
          params%Fm = prefac*params%Fm

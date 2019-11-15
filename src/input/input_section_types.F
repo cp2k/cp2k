@@ -169,7 +169,7 @@ CONTAINS
       IF (PRESENT(n_subsections)) my_n_subsections = n_subsections
 
       ALLOCATE (section)
-      last_section_id = last_section_id+1
+      last_section_id = last_section_id + 1
       section%id_nr = last_section_id
       section%ref_count = 1
 
@@ -218,7 +218,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)
-      section%ref_count = section%ref_count+1
+      section%ref_count = section%ref_count + 1
    END SUBROUTINE section_retain
 
 ! **************************************************************************************************
@@ -236,7 +236,7 @@ CONTAINS
 
       IF (ASSOCIATED(section)) THEN
          CPASSERT(section%ref_count > 0)
-         section%ref_count = section%ref_count-1
+         section%ref_count = section%ref_count - 1
          IF (section%ref_count == 0) THEN
             IF (ASSOCIATED(section%citations)) THEN
                DEALLOCATE (section%citations)
@@ -349,7 +349,7 @@ CONTAINS
                DO isub = 1, section%n_subsections
                   IF (my_recurse > 0) THEN
                      CALL section_describe(section%subsections(isub)%section, unit_nr, &
-                                           level, recurse=my_recurse-1)
+                                           level, recurse=my_recurse - 1)
                   ELSE
                      WRITE (unit_nr, "(' ',a)") section%subsections(isub)%section%name
                   END IF
@@ -486,10 +486,10 @@ CONTAINS
       INTEGER                                            :: ik, my_index
 
       IF (INDEX(keyword_name, "%") /= 0) THEN
-         my_index = INDEX(keyword_name, "%")+1
+         my_index = INDEX(keyword_name, "%") + 1
          CPASSERT(ASSOCIATED(section%subsections))
          DO ik = LBOUND(section%subsections, 1), UBOUND(section%subsections, 1)
-            IF (section%subsections(ik)%section%name == keyword_name(1:my_index-2)) EXIT
+            IF (section%subsections(ik)%section%name == keyword_name(1:my_index - 2)) EXIT
          END DO
          CPASSERT(ik <= UBOUND(section%subsections, 1))
          res => section_get_keyword(section%subsections(ik)%section, keyword_name(my_index:))
@@ -546,17 +546,17 @@ CONTAINS
          END DO
 
          IF (UBOUND(section%keywords, 1) == section%n_keywords) THEN
-            ALLOCATE (new_keywords(-1:section%n_keywords+10))
+            ALLOCATE (new_keywords(-1:section%n_keywords + 10))
             DO i = -1, section%n_keywords
                new_keywords(i)%keyword => section%keywords(i)%keyword
             END DO
-            DO i = section%n_keywords+1, UBOUND(new_keywords, 1)
+            DO i = section%n_keywords + 1, UBOUND(new_keywords, 1)
                NULLIFY (new_keywords(i)%keyword)
             END DO
             DEALLOCATE (section%keywords)
             section%keywords => new_keywords
          END IF
-         section%n_keywords = section%n_keywords+1
+         section%n_keywords = section%n_keywords + 1
          section%keywords(section%n_keywords)%keyword => keyword
       END IF
    END SUBROUTINE section_add_keyword
@@ -580,12 +580,12 @@ CONTAINS
       CPASSERT(section%ref_count > 0)
       CPASSERT(ASSOCIATED(subsection))
       CPASSERT(subsection%ref_count > 0)
-      IF (SIZE(section%subsections) < section%n_subsections+1) THEN
-         ALLOCATE (new_subsections(section%n_subsections+10))
+      IF (SIZE(section%subsections) < section%n_subsections + 1) THEN
+         ALLOCATE (new_subsections(section%n_subsections + 10))
          DO i = 1, section%n_subsections
             new_subsections(i)%section => section%subsections(i)%section
          END DO
-         DO i = section%n_subsections+1, SIZE(new_subsections)
+         DO i = section%n_subsections + 1, SIZE(new_subsections)
             NULLIFY (new_subsections(i)%section)
          END DO
          DEALLOCATE (section%subsections)
@@ -599,7 +599,7 @@ CONTAINS
                           //TRIM(section%name))
       END DO
       CALL section_retain(subsection)
-      section%n_subsections = section%n_subsections+1
+      section%n_subsections = section%n_subsections + 1
       section%subsections(section%n_subsections)%section => subsection
    END SUBROUTINE section_add_subsection
 
@@ -620,7 +620,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section_vals))
       ALLOCATE (section_vals)
-      last_section_vals_id = last_section_vals_id+1
+      last_section_vals_id = last_section_vals_id + 1
       section_vals%id_nr = last_section_vals_id
       section_vals%ref_count = 1
       CALL section_retain(section)
@@ -649,7 +649,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
-      section_vals%ref_count = section_vals%ref_count+1
+      section_vals%ref_count = section_vals%ref_count + 1
    END SUBROUTINE section_vals_retain
 
 ! **************************************************************************************************
@@ -669,7 +669,7 @@ CONTAINS
 
       IF (ASSOCIATED(section_vals)) THEN
          CPASSERT(section_vals%ref_count > 0)
-         section_vals%ref_count = section_vals%ref_count-1
+         section_vals%ref_count = section_vals%ref_count - 1
          IF (section_vals%ref_count == 0) THEN
             CALL section_release(section_vals%section)
             DO j = 1, SIZE(section_vals%values, 2)
@@ -771,7 +771,7 @@ CONTAINS
       ELSE
          is_path = .TRUE.
          irep = 1
-         my_index = my_index-1
+         my_index = my_index - 1
       ENDIF
 
       CPASSERT(irep <= SIZE(section_vals%subs_vals, 2))
@@ -783,7 +783,7 @@ CONTAINS
                        "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "// &
                        TRIM(section_vals%section%name)//" at ")
       IF (is_path .AND. ASSOCIATED(res)) THEN
-         res => section_vals_get_subs_vals(res, subsection_name(my_index+2:LEN_TRIM(subsection_name)), &
+         res => section_vals_get_subs_vals(res, subsection_name(my_index + 2:LEN_TRIM(subsection_name)), &
                                            i_rep_section, can_return_null)
       ENDIF
 
@@ -819,7 +819,7 @@ CONTAINS
       isect_att = 0
       DO i = 1, section_vals%section%n_subsections
          IF (SIZE(section_vals%subs_vals(i, irep)%section_vals%values, 2) > 0) THEN
-            isect_att = isect_att+1
+            isect_att = isect_att + 1
             IF (isect_att == i_section) THEN
                res => section_vals%subs_vals(i, irep)%section_vals
                EXIT
@@ -878,7 +878,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
-      ALLOCATE (new_values(-1:UBOUND(section_vals%values, 1), SIZE(section_vals%values, 2)+1))
+      ALLOCATE (new_values(-1:UBOUND(section_vals%values, 1), SIZE(section_vals%values, 2) + 1))
       DO j = 1, SIZE(section_vals%values, 2)
          DO i = -1, UBOUND(section_vals%values, 1)
             new_values(i, j)%list => section_vals%values(i, j)%list
@@ -893,7 +893,7 @@ CONTAINS
 
       IF (SIZE(new_values, 2) > 1) THEN
          ALLOCATE (new_sps(SIZE(section_vals%subs_vals, 1), &
-                           SIZE(section_vals%subs_vals, 2)+1))
+                           SIZE(section_vals%subs_vals, 2) + 1))
          DO j = 1, SIZE(section_vals%subs_vals, 2)
             DO i = 1, SIZE(section_vals%subs_vals, 1)
                new_sps(i, j)%section_vals => section_vals%subs_vals(i, j)%section_vals
@@ -1104,15 +1104,15 @@ CONTAINS
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
 
-      my_index = INDEX(keyword_name, '%')+1
+      my_index = INDEX(keyword_name, '%') + 1
       len_key = LEN_TRIM(keyword_name)
       IF (my_index > 1) THEN
          DO
             tmp_index = INDEX(keyword_name(my_index:len_key), "%")
             IF (tmp_index <= 0) EXIT
-            my_index = my_index+tmp_index
+            my_index = my_index + tmp_index
          END DO
-         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index-2))
+         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index - 2))
       ELSE
          s_vals => section_vals
       END IF
@@ -1200,15 +1200,15 @@ CONTAINS
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
       NULLIFY (list)
-      my_index = INDEX(keyword_name, '%')+1
+      my_index = INDEX(keyword_name, '%') + 1
       len_key = LEN_TRIM(keyword_name)
       IF (my_index > 1) THEN
          DO
             tmp_index = INDEX(keyword_name(my_index:len_key), "%")
             IF (tmp_index <= 0) EXIT
-            my_index = my_index+tmp_index
+            my_index = my_index + tmp_index
          END DO
-         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index-2))
+         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index - 2))
       ELSE
          s_vals => section_vals
       END IF
@@ -1283,15 +1283,15 @@ CONTAINS
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
 
-      my_index = INDEX(keyword_name, '%')+1
+      my_index = INDEX(keyword_name, '%') + 1
       len_key = LEN_TRIM(keyword_name)
       IF (my_index > 1) THEN
          DO
             tmp_index = INDEX(keyword_name(my_index:len_key), "%")
             IF (tmp_index <= 0) EXIT
-            my_index = my_index+tmp_index
+            my_index = my_index + tmp_index
          END DO
-         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index-2))
+         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index - 2))
       ELSE
          s_vals => section_vals
       END IF
@@ -1360,7 +1360,7 @@ CONTAINS
          old_val => cp_sll_val_get_el_at(vals, index=irk)
          CALL val_release(old_val)
          CALL cp_sll_val_set_el_at(vals, value=my_val, index=irk)
-      ELSE IF (irk > cp_sll_val_get_length(vals)+1) THEN
+      ELSE IF (irk > cp_sll_val_get_length(vals) + 1) THEN
          ! change?
          CALL cp_abort(__LOCATION__, &
                        "cannot add extra keyword repetitions to keyword" &
@@ -1406,15 +1406,15 @@ CONTAINS
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
 
-      my_index = INDEX(keyword_name, '%')+1
+      my_index = INDEX(keyword_name, '%') + 1
       len_key = LEN_TRIM(keyword_name)
       IF (my_index > 1) THEN
          DO
             tmp_index = INDEX(keyword_name(my_index:len_key), "%")
             IF (tmp_index <= 0) EXIT
-            my_index = my_index+tmp_index
+            my_index = my_index + tmp_index
          END DO
-         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index-2))
+         s_vals => section_vals_get_subs_vals(section_vals, keyword_name(1:my_index - 2))
       ELSE
          s_vals => section_vals
       END IF
@@ -1439,7 +1439,7 @@ CONTAINS
          IF (irk == -1) THEN
             pos => cp_sll_val_get_rest(s_vals%values(ik, irs)%list, iter=-1)
          ELSE
-            pos => cp_sll_val_get_rest(s_vals%values(ik, irs)%list, iter=irk-1)
+            pos => cp_sll_val_get_rest(s_vals%values(ik, irs)%list, iter=irk - 1)
          END IF
          IF (ASSOCIATED(pos)) THEN
             old_val => cp_sll_val_get_el_at(s_vals%values(ik, irs)%list, index=irk)
@@ -1502,7 +1502,7 @@ CONTAINS
                END IF
                defaultSection = (SIZE(section_vals%values, 2) == 0)
                IF (.NOT. defaultSection) THEN
-                  IF (.NOT. my_hide_root) indent = indent+2
+                  IF (.NOT. my_hide_root) indent = indent + 2
                   WRITE (myfmt, *) indent, "X"
                   CALL compress(myfmt, full=.TRUE.)
                   DO ik = -1, section%n_keywords
@@ -1568,7 +1568,7 @@ CONTAINS
                   END IF
                END IF
                IF (.NOT. my_hide_root) THEN
-                  indent = indent-2
+                  indent = indent - 2
                   WRITE (UNIT=unit_nr, FMT="(A)") &
                      REPEAT(" ", indent)//"&END "//TRIM(section%name)
                END IF
@@ -1603,8 +1603,8 @@ CONTAINS
          ! Indentation for current level, next level, etc.
 
          l0 = level
-         l1 = level+1
-         l2 = level+2
+         l1 = level + 1
+         l2 = level + 2
 
          IF (section%repeats) THEN
             repeats = "yes"
@@ -1680,16 +1680,16 @@ CONTAINS
          CPASSERT(section%ref_count > 0)
          imatch = typo_match(TRIM(section%name), TRIM(unknown_string))
          IF (imatch > 0) THEN
-            imatch = imatch+bonus
+            imatch = imatch + bonus
             WRITE (line, '(T2,A)') " subsection "//TRIM(section%name)//" in section "//TRIM(location_string)
             imax = SIZE(matching_rank, 1)
-            irank = imax+1
+            irank = imax + 1
             DO I = imax, 1, -1
                IF (imatch > matching_rank(I)) irank = i
             ENDDO
             IF (irank <= imax) THEN
-               matching_rank(irank+1:imax) = matching_rank(irank:imax-1)
-               matching_string(irank+1:imax) = matching_string(irank:imax-1)
+               matching_rank(irank + 1:imax) = matching_rank(irank:imax - 1)
+               matching_string(irank + 1:imax) = matching_string(irank:imax - 1)
                matching_rank(irank) = imatch
                matching_string(irank) = line
             ENDIF
@@ -1748,15 +1748,15 @@ CONTAINS
       irep = 1
       IF (PRESENT(i_rep_section)) irep = i_rep_section
 
-      my_index = INDEX(subsection_name, '%')+1
+      my_index = INDEX(subsection_name, '%') + 1
       len_key = LEN_TRIM(subsection_name)
       IF (my_index > 1) THEN
          DO
             tmp_index = INDEX(subsection_name(my_index:len_key), "%")
             IF (tmp_index <= 0) EXIT
-            my_index = my_index+tmp_index
+            my_index = my_index + tmp_index
          END DO
-         s_vals => section_vals_get_subs_vals(section_vals, subsection_name(1:my_index-2))
+         s_vals => section_vals_get_subs_vals(section_vals, subsection_name(1:my_index - 2))
       ELSE
          s_vals => section_vals
       END IF
@@ -1837,7 +1837,7 @@ CONTAINS
                CALL val_duplicate(v1%first_el, el)
                CALL cp_sll_val_create(v2, el)
                NULLIFY (el)
-               section_vals_out%values(ival, irep-istart+1)%list => v2
+               section_vals_out%values(ival, irep - istart + 1)%list => v2
                DO
                   IF (.NOT. ASSOCIATED(v1%rest)) EXIT
                   v1 => v1%rest
@@ -1860,7 +1860,7 @@ CONTAINS
       DO irep = istart, iend
          DO isec = 1, SIZE(section_vals_in%subs_vals, 1)
             CALL section_vals_copy(section_vals_in%subs_vals(isec, irep)%section_vals, &
-                                   section_vals_out%subs_vals(isec, irep-istart+1)%section_vals)
+                                   section_vals_out%subs_vals(isec, irep - istart + 1)%section_vals)
          END DO
       END DO
    END SUBROUTINE section_vals_copy

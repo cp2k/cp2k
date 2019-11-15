@@ -260,7 +260,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
                                       row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
-               p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a+pa_block_b
+               p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a + pa_block_b
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
             END IF
 
@@ -297,7 +297,7 @@ CONTAINS
                CPASSERT(ASSOCIATED(ksb_block_b))
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
-               p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a+pb_block_b
+               p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a + pb_block_b
                pb_b(1:natorb_b2) = RESHAPE(pb_block_b, (/natorb_b2/))
             END IF
 
@@ -311,7 +311,7 @@ CONTAINS
                   CALL fock2_1el(se_kind_a, se_kind_b, rij, ksa_block_a, ksb_block_a, &
                                  pa_a, pb_a, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control, &
                                  se_taper=se_taper, store_int_env=store_int_env)
-                  ecore2 = ecore2+ecab(1)+ecab(2)
+                  ecore2 = ecore2 + ecab(1) + ecab(2)
                ELSE IF (nspins == 2) THEN
                   ecab = 0._dp
                   CALL fock2_1el(se_kind_a, se_kind_b, rij, ksa_block_a, ksb_block_a, &
@@ -320,11 +320,11 @@ CONTAINS
                   CALL fock2_1el(se_kind_a, se_kind_b, rij, ksa_block_b, ksb_block_b, &
                                  pa_b, pb_b, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control, &
                                  se_taper=se_taper, store_int_env=store_int_env)
-                  ecore2 = ecore2+ecab(1)+ecab(2)
+                  ecore2 = ecore2 + ecab(1) + ecab(2)
                END IF
                IF (atener) THEN
-                  atprop%atecoul(iatom) = atprop%atecoul(iatom)+ecab(1)
-                  atprop%atecoul(jatom) = atprop%atecoul(jatom)+ecab(2)
+                  atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecab(1)
+                  atprop%atecoul(jatom) = atprop%atecoul(jatom) + ecab(2)
                END IF
                ! Coulomb Terms
                IF (nspins == 1) THEN
@@ -362,14 +362,14 @@ CONTAINS
                   END IF
 
                   ! Sum up force components
-                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a)-force_ab(1)
-                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b)+force_ab(1)
+                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a) - force_ab(1)
+                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b) + force_ab(1)
 
-                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a)-force_ab(2)
-                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b)+force_ab(2)
+                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a) - force_ab(2)
+                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b) + force_ab(2)
 
-                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a)-force_ab(3)
-                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b)+force_ab(3)
+                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a) - force_ab(3)
+                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b) + force_ab(3)
 
                   ! Derivatives of the Coulomb Terms
                   force_ab = 0._dp
@@ -392,14 +392,14 @@ CONTAINS
                      CALL virial_pair_force(virial%pv_virial, -1.0_dp, force_ab, rij)
                   END IF
                   ! Sum up force components
-                  force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a)-force_ab(1)
-                  force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b)+force_ab(1)
+                  force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a) - force_ab(1)
+                  force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b) + force_ab(1)
 
-                  force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a)-force_ab(2)
-                  force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b)+force_ab(2)
+                  force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a) - force_ab(2)
+                  force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b) + force_ab(2)
 
-                  force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a)-force_ab(3)
-                  force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b)+force_ab(3)
+                  force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a) - force_ab(3)
+                  force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
                CPABORT("")
@@ -421,9 +421,9 @@ CONTAINS
                                     ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control, &
                                     se_taper=se_taper, store_int_env=store_int_env)
                END IF
-               ecore2 = ecore2+ecores
+               ecore2 = ecore2 + ecores
                IF (atener) THEN
-                  atprop%atecoul(iatom) = atprop%atecoul(iatom)+ecores
+                  atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecores
                END IF
                ! Coulomb Terms
                IF (nspins == 1) THEN
@@ -460,7 +460,7 @@ CONTAINS
 
       ! Two-centers one-electron terms
       CALL mp_sum(ecore2, para_env%group)
-      energy%hartree = ecore2-energy%core
+      energy%hartree = ecore2 - energy%core
 !      WRITE ( *, * ) 'IN SE_F_COUL', ecore2, energy%core
 
       CALL finalize_se_taper(se_taper)
@@ -639,13 +639,13 @@ CONTAINS
 
                   ! Charge
                   IF (mpole%task(1) .AND. task(1)) THEN
-                     se_nddo_mpole%charge(iatom) = se_nddo_mpole%charge(iatom)+ &
+                     se_nddo_mpole%charge(iatom) = se_nddo_mpole%charge(iatom) + &
                                                    fac*pa_block_a(indi, indj)*mpole%c
                   END IF
 
                   ! Dipole
                   IF (mpole%task(2) .AND. task(2)) THEN
-                     se_nddo_mpole%dipole(:, iatom) = se_nddo_mpole%dipole(:, iatom)+ &
+                     se_nddo_mpole%dipole(:, iatom) = se_nddo_mpole%dipole(:, iatom) + &
                                                       fac*pa_block_a(indi, indj)*mpole%d(:)
                   END IF
 
@@ -653,7 +653,7 @@ CONTAINS
                   IF (mpole%task(3) .AND. task(3)) THEN
                      qsph = fac*mpole%qs*pa_block_a(indi, indj)
                      CALL quadrupole_sph_to_cart(qcart, qsph)
-                     se_nddo_mpole%quadrupole(:, :, iatom) = se_nddo_mpole%quadrupole(:, :, iatom)+ &
+                     se_nddo_mpole%quadrupole(:, :, iatom) = se_nddo_mpole%quadrupole(:, :, iatom) + &
                                                              qcart
                   END IF
                END DO
@@ -720,16 +720,16 @@ CONTAINS
       ! Virial for the long-range part and correction
       IF (use_virial) THEN
          ! Sum up contribution of pv_glob on each thread and keep only one copy of pv_local
-         virial%pv_virial = virial%pv_virial+pv_glob
+         virial%pv_virial = virial%pv_virial + pv_glob
          IF (para_env%ionode) THEN
-            virial%pv_virial = virial%pv_virial+pv_local
+            virial%pv_virial = virial%pv_virial + pv_local
          END IF
       END IF
 
       ! Debug Statements
       IF (debug_this_module) THEN
          CALL mp_sum(energy_glob, para_env%group)
-         WRITE (*, *) "TOTAL ENERGY AFTER EWALD:", energy_local+energy_glob+e_neut+e_self, &
+         WRITE (*, *) "TOTAL ENERGY AFTER EWALD:", energy_local + energy_glob + e_neut + e_self, &
             energy_local, energy_glob, e_neut, e_self
       END IF
 
@@ -743,7 +743,7 @@ CONTAINS
 
          nparticle_local = local_particles%n_el(ikind)
          DO ilist = 1, nparticle_local
-            node = node+1
+            node = node + 1
             iatom = local_particles%list(ikind)%array(ilist)
             DO ispin = 1, nspins
                CALL dbcsr_get_block_p(matrix=diagmat_ks(ispin)%matrix, &
@@ -760,41 +760,41 @@ CONTAINS
 
                   ! Charge
                   IF (mpole%task(1) .AND. task(1)) THEN
-                     tmp = tmp+mpole%c*se_nddo_mpole%efield0(iatom)
+                     tmp = tmp + mpole%c*se_nddo_mpole%efield0(iatom)
                   END IF
 
                   ! Dipole
                   IF (mpole%task(2) .AND. task(2)) THEN
-                     tmp = tmp-DOT_PRODUCT(mpole%d, se_nddo_mpole%efield1(:, iatom))
+                     tmp = tmp - DOT_PRODUCT(mpole%d, se_nddo_mpole%efield1(:, iatom))
                   END IF
 
                   ! Quadrupole
                   IF (mpole%task(3) .AND. task(3)) THEN
-                     tmp = tmp-(1.0_dp/3.0_dp)*SUM(mpole%qc*RESHAPE(se_nddo_mpole%efield2(:, iatom), (/3, 3/)))
+                     tmp = tmp - (1.0_dp/3.0_dp)*SUM(mpole%qc*RESHAPE(se_nddo_mpole%efield2(:, iatom), (/3, 3/)))
                   END IF
 
-                  ksa_block_a(indi, indj) = ksa_block_a(indi, indj)+tmp
+                  ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
                   ksa_block_a(indj, indi) = ksa_block_a(indi, indj)
                END DO
             END DO
 
             ! Nuclear term and forces
-            IF (task(1)) enuc = enuc+se_kind_a%zeff*se_nddo_mpole%efield0(iatom)
+            IF (task(1)) enuc = enuc + se_kind_a%zeff*se_nddo_mpole%efield0(iatom)
             IF (atener) THEN
-               atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
+               atprop%atecoul(iatom) = atprop%atecoul(iatom) + &
                                        0.5_dp*se_kind_a%zeff*se_nddo_mpole%efield0(iatom)
             END IF
             IF (calculate_forces) THEN
                atom_a = atom_of_kind(iatom)
-               force_a = forces_r(1:3, iatom)+forces_g(1:3, node)
+               force_a = forces_r(1:3, iatom) + forces_g(1:3, node)
                ! Derivatives of the periodic Coulomb Terms
-               force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-force_a(:)
+               force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - force_a(:)
             END IF
          END DO
       END DO
       ! Sum nuclear energy contribution
       CALL mp_sum(enuc, para_env%group)
-      energy%core_overlap = energy%core_overlap+energy%core_overlap0+0.5_dp*enuc
+      energy%core_overlap = energy%core_overlap + energy%core_overlap0 + 0.5_dp*enuc
 
       ! Debug Statements
       IF (debug_this_module) THEN
@@ -994,7 +994,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
                                       row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
-               p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a+pa_block_b
+               p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a + pa_block_b
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
             END IF
 
@@ -1041,7 +1041,7 @@ CONTAINS
                CPASSERT(ASSOCIATED(ksb_block_b))
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
-               p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a+pb_block_b
+               p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a + pb_block_b
                pb_b(1:natorb_b2) = RESHAPE(pb_block_b, (/natorb_b2/))
             END IF
 
@@ -1051,7 +1051,7 @@ CONTAINS
                ! Evaluate nuclear contribution..
                CALL corecore_el(se_kind_a, se_kind_b, rij, enuc=enuc, itype=itype, anag=anag, &
                                 se_int_control=se_int_control, se_taper=se_taper)
-               enuclear = enuclear+enuc
+               enuclear = enuclear + enuc
 
                ! Two-centers One-electron terms
                IF (nspins == 1) THEN
@@ -1059,7 +1059,7 @@ CONTAINS
                   CALL fock2_1el(se_kind_a, se_kind_b, rij, ksa_block_a, ksb_block_a, &
                                  pa_a, pb_a, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control, &
                                  se_taper=se_taper, store_int_env=store_int_env)
-                  ecore2 = ecore2+ecab(1)+ecab(2)
+                  ecore2 = ecore2 + ecab(1) + ecab(2)
                ELSE IF (nspins == 2) THEN
                   ecab = 0._dp
                   CALL fock2_1el(se_kind_a, se_kind_b, rij, ksa_block_a, ksb_block_a, &
@@ -1068,11 +1068,11 @@ CONTAINS
                   CALL fock2_1el(se_kind_a, se_kind_b, rij, ksa_block_b, ksb_block_b, &
                                  pa_b, pb_b, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control, &
                                  se_taper=se_taper, store_int_env=store_int_env)
-                  ecore2 = ecore2+ecab(1)+ecab(2)
+                  ecore2 = ecore2 + ecab(1) + ecab(2)
                END IF
                IF (atener) THEN
-                  atprop%atecoul(iatom) = atprop%atecoul(iatom)+ecab(1)+0.5_dp*enuc
-                  atprop%atecoul(jatom) = atprop%atecoul(jatom)+ecab(2)+0.5_dp*enuc
+                  atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecab(1) + 0.5_dp*enuc
+                  atprop%atecoul(jatom) = atprop%atecoul(jatom) + ecab(2) + 0.5_dp*enuc
                END IF
                ! Coulomb Terms
                IF (nspins == 1) THEN
@@ -1111,17 +1111,17 @@ CONTAINS
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1.0_dp, force_ab, rij)
                   END IF
-                  force_ab = force_ab+force_ab0
+                  force_ab = force_ab + force_ab0
 
                   ! Sum up force components
-                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a)-force_ab(1)
-                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b)+force_ab(1)
+                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a) - force_ab(1)
+                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b) + force_ab(1)
 
-                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a)-force_ab(2)
-                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b)+force_ab(2)
+                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a) - force_ab(2)
+                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b) + force_ab(2)
 
-                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a)-force_ab(3)
-                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b)+force_ab(3)
+                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a) - force_ab(3)
+                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b) + force_ab(3)
 
                   ! Derivatives of the Coulomb Terms
                   force_ab = 0._dp
@@ -1145,14 +1145,14 @@ CONTAINS
                   END IF
 
                   ! Sum up force components
-                  force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a)-force_ab(1)
-                  force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b)+force_ab(1)
+                  force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a) - force_ab(1)
+                  force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b) + force_ab(1)
 
-                  force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a)-force_ab(2)
-                  force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b)+force_ab(2)
+                  force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a) - force_ab(2)
+                  force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b) + force_ab(2)
 
-                  force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a)-force_ab(3)
-                  force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b)+force_ab(3)
+                  force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a) - force_ab(3)
+                  force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
                CPABORT("")
@@ -1165,15 +1165,15 @@ CONTAINS
 
       ! Sum-up Virial constribution (long-range correction)
       IF (use_virial) THEN
-         pv_glob(1, 1) = pv_glob(1, 1)+ptens11
-         pv_glob(1, 2) = pv_glob(1, 2)+(ptens12+ptens21)*0.5_dp
-         pv_glob(1, 3) = pv_glob(1, 3)+(ptens13+ptens31)*0.5_dp
+         pv_glob(1, 1) = pv_glob(1, 1) + ptens11
+         pv_glob(1, 2) = pv_glob(1, 2) + (ptens12 + ptens21)*0.5_dp
+         pv_glob(1, 3) = pv_glob(1, 3) + (ptens13 + ptens31)*0.5_dp
          pv_glob(2, 1) = pv_glob(1, 2)
-         pv_glob(2, 2) = pv_glob(2, 2)+ptens22
-         pv_glob(2, 3) = pv_glob(2, 3)+(ptens23+ptens32)*0.5_dp
+         pv_glob(2, 2) = pv_glob(2, 2) + ptens22
+         pv_glob(2, 3) = pv_glob(2, 3) + (ptens23 + ptens32)*0.5_dp
          pv_glob(3, 1) = pv_glob(1, 3)
          pv_glob(3, 2) = pv_glob(2, 3)
-         pv_glob(3, 3) = pv_glob(3, 3)+ptens33
+         pv_glob(3, 3) = pv_glob(3, 3) + ptens33
       END IF
 
       IF (calculate_forces) THEN
@@ -1184,9 +1184,9 @@ CONTAINS
       CALL mp_sum(efield0, para_env%group)
       CALL mp_sum(efield1, para_env%group)
       CALL mp_sum(efield2, para_env%group)
-      se_nddo_mpole%efield0 = se_nddo_mpole%efield0-efield0
-      se_nddo_mpole%efield1 = se_nddo_mpole%efield1-efield1
-      se_nddo_mpole%efield2 = se_nddo_mpole%efield2-efield2
+      se_nddo_mpole%efield0 = se_nddo_mpole%efield0 - efield0
+      se_nddo_mpole%efield1 = se_nddo_mpole%efield1 - efield1
+      se_nddo_mpole%efield2 = se_nddo_mpole%efield2 - efield2
       ! deallocate working arrays
       DEALLOCATE (efield0)
       DEALLOCATE (efield1)
@@ -1195,7 +1195,7 @@ CONTAINS
       ! Corrections for two-centers one-electron terms + nuclear terms
       CALL mp_sum(enuclear, para_env%group)
       CALL mp_sum(ecore2, para_env%group)
-      energy%hartree = energy%hartree+ecore2
+      energy%hartree = energy%hartree + ecore2
       energy%core_overlap = enuclear
       CALL finalize_se_taper(se_taper)
       CALL timestop(handle)
@@ -1361,7 +1361,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
                                       row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
-               p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a+pa_block_b
+               p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a + pa_block_b
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
             END IF
          END IF
@@ -1397,7 +1397,7 @@ CONTAINS
                CPASSERT(ASSOCIATED(ksb_block_b))
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
-               p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a+pb_block_b
+               p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a + pb_block_b
                pb_b(1:natorb_b2) = RESHAPE(pb_block_b, (/natorb_b2/))
             END IF
 
@@ -1416,7 +1416,7 @@ CONTAINS
                   CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_a, ksb_block_a, pa_a, pb_a, &
                                     ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b, &
                                     e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv)
-                  ecore2 = ecore2+ecab(1)+ecab(2)
+                  ecore2 = ecore2 + ecab(1) + ecab(2)
                ELSE IF (nspins == 2) THEN
                   ecab = 0._dp
                   CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_a, ksb_block_a, pa_block_a, &
@@ -1426,11 +1426,11 @@ CONTAINS
                   CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_b, ksb_block_b, pa_b, pb_b, &
                                     ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b, &
                                     e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv)
-                  ecore2 = ecore2+ecab(1)+ecab(2)
+                  ecore2 = ecore2 + ecab(1) + ecab(2)
                END IF
                IF (atener) THEN
-                  atprop%atecoul(iatom) = atprop%atecoul(iatom)+ecab(1)
-                  atprop%atecoul(jatom) = atprop%atecoul(jatom)+ecab(2)
+                  atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecab(1)
+                  atprop%atecoul(jatom) = atprop%atecoul(jatom) + ecab(2)
                END IF
                ! Coulomb Terms
                IF (nspins == 1) THEN
@@ -1464,14 +1464,14 @@ CONTAINS
                   END IF
 
                   ! Sum up force components
-                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a)-force_ab(1)
-                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b)+force_ab(1)
+                  force(ikind)%all_potential(1, atom_a) = force(ikind)%all_potential(1, atom_a) - force_ab(1)
+                  force(jkind)%all_potential(1, atom_b) = force(jkind)%all_potential(1, atom_b) + force_ab(1)
 
-                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a)-force_ab(2)
-                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b)+force_ab(2)
+                  force(ikind)%all_potential(2, atom_a) = force(ikind)%all_potential(2, atom_a) - force_ab(2)
+                  force(jkind)%all_potential(2, atom_b) = force(jkind)%all_potential(2, atom_b) + force_ab(2)
 
-                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a)-force_ab(3)
-                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b)+force_ab(3)
+                  force(ikind)%all_potential(3, atom_a) = force(ikind)%all_potential(3, atom_a) - force_ab(3)
+                  force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b) + force_ab(3)
 
                   ! Derivatives of the Coulomb Terms
                   force_ab = 0.0_dp
@@ -1487,14 +1487,14 @@ CONTAINS
                   END IF
 
                   ! Sum up force components
-                  force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a)-force_ab(1)
-                  force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b)+force_ab(1)
+                  force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a) - force_ab(1)
+                  force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b) + force_ab(1)
 
-                  force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a)-force_ab(2)
-                  force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b)+force_ab(2)
+                  force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a) - force_ab(2)
+                  force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b) + force_ab(2)
 
-                  force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a)-force_ab(3)
-                  force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b)+force_ab(3)
+                  force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a) - force_ab(3)
+                  force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
                CPABORT("")
@@ -1520,7 +1520,7 @@ CONTAINS
 
       ! Two-centers one-electron terms
       CALL mp_sum(ecore2, para_env%group)
-      energy%hartree = energy%hartree+ecore2
+      energy%hartree = energy%hartree + ecore2
 
       CALL timestop(handle)
    END SUBROUTINE build_fock_matrix_coul_lr_r3

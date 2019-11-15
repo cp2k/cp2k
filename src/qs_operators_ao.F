@@ -126,7 +126,7 @@ CONTAINS
                            maxlgto=maxlgto, &
                            maxsgf=maxsgf)
 
-      ldai = ncoset(maxlgto+1)
+      ldai = ncoset(maxlgto + 1)
       CALL init_orbital_pointers(ldai)
 
       ALLOCATE (rr_work(ldai, ldai, 3), intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
@@ -200,7 +200,7 @@ CONTAINS
             ENDDO
          END IF
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -210,7 +210,7 @@ CONTAINS
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
@@ -322,7 +322,7 @@ CONTAINS
 
 ! *** Calculate the distance of the centers a and c ***
 
-      rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+      rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
       dab = SQRT(rab2)
 
       ! *** Loop over all pairs of primitive Gaussian-type functions ***
@@ -337,20 +337,20 @@ CONTAINS
 
             ! *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO j = nb+1, nb+ncoset(lb_max)
-                  DO i = na+1, na+ncoset(la_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO j = nb + 1, nb + ncoset(lb_max)
+                  DO i = na + 1, na + ncoset(la_max)
                      intab(i, j, 1) = 0.0_dp
                      intab(i, j, 2) = 0.0_dp
                      intab(i, j, 3) = 0.0_dp
                   ENDDO
                ENDDO
-               nb = nb+ncoset(lb_max)
+               nb = nb + ncoset(lb_max)
                CYCLE
             ENDIF
 
             ! *** Calculate some prefactors ***
-            zet = zeta(ipgf)+zetb(jpgf)
+            zet = zeta(ipgf) + zetb(jpgf)
             xhi = zeta(ipgf)*zetb(jpgf)/zet
             rap = zetb(jpgf)*rab/zet
             rbp = -zeta(ipgf)*rab/zet
@@ -359,36 +359,36 @@ CONTAINS
 
             ! *** Calculate the recurrence relation ***
 
-            CALL os_rr_ovlp(rap, la_max+1, rbp, lb_max, zet, ldrr, rr)
+            CALL os_rr_ovlp(rap, la_max + 1, rbp, lb_max, zet, ldrr, rr)
 
             ! *** Calculate the primitive linear momentum integrals ***
             DO lb = lb_min, lb_max
             DO bx = 0, lb
-            DO by = 0, lb-bx
-               bz = lb-bx-by
+            DO by = 0, lb - bx
+               bz = lb - bx - by
                cob = coset(bx, by, bz)
-               mb = nb+cob
+               mb = nb + cob
                DO la = la_min, la_max
                DO ax = 0, la
-               DO ay = 0, la-ax
-                  az = la-ax-ay
+               DO ay = 0, la - ax
+                  az = la - ax - ay
                   coa = coset(ax, ay, az)
-                  ma = na+coa
+                  ma = na + coa
                   !
                   !
                   ! (a|p_x|b) = 2*a*(a+1x|b) - N_x(a)*(a-1_x|b)
-                  dumx = 2.0_dp*zeta(ipgf)*rr(ax+1, bx, 1)
-                  IF (ax .GT. 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                  dumx = 2.0_dp*zeta(ipgf)*rr(ax + 1, bx, 1)
+                  IF (ax .GT. 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                   intab(ma, mb, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                   !
                   ! (a|p_y|b)
-                  dumy = 2.0_dp*zeta(ipgf)*rr(ay+1, by, 2)
-                  IF (ay .GT. 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                  dumy = 2.0_dp*zeta(ipgf)*rr(ay + 1, by, 2)
+                  IF (ay .GT. 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                   intab(ma, mb, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                   !
                   ! (a|p_z|b)
-                  dumz = 2.0_dp*zeta(ipgf)*rr(az+1, bz, 3)
-                  IF (az .GT. 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                  dumz = 2.0_dp*zeta(ipgf)*rr(az + 1, bz, 3)
+                  IF (az .GT. 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                   intab(ma, mb, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                   !
                ENDDO
@@ -399,11 +399,11 @@ CONTAINS
             ENDDO
             ENDDO !lb
 
-            nb = nb+ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
 
          ENDDO
 
-         na = na+ncoset(la_max)
+         na = na + ncoset(la_max)
 
       ENDDO
 
@@ -481,7 +481,7 @@ CONTAINS
                            maxlgto=maxlgto, &
                            maxsgf=maxsgf)
 
-      ldai = ncoset(maxlgto+1)
+      ldai = ncoset(maxlgto + 1)
       CALL init_orbital_pointers(ldai)
 
       ALLOCATE (rr_work(ldai, ldai, 3), intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
@@ -557,7 +557,7 @@ CONTAINS
             ENDDO
          END IF
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -567,12 +567,12 @@ CONTAINS
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                !IF(PRESENT(wancen)) THEN
                !   rc = wancen
                rac = pbc(rc, ra, cell)
-               rbc = rac+rab
+               rbc = rac + rab
                !ELSE
                !   rc(1:3) = rb(1:3)
                !   rac(1:3) = -rab(1:3)
@@ -690,7 +690,7 @@ CONTAINS
 
 ! *** Calculate the distance of the centers a and c ***
 
-      rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+      rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
       dab = SQRT(rab2)
 
       ! *** Loop over all pairs of primitive Gaussian-type functions ***
@@ -705,20 +705,20 @@ CONTAINS
 
             ! *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO j = nb+1, nb+ncoset(lb_max)
-                  DO i = na+1, na+ncoset(la_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO j = nb + 1, nb + ncoset(lb_max)
+                  DO i = na + 1, na + ncoset(la_max)
                      intab(i, j, 1) = 0.0_dp
                      intab(i, j, 2) = 0.0_dp
                      intab(i, j, 3) = 0.0_dp
                   ENDDO
                ENDDO
-               nb = nb+ncoset(lb_max)
+               nb = nb + ncoset(lb_max)
                CYCLE
             ENDIF
 
             ! *** Calculate some prefactors ***
-            zet = zeta(ipgf)+zetb(jpgf)
+            zet = zeta(ipgf) + zetb(jpgf)
             xhi = zeta(ipgf)*zetb(jpgf)/zet
             rap = zetb(jpgf)*rab/zet
             rbp = -zeta(ipgf)*rab/zet
@@ -727,44 +727,44 @@ CONTAINS
 
             ! *** Calculate the recurrence relation ***
 
-            CALL os_rr_ovlp(rap, la_max+1, rbp, lb_max, zet, ldrr, rr)
+            CALL os_rr_ovlp(rap, la_max + 1, rbp, lb_max, zet, ldrr, rr)
 
             ! *** Calculate the primitive Fermi contact integrals ***
 
             DO lb = lb_min, lb_max
             DO bx = 0, lb
-            DO by = 0, lb-bx
-               bz = lb-bx-by
+            DO by = 0, lb - bx
+               bz = lb - bx - by
                cob = coset(bx, by, bz)
-               mb = nb+cob
+               mb = nb + cob
                DO la = la_min, la_max
                DO ax = 0, la
-               DO ay = 0, la-ax
-                  az = la-ax-ay
+               DO ay = 0, la - ax
+                  az = la - ax - ay
                   coa = coset(ax, ay, az)
-                  ma = na+coa
+                  ma = na + coa
                   !
-                  dumx = -2.0_dp*zeta(ipgf)*rr(ax+1, bx, 1)
-                  dumy = -2.0_dp*zeta(ipgf)*rr(ay+1, by, 2)
-                  dumz = -2.0_dp*zeta(ipgf)*rr(az+1, bz, 3)
-                  IF (ax .GT. 0) dumx = dumx+REAL(ax, dp)*rr(ax-1, bx, 1)
-                  IF (ay .GT. 0) dumy = dumy+REAL(ay, dp)*rr(ay-1, by, 2)
-                  IF (az .GT. 0) dumz = dumz+REAL(az, dp)*rr(az-1, bz, 3)
+                  dumx = -2.0_dp*zeta(ipgf)*rr(ax + 1, bx, 1)
+                  dumy = -2.0_dp*zeta(ipgf)*rr(ay + 1, by, 2)
+                  dumz = -2.0_dp*zeta(ipgf)*rr(az + 1, bz, 3)
+                  IF (ax .GT. 0) dumx = dumx + REAL(ax, dp)*rr(ax - 1, bx, 1)
+                  IF (ay .GT. 0) dumy = dumy + REAL(ay, dp)*rr(ay - 1, by, 2)
+                  IF (az .GT. 0) dumz = dumz + REAL(az, dp)*rr(az - 1, bz, 3)
                   !
                   ! (a|l_z|b)
                   intab(ma, mb, 1) = -f0*rr(ax, bx, 1)*( &
-                       &  (rr(ay+1, by, 2)+rac(2)*rr(ay, by, 2))*dumz &
-                       & -(rr(az+1, bz, 3)+rac(3)*rr(az, bz, 3))*dumy)
+                       &  (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumz &
+                       & - (rr(az + 1, bz, 3) + rac(3)*rr(az, bz, 3))*dumy)
                   !
                   ! (a|l_y|b)
                   intab(ma, mb, 2) = -f0*rr(ay, by, 2)*( &
-                       &  (rr(az+1, bz, 3)+rac(3)*rr(az, bz, 3))*dumx &
-                       & -(rr(ax+1, bx, 1)+rac(1)*rr(ax, bx, 1))*dumz)
+                       &  (rr(az + 1, bz, 3) + rac(3)*rr(az, bz, 3))*dumx &
+                       & - (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumz)
                   !
                   ! (a|l_z|b)
                   intab(ma, mb, 3) = -f0*rr(az, bz, 3)*( &
-                       &  (rr(ax+1, bx, 1)+rac(1)*rr(ax, bx, 1))*dumy &
-                       & -(rr(ay+1, by, 2)+rac(2)*rr(ay, by, 2))*dumx)
+                       &  (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumy &
+                       & - (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumx)
                   !
                ENDDO
                ENDDO
@@ -774,11 +774,11 @@ CONTAINS
             ENDDO
             ENDDO !lb
 
-            nb = nb+ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
 
          ENDDO
 
-         na = na+ncoset(la_max)
+         na = na + ncoset(la_max)
 
       ENDDO
 
@@ -948,7 +948,7 @@ CONTAINS
                CPASSERT(ASSOCIATED(op_dip(i)%block))
             END DO
          END IF ! new_atom_b
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -961,7 +961,7 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-               IF (set_radius_a(iset)+set_radius_b(jset) >= dab) THEN
+               IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
 !            *** Calculate the primitive overlap integrals ***
                   CALL diffop(la_max(iset), npgfa(iset), zeta(:, iset), &
@@ -1132,7 +1132,7 @@ CONTAINS
 
       smom = 1
       IF (order == -2) smom = 4
-      M_dim = ncoset(ABS(order))-1
+      M_dim = ncoset(ABS(order)) - 1
       CPASSERT(M_dim <= SIZE(op, 1))
 
       ALLOCATE (mab(ldab, ldab, 1:M_dim))
@@ -1194,7 +1194,7 @@ CONTAINS
             IF (ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) CYCLE
          END IF
 
-         rb = rab+ra
+         rb = rab + ra
 
          IF (jatom /= last_jatom) THEN
             new_atom_b = .TRUE.
@@ -1220,7 +1220,7 @@ CONTAINS
             END DO ! imom
          END IF ! new_atom_b
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -1233,7 +1233,7 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-               IF (set_radius_a(iset)+set_radius_b(jset) >= dab) THEN
+               IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
                   rac = pbc(rc, ra, cell)
                   rbc = pbc(rc, rb, cell)
@@ -1404,7 +1404,7 @@ CONTAINS
 
       ldab = ldwork
 
-      M_dim = ncoset(order)-1
+      M_dim = ncoset(order) - 1
       CPASSERT(M_dim <= SIZE(op, 1))
 
       ALLOCATE (mab(ldab, ldab, M_dim))
@@ -1476,7 +1476,7 @@ CONTAINS
             IF (ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) CYCLE
          END IF
 
-         rb = rab+ra
+         rb = rab + ra
 
          IF (jatom /= last_jatom) THEN
             new_atom_b = .TRUE.
@@ -1508,7 +1508,7 @@ CONTAINS
             END DO ! imom
          END IF ! new_atom_b
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -1521,22 +1521,22 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-               IF (set_radius_a(iset)+set_radius_b(jset) >= dab) THEN
+               IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
                   rac = pbc(rc, ra, cell)
-                  rbc = rac+rab
+                  rbc = rac + rab
 !                  rac = pbc(rc,ra,cell)
 !                  rbc = pbc(rc,rb,cell)
 
-                  ALLOCATE (mab_tmp(npgfa(iset)*ncoset(la_max(iset)+1), &
-                                    npgfb(jset)*ncoset(lb_max(jset)+1), ncoset(order)-1))
+                  ALLOCATE (mab_tmp(npgfa(iset)*ncoset(la_max(iset) + 1), &
+                                    npgfb(jset)*ncoset(lb_max(jset) + 1), ncoset(order) - 1))
 
-                  lda_min = MAX(0, la_min(iset)-1)
-                  ldb_min = MAX(0, lb_min(jset)-1)
+                  lda_min = MAX(0, la_min(iset) - 1)
+                  ldb_min = MAX(0, lb_min(jset) - 1)
 !            *** Calculate the primitive overlap integrals ***
-                  CALL moment(la_max(iset)+1, npgfa(iset), zeta(:, iset), &
+                  CALL moment(la_max(iset) + 1, npgfa(iset), zeta(:, iset), &
                               rpgfa(:, iset), lda_min, &
-                              lb_max(jset)+1, npgfb(jset), zetb(:, jset), rpgfb(:, jset), &
+                              lb_max(jset) + 1, npgfb(jset), zetb(:, jset), rpgfb(:, jset), &
                               order, rac, rbc, mab_tmp)
 
 !            *** Calculate the derivatives
@@ -1556,14 +1556,14 @@ CONTAINS
                         DO jpgf = 1, npgfb(jset)
                            DO j = 1, ncoset(lb_max(jset))
                               DO i = 1, ncoset(la_max(iset))
-                                 mab(i+na, j+nb, imom) = mab_tmp(i+nda, j+ndb, imom)
+                                 mab(i + na, j + nb, imom) = mab_tmp(i + nda, j + ndb, imom)
                               END DO ! i
                            END DO ! j
-                           nb = nb+ncoset(lb_max(jset))
-                           ndb = ndb+ncoset(lb_max(jset)+1)
+                           nb = nb + ncoset(lb_max(jset))
+                           ndb = ndb + ncoset(lb_max(jset) + 1)
                         END DO ! jpgf
-                        na = na+ncoset(la_max(iset))
-                        nda = nda+ncoset(la_max(iset)+1)
+                        na = na + ncoset(la_max(iset))
+                        nda = nda + ncoset(la_max(iset) + 1)
                      END DO ! ipgf
 
 !                 *** Contraction ***

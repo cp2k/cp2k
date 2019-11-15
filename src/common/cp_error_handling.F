@@ -81,7 +81,7 @@ CONTAINS
       INTEGER                                            :: unit_nr
 
 !$OMP MASTER
-      warning_counter = warning_counter+1
+      warning_counter = warning_counter + 1
 !$OMP END MASTER
 
       unit_nr = cp_logger_get_default_io_unit()
@@ -104,16 +104,16 @@ CONTAINS
       ! we (ab)use the logger to determine the first MPI rank
       unit_nr = cp_logger_get_default_io_unit()
       IF (unit_nr <= 0) &
-         wait_time = wait_time+1.0_dp ! rank-0 gets a head start of one second.
+         wait_time = wait_time + 1.0_dp ! rank-0 gets a head start of one second.
 
 !$    IF (omp_get_thread_num() /= 0) &
-!$       wait_time = wait_time+1.0_dp ! master threads gets another second
+!$       wait_time = wait_time + 1.0_dp ! master threads gets another second
 
       ! sleep
       IF (wait_time > 0.0_dp) THEN
          t1 = m_walltime()
          DO
-            IF (m_walltime()-t1 > wait_time .OR. t1 < 0) EXIT
+            IF (m_walltime() - t1 > wait_time .OR. t1 < 0) EXIT
          ENDDO
       ENDIF
 
@@ -133,7 +133,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: img = "   ___   "//"  /   \  "//" [ABORT] "//"  \___/  "// &
          "    |    "//"  O/|    "//" /| |    "//" / \     "
       INTEGER, PARAMETER :: img_height = 8, img_width = 9, screen_width = 80, &
-         txt_width = screen_width-img_width-5
+         txt_width = screen_width - img_width - 5
 
       CHARACTER(LEN=screen_width)                        :: msg_line
       INTEGER                                            :: a, b, c, fill, i, img_start, indent, &
@@ -144,43 +144,43 @@ CONTAINS
       a = 1; b = -1; msg_height = 0
       DO WHILE (b < LEN_TRIM(message))
          b = next_linebreak(message, a, txt_width)
-         a = b+1
-         msg_height = msg_height+1
+         a = b + 1
+         msg_height = msg_height + 1
       ENDDO
 
       ! calculate message and image starting lines
       IF (img_height > msg_height) THEN
-         msg_start = (img_height-msg_height)/2+1
+         msg_start = (img_height - msg_height)/2 + 1
          img_start = 1
       ELSE
          msg_start = 1
-         img_start = msg_height-img_height+2
+         img_start = msg_height - img_height + 2
       ENDIF
 
       ! print empty line
       WRITE (UNIT=output_unit, FMT="(A)") ""
 
       ! print opening line
-      WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", screen_width-1)
+      WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", screen_width - 1)
 
       ! print body
       a = 1; b = -1; c = 1
-      DO i = 1, MAX(img_height-1, msg_height)
+      DO i = 1, MAX(img_height - 1, msg_height)
          WRITE (UNIT=output_unit, FMT="(A)", advance='no') " *"
          IF (i < img_start) THEN
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", img_width)
          ELSE
-            WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c+img_width-1)
-            c = c+img_width
+            WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c + img_width - 1)
+            c = c + img_width
          ENDIF
          IF (i < msg_start) THEN
-            WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", txt_width+2)
+            WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", txt_width + 2)
          ELSE
             b = next_linebreak(message, a, txt_width)
             msg_line = message(a:b)
-            a = b+1
-            fill = (txt_width-LEN_TRIM(msg_line))/2+1
-            indent = txt_width-LEN_TRIM(msg_line)-fill+2
+            a = b + 1
+            fill = (txt_width - LEN_TRIM(msg_line))/2 + 1
+            indent = txt_width - LEN_TRIM(msg_line) - fill + 2
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", indent)
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') TRIM(msg_line)
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", fill)
@@ -190,14 +190,14 @@ CONTAINS
 
       ! print location line
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') " *"
-      WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c+img_width-1)
-      indent = txt_width-LEN_TRIM(location)+1
+      WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c + img_width - 1)
+      indent = txt_width - LEN_TRIM(location) + 1
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", indent)
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') TRIM(location)
       WRITE (UNIT=output_unit, FMT="(A)", advance='yes') " *"
 
       ! print closing line
-      WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", screen_width-1)
+      WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", screen_width - 1)
 
       ! print empty line
       WRITE (UNIT=output_unit, FMT="(A)") ""
@@ -220,14 +220,14 @@ CONTAINS
       INTEGER                                            :: i, n
 
       n = LEN_TRIM(message)
-      IF (n-pos <= rowlen) THEN
+      IF (n - pos <= rowlen) THEN
          ibreak = n ! remaining message shorter than line
       ELSE
-         i = INDEX(message(pos+1:pos+1+rowlen), " ", BACK=.TRUE.)
+         i = INDEX(message(pos + 1:pos + 1 + rowlen), " ", BACK=.TRUE.)
          IF (i == 0) THEN
-            ibreak = pos+rowlen-1 ! no space found, break mid-word
+            ibreak = pos + rowlen - 1 ! no space found, break mid-word
          ELSE
-            ibreak = pos+i ! break at space closest to rowlen
+            ibreak = pos + i ! break at space closest to rowlen
          ENDIF
       ENDIF
    END FUNCTION next_linebreak

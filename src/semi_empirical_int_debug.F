@@ -19,10 +19,10 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
    USE kinds, ONLY: dp
    USE semi_empirical_int_utils, ONLY: rotmat
    USE semi_empirical_types, ONLY: rotmat_create, &
-      rotmat_release, &
-      rotmat_type, &
-      semi_empirical_type, &
-      se_int_control_type
+                                   rotmat_release, &
+                                   rotmat_type, &
+                                   semi_empirical_type, &
+                                   se_int_control_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -60,12 +60,12 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
       DO i = 1, 2
          IF (i == 1) matrix => matrix_p
          IF (i == 2) matrix => matrix_m
-         r0 = rjiv+(-1.0_dp)**(i-1)*x
+         r0 = rjiv + (-1.0_dp)**(i - 1)*x
          r = SQRT(DOT_PRODUCT(r0, r0))
          CALL rotmat(sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=do_invert)
       END DO
       ! SP
-      matrix_n%sp_d(j, :, :) = (matrix_p%sp-matrix_m%sp)/(2.0_dp*dx)
+      matrix_n%sp_d(j, :, :) = (matrix_p%sp - matrix_m%sp)/(2.0_dp*dx)
       DO i = 1, 3
          DO k = 1, 3
             IF (.NOT. check_value(matrix_n%sp_d(j, k, i), ij_matrix%sp_d(j, k, i), dx, 0.1_dp)) THEN
@@ -75,7 +75,7 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
          END DO
       END DO
       ! PP
-      matrix_n%pp_d(j, :, :, :) = (matrix_p%pp-matrix_m%pp)/(2.0_dp*dx)
+      matrix_n%pp_d(j, :, :, :) = (matrix_p%pp - matrix_m%pp)/(2.0_dp*dx)
       DO i = 1, 3
          DO k = 1, 3
             DO l = 1, 6
@@ -89,7 +89,7 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
       ! d-orbitals debug
       IF (sepi%dorb .OR. sepj%dorb) THEN
          ! SD
-         matrix_n%sd_d(j, :, :) = (matrix_p%sd-matrix_m%sd)/(2.0_dp*dx)
+         matrix_n%sd_d(j, :, :) = (matrix_p%sd - matrix_m%sd)/(2.0_dp*dx)
          DO i = 1, 5
             DO k = 1, 5
                IF (.NOT. check_value(matrix_n%sd_d(j, k, i), ij_matrix%sd_d(j, k, i), dx, 0.1_dp)) THEN
@@ -99,7 +99,7 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
             END DO
          END DO
          ! DP
-         matrix_n%pd_d(j, :, :, :) = (matrix_p%pd-matrix_m%pd)/(2.0_dp*dx)
+         matrix_n%pd_d(j, :, :, :) = (matrix_p%pd - matrix_m%pd)/(2.0_dp*dx)
          DO i = 1, 3
             DO k = 1, 5
                DO l = 1, 15
@@ -111,7 +111,7 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
             END DO
          END DO
          ! DD
-         matrix_n%dd_d(j, :, :, :) = (matrix_p%dd-matrix_m%dd)/(2.0_dp*dx)
+         matrix_n%dd_d(j, :, :, :) = (matrix_p%dd - matrix_m%dd)/(2.0_dp*dx)
          DO i = 1, 5
             DO k = 1, 5
                DO l = 1, 15
@@ -153,11 +153,11 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
    USE semi_empirical_int_arrays, ONLY: indexb
    USE semi_empirical_int_num, ONLY: terep_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      rotmat_type, &
-      rotmat_create, &
-      rotmat_release, &
-      se_int_control_type, &
-      se_taper_type
+                                   rotmat_type, &
+                                   rotmat_create, &
+                                   rotmat_release, &
+                                   se_int_control_type, &
+                                   se_taper_type
    USE semi_empirical_int_utils, ONLY: rot_2el_2c_first
 #include "./base/base_uses.f90"
    IMPLICIT NONE
@@ -199,7 +199,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
       x = 0.0_dp
       x(imap(j)) = dx
       DO i = 1, 2
-         r0 = rijv+(-1.0_dp)**(i-1)*x
+         r0 = rijv + (-1.0_dp)**(i - 1)*x
          r = SQRT(DOT_PRODUCT(r0, r0))
 
          CALL rotmat_create(matrix)
@@ -222,7 +222,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
       DO i = 1, 45
          DO k = 1, limkl
             ! Compute the numerical derivative
-            v_n(i, k) = (v_p(i, k)-v_m(i, k))/(2.0_dp*dx)
+            v_n(i, k) = (v_p(i, k) - v_m(i, k))/(2.0_dp*dx)
             IF (.NOT. check_value(v_d(j, i, k), v_n(i, k), dx, 0.1_dp)) THEN
                WRITE (*, *) "ERROR for  rot_2el_2c_first derivative V_D(j,i,k), j,i,k::", j, i, k
                CPABORT("")
@@ -252,8 +252,8 @@ SUBROUTINE check_dssss_nucint_ana(sepi, sepj, r, dssss, itype, se_int_control, s
    USE kinds, ONLY: dp
    USE semi_empirical_int_num, ONLY: ssss_nucint_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      se_int_control_type, &
-      se_taper_type
+                                   se_int_control_type, &
+                                   se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -271,11 +271,11 @@ SUBROUTINE check_dssss_nucint_ana(sepi, sepj, r, dssss, itype, se_int_control, s
 
    delta = 1.0E-8_dp
    od = 0.5_dp/delta
-   rn = r+delta
+   rn = r + delta
    CALL ssss_nucint_num(sepi, sepj, rn, ssssp, itype, se_taper, se_int_control)
-   rn = r-delta
+   rn = r - delta
    CALL ssss_nucint_num(sepi, sepj, rn, ssssm, itype, se_taper, se_int_control)
-   nssss = od*(ssssp-ssssm)
+   nssss = od*(ssssp - ssssm)
    ! check
    WRITE (*, *) "DEBUG::"//routineP
    IF (.NOT. check_value(nssss, dssss, delta, 0.1_dp)) THEN
@@ -304,8 +304,8 @@ SUBROUTINE check_dcore_nucint_ana(sepi, sepj, r, dcore, itype, se_int_control, s
    USE kinds, ONLY: dp
    USE semi_empirical_int_num, ONLY: core_nucint_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      se_int_control_type, &
-      se_taper_type
+                                   se_int_control_type, &
+                                   se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -325,11 +325,11 @@ SUBROUTINE check_dcore_nucint_ana(sepi, sepj, r, dcore, itype, se_int_control, s
 
    delta = 1.0E-8_dp
    od = 0.5_dp/delta
-   rn = r+delta
+   rn = r + delta
    CALL core_nucint_num(sepi, sepj, rn, corep, itype, se_taper, se_int_control)
-   rn = r-delta
+   rn = r - delta
    CALL core_nucint_num(sepi, sepj, rn, corem, itype, se_taper, se_int_control)
-   ncore = od*(corep-corem)
+   ncore = od*(corep - corem)
    ! check
    WRITE (*, *) "DEBUG::"//routineP
    DO i = 1, 2
@@ -371,8 +371,8 @@ FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
       ! skip..
       RETURN
    END IF
-   IF (ABS((num-ana)/num*100._dp) > thrs) THEN
-      WRITE (*, *) ABS(num-ana)/num*100._dp, thrs
+   IF (ABS((num - ana)/num*100._dp) > thrs) THEN
+      WRITE (*, *) ABS(num - ana)/num*100._dp, thrs
       passed = .FALSE.
    END IF
    IF (.NOT. passed) THEN
@@ -403,10 +403,10 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
 
    USE kinds, ONLY: dp
    USE semi_empirical_int_num, ONLY: rotnuc_num, &
-      drotnuc_num
+                                     drotnuc_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      se_int_control_type, &
-      se_taper_type
+                                   se_int_control_type, &
+                                   se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -508,10 +508,10 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper
 
    USE kinds, ONLY: dp
    USE semi_empirical_int_num, ONLY: corecore_num, &
-      dcorecore_num
+                                     dcorecore_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      se_int_control_type, &
-      se_taper_type
+                                   se_int_control_type, &
+                                   se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -573,8 +573,8 @@ SUBROUTINE check_dterep_ana(sepi, sepj, r, ri, dri, se_int_control, se_taper, lg
    USE kinds, ONLY: dp
    USE semi_empirical_int_num, ONLY: terep_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      se_int_control_type, &
-      se_taper_type
+                                   se_int_control_type, &
+                                   se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -597,16 +597,16 @@ SUBROUTINE check_dterep_ana(sepi, sepj, r, ri, dri, se_int_control, se_taper, lg
    rn = r
    CALL terep_num(sepi, sepj, rn, ri0, se_taper, se_int_control)
    IF (lgrad) THEN
-      rn = r+delta
+      rn = r + delta
       CALL terep_num(sepi, sepj, rn, rip, se_taper, se_int_control)
-      rn = r-delta
+      rn = r - delta
       CALL terep_num(sepi, sepj, rn, rim, se_taper, se_int_control)
-      nri = od*(rip-rim)
+      nri = od*(rip - rim)
    END IF
    ! check
    WRITE (*, *) "DEBUG::"//routineP
    DO j = 1, 491
-      IF (ABS(ri(j)-ri0(j)) > EPSILON(0.0_dp)) THEN
+      IF (ABS(ri(j) - ri0(j)) > EPSILON(0.0_dp)) THEN
          WRITE (*, *) "Error in value of the integral RI", j, ri(j), ri0(j)
          CPABORT("")
       END IF
@@ -615,7 +615,7 @@ SUBROUTINE check_dterep_ana(sepi, sepj, r, ri, dri, se_int_control, se_taper, lg
             WRITE (*, *) "ERROR for derivative of RI integral, RI(j), j::", j
             WRITE (*, *) "FULL SET OF INTEGRALS: INDX  ANAL  NUM   DIFF"
             DO i = 1, 491
-               WRITE (*, '(I5,3F15.9)') i, dri(i), nri(i), nri(i)-dri(i)
+               WRITE (*, '(I5,3F15.9)') i, dri(i), nri(i), nri(i) - dri(i)
             END DO
             CPABORT("")
          END IF
@@ -642,10 +642,10 @@ SUBROUTINE check_rotint_ana(sepi, sepj, rijv, w, dw, se_int_control, se_taper)
 
    USE kinds, ONLY: dp
    USE semi_empirical_int_num, ONLY: rotint_num, &
-      drotint_num
+                                     drotint_num
    USE semi_empirical_types, ONLY: semi_empirical_type, &
-      se_int_control_type, &
-      se_taper_type
+                                   se_int_control_type, &
+                                   se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj

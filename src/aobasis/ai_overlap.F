@@ -107,17 +107,17 @@ CONTAINS
       IF (PRESENT(sdab) .OR. calculate_force_a) THEN
          IF (da_max_set == 0) THEN
             da_max = 1
-            la_max = la_max_set+1
-            la_min = MAX(0, la_min_set-1)
+            la_max = la_max_set + 1
+            la_min = MAX(0, la_min_set - 1)
          ELSE
             da_max = da_max_set
-            la_max = la_max_set+da_max_set+1
-            la_min = MAX(0, la_min_set-da_max_set-1)
+            la_max = la_max_set + da_max_set + 1
+            la_min = MAX(0, la_min_set - da_max_set - 1)
          END IF
       ELSE
          da_max = da_max_set
-         la_max = la_max_set+da_max_set
-         la_min = MAX(0, la_min_set-da_max_set)
+         la_max = la_max_set + da_max_set
+         la_min = MAX(0, la_min_set - da_max_set)
       END IF
 
       lb_max = lb_max_set
@@ -136,29 +136,29 @@ CONTAINS
 
 !       *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO j = nb+1, nb+ncoset(lb_max_set)
-                  DO i = na+1, na+ncoset(la_max_set)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO j = nb + 1, nb + ncoset(lb_max_set)
+                  DO i = na + 1, na + ncoset(la_max_set)
                      sab(i, j) = 0.0_dp
                   END DO
                END DO
                IF (return_derivatives) THEN
                   DO k = 2, ncoset(da_max_set)
-                     jstart = (k-1)*SIZE(sab, 1)
-                     DO j = jstart+nb+1, jstart+nb+ncoset(lb_max_set)
-                        DO i = na+1, na+ncoset(la_max_set)
+                     jstart = (k - 1)*SIZE(sab, 1)
+                     DO j = jstart + nb + 1, jstart + nb + ncoset(lb_max_set)
+                        DO i = na + 1, na + ncoset(la_max_set)
                            sab(i, j) = 0.0_dp
                         END DO
                      END DO
                   END DO
                END IF
-               nb = nb+ncoset(lb_max_set)
+               nb = nb + ncoset(lb_max_set)
                CYCLE
             END IF
 
 !       *** Calculate some prefactors ***
 
-            zetp = 1.0_dp/(zeta(ipgf)+zetb(jpgf))
+            zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
 
             f0 = SQRT((pi*zetp)**3)
             f1 = zetb(jpgf)*zetp
@@ -188,12 +188,12 @@ CONTAINS
 
                   f3 = f2*s(1, 1, 1)
 
-                  s(5, 1, 1) = rap(1)*s(2, 1, 1)+f3 ! [dx2|s]
+                  s(5, 1, 1) = rap(1)*s(2, 1, 1) + f3 ! [dx2|s]
                   s(6, 1, 1) = rap(1)*s(3, 1, 1) ! [dxy|s]
                   s(7, 1, 1) = rap(1)*s(4, 1, 1) ! [dxz|s]
-                  s(8, 1, 1) = rap(2)*s(3, 1, 1)+f3 ! [dy2|s]
+                  s(8, 1, 1) = rap(2)*s(3, 1, 1) + f3 ! [dy2|s]
                   s(9, 1, 1) = rap(2)*s(4, 1, 1) ! [dyz|s]
-                  s(10, 1, 1) = rap(3)*s(4, 1, 1)+f3 ! [dz2|s]
+                  s(10, 1, 1) = rap(3)*s(4, 1, 1) + f3 ! [dz2|s]
 
                   IF (la_max > 2) THEN
 
@@ -201,16 +201,16 @@ CONTAINS
 
                      f3 = 2.0_dp*f2
 
-                     s(11, 1, 1) = rap(1)*s(5, 1, 1)+f3*s(2, 1, 1) ! [fx3 |s]
-                     s(12, 1, 1) = rap(1)*s(6, 1, 1)+f2*s(3, 1, 1) ! [fx2y|s]
-                     s(13, 1, 1) = rap(1)*s(7, 1, 1)+f2*s(4, 1, 1) ! [fx2z|s]
+                     s(11, 1, 1) = rap(1)*s(5, 1, 1) + f3*s(2, 1, 1) ! [fx3 |s]
+                     s(12, 1, 1) = rap(1)*s(6, 1, 1) + f2*s(3, 1, 1) ! [fx2y|s]
+                     s(13, 1, 1) = rap(1)*s(7, 1, 1) + f2*s(4, 1, 1) ! [fx2z|s]
                      s(14, 1, 1) = rap(1)*s(8, 1, 1) ! [fxy2|s]
                      s(15, 1, 1) = rap(1)*s(9, 1, 1) ! [fxyz|s]
                      s(16, 1, 1) = rap(1)*s(10, 1, 1) ! [fxz2|s]
-                     s(17, 1, 1) = rap(2)*s(8, 1, 1)+f3*s(3, 1, 1) ! [fy3 |s]
-                     s(18, 1, 1) = rap(2)*s(9, 1, 1)+f2*s(4, 1, 1) ! [fy2z|s]
+                     s(17, 1, 1) = rap(2)*s(8, 1, 1) + f3*s(3, 1, 1) ! [fy3 |s]
+                     s(18, 1, 1) = rap(2)*s(9, 1, 1) + f2*s(4, 1, 1) ! [fy2z|s]
                      s(19, 1, 1) = rap(2)*s(10, 1, 1) ! [fyz2|s]
-                     s(20, 1, 1) = rap(3)*s(10, 1, 1)+f3*s(4, 1, 1) ! [fz3 |s]
+                     s(20, 1, 1) = rap(3)*s(10, 1, 1) + f3*s(4, 1, 1) ! [fz3 |s]
 
                      IF (la_max > 3) THEN
 
@@ -218,21 +218,21 @@ CONTAINS
 
                         f4 = 3.0_dp*f2
 
-                        s(21, 1, 1) = rap(1)*s(11, 1, 1)+f4*s(5, 1, 1) ! [gx4  |s]
-                        s(22, 1, 1) = rap(1)*s(12, 1, 1)+f3*s(6, 1, 1) ! [gx3y |s]
-                        s(23, 1, 1) = rap(1)*s(13, 1, 1)+f3*s(7, 1, 1) ! [gx3z |s]
-                        s(24, 1, 1) = rap(1)*s(14, 1, 1)+f2*s(8, 1, 1) ! [gx2y2|s]
-                        s(25, 1, 1) = rap(1)*s(15, 1, 1)+f2*s(9, 1, 1) ! [gx2yz|s]
-                        s(26, 1, 1) = rap(1)*s(16, 1, 1)+f2*s(10, 1, 1) ! [gx2z2|s]
+                        s(21, 1, 1) = rap(1)*s(11, 1, 1) + f4*s(5, 1, 1) ! [gx4  |s]
+                        s(22, 1, 1) = rap(1)*s(12, 1, 1) + f3*s(6, 1, 1) ! [gx3y |s]
+                        s(23, 1, 1) = rap(1)*s(13, 1, 1) + f3*s(7, 1, 1) ! [gx3z |s]
+                        s(24, 1, 1) = rap(1)*s(14, 1, 1) + f2*s(8, 1, 1) ! [gx2y2|s]
+                        s(25, 1, 1) = rap(1)*s(15, 1, 1) + f2*s(9, 1, 1) ! [gx2yz|s]
+                        s(26, 1, 1) = rap(1)*s(16, 1, 1) + f2*s(10, 1, 1) ! [gx2z2|s]
                         s(27, 1, 1) = rap(1)*s(17, 1, 1) ! [gxy3 |s]
                         s(28, 1, 1) = rap(1)*s(18, 1, 1) ! [gxy2z|s]
                         s(29, 1, 1) = rap(1)*s(19, 1, 1) ! [gxyz2|s]
                         s(30, 1, 1) = rap(1)*s(20, 1, 1) ! [gxz3 |s]
-                        s(31, 1, 1) = rap(2)*s(17, 1, 1)+f4*s(8, 1, 1) ! [gy4  |s]
-                        s(32, 1, 1) = rap(2)*s(18, 1, 1)+f3*s(9, 1, 1) ! [gy3z |s]
-                        s(33, 1, 1) = rap(2)*s(19, 1, 1)+f2*s(10, 1, 1) ! [gy2z2|s]
+                        s(31, 1, 1) = rap(2)*s(17, 1, 1) + f4*s(8, 1, 1) ! [gy4  |s]
+                        s(32, 1, 1) = rap(2)*s(18, 1, 1) + f3*s(9, 1, 1) ! [gy3z |s]
+                        s(33, 1, 1) = rap(2)*s(19, 1, 1) + f2*s(10, 1, 1) ! [gy2z2|s]
                         s(34, 1, 1) = rap(2)*s(20, 1, 1) ! [gyz3 |s]
-                        s(35, 1, 1) = rap(3)*s(20, 1, 1)+f4*s(10, 1, 1) ! [gz4  |s]
+                        s(35, 1, 1) = rap(3)*s(20, 1, 1) + f4*s(10, 1, 1) ! [gz4  |s]
 
 !               *** [a|s] = (Pi - Ai)*[a-1i|s] + f2*Ni(a-1i)*[a-2i|s] ***
 
@@ -241,33 +241,33 @@ CONTAINS
 !                 *** Increase the angular momentum component z of a ***
 
                            s(coset(0, 0, la), 1, 1) = &
-                              rap(3)*s(coset(0, 0, la-1), 1, 1)+ &
-                              f2*REAL(la-1, dp)*s(coset(0, 0, la-2), 1, 1)
+                              rap(3)*s(coset(0, 0, la - 1), 1, 1) + &
+                              f2*REAL(la - 1, dp)*s(coset(0, 0, la - 2), 1, 1)
 
 !                 *** Increase the angular momentum component y of a ***
 
-                           az = la-1
+                           az = la - 1
                            s(coset(0, 1, az), 1, 1) = rap(2)*s(coset(0, 0, az), 1, 1)
                            DO ay = 2, la
-                              az = la-ay
+                              az = la - ay
                               s(coset(0, ay, az), 1, 1) = &
-                                 rap(2)*s(coset(0, ay-1, az), 1, 1)+ &
-                                 f2*REAL(ay-1, dp)*s(coset(0, ay-2, az), 1, 1)
+                                 rap(2)*s(coset(0, ay - 1, az), 1, 1) + &
+                                 f2*REAL(ay - 1, dp)*s(coset(0, ay - 2, az), 1, 1)
                            END DO
 
 !                 *** Increase the angular momentum component x of a ***
 
-                           DO ay = 0, la-1
-                              az = la-1-ay
+                           DO ay = 0, la - 1
+                              az = la - 1 - ay
                               s(coset(1, ay, az), 1, 1) = rap(1)*s(coset(0, ay, az), 1, 1)
                            END DO
                            DO ax = 2, la
-                              f3 = f2*REAL(ax-1, dp)
-                              DO ay = 0, la-ax
-                                 az = la-ax-ay
+                              f3 = f2*REAL(ax - 1, dp)
+                              DO ay = 0, la - ax
+                                 az = la - ax - ay
                                  s(coset(ax, ay, az), 1, 1) = &
-                                    rap(1)*s(coset(ax-1, ay, az), 1, 1)+ &
-                                    f3*s(coset(ax-2, ay, az), 1, 1)
+                                    rap(1)*s(coset(ax - 1, ay, az), 1, 1) + &
+                                    f3*s(coset(ax - 2, ay, az), 1, 1)
                               END DO
                            END DO
 
@@ -291,27 +291,27 @@ CONTAINS
 
 !           *** Horizontal recurrence steps ***
 
-                  rbp(:) = rap(:)-rab(:)
+                  rbp(:) = rap(:) - rab(:)
 
 !           *** [a|p] = [a+1i|s] - (Bi - Ai)*[a|s] ***
 
                   IF (lb_max == 1) THEN
                      la_start = la_min
                   ELSE
-                     la_start = MAX(0, la_min-1)
+                     la_start = MAX(0, la_min - 1)
                   END IF
 
-                  DO la = la_start, la_max-1
+                  DO la = la_start, la_max - 1
                      DO ax = 0, la
-                        DO ay = 0, la-ax
-                           az = la-ax-ay
+                        DO ay = 0, la - ax
+                           az = la - ax - ay
                            coa = coset(ax, ay, az)
-                           coapx = coset(ax+1, ay, az)
-                           coapy = coset(ax, ay+1, az)
-                           coapz = coset(ax, ay, az+1)
-                           s(coa, 2, 1) = s(coapx, 1, 1)-rab(1)*s(coa, 1, 1)
-                           s(coa, 3, 1) = s(coapy, 1, 1)-rab(2)*s(coa, 1, 1)
-                           s(coa, 4, 1) = s(coapz, 1, 1)-rab(3)*s(coa, 1, 1)
+                           coapx = coset(ax + 1, ay, az)
+                           coapy = coset(ax, ay + 1, az)
+                           coapz = coset(ax, ay, az + 1)
+                           s(coa, 2, 1) = s(coapx, 1, 1) - rab(1)*s(coa, 1, 1)
+                           s(coa, 3, 1) = s(coapy, 1, 1) - rab(2)*s(coa, 1, 1)
+                           s(coa, 4, 1) = s(coapz, 1, 1) - rab(3)*s(coa, 1, 1)
                         END DO
                      END DO
                   END DO
@@ -322,17 +322,17 @@ CONTAINS
 
                   DO ax = 0, la_max
                      fax = f2*REAL(ax, dp)
-                     DO ay = 0, la_max-ax
+                     DO ay = 0, la_max - ax
                         fay = f2*REAL(ay, dp)
-                        az = la_max-ax-ay
+                        az = la_max - ax - ay
                         faz = f2*REAL(az, dp)
                         coa = coset(ax, ay, az)
-                        coamx = coset(ax-1, ay, az)
-                        coamy = coset(ax, ay-1, az)
-                        coamz = coset(ax, ay, az-1)
-                        s(coa, 2, 1) = rbp(1)*s(coa, 1, 1)+fax*s(coamx, 1, 1)
-                        s(coa, 3, 1) = rbp(2)*s(coa, 1, 1)+fay*s(coamy, 1, 1)
-                        s(coa, 4, 1) = rbp(3)*s(coa, 1, 1)+faz*s(coamz, 1, 1)
+                        coamx = coset(ax - 1, ay, az)
+                        coamy = coset(ax, ay - 1, az)
+                        coamz = coset(ax, ay, az - 1)
+                        s(coa, 2, 1) = rbp(1)*s(coa, 1, 1) + fax*s(coamx, 1, 1)
+                        s(coa, 3, 1) = rbp(2)*s(coa, 1, 1) + fay*s(coamy, 1, 1)
+                        s(coa, 4, 1) = rbp(3)*s(coa, 1, 1) + faz*s(coamz, 1, 1)
                      END DO
                   END DO
 
@@ -347,41 +347,41 @@ CONTAINS
                      IF (lb == lb_max) THEN
                         la_start = la_min
                      ELSE
-                        la_start = MAX(0, la_min-1)
+                        la_start = MAX(0, la_min - 1)
                      END IF
 
-                     DO la = la_start, la_max-1
+                     DO la = la_start, la_max - 1
                         DO ax = 0, la
-                           DO ay = 0, la-ax
-                              az = la-ax-ay
+                           DO ay = 0, la - ax
+                              az = la - ax - ay
                               coa = coset(ax, ay, az)
-                              coapx = coset(ax+1, ay, az)
-                              coapy = coset(ax, ay+1, az)
-                              coapz = coset(ax, ay, az+1)
+                              coapx = coset(ax + 1, ay, az)
+                              coapy = coset(ax, ay + 1, az)
+                              coapz = coset(ax, ay, az + 1)
 
 !                   *** Shift of angular momentum component z from a to b ***
 
                               cob = coset(0, 0, lb)
-                              cobmz = coset(0, 0, lb-1)
-                              s(coa, cob, 1) = s(coapz, cobmz, 1)-rab(3)*s(coa, cobmz, 1)
+                              cobmz = coset(0, 0, lb - 1)
+                              s(coa, cob, 1) = s(coapz, cobmz, 1) - rab(3)*s(coa, cobmz, 1)
 
 !                   *** Shift of angular momentum component y from a to b ***
 
                               DO by = 1, lb
-                                 bz = lb-by
+                                 bz = lb - by
                                  cob = coset(0, by, bz)
-                                 cobmy = coset(0, by-1, bz)
-                                 s(coa, cob, 1) = s(coapy, cobmy, 1)-rab(2)*s(coa, cobmy, 1)
+                                 cobmy = coset(0, by - 1, bz)
+                                 s(coa, cob, 1) = s(coapy, cobmy, 1) - rab(2)*s(coa, cobmy, 1)
                               END DO
 
 !                   *** Shift of angular momentum component x from a to b ***
 
                               DO bx = 1, lb
-                                 DO by = 0, lb-bx
-                                    bz = lb-bx-by
+                                 DO by = 0, lb - bx
+                                    bz = lb - bx - by
                                     cob = coset(bx, by, bz)
-                                    cobmx = coset(bx-1, by, bz)
-                                    s(coa, cob, 1) = s(coapx, cobmx, 1)-rab(1)*s(coa, cobmx, 1)
+                                    cobmx = coset(bx - 1, by, bz)
+                                    s(coa, cob, 1) = s(coapx, cobmx, 1) - rab(1)*s(coa, cobmx, 1)
                                  END DO
                               END DO
 
@@ -396,61 +396,61 @@ CONTAINS
 
                      DO ax = 0, la_max
                         fax = f2*REAL(ax, dp)
-                        DO ay = 0, la_max-ax
+                        DO ay = 0, la_max - ax
                            fay = f2*REAL(ay, dp)
-                           az = la_max-ax-ay
+                           az = la_max - ax - ay
                            faz = f2*REAL(az, dp)
                            coa = coset(ax, ay, az)
-                           coamx = coset(ax-1, ay, az)
-                           coamy = coset(ax, ay-1, az)
-                           coamz = coset(ax, ay, az-1)
+                           coamx = coset(ax - 1, ay, az)
+                           coamy = coset(ax, ay - 1, az)
+                           coamz = coset(ax, ay, az - 1)
 
 !                 *** Increase the angular momentum component z of b ***
 
-                           f3 = f2*REAL(lb-1, dp)
+                           f3 = f2*REAL(lb - 1, dp)
                            cob = coset(0, 0, lb)
-                           cobmz = coset(0, 0, lb-1)
-                           cobm2z = coset(0, 0, lb-2)
-                           s(coa, cob, 1) = rbp(3)*s(coa, cobmz, 1)+ &
-                                            faz*s(coamz, cobmz, 1)+ &
+                           cobmz = coset(0, 0, lb - 1)
+                           cobm2z = coset(0, 0, lb - 2)
+                           s(coa, cob, 1) = rbp(3)*s(coa, cobmz, 1) + &
+                                            faz*s(coamz, cobmz, 1) + &
                                             f3*s(coa, cobm2z, 1)
 
 !                 *** Increase the angular momentum component y of b ***
 
-                           bz = lb-1
+                           bz = lb - 1
                            cob = coset(0, 1, bz)
                            cobmy = coset(0, 0, bz)
-                           s(coa, cob, 1) = rbp(2)*s(coa, cobmy, 1)+ &
+                           s(coa, cob, 1) = rbp(2)*s(coa, cobmy, 1) + &
                                             fay*s(coamy, cobmy, 1)
                            DO by = 2, lb
-                              bz = lb-by
-                              f3 = f2*REAL(by-1, dp)
+                              bz = lb - by
+                              f3 = f2*REAL(by - 1, dp)
                               cob = coset(0, by, bz)
-                              cobmy = coset(0, by-1, bz)
-                              cobm2y = coset(0, by-2, bz)
-                              s(coa, cob, 1) = rbp(2)*s(coa, cobmy, 1)+ &
-                                               fay*s(coamy, cobmy, 1)+ &
+                              cobmy = coset(0, by - 1, bz)
+                              cobm2y = coset(0, by - 2, bz)
+                              s(coa, cob, 1) = rbp(2)*s(coa, cobmy, 1) + &
+                                               fay*s(coamy, cobmy, 1) + &
                                                f3*s(coa, cobm2y, 1)
                            END DO
 
 !                 *** Increase the angular momentum component x of b ***
 
-                           DO by = 0, lb-1
-                              bz = lb-1-by
+                           DO by = 0, lb - 1
+                              bz = lb - 1 - by
                               cob = coset(1, by, bz)
                               cobmx = coset(0, by, bz)
-                              s(coa, cob, 1) = rbp(1)*s(coa, cobmx, 1)+ &
+                              s(coa, cob, 1) = rbp(1)*s(coa, cobmx, 1) + &
                                                fax*s(coamx, cobmx, 1)
                            END DO
                            DO bx = 2, lb
-                              f3 = f2*REAL(bx-1, dp)
-                              DO by = 0, lb-bx
-                                 bz = lb-bx-by
+                              f3 = f2*REAL(bx - 1, dp)
+                              DO by = 0, lb - bx
+                                 bz = lb - bx - by
                                  cob = coset(bx, by, bz)
-                                 cobmx = coset(bx-1, by, bz)
-                                 cobm2x = coset(bx-2, by, bz)
-                                 s(coa, cob, 1) = rbp(1)*s(coa, cobmx, 1)+ &
-                                                  fax*s(coamx, cobmx, 1)+ &
+                                 cobmx = coset(bx - 1, by, bz)
+                                 cobm2x = coset(bx - 2, by, bz)
+                                 s(coa, cob, 1) = rbp(1)*s(coa, cobmx, 1) + &
+                                                  fax*s(coamx, cobmx, 1) + &
                                                   f3*s(coa, cobm2x, 1)
                               END DO
                            END DO
@@ -468,7 +468,7 @@ CONTAINS
 
 !           *** Vertical recurrence steps: [s|s] -> [s|b] ***
 
-                  rbp(:) = (f1-1.0_dp)*rab(:)
+                  rbp(:) = (f1 - 1.0_dp)*rab(:)
 
 !           *** [s|p] = (Pi - Bi)*[s|s] ***
 
@@ -482,12 +482,12 @@ CONTAINS
 
                      f3 = f2*s(1, 1, 1)
 
-                     s(1, 5, 1) = rbp(1)*s(1, 2, 1)+f3 ! [s|dx2]
+                     s(1, 5, 1) = rbp(1)*s(1, 2, 1) + f3 ! [s|dx2]
                      s(1, 6, 1) = rbp(1)*s(1, 3, 1) ! [s|dxy]
                      s(1, 7, 1) = rbp(1)*s(1, 4, 1) ! [s|dxz]
-                     s(1, 8, 1) = rbp(2)*s(1, 3, 1)+f3 ! [s|dy2]
+                     s(1, 8, 1) = rbp(2)*s(1, 3, 1) + f3 ! [s|dy2]
                      s(1, 9, 1) = rbp(2)*s(1, 4, 1) ! [s|dyz]
-                     s(1, 10, 1) = rbp(3)*s(1, 4, 1)+f3 ! [s|dz2]
+                     s(1, 10, 1) = rbp(3)*s(1, 4, 1) + f3 ! [s|dz2]
 
 !             *** [s|b] = (Pi - Bi)*[s|b-1i] + f2*Ni(b-1i)*[s|b-2i] ***
 
@@ -496,33 +496,33 @@ CONTAINS
 !               *** Increase the angular momentum component z of b ***
 
                         s(1, coset(0, 0, lb), 1) = &
-                           rbp(3)*s(1, coset(0, 0, lb-1), 1)+ &
-                           f2*REAL(lb-1, dp)*s(1, coset(0, 0, lb-2), 1)
+                           rbp(3)*s(1, coset(0, 0, lb - 1), 1) + &
+                           f2*REAL(lb - 1, dp)*s(1, coset(0, 0, lb - 2), 1)
 
 !               *** Increase the angular momentum component y of b ***
 
-                        bz = lb-1
+                        bz = lb - 1
                         s(1, coset(0, 1, bz), 1) = rbp(2)*s(1, coset(0, 0, bz), 1)
                         DO by = 2, lb
-                           bz = lb-by
+                           bz = lb - by
                            s(1, coset(0, by, bz), 1) = &
-                              rbp(2)*s(1, coset(0, by-1, bz), 1)+ &
-                              f2*REAL(by-1, dp)*s(1, coset(0, by-2, bz), 1)
+                              rbp(2)*s(1, coset(0, by - 1, bz), 1) + &
+                              f2*REAL(by - 1, dp)*s(1, coset(0, by - 2, bz), 1)
                         END DO
 
 !               *** Increase the angular momentum component x of b ***
 
-                        DO by = 0, lb-1
-                           bz = lb-1-by
+                        DO by = 0, lb - 1
+                           bz = lb - 1 - by
                            s(1, coset(1, by, bz), 1) = rbp(1)*s(1, coset(0, by, bz), 1)
                         END DO
                         DO bx = 2, lb
-                           f3 = f2*REAL(bx-1, dp)
-                           DO by = 0, lb-bx
-                              bz = lb-bx-by
+                           f3 = f2*REAL(bx - 1, dp)
+                           DO by = 0, lb - bx
+                              bz = lb - bx - by
                               s(1, coset(bx, by, bz), 1) = &
-                                 rbp(1)*s(1, coset(bx-1, by, bz), 1)+ &
-                                 f3*s(1, coset(bx-2, by, bz), 1)
+                                 rbp(1)*s(1, coset(bx - 1, by, bz), 1) + &
+                                 f3*s(1, coset(bx - 2, by, bz), 1)
                            END DO
                         END DO
 
@@ -538,7 +538,7 @@ CONTAINS
 
             DO j = 1, ncoset(lb_max_set)
                DO i = 1, ncoset(la_max_set)
-                  sab(na+i, nb+j) = s(i, j, 1)
+                  sab(na + i, nb + j) = s(i, j, 1)
                END DO
             END DO
 
@@ -553,42 +553,42 @@ CONTAINS
                lb_start = lb_min_set
             END IF
 
-            DO da = 0, da_max-1
+            DO da = 0, da_max - 1
                ftz = 2.0_dp*zeta(ipgf)
                DO dax = 0, da
-                  DO day = 0, da-dax
-                     daz = da-dax-day
+                  DO day = 0, da - dax
+                     daz = da - dax - day
                      cda = coset(dax, day, daz)
-                     cdax = coset(dax+1, day, daz)
-                     cday = coset(dax, day+1, daz)
-                     cdaz = coset(dax, day, daz+1)
+                     cdax = coset(dax + 1, day, daz)
+                     cday = coset(dax, day + 1, daz)
+                     cdaz = coset(dax, day, daz + 1)
 
 !             *** [da/dAi|b] = 2*zeta*[a+1i|b] - Ni(a)[a-1i|b] ***
 
-                     DO la = la_start, la_max-da-1
+                     DO la = la_start, la_max - da - 1
                         DO ax = 0, la
                            fax = REAL(ax, dp)
-                           DO ay = 0, la-ax
+                           DO ay = 0, la - ax
                               fay = REAL(ay, dp)
-                              az = la-ax-ay
+                              az = la - ax - ay
                               faz = REAL(az, dp)
                               coa = coset(ax, ay, az)
-                              coamx = coset(ax-1, ay, az)
-                              coamy = coset(ax, ay-1, az)
-                              coamz = coset(ax, ay, az-1)
-                              coapx = coset(ax+1, ay, az)
-                              coapy = coset(ax, ay+1, az)
-                              coapz = coset(ax, ay, az+1)
+                              coamx = coset(ax - 1, ay, az)
+                              coamy = coset(ax, ay - 1, az)
+                              coamz = coset(ax, ay, az - 1)
+                              coapx = coset(ax + 1, ay, az)
+                              coapy = coset(ax, ay + 1, az)
+                              coapz = coset(ax, ay, az + 1)
                               DO lb = lb_start, lb_max_set
                                  DO bx = 0, lb
-                                    DO by = 0, lb-bx
-                                       bz = lb-bx-by
+                                    DO by = 0, lb - bx
+                                       bz = lb - bx - by
                                        cob = coset(bx, by, bz)
-                                       s(coa, cob, cdax) = ftz*s(coapx, cob, cda)- &
+                                       s(coa, cob, cdax) = ftz*s(coapx, cob, cda) - &
                                                            fax*s(coamx, cob, cda)
-                                       s(coa, cob, cday) = ftz*s(coapy, cob, cda)- &
+                                       s(coa, cob, cday) = ftz*s(coapy, cob, cda) - &
                                                            fay*s(coamy, cob, cda)
-                                       s(coa, cob, cdaz) = ftz*s(coapz, cob, cda)- &
+                                       s(coa, cob, cdaz) = ftz*s(coapz, cob, cda) - &
                                                            faz*s(coamz, cob, cda)
                                     END DO
                                  END DO
@@ -606,11 +606,11 @@ CONTAINS
 
             IF (return_derivatives) THEN
                DO k = 2, ncoset(da_max_set)
-                  jstart = (k-1)*SIZE(sab, 1)
+                  jstart = (k - 1)*SIZE(sab, 1)
                   DO j = 1, ncoset(lb_max_set)
-                     jk = jstart+j
+                     jk = jstart + j
                      DO i = 1, ncoset(la_max_set)
-                        sab(na+i, nb+jk) = s(i, j, k)
+                        sab(na + i, nb + jk) = s(i, j, k)
                      END DO
                   END DO
                END DO
@@ -620,9 +620,9 @@ CONTAINS
 
             IF (calculate_force_a) THEN
                DO k = 1, 3
-                  DO j = ncoset(lb_min_set-1)+1, ncoset(lb_max_set)
-                     DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-                        force_a(k) = force_a(k)+pab(na+i, nb+j)*s(i, j, k+1)
+                  DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                     DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                        force_a(k) = force_a(k) + pab(na + i, nb + j)*s(i, j, k + 1)
                      END DO
                   END DO
                END DO
@@ -633,22 +633,22 @@ CONTAINS
 !       *** the kinetic energy integrals if requested                      ***
 
             IF (PRESENT(sdab)) THEN
-               sdab(nda+1, nb+1, 1) = s(1, 1, 1)
+               sdab(nda + 1, nb + 1, 1) = s(1, 1, 1)
                DO k = 2, 4
                   DO j = 1, ncoset(lb_max_set)
-                     DO i = 1, ncoset(la_max-1)
-                        sdab(nda+i, nb+j, k) = s(i, j, k)
+                     DO i = 1, ncoset(la_max - 1)
+                        sdab(nda + i, nb + j, k) = s(i, j, k)
                      END DO
                   END DO
                END DO
             END IF
 
-            nb = nb+ncoset(lb_max_set)
+            nb = nb + ncoset(lb_max_set)
 
          END DO
 
-         na = na+ncoset(la_max_set)
-         nda = nda+ncoset(la_max-1)
+         na = na + ncoset(la_max_set)
+         nda = nda + ncoset(la_max - 1)
 
       END DO
 
@@ -699,7 +699,7 @@ CONTAINS
 
       ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
@@ -708,23 +708,23 @@ CONTAINS
          lmb = lb_max
       END IF
       IF (PRESENT(dab)) THEN
-         lma = la_max+1
+         lma = la_max + 1
          lmb = lb_max
       END IF
       IF (PRESENT(ddab)) THEN
-         lma = la_max+1
-         lmb = lb_max+1
+         lma = la_max + 1
+         lmb = lb_max + 1
       END IF
-      ldrr = MAX(lma, lmb)+1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa = ncoset(la_min-1)
-      ofb = ncoset(lb_min-1)
-      na = ncoset(la_max)-ofa
-      nb = ncoset(lb_max)-ofb
+      ofa = ncoset(la_min - 1)
+      ofb = ncoset(lb_min - 1)
+      na = ncoset(la_max) - ofa
+      nb = ncoset(lb_max) - ofb
       IF (PRESENT(sab)) THEN
          CPASSERT((SIZE(sab, 1) >= na*npgfa))
          CPASSERT((SIZE(sab, 2) >= nb*npgfb))
@@ -746,18 +746,18 @@ CONTAINS
          mb = 0
          DO jpgf = 1, npgfb
             ! Distance Screening
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < tab) THEN
-               IF (PRESENT(sab)) sab(ma+1:ma+na, mb+1:mb+nb) = 0.0_dp
-               IF (PRESENT(dab)) dab(ma+1:ma+na, mb+1:mb+nb, 1:3) = 0.0_dp
-               IF (PRESENT(ddab)) ddab(ma+1:ma+na, mb+1:mb+nb, 1:6) = 0.0_dp
-               mb = mb+nb
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < tab) THEN
+               IF (PRESENT(sab)) sab(ma + 1:ma + na, mb + 1:mb + nb) = 0.0_dp
+               IF (PRESENT(dab)) dab(ma + 1:ma + na, mb + 1:mb + nb, 1:3) = 0.0_dp
+               IF (PRESENT(ddab)) ddab(ma + 1:ma + na, mb + 1:mb + nb, 1:6) = 0.0_dp
+               mb = mb + nb
                CYCLE
             ENDIF
 
             ! Calculate some prefactors
             a = zeta(ipgf)
             b = zetb(jpgf)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
             rap = b*rab/zet
             rbp = -a*rab/zet
@@ -770,16 +770,16 @@ CONTAINS
 
             DO lb = lb_min, lb_max
             DO bx = 0, lb
-            DO by = 0, lb-bx
-               bz = lb-bx-by
-               cob = coset(bx, by, bz)-ofb
-               ib = mb+cob
+            DO by = 0, lb - bx
+               bz = lb - bx - by
+               cob = coset(bx, by, bz) - ofb
+               ib = mb + cob
                DO la = la_min, la_max
                DO ax = 0, la
-               DO ay = 0, la-ax
-                  az = la-ax-ay
-                  coa = coset(ax, ay, az)-ofa
-                  ia = ma+coa
+               DO ay = 0, la - ax
+                  az = la - ax - ay
+                  coa = coset(ax, ay, az) - ofa
+                  ia = ma + coa
                   ! integrals
                   IF (PRESENT(sab)) THEN
                      sab(ia, ib) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az, bz, 3)
@@ -788,16 +788,16 @@ CONTAINS
                   IF (PRESENT(dab)) THEN
                      ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                      ! dx
-                     dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                     IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                     dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                     IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                      dab(ia, ib, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                      ! dy
-                     dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                     IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                     dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                     IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                      dab(ia, ib, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                      ! dz
-                     dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                     IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                     dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                     IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                      dab(ia, ib, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                   END IF
                   ! 2nd derivatives
@@ -805,119 +805,119 @@ CONTAINS
                      ! (dda|b) = -4*a*b*(a+1|b+1) + 2*a*N(b)*(a+1|b-1)
                      !           + 2*b*N(a)*(a-1|b+1) - N(a)*N(b)*(a-1|b-1)
                      ! dx dx
-                     apbp = f0*rr(ax+1, bx+1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                     apbp = f0*rr(ax + 1, bx + 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
                      IF (bx > 0) THEN
-                        apbm = f0*rr(ax+1, bx-1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                        apbm = f0*rr(ax + 1, bx - 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
                      ELSE
                         apbm = 0.0_dp
                      END IF
                      IF (ax > 0) THEN
-                        ambp = f0*rr(ax-1, bx+1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                        ambp = f0*rr(ax - 1, bx + 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
                      ELSE
                         ambp = 0.0_dp
                      END IF
                      IF (ax > 0 .AND. bx > 0) THEN
-                        ambm = f0*rr(ax-1, bx-1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
+                        ambm = f0*rr(ax - 1, bx - 1, 1)*rr(ay, by, 2)*rr(az, bz, 3)
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 1) = -4.0_dp*a*b*apbm+2.0_dp*a*REAL(bx, dp)*apbm &
-                                       +2.0_dp*b*REAL(ax, dp)*ambp-REAL(ax, dp)*REAL(bx, dp)*ambm
+                     ddab(ia, ib, 1) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bx, dp)*apbm &
+                                       + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(bx, dp)*ambm
                      ! dx dy
-                     apbp = f0*rr(ax+1, bx, 1)*rr(ay, by+1, 2)*rr(az, bz, 3)
+                     apbp = f0*rr(ax + 1, bx, 1)*rr(ay, by + 1, 2)*rr(az, bz, 3)
                      IF (by > 0) THEN
-                        apbm = f0*rr(ax+1, bx, 1)*rr(ay, by-1, 2)*rr(az, bz, 3)
+                        apbm = f0*rr(ax + 1, bx, 1)*rr(ay, by - 1, 2)*rr(az, bz, 3)
                      ELSE
                         apbm = 0.0_dp
                      END IF
                      IF (ax > 0) THEN
-                        ambp = f0*rr(ax-1, bx, 1)*rr(ay, by+1, 2)*rr(az, bz, 3)
+                        ambp = f0*rr(ax - 1, bx, 1)*rr(ay, by + 1, 2)*rr(az, bz, 3)
                      ELSE
                         ambp = 0.0_dp
                      END IF
                      IF (ax > 0 .AND. by > 0) THEN
-                        ambm = f0*rr(ax-1, bx, 1)*rr(ay, by-1, 2)*rr(az, bz, 3)
+                        ambm = f0*rr(ax - 1, bx, 1)*rr(ay, by - 1, 2)*rr(az, bz, 3)
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 2) = -4.0_dp*a*b*apbm+2.0_dp*a*REAL(by, dp)*apbm &
-                                       +2.0_dp*b*REAL(ax, dp)*ambp-REAL(ax, dp)*REAL(by, dp)*ambm
+                     ddab(ia, ib, 2) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(by, dp)*apbm &
+                                       + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(by, dp)*ambm
                      ! dx dz
-                     apbp = f0*rr(ax+1, bx, 1)*rr(ay, by, 2)*rr(az, bz+1, 3)
+                     apbp = f0*rr(ax + 1, bx, 1)*rr(ay, by, 2)*rr(az, bz + 1, 3)
                      IF (bz > 0) THEN
-                        apbm = f0*rr(ax+1, bx, 1)*rr(ay, by, 2)*rr(az, bz-1, 3)
+                        apbm = f0*rr(ax + 1, bx, 1)*rr(ay, by, 2)*rr(az, bz - 1, 3)
                      ELSE
                         apbm = 0.0_dp
                      END IF
                      IF (ax > 0) THEN
-                        ambp = f0*rr(ax-1, bx, 1)*rr(ay, by, 2)*rr(az, bz+1, 3)
+                        ambp = f0*rr(ax - 1, bx, 1)*rr(ay, by, 2)*rr(az, bz + 1, 3)
                      ELSE
                         ambp = 0.0_dp
                      END IF
                      IF (ax > 0 .AND. bz > 0) THEN
-                        ambm = f0*rr(ax-1, bx, 1)*rr(ay, by, 2)*rr(az, bz-1, 3)
+                        ambm = f0*rr(ax - 1, bx, 1)*rr(ay, by, 2)*rr(az, bz - 1, 3)
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 3) = -4.0_dp*a*b*apbm+2.0_dp*a*REAL(bz, dp)*apbm &
-                                       +2.0_dp*b*REAL(ax, dp)*ambp-REAL(ax, dp)*REAL(bz, dp)*ambm
+                     ddab(ia, ib, 3) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz, dp)*apbm &
+                                       + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(bz, dp)*ambm
                      ! dy dy
-                     apbp = f0*rr(ax, bx, 1)*rr(ay+1, by+1, 2)*rr(az, bz, 3)
+                     apbp = f0*rr(ax, bx, 1)*rr(ay + 1, by + 1, 2)*rr(az, bz, 3)
                      IF (by > 0) THEN
-                        apbm = f0*rr(ax, bx, 1)*rr(ay+1, by-1, 2)*rr(az, bz, 3)
+                        apbm = f0*rr(ax, bx, 1)*rr(ay + 1, by - 1, 2)*rr(az, bz, 3)
                      ELSE
                         apbm = 0.0_dp
                      END IF
                      IF (ay > 0) THEN
-                        ambp = f0*rr(ax, bx, 1)*rr(ay-1, by+1, 2)*rr(az, bz, 3)
+                        ambp = f0*rr(ax, bx, 1)*rr(ay - 1, by + 1, 2)*rr(az, bz, 3)
                      ELSE
                         ambp = 0.0_dp
                      END IF
                      IF (ay > 0 .AND. by > 0) THEN
-                        ambm = f0*rr(ax, bx, 1)*rr(ay-1, by-1, 2)*rr(az, bz, 3)
+                        ambm = f0*rr(ax, bx, 1)*rr(ay - 1, by - 1, 2)*rr(az, bz, 3)
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 4) = -4.0_dp*a*b*apbm+2.0_dp*a*REAL(by, dp)*apbm &
-                                       +2.0_dp*b*REAL(ay, dp)*ambp-REAL(ay, dp)*REAL(by, dp)*ambm
+                     ddab(ia, ib, 4) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(by, dp)*apbm &
+                                       + 2.0_dp*b*REAL(ay, dp)*ambp - REAL(ay, dp)*REAL(by, dp)*ambm
                      ! dy dz
-                     apbp = f0*rr(ax, bx, 1)*rr(ay+1, by, 2)*rr(az, bz+1, 3)
+                     apbp = f0*rr(ax, bx, 1)*rr(ay + 1, by, 2)*rr(az, bz + 1, 3)
                      IF (bz > 0) THEN
-                        apbm = f0*rr(ax, bx, 1)*rr(ay+1, by, 2)*rr(az, bz-1, 3)
+                        apbm = f0*rr(ax, bx, 1)*rr(ay + 1, by, 2)*rr(az, bz - 1, 3)
                      ELSE
                         apbm = 0.0_dp
                      END IF
                      IF (ay > 0) THEN
-                        ambp = f0*rr(ax, bx, 1)*rr(ay-1, by, 2)*rr(az, bz+1, 3)
+                        ambp = f0*rr(ax, bx, 1)*rr(ay - 1, by, 2)*rr(az, bz + 1, 3)
                      ELSE
                         ambp = 0.0_dp
                      END IF
                      IF (ay > 0 .AND. bz > 0) THEN
-                        ambm = f0*rr(ax, bx, 1)*rr(ay-1, by, 2)*rr(az, bz-1, 3)
+                        ambm = f0*rr(ax, bx, 1)*rr(ay - 1, by, 2)*rr(az, bz - 1, 3)
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 5) = -4.0_dp*a*b*apbm+2.0_dp*a*REAL(bz, dp)*apbm &
-                                       +2.0_dp*b*REAL(ay, dp)*ambp-REAL(ay, dp)*REAL(bz, dp)*ambm
+                     ddab(ia, ib, 5) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz, dp)*apbm &
+                                       + 2.0_dp*b*REAL(ay, dp)*ambp - REAL(ay, dp)*REAL(bz, dp)*ambm
                      ! dz dz
-                     apbp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az+1, bz+1, 3)
+                     apbp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az + 1, bz + 1, 3)
                      IF (bz > 0) THEN
-                        apbm = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az+1, bz-1, 3)
+                        apbm = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az + 1, bz - 1, 3)
                      ELSE
                         apbm = 0.0_dp
                      END IF
                      IF (az > 0) THEN
-                        ambp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az-1, bz+1, 3)
+                        ambp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az - 1, bz + 1, 3)
                      ELSE
                         ambp = 0.0_dp
                      END IF
                      IF (az > 0 .AND. bz > 0) THEN
-                        ambm = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az-1, bz-1, 3)
+                        ambm = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az - 1, bz - 1, 3)
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 6) = -4.0_dp*a*b*apbm+2.0_dp*a*REAL(bz, dp)*apbm &
-                                       +2.0_dp*b*REAL(az, dp)*ambp-REAL(az, dp)*REAL(bz, dp)*ambm
+                     ddab(ia, ib, 6) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz, dp)*apbm &
+                                       + 2.0_dp*b*REAL(az, dp)*ambp - REAL(az, dp)*REAL(bz, dp)*ambm
                   END IF
                   !
                ENDDO
@@ -927,9 +927,9 @@ CONTAINS
             ENDDO
             ENDDO !lb
 
-            mb = mb+nb
+            mb = mb + nb
          END DO
-         ma = ma+na
+         ma = ma + na
       END DO
 
       DEALLOCATE (rr)
@@ -994,30 +994,30 @@ CONTAINS
 
       ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
       IF (PRESENT(saab) .OR. PRESENT(saba)) THEN
-         lma = la1_max+la2_max
+         lma = la1_max + la2_max
          lmb = lb_max
       END IF
       IF (PRESENT(daab) .OR. PRESENT(daba)) THEN
-         lma = la1_max+la2_max+1
+         lma = la1_max + la2_max + 1
          lmb = lb_max
       END IF
-      ldrr = MAX(lma, lmb)+1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa1 = ncoset(la1_min-1)
-      ofa2 = ncoset(la2_min-1)
-      ofb = ncoset(lb_min-1)
-      na1 = ncoset(la1_max)-ofa1
-      na2 = ncoset(la2_max)-ofa2
-      nb = ncoset(lb_max)-ofb
+      ofa1 = ncoset(la1_min - 1)
+      ofa2 = ncoset(la2_min - 1)
+      ofb = ncoset(lb_min - 1)
+      na1 = ncoset(la1_max) - ofa1
+      na2 = ncoset(la2_max) - ofa2
+      nb = ncoset(lb_max) - ofb
       IF (PRESENT(saab)) THEN
          CPASSERT((SIZE(saab, 1) >= na1*npgfa1))
          CPASSERT((SIZE(saab, 2) >= na2*npgfa2))
@@ -1050,19 +1050,19 @@ CONTAINS
             mb = 0
             DO jpgf = 1, npgfb
                ! Distance Screening
-               IF (rpgfa+rpgfb(jpgf) < tab) THEN
-                  IF (PRESENT(saab)) saab(ma1+1:ma1+na1, ma2+1:ma2+na2, mb+1:mb+nb) = 0.0_dp
-                  IF (PRESENT(daab)) daab(ma1+1:ma1+na1, ma2+1:ma2+na2, mb+1:mb+nb, 1:3) = 0.0_dp
-                  IF (PRESENT(saba)) saba(ma1+1:ma1+na1, mb+1:mb+nb, ma2+1:ma2+na2) = 0.0_dp
-                  IF (PRESENT(daba)) daba(ma1+1:ma1+na1, mb+1:mb+nb, ma2+1:ma2+na2, 1:3) = 0.0_dp
-                  mb = mb+nb
+               IF (rpgfa + rpgfb(jpgf) < tab) THEN
+                  IF (PRESENT(saab)) saab(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, mb + 1:mb + nb) = 0.0_dp
+                  IF (PRESENT(daab)) daab(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, mb + 1:mb + nb, 1:3) = 0.0_dp
+                  IF (PRESENT(saba)) saba(ma1 + 1:ma1 + na1, mb + 1:mb + nb, ma2 + 1:ma2 + na2) = 0.0_dp
+                  IF (PRESENT(daba)) daba(ma1 + 1:ma1 + na1, mb + 1:mb + nb, ma2 + 1:ma2 + na2, 1:3) = 0.0_dp
+                  mb = mb + nb
                   CYCLE
                ENDIF
 
                ! Calculate some prefactors
-               a = zeta1(i1pgf)+zeta2(i2pgf)
+               a = zeta1(i1pgf) + zeta2(i2pgf)
                b = zetb(jpgf)
-               zet = a+b
+               zet = a + b
                xhi = a*b/zet
                rap = b*rab/zet
                rbp = -a*rab/zet
@@ -1075,64 +1075,64 @@ CONTAINS
 
                DO lb = lb_min, lb_max
                DO bx = 0, lb
-               DO by = 0, lb-bx
-                  bz = lb-bx-by
-                  cob = coset(bx, by, bz)-ofb
-                  ib = mb+cob
+               DO by = 0, lb - bx
+                  bz = lb - bx - by
+                  cob = coset(bx, by, bz) - ofb
+                  ib = mb + cob
                   DO la2 = la2_min, la2_max
                   DO ax2 = 0, la2
-                  DO ay2 = 0, la2-ax2
-                     az2 = la2-ax2-ay2
-                     coa2 = coset(ax2, ay2, az2)-ofa2
-                     ia2 = ma2+coa2
+                  DO ay2 = 0, la2 - ax2
+                     az2 = la2 - ax2 - ay2
+                     coa2 = coset(ax2, ay2, az2) - ofa2
+                     ia2 = ma2 + coa2
                      DO la1 = la1_min, la1_max
                      DO ax1 = 0, la1
-                     DO ay1 = 0, la1-ax1
-                        az1 = la1-ax1-ay1
-                        coa1 = coset(ax1, ay1, az1)-ofa1
-                        ia1 = ma1+coa1
+                     DO ay1 = 0, la1 - ax1
+                        az1 = la1 - ax1 - ay1
+                        coa1 = coset(ax1, ay1, az1) - ofa1
+                        ia1 = ma1 + coa1
                         ! integrals
                         IF (PRESENT(saab)) THEN
-                           saab(ia1, ia2, ib) = f0*rr(ax1+ax2, bx, 1)*rr(ay1+ay2, by, 2)*rr(az1+az2, bz, 3)
+                           saab(ia1, ia2, ib) = f0*rr(ax1 + ax2, bx, 1)*rr(ay1 + ay2, by, 2)*rr(az1 + az2, bz, 3)
                         END IF
                         IF (PRESENT(saba)) THEN
-                           saba(ia1, ib, ia2) = f0*rr(ax1+ax2, bx, 1)*rr(ay1+ay2, by, 2)*rr(az1+az2, bz, 3)
+                           saba(ia1, ib, ia2) = f0*rr(ax1 + ax2, bx, 1)*rr(ay1 + ay2, by, 2)*rr(az1 + az2, bz, 3)
                         END IF
                         ! first derivatives
                         IF (PRESENT(daab)) THEN
-                           ax = ax1+ax2
-                           ay = ay1+ay2
-                           az = az1+az2
+                           ax = ax1 + ax2
+                           ay = ay1 + ay2
+                           az = az1 + az2
                            ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                            ! dx
-                           dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                           IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                           dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                           IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                            daab(ia1, ia2, ib, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                            ! dy
-                           dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                           IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                           dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                           IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                            daab(ia1, ia2, ib, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                            ! dz
-                           dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                           IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                           dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                           IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                            daab(ia1, ia2, ib, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                         END IF
                         IF (PRESENT(daba)) THEN
-                           ax = ax1+ax2
-                           ay = ay1+ay2
-                           az = az1+az2
+                           ax = ax1 + ax2
+                           ay = ay1 + ay2
+                           az = az1 + az2
                            ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                            ! dx
-                           dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                           IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                           dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                           IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                            daba(ia1, ib, ia2, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                            ! dy
-                           dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                           IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                           dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                           IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                            daba(ia1, ib, ia2, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                            ! dz
-                           dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                           IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                           dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                           IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                            daba(ia1, ib, ia2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                         END IF
                         !
@@ -1146,11 +1146,11 @@ CONTAINS
                ENDDO
                ENDDO !lb
 
-               mb = mb+nb
+               mb = mb + nb
             END DO
-            ma2 = ma2+na2
+            ma2 = ma2 + na2
          END DO
-         ma1 = ma1+na1
+         ma1 = ma1 + na1
       END DO
 
       DEALLOCATE (rr)
@@ -1209,30 +1209,30 @@ CONTAINS
 
       ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
       IF (PRESENT(sabb)) THEN
          lma = la_max
-         lmb = lb1_max+lb2_max
+         lmb = lb1_max + lb2_max
       END IF
       IF (PRESENT(dabb)) THEN
-         lma = la_max+1
-         lmb = lb1_max+lb2_max
+         lma = la_max + 1
+         lmb = lb1_max + lb2_max
       END IF
-      ldrr = MAX(lma, lmb)+1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa = ncoset(la_min-1)
-      ofb1 = ncoset(lb1_min-1)
-      ofb2 = ncoset(lb2_min-1)
-      na = ncoset(la_max)-ofa
-      nb1 = ncoset(lb1_max)-ofb1
-      nb2 = ncoset(lb2_max)-ofb2
+      ofa = ncoset(la_min - 1)
+      ofb1 = ncoset(lb1_min - 1)
+      ofb2 = ncoset(lb2_min - 1)
+      na = ncoset(la_max) - ofa
+      nb1 = ncoset(lb1_max) - ofb1
+      nb2 = ncoset(lb2_max) - ofb2
       IF (PRESENT(sabb)) THEN
          CPASSERT((SIZE(sabb, 1) >= na*npgfa))
          CPASSERT((SIZE(sabb, 2) >= nb1*npgfb1))
@@ -1254,17 +1254,17 @@ CONTAINS
             DO j2pgf = 1, npgfb2
                ! Distance Screening
                rpgfb = MIN(rpgfb1(j1pgf), rpgfb2(j2pgf))
-               IF (rpgfa(ipgf)+rpgfb < tab) THEN
-                  IF (PRESENT(sabb)) sabb(ma+1:ma+na, mb1+1:mb1+nb1, mb2+1:mb2+nb2) = 0.0_dp
-                  IF (PRESENT(dabb)) dabb(ma+1:ma+na, mb1+1:mb1+nb1, mb2+1:mb2+nb2, 1:3) = 0.0_dp
-                  mb2 = mb2+nb2
+               IF (rpgfa(ipgf) + rpgfb < tab) THEN
+                  IF (PRESENT(sabb)) sabb(ma + 1:ma + na, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2) = 0.0_dp
+                  IF (PRESENT(dabb)) dabb(ma + 1:ma + na, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, 1:3) = 0.0_dp
+                  mb2 = mb2 + nb2
                   CYCLE
                ENDIF
 
                ! Calculate some prefactors
                a = zeta(ipgf)
-               b = zetb1(j1pgf)+zetb2(j2pgf)
-               zet = a+b
+               b = zetb1(j1pgf) + zetb2(j2pgf)
+               zet = a + b
                xhi = a*b/zet
                rap = b*rab/zet
                rbp = -a*rab/zet
@@ -1277,43 +1277,43 @@ CONTAINS
 
                DO lb2 = lb2_min, lb2_max
                DO bx2 = 0, lb2
-               DO by2 = 0, lb2-bx2
-                  bz2 = lb2-bx2-by2
-                  cob2 = coset(bx2, by2, bz2)-ofb2
-                  ib2 = mb2+cob2
+               DO by2 = 0, lb2 - bx2
+                  bz2 = lb2 - bx2 - by2
+                  cob2 = coset(bx2, by2, bz2) - ofb2
+                  ib2 = mb2 + cob2
                   DO lb1 = lb1_min, lb1_max
                   DO bx1 = 0, lb1
-                  DO by1 = 0, lb1-bx1
-                     bz1 = lb1-bx1-by1
-                     cob1 = coset(bx1, by1, bz1)-ofb1
-                     ib1 = mb1+cob1
+                  DO by1 = 0, lb1 - bx1
+                     bz1 = lb1 - bx1 - by1
+                     cob1 = coset(bx1, by1, bz1) - ofb1
+                     ib1 = mb1 + cob1
                      DO la = la_min, la_max
                      DO ax = 0, la
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
-                        coa = coset(ax, ay, az)-ofa
-                        ia = ma+coa
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
+                        coa = coset(ax, ay, az) - ofa
+                        ia = ma + coa
                         ! integrals
                         IF (PRESENT(sabb)) THEN
-                           sabb(ia, ib1, ib2) = f0*rr(ax, bx1+bx2, 1)*rr(ay, by1+by2, 2)*rr(az, bz1+bz2, 3)
+                           sabb(ia, ib1, ib2) = f0*rr(ax, bx1 + bx2, 1)*rr(ay, by1 + by2, 2)*rr(az, bz1 + bz2, 3)
                         END IF
                         ! first derivatives
                         IF (PRESENT(dabb)) THEN
-                           bx = bx1+bx2
-                           by = by1+by2
-                           bz = bz1+bz2
+                           bx = bx1 + bx2
+                           by = by1 + by2
+                           bz = bz1 + bz2
                            ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                            ! dx
-                           dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                           IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                           dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                           IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                            dabb(ia, ib1, ib2, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                            ! dy
-                           dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                           IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                           dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                           IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                            dabb(ia, ib1, ib2, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                            ! dz
-                           dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                           IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                           dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                           IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                            dabb(ia, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                         END IF
                         !
@@ -1327,11 +1327,11 @@ CONTAINS
                ENDDO
                ENDDO !lb2
 
-               mb2 = mb2+nb2
+               mb2 = mb2 + nb2
             END DO
-            mb1 = mb1+nb1
+            mb1 = mb1 + nb1
          END DO
-         ma = ma+na
+         ma = ma + na
       END DO
 
       DEALLOCATE (rr)
@@ -1398,32 +1398,32 @@ CONTAINS
 
 ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
       IF (PRESENT(saaab)) THEN
-         lma = la1_max+la2_max+la3_max
+         lma = la1_max + la2_max + la3_max
          lmb = lb_max
       END IF
       IF (PRESENT(daaab)) THEN
-         lma = la1_max+la2_max+la3_max+1
+         lma = la1_max + la2_max + la3_max + 1
          lmb = lb_max
       END IF
-      ldrr = MAX(lma, lmb)+1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa1 = ncoset(la1_min-1)
-      ofa2 = ncoset(la2_min-1)
-      ofa3 = ncoset(la3_min-1)
-      ofb = ncoset(lb_min-1)
-      na1 = ncoset(la1_max)-ofa1
-      na2 = ncoset(la2_max)-ofa2
-      na3 = ncoset(la3_max)-ofa3
-      nb = ncoset(lb_max)-ofb
+      ofa1 = ncoset(la1_min - 1)
+      ofa2 = ncoset(la2_min - 1)
+      ofa3 = ncoset(la3_min - 1)
+      ofb = ncoset(lb_min - 1)
+      na1 = ncoset(la1_max) - ofa1
+      na2 = ncoset(la2_max) - ofa2
+      na3 = ncoset(la3_max) - ofa3
+      nb = ncoset(lb_max) - ofb
       IF (PRESENT(saaab)) THEN
          CPASSERT((SIZE(saaab, 1) >= na1*npgfa1))
          CPASSERT((SIZE(saaab, 2) >= na2*npgfa2))
@@ -1449,17 +1449,17 @@ CONTAINS
                mb = 0
                DO jpgf = 1, npgfb
                   ! Distance Screening
-                  IF (rpgfa+rpgfb(jpgf) < tab) THEN
-                     IF (PRESENT(saaab)) saaab(ma1+1:ma1+na1, ma2+1:ma2+na2, ma3+1:ma3+na3, mb+1:mb+nb) = 0.0_dp
-                     IF (PRESENT(daaab)) daaab(ma1+1:ma1+na1, ma2+1:ma2+na2, ma3+1:ma3+na3, mb+1:mb+nb, 1:3) = 0.0_dp
-                     mb = mb+nb
+                  IF (rpgfa + rpgfb(jpgf) < tab) THEN
+                     IF (PRESENT(saaab)) saaab(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, ma3 + 1:ma3 + na3, mb + 1:mb + nb) = 0.0_dp
+                    IF (PRESENT(daaab)) daaab(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, ma3 + 1:ma3 + na3, mb + 1:mb + nb, 1:3) = 0.0_dp
+                     mb = mb + nb
                      CYCLE
                   ENDIF
 
                   ! Calculate some prefactors
-                  a = zeta1(i1pgf)+zeta2(i2pgf)+zeta3(i3pgf)
+                  a = zeta1(i1pgf) + zeta2(i2pgf) + zeta3(i3pgf)
                   b = zetb(jpgf)
-                  zet = a+b
+                  zet = a + b
                   xhi = a*b/zet
                   rap = b*rab/zet
                   rbp = -a*rab/zet
@@ -1472,50 +1472,50 @@ CONTAINS
 
                   DO lb = lb_min, lb_max
                   DO bx = 0, lb
-                  DO by = 0, lb-bx
-                     bz = lb-bx-by
-                     cob = coset(bx, by, bz)-ofb
-                     ib = mb+cob
+                  DO by = 0, lb - bx
+                     bz = lb - bx - by
+                     cob = coset(bx, by, bz) - ofb
+                     ib = mb + cob
                      DO la3 = la3_min, la3_max
                      DO ax3 = 0, la3
-                     DO ay3 = 0, la3-ax3
-                        az3 = la3-ax3-ay3
-                        coa3 = coset(ax3, ay3, az3)-ofa3
-                        ia3 = ma3+coa3
+                     DO ay3 = 0, la3 - ax3
+                        az3 = la3 - ax3 - ay3
+                        coa3 = coset(ax3, ay3, az3) - ofa3
+                        ia3 = ma3 + coa3
                         DO la2 = la2_min, la2_max
                         DO ax2 = 0, la2
-                        DO ay2 = 0, la2-ax2
-                           az2 = la2-ax2-ay2
-                           coa2 = coset(ax2, ay2, az2)-ofa2
-                           ia2 = ma2+coa2
+                        DO ay2 = 0, la2 - ax2
+                           az2 = la2 - ax2 - ay2
+                           coa2 = coset(ax2, ay2, az2) - ofa2
+                           ia2 = ma2 + coa2
                            DO la1 = la1_min, la1_max
                            DO ax1 = 0, la1
-                           DO ay1 = 0, la1-ax1
-                              az1 = la1-ax1-ay1
-                              coa1 = coset(ax1, ay1, az1)-ofa1
-                              ia1 = ma1+coa1
+                           DO ay1 = 0, la1 - ax1
+                              az1 = la1 - ax1 - ay1
+                              coa1 = coset(ax1, ay1, az1) - ofa1
+                              ia1 = ma1 + coa1
                               ! integrals
                               IF (PRESENT(saaab)) THEN
-                                 saaab(ia1, ia2, ia3, ib) = f0*rr(ax1+ax2+ax3, bx, 1)* &
-                                                            rr(ay1+ay2+ay3, by, 2)*rr(az1+az2+az3, bz, 3)
+                                 saaab(ia1, ia2, ia3, ib) = f0*rr(ax1 + ax2 + ax3, bx, 1)* &
+                                                            rr(ay1 + ay2 + ay3, by, 2)*rr(az1 + az2 + az3, bz, 3)
                               END IF
                               ! first derivatives
                               IF (PRESENT(daaab)) THEN
-                                 ax = ax1+ax2+ax3
-                                 ay = ay1+ay2+ay3
-                                 az = az1+az2+az3
+                                 ax = ax1 + ax2 + ax3
+                                 ay = ay1 + ay2 + ay3
+                                 az = az1 + az2 + az3
                                  ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                                  ! dx
-                                 dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                                 IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                                 dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                                 IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                                  daaab(ia1, ia2, ia3, ib, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                                  ! dy
-                                 dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                                 IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                                 dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                                 IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                                  daaab(ia1, ia2, ia3, ib, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                                  ! dz
-                                 dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                                 IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                                 dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                                 IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                                  daaab(ia1, ia2, ia3, ib, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                               END IF
                               !
@@ -1532,13 +1532,13 @@ CONTAINS
                   ENDDO
                   ENDDO !lb
 
-                  mb = mb+nb
+                  mb = mb + nb
                END DO
-               ma3 = ma3+na3
+               ma3 = ma3 + na3
             END DO
-            ma2 = ma2+na2
+            ma2 = ma2 + na2
          END DO
-         ma1 = ma1+na1
+         ma1 = ma1 + na1
       END DO
 
       DEALLOCATE (rr)
@@ -1604,32 +1604,32 @@ CONTAINS
 
 ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
       IF (PRESENT(saabb)) THEN
-         lma = la1_max+la2_max
-         lmb = lb1_max+lb2_max
+         lma = la1_max + la2_max
+         lmb = lb1_max + lb2_max
       END IF
       IF (PRESENT(daabb)) THEN
-         lma = la1_max+la2_max+1
-         lmb = lb1_max+lb2_max
+         lma = la1_max + la2_max + 1
+         lmb = lb1_max + lb2_max
       END IF
-      ldrr = MAX(lma, lmb)+1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa1 = ncoset(la1_min-1)
-      ofa2 = ncoset(la2_min-1)
-      ofb1 = ncoset(lb1_min-1)
-      ofb2 = ncoset(lb2_min-1)
-      na1 = ncoset(la1_max)-ofa1
-      na2 = ncoset(la2_max)-ofa2
-      nb1 = ncoset(lb1_max)-ofb1
-      nb2 = ncoset(lb2_max)-ofb2
+      ofa1 = ncoset(la1_min - 1)
+      ofa2 = ncoset(la2_min - 1)
+      ofb1 = ncoset(lb1_min - 1)
+      ofb2 = ncoset(lb2_min - 1)
+      na1 = ncoset(la1_max) - ofa1
+      na2 = ncoset(la2_max) - ofa2
+      nb1 = ncoset(lb1_max) - ofb1
+      nb2 = ncoset(lb2_max) - ofb2
       IF (PRESENT(saabb)) THEN
          CPASSERT((SIZE(saabb, 1) >= na1*npgfa1))
          CPASSERT((SIZE(saabb, 2) >= na2*npgfa2))
@@ -1656,17 +1656,17 @@ CONTAINS
                DO j2pgf = 1, npgfb2
                   rpgfb = MIN(rpgfb1(j1pgf), rpgfb2(j2pgf))
                   ! Distance Screening
-                  IF (rpgfa+rpgfb < tab) THEN
-                     IF (PRESENT(saabb)) saabb(ma1+1:ma1+na1, ma2+1:ma2+na2, mb1+1:mb1+nb1, mb2+1:mb2+nb2) = 0.0_dp
-                     IF (PRESENT(daabb)) daabb(ma1+1:ma1+na1, ma2+1:ma2+na2, mb1+1:mb1+nb1, mb2+1:mb2+nb2, 1:3) = 0.0_dp
-                     mb2 = mb2+nb2
+                  IF (rpgfa + rpgfb < tab) THEN
+                     IF (PRESENT(saabb)) saabb(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2) = 0.0_dp
+                 IF (PRESENT(daabb)) daabb(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, 1:3) = 0.0_dp
+                     mb2 = mb2 + nb2
                      CYCLE
                   ENDIF
 
                   ! Calculate some prefactors
-                  a = zeta1(i1pgf)+zeta2(i2pgf)
-                  b = zetb1(j1pgf)+zetb2(j2pgf)
-                  zet = a+b
+                  a = zeta1(i1pgf) + zeta2(i2pgf)
+                  b = zetb1(j1pgf) + zetb2(j2pgf)
+                  zet = a + b
                   xhi = a*b/zet
                   rap = b*rab/zet
                   rbp = -a*rab/zet
@@ -1679,53 +1679,53 @@ CONTAINS
 
                   DO lb2 = lb2_min, lb2_max
                   DO bx2 = 0, lb2
-                  DO by2 = 0, lb2-bx2
-                     bz2 = lb2-bx2-by2
-                     cob2 = coset(bx2, by2, bz2)-ofb2
-                     ib2 = mb2+cob2
+                  DO by2 = 0, lb2 - bx2
+                     bz2 = lb2 - bx2 - by2
+                     cob2 = coset(bx2, by2, bz2) - ofb2
+                     ib2 = mb2 + cob2
                      DO lb1 = lb1_min, lb1_max
                      DO bx1 = 0, lb1
-                     DO by1 = 0, lb1-bx1
-                        bz1 = lb1-bx1-by1
-                        cob1 = coset(bx1, by1, bz1)-ofb1
-                        ib1 = mb1+cob1
+                     DO by1 = 0, lb1 - bx1
+                        bz1 = lb1 - bx1 - by1
+                        cob1 = coset(bx1, by1, bz1) - ofb1
+                        ib1 = mb1 + cob1
                         DO la2 = la2_min, la2_max
                         DO ax2 = 0, la2
-                        DO ay2 = 0, la2-ax2
-                           az2 = la2-ax2-ay2
-                           coa2 = coset(ax2, ay2, az2)-ofa2
-                           ia2 = ma2+coa2
+                        DO ay2 = 0, la2 - ax2
+                           az2 = la2 - ax2 - ay2
+                           coa2 = coset(ax2, ay2, az2) - ofa2
+                           ia2 = ma2 + coa2
                            DO la1 = la1_min, la1_max
                            DO ax1 = 0, la1
-                           DO ay1 = 0, la1-ax1
-                              az1 = la1-ax1-ay1
-                              coa1 = coset(ax1, ay1, az1)-ofa1
-                              ia1 = ma1+coa1
+                           DO ay1 = 0, la1 - ax1
+                              az1 = la1 - ax1 - ay1
+                              coa1 = coset(ax1, ay1, az1) - ofa1
+                              ia1 = ma1 + coa1
                               ! integrals
                               IF (PRESENT(saabb)) THEN
-                                 saabb(ia1, ia2, ib1, ib2) = f0*rr(ax1+ax2, bx1+bx2, 1)* &
-                                                             rr(ay1+ay2, by1+by2, 2)*rr(az1+az2, bz1+bz2, 3)
+                                 saabb(ia1, ia2, ib1, ib2) = f0*rr(ax1 + ax2, bx1 + bx2, 1)* &
+                                                             rr(ay1 + ay2, by1 + by2, 2)*rr(az1 + az2, bz1 + bz2, 3)
                               END IF
                               ! first derivatives
                               IF (PRESENT(daabb)) THEN
-                                 ax = ax1+ax2
-                                 ay = ay1+ay2
-                                 az = az1+az2
-                                 bx = bx1+bx2
-                                 by = by1+by2
-                                 bz = bz1+bz2
+                                 ax = ax1 + ax2
+                                 ay = ay1 + ay2
+                                 az = az1 + az2
+                                 bx = bx1 + bx2
+                                 by = by1 + by2
+                                 bz = bz1 + bz2
                                  ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                                  ! dx
-                                 dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                                 IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                                 dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                                 IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                                  daabb(ia1, ia2, ib1, ib2, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                                  ! dy
-                                 dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                                 IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                                 dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                                 IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                                  daabb(ia1, ia2, ib1, ib2, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                                  ! dz
-                                 dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                                 IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                                 dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                                 IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                                  daabb(ia1, ia2, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                               END IF
                               !
@@ -1742,13 +1742,13 @@ CONTAINS
                   ENDDO
                   ENDDO !lb2
 
-                  mb2 = mb2+nb2
+                  mb2 = mb2 + nb2
                END DO
-               mb1 = mb1+nb1
+               mb1 = mb1 + nb1
             END DO
-            ma2 = ma2+na2
+            ma2 = ma2 + na2
          END DO
-         ma1 = ma1+na1
+         ma1 = ma1 + na1
       END DO
 
       DEALLOCATE (rr)
@@ -1814,32 +1814,32 @@ CONTAINS
 
 ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
       IF (PRESENT(sabbb)) THEN
          lma = la_max
-         lmb = lb1_max+lb2_max+lb3_max
+         lmb = lb1_max + lb2_max + lb3_max
       END IF
       IF (PRESENT(dabbb)) THEN
-         lma = la_max+1
-         lmb = lb1_max+lb2_max+lb3_max
+         lma = la_max + 1
+         lmb = lb1_max + lb2_max + lb3_max
       END IF
-      ldrr = MAX(lma, lmb)+1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa = ncoset(la_min-1)
-      ofb1 = ncoset(lb1_min-1)
-      ofb2 = ncoset(lb2_min-1)
-      ofb3 = ncoset(lb3_min-1)
-      na = ncoset(la_max)-ofa
-      nb1 = ncoset(lb1_max)-ofb1
-      nb2 = ncoset(lb2_max)-ofb2
-      nb3 = ncoset(lb3_max)-ofb3
+      ofa = ncoset(la_min - 1)
+      ofb1 = ncoset(lb1_min - 1)
+      ofb2 = ncoset(lb2_min - 1)
+      ofb3 = ncoset(lb3_min - 1)
+      na = ncoset(la_max) - ofa
+      nb1 = ncoset(lb1_max) - ofb1
+      nb2 = ncoset(lb2_max) - ofb2
+      nb3 = ncoset(lb3_max) - ofb3
       IF (PRESENT(sabbb)) THEN
          CPASSERT((SIZE(sabbb, 1) >= na*npgfa))
          CPASSERT((SIZE(sabbb, 2) >= nb1*npgfb1))
@@ -1865,17 +1865,17 @@ CONTAINS
                DO j3pgf = 1, npgfb3
                   ! Distance Screening
                   rpgfb = MIN(rpgfb1(j1pgf), rpgfb2(j2pgf), rpgfb3(j3pgf))
-                  IF (rpgfa(ipgf)+rpgfb < tab) THEN
-                     IF (PRESENT(sabbb)) sabbb(ma+1:ma+na, mb1+1:mb1+nb1, mb2+1:mb2+nb2, mb3+1:mb3+nb3) = 0.0_dp
-                     IF (PRESENT(dabbb)) dabbb(ma+1:ma+na, mb1+1:mb1+nb1, mb2+1:mb2+nb2, mb3+1:mb3+nb3, 1:3) = 0.0_dp
-                     mb3 = mb3+nb3
+                  IF (rpgfa(ipgf) + rpgfb < tab) THEN
+                     IF (PRESENT(sabbb)) sabbb(ma + 1:ma + na, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, mb3 + 1:mb3 + nb3) = 0.0_dp
+                    IF (PRESENT(dabbb)) dabbb(ma + 1:ma + na, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, mb3 + 1:mb3 + nb3, 1:3) = 0.0_dp
+                     mb3 = mb3 + nb3
                      CYCLE
                   ENDIF
 
                   ! Calculate some prefactors
                   a = zeta(ipgf)
-                  b = zetb1(j1pgf)+zetb2(j2pgf)+zetb3(j3pgf)
-                  zet = a+b
+                  b = zetb1(j1pgf) + zetb2(j2pgf) + zetb3(j3pgf)
+                  zet = a + b
                   xhi = a*b/zet
                   rap = b*rab/zet
                   rbp = -a*rab/zet
@@ -1888,50 +1888,50 @@ CONTAINS
 
                   DO lb3 = lb3_min, lb3_max
                   DO bx3 = 0, lb3
-                  DO by3 = 0, lb3-bx3
-                     bz3 = lb3-bx3-by3
-                     cob3 = coset(bx3, by3, bz3)-ofb3
-                     ib3 = mb3+cob3
+                  DO by3 = 0, lb3 - bx3
+                     bz3 = lb3 - bx3 - by3
+                     cob3 = coset(bx3, by3, bz3) - ofb3
+                     ib3 = mb3 + cob3
                      DO lb2 = lb2_min, lb2_max
                      DO bx2 = 0, lb2
-                     DO by2 = 0, lb2-bx2
-                        bz2 = lb2-bx2-by2
-                        cob2 = coset(bx2, by2, bz2)-ofb2
-                        ib2 = mb2+cob2
+                     DO by2 = 0, lb2 - bx2
+                        bz2 = lb2 - bx2 - by2
+                        cob2 = coset(bx2, by2, bz2) - ofb2
+                        ib2 = mb2 + cob2
                         DO lb1 = lb1_min, lb1_max
                         DO bx1 = 0, lb1
-                        DO by1 = 0, lb1-bx1
-                           bz1 = lb1-bx1-by1
-                           cob1 = coset(bx1, by1, bz1)-ofb1
-                           ib1 = mb1+cob1
+                        DO by1 = 0, lb1 - bx1
+                           bz1 = lb1 - bx1 - by1
+                           cob1 = coset(bx1, by1, bz1) - ofb1
+                           ib1 = mb1 + cob1
                            DO la = la_min, la_max
                            DO ax = 0, la
-                           DO ay = 0, la-ax
-                              az = la-ax-ay
-                              coa = coset(ax, ay, az)-ofa
-                              ia = ma+coa
+                           DO ay = 0, la - ax
+                              az = la - ax - ay
+                              coa = coset(ax, ay, az) - ofa
+                              ia = ma + coa
                               ! integrals
                               IF (PRESENT(sabbb)) THEN
-                                 sabbb(ia, ib1, ib2, ib3) = f0*rr(ax, bx1+bx2+bx3, 1)* &
-                                                            rr(ay, by1+by2+by3, 2)*rr(az, bz1+bz2+bz3, 3)
+                                 sabbb(ia, ib1, ib2, ib3) = f0*rr(ax, bx1 + bx2 + bx3, 1)* &
+                                                            rr(ay, by1 + by2 + by3, 2)*rr(az, bz1 + bz2 + bz3, 3)
                               END IF
                               ! first derivatives
                               IF (PRESENT(dabbb)) THEN
-                                 bx = bx1+bx2+bx3
-                                 by = by1+by2+by3
-                                 bz = bz1+bz2+bz3
+                                 bx = bx1 + bx2 + bx3
+                                 by = by1 + by2 + by3
+                                 bz = bz1 + bz2 + bz3
                                  ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                                  ! dx
-                                 dumx = 2.0_dp*a*rr(ax+1, bx, 1)
-                                 IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                                 dumx = 2.0_dp*a*rr(ax + 1, bx, 1)
+                                 IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
                                  dabbb(ia, ib1, ib2, ib3, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
                                  ! dy
-                                 dumy = 2.0_dp*a*rr(ay+1, by, 2)
-                                 IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                                 dumy = 2.0_dp*a*rr(ay + 1, by, 2)
+                                 IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
                                  dabbb(ia, ib1, ib2, ib3, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
                                  ! dz
-                                 dumz = 2.0_dp*a*rr(az+1, bz, 3)
-                                 IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                                 dumz = 2.0_dp*a*rr(az + 1, bz, 3)
+                                 IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                                  dabbb(ia, ib1, ib2, ib3, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                               END IF
                               !
@@ -1948,13 +1948,13 @@ CONTAINS
                   ENDDO
                   ENDDO !lb3
 
-                  mb3 = mb3+nb3
+                  mb3 = mb3 + nb3
                END DO
-               mb2 = mb2+nb2
+               mb2 = mb2 + nb2
             END DO
-            mb1 = mb1+nb1
+            mb1 = mb1 + nb1
          END DO
-         ma = ma+na
+         ma = ma + na
       END DO
 
       DEALLOCATE (rr)
@@ -2050,7 +2050,7 @@ CONTAINS
       nsb = nso(lb)
 
       zm = MIN(zeta, zetb)
-      nmax = NINT(1.81_dp*alat*SQRT(zm)+1.0_dp)
+      nmax = NINT(1.81_dp*alat*SQRT(zm) + 1.0_dp)
       ALLOCATE (fun(-nmax:nmax, 0:la), gun(-nmax:nmax, 0:lb), &
                 fexp(-nmax:nmax), gexp(-nmax:nmax), gval(-nmax:nmax))
 
@@ -2068,10 +2068,10 @@ CONTAINS
             fun(:, l) = CMPLX(0.0_dp, 0.5_dp*oa*gval(:), KIND=dp)
          ELSEIF (l == 2) THEN
             fun(:, l) = CMPLX(-(0.5_dp*oa*gval(:))**2, 0.0_dp, KIND=dp)
-            fun(:, l) = fun(:, l)+CMPLX(0.5_dp*oa, 0.0_dp, KIND=dp)
+            fun(:, l) = fun(:, l) + CMPLX(0.5_dp*oa, 0.0_dp, KIND=dp)
          ELSEIF (l == 3) THEN
             fun(:, l) = CMPLX(0.0_dp, -(0.5_dp*oa*gval(:))**3, KIND=dp)
-            fun(:, l) = fun(:, l)+CMPLX(0.0_dp, 0.75_dp*oa*oa*gval(:), KIND=dp)
+            fun(:, l) = fun(:, l) + CMPLX(0.0_dp, 0.75_dp*oa*oa*gval(:), KIND=dp)
          ELSE
             CPABORT("l value too high")
          END IF
@@ -2083,10 +2083,10 @@ CONTAINS
             gun(:, l) = CMPLX(0.0_dp, 0.5_dp*ob*gval(:), KIND=dp)
          ELSEIF (l == 2) THEN
             gun(:, l) = CMPLX(-(0.5_dp*ob*gval(:))**2, 0.0_dp, KIND=dp)
-            gun(:, l) = gun(:, l)+CMPLX(0.5_dp*ob, 0.0_dp, KIND=dp)
+            gun(:, l) = gun(:, l) + CMPLX(0.5_dp*ob, 0.0_dp, KIND=dp)
          ELSEIF (l == 3) THEN
             gun(:, l) = CMPLX(0.0_dp, -(0.5_dp*ob*gval(:))**3, KIND=dp)
-            gun(:, l) = gun(:, l)+CMPLX(0.0_dp, 0.75_dp*ob*ob*gval(:), KIND=dp)
+            gun(:, l) = gun(:, l) + CMPLX(0.0_dp, 0.75_dp*ob*ob*gval(:), KIND=dp)
          ELSE
             CPABORT("l value too high")
          END IF
@@ -2100,16 +2100,16 @@ CONTAINS
          END DO
       END DO
 
-      na = ncoset(la-1)
-      nb = ncoset(lb-1)
+      na = ncoset(la - 1)
+      nb = ncoset(lb - 1)
       DO ax = 0, la
-         DO ay = 0, la-ax
-            az = la-ax-ay
-            ia = coset(ax, ay, az)-na
+         DO ay = 0, la - ax
+            az = la - ax - ay
+            ia = coset(ax, ay, az) - na
             DO bx = 0, lb
-               DO by = 0, lb-bx
-                  bz = lb-bx-by
-                  ib = coset(bx, by, bz)-nb
+               DO by = 0, lb - bx
+                  bz = lb - bx - by
+                  ib = coset(bx, by, bz) - nb
                   cab(ia, ib) = fgsum(ax, bx)*fgsum(ay, by)*fgsum(az, bz)
                END DO
             END DO

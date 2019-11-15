@@ -202,7 +202,7 @@ CONTAINS
             ! no idea yet what to do here in that case
             CPASSERT(.NOT. tau_r_valid)
          CASE (sic_mauri_us)
-            my_scaling = 1.0_dp-dft_control%sic_scaling_b
+            my_scaling = 1.0_dp - dft_control%sic_scaling_b
             ! no idea yet what to do here in that case
             CPASSERT(.NOT. tau_r_valid)
          CASE (sic_eo)
@@ -419,7 +419,7 @@ CONTAINS
                                       virial_xc=virial_xc_tmp)
             END IF
 
-            exc = exc-dft_control%sic_scaling_b*exc_m
+            exc = exc - dft_control%sic_scaling_b*exc_m
 
             ! and take care of the potential only vxc_rho is taken into account
             IF (.NOT. my_just_energy) THEN
@@ -491,7 +491,7 @@ CONTAINS
                                          virial_xc=virial_xc_tmp)
                END IF
 
-               exc = exc-dft_control%sic_scaling_b*nelec_spin(ispin)*exc_m
+               exc = exc - dft_control%sic_scaling_b*nelec_spin(ispin)*exc_m
 
                ! and take care of the potential only vxc_rho is taken into account
                IF (.NOT. my_just_energy) THEN
@@ -536,7 +536,7 @@ CONTAINS
                                       virial_xc=virial_xc_tmp)
             END IF
 
-            exc = exc+dft_control%sic_scaling_b*exc_m
+            exc = exc + dft_control%sic_scaling_b*exc_m
 
             ! and take care of the potential
             IF (.NOT. my_just_energy) THEN

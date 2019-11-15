@@ -85,10 +85,10 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
       Rmin = 0.0_dp
-      Rmax = SQRT(mm_cell%hmat(1, 1)**2+ &
-                  mm_cell%hmat(2, 2)**2+ &
+      Rmax = SQRT(mm_cell%hmat(1, 1)**2 + &
+                  mm_cell%hmat(2, 2)**2 + &
                   mm_cell%hmat(3, 3)**2)
-      np = CEILING(rmax/dx)+1
+      np = CEILING(rmax/dx) + 1
       !
       ! Preprocessing
       !
@@ -108,7 +108,7 @@ CONTAINS
          END DO Loop_on_found_values
          IF (.NOT. Found) THEN
             Ndim = SIZE(radius)
-            Ndim = Ndim+1
+            Ndim = Ndim + 1
             CALL REALLOCATE(radius, 1, Ndim)
             radius(Ndim) = mm_el_pot_radius(i)
          END IF
@@ -140,10 +140,10 @@ CONTAINS
                pot0_2(2, 1) = 0.0_dp
                x = 0.0_dp
                DO i = 2, np
-                  x = x+dx
+                  x = x + dx
                   pot0_2(1, i) = erf(x/rc)/x
                   t = 2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
-                  pot0_2(2, i) = (t-pot0_2(1, i)/x)*dx
+                  pot0_2(2, i) = (t - pot0_2(1, i)/x)*dx
                END DO
             ELSEIF (qmmm_coupl_type == do_qmmm_swave) THEN
                ! S-wave expansion :: 1/x - exp(-2*x/rc) * ( 1/x - 1/rc )
@@ -151,10 +151,10 @@ CONTAINS
                pot0_2(2, 1) = 0.0_dp
                x = 0.0_dp
                DO i = 2, np
-                  x = x+dx
+                  x = x + dx
                   t = EXP(-2.0_dp*x/rc)/rc
-                  pot0_2(1, i) = (1.0_dp-t*(rc+x))/x
-                  pot0_2(2, i) = ((t*(rc**2+2.0_dp*rc*x+2.0_dp*x**2)/rc-1.0_dp)/x**2)*dx
+                  pot0_2(1, i) = (1.0_dp - t*(rc + x))/x
+                  pot0_2(2, i) = ((t*(rc**2 + 2.0_dp*rc*x + 2.0_dp*x**2)/rc - 1.0_dp)/x**2)*dx
                END DO
             END IF
             pgf => pgfs(K)%pgf
@@ -164,15 +164,15 @@ CONTAINS
             DO Ig = ig_start, pgf%number_of_gaussians
                A = pgf%Ak(Ig)
                G = pgf%Gk(Ig)
-               pot0_2(1, 1) = pot0_2(1, 1)-A
+               pot0_2(1, 1) = pot0_2(1, 1) - A
                x = 0.0_dp
                DO i = 2, np
-                  x = x+dx
+                  x = x + dx
                   t = EXP(-(x/G)**2)*A
                   t1 = 1/G**2
                   t2 = t1*t
-                  pot0_2(1, i) = pot0_2(1, i)-t
-                  pot0_2(2, i) = pot0_2(2, i)+2.0_dp*x*t2*dx
+                  pot0_2(1, i) = pot0_2(1, i) - t
+                  pot0_2(2, i) = pot0_2(2, i) + 2.0_dp*x*t2*dx
                END DO
             END DO
 
@@ -191,14 +191,14 @@ CONTAINS
                      myind = INDEX(myFormat, " ")
                      WRITE (myFormat(myind:), '(A6)') "F12.9,"
                   END DO
-                  myind = INDEX(myFormat, " ")-1
+                  myind = INDEX(myFormat, " ") - 1
                   myFormat = myFormat(1:myind)//"T300,F15.9"
-                  myind = INDEX(myFormat, " ")-1
+                  myind = INDEX(myFormat, " ") - 1
                   x = 0.0_dp
                   DO i = 1, np
                      WRITE (unit_nr, '('//myFormat(1:myind)//')') &
                         x, (EXP(-(x/pgf%Gk(Ig))**2)*pgf%Ak(Ig), Ig=1, pgf%number_of_gaussians), pot0_2(1, i)
-                     x = x+dx
+                     x = x + dx
                   END DO
                END IF
                CALL cp_print_key_finished_output(unit_nr, logger, print_section, &
@@ -216,7 +216,7 @@ CONTAINS
             IF (rc .EQ. mm_el_pot_radius(J)) THEN
                Ndim = SIZE(mm_atom_index)
                mm_atom_index(Ndim) = J
-               CALL reallocate(mm_atom_index, 1, Ndim+1)
+               CALL reallocate(mm_atom_index, 1, Ndim + 1)
             ENDIF
          END DO
          CALL reallocate(mm_atom_index, 1, Ndim)

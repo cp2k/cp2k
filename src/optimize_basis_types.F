@@ -172,7 +172,7 @@ CONTAINS
       INTEGER                                            :: ibasis, icont, iinfo, iset
 
       IF (ALLOCATED(kind%deriv_info)) THEN
-         DO iinfo = 0, SIZE(kind%deriv_info)-1
+         DO iinfo = 0, SIZE(kind%deriv_info) - 1
             IF (ALLOCATED(kind%deriv_info(iinfo)%remove_contr)) DEALLOCATE (kind%deriv_info(iinfo)%remove_contr)
             IF (ALLOCATED(kind%deriv_info(iinfo)%remove_set)) DEALLOCATE (kind%deriv_info(iinfo)%remove_set)
             IF (ALLOCATED(kind%deriv_info(iinfo)%in_use_set)) DEALLOCATE (kind%deriv_info(iinfo)%in_use_set)
@@ -188,7 +188,7 @@ CONTAINS
       END IF
 
       IF (ALLOCATED(kind%flex_basis)) THEN
-         DO ibasis = 0, SIZE(kind%flex_basis)-1
+         DO ibasis = 0, SIZE(kind%flex_basis) - 1
             IF (ALLOCATED(kind%flex_basis(ibasis)%subset)) THEN
                DO iset = 1, SIZE(kind%flex_basis(ibasis)%subset)
                   IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%l)) &

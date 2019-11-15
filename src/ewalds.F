@@ -133,7 +133,7 @@ CONTAINS
       nparticle_kind = SIZE(atomic_kind_set)
       nnodes = 0
       DO iparticle_kind = 1, nparticle_kind
-         nnodes = nnodes+local_particles%n_el(iparticle_kind)
+         nnodes = nnodes + local_particles%n_el(iparticle_kind)
       ENDDO
 
       CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
@@ -153,7 +153,7 @@ CONTAINS
          nparticle_local = local_particles%n_el(iparticle_kind)
          IF (use_charge_array) THEN
             DO iparticle_local = 1, nparticle_local
-               node = node+1
+               node = node + 1
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                charge(node) = charges(iparticle)
                CALL matvec_3x3(vec, cell%h_inv, particle_set(iparticle)%r)
@@ -164,7 +164,7 @@ CONTAINS
             atomic_kind => atomic_kind_set(iparticle_kind)
             CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
             DO iparticle_local = 1, nparticle_local
-               node = node+1
+               node = node + 1
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                charge(node) = q
                CALL matvec_3x3(vec, cell%h_inv, particle_set(iparticle)%r)
@@ -182,13 +182,13 @@ CONTAINS
          mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
          np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
 
-         lp = lp+bds(1, 1)
-         mp = mp+bds(1, 2)
-         np = np+bds(1, 3)
+         lp = lp + bds(1, 1)
+         mp = mp + bds(1, 2)
+         np = np + bds(1, 3)
 
          ! initializing sum to be used in the energy and force
          DO node = 1, nnodes
-            summe(gpt) = summe(gpt)+charge(node)* &
+            summe(gpt) = summe(gpt) + charge(node)* &
                          (exp_igr%ex(lp, node) &
                           *exp_igr%ey(mp, node) &
                           *exp_igr%ez(np, node))
@@ -205,15 +205,15 @@ CONTAINS
          mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
          np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
 
-         lp = lp+bds(1, 1)
-         mp = mp+bds(1, 2)
-         np = np+bds(1, 3)
+         lp = lp + bds(1, 1)
+         mp = mp + bds(1, 2)
+         np = np + bds(1, 3)
 
          IF (pw_grid%gsq(gpt) <= 1.0E-10_dp) CYCLE
 
          gauss = (rho0(lp, mp, np)*pw_grid%vol)**2/pw_grid%gsq(gpt)
          factor = gauss*REAL(summe(gpt)*CONJG(summe(gpt)), KIND=dp)
-         vg_coulomb = vg_coulomb+factor
+         vg_coulomb = vg_coulomb + factor
 
          ! atomic energies
          IF (atenergy) THEN
@@ -221,7 +221,7 @@ CONTAINS
                snode = CONJG(exp_igr%ex(lp, node) &
                              *exp_igr%ey(mp, node) &
                              *exp_igr%ez(np, node))
-               e_coulomb(node) = e_coulomb(node)+gauss*charge(node)*REAL(summe(gpt)*snode, KIND=dp)
+               e_coulomb(node) = e_coulomb(node) + gauss*charge(node)*REAL(summe(gpt)*snode, KIND=dp)
             END DO
          END IF
 
@@ -233,21 +233,21 @@ CONTAINS
                               *exp_igr%ey(mp, node) &
                               *exp_igr%ez(np, node)))
             fg_coulomb(:, node) = fg_coulomb(:, node) &
-                                  +charge(node)*gauss*e_igdotr*pw_grid%g(:, gpt)
+                                  + charge(node)*gauss*e_igdotr*pw_grid%g(:, gpt)
          END DO
 
          ! compute the virial P*V
-         denom = 1.0_dp/four_alpha_sq+1.0_dp/pw_grid%gsq(gpt)
+         denom = 1.0_dp/four_alpha_sq + 1.0_dp/pw_grid%gsq(gpt)
          IF (use_virial) THEN
-            pv_g(1, 1) = pv_g(1, 1)+factor*(1.0_dp-2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(1, gpt)*denom)
-            pv_g(1, 2) = pv_g(1, 2)-factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(2, gpt)*denom)
-            pv_g(1, 3) = pv_g(1, 3)-factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(3, gpt)*denom)
-            pv_g(2, 1) = pv_g(2, 1)-factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(1, gpt)*denom)
-            pv_g(2, 2) = pv_g(2, 2)+factor*(1.0_dp-2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(2, gpt)*denom)
-            pv_g(2, 3) = pv_g(2, 3)-factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(3, gpt)*denom)
-            pv_g(3, 1) = pv_g(3, 1)-factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(1, gpt)*denom)
-            pv_g(3, 2) = pv_g(3, 2)-factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(2, gpt)*denom)
-            pv_g(3, 3) = pv_g(3, 3)+factor*(1.0_dp-2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(3, gpt)*denom)
+            pv_g(1, 1) = pv_g(1, 1) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(1, gpt)*denom)
+            pv_g(1, 2) = pv_g(1, 2) - factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(2, gpt)*denom)
+            pv_g(1, 3) = pv_g(1, 3) - factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(3, gpt)*denom)
+            pv_g(2, 1) = pv_g(2, 1) - factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(1, gpt)*denom)
+            pv_g(2, 2) = pv_g(2, 2) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(2, gpt)*denom)
+            pv_g(2, 3) = pv_g(2, 3) - factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(3, gpt)*denom)
+            pv_g(3, 1) = pv_g(3, 1) - factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(1, gpt)*denom)
+            pv_g(3, 2) = pv_g(3, 2) - factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(2, gpt)*denom)
+            pv_g(3, 3) = pv_g(3, 3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(3, gpt)*denom)
          END IF
          IF (atstress) THEN
             DO node = 1, nnodes
@@ -255,15 +255,15 @@ CONTAINS
                              *exp_igr%ey(mp, node) &
                              *exp_igr%ez(np, node))
                factor = gauss*charge(node)*REAL(summe(gpt)*snode, KIND=dp)
-               pv_coulomb(1, 1, node) = pv_coulomb(1, 1, node)+factor*(1.0_dp-2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(1, gpt)*denom)
-               pv_coulomb(1, 2, node) = pv_coulomb(1, 2, node)-factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(2, gpt)*denom)
-               pv_coulomb(1, 3, node) = pv_coulomb(1, 3, node)-factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(3, gpt)*denom)
-               pv_coulomb(2, 1, node) = pv_coulomb(2, 1, node)-factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(1, gpt)*denom)
-               pv_coulomb(2, 2, node) = pv_coulomb(2, 2, node)+factor*(1.0_dp-2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(2, gpt)*denom)
-               pv_coulomb(2, 3, node) = pv_coulomb(2, 3, node)-factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(3, gpt)*denom)
-               pv_coulomb(3, 1, node) = pv_coulomb(3, 1, node)-factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(1, gpt)*denom)
-               pv_coulomb(3, 2, node) = pv_coulomb(3, 2, node)-factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(2, gpt)*denom)
-               pv_coulomb(3, 3, node) = pv_coulomb(3, 3, node)+factor*(1.0_dp-2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(3, gpt)*denom)
+               pv_coulomb(1, 1, node) = pv_coulomb(1, 1, node) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(1, gpt)*denom)
+               pv_coulomb(1, 2, node) = pv_coulomb(1, 2, node) - factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(2, gpt)*denom)
+               pv_coulomb(1, 3, node) = pv_coulomb(1, 3, node) - factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(3, gpt)*denom)
+               pv_coulomb(2, 1, node) = pv_coulomb(2, 1, node) - factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(1, gpt)*denom)
+               pv_coulomb(2, 2, node) = pv_coulomb(2, 2, node) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(2, gpt)*denom)
+               pv_coulomb(2, 3, node) = pv_coulomb(2, 3, node) - factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(3, gpt)*denom)
+               pv_coulomb(3, 1, node) = pv_coulomb(3, 1, node) - factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(1, gpt)*denom)
+               pv_coulomb(3, 2, node) = pv_coulomb(3, 2, node) - factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(2, gpt)*denom)
+               pv_coulomb(3, 3, node) = pv_coulomb(3, 3, node) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(3, gpt)*denom)
             END DO
          END IF
       END DO
@@ -344,17 +344,17 @@ CONTAINS
                CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell)
                ! MI: the core-shell ES interaction, when core and shell belong to the same ion, is excluded
                !     in the nonbond correction term. Therefore, here the self interaction is computed entirely
-               q_self = q_self+qcore*qcore*nparticle_local+qshell*qshell*nparticle_local
-               q_sum = q_sum+qcore*nparticle_local+qshell*nparticle_local
+               q_self = q_self + qcore*qcore*nparticle_local + qshell*qshell*nparticle_local
+               q_sum = q_sum + qcore*nparticle_local + qshell*nparticle_local
                IF (mm_radius > 0) THEN
                   ! the core is always a point charge
-                  q_neutg = q_neutg+2.0_dp*qshell*mm_radius**2
+                  q_neutg = q_neutg + 2.0_dp*qshell*mm_radius**2
                END IF
             ELSE
-               q_self = q_self+q*q*nparticle_local
-               q_sum = q_sum+q*nparticle_local
+               q_self = q_self + q*q*nparticle_local
+               q_sum = q_sum + q*nparticle_local
                IF (mm_radius > 0) THEN
-                  q_neutg = q_neutg+2.0_dp*q*mm_radius**2
+                  q_neutg = q_neutg + 2.0_dp*q*mm_radius**2
                END IF
             END IF
          END DO
@@ -367,7 +367,7 @@ CONTAINS
       e_self = 0.0_dp
       IF (ewald_type /= do_ewald_none) THEN
          e_self = -q_self*alpha*oorootpi
-         e_neut = -q_sum*pi/(2.0_dp*cell%deth)*(q_sum/alpha**2-q_neutg)
+         e_neut = -q_sum*pi/(2.0_dp*cell%deth)*(q_sum/alpha**2 - q_neutg)
       END IF
 
    END SUBROUTINE ewald_self
@@ -421,12 +421,12 @@ CONTAINS
                   CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell)
                   DO iparticle_local = 1, nparticle_local
                      ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-                     e_self(ii) = e_self(ii)-(qcore*qcore+qshell*qshell)*fself
+                     e_self(ii) = e_self(ii) - (qcore*qcore + qshell*qshell)*fself
                   END DO
                ELSE
                   DO iparticle_local = 1, nparticle_local
                      ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-                     e_self(ii) = e_self(ii)-q*q*fself
+                     e_self(ii) = e_self(ii) - q*q*fself
                   END DO
                END IF
             END DO

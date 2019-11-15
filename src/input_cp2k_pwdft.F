@@ -19,13 +19,13 @@ MODULE input_cp2k_pwdft
       sirius_option_string_get_value
 #endif
    USE input_keyword_types, ONLY: keyword_create, &
-      keyword_release, &
-      keyword_type
+                                  keyword_release, &
+                                  keyword_type
    USE input_section_types, ONLY: section_add_keyword, &
-      section_add_subsection, &
-      section_create, &
-      section_release, &
-      section_type
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
    USE kinds, ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -150,7 +150,7 @@ CONTAINS
       ALLOCATE (rvec(1:16))
       ALLOCATE (lvec(1:16))
       CALL sirius_option_get_length(section_name, length)
-      DO i = 0, length-1
+      DO i = 0, length - 1
          NULLIFY (keyword)
          name = CHAR(0)
          ! return a non null terminated string. Stupid fortran does not understand the \0 terminated string when comparing things
@@ -237,10 +237,10 @@ CONTAINS
             default_string_val = TRIM(ADJUSTL(default_string_val))
             CALL sirius_option_get_number_of_possible_values(section_name, name, num_possible_values)
             IF (num_possible_values > 0) THEN
-               DO j = 0, num_possible_values-1
-                  possible_values(j+1) = CHAR(0)
-                  CALL sirius_option_string_get_value(section_name, name, j, possible_values(j+1))
-                  enum_i_val(j+1) = j
+               DO j = 0, num_possible_values - 1
+                  possible_values(j + 1) = CHAR(0)
+                  CALL sirius_option_string_get_value(section_name, name, j, possible_values(j + 1))
+                  enum_i_val(j + 1) = j
                END DO
                CALL keyword_create(keyword, __LOCATION__, &
                                    name=name1, &

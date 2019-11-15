@@ -274,18 +274,18 @@ CONTAINS
                              "possible without symmetrization.")
             END IF
             ALLOCATE (ixkp(3, nkpts), iwkp(nkpts))
-            is_shift(1:3) = MOD(nk(1:3)+1, 2)
+            is_shift(1:3) = MOD(nk(1:3) + 1, 2)
             is_time_reversal = 1
             nkp = spg_get_ir_reciprocal_mesh(ixkp, iwkp, nk, is_shift, is_time_reversal, &
                                              TRANSPOSE(csym%hmat), csym%scoord, csym%atype, &
                                              csym%nat, csym%delta)
             wkp = 0.0_dp
             DO i = 1, nkpts
-               xkp(:, i) = REAL(is_shift+2*ixkp(:, i), KIND=dp)/REAL(2*nk(:), KIND=dp)
-               j = iwkp(i)+1
-               wkp(j) = wkp(j)+1.0_dp
+               xkp(:, i) = REAL(is_shift + 2*ixkp(:, i), KIND=dp)/REAL(2*nk(:), KIND=dp)
+               j = iwkp(i) + 1
+               wkp(j) = wkp(j) + 1.0_dp
             ENDDO
-            csym%kplink(1, 1:nkpts) = iwkp(1:nkpts)+1
+            csym%kplink(1, 1:nkpts) = iwkp(1:nkpts) + 1
             DEALLOCATE (ixkp, iwkp)
          END IF
       ELSE
@@ -304,7 +304,7 @@ CONTAINS
       ! count kpoints
       nkp = 0
       DO i = 1, nkpts
-         IF (wkp(i) > 0.0_dp) nkp = nkp+1
+         IF (wkp(i) > 0.0_dp) nkp = nkp + 1
       END DO
 
       ! store reduced kpoint set
@@ -314,7 +314,7 @@ CONTAINS
       j = 0
       DO ik = 1, nkpts
          IF (wkp(ik) > 0.0_dp) THEN
-            j = j+1
+            j = j + 1
             csym%wkpoint(j) = wkp(ik)
             csym%xkpoint(1:3, j) = xkp(1:3, ik)
             xptr(j) = ik
@@ -351,8 +351,8 @@ CONTAINS
                DO i = 1, csym%n_operations
                   IF (SUM(ABS(csym%translations(:, i))) > 1.e-10_dp) CYCLE
                   rxkp(1:3) = kp_apply_operation(csym%xkpoint(1:3, j), csym%rotations(:, :, i))
-                  rxkp(1:3) = ABS(xkp(1:3, ik)-rxkp(1:3))
-                  rxkp(1:3) = rxkp(1:3)-REAL(NINT(rxkp(1:3)), KIND=dp)
+                  rxkp(1:3) = ABS(xkp(1:3, ik) - rxkp(1:3))
+                  rxkp(1:3) = rxkp(1:3) - REAL(NINT(rxkp(1:3)), KIND=dp)
                   IF (ALL((rxkp(1:3)) < 1.e-12_dp)) THEN
                      csym%kpop(ik) = i
                      EXIT
@@ -399,17 +399,17 @@ CONTAINS
       DO ix = 1, nk(1)
          DO iy = 1, nk(2)
             DO iz = 1, nk(3)
-               i = i+1
-               kpt_latt(1) = REAL(2*ix-nk(1)-1, KIND=dp)/(2._dp*REAL(nk(1), KIND=dp))
-               kpt_latt(2) = REAL(2*iy-nk(2)-1, KIND=dp)/(2._dp*REAL(nk(2), KIND=dp))
-               kpt_latt(3) = REAL(2*iz-nk(3)-1, KIND=dp)/(2._dp*REAL(nk(3), KIND=dp))
+               i = i + 1
+               kpt_latt(1) = REAL(2*ix - nk(1) - 1, KIND=dp)/(2._dp*REAL(nk(1), KIND=dp))
+               kpt_latt(2) = REAL(2*iy - nk(2) - 1, KIND=dp)/(2._dp*REAL(nk(2), KIND=dp))
+               kpt_latt(3) = REAL(2*iz - nk(3) - 1, KIND=dp)/(2._dp*REAL(nk(3), KIND=dp))
                xkp(1:3, i) = kpt_latt(1:3)
                wkp(i) = 1.0_dp
             END DO
          END DO
       END DO
       DO i = 1, nk(1)*nk(2)*nk(3)
-         xkp(1:3, i) = xkp(1:3, i)+shift(1:3)
+         xkp(1:3, i) = xkp(1:3, i) + shift(1:3)
       END DO
 
    END SUBROUTINE full_grid_gen
@@ -432,10 +432,10 @@ CONTAINS
       link(:) = 0
       DO i = 1, nkpts
          IF (link(i) == 0) link(i) = i
-         DO j = i+1, nkpts
+         DO j = i + 1, nkpts
             IF (wkp(j) == 0) CYCLE
             IF (ALL(xkp(:, i) == -xkp(:, j))) THEN
-               wkp(i) = wkp(i)+wkp(j)
+               wkp(i) = wkp(i) + wkp(j)
                wkp(j) = 0.0_dp
                link(j) = i
                EXIT
@@ -456,9 +456,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: r(3, 3)
       REAL(KIND=dp)                                      :: y(3)
 
-      y(1) = REAL(r(1, 1), dp)*x(1)+REAL(r(1, 2), dp)*x(2)+REAL(r(1, 3), dp)*x(3)
-      y(2) = REAL(r(2, 1), dp)*x(1)+REAL(r(2, 2), dp)*x(2)+REAL(r(2, 3), dp)*x(3)
-      y(3) = REAL(r(3, 1), dp)*x(1)+REAL(r(3, 2), dp)*x(2)+REAL(r(3, 3), dp)*x(3)
+      y(1) = REAL(r(1, 1), dp)*x(1) + REAL(r(1, 2), dp)*x(2) + REAL(r(1, 3), dp)*x(3)
+      y(2) = REAL(r(2, 1), dp)*x(1) + REAL(r(2, 2), dp)*x(2) + REAL(r(2, 3), dp)*x(3)
+      y(3) = REAL(r(3, 1), dp)*x(1) + REAL(r(3, 2), dp)*x(2) + REAL(r(3, 3), dp)*x(3)
 
    END FUNCTION kp_apply_operation
 
@@ -488,12 +488,12 @@ CONTAINS
       f0 = 0
       DO ia = 1, natom
          ri(1:3) = csym%scoord(1:3, ia)
-         ro(1) = REAL(rot(1, 1), dp)*ri(1)+REAL(rot(2, 1), dp)*ri(2)+REAL(rot(3, 1), dp)*ri(3)+tr(1)
-         ro(2) = REAL(rot(1, 2), dp)*ri(1)+REAL(rot(2, 2), dp)*ri(2)+REAL(rot(3, 2), dp)*ri(3)+tr(2)
-         ro(3) = REAL(rot(1, 3), dp)*ri(1)+REAL(rot(2, 3), dp)*ri(2)+REAL(rot(3, 3), dp)*ri(3)+tr(3)
+         ro(1) = REAL(rot(1, 1), dp)*ri(1) + REAL(rot(2, 1), dp)*ri(2) + REAL(rot(3, 1), dp)*ri(3) + tr(1)
+         ro(2) = REAL(rot(1, 2), dp)*ri(1) + REAL(rot(2, 2), dp)*ri(2) + REAL(rot(3, 2), dp)*ri(3) + tr(2)
+         ro(3) = REAL(rot(1, 3), dp)*ri(1) + REAL(rot(2, 3), dp)*ri(2) + REAL(rot(3, 3), dp)*ri(3) + tr(3)
          DO ib = 1, natom
             rb(1:3) = csym%scoord(1:3, ib)
-            diff = SQRT(SUM((ri(:)-rb(:))**2))
+            diff = SQRT(SUM((ri(:) - rb(:))**2))
             IF (diff < csym%delta) THEN
                f0(ia) = ib
                EXIT

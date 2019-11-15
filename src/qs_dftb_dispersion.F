@@ -186,7 +186,7 @@ CONTAINS
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
             IF ((.NOT. define_kind(ikind)) .OR. (.NOT. define_kind(jkind))) CYCLE
-            rc = rc_kind(ikind)+rc_kind(jkind)
+            rc = rc_kind(ikind) + rc_kind(jkind)
             ! vdW potential
             dr = SQRT(SUM(rij(:)**2))
             IF (dr <= rc .AND. dr > 0.001_dp) THEN
@@ -205,17 +205,17 @@ CONTAINS
                   ! This is the standard London contribution.
                   ! UFF1 - Eq. 20 (long-range)
                   xp = xij/dr
-                  eij = dij*(-2._dp*xp**6+xp**12)*fac
-                  evdw = evdw+eij
+                  eij = dij*(-2._dp*xp**6 + xp**12)*fac
+                  evdw = evdw + eij
                   IF (calculate_forces .AND. (dr > 0.001_dp)) THEN
-                     devdw = dij*12._dp*(xp**6-xp**12)/dr*fac
+                     devdw = dij*12._dp*(xp**6 - xp**12)/dr*fac
                      atom_a = atom_of_kind(iatom)
                      atom_b = atom_of_kind(jatom)
                      fdij(:) = devdw*rij(:)/dr
                      force(ikind)%dispersion(:, atom_a) = &
-                        force(ikind)%dispersion(:, atom_a)-fdij(:)
+                        force(ikind)%dispersion(:, atom_a) - fdij(:)
                      force(jkind)%dispersion(:, atom_b) = &
-                        force(jkind)%dispersion(:, atom_b)+fdij(:)
+                        force(jkind)%dispersion(:, atom_b) + fdij(:)
                   END IF
                ELSE
                   ! Shorter distance.
@@ -223,22 +223,22 @@ CONTAINS
                   ! Using a parabola of the form (y = A - Bx**5 -Cx**10).
                   ! Analytic parameters by forcing energy, first and second
                   ! derivatives to be continuous.
-                  eij = (A-B*dr**5-C*dr**10)*fac
-                  evdw = evdw+eij
+                  eij = (A - B*dr**5 - C*dr**10)*fac
+                  evdw = evdw + eij
                   IF (calculate_forces .AND. (dr > 0.001_dp)) THEN
                      atom_a = atom_of_kind(iatom)
                      atom_b = atom_of_kind(jatom)
-                     devdw = (-5*B*dr**4-10*C*dr**9)*fac
+                     devdw = (-5*B*dr**4 - 10*C*dr**9)*fac
                      fdij(:) = devdw*rij(:)/dr
                      force(ikind)%dispersion(:, atom_a) = &
-                        force(ikind)%dispersion(:, atom_a)-fdij(:)
+                        force(ikind)%dispersion(:, atom_a) - fdij(:)
                      force(jkind)%dispersion(:, atom_b) = &
-                        force(jkind)%dispersion(:, atom_b)+fdij(:)
+                        force(jkind)%dispersion(:, atom_b) + fdij(:)
                   END IF
                END IF
                IF (atprop%energy) THEN
-                  atprop%atevdw(iatom) = atprop%atevdw(iatom)+0.5_dp*eij
-                  atprop%atevdw(jatom) = atprop%atevdw(jatom)+0.5_dp*eij
+                  atprop%atevdw(iatom) = atprop%atevdw(iatom) + 0.5_dp*eij
+                  atprop%atevdw(jatom) = atprop%atevdw(jatom) + 0.5_dp*eij
                END IF
                IF (calculate_forces .AND. (dr > 0.001_dp) .AND. use_virial) THEN
                   CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rij)

@@ -206,15 +206,15 @@ CONTAINS
          DO i = 1, 3
             cell_v(i) = cell%hmat(i, i)
          END DO
-         DO iatom = 1, natom-1
-            DO jatom = iatom+1, natom
+         DO iatom = 1, natom - 1
+            DO jatom = iatom + 1, natom
                r = particle_set(iatom)%r
                r1 = particle_set(jatom)%r
                DO i = 1, 3
-                  r(i) = MODULO(r(i), cell%hmat(i, i))-cell%hmat(i, i)/2._dp
-                  r1(i) = MODULO(r1(i), cell%hmat(i, i))-cell%hmat(i, i)/2._dp
+                  r(i) = MODULO(r(i), cell%hmat(i, i)) - cell%hmat(i, i)/2._dp
+                  r1(i) = MODULO(r1(i), cell%hmat(i, i)) - cell%hmat(i, i)/2._dp
                END DO
-               dist_vec = (r-r1)-ANINT((r-r1)/cell_v)*cell_v
+               dist_vec = (r - r1) - ANINT((r - r1)/cell_v)*cell_v
                IF (becke_control%vector_buffer%store_vectors) THEN
                   becke_control%vector_buffer%position_vecs(:, iatom) = r(:)
                   IF (iatom == 1 .AND. jatom == natom) becke_control%vector_buffer%position_vecs(:, jatom) = r1(:)
@@ -300,9 +300,9 @@ CONTAINS
                   IF (becke_control%cavity%pw%cr3d(k, j, i) < eps_cavity) CYCLE
                END IF
                ind = (/k, j, i/)
-               grid_p(1) = k*dr(1)+shift(1)
-               grid_p(2) = j*dr(2)+shift(2)
-               grid_p(3) = i*dr(3)+shift(3)
+               grid_p(1) = k*dr(1) + shift(1)
+               grid_p(2) = j*dr(2) + shift(2)
+               grid_p(3) = i*dr(3) + shift(3)
                nskipped = 0
                cell_functions = 1.0_dp
                skip_me = .FALSE.
@@ -319,7 +319,7 @@ CONTAINS
                   IF (skip_me(iatom)) THEN
                      cell_functions(iatom) = 0.0_dp
                      IF (becke_control%should_skip) THEN
-                        IF (is_constraint(iatom)) nskipped = nskipped+1
+                        IF (is_constraint(iatom)) nskipped = nskipped + 1
                         IF (nskipped == cdft_control%natoms) THEN
                            IF (in_memory) THEN
                               IF (becke_control%cavity_confine) THEN
@@ -334,7 +334,7 @@ CONTAINS
                   IF (becke_control%vector_buffer%store_vectors) THEN
                      IF (becke_control%vector_buffer%distances(iatom) .EQ. 0.0_dp) THEN
                         r = becke_control%vector_buffer%position_vecs(:, iatom)
-                        dist_vec = (r-grid_p)-ANINT((r-grid_p)/cell_v)*cell_v
+                        dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                         dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                         becke_control%vector_buffer%distance_vecs(:, iatom) = dist_vec
                         becke_control%vector_buffer%distances(iatom) = dist1
@@ -345,9 +345,9 @@ CONTAINS
                   ELSE
                      r = particle_set(iatom)%r
                      DO ip = 1, 3
-                        r(ip) = MODULO(r(ip), cell%hmat(ip, ip))-cell%hmat(ip, ip)/2._dp
+                        r(ip) = MODULO(r(ip), cell%hmat(ip, ip)) - cell%hmat(ip, ip)/2._dp
                      END DO
-                     dist_vec = (r-grid_p)-ANINT((r-grid_p)/cell_v)*cell_v
+                     dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                      dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                   END IF
                   IF (dist1 .LE. cutoffs(iatom)) THEN
@@ -368,7 +368,7 @@ CONTAINS
                            IF (becke_control%vector_buffer%store_vectors) THEN
                               IF (becke_control%vector_buffer%distances(jatom) .EQ. 0.0_dp) THEN
                                  r1 = becke_control%vector_buffer%position_vecs(:, jatom)
-                                 dist_vec = (r1-grid_p)-ANINT((r1-grid_p)/cell_v)*cell_v
+                                 dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
                                  dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                                  becke_control%vector_buffer%distance_vecs(:, jatom) = dist_vec
                                  becke_control%vector_buffer%distances(jatom) = dist2
@@ -379,44 +379,44 @@ CONTAINS
                            ELSE
                               r1 = particle_set(jatom)%r
                               DO ip = 1, 3
-                                 r1(ip) = MODULO(r1(ip), cell%hmat(ip, ip))-cell%hmat(ip, ip)/2._dp
+                                 r1(ip) = MODULO(r1(ip), cell%hmat(ip, ip)) - cell%hmat(ip, ip)/2._dp
                               END DO
-                              dist_vec = (r1-grid_p)-ANINT((r1-grid_p)/cell_v)*cell_v
+                              dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
                               dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                            END IF
                            IF (in_memory) THEN
                               IF (becke_control%vector_buffer%store_vectors) THEN
                                  dr1_r2 = becke_control%vector_buffer%pair_dist_vecs(:, iatom, jatom)
                               ELSE
-                                 dr1_r2 = (r-r1)-ANINT((r-r1)/cell_v)*cell_v
+                                 dr1_r2 = (r - r1) - ANINT((r - r1)/cell_v)*cell_v
                               END IF
                               IF (dist2 .LE. th) dist2 = th
                               tmp_const = (becke_control%vector_buffer%R12(iatom, jatom)**3)
                               dr_ij_dR(:) = dr1_r2(:)/tmp_const
                               !derivative w.r.t. Rj
                               dr_j_dR = dist_vec(:)/dist2
-                              dmy_dR_j(:) = -(dr_j_dR(:)/becke_control%vector_buffer%R12(iatom, jatom)-(dist1-dist2)*dr_ij_dR(:))
+                             dmy_dR_j(:) = -(dr_j_dR(:)/becke_control%vector_buffer%R12(iatom, jatom) - (dist1 - dist2)*dr_ij_dR(:))
                               !derivative w.r.t. Ri
-                              dmy_dR_i(:) = dr_i_dR(:)/becke_control%vector_buffer%R12(iatom, jatom)-(dist1-dist2)*dr_ij_dR(:)
+                              dmy_dR_i(:) = dr_i_dR(:)/becke_control%vector_buffer%R12(iatom, jatom) - (dist1 - dist2)*dr_ij_dR(:)
                            END IF
                            ! myij
-                           my1 = (dist1-dist2)/becke_control%vector_buffer%R12(iatom, jatom)
+                           my1 = (dist1 - dist2)/becke_control%vector_buffer%R12(iatom, jatom)
                            IF (becke_control%adjust) THEN
                               my1_homo = my1 ! Homonuclear quantity needed for gradient
-                              my1 = my1+becke_control%aij(iatom, jatom)*(1.0_dp-my1**2)
+                              my1 = my1 + becke_control%aij(iatom, jatom)*(1.0_dp - my1**2)
                            END IF
                            ! f(myij)
-                           myexp = 1.5_dp*my1-0.5_dp*my1**3
+                           myexp = 1.5_dp*my1 - 0.5_dp*my1**3
                            IF (in_memory) THEN
-                              dmyexp = 1.5_dp-1.5_dp*my1**2
-                              tmp_const = (1.5_dp**2)*dmyexp*(1-myexp**2)* &
-                                          (1.0_dp-((1.5_dp*myexp-0.5_dp*(myexp**3))**2))
+                              dmyexp = 1.5_dp - 1.5_dp*my1**2
+                              tmp_const = (1.5_dp**2)*dmyexp*(1 - myexp**2)* &
+                                          (1.0_dp - ((1.5_dp*myexp - 0.5_dp*(myexp**3))**2))
                               ! d s(myij)/d R_i
                               ds_dR_i(:) = -0.5_dp*tmp_const*dmy_dR_i(:)
                               ! d s(myij)/d R_j
                               ds_dR_j(:) = -0.5_dp*tmp_const*dmy_dR_j(:)
                               IF (becke_control%adjust) THEN
-                                 tmp_const = 1.0_dp-2.0_dp*my1_homo* &
+                                 tmp_const = 1.0_dp - 2.0_dp*my1_homo* &
                                              becke_control%aij(iatom, jatom)
                                  ds_dR_i(:) = ds_dR_i(:)*tmp_const
                                  ! tmp_const is same for both since aij=-aji and myij=-myji
@@ -424,29 +424,29 @@ CONTAINS
                               END IF
                            END IF
                            ! s(myij) = f[f(f{myij})]
-                           myexp = 1.5_dp*myexp-0.5_dp*myexp**3
-                           myexp = 1.5_dp*myexp-0.5_dp*myexp**3
-                           tmp_const = 0.5_dp*(1.0_dp-myexp)
+                           myexp = 1.5_dp*myexp - 0.5_dp*myexp**3
+                           myexp = 1.5_dp*myexp - 0.5_dp*myexp**3
+                           tmp_const = 0.5_dp*(1.0_dp - myexp)
                            cell_functions(iatom) = cell_functions(iatom)*tmp_const
                            IF (in_memory) THEN
-                              IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const+th
+                              IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
                               ! P_i independent part of dP_i/dR_i
-                              dP_i_dRi(:, iatom) = dP_i_dRi(:, iatom)+ds_dR_i(:)/tmp_const
+                              dP_i_dRi(:, iatom) = dP_i_dRi(:, iatom) + ds_dR_i(:)/tmp_const
                               ! P_i independent part of dP_i/dR_j
                               dP_i_dRj(:, iatom, jatom) = ds_dR_j(:)/tmp_const
                            END IF
 
                            IF (dist2 .LE. cutoffs(jatom)) THEN
-                              tmp_const = 0.5_dp*(1.0_dp+myexp) ! s(myji)
+                              tmp_const = 0.5_dp*(1.0_dp + myexp) ! s(myji)
                               cell_functions(jatom) = cell_functions(jatom)*tmp_const
                               IF (in_memory) THEN
-                                 IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const+th
+                                 IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
                                  ! P_j independent part of dP_j/dR_i
                                  ! d s(myji)/d R_i = -d s(myij)/d R_i
                                  dP_i_dRj(:, jatom, iatom) = -ds_dR_i(:)/tmp_const
                                  ! P_j independent part of dP_j/dR_j
                                  ! d s(myji)/d R_j = -d s(myij)/d R_j
-                                 dP_i_dRi(:, jatom) = dP_i_dRi(:, jatom)-ds_dR_j(:)/tmp_const
+                                 dP_i_dRi(:, jatom) = dP_i_dRi(:, jatom) - ds_dR_j(:)/tmp_const
                               END IF
                            ELSE
                               skip_me(jatom) = .TRUE.
@@ -457,7 +457,7 @@ CONTAINS
                         ! Final value of dP_i_dRi
                         dP_i_dRi(:, iatom) = cell_functions(iatom)*dP_i_dRi(:, iatom)
                         ! Update relevant sums with value
-                        d_sum_Pm_dR(:, iatom) = d_sum_Pm_dR(:, iatom)+dP_i_dRi(:, iatom)
+                        d_sum_Pm_dR(:, iatom) = d_sum_Pm_dR(:, iatom) + dP_i_dRi(:, iatom)
                         IF (is_constraint(iatom)) THEN
                            DO igroup = 1, SIZE(group)
                               IF (.NOT. atom_in_group(igroup, iatom)) CYCLE
@@ -467,7 +467,7 @@ CONTAINS
                                     EXIT
                                  END IF
                               END DO
-                              group(igroup)%d_sum_const_dR(1:3, iatom) = group(igroup)%d_sum_const_dR(1:3, iatom)+ &
+                              group(igroup)%d_sum_const_dR(1:3, iatom) = group(igroup)%d_sum_const_dR(1:3, iatom) + &
                                                                          group(igroup)%coeff(ip)*dP_i_dRi(:, iatom)
                            END DO
                         END IF
@@ -476,7 +476,7 @@ CONTAINS
                               ! Final value of dP_i_dRj
                               dP_i_dRj(:, iatom, jatom) = cell_functions(iatom)*dP_i_dRj(:, iatom, jatom)
                               ! Update where needed
-                              d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)
+                              d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom) + dP_i_dRj(:, iatom, jatom)
                               IF (is_constraint(iatom)) THEN
                                  DO igroup = 1, SIZE(group)
                                     IF (.NOT. atom_in_group(igroup, iatom)) CYCLE
@@ -487,7 +487,7 @@ CONTAINS
                                           EXIT
                                        END IF
                                     END DO
-                                    group(igroup)%d_sum_const_dR(1:3, jatom) = group(igroup)%d_sum_const_dR(1:3, jatom)+ &
+                                    group(igroup)%d_sum_const_dR(1:3, jatom) = group(igroup)%d_sum_const_dR(1:3, jatom) + &
                                                                                group(igroup)%coeff(ip)* &
                                                                                dP_i_dRj(:, iatom, jatom)
                                  END DO
@@ -499,7 +499,7 @@ CONTAINS
                      cell_functions(iatom) = 0.0_dp
                      skip_me(iatom) = .TRUE.
                      IF (becke_control%should_skip) THEN
-                        IF (is_constraint(iatom)) nskipped = nskipped+1
+                        IF (is_constraint(iatom)) nskipped = nskipped + 1
                         IF (nskipped == cdft_control%natoms) THEN
                            IF (in_memory) THEN
                               IF (becke_control%cavity_confine) THEN
@@ -516,20 +516,20 @@ CONTAINS
                sum_cell_f_group = 0.0_dp
                DO igroup = 1, SIZE(group)
                   DO ip = 1, SIZE(group(igroup)%atoms)
-                     sum_cell_f_group(igroup) = sum_cell_f_group(igroup)+group(igroup)%coeff(ip)* &
+                     sum_cell_f_group(igroup) = sum_cell_f_group(igroup) + group(igroup)%coeff(ip)* &
                                                 cell_functions(group(igroup)%atoms(ip))
                   END DO
                END DO
                sum_cell_f_all = 0.0_dp
                DO ip = 1, natom
-                  sum_cell_f_all = sum_cell_f_all+cell_functions(ip)
+                  sum_cell_f_all = sum_cell_f_all + cell_functions(ip)
                END DO
                ! Gradients at (k,j,i)
                IF (in_memory .AND. ABS(sum_cell_f_all) .GT. 0.0_dp) THEN
                   DO igroup = 1, SIZE(group)
                      DO iatom = 1, natom
-                        group(igroup)%gradients(3*(iatom-1)+1:3*(iatom-1)+3, k, j, i) = &
-                           group(igroup)%d_sum_const_dR(1:3, iatom)/sum_cell_f_all-sum_cell_f_group(igroup)* &
+                        group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i) = &
+                           group(igroup)%d_sum_const_dR(1:3, iatom)/sum_cell_f_all - sum_cell_f_group(igroup)* &
                            d_sum_Pm_dR(1:3, iatom)/(sum_cell_f_all**2)
                      END DO
                   END DO
@@ -666,7 +666,7 @@ CONTAINS
                   DO igroup = 1, SIZE(group)
                      DO iatom = 1, natom
                         DO ispin = 1, dft_control%nspins
-                           SELECT CASE (group (igroup)%constraint_type)
+                           SELECT CASE (group(igroup)%constraint_type)
                            CASE (cdft_charge_constraint)
                               sign = 1.0_dp
                            CASE (cdft_magnetization_constraint)
@@ -684,8 +684,8 @@ CONTAINS
                            CASE DEFAULT
                               CPABORT("Unknown constraint type.")
                            END SELECT
-                           group(igroup)%integrated(:, iatom) = group(igroup)%integrated(:, iatom)+sign* &
-                                                                group(igroup)%gradients(3*(iatom-1)+1:3*(iatom-1)+3, k, j, i)* &
+                           group(igroup)%integrated(:, iatom) = group(igroup)%integrated(:, iatom) + sign* &
+                                                            group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i)* &
                                                                 rho_r(ispin)%pw%cr3d(k, j, i)*dvol
                         END DO
                      END DO
@@ -702,7 +702,7 @@ CONTAINS
                   DO igroup = 1, SIZE(group)
                      DO iatom = 1, natom
                         DO ispin = 1, dft_control%nspins
-                           SELECT CASE (group (igroup)%constraint_type)
+                           SELECT CASE (group(igroup)%constraint_type)
                            CASE (cdft_charge_constraint)
                               sign = 1.0_dp
                            CASE (cdft_magnetization_constraint)
@@ -720,8 +720,8 @@ CONTAINS
                            CASE DEFAULT
                               CPABORT("Unknown constraint type.")
                            END SELECT
-                           group(igroup)%integrated(:, iatom) = group(igroup)%integrated(:, iatom)+sign* &
-                                                                group(igroup)%gradients(3*(iatom-1)+1:3*(iatom-1)+3, k, j, i)* &
+                           group(igroup)%integrated(:, iatom) = group(igroup)%integrated(:, iatom) + sign* &
+                                                            group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i)* &
                                                                 rho_r(ispin)%pw%cr3d(k, j, i)*dvol
                         END DO
                      END DO
@@ -746,7 +746,7 @@ CONTAINS
             DO iatom = 1, natom
                ikind = kind_of(iatom)
                i = atom_of_kind(iatom)
-               force(ikind)%rho_elec(:, i) = force(ikind)%rho_elec(:, i)+group(igroup)%integrated(:, iatom)*strength(igroup)
+               force(ikind)%rho_elec(:, i) = force(ikind)%rho_elec(:, i) + group(igroup)%integrated(:, iatom)*strength(igroup)
             END DO
          END DO
       END IF
@@ -836,7 +836,7 @@ CONTAINS
       ! Calculate value of constraint i.e. int ( rho(r) w(r) dr)
       DO i = 1, dft_control%nspins
          DO igroup = 1, SIZE(group)
-            SELECT CASE (group (igroup)%constraint_type)
+            SELECT CASE (group(igroup)%constraint_type)
             CASE (cdft_charge_constraint)
                sign = 1.0_dp
             CASE (cdft_magnetization_constraint)
@@ -860,10 +860,10 @@ CONTAINS
                IF (igroup /= 1) &
                   CALL cp_abort(__LOCATION__, &
                                 "Multiple constraints not yet supported by parallel mixed calculations.")
-               dE(igroup) = dE(igroup)+sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
-                                                                 becke_control%cavity_mat, eps_cavity)*dvol
+               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
+                                                                   becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
-               dE(igroup) = dE(igroup)+sign*accurate_sum(group(igroup)%weight%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
+               dE(igroup) = dE(igroup) + sign*accurate_sum(group(igroup)%weight%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
             END IF
          END DO
          IF (cdft_control%atomic_charges) THEN
@@ -893,7 +893,7 @@ CONTAINS
          DO i = 1, dft_control%nspins
             DO igroup = 1, SIZE(group)
                DO iatom = 1, SIZE(group(igroup)%atoms)
-                  SELECT CASE (group (igroup)%constraint_type)
+                  SELECT CASE (group(igroup)%constraint_type)
                   CASE (cdft_charge_constraint)
                      sign = 1.0_dp
                   CASE (cdft_magnetization_constraint)
@@ -915,7 +915,7 @@ CONTAINS
                   CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
                   CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
                   IF (paw_atom) THEN
-                     gapw_offset(igroup, i) = gapw_offset(igroup, i)+sign*group(igroup)%coeff(iatom)*mp_rho(jatom)%q0(i)
+                     gapw_offset(igroup, i) = gapw_offset(igroup, i) + sign*group(igroup)%coeff(iatom)*mp_rho(jatom)%q0(i)
                   END IF
                END DO
             END DO
@@ -927,14 +927,14 @@ CONTAINS
                CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
                IF (paw_atom) THEN
                   DO i = 1, dft_control%nspins
-                     electronic_charge(iatom, i) = electronic_charge(iatom, i)+mp_rho(jatom)%q0(i)
+                     electronic_charge(iatom, i) = electronic_charge(iatom, i) + mp_rho(jatom)%q0(i)
                   END DO
                END IF
             END DO
          END IF
          DO i = 1, dft_control%nspins
             DO ivar = 1, nvar
-               dE(ivar) = dE(ivar)+gapw_offset(ivar, i)
+               dE(ivar) = dE(ivar) + gapw_offset(ivar, i)
             END DO
          END DO
          DEALLOCATE (gapw_offset)
@@ -943,7 +943,7 @@ CONTAINS
       cdft_control%value(:) = dE(:)
       energy%cdft = 0.0_dp
       DO ivar = 1, nvar
-         energy%cdft = energy%cdft+(dE(ivar)-target_val(ivar))*strength(ivar)
+         energy%cdft = energy%cdft + (dE(ivar) - target_val(ivar))*strength(ivar)
       END DO
       ! Print constraint info and atomic CDFT charges
       CALL cdft_constraint_print(qs_env, electronic_charge)
@@ -1010,7 +1010,7 @@ CONTAINS
       multiplier = 1.0_dp
       nfrag_spins = 1
       DO igroup = 1, SIZE(group)
-         SELECT CASE (group (igroup)%constraint_type)
+         SELECT CASE (group(igroup)%constraint_type)
          CASE (cdft_charge_constraint)
             ! Do nothing
          CASE (cdft_magnetization_constraint)
@@ -1081,11 +1081,11 @@ CONTAINS
             i = 2
          END IF
          IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
-            cdft_control%target(igroup) = cdft_control%target(igroup)+ &
+            cdft_control%target(igroup) = cdft_control%target(igroup) + &
                                           accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d, &
                                                                becke_control%cavity_mat, becke_control%eps_cavity)*dvol
          ELSE
-            cdft_control%target(igroup) = cdft_control%target(igroup)+ &
+            cdft_control%target(igroup) = cdft_control%target(igroup) + &
                                           accurate_sum(group(igroup)%weight%pw%cr3d*rho_frag(i)%pw%cr3d)*dvol
          END IF
       END DO
@@ -1267,11 +1267,11 @@ CONTAINS
                   IF (rs_rho_all%desc%parallel .AND. .NOT. rs_rho_all%desc%distributed) THEN
                      ! replicated realspace grid, split the atoms up between procs
                      IF (MODULO(iatom, rs_rho_all%desc%group_size) == rs_rho_all%desc%my_pos) THEN
-                        npme = npme+1
+                        npme = npme + 1
                         cores(npme) = iatom
                      ENDIF
                   ELSE
-                     npme = npme+1
+                     npme = npme + 1
                      cores(npme) = iatom
                   ENDIF
                END DO

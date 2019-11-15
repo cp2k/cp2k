@@ -140,7 +140,7 @@ CONTAINS
          calc(0:order) = .TRUE.
       ELSE
          calc(-order) = .TRUE.
-         m(0:3, 2) = m(0:3, 2)-m(0:3, 1)+1
+         m(0:3, 2) = m(0:3, 2) - m(0:3, 1) + 1
          m(0:3, 1) = 1
       END IF
 
@@ -338,11 +338,11 @@ CONTAINS
 
 !$OMP PARALLEL DO PRIVATE(ip,x,rhoab) DEFAULT(NONE) SHARED(fx,m,eps_rho,n)
       DO ip = 1, n
-         rhoab = rhoa(ip)+rhob(ip)
+         rhoab = rhoa(ip) + rhob(ip)
          IF (rhoab < eps_rho) THEN
             fx(ip, 1:m) = 0.0_dp
          ELSE
-            x = (rhoa(ip)-rhob(ip))/rhoab
+            x = (rhoa(ip) - rhob(ip))/rhoab
             IF (x < -1.0_dp) THEN
                IF (m >= 0) fx(ip, 1) = 1.0_dp
                IF (m >= 1) fx(ip, 2) = -f43*fxfac*2.0_dp**f13
@@ -355,14 +355,14 @@ CONTAINS
                IF (m >= 3) fx(ip, 4) = -f23*f13*f43*fxfac/2.0_dp**f53
             ELSE
                IF (m >= 0) &
-                  fx(ip, 1) = ((1.0_dp+x)**f43+(1.0_dp-x)**f43-2.0_dp)*fxfac
+                  fx(ip, 1) = ((1.0_dp + x)**f43 + (1.0_dp - x)**f43 - 2.0_dp)*fxfac
                IF (m >= 1) &
-                  fx(ip, 2) = ((1.0_dp+x)**f13-(1.0_dp-x)**f13)*fxfac*f43
+                  fx(ip, 2) = ((1.0_dp + x)**f13 - (1.0_dp - x)**f13)*fxfac*f43
                IF (m >= 2) &
-                  fx(ip, 3) = ((1.0_dp+x)**(-f23)+(1.0_dp-x)**(-f23))* &
+                  fx(ip, 3) = ((1.0_dp + x)**(-f23) + (1.0_dp - x)**(-f23))* &
                               fxfac*f43*f13
                IF (m >= 3) &
-                  fx(ip, 4) = ((1.0_dp+x)**(-f53)-(1.0_dp-x)**(-f53))* &
+                  fx(ip, 4) = ((1.0_dp + x)**(-f53) - (1.0_dp - x)**(-f53))* &
                               fxfac*f43*f13*(-f23)
             END IF
          END IF
@@ -393,11 +393,11 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: rhoab, x
 
-      rhoab = rhoa+rhob
+      rhoab = rhoa + rhob
       IF (rhoab < eps_rho) THEN
          fx(1:m) = 0.0_dp
       ELSE
-         x = (rhoa-rhob)/rhoab
+         x = (rhoa - rhob)/rhoab
          IF (x < -1.0_dp) THEN
             IF (m >= 0) fx(1) = 1.0_dp
             IF (m >= 1) fx(2) = -f43*fxfac*2.0_dp**f13
@@ -410,14 +410,14 @@ CONTAINS
             IF (m >= 3) fx(4) = -f23*f13*f43*fxfac/2.0_dp**f53
          ELSE
             IF (m >= 0) &
-               fx(1) = ((1.0_dp+x)**f43+(1.0_dp-x)**f43-2.0_dp)*fxfac
+               fx(1) = ((1.0_dp + x)**f43 + (1.0_dp - x)**f43 - 2.0_dp)*fxfac
             IF (m >= 1) &
-               fx(2) = ((1.0_dp+x)**f13-(1.0_dp-x)**f13)*fxfac*f43
+               fx(2) = ((1.0_dp + x)**f13 - (1.0_dp - x)**f13)*fxfac*f43
             IF (m >= 2) &
-               fx(3) = ((1.0_dp+x)**(-f23)+(1.0_dp-x)**(-f23))* &
+               fx(3) = ((1.0_dp + x)**(-f23) + (1.0_dp - x)**(-f23))* &
                        fxfac*f43*f13
             IF (m >= 3) &
-               fx(4) = ((1.0_dp+x)**(-f53)-(1.0_dp-x)**(-f53))* &
+               fx(4) = ((1.0_dp + x)**(-f53) - (1.0_dp - x)**(-f53))* &
                        fxfac*f43*f13*(-f23)
          END IF
       END IF
@@ -439,9 +439,9 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: c, d
 
-      c = a+b
+      c = a + b
 
-      z(0, 0) = (a-b)/c
+      z(0, 0) = (a - b)/c
       IF (order >= 1) THEN
          d = c*c
          z(1, 0) = 2.0_dp*b/d
@@ -450,14 +450,14 @@ CONTAINS
       IF (order >= 2) THEN
          d = d*c
          z(2, 0) = -4.0_dp*b/d
-         z(1, 1) = 2.0_dp*(a-b)/d
+         z(1, 1) = 2.0_dp*(a - b)/d
          z(0, 2) = 4.0_dp*a/d
       END IF
       IF (order >= 3) THEN
          d = d*c
          z(3, 0) = 12.0_dp*b/d
-         z(2, 1) = -4.0_dp*(a-2.0_dp*b)/d
-         z(1, 2) = -4.0_dp*(2.0_dp*a-b)/d
+         z(2, 1) = -4.0_dp*(a - 2.0_dp*b)/d
+         z(1, 2) = -4.0_dp*(2.0_dp*a - b)/d
          z(0, 3) = -12.0_dp*a/d
       END IF
 

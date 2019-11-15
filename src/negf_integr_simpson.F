@@ -141,7 +141,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(weights))
 
       ! ensure that MOD(nnodes-1, 4) == 0
-      nnodes = 4*((nnodes-1)/4)+1
+      nnodes = 4*((nnodes - 1)/4) + 1
 
       sr_env%shape_id = shape_id
       sr_env%a = a
@@ -248,9 +248,9 @@ CONTAINS
          CALL MOVE_ALLOC(sr_env%tnodes, tnodes_old)
          nnodes_old = SIZE(tnodes_old)
 
-         ALLOCATE (sr_env%tnodes(nnodes_old+nnodes))
+         ALLOCATE (sr_env%tnodes(nnodes_old + nnodes))
          sr_env%tnodes(1:nnodes_old) = tnodes_old(1:nnodes_old)
-         sr_env%tnodes(nnodes_old+1:nnodes_old+nnodes) = tnodes(1:nnodes)
+         sr_env%tnodes(nnodes_old + 1:nnodes_old + nnodes) = tnodes(1:nnodes)
          DEALLOCATE (tnodes_old)
 
          CALL rescale_normalised_nodes(nnodes, tnodes, sr_env%a, sr_env%b, sr_env%shape_id, xnodes_next)
@@ -291,13 +291,13 @@ CONTAINS
             nintervals = SIZE(xnodes_unity)/4
 
          DO interval = 1, nintervals
-            xnodes_unity(4*interval-3) = 0.125_dp* &
-                                         (7.0_dp*sr_env%subintervals(interval)%lb+sr_env%subintervals(interval)%ub)
-            xnodes_unity(4*interval-2) = 0.125_dp* &
-                                         (5.0_dp*sr_env%subintervals(interval)%lb+3.0_dp*sr_env%subintervals(interval)%ub)
-            xnodes_unity(4*interval-1) = 0.125_dp* &
-                                         (3.0_dp*sr_env%subintervals(interval)%lb+5.0_dp*sr_env%subintervals(interval)%ub)
-            xnodes_unity(4*interval) = 0.125_dp*(sr_env%subintervals(interval)%lb+7.0_dp*sr_env%subintervals(interval)%ub)
+            xnodes_unity(4*interval - 3) = 0.125_dp* &
+                                           (7.0_dp*sr_env%subintervals(interval)%lb + sr_env%subintervals(interval)%ub)
+            xnodes_unity(4*interval - 2) = 0.125_dp* &
+                                           (5.0_dp*sr_env%subintervals(interval)%lb + 3.0_dp*sr_env%subintervals(interval)%ub)
+            xnodes_unity(4*interval - 1) = 0.125_dp* &
+                                           (3.0_dp*sr_env%subintervals(interval)%lb + 5.0_dp*sr_env%subintervals(interval)%ub)
+            xnodes_unity(4*interval) = 0.125_dp*(sr_env%subintervals(interval)%lb + 7.0_dp*sr_env%subintervals(interval)%ub)
          END DO
       END IF
 
@@ -352,7 +352,7 @@ CONTAINS
       CPASSERT(nintervals_exist >= npoints)
       ALLOCATE (zscale(npoints))
 
-      CALL rescale_normalised_nodes(npoints, sr_env%tnodes(nintervals_exist-npoints+1:nintervals_exist), &
+      CALL rescale_normalised_nodes(npoints, sr_env%tnodes(nintervals_exist - npoints + 1:nintervals_exist), &
                                     sr_env%a, sr_env%b, sr_env%shape_id, weights=zscale)
 
       ! rescale integrand values
@@ -369,36 +369,36 @@ CONTAINS
          nintervals_exist = SIZE(sr_env%subintervals)
          CPASSERT(nintervals <= nintervals_exist)
 
-         ALLOCATE (subintervals(nintervals_exist+nintervals))
+         ALLOCATE (subintervals(nintervals_exist + nintervals))
 
          DO interval = 1, nintervals
-            subintervals(2*interval-1)%lb = sr_env%subintervals(interval)%lb
-            subintervals(2*interval-1)%ub = 0.5_dp*(sr_env%subintervals(interval)%lb+sr_env%subintervals(interval)%ub)
-            subintervals(2*interval-1)%conv = 0.5_dp*sr_env%subintervals(interval)%conv
-            subintervals(2*interval-1)%fa => sr_env%subintervals(interval)%fa
-            subintervals(2*interval-1)%fb => zdata_next(4*interval-3)%matrix
-            subintervals(2*interval-1)%fc => sr_env%subintervals(interval)%fb
-            subintervals(2*interval-1)%fd => zdata_next(4*interval-2)%matrix
-            subintervals(2*interval-1)%fe => sr_env%subintervals(interval)%fc
-            CALL cp_cfm_retain(subintervals(2*interval-1)%fe)
+            subintervals(2*interval - 1)%lb = sr_env%subintervals(interval)%lb
+            subintervals(2*interval - 1)%ub = 0.5_dp*(sr_env%subintervals(interval)%lb + sr_env%subintervals(interval)%ub)
+            subintervals(2*interval - 1)%conv = 0.5_dp*sr_env%subintervals(interval)%conv
+            subintervals(2*interval - 1)%fa => sr_env%subintervals(interval)%fa
+            subintervals(2*interval - 1)%fb => zdata_next(4*interval - 3)%matrix
+            subintervals(2*interval - 1)%fc => sr_env%subintervals(interval)%fb
+            subintervals(2*interval - 1)%fd => zdata_next(4*interval - 2)%matrix
+            subintervals(2*interval - 1)%fe => sr_env%subintervals(interval)%fc
+            CALL cp_cfm_retain(subintervals(2*interval - 1)%fe)
 
-            subintervals(2*interval)%lb = subintervals(2*interval-1)%ub
+            subintervals(2*interval)%lb = subintervals(2*interval - 1)%ub
             subintervals(2*interval)%ub = sr_env%subintervals(interval)%ub
-            subintervals(2*interval)%conv = subintervals(2*interval-1)%conv
+            subintervals(2*interval)%conv = subintervals(2*interval - 1)%conv
             subintervals(2*interval)%fa => sr_env%subintervals(interval)%fc
-            subintervals(2*interval)%fb => zdata_next(4*interval-1)%matrix
+            subintervals(2*interval)%fb => zdata_next(4*interval - 1)%matrix
             subintervals(2*interval)%fc => sr_env%subintervals(interval)%fd
             subintervals(2*interval)%fd => zdata_next(4*interval)%matrix
             subintervals(2*interval)%fe => sr_env%subintervals(interval)%fe
 
-            NULLIFY (zdata_next(4*interval-3)%matrix)
-            NULLIFY (zdata_next(4*interval-2)%matrix)
-            NULLIFY (zdata_next(4*interval-1)%matrix)
+            NULLIFY (zdata_next(4*interval - 3)%matrix)
+            NULLIFY (zdata_next(4*interval - 2)%matrix)
+            NULLIFY (zdata_next(4*interval - 1)%matrix)
             NULLIFY (zdata_next(4*interval)%matrix)
          END DO
 
-         DO interval = nintervals+1, nintervals_exist
-            subintervals(interval+nintervals) = sr_env%subintervals(interval)
+         DO interval = nintervals + 1, nintervals_exist
+            subintervals(interval + nintervals) = sr_env%subintervals(interval)
          END DO
          DEALLOCATE (sr_env%subintervals)
       ELSE
@@ -418,19 +418,19 @@ CONTAINS
 
          DO interval = 1, nintervals
             ! lower bound: point with indices 1, 5, 9, ..., 4*nintervals+1
-            subintervals(interval)%lb = sr_env%tnodes(4*interval-3)
-            subintervals(interval)%ub = sr_env%tnodes(4*interval+1)
+            subintervals(interval)%lb = sr_env%tnodes(4*interval - 3)
+            subintervals(interval)%ub = sr_env%tnodes(4*interval + 1)
             subintervals(interval)%conv = rscale*sr_env%conv
 
-            subintervals(interval)%fa => zdata_next(4*interval-3)%matrix
-            subintervals(interval)%fb => zdata_next(4*interval-2)%matrix
-            subintervals(interval)%fc => zdata_next(4*interval-1)%matrix
+            subintervals(interval)%fa => zdata_next(4*interval - 3)%matrix
+            subintervals(interval)%fb => zdata_next(4*interval - 2)%matrix
+            subintervals(interval)%fc => zdata_next(4*interval - 1)%matrix
             subintervals(interval)%fd => zdata_next(4*interval)%matrix
-            subintervals(interval)%fe => zdata_next(4*interval+1)%matrix
+            subintervals(interval)%fe => zdata_next(4*interval + 1)%matrix
             CALL cp_cfm_retain(subintervals(interval)%fe)
          END DO
 
-         CALL cp_cfm_release(zdata_next(4*nintervals+1)%matrix)
+         CALL cp_cfm_release(zdata_next(4*nintervals + 1)%matrix)
       END IF
 
       ! we kept the originals matrices for internal use, so nullify the pointers
@@ -448,7 +448,7 @@ CONTAINS
       nintervals_exist = SIZE(subintervals)
 
       DO interval = 1, nintervals_exist
-         rscale = subintervals(interval)%ub-subintervals(interval)%lb
+         rscale = subintervals(interval)%ub - subintervals(interval)%lb
          CALL do_simpson_rule(sr_env%integral_ace, &
                               subintervals(interval)%fa, &
                               subintervals(interval)%fc, &
@@ -484,12 +484,12 @@ CONTAINS
          error_rdata(:, :) = ABS(error_zdata(:, :))
          CALL cp_fm_trace(sr_env%error_fm, sr_env%weights, subintervals(interval)%error)
 
-         sr_env%error = sr_env%error+subintervals(interval)%error
+         sr_env%error = sr_env%error + subintervals(interval)%error
 
          ! add contributions from converged subintervals, so we could drop them afterward
          IF (subintervals(interval)%error <= subintervals(interval)%conv) THEN
             CALL cp_cfm_scale_and_add(z_one, sr_env%integral_conv, z_one, sr_env%integral_abc)
-            sr_env%error_conv = sr_env%error_conv+subintervals(interval)%error
+            sr_env%error_conv = sr_env%error_conv + subintervals(interval)%error
          END IF
       END DO
 
@@ -519,7 +519,7 @@ CONTAINS
             errors(interval) = subintervals(interval)%error
 
             IF (subintervals(interval)%error > subintervals(interval)%conv) &
-               nintervals = nintervals+1
+               nintervals = nintervals + 1
          END DO
 
          CALL sort(errors, nintervals_exist, inds)
@@ -532,7 +532,7 @@ CONTAINS
             interval = inds(ipoint)
 
             IF (subintervals(interval)%error > subintervals(interval)%conv) THEN
-               nintervals = nintervals+1
+               nintervals = nintervals + 1
 
                sr_env%subintervals(nintervals) = subintervals(interval)
             ELSE

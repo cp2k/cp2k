@@ -308,7 +308,7 @@ CONTAINS
          ! we always use an odd number of image cells
          ! CAUTION: also at another point, cell_grid_dm is defined, these definitions have to be identical
          DO i_dim = 1, 3
-            cell_grid_dm(i_dim) = (kpoints%nkp_grid(i_dim)/2)*2-1
+            cell_grid_dm(i_dim) = (kpoints%nkp_grid(i_dim)/2)*2 - 1
          END DO
          num_cells_dm = cell_grid_dm(1)*cell_grid_dm(2)*cell_grid_dm(3)
          ALLOCATE (index_to_cell_3c(3, SIZE(kpoints%index_to_cell, 2)))
@@ -376,9 +376,9 @@ CONTAINS
       END IF
 
       IF (do_kpoints_cubic_RPA) THEN
-         size_P = MAX(num_cells_dm/2+1, nkp)
+         size_P = MAX(num_cells_dm/2 + 1, nkp)
       ELSE IF (do_kpoints_from_Gamma) THEN
-         size_P = MAX(3**(periodic(1)+periodic(2)+periodic(3)), nkp)
+         size_P = MAX(3**(periodic(1) + periodic(2) + periodic(3)), nkp)
       ELSE
          size_P = 1
       END IF
@@ -400,46 +400,46 @@ CONTAINS
          CALL dbcsr_copy(mat_P_global_copy%matrix, mat_P_global%matrix)
 
          n_group_row = mp2_env%ri_rpa_im_time_util(1)%n_group_row
-         ALLOCATE (sizes_array_prim_row(0:n_group_row-1, cut_memory))
+         ALLOCATE (sizes_array_prim_row(0:n_group_row - 1, cut_memory))
          DO i_mem = 1, cut_memory
             sizes_array_prim_row(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%sizes_array_prim_row(:)
          END DO
-         ALLOCATE (starts_array_prim_row(0:n_group_row-1, cut_memory))
+         ALLOCATE (starts_array_prim_row(0:n_group_row - 1, cut_memory))
          DO i_mem = 1, cut_memory
             starts_array_prim_row(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%starts_array_prim_row(:)
          END DO
-         ALLOCATE (ends_array_prim_row(0:n_group_row-1, cut_memory))
+         ALLOCATE (ends_array_prim_row(0:n_group_row - 1, cut_memory))
          DO i_mem = 1, cut_memory
             ends_array_prim_row(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%ends_array_prim_row(:)
          END DO
-         ALLOCATE (starts_array_prim_fullrow(0:n_group_row-1, cut_memory))
+         ALLOCATE (starts_array_prim_fullrow(0:n_group_row - 1, cut_memory))
          DO i_mem = 1, cut_memory
             starts_array_prim_fullrow(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%starts_array_prim_fullrow(:)
          END DO
-         ALLOCATE (ends_array_prim_fullrow(0:n_group_row-1, cut_memory))
+         ALLOCATE (ends_array_prim_fullrow(0:n_group_row - 1, cut_memory))
          DO i_mem = 1, cut_memory
             ends_array_prim_fullrow(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%ends_array_prim_fullrow(:)
          END DO
 
          n_group_col = mp2_env%ri_rpa_im_time_util(1)%n_group_col
-         ALLOCATE (sizes_array_prim_col(0:n_group_col-1, cut_memory))
+         ALLOCATE (sizes_array_prim_col(0:n_group_col - 1, cut_memory))
          DO j_mem = 1, cut_memory
             sizes_array_prim_col(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%sizes_array_prim_col(:)
          END DO
-         ALLOCATE (starts_array_prim_col(0:n_group_col-1, cut_memory))
+         ALLOCATE (starts_array_prim_col(0:n_group_col - 1, cut_memory))
          DO j_mem = 1, cut_memory
             starts_array_prim_col(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%starts_array_prim_col(:)
          END DO
-         ALLOCATE (ends_array_prim_col(0:n_group_col-1, cut_memory))
+         ALLOCATE (ends_array_prim_col(0:n_group_col - 1, cut_memory))
          DO j_mem = 1, cut_memory
             ends_array_prim_col(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%ends_array_prim_col(:)
          END DO
 
-         ALLOCATE (starts_array_prim_fullcol(0:n_group_col-1, cut_memory))
+         ALLOCATE (starts_array_prim_fullcol(0:n_group_col - 1, cut_memory))
          DO j_mem = 1, cut_memory
             starts_array_prim_fullcol(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%starts_array_prim_fullcol(:)
          END DO
-         ALLOCATE (ends_array_prim_fullcol(0:n_group_col-1, cut_memory))
+         ALLOCATE (ends_array_prim_fullcol(0:n_group_col - 1, cut_memory))
          DO j_mem = 1, cut_memory
             ends_array_prim_fullcol(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%ends_array_prim_fullcol(:)
          END DO
@@ -458,8 +458,8 @@ CONTAINS
                n_local_col = sizes_array_prim_col(color_sub_col, j_mem)
                col_start_local = starts_array_prim_col(color_sub_col, j_mem)
 
-               ALLOCATE (offset_combi_block(i_mem, j_mem)%array(row_start_local:row_start_local+n_local_row-1, &
-                                                                col_start_local:col_start_local+n_local_col-1))
+               ALLOCATE (offset_combi_block(i_mem, j_mem)%array(row_start_local:row_start_local + n_local_row - 1, &
+                                                                col_start_local:col_start_local + n_local_col - 1))
                offset_combi_block(i_mem, j_mem)%array(:, :) = &
                   mp2_env%ri_rpa_im_time_2d_util(i_mem, j_mem)%offset_combi_block(:, :)
 
@@ -504,7 +504,7 @@ CONTAINS
 
          DO LLL = 1, dimen_RI
             DO row = 1, nblkrows_total
-               IF (row_blk_offset(row) <= LLL .AND. LLL < row_blk_offset(row)+row_blk_size(row)) THEN
+               IF (row_blk_offset(row) <= LLL .AND. LLL < row_blk_offset(row) + row_blk_size(row)) THEN
                   row_from_LLL(LLL) = row
                END IF
             END DO
@@ -539,7 +539,7 @@ CONTAINS
          multiply_needed_virt = .TRUE.
       ENDIF
 
-      ALLOCATE (has_mat_P_blocks(num_cells_dm/2+1, cut_memory, cut_memory, num_3c_repl, num_3c_repl))
+      ALLOCATE (has_mat_P_blocks(num_cells_dm/2 + 1, cut_memory, cut_memory, num_3c_repl, num_3c_repl))
       has_mat_P_blocks = .TRUE.
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
@@ -890,8 +890,8 @@ CONTAINS
       col_per_blk = dimen_RI_red/nblk
 
       ! Determine a new distribution for the columns (corresponding to the number of columns)
-      IF (remainder > 0) blk_size_new(1:remainder) = col_per_blk+1
-      blk_size_new(remainder+1:nblk) = col_per_blk
+      IF (remainder > 0) blk_size_new(1:remainder) = col_per_blk + 1
+      blk_size_new(remainder + 1:nblk) = col_per_blk
 
    END SUBROUTINE calculate_equal_blk_size
 
@@ -1129,12 +1129,12 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
 
-               iocc = MAX(1, i_global-1)/virtual+1
-               avirt = i_global-(iocc-1)*virtual
-               eigen_diff = Eigenval_last(avirt+homo)-Eigenval_last(iocc)
+               iocc = MAX(1, i_global - 1)/virtual + 1
+               avirt = i_global - (iocc - 1)*virtual
+               eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
-                                               SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
+                                               SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
 
             END DO
          END DO
@@ -1152,12 +1152,12 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
 
-               iocc = MAX(1, i_global-1)/virtual+1
-               avirt = i_global-(iocc-1)*virtual
-               eigen_diff = Eigenval(avirt+homo)-Eigenval(iocc)
+               iocc = MAX(1, i_global - 1)/virtual + 1
+               avirt = i_global - (iocc - 1)*virtual
+               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                               SQRT(eigen_diff/(eigen_diff**2+omega**2))
+                                               SQRT(eigen_diff/(eigen_diff**2 + omega**2))
 
             END DO
          END DO
@@ -1172,12 +1172,12 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
 
-               iocc = MAX(1, i_global-1)/virtual+1
-               avirt = i_global-(iocc-1)*virtual
-               eigen_diff = Eigenval(avirt+homo)-Eigenval(iocc)
+               iocc = MAX(1, i_global - 1)/virtual + 1
+               avirt = i_global - (iocc - 1)*virtual
+               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                               SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+                                               SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
 
             END DO
          END DO
@@ -1250,9 +1250,9 @@ CONTAINS
          CPABORT("")
       END SELECT
       t_end = m_walltime()
-      actual_flop_rate = 2.0_dp*REAL(dimen_ia, KIND=dp)*dimen_RI*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end-t_start))
-      IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate+actual_flop_rate
-      my_num_dgemm_call = my_num_dgemm_call+1
+      actual_flop_rate = 2.0_dp*REAL(dimen_ia, KIND=dp)*dimen_RI*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
+      IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate + actual_flop_rate
+      my_num_dgemm_call = my_num_dgemm_call + 1
 
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
@@ -1302,7 +1302,7 @@ CONTAINS
             i_global = row_indices(iiB)
             IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
                trace_Qomega(i_global) = fm_mat_Q%local_data(iiB, jjB)
-               fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB)+1.0_dp
+               fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) + 1.0_dp
             END IF
          END DO
       END DO
@@ -1369,9 +1369,9 @@ CONTAINS
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
          IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
-         FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
+         FComega = FComega + (Q_log(iiB) - trace_Qomega(iiB))/2.0_dp
       END DO
-      Erpa = Erpa+FComega*wjquad
+      Erpa = Erpa + FComega*wjquad
 
       DEALLOCATE (Q_log)
 
@@ -1410,7 +1410,7 @@ CONTAINS
 
       CALL dbcsr_get_info(mat_3c_overl_int(1, 1, 1)%matrix, nblkrows_total=nblkrows_total)
 
-      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total, 0:(para_env_sub%num_pe-1)))
+      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total, 0:(para_env_sub%num_pe - 1)))
       non_zero_blocks_3c_tmp = 0
 
       DO i_cut_RI = 1, cut_RI
@@ -1439,12 +1439,12 @@ CONTAINS
 
       maxlength = 0
 
-      DO imepos = 0, para_env_sub%num_pe-1
+      DO imepos = 0, para_env_sub%num_pe - 1
          DO i_cut_RI = 1, cut_RI
             maxlength_tmp = 0
             DO iblk = 1, nblkrows_total
                IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
-                  maxlength_tmp = maxlength_tmp+1
+                  maxlength_tmp = maxlength_tmp + 1
                END IF
             END DO
             IF (maxlength_tmp > maxlength) THEN
@@ -1454,15 +1454,15 @@ CONTAINS
       END DO
 
       ! save memory with smaller non_zero_blocks_3c
-      ALLOCATE (non_zero_blocks_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1)))
+      ALLOCATE (non_zero_blocks_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe - 1)))
       non_zero_blocks_3c = 0
 
-      DO imepos = 0, para_env_sub%num_pe-1
+      DO imepos = 0, para_env_sub%num_pe - 1
          DO i_cut_RI = 1, cut_RI
             block_counter = 0
             DO iblk = 1, nblkrows_total
                IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
-                  block_counter = block_counter+1
+                  block_counter = block_counter + 1
                   non_zero_blocks_3c(i_cut_RI, block_counter, imepos) = iblk
                END IF
             END DO
@@ -1519,7 +1519,7 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total_max, 0:(para_env_sub%num_pe-1)))
+      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total_max, 0:(para_env_sub%num_pe - 1)))
       non_zero_blocks_3c_tmp = 0
 
       maxlength = 0
@@ -1553,12 +1553,12 @@ CONTAINS
 
          maxlength_tmp = 0
 
-         DO imepos = 0, para_env_sub%num_pe-1
+         DO imepos = 0, para_env_sub%num_pe - 1
             DO i_cut_RI = 1, cut_RI
                maxlength_tmp = 0
                DO iblk = 1, nblkrows_total
                   IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
-                     maxlength_tmp = maxlength_tmp+1
+                     maxlength_tmp = maxlength_tmp + 1
                   END IF
                END DO
                IF (maxlength_tmp > maxlength) THEN
@@ -1573,7 +1573,7 @@ CONTAINS
       ! end determine maxlength
 
       ! save memory with a smaller non_zero_blocks_3c_cut
-      ALLOCATE (non_zero_blocks_3c_cut(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1), 1:cut_memory))
+      ALLOCATE (non_zero_blocks_3c_cut(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe - 1), 1:cut_memory))
       non_zero_blocks_3c_cut = 0
 
       ! now, fill non_zero_blocks_3c_cut
@@ -1602,12 +1602,12 @@ CONTAINS
 
          CALL mp_sum(non_zero_blocks_3c_tmp, para_env_sub%group)
 
-         DO imepos = 0, para_env_sub%num_pe-1
+         DO imepos = 0, para_env_sub%num_pe - 1
             DO i_cut_RI = 1, cut_RI
                block_counter = 0
                DO iblk = 1, nblkrows_total
                   IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
-                     block_counter = block_counter+1
+                     block_counter = block_counter + 1
                      non_zero_blocks_3c_cut(i_cut_RI, block_counter, imepos, i_mem) = iblk
                   END IF
                END DO
@@ -1682,7 +1682,7 @@ CONTAINS
 
                      END IF
 
-                     occ_local_sum_j_cell = occ_local_sum_j_cell+occ_local
+                     occ_local_sum_j_cell = occ_local_sum_j_cell + occ_local
 
                   END DO ! j_cell
 
@@ -1753,7 +1753,7 @@ CONTAINS
       ikp_local = 0
       first_ikp_local = 1
       DO ikp = 1, nkp
-         IF (nkp > para_env%num_pe .OR. do_kpoints_cubic_RPA .OR. ikp == color_sub_kp+1) THEN
+         IF (nkp > para_env%num_pe .OR. do_kpoints_cubic_RPA .OR. ikp == color_sub_kp + 1) THEN
             ikp_local(ikp) = ikp
             first_ikp_local = ikp
          END IF

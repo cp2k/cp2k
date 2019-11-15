@@ -202,7 +202,7 @@ CONTAINS
       number = 0
       ntherm = 0
       nglob_cns = 0
-      IF (global_constraints) nglob_cns = gci%ntot-gci%nrestraint
+      IF (global_constraints) nglob_cns = gci%ntot - gci%nrestraint
       IF (region == do_region_global) THEN
          ! Global Region
          check = (map_info%dis_type == do_thermo_communication)
@@ -221,12 +221,12 @@ CONTAINS
                   END DO
                ENDIF
             END DO
-            deg_of_freedom(1) = deg_of_freedom(1)+tot_const(ikind)
+            deg_of_freedom(1) = deg_of_freedom(1) + tot_const(ikind)
             map_info%index(1) = 1
             map_info%map_index(1) = 1
             number = 1
          END DO
-         deg_of_freedom(1) = deg_of_freedom(1)+nglob_cns
+         deg_of_freedom(1) = deg_of_freedom(1) + nglob_cns
       ELSE IF (region == do_region_molecule) THEN
          ! Molecular Region
          IF (map_info%dis_type == do_thermo_no_communication) THEN
@@ -235,7 +235,7 @@ CONTAINS
                nmol_local = local_molecules%n_el(ikind)
                DO imol_local = 1, nmol_local
                   imol = local_molecules%list(ikind)%array(imol_local)
-                  number = number+1
+                  number = number + 1
                   have_thermostat = .TRUE.
 ! determine if the local molecule belongs to a thermostat
                   DO kk = point(1, number), point(2, number)
@@ -251,7 +251,7 @@ CONTAINS
 ! We can test to make sure all atoms in the local molecule belong to the same
 ! global thermostat as a way to detect errors.
                      glob_therm_num = map_loc_thermo_gen(point(1, number))
-                     ntherm = ntherm+1
+                     ntherm = ntherm + 1
                      CALL reallocate(map_info%index, 1, ntherm)
                      CALL reallocate(map_info%map_index, 1, ntherm)
                      CALL reallocate(deg_of_freedom, 1, ntherm)
@@ -279,11 +279,11 @@ CONTAINS
             ! This case is quite rare and happens only when we have one molecular
             ! kind and one molecule..
             CPASSERT(nkind == 1)
-            number = number+1
-            ntherm = ntherm+1
+            number = number + 1
+            ntherm = ntherm + 1
             map_info%index(ntherm) = ntherm
             map_info%map_index(ntherm) = ntherm
-            deg_of_freedom(ntherm) = deg_of_freedom(ntherm)+tot_const(nkind)
+            deg_of_freedom(ntherm) = deg_of_freedom(ntherm) + tot_const(nkind)
             DO kk = point(1, nkind), point(2, nkind)
                IF (map_loc_thermo_gen(kk) /= HUGE(0)) THEN
                   DO jj = 1, 3
@@ -310,7 +310,7 @@ CONTAINS
          DO ikind = 1, nkind
             nmol_local = local_molecules%n_el(ikind)
             DO imol_local = 1, nmol_local
-               icount = icount+1
+               icount = icount + 1
                imol = local_molecules%list(ikind)%array(imol_local)
                molecule => molecule_set(imol)
                CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom, &
@@ -335,14 +335,14 @@ CONTAINS
 
                IF (have_thermostat) THEN
                   DO ii = point(1, icount), point(2, icount)
-                     ipart = first_atom+k
+                     ipart = first_atom + k
                      ielement = locate(massive_atom_list, ipart)
-                     k = k+1
+                     k = k + 1
                      DO jj = 1, 3
-                        ntherm = ntherm+1
+                        ntherm = ntherm + 1
                         CALL reallocate(map_info%index, 1, ntherm)
                         CALL reallocate(map_info%map_index, 1, ntherm)
-                        map_info%index(ntherm) = (ielement-1)*3+jj
+                        map_info%index(ntherm) = (ielement - 1)*3 + jj
                         map_info%map_index(ntherm) = ntherm
                         map_info%p_kin(jj, ii)%point => map_info%s_kin(ntherm)
                         map_info%p_scale(jj, ii)%point => map_info%v_scale(ntherm)
@@ -356,7 +356,7 @@ CONTAINS
                      END DO
                   END DO
                END IF
-               IF (first_atom+k-1 /= last_atom) THEN
+               IF (first_atom + k - 1 /= last_atom) THEN
                   CPABORT("Inconsistent mapping of particles")
                END IF
             END DO
@@ -418,12 +418,12 @@ CONTAINS
          CALL get_molecule_kind(molecule_kind, natom=natom, nshell=nshell)
          IF (shell) THEN
             IF (nshell /= 0) THEN
-               natoms_local = natoms_local+nshell*local_molecules%n_el(ikind)
-               nmol_local = nmol_local+local_molecules%n_el(ikind)
+               natoms_local = natoms_local + nshell*local_molecules%n_el(ikind)
+               nmol_local = nmol_local + local_molecules%n_el(ikind)
             END IF
          ELSE
-            natoms_local = natoms_local+natom*local_molecules%n_el(ikind)
-            nmol_local = nmol_local+local_molecules%n_el(ikind)
+            natoms_local = natoms_local + natom*local_molecules%n_el(ikind)
+            nmol_local = nmol_local + local_molecules%n_el(ikind)
          END IF
       END DO
 
@@ -445,9 +445,9 @@ CONTAINS
                                    fixd_list=fixd_list, nshell=nshell)
             IF (shell) natom = nshell
             DO imol_local = 1, nmol_per_kind
-               icount = icount+1
-               point(1, icount) = atm_offset+1
-               point(2, icount) = atm_offset+natom
+               icount = icount + 1
+               point(1, icount) = atm_offset + 1
+               point(2, icount) = atm_offset + natom
                IF (.NOT. shell) THEN
                   ! nc keeps track of all constraints but not fixed ones..
                   ! Let's identify fixed atoms for this molecule
@@ -460,19 +460,19 @@ CONTAINS
                         DO ilist = 1, SIZE(fixd_list)
                            IF ((katom == fixd_list(ilist)%fixd) .AND. &
                                (.NOT. fixd_list(ilist)%restraint%active)) THEN
-                              SELECT CASE (fixd_list (ilist)%itype)
+                              SELECT CASE (fixd_list(ilist)%itype)
                               CASE (use_perd_x, use_perd_y, use_perd_z)
-                                 nfixd = nfixd+1
+                                 nfixd = nfixd + 1
                               CASE (use_perd_xy, use_perd_xz, use_perd_yz)
-                                 nfixd = nfixd+2
+                                 nfixd = nfixd + 2
                               CASE (use_perd_xyz)
-                                 nfixd = nfixd+3
+                                 nfixd = nfixd + 3
                               END SELECT
                            END IF
                         END DO
                      END DO
                   END IF
-                  const_mol(icount) = nc+nfixd
+                  const_mol(icount) = nc + nfixd
                   tot_const(icount) = const_mol(icount)
                END IF
                atm_offset = point(2, icount)
@@ -495,10 +495,10 @@ CONTAINS
                const_mol(ikind) = nc
                ! Let's consider the fixed atoms only for the total number of constraints
                ! in case we are in REPLICATED/INTERACTING thermostats
-               tot_const(ikind) = const_mol(ikind)*nmolecule+nfixd
+               tot_const(ikind) = const_mol(ikind)*nmolecule + nfixd
             END IF
-            point(1, ikind) = atm_offset+1
-            point(2, ikind) = atm_offset+natom*nmol_per_kind
+            point(1, ikind) = atm_offset + 1
+            point(2, ikind) = atm_offset + natom*nmol_per_kind
             atm_offset = point(2, ikind)
          END DO
       ENDIF
@@ -653,7 +653,7 @@ CONTAINS
       icount = 0
       number = 0
       nglob_cns = 0
-      IF (global_constraints) nglob_cns = gci%ntot-gci%nrestraint
+      IF (global_constraints) nglob_cns = gci%ntot - gci%nrestraint
       IF (region == do_region_global) THEN
          ! Global Region
          check = (map_info%dis_type == do_thermo_communication)
@@ -665,12 +665,12 @@ CONTAINS
                   map_info%p_scale(ii, jj)%point => map_info%v_scale(1)
                END DO
             END DO
-            deg_of_freedom(1) = deg_of_freedom(1)+tot_const(ikind)
+            deg_of_freedom(1) = deg_of_freedom(1) + tot_const(ikind)
             map_info%index(1) = 1
             map_info%map_index(1) = 1
             number = 1
          END DO
-         deg_of_freedom(1) = deg_of_freedom(1)+nglob_cns
+         deg_of_freedom(1) = deg_of_freedom(1) + nglob_cns
       ELSE IF (region == do_region_defined) THEN
          ! User defined Region to thermostat
          check = (map_info%dis_type == do_thermo_communication)
@@ -686,8 +686,8 @@ CONTAINS
          map_info%map_index(number) = tmp(1)
          deg_of_freedom(number) = tot_const(tmp(1))
          DO i = 2, itmp
-            IF (tmp(i) /= tmp(i-1)) THEN
-               number = number+1
+            IF (tmp(i) /= tmp(i - 1)) THEN
+               number = number + 1
                map_info%index(number) = tmp(i)
                map_info%map_index(number) = tmp(i)
                deg_of_freedom(number) = tot_const(tmp(i))
@@ -714,7 +714,7 @@ CONTAINS
                nmol_local = local_molecules%n_el(ikind)
                DO imol_local = 1, nmol_local
                   imol = local_molecules%list(ikind)%array(imol_local)
-                  number = number+1
+                  number = number + 1
                   map_info%index(number) = imol
                   map_info%map_index(number) = number
                   deg_of_freedom(number) = const_mol(number)
@@ -730,10 +730,10 @@ CONTAINS
             ! This case is quite rare and happens only when we have one molecular
             ! kind and one molecule..
             CPASSERT(nkind == 1)
-            number = number+1
+            number = number + 1
             map_info%index(number) = number
             map_info%map_index(number) = number
-            deg_of_freedom(number) = deg_of_freedom(number)+tot_const(nkind)
+            deg_of_freedom(number) = deg_of_freedom(number) + tot_const(nkind)
             DO kk = point(1, nkind), point(2, nkind)
                DO jj = 1, 3
                   map_info%p_kin(jj, kk)%point => map_info%s_kin(number)
@@ -753,7 +753,7 @@ CONTAINS
          DO ikind = 1, nkind
             nmol_local = local_molecules%n_el(ikind)
             DO imol_local = 1, nmol_local
-               icount = icount+1
+               icount = icount + 1
                imol = local_molecules%list(ikind)%array(imol_local)
                molecule => molecule_set(imol)
                CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom, &
@@ -768,18 +768,18 @@ CONTAINS
                END IF
                k = 0
                DO ii = point(1, icount), point(2, icount)
-                  ipart = first_atom+k
+                  ipart = first_atom + k
                   ielement = locate(massive_atom_list, ipart)
-                  k = k+1
+                  k = k + 1
                   DO jj = 1, 3
-                     number = number+1
-                     map_info%index(number) = (ielement-1)*3+jj
+                     number = number + 1
+                     map_info%index(number) = (ielement - 1)*3 + jj
                      map_info%map_index(number) = number
                      map_info%p_kin(jj, ii)%point => map_info%s_kin(number)
                      map_info%p_scale(jj, ii)%point => map_info%v_scale(number)
                   END DO
                END DO
-               IF (first_atom+k-1 /= last_atom) THEN
+               IF (first_atom + k - 1 /= last_atom) THEN
                   CPABORT("Inconsistent mapping of particles")
                END IF
             END DO
@@ -855,12 +855,12 @@ CONTAINS
          CALL get_molecule_kind(molecule_kind, natom=natom, nshell=nshell)
          IF (shell) THEN
             IF (nshell /= 0) THEN
-               natoms_local = natoms_local+nshell*local_molecules%n_el(ikind)
-               nmol_local = nmol_local+local_molecules%n_el(ikind)
+               natoms_local = natoms_local + nshell*local_molecules%n_el(ikind)
+               nmol_local = nmol_local + local_molecules%n_el(ikind)
             END IF
          ELSE
-            natoms_local = natoms_local+natom*local_molecules%n_el(ikind)
-            nmol_local = nmol_local+local_molecules%n_el(ikind)
+            natoms_local = natoms_local + natom*local_molecules%n_el(ikind)
+            nmol_local = nmol_local + local_molecules%n_el(ikind)
          END IF
       END DO
 
@@ -882,9 +882,9 @@ CONTAINS
                                    fixd_list=fixd_list, nshell=nshell)
             IF (shell) natom = nshell
             DO imol_local = 1, nmol_per_kind
-               icount = icount+1
-               point(1, icount) = atm_offset+1
-               point(2, icount) = atm_offset+natom
+               icount = icount + 1
+               point(1, icount) = atm_offset + 1
+               point(2, icount) = atm_offset + natom
                IF (.NOT. shell) THEN
                   ! nc keeps track of all constraints but not fixed ones..
                   ! Let's identify fixed atoms for this molecule
@@ -897,19 +897,19 @@ CONTAINS
                         DO ilist = 1, SIZE(fixd_list)
                            IF ((katom == fixd_list(ilist)%fixd) .AND. &
                                (.NOT. fixd_list(ilist)%restraint%active)) THEN
-                              SELECT CASE (fixd_list (ilist)%itype)
+                              SELECT CASE (fixd_list(ilist)%itype)
                               CASE (use_perd_x, use_perd_y, use_perd_z)
-                                 nfixd = nfixd+1
+                                 nfixd = nfixd + 1
                               CASE (use_perd_xy, use_perd_xz, use_perd_yz)
-                                 nfixd = nfixd+2
+                                 nfixd = nfixd + 2
                               CASE (use_perd_xyz)
-                                 nfixd = nfixd+3
+                                 nfixd = nfixd + 3
                               END SELECT
                            END IF
                         END DO
                      END DO
                   END IF
-                  const_mol(icount) = nc+nfixd
+                  const_mol(icount) = nc + nfixd
                   tot_const(icount) = const_mol(icount)
                END IF
                atm_offset = point(2, icount)
@@ -938,11 +938,11 @@ CONTAINS
                      ! are in the same thermostatting region..
                      imol = local_molecules%list(ikind)%array(imol_local)
                      molecule => molecule_set(imol)
-                     id_region = map_loc_thermo_gen(atm_offset+1)
-                     IF (ALL(map_loc_thermo_gen(atm_offset+1:atm_offset+natom) == id_region)) THEN
+                     id_region = map_loc_thermo_gen(atm_offset + 1)
+                     IF (ALL(map_loc_thermo_gen(atm_offset + 1:atm_offset + natom) == id_region)) THEN
                         ! All the atoms of a molecule are within the same thermostatting
                         ! region.. this is the easy case..
-                        tot_const(id_region) = tot_const(id_region)+nc
+                        tot_const(id_region) = tot_const(id_region) + nc
                      ELSE
                         ! If not let's check the single constraints defined for this molecule
                         ! and continue only when atoms involved in the constraint belong to
@@ -950,9 +950,9 @@ CONTAINS
                         IF (ASSOCIATED(colv_list)) THEN
                            DO i = 1, SIZE(colv_list)
                               IF (.NOT. colv_list(i)%restraint%active) THEN
-                                 iatm = atm_offset+colv_list(i)%i_atoms(1)
+                                 iatm = atm_offset + colv_list(i)%i_atoms(1)
                                  DO j = 2, SIZE(colv_list(i)%i_atoms)
-                                    jatm = atm_offset+colv_list(i)%i_atoms(j)
+                                    jatm = atm_offset + colv_list(i)%i_atoms(j)
                                     IF (map_loc_thermo_gen(iatm) /= map_loc_thermo_gen(jatm)) THEN
                                        CALL cp_abort(__LOCATION__, &
                                                      "User Defined Region: "// &
@@ -961,22 +961,22 @@ CONTAINS
                                     END IF
                                  END DO
                                  id_region = map_loc_thermo_gen(iatm)
-                                 tot_const(id_region) = tot_const(id_region)+1
+                                 tot_const(id_region) = tot_const(id_region) + 1
                               END IF
                            END DO
                         END IF
                         IF (ASSOCIATED(g3x3_list)) THEN
                            DO i = 1, SIZE(g3x3_list)
                               IF (.NOT. g3x3_list(i)%restraint%active) THEN
-                                 iatm = atm_offset+g3x3_list(i)%a
-                                 jatm = atm_offset+g3x3_list(i)%b
+                                 iatm = atm_offset + g3x3_list(i)%a
+                                 jatm = atm_offset + g3x3_list(i)%b
                                  IF (map_loc_thermo_gen(iatm) /= map_loc_thermo_gen(jatm)) THEN
                                     CALL cp_abort(__LOCATION__, &
                                                   "User Defined Region: "// &
                                                   "A constraint (G3X3) was defined between two thermostatting regions! "// &
                                                   "This is not allowed!")
                                  END IF
-                                 jatm = atm_offset+g3x3_list(i)%c
+                                 jatm = atm_offset + g3x3_list(i)%c
                                  IF (map_loc_thermo_gen(iatm) /= map_loc_thermo_gen(jatm)) THEN
                                     CALL cp_abort(__LOCATION__, &
                                                   "User Defined Region: "// &
@@ -985,28 +985,28 @@ CONTAINS
                                  END IF
                               END IF
                               id_region = map_loc_thermo_gen(iatm)
-                              tot_const(id_region) = tot_const(id_region)+3
+                              tot_const(id_region) = tot_const(id_region) + 3
                            END DO
                         END IF
                         IF (ASSOCIATED(g4x6_list)) THEN
                            DO i = 1, SIZE(g4x6_list)
                               IF (.NOT. g4x6_list(i)%restraint%active) THEN
-                                 iatm = atm_offset+g4x6_list(i)%a
-                                 jatm = atm_offset+g4x6_list(i)%b
+                                 iatm = atm_offset + g4x6_list(i)%a
+                                 jatm = atm_offset + g4x6_list(i)%b
                                  IF (map_loc_thermo_gen(iatm) /= map_loc_thermo_gen(jatm)) THEN
                                     CALL cp_abort(__LOCATION__, &
                                                   " User Defined Region: "// &
                                                   "A constraint (G4X6) was defined between two thermostatting regions! "// &
                                                   "This is not allowed!")
                                  END IF
-                                 jatm = atm_offset+g4x6_list(i)%c
+                                 jatm = atm_offset + g4x6_list(i)%c
                                  IF (map_loc_thermo_gen(iatm) /= map_loc_thermo_gen(jatm)) THEN
                                     CALL cp_abort(__LOCATION__, &
                                                   " User Defined Region: "// &
                                                   "A constraint (G4X6) was defined between two thermostatting regions! "// &
                                                   "This is not allowed!")
                                  END IF
-                                 jatm = atm_offset+g4x6_list(i)%d
+                                 jatm = atm_offset + g4x6_list(i)%d
                                  IF (map_loc_thermo_gen(iatm) /= map_loc_thermo_gen(jatm)) THEN
                                     CALL cp_abort(__LOCATION__, &
                                                   " User Defined Region: "// &
@@ -1015,7 +1015,7 @@ CONTAINS
                                  END IF
                               END IF
                               id_region = map_loc_thermo_gen(iatm)
-                              tot_const(id_region) = tot_const(id_region)+6
+                              tot_const(id_region) = tot_const(id_region) + 6
                            END DO
                         END IF
                      END IF
@@ -1024,25 +1024,25 @@ CONTAINS
                         CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
                         iatm = 0
                         DO katom = first_atom, last_atom
-                           iatm = iatm+1
+                           iatm = iatm + 1
                            DO ilist = 1, SIZE(fixd_list)
                               IF ((katom == fixd_list(ilist)%fixd) .AND. &
                                   (.NOT. fixd_list(ilist)%restraint%active)) THEN
-                                 id_region = map_loc_thermo_gen(atm_offset+iatm)
-                                 SELECT CASE (fixd_list (ilist)%itype)
+                                 id_region = map_loc_thermo_gen(atm_offset + iatm)
+                                 SELECT CASE (fixd_list(ilist)%itype)
                                  CASE (use_perd_x, use_perd_y, use_perd_z)
-                                    tot_const(id_region) = tot_const(id_region)+1
+                                    tot_const(id_region) = tot_const(id_region) + 1
                                  CASE (use_perd_xy, use_perd_xz, use_perd_yz)
-                                    tot_const(id_region) = tot_const(id_region)+2
+                                    tot_const(id_region) = tot_const(id_region) + 2
                                  CASE (use_perd_xyz)
-                                    tot_const(id_region) = tot_const(id_region)+3
+                                    tot_const(id_region) = tot_const(id_region) + 3
                                  END SELECT
                               END IF
                            END DO
                         END DO
                      END IF
                   END IF
-                  atm_offset = atm_offset+natom
+                  atm_offset = atm_offset + natom
                END DO
             END DO
             CALL mp_sum(tot_const, para_env%group)
@@ -1063,10 +1063,10 @@ CONTAINS
                   const_mol(ikind) = nc
                   ! Let's consider the fixed atoms only for the total number of constraints
                   ! in case we are in REPLICATED/INTERACTING thermostats
-                  tot_const(ikind) = const_mol(ikind)*nmolecule+nfixd
+                  tot_const(ikind) = const_mol(ikind)*nmolecule + nfixd
                END IF
-               point(1, ikind) = atm_offset+1
-               point(2, ikind) = atm_offset+natom*nmol_per_kind
+               point(1, ikind) = atm_offset + 1
+               point(2, ikind) = atm_offset + natom*nmol_per_kind
                atm_offset = point(2, ikind)
             END DO
          END IF
@@ -1129,14 +1129,14 @@ CONTAINS
                IF (shell) THEN
                   natom = nshell
                END IF
-               num_massive_atm_local = num_massive_atm_local+natom
+               num_massive_atm_local = num_massive_atm_local + natom
                CALL reallocate(local_atm_list, 1, num_massive_atm_local)
                CALL get_molecule(molecule, first_atom=first_atom, first_shell=first_shell)
                IF (shell) THEN
                   first_atom = first_shell
                END IF
                DO j = 1, natom
-                  local_atm_list(num_massive_atm_local-natom+j) = first_atom-1+j
+                  local_atm_list(num_massive_atm_local - natom + j) = first_atom - 1 + j
                END DO
             END IF
          END DO
@@ -1152,19 +1152,19 @@ CONTAINS
       DO iproc = 1, para_env%num_pe
          ncount = array_num_massive_atm(iproc)
          ALLOCATE (work(ncount))
-         IF (para_env%mepos == (iproc-1)) THEN
+         IF (para_env%mepos == (iproc - 1)) THEN
             DO i = 1, ncount
                work(i) = local_atm_list(i)
             END DO
          ELSE
             work(:) = 0
          END IF
-         CALL mp_bcast(work, iproc-1, para_env%group)
+         CALL mp_bcast(work, iproc - 1, para_env%group)
          DO i = 1, ncount
-            massive_atom_list(offset+i) = work(i)
+            massive_atom_list(offset + i) = work(i)
          END DO
          DEALLOCATE (work)
-         offset = offset+array_num_massive_atm(iproc)
+         offset = offset + array_num_massive_atm(iproc)
       END DO
 
       ! Sort atom list

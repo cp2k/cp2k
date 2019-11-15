@@ -287,7 +287,7 @@ CONTAINS
 
       DEALLOCATE (minimax_aw)
 
-      CPASSERT(param%zet_max+1.0E-12 .GT. param%zet_min)
+      CPASSERT(param%zet_max + 1.0E-12 .GT. param%zet_min)
       CPASSERT(param%n_grids .GE. 1)
 
       cutoff_max = param%cutoff
@@ -338,11 +338,11 @@ CONTAINS
       ! for first grid (for max. cutoff) always use default n_minimax
       CALL get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax=err_mm, &
                                       potential=potential, pot_par=pot_par)
-      CPASSERT(err_mm .LT. 1.1_dp*target_error+1.0E-12)
+      CPASSERT(err_mm .LT. 1.1_dp*target_error + 1.0E-12)
       CALL create_minimax_grid(minimax_grids(n_grids), cutoff, n_minimax, minimax_aw, err_mm)
       DEALLOCATE (minimax_aw)
 
-      DO i_grid = n_grids-1, 1, -1
+      DO i_grid = n_grids - 1, 1, -1
          DO n_mm = n_minimax, 1, -1
             ALLOCATE (minimax_aw(2*n_mm))
             CALL get_minimax_coeff_v_gspace(n_mm, cutoff, G_min, minimax_aw, err_minimax=err_mm, &
@@ -350,7 +350,7 @@ CONTAINS
 
             IF (err_mm .GT. 1.1_dp*target_error) THEN
                CPASSERT(n_mm .NE. n_minimax)
-               CALL create_minimax_grid(minimax_grids(i_grid), cutoff, n_mm+1, minimax_aw_prev, err_mm_prev)
+               CALL create_minimax_grid(minimax_grids(i_grid), cutoff, n_mm + 1, minimax_aw_prev, err_mm_prev)
 
                DEALLOCATE (minimax_aw)
                EXIT

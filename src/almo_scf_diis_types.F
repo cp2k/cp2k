@@ -258,7 +258,7 @@ CONTAINS
 
       ! update the buffer length
       old_buffer_length = diis_env%buffer_length
-      diis_env%buffer_length = diis_env%buffer_length+1
+      diis_env%buffer_length = diis_env%buffer_length + 1
       IF (diis_env%buffer_length .GT. diis_env%max_buffer_length) &
          diis_env%buffer_length = diis_env%max_buffer_length
 
@@ -287,15 +287,15 @@ CONTAINS
       ! resize B matrix and update its elements
       ndomains = SIZE(diis_env%m_b)
       IF (old_buffer_length .LT. diis_env%buffer_length) THEN
-         ALLOCATE (m_b_tmp(diis_env%buffer_length+1, diis_env%buffer_length+1))
+         ALLOCATE (m_b_tmp(diis_env%buffer_length + 1, diis_env%buffer_length + 1))
          DO idomain = 1, ndomains
             IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
                m_b_tmp(:, :) = 0.0_dp
                m_b_tmp(1:diis_env%buffer_length, 1:diis_env%buffer_length) = &
                   diis_env%m_b(idomain)%mdata(:, :)
                DEALLOCATE (diis_env%m_b(idomain)%mdata)
-               ALLOCATE (diis_env%m_b(idomain)%mdata(diis_env%buffer_length+1, &
-                                                     diis_env%buffer_length+1))
+               ALLOCATE (diis_env%m_b(idomain)%mdata(diis_env%buffer_length + 1, &
+                                                     diis_env%buffer_length + 1))
                diis_env%m_b(idomain)%mdata(:, :) = m_b_tmp(:, :)
             ENDIF
          ENDDO
@@ -303,8 +303,8 @@ CONTAINS
       ENDIF
       DO idomain = 1, ndomains
          IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
-            diis_env%m_b(idomain)%mdata(1, in_point+1) = -1.0_dp
-            diis_env%m_b(idomain)%mdata(in_point+1, 1) = -1.0_dp
+            diis_env%m_b(idomain)%mdata(1, in_point + 1) = -1.0_dp
+            diis_env%m_b(idomain)%mdata(in_point + 1, 1) = -1.0_dp
             DO irow = 1, diis_env%buffer_length
                IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
                   trace0 = almo_scf_diis_error_overlap(diis_env, &
@@ -314,14 +314,14 @@ CONTAINS
                                                        d_A=diis_env%d_err(irow, idomain), &
                                                        d_B=diis_env%d_err(in_point, idomain))
                ENDIF
-               diis_env%m_b(idomain)%mdata(irow+1, in_point+1) = trace0
-               diis_env%m_b(idomain)%mdata(in_point+1, irow+1) = trace0
+               diis_env%m_b(idomain)%mdata(irow + 1, in_point + 1) = trace0
+               diis_env%m_b(idomain)%mdata(in_point + 1, irow + 1) = trace0
             ENDDO ! loop over prev errors
          ENDIF
       ENDDO ! loop over domains
 
       ! update the insertion point for the next "PUSH"
-      diis_env%in_point = diis_env%in_point+1
+      diis_env%in_point = diis_env%in_point + 1
       IF (diis_env%in_point .GT. diis_env%max_buffer_length) diis_env%in_point = 1
 
       CALL timestop(handle)
@@ -376,8 +376,8 @@ CONTAINS
       ENDIF
 
       ! Prepare data
-      ALLOCATE (eigenvalues(diis_env%buffer_length+1))
-      ALLOCATE (m_b_copy(diis_env%buffer_length+1, diis_env%buffer_length+1))
+      ALLOCATE (eigenvalues(diis_env%buffer_length + 1))
+      ALLOCATE (m_b_copy(diis_env%buffer_length + 1, diis_env%buffer_length + 1))
 
       ndomains = SIZE(diis_env%m_b)
 
@@ -390,15 +390,15 @@ CONTAINS
             ! Query the optimal workspace for dsyev
             LWORK = -1
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', diis_env%buffer_length+1, m_b_copy, &
-                       diis_env%buffer_length+1, eigenvalues, WORK, LWORK, INFO)
+            CALL DSYEV('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
+                       diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
             LWORK = INT(WORK(1))
             DEALLOCATE (WORK)
 
             ! Allocate the workspace and solve the eigenproblem
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', diis_env%buffer_length+1, m_b_copy, &
-                       diis_env%buffer_length+1, eigenvalues, WORK, LWORK, INFO)
+            CALL DSYEV('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
+                       diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
             IF (INFO .NE. 0) THEN
                CPABORT("DSYEV failed")
             END IF
@@ -411,8 +411,8 @@ CONTAINS
             !! tmp1(:,1)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
             !! coeff=MATMUL(m_b_copy,tmp1)
             !! DEALLOCATE(tmp1)
-            ALLOCATE (tmp1(diis_env%buffer_length+1))
-            ALLOCATE (coeff(diis_env%buffer_length+1))
+            ALLOCATE (tmp1(diis_env%buffer_length + 1))
+            ALLOCATE (coeff(diis_env%buffer_length + 1))
             tmp1(:) = -1.0_dp*m_b_copy(1, :)/eigenvalues(:)
             coeff(:) = MATMUL(m_b_copy, tmp1)
             DEALLOCATE (tmp1)
@@ -430,8 +430,8 @@ CONTAINS
                CALL dbcsr_set(extr_var, 0.0_dp)
                DO im = 1, diis_env%buffer_length
                   CALL dbcsr_add(extr_var, diis_env%m_var(im), &
-                                 1.0_dp, coeff(im+1))
-                  checksum = checksum+coeff(im+1)
+                                 1.0_dp, coeff(im + 1))
+                  checksum = checksum + coeff(im + 1)
                ENDDO
             ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
                CALL copy_submatrices(diis_env%d_var(1, idomain), &
@@ -440,9 +440,9 @@ CONTAINS
                CALL set_submatrices(d_extr_var(idomain), 0.0_dp)
                DO im = 1, diis_env%buffer_length
                   CALL add_submatrices(1.0_dp, d_extr_var(idomain), &
-                                       coeff(im+1), diis_env%d_var(im, idomain), &
+                                       coeff(im + 1), diis_env%d_var(im, idomain), &
                                        'N')
-                  checksum = checksum+coeff(im+1)
+                  checksum = checksum + coeff(im + 1)
                ENDDO
             ENDIF
             !WRITE(*,*) checksum

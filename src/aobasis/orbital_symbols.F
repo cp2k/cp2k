@@ -69,14 +69,14 @@ CONTAINS
       DO i = 1, 3
          IF (lxyz(i) > 0) THEN
             symbol(ipos:ipos) = xyz(i)
-            ipos = ipos+1
+            ipos = ipos + 1
             IF (lxyz(i) > 1) THEN
                IF (lxyz(i) < 10) THEN
                   WRITE (symbol(ipos:ipos), "(I1)") lxyz(i)
-                  ipos = ipos+1
+                  ipos = ipos + 1
                ELSE IF (lxyz(i) < 100) THEN
-                  WRITE (symbol(ipos:ipos+1), "(I2)") lxyz(i)
-                  ipos = ipos+2
+                  WRITE (symbol(ipos:ipos + 1), "(I2)") lxyz(i)
+                  ipos = ipos + 2
                ELSE
                   CPABORT("Invalid magnetic quantum number specified")
                END IF
@@ -124,7 +124,7 @@ CONTAINS
 
       IF ((l >= 0) .AND. (l <= 11)) THEN
          symbol(i:i) = l_sym(l)
-         i = i+1
+         i = i + 1
       ELSE
          CPABORT("Invalid angular momentum quantum number specified")
       END IF
@@ -136,9 +136,9 @@ CONTAINS
             IF (m == 0) THEN
                WRITE (symbol(i:i), "(I1)") m
             ELSE IF (ABS(m) < 10) THEN
-               WRITE (symbol(i:i+1), "(SP,I2)") m
+               WRITE (symbol(i:i + 1), "(SP,I2)") m
             ELSE IF (ABS(m) < 100) THEN
-               WRITE (symbol(i:i+2), "(SP,I3)") m
+               WRITE (symbol(i:i + 2), "(SP,I3)") m
             END IF
          END IF
       ELSE

@@ -256,7 +256,7 @@ CONTAINS
       CPASSERT(SIZE(x1) .EQ. 3)
       CPASSERT(SIZE(x2) .EQ. 3)
 
-      dist_vec(:) = x2(:)-x1(:) ! distance vector between atoms
+      dist_vec(:) = x2(:) - x1(:) ! distance vector between atoms
       ALLOCATE (tmp_box_scale(3))
       IF (PRESENT(box_scale)) THEN
          CPASSERT(SIZE(box_scale) .EQ. 3)
@@ -293,8 +293,8 @@ CONTAINS
 
       center = 0.0_dp
       DO i = 1, SIZE(pos), SIZE(center)
-         center(:) = center(:)+ &
-                     pos(i:i+SIZE(center)-1)/(SIZE(pos)/REAL(SIZE(center), KIND=dp))
+         center(:) = center(:) + &
+                     pos(i:i + SIZE(center) - 1)/(SIZE(pos)/REAL(SIZE(center), KIND=dp))
       END DO
       ! end the timing
       CALL timestop(handle)
@@ -331,13 +331,13 @@ CONTAINS
       DO i = 1, SIZE(pos), SIZE(center)
          IF (PRESENT(atoms)) THEN
             CPASSERT(SIZE(atoms) .EQ. SIZE(pos)/SIZE(center))
-            mass_tmp = atoms(INT(i/REAL(SIZE(center), KIND=dp))+1)%mass
-            center(:) = center(:)+pos(i:i+SIZE(center)-1)/ &
+            mass_tmp = atoms(INT(i/REAL(SIZE(center), KIND=dp)) + 1)%mass
+            center(:) = center(:) + pos(i:i + SIZE(center) - 1)/ &
                         (SIZE(pos)/REAL(SIZE(center), KIND=dp))*mass_tmp
-            mass_sum = mass_sum+mass_tmp
+            mass_sum = mass_sum + mass_tmp
          ELSE
             CPWARN("try to calculate center of mass without any mass.")
-            center(:) = center(:)+pos(i:i+SIZE(center)-1)/ &
+            center(:) = center(:) + pos(i:i + SIZE(center) - 1)/ &
                         (SIZE(pos)/REAL(SIZE(center), KIND=dp))
             mass_sum = 1.0_dp
          END IF
@@ -380,7 +380,7 @@ CONTAINS
          rnd1 = next_random_number(rng_stream)
          rnd2 = next_random_number(rng_stream)
 
-         mass_tmp = atoms(INT(i/REAL(3, KIND=dp))+1)%mass
+         mass_tmp = atoms(INT(i/REAL(3, KIND=dp)) + 1)%mass
 
          vel(i) = SQRT(-2.0_dp*LOG(rnd1))*COS(2.0_dp*PI*rnd2)* &
                   SQRT(kB*temerature/mass_tmp)
@@ -413,8 +413,8 @@ CONTAINS
       ekin = 0.0_dp
 
       DO i = 1, SIZE(vel)
-         mass_tmp = atoms(INT(i/REAL(3, KIND=dp))+1)%mass
-         ekin = ekin+0.5_dp*mass_tmp*vel(i)*vel(i)
+         mass_tmp = atoms(INT(i/REAL(3, KIND=dp)) + 1)%mass
+         ekin = ekin + 0.5_dp*mass_tmp*vel(i)*vel(i)
       END DO
    END FUNCTION calc_e_kin
 
@@ -454,21 +454,21 @@ CONTAINS
       CALL swap(e2, e3)
       ! we need extra care if some of the difference e1-e2, e3-e2 are nearly zero,
       !  since the formulae suffer from sever loss of precision
-      d12 = e1-e2
-      d23 = e2-e3
-      ddd = d12-d23
+      d12 = e1 - e2
+      d23 = e2 - e3
+      ddd = d12 - d23
       IF (d12 == 0 .OR. d23 == 0 .OR. ABS(ddd) == 0) THEN
          ! a degenerate case, we do no extrapolation
          extrapolate = e3
-         res_err = e1-e3
+         res_err = e1 - e3
       ELSE
          a = d23/d12
          b = (d12**3/(d23*ddd))
-         c = e2-(d12*d23)/ddd
+         c = e2 - (d12*d23)/ddd
          ! extrapolation, let's only look 4 iterations ahead, more is presumably anyway not accurate
          ! fewer is maybe more stable
-         extrapolate = a**7*b+c
-         res_err = e3-extrapolate
+         extrapolate = a**7*b + c
+         res_err = e3 - extrapolate
       ENDIF
       CPASSERT(extrapolate .NE. HUGE(extrapolate))
    CONTAINS
@@ -518,11 +518,11 @@ CONTAINS
 !    REAL(KIND=dp) :: diff,E_n,E_o,surface,lower_bound,upper_bound,delta
 
       prob = 0.5_dp*ERFC(-0.5_dp*SQRT(2.0_dp)*( &
-                         (-prior_sigma**2-E_o_sigma**2-E_n_sigma**2)*LOG(p)+ &
-                         ((E_classical_diff-E_n_mu+E_o_mu)*prior_sigma**2-prior_mu*(E_n_sigma**2+E_o_sigma**2))*beta)/ &
-                         (SQRT(E_o_sigma**2+E_n_sigma**2)*SQRT(prior_sigma**2+E_o_sigma**2+E_n_sigma**2)*prior_sigma*beta))
+                         (-prior_sigma**2 - E_o_sigma**2 - E_n_sigma**2)*LOG(p) + &
+                         ((E_classical_diff - E_n_mu + E_o_mu)*prior_sigma**2 - prior_mu*(E_n_sigma**2 + E_o_sigma**2))*beta)/ &
+                         (SQRT(E_o_sigma**2 + E_n_sigma**2)*SQRT(prior_sigma**2 + E_o_sigma**2 + E_n_sigma**2)*prior_sigma*beta))
 
-      prob = MIN(1.0_dp-EPSILON(1.0_dp), MAX(EPSILON(1.0_dp), prob))
+      prob = MIN(1.0_dp - EPSILON(1.0_dp), MAX(EPSILON(1.0_dp), prob))
 
    END FUNCTION compute_prob
 
@@ -568,32 +568,32 @@ CONTAINS
          ! using 3 point extrapolation of two different intervals -> more stable estimation
          ! the energies are sorted in the three_point_extrapolate routine !
          ! But with array of length 4 we have to select the 3 connected ones
-         CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count-3, 4)+1), &
-                                      v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count-2, 4)+1), &
-                                      v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count-1, 4)+1), &
+         CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 3, 4) + 1), &
+                                      v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 2, 4) + 1), &
+                                      v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 1, 4) + 1), &
                                       extrapolate=E_mu_tmp, res_err=E_sigma_tmp)
          IF ((elem_new%scf_energies_count .GT. 3)) THEN
-            CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count-4, 4)+1), &
-                                         v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count-3, 4)+1), &
-                                         v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count-2, 4)+1), &
+            CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 4, 4) + 1), &
+                                         v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 3, 4) + 1), &
+                                         v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 2, 4) + 1), &
                                          extrapolate=E_n_mu, res_err=E_n_sigma)
-            E_n_sigma = MAX(E_n_sigma, ABS(E_n_mu-E_mu_tmp))
+            E_n_sigma = MAX(E_n_sigma, ABS(E_n_mu - E_mu_tmp))
          ELSE
             E_n_sigma = E_sigma_tmp
             E_n_mu = E_mu_tmp
          END IF
 
          !-- the old/parent element energy estimation
-         CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count-3, 4)+1), &
-                                      v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count-2, 4)+1), &
-                                      v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count-1, 4)+1), &
+         CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 3, 4) + 1), &
+                                      v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 2, 4) + 1), &
+                                      v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 1, 4) + 1), &
                                       extrapolate=E_mu_tmp, res_err=E_sigma_tmp)
          IF ((elem_old%scf_energies_count .GT. 3)) THEN
-            CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count-4, 4)+1), &
-                                         v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count-3, 4)+1), &
-                                         v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count-2, 4)+1), &
+            CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 4, 4) + 1), &
+                                         v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 3, 4) + 1), &
+                                         v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 2, 4) + 1), &
                                          extrapolate=E_o_mu, res_err=E_o_sigma)
-            E_o_sigma = MAX(E_o_sigma, ABS(E_o_mu-E_mu_tmp))
+            E_o_sigma = MAX(E_o_sigma, ABS(E_o_mu - E_mu_tmp))
          ELSE
             E_o_sigma = E_sigma_tmp
             E_o_mu = E_mu_tmp
@@ -601,7 +601,7 @@ CONTAINS
 
          ! calculate the estimation for the average of the trajectory elements
          prior_sigma = SQRT(ABS(tmc_params%prior_NMC_acc%aver_2 &
-                                -tmc_params%prior_NMC_acc%aver**2))
+                                - tmc_params%prior_NMC_acc%aver**2))
 
          ! calculate the probability of acceptance for those two elements with their energy
          ! swap and 2 potential moves are distinguished using the difference in classical energy and different betas
@@ -640,7 +640,7 @@ CONTAINS
          IF (tmc_env%m_env%tree_node_count(i) > 0) &
             eff(i) = tmc_env%params%move_types%mv_count(0, i)/ &
                      (tmc_env%m_env%tree_node_count(i)*1.0_dp)
-         eff(0) = eff(0)+tmc_env%params%move_types%mv_count(0, i)/ &
+         eff(0) = eff(0) + tmc_env%params%move_types%mv_count(0, i)/ &
                   (SUM(tmc_env%m_env%tree_node_count(1:))*1.0_dp)
       END DO
    END SUBROUTINE get_subtree_efficiency

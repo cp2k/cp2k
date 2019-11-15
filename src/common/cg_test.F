@@ -69,10 +69,10 @@ CONTAINS
          tstart = m_walltime()
          CALL clebsch_gordon_init(l)
          tend = m_walltime()
-         tend = tend-tstart
+         tend = tend - tstart
          WRITE (iw, '(T30,A,T71,F10.3)') " Time for Clebsch-Gordon Table [s] ", tend
-         lp = (l**4+6*l**3+15*l**2+18*l+8)/8
-         lp = 2*lp*(l+1)
+         lp = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8
+         lp = 2*lp*(l + 1)
          WRITE (iw, '(T30,A,T71,I10)') "      Size of Clebsch-Gordon Table ", lp
          WRITE (iw, '(/,A)') " Start Test for Complex Spherical Harmonics "
 
@@ -83,14 +83,14 @@ CONTAINS
                   DO m2 = -l2, l2
                      CALL y_lm(lebedev_grid(ll)%r, a2, l2, m2)
                      CALL clebsch_gordon(l1, m1, l2, m2, cga)
-                     DO lp = MOD(l1+l2, 2), l1+l2, 2
-                        mp = m1+m2
+                     DO lp = MOD(l1 + l2, 2), l1 + l2, 2
+                        mp = m1 + m2
                         IF (lp < ABS(mp)) CYCLE
                         CALL y_lm(lebedev_grid(ll)%r, a3, lp, mp)
                         cn = REAL(SUM(a1*a2*CONJG(a3)*wa), KIND=dp)
-                        il = lp/2+1
+                        il = lp/2 + 1
                         ca = cga(il)
-                        IF (ABS(ca-cn) > 1.e-10_dp) THEN
+                        IF (ABS(ca - cn) > 1.e-10_dp) THEN
                            WRITE (*, '(A,3I5,A,F20.12)') " l ", l1, l2, lp, " A ", ca
                            WRITE (*, '(A,3I5,A,F20.12)') " m ", m1, m2, mp, " N ", cn
                            WRITE (*, *)
@@ -110,8 +110,8 @@ CONTAINS
                   DO m2 = -l2, l2
                      CALL y_lm(lebedev_grid(ll)%r, b2, l2, m2)
                      CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                     mp = m1+m2
-                     mm = m1-m2
+                     mp = m1 + m2
+                     mm = m1 - m2
                      IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
                         mp = -ABS(mp)
                         mm = -ABS(mm)
@@ -119,13 +119,13 @@ CONTAINS
                         mp = ABS(mp)
                         mm = ABS(mm)
                      END IF
-                     DO lp = MOD(l1+l2, 2), l1+l2, 2
+                     DO lp = MOD(l1 + l2, 2), l1 + l2, 2
                         IF (ABS(mp) <= lp) THEN
                            CALL y_lm(lebedev_grid(ll)%r, b3, lp, mp)
                            cn = SUM(b1*b2*b3*wa)
-                           il = lp/2+1
+                           il = lp/2 + 1
                            ca = rga(il, 1)
-                           IF (ABS(ca-cn) > 1.e-10_dp) THEN
+                           IF (ABS(ca - cn) > 1.e-10_dp) THEN
                               WRITE (*, '(A,3I5,A,F20.12)') " l ", l1, l2, lp, " A ", ca
                               WRITE (*, '(A,3I5,A,F20.12)') " m ", m1, m2, mp, " N ", cn
                               WRITE (*, *)
@@ -134,9 +134,9 @@ CONTAINS
                         IF (mp /= mm .AND. ABS(mm) <= lp) THEN
                            CALL y_lm(lebedev_grid(ll)%r, b3, lp, mm)
                            cn = SUM(b1*b2*b3*wa)
-                           il = lp/2+1
+                           il = lp/2 + 1
                            ca = rga(il, 2)
-                           IF (ABS(ca-cn) > 1.e-10_dp) THEN
+                           IF (ABS(ca - cn) > 1.e-10_dp) THEN
                               WRITE (*, '(A,3I5,A,F20.12)') " l ", l1, l2, lp, " A ", ca
                               WRITE (*, '(A,3I5,A,F20.12)') " m ", m1, m2, mm, " N ", cn
                               WRITE (*, *)

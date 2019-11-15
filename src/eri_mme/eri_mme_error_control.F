@@ -94,7 +94,7 @@ CONTAINS
 
       max_iter = 100
 
-      IF ((cutoff_r-cutoff_l)/(0.5_dp*(cutoff_r+cutoff_l)) .LE. tol) &
+      IF ((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) .LE. tol) &
          CALL cp_abort(__LOCATION__, "difference of boundaries for cutoff "// &
                        "(MAX - MIN) must be greater than cutoff precision.")
 
@@ -114,7 +114,7 @@ CONTAINS
       ENDIF
 
       ! 1) find valid initial values for bisection
-      DO iter1 = 1, max_iter+1
+      DO iter1 = 1, max_iter + 1
          IF (iter1 .GT. max_iter) &
             CALL cp_abort(__LOCATION__, &
                           "Maximum number of iterations in bisection to determine initial "// &
@@ -129,12 +129,12 @@ CONTAINS
          ENDDO
 
          valid_initial = .TRUE.
-         IF ((delta_mm(1)-delta_c(1)) .GT. 0) THEN
-            cutoff_lr(1) = cutoff_lr(1)*(1.0_dp-ABS(delta))
+         IF ((delta_mm(1) - delta_c(1)) .GT. 0) THEN
+            cutoff_lr(1) = cutoff_lr(1)*(1.0_dp - ABS(delta))
             valid_initial = .FALSE.
          ENDIF
-         IF ((delta_mm(2)-delta_c(2)) .LT. 0) THEN
-            cutoff_lr(2) = cutoff_lr(2)*(1.0_dp+ABS(delta))
+         IF ((delta_mm(2) - delta_c(2)) .LT. 0) THEN
+            cutoff_lr(2) = cutoff_lr(2)*(1.0_dp + ABS(delta))
             valid_initial = .FALSE.
          ENDIF
 
@@ -145,20 +145,20 @@ CONTAINS
       IF (do_print) WRITE (unit_nr, '(/T2, A)') &
          "ERI_MME| Step, cutoff (min, max, mid), err(minimax), err(cutoff), err diff"
 
-      DO iter2 = 1, max_iter+1
+      DO iter2 = 1, max_iter + 1
          IF (iter2 .GT. max_iter) &
             CALL cp_abort(__LOCATION__, &
                           "Maximum number of iterations in bisection to determine cutoff has been exceeded")
 
-         cutoff_mid = 0.5_dp*(cutoff_lr(1)+cutoff_lr(2))
+         cutoff_mid = 0.5_dp*(cutoff_lr(1) + cutoff_lr(2))
          CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_min, l_mm, zet_max, l_max_zet, &
                                    n_minimax, minimax_aw, delta_mm_mid, delta_c_mid, C_mm, para_env)
          IF (do_print) WRITE (unit_nr, '(T11, I2, F11.1, F11.1, F11.1, 3X, ES9.2, 3X, ES9.2, 3X, ES9.2)') &
             iter2, cutoff_lr(1), cutoff_lr(2), cutoff_mid, &
-            delta_mm_mid, delta_c_mid, delta_mm_mid-delta_c_mid
+            delta_mm_mid, delta_c_mid, delta_mm_mid - delta_c_mid
 
-         IF ((cutoff_lr(2)-cutoff_lr(1))/cutoff_mid .LT. tol) EXIT
-         IF (delta_mm_mid-delta_c_mid .GT. 0) THEN
+         IF ((cutoff_lr(2) - cutoff_lr(1))/cutoff_mid .LT. tol) EXIT
+         IF (delta_mm_mid - delta_c_mid .GT. 0) THEN
             cutoff_lr(2) = cutoff_mid
             delta_mm(2) = delta_mm_mid
             delta_c(2) = delta_c_mid
@@ -174,8 +174,8 @@ CONTAINS
 
       IF (do_print) THEN
          WRITE (unit_nr, '(/T2, A)') "ERI_MME| Cutoff calibration number of steps:"
-         WRITE (unit_nr, '(T2, A, T79, I2)') "ERI_MME|   Steps for initial interval", iter1-1
-         WRITE (unit_nr, '(T2, A, T79, I2/)') "ERI_MME|   Bisection iteration steps", iter2-1
+         WRITE (unit_nr, '(T2, A, T79, I2)') "ERI_MME|   Steps for initial interval", iter1 - 1
+         WRITE (unit_nr, '(T2, A, T79, I2/)') "ERI_MME|   Bisection iteration steps", iter2 - 1
       ENDIF
 
    END SUBROUTINE calibrate_cutoff
@@ -263,7 +263,7 @@ CONTAINS
 
       prod_mm_k = 1.0_dp
       DO i_xyz = 1, 3
-         prod_mm_k = prod_mm_k*(ABS(hmat(i_xyz, i_xyz))/twopi+ &
+         prod_mm_k = prod_mm_k*(ABS(hmat(i_xyz, i_xyz))/twopi + &
                                 MERGE(SQRT(2.0_dp/(zet_min*pi))*EXP(-1.0_dp), 0.0_dp, l_mm .GT. 0))
       ENDDO
       err_mm = 32*pi**4/vol*delta_mm*prod_mm_k
@@ -324,28 +324,28 @@ CONTAINS
       C_mm = 0.0_dp
       IF (G_1 .GT. G_c) THEN
          nG = 1000
-         dG = (G_1-G_c)/nG
+         dG = (G_1 - G_c)/nG
          G = G_c
          DO iG = 1, nG
             G = MIN(G, G_c)
             C = 0.0_dp
             DO i_aw = 1, n_minimax
-               C = C+3.0_dp*minimax_aw(n_minimax+i_aw)*EXP(-3.0_dp*minimax_aw(i_aw)*G**2)*G**2
+               C = C + 3.0_dp*minimax_aw(n_minimax + i_aw)*EXP(-3.0_dp*minimax_aw(i_aw)*G**2)*G**2
             ENDDO
             C_mm = MAX(C, C_mm)
-            G = G+dG
+            G = G + dG
          ENDDO
       ELSE
          DO i_aw = 1, n_minimax
-            C_mm = C_mm+3.0_dp*minimax_aw(n_minimax+i_aw)*EXP(-3.0_dp*minimax_aw(i_aw)*G_c**2)*G_c**2
+            C_mm = C_mm + 3.0_dp*minimax_aw(n_minimax + i_aw)*EXP(-3.0_dp*minimax_aw(i_aw)*G_c**2)*G_c**2
          ENDDO
       ENDIF
       C = MAX(1.0_dp, C_mm)
 
       err_ctff_prev = 0.0_dp
-      gr = 0.5_dp*(SQRT(5.0_dp)-1.0_dp) ! golden ratio
+      gr = 0.5_dp*(SQRT(5.0_dp) - 1.0_dp) ! golden ratio
       ! Find valid starting values for golden section search
-      DO iter = 1, max_iter+1
+      DO iter = 1, max_iter + 1
          IF (iter .GT. max_iter) &
             CALL cp_abort(__LOCATION__, "Maximum number of iterations for finding "// &
                           "exponent maximizing cutoff error has been exceeded.")
@@ -362,10 +362,10 @@ CONTAINS
       ENDDO
 
       ! Golden section search
-      zet_c = zet_b-gr*(zet_b-zet_a)
-      zet_d = zet_a+gr*(zet_b-zet_a)
-      DO iter = 1, max_iter+1
-         IF (ABS(zet_c-zet_d) .LT. eps_zet*(zet_a+zet_b)) THEN
+      zet_c = zet_b - gr*(zet_b - zet_a)
+      zet_d = zet_a + gr*(zet_b - zet_a)
+      DO iter = 1, max_iter + 1
+         IF (ABS(zet_c - zet_d) .LT. eps_zet*(zet_a + zet_b)) THEN
             CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_a, C, err0, para_env)
             CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_b, C, err1, para_env)
             err_ctff_curr = MAX(err0, err1)
@@ -376,11 +376,11 @@ CONTAINS
          IF (err_c .GT. err_d) THEN
             zet_b = zet_d
             zet_d = zet_c
-            zet_c = zet_b-gr*(zet_b-zet_a)
+            zet_c = zet_b - gr*(zet_b - zet_a)
          ELSE
             zet_a = zet_c
             zet_c = zet_d
-            zet_d = zet_a+gr*(zet_b-zet_a)
+            zet_d = zet_a + gr*(zet_b - zet_a)
          ENDIF
       ENDDO
       err_ctff = err_ctff_curr
@@ -455,27 +455,27 @@ CONTAINS
          !                               2.0_dp/3.0_dp, prefactor)
 
          ! Parallel code:
-         n_Gu = MAX((G_u-G_l), 0)
-         n_Gl = 2*G_l+1
+         n_Gu = MAX((G_u - G_l), 0)
+         n_Gl = 2*G_l + 1
          n_Gu_p = n_Gu/n_p
          n_Gl_p = n_Gl/n_p
          n_Gu_left = MOD(n_Gu, n_p)
          n_Gl_left = MOD(n_Gl, n_p)
 
          IF (my_p .LT. n_Gu_left) THEN
-            Gu_first = G_l+1+(n_Gu_p+1)*my_p
-            Gu_last = G_l+1+(n_Gu_p+1)*(my_p+1)-1
+            Gu_first = G_l + 1 + (n_Gu_p + 1)*my_p
+            Gu_last = G_l + 1 + (n_Gu_p + 1)*(my_p + 1) - 1
          ELSE
-            Gu_first = G_l+1+n_Gu_left+n_Gu_p*my_p
-            Gu_last = G_l+1+n_Gu_left+n_Gu_p*(my_p+1)-1
+            Gu_first = G_l + 1 + n_Gu_left + n_Gu_p*my_p
+            Gu_last = G_l + 1 + n_Gu_left + n_Gu_p*(my_p + 1) - 1
          ENDIF
 
          IF (my_p .LT. n_Gl_left) THEN
-            Gl_first = -G_l+(n_Gl_p+1)*my_p
-            Gl_last = -G_l+(n_Gl_p+1)*(my_p+1)-1
+            Gl_first = -G_l + (n_Gl_p + 1)*my_p
+            Gl_last = -G_l + (n_Gl_p + 1)*(my_p + 1) - 1
          ELSE
-            Gl_first = -G_l+n_Gl_left+n_Gl_p*my_p
-            Gl_last = -G_l+n_Gl_left+n_Gl_p*(my_p+1)-1
+            Gl_first = -G_l + n_Gl_left + n_Gl_p*my_p
+            Gl_last = -G_l + n_Gl_left + n_Gl_p*(my_p + 1) - 1
          ENDIF
 
          ! Sum |G| <= G_c
@@ -494,17 +494,17 @@ CONTAINS
 
       DO l = 0, l_max_zet
       DO ax = 0, l
-      DO ay = 0, l-ax
-         az = l-ax-ay
+      DO ay = 0, l - ax
+         az = l - ax - ay
 
          ! Compute prod_k (S_G_l(l_k,k) + S_G_u(l_k,k)) - prod_k (S_G_l(l_k,k)) with k in {x, y, z}
          ! Note: term by term multiplication to avoid subtraction for numerical stability
-         sum_G_diff = S_G_u(2*ax, 1)*S_G_u(2*ay, 2)*S_G_u(2*az, 3)+ &
-                      S_G_u(2*ax, 1)*S_G_u(2*ay, 2)*S_G_l(2*az, 3)+ &
-                      S_G_u(2*ax, 1)*S_G_l(2*ay, 2)*S_G_u(2*az, 3)+ &
-                      S_G_l(2*ax, 1)*S_G_u(2*ay, 2)*S_G_u(2*az, 3)+ &
-                      S_G_u(2*ax, 1)*S_G_l(2*ay, 2)*S_G_l(2*az, 3)+ &
-                      S_G_l(2*ax, 1)*S_G_u(2*ay, 2)*S_G_l(2*az, 3)+ &
+         sum_G_diff = S_G_u(2*ax, 1)*S_G_u(2*ay, 2)*S_G_u(2*az, 3) + &
+                      S_G_u(2*ax, 1)*S_G_u(2*ay, 2)*S_G_l(2*az, 3) + &
+                      S_G_u(2*ax, 1)*S_G_l(2*ay, 2)*S_G_u(2*az, 3) + &
+                      S_G_l(2*ax, 1)*S_G_u(2*ay, 2)*S_G_u(2*az, 3) + &
+                      S_G_u(2*ax, 1)*S_G_l(2*ay, 2)*S_G_l(2*az, 3) + &
+                      S_G_l(2*ax, 1)*S_G_u(2*ay, 2)*S_G_l(2*az, 3) + &
                       S_G_l(2*ax, 1)*S_G_l(2*ay, 2)*S_G_u(2*az, 3)
 
          err_c_l = 4.0_dp*pi**4*hermite_gauss_norm(zet_max, [ax, ay, az])**2* &

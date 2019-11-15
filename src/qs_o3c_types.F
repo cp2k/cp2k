@@ -153,7 +153,7 @@ CONTAINS
       nij = 0
       CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         nij = nij+1
+         nij = nij + 1
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
       o3c%nijpairs = nij
@@ -165,7 +165,7 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
       CALL neighbor_list_iterator_create(ac_iterator, sac_nl, search=.TRUE.)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         nij = nij+1
+         nij = nij + 1
          ijpair => o3c%ijpair(nij)
          CALL get_iterator_info(nl_iterator, ikind=ijpair%ikind, jkind=ijpair%jkind, &
                                 iatom=ijpair%iatom, jatom=ijpair%jatom, &
@@ -178,10 +178,10 @@ CONTAINS
                IF (my_sort_bc) THEN
                   !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
                   CALL get_iterator_info(ac_iterator, r=rik)
-                  rjk(:) = rik(:)-ijpair%rij(:)
+                  rjk(:) = rik(:) - ijpair%rij(:)
                   IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
                END IF
-               nk = nk+1
+               nk = nk + 1
             END DO
          END DO
          ! ijk lists
@@ -195,11 +195,11 @@ CONTAINS
                IF (my_sort_bc) THEN
                   !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
                   CALL get_iterator_info(ac_iterator, r=rik)
-                  rjk(:) = rik(:)-ijpair%rij(:)
+                  rjk(:) = rik(:) - ijpair%rij(:)
                   IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
                END IF
 
-               nk = nk+1
+               nk = nk + 1
                ijk => ijpair%ijk(nk)
                CALL get_iterator_info(ac_iterator, jatom=ijk%katom, r=ijk%rik, cell=ijk%cellk)
                ijk%kkind = kkind
@@ -383,8 +383,8 @@ CONTAINS
       o3c_iterator%o3c => o3c
       o3c_iterator%ijp_last = 0
       o3c_iterator%k_last = 0
-      ALLOCATE (o3c_iterator%ijp_thread(0:n-1))
-      ALLOCATE (o3c_iterator%k_thread(0:n-1))
+      ALLOCATE (o3c_iterator%ijp_thread(0:n - 1))
+      ALLOCATE (o3c_iterator%k_thread(0:n - 1))
       o3c_iterator%ijp_thread = 0
       o3c_iterator%k_thread = 0
 
@@ -534,7 +534,7 @@ CONTAINS
       ELSE IF (klist == o3c%ijpair(ijpair)%nklist) THEN
          ! last step in this ij list
          istat = 1
-         DO ij = ijpair+1, o3c%nijpairs
+         DO ij = ijpair + 1, o3c%nijpairs
             IF (o3c%ijpair(ij)%nklist > 0) THEN
                o3c_iterator%ijp_thread(me) = ij
                o3c_iterator%k_thread(me) = 1
@@ -545,7 +545,7 @@ CONTAINS
       ELSE
          ! increase klist
          o3c_iterator%ijp_thread(me) = ijpair
-         o3c_iterator%k_thread(me) = klist+1
+         o3c_iterator%k_thread(me) = klist + 1
          istat = 0
       END IF
 

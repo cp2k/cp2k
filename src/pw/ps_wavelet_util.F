@@ -123,16 +123,16 @@ CONTAINS
       !      nxc+nxcl+nxcr-2 = nwb
       !      nwb+nwbl+nwbr = nxt
       istart = iproc*(md2/nproc)
-      iend = MIN((iproc+1)*md2/nproc, m2)
+      iend = MIN((iproc + 1)*md2/nproc, m2)
 
-      nxc = iend-istart
+      nxc = iend - istart
       nwbl = 0
       nwbr = 0
       nxcl = 1
       nxcr = 1
 
-      nwb = nxcl+nxc+nxcr-2
-      nxt = nwbr+nwb+nwbl
+      nwb = nxcl + nxc + nxcr - 2
+      nxt = nwbr + nwb + nwbl
 
       !calculate the actual limit of the array for the zero padded FFT
       IF (geocode == 'P') THEN
@@ -146,12 +146,12 @@ CONTAINS
       !!$  print *,'density must go from',min(istart+1,m2),'to',iend,'with n2/2=',n2/2
       !!$  print *,'        it goes from',i3start+nwbl+nxcl-1,'to',i3start+nxc-1
 
-      IF (istart+1 <= m2) THEN
+      IF (istart + 1 <= m2) THEN
          red_fact = 1._dp
          CALL scale_and_distribute(m1, m3, md1, md2, md3, nxc, rhopot, zf, nproc, red_fact)
-      ELSE IF (istart+1 <= nlim) THEN !this condition assures that we have perform good zero padding
-         DO i2 = istart+1, MIN(nlim, istart+md2/nproc)
-            j2 = i2-istart
+      ELSE IF (istart + 1 <= nlim) THEN !this condition assures that we have perform good zero padding
+         DO i2 = istart + 1, MIN(nlim, istart + md2/nproc)
+            j2 = i2 - istart
             DO i3 = 1, md3
                DO i1 = 1, md1
                   zf(i1, i3, j2) = 0._dp
@@ -257,7 +257,7 @@ CONTAINS
          PRINT *, 'n01 dimension', n01
          CPABORT("")
       END IF
-      l1 = l1+1
+      l1 = l1 + 1
       CALL fourier_dim(l2, n2)
       IF (n2 == m2) THEN
       ELSE
@@ -279,16 +279,16 @@ CONTAINS
       md2 = n2
       md3 = n3
       DO WHILE (nproc*(md2/nproc) .LT. n2)
-         md2 = md2+1
+         md2 = md2 + 1
       ENDDO
 
       !dimensions of the kernel, 1/8 of the total volume,
       !compatible with nproc
-      nd1 = n1/2+1
-      nd2 = n2/2+1
-      nd3 = n3/2+1
+      nd1 = n1/2 + 1
+      nd2 = n2/2 + 1
+      nd3 = n3/2 + 1
       DO WHILE (MODULO(nd3, nproc) .NE. 0)
-         nd3 = nd3+1
+         nd3 = nd3 + 1
       ENDDO
 
    END SUBROUTINE P_FFT_dimensions
@@ -357,7 +357,7 @@ CONTAINS
          PRINT *, 'n01 dimension', n01
          CPABORT("")
       END IF
-      l1 = l1+1
+      l1 = l1 + 1
       CALL fourier_dim(l2, n2)
       IF (n2 == m2) THEN
       ELSE
@@ -370,7 +370,7 @@ CONTAINS
          IF (MODULO(n3, 2) == 0) THEN
             EXIT
          END IF
-         l3 = l3+1
+         l3 = l3 + 1
       END DO
       n3 = 2*n3
 
@@ -380,19 +380,19 @@ CONTAINS
       md2 = n2
       md3 = n3/2
       DO WHILE (nproc*(md2/nproc) .LT. n2)
-         md2 = md2+1
+         md2 = md2 + 1
       ENDDO
 
       !dimensions of the kernel, 1/8 of the total volume,
       !compatible with nproc
 
       !these two dimensions are like that since they are even
-      nd1 = n1/2+1
-      nd2 = n2/2+1
+      nd1 = n1/2 + 1
+      nd2 = n2/2 + 1
 
-      nd3 = n3/2+1
+      nd3 = n3/2 + 1
       DO WHILE (MODULO(nd3, nproc) .NE. 0)
-         nd3 = nd3+1
+         nd3 = nd3 + 1
       ENDDO
       CALL timestop(handle)
 
@@ -458,21 +458,21 @@ CONTAINS
          IF (MODULO(n1, 2) == 0) THEN
             EXIT
          END IF
-         l1 = l1+1
+         l1 = l1 + 1
       END DO
       DO
          CALL fourier_dim(l2, n2)
          IF (MODULO(n2, 2) == 0) THEN
             EXIT
          END IF
-         l2 = l2+1
+         l2 = l2 + 1
       END DO
       DO
          CALL fourier_dim(l3, n3)
          IF (MODULO(n3, 2) == 0) THEN
             EXIT
          END IF
-         l3 = l3+1
+         l3 = l3 + 1
       END DO
       n3 = 2*n3
 
@@ -482,17 +482,17 @@ CONTAINS
       md2 = n2/2
       md3 = n3/2
       DO WHILE (nproc*(md2/nproc) .LT. n2/2)
-         md2 = md2+1
+         md2 = md2 + 1
       ENDDO
 
       !dimensions of the kernel, 1/8 of the total volume,
       !compatible with nproc
-      nd1 = n1/2+1
-      nd2 = n2/2+1
-      nd3 = n3/2+1
+      nd1 = n1/2 + 1
+      nd2 = n2/2 + 1
+      nd3 = n3/2 + 1
 
       DO WHILE (MODULO(nd3, nproc) .NE. 0)
-         nd3 = nd3+1
+         nd3 = nd3 + 1
       ENDDO
 
    END SUBROUTINE F_FFT_dimensions
@@ -532,17 +532,17 @@ CONTAINS
                DO j1 = 1, m1
                   zf(j1, j3, jp2) = factor*rhopot(j1, j3, jp2)
                END DO
-               DO j1 = m1+1, md1
+               DO j1 = m1 + 1, md1
                   zf(j1, j3, jp2) = 0._dp
                END DO
             END DO
-            DO j3 = m3+1, md3
+            DO j3 = m3 + 1, md3
                DO j1 = 1, md1
                   zf(j1, j3, jp2) = 0._dp
                END DO
             END DO
          END DO
-         DO jp2 = nxc+1, md2/nproc
+         DO jp2 = nxc + 1, md2/nproc
             DO j3 = 1, md3
                DO j1 = 1, md1
                   zf(j1, j3, jp2) = 0._dp

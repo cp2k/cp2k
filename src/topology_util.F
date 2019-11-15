@@ -185,18 +185,18 @@ CONTAINS
             old_mol = atom_info%map_mol_num(I)
             iindex = 0
             IF (imol > 0) THEN
-               mol_bnd(2, imol) = i-1
+               mol_bnd(2, imol) = i - 1
             END IF
-            imol = imol+1
+            imol = imol + 1
             mol_bnd(1, imol) = i
          ENDIF
-         iindex = iindex+1
+         iindex = iindex + 1
          atm_map2(atm_map1(i)) = iindex
       ENDDO
       mol_bnd(2, imol) = natom
       ! Indexes of the two molecules to check
       iref = 1
-      iund = max_mol_num/2+1
+      iund = max_mol_num/2 + 1
       ! Allocate reference and unordered
       NULLIFY (reference, unordered)
       ! This is the real matching of graphs
@@ -227,7 +227,7 @@ CONTAINS
       END IF
       DO j = 1, max_mol_num
          IF (mol_hash(j) .NE. old_hash) THEN
-            unique_mol = unique_mol+1
+            unique_mol = unique_mol + 1
             old_hash = mol_hash(j)
             CALL setup_graph_set(reference_set, unique_mol, map_mol_hash(j), &
                                  map_atom_type, atom_bond_list, mol_bnd, atm_map1, atm_map2, &
@@ -235,7 +235,7 @@ CONTAINS
             ! Reorder Last added reference
             mol_id = TRIM(ADJUSTL(cp_to_string(unique_mol)))
             DO i = 1, SIZE(atm_map3)
-               natom_loc = natom_loc+1
+               natom_loc = natom_loc + 1
                new_position(natom_loc) = atm_map3(i)
                molname(natom_loc) = mol_id
                mol_num(natom_loc) = unique_mol
@@ -257,7 +257,7 @@ CONTAINS
                ALLOCATE (wrk(SIZE(order)))
                CALL sort(order, SIZE(order), wrk)
                DO i = 1, SIZE(order)
-                  natom_loc = natom_loc+1
+                  natom_loc = natom_loc + 1
                   new_position(natom_loc) = atm_map3(wrk(i))
                   molname(natom_loc) = mol_id
                   mol_num(natom_loc) = unique_mol
@@ -266,14 +266,14 @@ CONTAINS
                DEALLOCATE (order)
                DEALLOCATE (wrk)
             ELSE
-               unique_mol = unique_mol+1
+               unique_mol = unique_mol + 1
                CALL setup_graph_set(reference_set, unique_mol, map_mol_hash(j), &
                                     map_atom_type, atom_bond_list, mol_bnd, atm_map1, atm_map2, &
                                     atm_map3)
                ! Reorder Last added reference
                mol_id = TRIM(ADJUSTL(cp_to_string(unique_mol)))
                DO i = 1, SIZE(atm_map3)
-                  natom_loc = natom_loc+1
+                  natom_loc = natom_loc + 1
                   new_position(natom_loc) = atm_map3(i)
                   molname(natom_loc) = mol_id
                   mol_num(natom_loc) = unique_mol
@@ -475,12 +475,12 @@ CONTAINS
       NULLIFY (tmp_graph_set)
       IF (ASSOCIATED(graph_set)) THEN
          ldim = SIZE(graph_set)
-         CPASSERT(ldim+1 == idim)
+         CPASSERT(ldim + 1 == idim)
          NULLIFY (tmp_graph_set)
          CALL allocate_graph_set(graph_set, tmp_graph_set)
       END IF
-      CALL allocate_graph_set(tmp_graph_set, graph_set, ldim, ldim+1)
-      CALL setup_graph(ind, graph_set(ldim+1)%graph, array2, &
+      CALL allocate_graph_set(tmp_graph_set, graph_set, ldim, ldim + 1)
+      CALL setup_graph(ind, graph_set(ldim + 1)%graph, array2, &
                        atom_bond_list, map_mol, atm_map1, atm_map2, atm_map3)
 
    END SUBROUTINE setup_graph_set
@@ -569,13 +569,13 @@ CONTAINS
       idim = 0
       ifirst = map_mol(1, ind)
       ilast = map_mol(2, ind)
-      nelement = ilast-ifirst+1
+      nelement = ilast - ifirst + 1
       ALLOCATE (graph(nelement))
       IF (PRESENT(atm_map3)) THEN
          ALLOCATE (atm_map3(nelement))
       END IF
       DO i = ifirst, ilast
-         idim = idim+1
+         idim = idim + 1
          graph(idim)%kind = array2(atm_map1(i))
          nbonds = SIZE(atom_bond_list(atm_map1(i))%array1)
          ALLOCATE (graph(idim)%bonds(nbonds))
@@ -639,8 +639,8 @@ CONTAINS
          istart = 1
          DO i = 1, Ndim
             IF (Ilist1(i) /= Ilist1(istart)) THEN
-               iend = i-1
-               ldim = iend-istart+1
+               iend = i - 1
+               ldim = iend - istart + 1
                CALL reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize, &
                                            ldim, istart, iend)
                istart = i
@@ -648,7 +648,7 @@ CONTAINS
          END DO
          ! Last term to sort
          iend = Ndim
-         ldim = iend-istart+1
+         ldim = iend - istart + 1
          CALL reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize, &
                                      ldim, istart, iend)
       END IF
@@ -680,7 +680,7 @@ CONTAINS
       CASE (2)
          ALLOCATE (tmp_2(ldim))
          tmp_2(:) = Ilist2(istart:iend)
-         CALL reorder_list_array(tmp_2, nsize=nsize-1, ndim=ldim)
+         CALL reorder_list_array(tmp_2, nsize=nsize - 1, ndim=ldim)
          Ilist2(istart:iend) = tmp_2(:)
          DEALLOCATE (tmp_2)
       CASE (3)
@@ -688,7 +688,7 @@ CONTAINS
          ALLOCATE (tmp_3(ldim))
          tmp_2(:) = Ilist2(istart:iend)
          tmp_3(:) = Ilist3(istart:iend)
-         CALL reorder_list_array(tmp_2, tmp_3, nsize=nsize-1, ndim=ldim)
+         CALL reorder_list_array(tmp_2, tmp_3, nsize=nsize - 1, ndim=ldim)
          Ilist2(istart:iend) = tmp_2(:)
          Ilist3(istart:iend) = tmp_3(:)
          DEALLOCATE (tmp_2)
@@ -700,7 +700,7 @@ CONTAINS
          tmp_2(:) = Ilist2(istart:iend)
          tmp_3(:) = Ilist3(istart:iend)
          tmp_4(:) = Ilist4(istart:iend)
-         CALL reorder_list_array(tmp_2, tmp_3, tmp_4, nsize=nsize-1, ndim=ldim)
+         CALL reorder_list_array(tmp_2, tmp_3, tmp_4, nsize=nsize - 1, ndim=ldim)
          Ilist2(istart:iend) = tmp_2(:)
          Ilist3(istart:iend) = tmp_3(:)
          Ilist4(istart:iend) = tmp_4(:)
@@ -736,7 +736,7 @@ CONTAINS
          DO j = 1, SIZE(bond_list(i)%array1)
             k = bond_list(i)%array1(j)
             IF (icheck(k)) CYCLE
-            mol_natom = mol_natom+1
+            mol_natom = mol_natom + 1
             CALL give_back_molecule(icheck, bond_list, k, mol_natom, mol_map, my_mol)
          END DO
       ELSE
@@ -797,16 +797,16 @@ CONTAINS
 
          wrk_tmp => work(index1)%array1
          Nsize = SIZE(wrk_tmp)
-         ALLOCATE (work(index1)%array1(Nsize+1))
+         ALLOCATE (work(index1)%array1(Nsize + 1))
          work(index1)%array1(1:Nsize) = wrk_tmp
-         work(index1)%array1(Nsize+1) = index2
+         work(index1)%array1(Nsize + 1) = index2
          DEALLOCATE (wrk_tmp)
 
          wrk_tmp => work(index2)%array1
          Nsize = SIZE(wrk_tmp)
-         ALLOCATE (work(index2)%array1(Nsize+1))
+         ALLOCATE (work(index2)%array1(Nsize + 1))
          work(index2)%array1(1:Nsize) = wrk_tmp
-         work(index2)%array1(Nsize+1) = index1
+         work(index2)%array1(Nsize + 1) = index1
          DEALLOCATE (wrk_tmp)
       ENDDO
 
@@ -841,30 +841,30 @@ CONTAINS
 
          wrk_tmp => work(index1)%array1
          Nsize = SIZE(wrk_tmp)
-         ALLOCATE (work(index1)%array1(Nsize+1))
+         ALLOCATE (work(index1)%array1(Nsize + 1))
          work(index1)%array1(1:Nsize) = wrk_tmp
-         work(index1)%array1(Nsize+1) = index2
+         work(index1)%array1(Nsize + 1) = index2
          DEALLOCATE (wrk_tmp)
 
          wrk_tmp => work(index2)%array1
          Nsize = SIZE(wrk_tmp)
-         ALLOCATE (work(index2)%array1(Nsize+1))
+         ALLOCATE (work(index2)%array1(Nsize + 1))
          work(index2)%array1(1:Nsize) = wrk_tmp
-         work(index2)%array1(Nsize+1) = index1
+         work(index2)%array1(Nsize + 1) = index1
          DEALLOCATE (wrk_tmp)
 
          wrk_tmp => work(index1)%array2
          Nsize = SIZE(wrk_tmp)
-         ALLOCATE (work(index1)%array2(Nsize+1))
+         ALLOCATE (work(index1)%array2(Nsize + 1))
          work(index1)%array2(1:Nsize) = wrk_tmp
-         work(index1)%array2(Nsize+1) = index3
+         work(index1)%array2(Nsize + 1) = index3
          DEALLOCATE (wrk_tmp)
 
          wrk_tmp => work(index2)%array2
          Nsize = SIZE(wrk_tmp)
-         ALLOCATE (work(index2)%array2(Nsize+1))
+         ALLOCATE (work(index2)%array2(Nsize + 1))
          work(index2)%array2(1:Nsize) = wrk_tmp
-         work(index2)%array2(Nsize+1) = -index3
+         work(index2)%array2(Nsize + 1) = -index3
          DEALLOCATE (wrk_tmp)
       ENDDO
 
@@ -889,7 +889,7 @@ CONTAINS
       nmol = 0
       DO I = 1, N
          IF (mol_info(I) == -1) THEN
-            nmol = nmol+1
+            nmol = nmol + 1
             my_mol_name = mol_name(I)
             CALL spread_mol(atom_bond_list, mol_info, i, nmol, my_mol_name, &
                             mol_name)
@@ -1081,39 +1081,39 @@ CONTAINS
             mol_typ = atom_info%map_mol_typ(iatom)
          END IF
          IF (icheck_num) THEN
-            IF (icheck_typ) loc_counter = loc_counter+1
+            IF (icheck_typ) loc_counter = loc_counter + 1
             !-----------------------------------------------------------------------------
             !-----------------------------------------------------------------------------
             ! 2. Check that each molecule has the same atom sequences
             !-----------------------------------------------------------------------------
             IF (atom_info%id_atmname(iatom) /= &
-                atom_info%id_atmname(first+loc_counter-1)) THEN
+                atom_info%id_atmname(first + loc_counter - 1)) THEN
                CALL cp_abort(__LOCATION__, &
                              "different atom name for same molecule kind"// &
                              " atom number    = "//cp_to_string(iatom)// &
                              " molecule type  = "//cp_to_string(mol_typ)// &
                              " molecule number= "//cp_to_string(mol_num)// &
-                             " expected atom name="//TRIM(id2str(atom_info%id_atmname(first+loc_counter-1)))// &
+                             " expected atom name="//TRIM(id2str(atom_info%id_atmname(first + loc_counter - 1)))// &
                              " found="//TRIM(id2str(atom_info%id_atmname(iatom))))
             END IF
             !-----------------------------------------------------------------------------
             !-----------------------------------------------------------------------------
             ! 3. Check that each molecule have the same bond sequences
             !-----------------------------------------------------------------------------
-            IF (SIZE(atom_bond_list(iatom)%array1) /= SIZE(atom_bond_list(first+loc_counter-1)%array1)) THEN
+            IF (SIZE(atom_bond_list(iatom)%array1) /= SIZE(atom_bond_list(first + loc_counter - 1)%array1)) THEN
                CALL cp_abort(__LOCATION__, &
                              "different number of bonds for same molecule kind"// &
                              " molecule type  = "//cp_to_string(mol_typ)// &
                              " molecule number= "//cp_to_string(mol_num)// &
                              " expected bonds="// &
-                             cp_to_string(SIZE(atom_bond_list(first+loc_counter-1)%array1))//" - "// &
+                             cp_to_string(SIZE(atom_bond_list(first + loc_counter - 1)%array1))//" - "// &
                              cp_to_string(SIZE(atom_bond_list(iatom)%array1))// &
                              " NOT FOUND! Check the connectivity of your system.")
             ENDIF
 
             DO k = 1, SIZE(atom_bond_list(iatom)%array1)
-               IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first /= &
-                       atom_bond_list(iatom)%array1(k)-first_loc)) THEN
+               IF (ALL(atom_bond_list(first + loc_counter - 1)%array1 - first /= &
+                       atom_bond_list(iatom)%array1(k) - first_loc)) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "different sequence of bonds for same molecule kind"// &
                                 " molecule type  = "//cp_to_string(mol_typ)// &
@@ -1126,7 +1126,7 @@ CONTAINS
             loc_counter = 1
             first_loc = iatom
          END IF
-         IF (mol_num == 1 .AND. icheck_typ) counter = counter+1
+         IF (mol_num == 1 .AND. icheck_typ) counter = counter + 1
       END DO
       IF (iw > 0) WRITE (iw, '(A)') "End of Molecule_Check"
 

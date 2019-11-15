@@ -199,7 +199,7 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
                IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                  cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB)-z_one
+                  cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB) - z_one
                END IF
             END DO
          END DO
@@ -282,22 +282,22 @@ CONTAINS
                   ycell = index_to_cell(2, icell)
                   zcell = index_to_cell(3, icell)
 
-                  arg = REAL(xcell, dp)*xkp(1, ikp)+REAL(ycell, dp)*xkp(2, ikp)+REAL(zcell, dp)*xkp(3, ikp)
+                  arg = REAL(xcell, dp)*xkp(1, ikp) + REAL(ycell, dp)*xkp(2, ikp) + REAL(zcell, dp)*xkp(3, ikp)
 
                   coskl = wkp_W(ikp)*COS(twopi*arg)
                   sinkl = wkp_W(ikp)*SIN(twopi*arg)
 
                   cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, icell), dp))
 
-                  rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell)- &
-                                    (pbc(particle_set(jatom)%r(1:3), cell)+cell_vector(1:3))
+                  rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
+                                    (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
 
-                  abs_rab_cell = SQRT(rab_cell_i(1)**2+rab_cell_i(2)**2+rab_cell_i(3)**2)
+                  abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
 
                   IF (abs_rab_cell/d_0 < cutoff_exp) THEN
-                     sum_exp = sum_exp+EXP(-abs_rab_cell/d_0)
-                     sum_exp_k_re = sum_exp_k_re+EXP(-abs_rab_cell/d_0)*coskl
-                     sum_exp_k_im = sum_exp_k_im+EXP(-abs_rab_cell/d_0)*sinkl
+                     sum_exp = sum_exp + EXP(-abs_rab_cell/d_0)
+                     sum_exp_k_re = sum_exp_k_re + EXP(-abs_rab_cell/d_0)*coskl
+                     sum_exp_k_im = sum_exp_k_im + EXP(-abs_rab_cell/d_0)*sinkl
                   END IF
 
                END DO
@@ -310,10 +310,10 @@ CONTAINS
 
             END IF
 
-            contribution = weight_re*REAL(cfm_mat_work_2%local_data(irow, jcol))+ &
+            contribution = weight_re*REAL(cfm_mat_work_2%local_data(irow, jcol)) + &
                            weight_im*AIMAG(cfm_mat_work_2%local_data(irow, jcol))
 
-            fm_mat_work_local%local_data(irow, jcol) = fm_mat_work_local%local_data(irow, jcol)+contribution
+            fm_mat_work_local%local_data(irow, jcol) = fm_mat_work_local%local_data(irow, jcol) + contribution
 
          END DO
       END DO
@@ -506,7 +506,7 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB)-z_one
+               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB) - z_one
             END IF
          END DO
       END DO
@@ -595,18 +595,18 @@ CONTAINS
             DO j_y = 1, nsuperfine
                DO k_z = 1, nsuperfine/2
 
-                  x_vec = (/REAL(i_x-nsuperfine/2, dp)-0.5_dp, &
-                            REAL(j_y-nsuperfine/2, dp)-0.5_dp, &
-                            REAL(k_z-nsuperfine/2, dp)-0.5_dp/)/ &
+                  x_vec = (/REAL(i_x - nsuperfine/2, dp) - 0.5_dp, &
+                            REAL(j_y - nsuperfine/2, dp) - 0.5_dp, &
+                            REAL(k_z - nsuperfine/2, dp) - 0.5_dp/)/ &
                           REAL(nsuperfine, dp)
                   k_vec = MATMUL(h_inv(1:3, 1:3), x_vec)
-                  k_sq = k_vec(1)**2+k_vec(2)**2+k_vec(3)**2
-                  integral = integral+weight*k_sq**(exp_kpoints*0.5_dp)
+                  k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
+                  integral = integral + weight*k_sq**(exp_kpoints*0.5_dp)
                END DO
             END DO
          END DO
 
-         num_lin_eqs = nkp+2
+         num_lin_eqs = nkp + 2
 
          ALLOCATE (matrix_lin_eqs(num_lin_eqs, num_lin_eqs))
          matrix_lin_eqs(:, :) = 0.0_dp
@@ -614,14 +614,14 @@ CONTAINS
          DO ikp = 1, nkp
 
             k_vec = MATMUL(h_inv(1:3, 1:3), xkp(1:3, ikp))
-            k_sq = k_vec(1)**2+k_vec(2)**2+k_vec(3)**2
+            k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
 
             matrix_lin_eqs(ikp, ikp) = 2.0_dp
-            matrix_lin_eqs(ikp, nkp+1) = 1.0_dp
-            matrix_lin_eqs(ikp, nkp+2) = 1.0_dp*k_sq**(exp_kpoints*0.5_dp)
+            matrix_lin_eqs(ikp, nkp + 1) = 1.0_dp
+            matrix_lin_eqs(ikp, nkp + 2) = 1.0_dp*k_sq**(exp_kpoints*0.5_dp)
 
-            matrix_lin_eqs(nkp+1, ikp) = 1.0_dp
-            matrix_lin_eqs(nkp+2, ikp) = 1.0_dp*k_sq**(exp_kpoints*0.5_dp)
+            matrix_lin_eqs(nkp + 1, ikp) = 1.0_dp
+            matrix_lin_eqs(nkp + 2, ikp) = 1.0_dp*k_sq**(exp_kpoints*0.5_dp)
 
          END DO
 
@@ -633,8 +633,8 @@ CONTAINS
 
          ALLOCATE (right_side(num_lin_eqs))
          right_side = 0.0_dp
-         right_side(nkp+1) = 1.0_dp
-         right_side(nkp+2) = integral
+         right_side(nkp + 1) = 1.0_dp
+         right_side(nkp + 2) = integral
 
          wkp_W(1:num_lin_eqs) = MATMUL(matrix_lin_eqs, right_side)
 
@@ -672,9 +672,9 @@ CONTAINS
             DO j_y = 1, n_y
                DO k_z = 1, n_z
 
-                  x_vec = (/REAL(i_x-nsuperfine/2, dp)-0.5_dp, &
-                            REAL(j_y-nsuperfine/2, dp)-0.5_dp, &
-                            REAL(k_z-nsuperfine/2, dp)-0.5_dp/)/ &
+                  x_vec = (/REAL(i_x - nsuperfine/2, dp) - 0.5_dp, &
+                            REAL(j_y - nsuperfine/2, dp) - 0.5_dp, &
+                            REAL(k_z - nsuperfine/2, dp) - 0.5_dp/)/ &
                           REAL(nsuperfine, dp)
 
                   DO i_dim = 1, 3
@@ -684,13 +684,13 @@ CONTAINS
                   END DO
 
                   k_vec = MATMUL(h_inv(1:3, 1:3), x_vec)
-                  a_vec_dot_k_vec = a_vec(1)*k_vec(1)+a_vec(2)*k_vec(2)+a_vec(3)*k_vec(3)
-                  integral = integral+weight*LOG(2.0_dp-2.0_dp*COS(a_vec_dot_k_vec))
+                  a_vec_dot_k_vec = a_vec(1)*k_vec(1) + a_vec(2)*k_vec(2) + a_vec(3)*k_vec(3)
+                  integral = integral + weight*LOG(2.0_dp - 2.0_dp*COS(a_vec_dot_k_vec))
                END DO
             END DO
          END DO
 
-         num_lin_eqs = nkp+2
+         num_lin_eqs = nkp + 2
 
          ALLOCATE (matrix_lin_eqs(num_lin_eqs, num_lin_eqs))
          matrix_lin_eqs(:, :) = 0.0_dp
@@ -698,16 +698,16 @@ CONTAINS
          DO ikp = 1, nkp
 
             k_vec = MATMUL(h_inv(1:3, 1:3), xkp(1:3, ikp))
-            k_sq = k_vec(1)**2+k_vec(2)**2+k_vec(3)**2
+            k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
 
             matrix_lin_eqs(ikp, ikp) = 2.0_dp
-            matrix_lin_eqs(ikp, nkp+1) = 1.0_dp
+            matrix_lin_eqs(ikp, nkp + 1) = 1.0_dp
 
-            a_vec_dot_k_vec = a_vec(1)*k_vec(1)+a_vec(2)*k_vec(2)+a_vec(3)*k_vec(3)
-            matrix_lin_eqs(ikp, nkp+2) = LOG(2.0_dp-2.0_dp*COS(a_vec_dot_k_vec))
+            a_vec_dot_k_vec = a_vec(1)*k_vec(1) + a_vec(2)*k_vec(2) + a_vec(3)*k_vec(3)
+            matrix_lin_eqs(ikp, nkp + 2) = LOG(2.0_dp - 2.0_dp*COS(a_vec_dot_k_vec))
 
-            matrix_lin_eqs(nkp+1, ikp) = 1.0_dp
-            matrix_lin_eqs(nkp+2, ikp) = LOG(2.0_dp-2.0_dp*COS(a_vec_dot_k_vec))
+            matrix_lin_eqs(nkp + 1, ikp) = 1.0_dp
+            matrix_lin_eqs(nkp + 2, ikp) = LOG(2.0_dp - 2.0_dp*COS(a_vec_dot_k_vec))
 
          END DO
 
@@ -719,8 +719,8 @@ CONTAINS
 
          ALLOCATE (right_side(num_lin_eqs))
          right_side = 0.0_dp
-         right_side(nkp+1) = 1.0_dp
-         right_side(nkp+2) = integral
+         right_side(nkp + 1) = 1.0_dp
+         right_side(nkp + 2) = integral
 
          wkp_W(1:num_lin_eqs) = MATMUL(matrix_lin_eqs, right_side)
 
@@ -1130,9 +1130,9 @@ CONTAINS
 
                   IF (cycle_R1_S2_n_level(i_cell_R1_plus_S2, i_cell_S2, n_level_gw, jquad)) CYCLE
 
-                  x_cell_R1 = x_cell_R1_plus_S2-index_to_cell_3c(1, i_cell_S2)
-                  y_cell_R1 = y_cell_R1_plus_S2-index_to_cell_3c(2, i_cell_S2)
-                  z_cell_R1 = z_cell_R1_plus_S2-index_to_cell_3c(3, i_cell_S2)
+                  x_cell_R1 = x_cell_R1_plus_S2 - index_to_cell_3c(1, i_cell_S2)
+                  y_cell_R1 = y_cell_R1_plus_S2 - index_to_cell_3c(2, i_cell_S2)
+                  z_cell_R1 = z_cell_R1_plus_S2 - index_to_cell_3c(3, i_cell_S2)
 
                   CALL trafo_I_T_R1_plus_S2_to_M_R1_S2(mat_I_muP_occ_re, mat_I_muP_virt_re, &
                                                        mat_I_muP_occ_im, mat_I_muP_virt_im, &
@@ -1164,13 +1164,13 @@ CONTAINS
          END DO ! jquad
       END DO ! R1+S2
 
-      vec_Sigma_x_minus_vxc_gw(:) = vec_Sigma_x_minus_vxc_gw(:)+vec_Sigma_x_gw(:)
+      vec_Sigma_x_minus_vxc_gw(:) = vec_Sigma_x_minus_vxc_gw(:) + vec_Sigma_x_gw(:)
 
       im_unit = (0.0_dp, 1.0_dp)
 
-      vec_Sigma_c_gw_cos_tau(:, 1:num_integ_points) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, 1:num_integ_points)+ &
+      vec_Sigma_c_gw_cos_tau(:, 1:num_integ_points) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, 1:num_integ_points) + &
                                                               vec_Sigma_c_gw_neg_tau(:, 1:num_integ_points))
-      vec_Sigma_c_gw_sin_tau(:, 1:num_integ_points) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, 1:num_integ_points)- &
+      vec_Sigma_c_gw_sin_tau(:, 1:num_integ_points) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, 1:num_integ_points) - &
                                                               vec_Sigma_c_gw_neg_tau(:, 1:num_integ_points))
 
       ! Fourier transform from time to frequency
@@ -1183,10 +1183,10 @@ CONTAINS
             weight_cos = weights_cos_tf_t_to_w(jquad, iquad)*COS(omega*tau)
             weight_sin = weights_sin_tf_t_to_w(jquad, iquad)*SIN(omega*tau)
 
-            vec_Sigma_c_gw_cos_omega(:, jquad) = vec_Sigma_c_gw_cos_omega(:, jquad)+ &
+            vec_Sigma_c_gw_cos_omega(:, jquad) = vec_Sigma_c_gw_cos_omega(:, jquad) + &
                                                  weight_cos*vec_Sigma_c_gw_cos_tau(:, iquad)
 
-            vec_Sigma_c_gw_sin_omega(:, jquad) = vec_Sigma_c_gw_sin_omega(:, jquad)+ &
+            vec_Sigma_c_gw_sin_omega(:, jquad) = vec_Sigma_c_gw_sin_omega(:, jquad) + &
                                                  weight_sin*vec_Sigma_c_gw_sin_tau(:, iquad)
 
          END DO
@@ -1198,7 +1198,7 @@ CONTAINS
       vec_Sigma_c_gw_sin_omega(1:gw_corr_lev_occ, :) = -vec_Sigma_c_gw_sin_omega(1:gw_corr_lev_occ, :)
 
       ! the third index k-point is already absorbed when calling the subroutine
-      vec_Sigma_c_gw(:, 1:num_fit_points) = vec_Sigma_c_gw_cos_omega(:, 1:num_fit_points)+ &
+      vec_Sigma_c_gw(:, 1:num_fit_points) = vec_Sigma_c_gw_cos_omega(:, 1:num_fit_points) + &
                                             im_unit*vec_Sigma_c_gw_sin_omega(:, 1:num_fit_points)
 
       DEALLOCATE (vec_Sigma_c_gw_pos_tau)
@@ -1286,7 +1286,7 @@ CONTAINS
                      mat_contr_W_re, &
                      trace_neg_tau_im_2)
 
-      IF (ABS(trace_neg_tau_re_1)+ABS(trace_neg_tau_re_2)+ABS(trace_neg_tau_im_1)+ &
+      IF (ABS(trace_neg_tau_re_1) + ABS(trace_neg_tau_re_2) + ABS(trace_neg_tau_im_1) + &
           ABS(trace_neg_tau_im_2) < eps_filter) THEN
          cycle_R1_S2_n_level(i_cell_R1_plus_S2, i_cell_S2, n_level_gw, jquad) = .TRUE.
       END IF
@@ -1295,22 +1295,22 @@ CONTAINS
          cycle_R1_plus_S2_n_level(i_cell_R1_plus_S2, n_level_gw, jquad) = .TRUE.
       END IF
 
-      IF (ABS(trace_neg_tau_re_1)+ABS(trace_neg_tau_re_2)+ABS(trace_neg_tau_im_1)+ &
+      IF (ABS(trace_neg_tau_re_1) + ABS(trace_neg_tau_re_2) + ABS(trace_neg_tau_im_1) + &
           ABS(trace_neg_tau_im_2) > eps_filter) THEN
          cycle_R1_plus_S2_n_level(i_cell_R1_plus_S2, n_level_gw, jquad) = .FALSE.
       END IF
 
       IF (jquad == 0) THEN
 
-         n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+         n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
 
-         vec_Sigma_x_gw(n_level_gw_ref) = vec_Sigma_x_gw(n_level_gw_ref)+trace_neg_tau_re_1-trace_neg_tau_re_2
+         vec_Sigma_x_gw(n_level_gw_ref) = vec_Sigma_x_gw(n_level_gw_ref) + trace_neg_tau_re_1 - trace_neg_tau_re_2
 
       ELSE
 
-         vec_Sigma_c_gw_neg_tau(n_level_gw, jquad) = vec_Sigma_c_gw_neg_tau(n_level_gw, jquad)+ &
-                                                     CMPLX(trace_neg_tau_re_1-trace_neg_tau_re_2, &
-                                                           trace_neg_tau_im_1+trace_neg_tau_im_2, dp)
+         vec_Sigma_c_gw_neg_tau(n_level_gw, jquad) = vec_Sigma_c_gw_neg_tau(n_level_gw, jquad) + &
+                                                     CMPLX(trace_neg_tau_re_1 - trace_neg_tau_re_2, &
+                                                           trace_neg_tau_im_1 + trace_neg_tau_im_2, dp)
 
       END IF
 
@@ -1332,9 +1332,9 @@ CONTAINS
 
       IF (jquad > 0) THEN
 
-         vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) = vec_Sigma_c_gw_pos_tau(n_level_gw, jquad)+ &
-                                                     CMPLX(trace_pos_tau_re_1-trace_pos_tau_re_2, &
-                                                           trace_pos_tau_im_1+trace_pos_tau_im_2, dp)
+         vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) = vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) + &
+                                                     CMPLX(trace_pos_tau_re_1 - trace_pos_tau_re_2, &
+                                                           trace_pos_tau_im_1 + trace_pos_tau_im_2, dp)
 
       END IF
 
@@ -1409,9 +1409,9 @@ CONTAINS
 
       DO i_cell_R1_minus_R2 = 1, num_cells_3c
 
-         x_cell_R2 = x_cell_R1-index_to_cell_3c(1, i_cell_R1_minus_R2)
-         y_cell_R2 = y_cell_R1-index_to_cell_3c(2, i_cell_R1_minus_R2)
-         z_cell_R2 = z_cell_R1-index_to_cell_3c(3, i_cell_R1_minus_R2)
+         x_cell_R2 = x_cell_R1 - index_to_cell_3c(1, i_cell_R1_minus_R2)
+         y_cell_R2 = y_cell_R1 - index_to_cell_3c(2, i_cell_R1_minus_R2)
+         z_cell_R2 = z_cell_R1 - index_to_cell_3c(3, i_cell_R1_minus_R2)
 
          IF (x_cell_R2 < bound_R2_1 .OR. &
              x_cell_R2 > bound_R2_2 .OR. &
@@ -1426,9 +1426,9 @@ CONTAINS
 
          i_cell_R2 = cell_to_index_R2(x_cell_R2, y_cell_R2, z_cell_R2)
 
-         x_cell_R1_plus_S2_minus_R2 = x_cell_R1_plus_S2-x_cell_R2
-         y_cell_R1_plus_S2_minus_R2 = y_cell_R1_plus_S2-y_cell_R2
-         z_cell_R1_plus_S2_minus_R2 = z_cell_R1_plus_S2-z_cell_R2
+         x_cell_R1_plus_S2_minus_R2 = x_cell_R1_plus_S2 - x_cell_R2
+         y_cell_R1_plus_S2_minus_R2 = y_cell_R1_plus_S2 - y_cell_R2
+         z_cell_R1_plus_S2_minus_R2 = z_cell_R1_plus_S2 - z_cell_R2
 
          IF (x_cell_R1_plus_S2_minus_R2 < bound_1 .OR. &
              x_cell_R1_plus_S2_minus_R2 > bound_2 .OR. &
@@ -1523,10 +1523,10 @@ CONTAINS
 
       DO i_cell_T = 1, num_cells_3c
 
-         xcell = index_to_cell_3c(1, i_cell_T)-x_cell_R1
-         ycell = index_to_cell_3c(2, i_cell_T)-y_cell_R1
-         zcell = index_to_cell_3c(3, i_cell_T)-z_cell_R1
-         arg = REAL(xcell, dp)*xkp(1, ikp)+REAL(ycell, dp)*xkp(2, ikp)+REAL(zcell, dp)*xkp(3, ikp)
+         xcell = index_to_cell_3c(1, i_cell_T) - x_cell_R1
+         ycell = index_to_cell_3c(2, i_cell_T) - y_cell_R1
+         zcell = index_to_cell_3c(3, i_cell_T) - z_cell_R1
+         arg = REAL(xcell, dp)*xkp(1, ikp) + REAL(ycell, dp)*xkp(2, ikp) + REAL(zcell, dp)*xkp(3, ikp)
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
 
@@ -1572,7 +1572,7 @@ CONTAINS
 
          CPASSERT(found)
 
-         block_to_compute(:, :) = block_to_compute(:, :)+beta*data_block(:, :)
+         block_to_compute(:, :) = block_to_compute(:, :) + beta*data_block(:, :)
 
       END DO
 
@@ -1670,9 +1670,9 @@ CONTAINS
 
          DO i_cell_S1 = 1, num_cells_dm
 
-            x_cell_2 = x_cell_R1_plus_S2+index_to_cell_dm(1, i_cell_S1)
-            y_cell_2 = y_cell_R1_plus_S2+index_to_cell_dm(2, i_cell_S1)
-            z_cell_2 = z_cell_R1_plus_S2+index_to_cell_dm(3, i_cell_S1)
+            x_cell_2 = x_cell_R1_plus_S2 + index_to_cell_dm(1, i_cell_S1)
+            y_cell_2 = y_cell_R1_plus_S2 + index_to_cell_dm(2, i_cell_S1)
+            z_cell_2 = z_cell_R1_plus_S2 + index_to_cell_dm(3, i_cell_S1)
 
             IF (x_cell_2 < bound_1 .OR. &
                 x_cell_2 > bound_2 .OR. &
@@ -2229,9 +2229,9 @@ CONTAINS
 
                   IF (already_there) CYCLE
 
-                  x_cell_R1_plus_S2_minus_S1 = x_cell_R1_plus_S2-index_to_cell_dm(1, i_cell_S_1)
-                  y_cell_R1_plus_S2_minus_S1 = y_cell_R1_plus_S2-index_to_cell_dm(2, i_cell_S_1)
-                  z_cell_R1_plus_S2_minus_S1 = z_cell_R1_plus_S2-index_to_cell_dm(3, i_cell_S_1)
+                  x_cell_R1_plus_S2_minus_S1 = x_cell_R1_plus_S2 - index_to_cell_dm(1, i_cell_S_1)
+                  y_cell_R1_plus_S2_minus_S1 = y_cell_R1_plus_S2 - index_to_cell_dm(2, i_cell_S_1)
+                  z_cell_R1_plus_S2_minus_S1 = z_cell_R1_plus_S2 - index_to_cell_dm(3, i_cell_S_1)
 
                   IF (x_cell_R1_plus_S2_minus_S1 .GE. bound_1 .AND. &
                       x_cell_R1_plus_S2_minus_S1 .LE. bound_2 .AND. &
@@ -2256,11 +2256,11 @@ CONTAINS
                         ALLOCATE (index_to_cell_tmp(3, size_set))
                         index_to_cell_tmp(1:3, 1:size_set) = index_to_cell_R1_plus_S2(1:3, 1:size_set)
                         DEALLOCATE (index_to_cell_R1_plus_S2)
-                        ALLOCATE (index_to_cell_R1_plus_S2(3, size_set+1))
+                        ALLOCATE (index_to_cell_R1_plus_S2(3, size_set + 1))
                         index_to_cell_R1_plus_S2(1:3, 1:size_set) = index_to_cell_tmp(1:3, 1:size_set)
-                        index_to_cell_R1_plus_S2(1, size_set+1) = x_cell_R1_plus_S2
-                        index_to_cell_R1_plus_S2(2, size_set+1) = y_cell_R1_plus_S2
-                        index_to_cell_R1_plus_S2(3, size_set+1) = z_cell_R1_plus_S2
+                        index_to_cell_R1_plus_S2(1, size_set + 1) = x_cell_R1_plus_S2
+                        index_to_cell_R1_plus_S2(2, size_set + 1) = y_cell_R1_plus_S2
+                        index_to_cell_R1_plus_S2(3, size_set + 1) = z_cell_R1_plus_S2
                         DEALLOCATE (index_to_cell_tmp)
                         already_there = .TRUE.
 
@@ -2422,11 +2422,11 @@ CONTAINS
 
       ! set MO coeffs to zero for non-GW corrected levels
       DO irow_global = 1, nmo
-         DO icol_global = 1, homo-gw_corr_lev_occ
+         DO icol_global = 1, homo - gw_corr_lev_occ
             CALL cp_fm_set_element(fm_mat_mo_coeff_gw_re, irow_global, icol_global, 0.0_dp)
             CALL cp_fm_set_element(fm_mat_mo_coeff_gw_im, irow_global, icol_global, 0.0_dp)
          END DO
-         DO icol_global = homo+gw_corr_lev_virt+1, nmo
+         DO icol_global = homo + gw_corr_lev_virt + 1, nmo
             CALL cp_fm_set_element(fm_mat_mo_coeff_gw_re, irow_global, icol_global, 0.0_dp)
             CALL cp_fm_set_element(fm_mat_mo_coeff_gw_im, irow_global, icol_global, 0.0_dp)
          END DO
@@ -2511,7 +2511,7 @@ CONTAINS
                                           my_group_L_starts_im_time, my_group_L_sizes_im_time, cut_RI, &
                                           para_env, gw_corr_lev_occ, gw_corr_lev_virt, homo)
 
-            DO n_level_gw = 1, gw_corr_lev_occ+gw_corr_lev_virt
+            DO n_level_gw = 1, gw_corr_lev_occ + gw_corr_lev_virt
 
                nblks = dbcsr_get_num_blocks(mat_3c_overl_int_gw_kp_re(n_level_gw, i_cell, j_cell)%matrix)
                CALL mp_sum(nblks, para_env%group)
@@ -2665,7 +2665,7 @@ CONTAINS
                ycell = index_to_cell_R2(2, icell)
                zcell = index_to_cell_R2(3, icell)
 
-               arg = REAL(xcell, dp)*xkp(1, ik)+REAL(ycell, dp)*xkp(2, ik)+REAL(zcell, dp)*xkp(3, ik)
+               arg = REAL(xcell, dp)*xkp(1, ik) + REAL(ycell, dp)*xkp(2, ik) + REAL(zcell, dp)*xkp(3, ik)
                coskl = wkp_W(ik)*COS(twopi*arg)
                sinkl = wkp_W(ik)*SIN(twopi*arg)
 

@@ -269,7 +269,7 @@ CONTAINS
             DO i = 0, RI_basis_info%max_am
                nl_count = 0
                DO j = 1, nshell(iset)
-                  IF (RI_basis_parameter(ikind)%nl(j, iset) == i) nl_count = nl_count+1
+                  IF (RI_basis_parameter(ikind)%nl(j, iset) == i) nl_count = nl_count + 1
                END DO
                RI_basis_parameter(ikind)%nsgfl(i, iset) = nl_count
             END DO
@@ -311,20 +311,20 @@ CONTAINS
          DO iset = 1, nseta
             sgfa = first_sgfa(1, iset)
             DO ipgf = 1, npgfa(iset)
-               offset_a1 = (ipgf-1)*ncoset(la_max(iset))
+               offset_a1 = (ipgf - 1)*ncoset(la_max(iset))
                s_offset_nl_a = 0
                DO la = la_min(iset), la_max(iset)
-                  offset_a = offset_a1+ncoset(la-1)
+                  offset_a = offset_a1 + ncoset(la - 1)
                   co_counter = 0
-                  co_counter = co_counter+1
+                  co_counter = co_counter + 1
                   so_counter = 0
-                  DO k = sgfa+s_offset_nl_a, sgfa+s_offset_nl_a+nso(la)*nl_a(la, iset)-1
-                     DO i = offset_a+1, offset_a+nco(la)
-                        so_counter = so_counter+1
+                  DO k = sgfa + s_offset_nl_a, sgfa + s_offset_nl_a + nso(la)*nl_a(la, iset) - 1
+                     DO i = offset_a + 1, offset_a + nco(la)
+                        so_counter = so_counter + 1
                         RI_basis_parameter(ikind)%sphi_ext(so_counter, la, ipgf, iset) = sphi_a(i, k)
                      END DO
                   END DO
-                  s_offset_nl_a = s_offset_nl_a+nso(la)*(nl_a(la, iset))
+                  s_offset_nl_a = s_offset_nl_a + nso(la)*(nl_a(la, iset))
                END DO
             END DO
          END DO
@@ -338,9 +338,9 @@ CONTAINS
          ikind = kind_of(iatom)
          nset = RI_basis_parameter(ikind)%nset
          DO iset = 1, nset
-            RI_index_table(iatom, iset) = counter+1
-            counter = counter+RI_basis_parameter(ikind)%nsgf(iset)
-            RI_dimen = RI_dimen+RI_basis_parameter(ikind)%nsgf(iset)
+            RI_index_table(iatom, iset) = counter + 1
+            counter = counter + RI_basis_parameter(ikind)%nsgf(iset)
+            RI_dimen = RI_dimen + RI_basis_parameter(ikind)%nsgf(iset)
          END DO
       END DO
 
@@ -601,20 +601,20 @@ CONTAINS
                sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
 
                L_B_i_start = RI_index_table(iatom, iset)
-               L_B_i_end = RI_index_table(iatom, iset)+nsgfa(iset)-1
+               L_B_i_end = RI_index_table(iatom, iset) + nsgfa(iset) - 1
 
                kset_start = 1
                IF (iatom == katom) kset_start = iset
                DO kset = kset_start, nsetc
 
-                  counter_L_blocks = counter_L_blocks+1
+                  counter_L_blocks = counter_L_blocks + 1
                   IF (MOD(counter_L_blocks, para_env%num_pe) /= para_env%mepos) CYCLE
 
                   sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
                   sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
 
                   L_B_k_start = RI_index_table(katom, kset)
-                  L_B_k_end = RI_index_table(katom, kset)+nsgfc(kset)-1
+                  L_B_k_end = RI_index_table(katom, kset) + nsgfc(kset) - 1
 
                   pmax_entry = 0.0_dp
                   log10_pmax = pmax_entry
@@ -656,7 +656,7 @@ CONTAINS
                      DO kkB = 1, nsgfc(kset)
                         DO jjB = 1, nsgfb(jset)
                            DO iiB = 1, nsgfa(iset)
-                              primitive_counter = primitive_counter+1
+                              primitive_counter = primitive_counter + 1
                               L_block(iiB, kkB) = primitive_integrals(primitive_counter)
                            END DO
                         END DO
@@ -706,7 +706,7 @@ CONTAINS
 
       ! clean lower part
       DO iiB = 1, RI_dimen
-         L_full_matrix(iiB+1:RI_dimen, iiB) = 0.0_dp
+         L_full_matrix(iiB + 1:RI_dimen, iiB) = 0.0_dp
       END DO
 
       ALLOCATE (list_kl%elements(natom**2))
@@ -736,7 +736,7 @@ CONTAINS
                                coeffs_kind_max0, log10_eps_schwarz, cell, 0.D+00, &
                                shm_atomic_pair_list)
 
-      virtual = dimen-occupied
+      virtual = dimen - occupied
 
       ALLOCATE (Lai(RI_dimen, virtual, occupied))
       Lai = 0.0_dp
@@ -776,7 +776,7 @@ CONTAINS
          jset = 1
          DO iset = 1, nseta
 
-            counter_L_blocks = counter_L_blocks+1
+            counter_L_blocks = counter_L_blocks + 1
             IF (MOD(counter_L_blocks, para_env%num_pe) /= para_env%mepos) CYCLE
 
             ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -784,7 +784,7 @@ CONTAINS
             sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
 
             L_B_i_start = RI_index_table(iatom, iset)
-            L_B_i_end = RI_index_table(iatom, iset)+nsgfa(iset)-1
+            L_B_i_end = RI_index_table(iatom, iset) + nsgfa(iset) - 1
 
             ALLOCATE (BI1(dimen, dimen, nsgfa(iset)))
             BI1 = 0.0_dp
@@ -832,9 +832,9 @@ CONTAINS
                   IF (katom == latom .AND. lset < kset) CYCLE
 
                   orb_k_start = mp2_biel%index_table(katom, kset)
-                  orb_k_end = orb_k_start+nsgfc(kset)-1
+                  orb_k_end = orb_k_start + nsgfc(kset) - 1
                   orb_l_start = mp2_biel%index_table(latom, lset)
-                  orb_l_end = orb_l_start+nsgfd(lset)-1
+                  orb_l_end = orb_l_start + nsgfd(lset) - 1
 
                   !! get max_vals if we screen on initial density
                   pmax_entry = 0.0_dp
@@ -880,19 +880,19 @@ CONTAINS
                                 nimages, do_periodic, p_work)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-                  neris_total = neris_total+nints
-                  nprim_ints = nprim_ints+neris_tmp
+                  neris_total = neris_total + nints
+                  nprim_ints = nprim_ints + neris_tmp
                   IF (cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
                   estimate_to_store_int = EXPONENT(cartesian_estimate)
                   estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
-                  cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
+                  cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
 
                   primitive_counter = 0
                   DO llB = 1, nsgfd(lset)
                      DO kkB = 1, nsgfc(kset)
                         DO jjB = 1, nsgfb(jset)
                            DO iiB = 1, nsgfa(iset)
-                              primitive_counter = primitive_counter+1
+                              primitive_counter = primitive_counter + 1
                               MNRS(llB, kkB, iiB) = primitive_integrals(primitive_counter)
                            END DO
                         END DO
@@ -908,9 +908,9 @@ CONTAINS
             END DO ! i_list_kl
 
             DO iiB = 1, nsgfa(iset)
-               BI1(1:virtual, 1:occupied, iiB) = MATMUL(TRANSPOSE(C(1:dimen, occupied+1:dimen)), &
+               BI1(1:virtual, 1:occupied, iiB) = MATMUL(TRANSPOSE(C(1:dimen, occupied + 1:dimen)), &
                                                         MATMUL(BI1(1:dimen, 1:dimen, iiB), C(1:dimen, 1:occupied)))
-               Lai(L_B_i_start+iiB-1, 1:virtual, 1:occupied) = BI1(1:virtual, 1:occupied, iiB)
+               Lai(L_B_i_start + iiB - 1, 1:virtual, 1:occupied) = BI1(1:virtual, 1:occupied, iiB)
             END DO
 
             DEALLOCATE (BI1)
@@ -1084,7 +1084,7 @@ CONTAINS
 
       i_thread = 0
 
-      actual_x_data => qs_env%x_data(irep, i_thread+1)
+      actual_x_data => qs_env%x_data(irep, i_thread + 1)
 
       shm_master_x_data => qs_env%x_data(irep, 1)
 
@@ -1301,7 +1301,7 @@ CONTAINS
             sgfb = first_sgfb(1, jset)
             ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
             ! the maximum value after multiplication with sphi_b
-            max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb+nsgfb(jset)-1)/))
+            max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
             max_pgf = MAX(max_pgf, npgfb(jset))
          ENDDO
       ENDDO

@@ -163,7 +163,7 @@ CONTAINS
       maxn = 0
       CALL section_vals_val_get(atom_section, "CALCULATE_STATES", i_vals=cn)
       DO in = 1, MIN(SIZE(cn), 4)
-         maxn(in-1) = cn(in)
+         maxn(in - 1) = cn(in)
       END DO
       DO in = 0, lmat
          maxn(in) = MIN(maxn(in), ae_basis%nbas(in))
@@ -257,7 +257,7 @@ CONTAINS
                ! get and set the core occupations
                CALL section_vals_val_get(atom_section, "CORE", c_vals=tmpstringlist)
                CALL atom_set_occupation(tmpstringlist, state%core, pocc)
-               zcore = zval-NINT(SUM(state%core))
+               zcore = zval - NINT(SUM(state%core))
                CALL set_atom(atom_info(in, im)%atom, zcore=zcore, pp_calc=.TRUE.)
             ELSE
                state%core = 0._dp
@@ -520,14 +520,14 @@ CONTAINS
       s1 = SIZE(atom%orbitals%wfn, 1)
       s2 = SIZE(atom%orbitals%wfn, 2)
       ALLOCATE (wfn(s1, s2, 0:lmat, -nder:nder))
-      s2 = MAXVAL(state%maxn_occ)+nder
+      s2 = MAXVAL(state%maxn_occ) + nder
       ALLOCATE (rbasis(s1, s2, 0:lmat))
       rbasis = 0._dp
 
       DO ider = -nder, nder
          dene = REAL(ider, KIND=dp)*delta
          CPASSERT(fhomo > ABS(dene))
-         state%occupation(lhomo, nhomo) = fhomo+dene
+         state%occupation(lhomo, nhomo) = fhomo + dene
          CALL calculate_atom(atom, iw=0, noguess=.TRUE.)
          wfn(:, :, :, ider) = atom%orbitals%wfn
          state%occupation(lhomo, nhomo) = fhomo
@@ -543,24 +543,24 @@ CONTAINS
             i = MAX(state%maxn_occ(l), 1)
             SELECT CASE (ider)
             CASE (1)
-               rbasis(:, i+1, l) = 0.5_dp*(wfn(:, i, l, 1)-wfn(:, i, l, -1))/delta
+               rbasis(:, i + 1, l) = 0.5_dp*(wfn(:, i, l, 1) - wfn(:, i, l, -1))/delta
             CASE (2)
-               rbasis(:, i+2, l) = 0.25_dp*(wfn(:, i, l, 2)-2._dp*wfn(:, i, l, 0)+wfn(:, i, l, -2))/delta**2
+               rbasis(:, i + 2, l) = 0.25_dp*(wfn(:, i, l, 2) - 2._dp*wfn(:, i, l, 0) + wfn(:, i, l, -2))/delta**2
             CASE (3)
-               rbasis(:, i+3, l) = 0.125_dp*(wfn(:, i, l, 3)-3._dp*wfn(:, i, l, 1) &
-                                             +3._dp*wfn(:, i, l, -1)-wfn(:, i, l, -3))/delta**3
+               rbasis(:, i + 3, l) = 0.125_dp*(wfn(:, i, l, 3) - 3._dp*wfn(:, i, l, 1) &
+                                               + 3._dp*wfn(:, i, l, -1) - wfn(:, i, l, -3))/delta**3
             CASE DEFAULT
                CPABORT("")
             END SELECT
          END DO
 
          ! orthogonalization, use gram-schmidt in order to keep the natural order (semi-core, valence, response) of the wfn.
-         n = state%maxn_occ(l)+nder
+         n = state%maxn_occ(l) + nder
          m = atom%basis%nbas(l)
          DO i = 1, n
-            DO j = 1, i-1
+            DO j = 1, i - 1
                o = DOT_PRODUCT(rbasis(1:m, j, l), RESHAPE(MATMUL(ovlp(1:m, 1:m, l), rbasis(1:m, i:i, l)), (/m/)))
-               rbasis(1:m, i, l) = rbasis(1:m, i, l)-o*rbasis(1:m, j, l)
+               rbasis(1:m, i, l) = rbasis(1:m, i, l) - o*rbasis(1:m, j, l)
             ENDDO
             o = DOT_PRODUCT(rbasis(1:m, i, l), RESHAPE(MATMUL(ovlp(1:m, 1:m, l), rbasis(1:m, i:i, l)), (/m/)))
             rbasis(1:m, i, l) = rbasis(1:m, i, l)/SQRT(o)
@@ -570,7 +570,7 @@ CONTAINS
          ALLOCATE (amat(n, n))
          amat(1:n, 1:n) = MATMUL(TRANSPOSE(rbasis(1:m, 1:n, l)), MATMUL(ovlp(1:m, 1:m, l), rbasis(1:m, 1:n, l)))
          DO i = 1, n
-            amat(i, i) = amat(i, i)-1._dp
+            amat(i, i) = amat(i, i) - 1._dp
          END DO
          IF (MAXVAL(ABS(amat)) > 1.e-12) THEN
             WRITE (iw, '(/,A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
@@ -581,9 +581,9 @@ CONTAINS
          WRITE (iw, '(/,A,T30,I3)') " Angular momentum :", l
 
          WRITE (iw, '(/,A,I0,A,I0,A)') "             Exponent     Coef.(Quickstep Normalization), first ", &
-            n-nder, " valence ", nder, " response"
-         expzet = 0.25_dp*REAL(2*l+3, dp)
-         prefac = SQRT(SQRT(pi)/2._dp**(l+2)*dfac(2*l+1))
+            n - nder, " valence ", nder, " response"
+         expzet = 0.25_dp*REAL(2*l + 3, dp)
+         prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
          DO i = 1, m
             zeta = (2._dp*atom%basis%am(i, l))**expzet
             WRITE (iw, '(4X,F20.10,4X,15ES20.6)') atom%basis%am(i, l), ((prefac*rbasis(i, k, l)/zeta), k=1, n)
@@ -756,11 +756,11 @@ CONTAINS
          rp(:) = atom%basis%grid%rad
          ef(:) = EXP(-0.5_dp*rp*rp/(rl*rl))
          DO i = 1, pot%nl(l)
-            pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
-            j = l+2*i-1
+            pf = rl**(l + 0.5_dp*(4._dp*i - 1._dp))
+            j = l + 2*i - 1
             pf = SQRT(2._dp)/(pf*SQRT(gamma1(j)))
-            beta(:) = pf*rp**(l+2*i-2)*ef
-            ibeta = ibeta+1
+            beta(:) = pf*rp**(l + 2*i - 2)*ef
+            ibeta = ibeta + 1
             CALL compose(string, "<PP_BETA", counter=ibeta)
             WRITE (iw, '(T8,A)') TRIM(string)
             CALL compose(string, "angular_momentum", ival=l)
@@ -785,8 +785,8 @@ CONTAINS
       dij = 0._dp
       DO l = 0, lmat
          IF (pot%nl(l) == 0) CYCLE
-         ibeta = SUM(pot%nl(0:l-1))+1
-         i = ibeta+pot%nl(l)-1
+         ibeta = SUM(pot%nl(0:l - 1)) + 1
+         i = ibeta + pot%nl(l) - 1
          dij(ibeta:i, ibeta:i) = pot%hnl(1:pot%nl(l), 1:pot%nl(l), l)
       END DO
       WRITE (iw, '(T8,A)') '<PP_DIJ type="real"'
@@ -803,7 +803,7 @@ CONTAINS
       DO l = 0, lmat
          DO i = 1, 10
             IF (ABS(atom%state%occupation(l, i)) == 0._dp) CYCLE
-            nwfn = nwfn+1
+            nwfn = nwfn + 1
             CALL compose(string, "<PP_CHI", counter=nwfn)
             WRITE (iw, '(T8,A)') TRIM(string)
             CALL compose(string, "l", ival=l)
@@ -815,7 +815,7 @@ CONTAINS
             WRITE (iw, '(T12,A)') 'columns="4">'
             beta = 0._dp
             DO k = 1, atom%basis%nbas(l)
-               beta(:) = beta(:)+atom%orbitals%wfn(k, i, l)*atom%basis%bf(:, k, l)
+               beta(:) = beta(:) + atom%orbitals%wfn(k, i, l)*atom%basis%bf(:, k, l)
             END DO
             beta(:) = beta*atom%basis%grid%rad
             IF (up) THEN

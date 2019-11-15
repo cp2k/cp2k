@@ -145,7 +145,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(atomic_halo%obj))
       CPASSERT(atomic_halo%obj%ref_count > 0)
-      atomic_halo%obj%ref_count = atomic_halo%obj%ref_count+1
+      atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
    END SUBROUTINE fb_atomic_halo_retain
 
 ! **************************************************************************************************
@@ -163,7 +163,7 @@ CONTAINS
 
       IF (ASSOCIATED(atomic_halo%obj)) THEN
          CPASSERT(atomic_halo%obj%ref_count > 0)
-         atomic_halo%obj%ref_count = atomic_halo%obj%ref_count-1
+         atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
          IF (atomic_halo%obj%ref_count == 0) THEN
             atomic_halo%obj%ref_count = 1
             IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
@@ -253,7 +253,7 @@ CONTAINS
       atomic_halo%obj%cost = 0.0_dp
       NULLIFY (atomic_halo%obj%halo_atoms)
       atomic_halo%obj%ref_count = 1
-      atomic_halo%obj%id_nr = last_fb_atomic_halo_id+1
+      atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
       last_fb_atomic_halo_id = atomic_halo%obj%id_nr
    END SUBROUTINE fb_atomic_halo_create
 
@@ -465,7 +465,7 @@ CONTAINS
             atomic_kind => particle_set(iatom_global)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  z=z)
-            nelectrons = nelectrons+z
+            nelectrons = nelectrons + z
          END DO
       END IF
    END FUNCTION fb_atomic_halo_nelectrons_estimate_Z
@@ -508,7 +508,7 @@ CONTAINS
                               kind_number=ikind)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
                           ncgf=ncgf)
-         cost = cost+REAL(ncgf, dp)
+         cost = cost + REAL(ncgf, dp)
       END DO
       ! diagonalisation is N**3 process, so cost must reflect that
       cost = cost**3
@@ -574,13 +574,13 @@ CONTAINS
          ri(1:3) = particle_set(iatom)%r(1:3)
          rj(1:3) = particle_set(jatom)%r(1:3)
          rij_pbc = pbc(ri, rj, cell)
-         rij = rij_pbc(1)*rij_pbc(1)+ &
-               rij_pbc(2)*rij_pbc(2)+ &
+         rij = rij_pbc(1)*rij_pbc(1) + &
+               rij_pbc(2)*rij_pbc(2) + &
                rij_pbc(3)*rij_pbc(3)
          rij = SQRT(rij)
          IF (rij .LE. pair_radii(ikind, jkind)) THEN
             ! jatom is in iatom's halo
-            nhalo_atoms = nhalo_atoms+1
+            nhalo_atoms = nhalo_atoms + 1
             halo_atoms(nhalo_atoms) = jatom
             IF (jatom == iatom) owner_id_in_halo = nhalo_atoms
          END IF
@@ -602,7 +602,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(atomic_halos%obj))
       CPASSERT(atomic_halos%obj%ref_count > 0)
-      atomic_halos%obj%ref_count = atomic_halos%obj%ref_count+1
+      atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
    END SUBROUTINE fb_atomic_halo_list_retain
 
 ! **************************************************************************************************
@@ -621,7 +621,7 @@ CONTAINS
 
       IF (ASSOCIATED(atomic_halos%obj)) THEN
          CPASSERT(atomic_halos%obj%ref_count > 0)
-         atomic_halos%obj%ref_count = atomic_halos%obj%ref_count-1
+         atomic_halos%obj%ref_count = atomic_halos%obj%ref_count - 1
          IF (atomic_halos%obj%ref_count == 0) THEN
             atomic_halos%obj%ref_count = 1
             IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
@@ -706,7 +706,7 @@ CONTAINS
       atomic_halos%obj%max_nhalos = 0
       NULLIFY (atomic_halos%obj%halos)
       atomic_halos%obj%ref_count = 1
-      atomic_halos%obj%id_nr = last_fb_atomic_halo_list_id+1
+      atomic_halos%obj%id_nr = last_fb_atomic_halo_list_id + 1
       last_fb_atomic_halo_list_id = atomic_halos%obj%id_nr
    END SUBROUTINE fb_atomic_halo_list_create
 
@@ -913,7 +913,7 @@ CONTAINS
       DO ihalo = 1, nhalos
          CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                  natoms=nhalo_atoms)
-         total_n_halo_atoms = total_n_halo_atoms+nhalo_atoms
+         total_n_halo_atoms = total_n_halo_atoms + nhalo_atoms
          max_natoms = MAX(max_natoms, nhalo_atoms)
          min_natoms = MIN(min_natoms, nhalo_atoms)
       END DO
@@ -963,7 +963,7 @@ CONTAINS
       pair_radii = 0.0_dp
       DO ii = 1, nkinds
          DO jj = 1, nkinds
-            pair_radii(ii, jj) = rcut(ii)+rcut(jj)
+            pair_radii(ii, jj) = rcut(ii) + rcut(jj)
          END DO
       END DO
    END SUBROUTINE fb_build_pair_radii

@@ -109,33 +109,33 @@ CONTAINS
       REAL(KIND=dp), POINTER                             :: ww(:)
 
       n = spl%n
-      spl%xn = spl%x1+(n-1)*dx
+      spl%xn = spl%x1 + (n - 1)*dx
       spl%h = dx
       spl%invh = 1.0_dp/dx
       spl%h26 = dx**2/6.0_dp
       ALLOCATE (ww(1:n))
       IF (PRESENT(y1a)) THEN
          spl%y2(1) = -0.5_dp
-         ww(1) = 3.0_dp*((spl%y(2)-spl%y(1))/dx-y1a)/dx
+         ww(1) = 3.0_dp*((spl%y(2) - spl%y(1))/dx - y1a)/dx
       ELSE
          spl%y2(1) = 0.0_dp
          ww(1) = 0.0_dp
       END IF
-      DO i = 2, n-1
+      DO i = 2, n - 1
          s = 0.5_dp
-         p = 0.5_dp*spl%y2(i-1)+2.0_dp
+         p = 0.5_dp*spl%y2(i - 1) + 2.0_dp
          spl%y2(i) = -0.5_dp/p
-         ww(i) = (3.0_dp*(spl%y(i+1)-2.0_dp*spl%y(i)+spl%y(i-1))/(dx*dx) &
-                  -0.5_dp*ww(i-1))/p
+         ww(i) = (3.0_dp*(spl%y(i + 1) - 2.0_dp*spl%y(i) + spl%y(i - 1))/(dx*dx) &
+                  - 0.5_dp*ww(i - 1))/p
       END DO
       IF (PRESENT(y1b)) THEN
-         spl%y2(n) = (3.0_dp*(y1b-(spl%y(n)-spl%y(n-1))/dx)/dx- &
-                      0.5_dp*ww(n-1))/(0.5_dp*spl%y2(n-1)+1.0_dp)
+         spl%y2(n) = (3.0_dp*(y1b - (spl%y(n) - spl%y(n - 1))/dx)/dx - &
+                      0.5_dp*ww(n - 1))/(0.5_dp*spl%y2(n - 1) + 1.0_dp)
       ELSE
          spl%y2(n) = 0.0_dp
       END IF
-      DO i = n-1, 1, -1
-         spl%y2(i) = spl%y2(i)*spl%y2(i+1)+ww(i)
+      DO i = n - 1, 1, -1
+         spl%y2(i) = spl%y2(i)*spl%y2(i + 1) + ww(i)
       END DO
       DEALLOCATE (ww)
 
@@ -184,24 +184,24 @@ CONTAINS
          ! for the smaller point available in the spline..
          ! This should happen in very few cases though..
          output_unit = cp_logger_get_default_unit_nr(logger)
-         yy = spl_p(1)%spline_data%xn-spl_p(1)%spline_data%h
+         yy = spl_p(1)%spline_data%xn - spl_p(1)%spline_data%h
          WRITE (output_unit, FMT='(/,80("*"),/,"*",1X,"Value of r in Input =",F11.6,'// &
                 '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))') SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
          xx = yy
       END IF
-      i = INT((xx-spl_p(1)%spline_data%x1)*invh+1)
-      a = (spl_p(1)%spline_data%x1-xx)*invh+REAL(i, kind=dp)
-      b = 1.0_dp-a
+      i = INT((xx - spl_p(1)%spline_data%x1)*invh + 1)
+      a = (spl_p(1)%spline_data%x1 - xx)*invh + REAL(i, kind=dp)
+      b = 1.0_dp - a
 
       ylo = spl_p(1)%spline_data%y(i)
-      yhi = spl_p(1)%spline_data%y(i+1)
+      yhi = spl_p(1)%spline_data%y(i + 1)
       y2lo = spl_p(1)%spline_data%y2(i)
-      y2hi = spl_p(1)%spline_data%y2(i+1)
-      potential_s = (a*ylo+b*yhi-((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26)*spl_f%fscale(1)
-      y1 = invh*((yhi-ylo)+((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
+      y2hi = spl_p(1)%spline_data%y2(i + 1)
+      potential_s = (a*ylo + b*yhi - ((a + 1.0_dp)*y2lo + (b + 1.0_dp)*y2hi)*a*b*h26)*spl_f%fscale(1)
+      y1 = invh*((yhi - ylo) + ((f13 - a*a)*y2lo - (f13 - b*b)*y2hi)*3.0_dp*h26)
       y1 = 2.0_dp*y1*x4*spl_f%dscale(1)
 
-      potential_s = potential_s+spl_f%cutoff
+      potential_s = potential_s + spl_f%cutoff
    END FUNCTION potential_s
 
 ! **************************************************************************************************
@@ -230,17 +230,17 @@ CONTAINS
 
       h26 = spl%h26
       invh = spl%invh
-      i = INT((xx-spl%x1)*invh+1)
+      i = INT((xx - spl%x1)*invh + 1)
 
-      a = (spl%x1-xx)*invh+REAL(i, kind=dp)
-      b = 1.0_dp-a
+      a = (spl%x1 - xx)*invh + REAL(i, kind=dp)
+      b = 1.0_dp - a
       ylo = spl%y(i)
-      yhi = spl%y(i+1)
+      yhi = spl%y(i + 1)
       y2lo = spl%y2(i)
-      y2hi = spl%y2(i+1)
-      spline_value = a*ylo+b*yhi-((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26
-      IF (PRESENT(y1)) y1 = invh*((yhi-ylo)+ &
-                                  ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
+      y2hi = spl%y2(i + 1)
+      spline_value = a*ylo + b*yhi - ((a + 1.0_dp)*y2lo + (b + 1.0_dp)*y2hi)*a*b*h26
+      IF (PRESENT(y1)) y1 = invh*((yhi - ylo) + &
+                                  ((f13 - a*a)*y2lo - (f13 - b*b)*y2hi)*3.0_dp*h26)
    END FUNCTION spline_value
 
 END MODULE splines_methods

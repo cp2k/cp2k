@@ -336,7 +336,7 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena)
          huckel(:, iatom) = 0.0_dp
          DO i = 1, nshell
-            huckel(i, iatom) = hena(i)*(1._dp+kcnlk(lval(i), ikind)*cnumbers(iatom))
+            huckel(i, iatom) = hena(i)*(1._dp + kcnlk(lval(i), ikind)*cnumbers(iatom))
          END DO
       END DO
 
@@ -358,7 +358,7 @@ CONTAINS
             IF (.NOT. defined .OR. natorb_b < 1) CYCLE
             CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, electronegativity=enb)
             ! get Fen = (1+ken*deltaEN^2)
-            fen = 1.0_dp+ken*(ena-enb)**2
+            fen = 1.0_dp + ken*(ena - enb)**2
             ! Kab
             kab = xtb_set_kab(za, zb)
             DO j = 1, natorb_b
@@ -372,12 +372,12 @@ CONTAINS
                   IF (zb == 1 .AND. nb == 2) kjb = k2sh
                   IF (za == 1 .AND. na == 2) kia = k2sh
                   IF ((zb == 1 .AND. nb == 2) .OR. (za == 1 .AND. na == 2)) THEN
-                     kijab(i, j, ikind, jkind) = 0.5_dp*(kia+kjb)
+                     kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)
                   ELSE
                      IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
                         kijab(i, j, ikind, jkind) = ksp*kab*fen
                      ELSE
-                        kijab(i, j, ikind, jkind) = 0.5_dp*(kia+kjb)*kab*fen
+                        kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)*kab*fen
                      END IF
                   END IF
                END DO
@@ -416,7 +416,7 @@ CONTAINS
             DO jkind = 1, nkind
                CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
                CALL get_xtb_atom_param(xtb_atom_b, rcov=rcovb)
-               rcab(ikind, jkind) = kxr*(rcova+rcovb)
+               rcab(ikind, jkind) = kxr*(rcova + rcovb)
             END DO
          END DO
          !
@@ -539,12 +539,12 @@ CONTAINS
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
-            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
             DO jset = 1, nsetb
-               IF (set_radius_a(iset)+set_radius_b(jset) < dr) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dr) CYCLE
                ncob = npgfb(jset)*ncoset(lb_max(jset))
-               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
                IF (calculate_forces) THEN
                   CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
@@ -572,14 +572,14 @@ CONTAINS
          IF (calculate_forces) THEN
             DO i = 1, 3
                IF (iatom <= jatom) THEN
-                  force_ab(i) = SUM(sint(:, :, i+1)*wblock(:, :))
+                  force_ab(i) = SUM(sint(:, :, i + 1)*wblock(:, :))
                ELSE
-                  force_ab(i) = SUM(sint(:, :, i+1)*TRANSPOSE(wblock(:, :)))
+                  force_ab(i) = SUM(sint(:, :, i + 1)*TRANSPOSE(wblock(:, :)))
                END IF
             END DO
             f1 = 2.0_dp
-            force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a)-f1*force_ab(:)
-            force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b)+f1*force_ab(:)
+            force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a) - f1*force_ab(:)
+            force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b) + f1*force_ab(:)
             IF (use_virial .AND. dr > 1.e-3_dp) THEN
                IF (iatom == jatom) f1 = 1.0_dp
                CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
@@ -591,28 +591,28 @@ CONTAINS
          END IF
          ! update S matrix
          IF (iatom <= jatom) THEN
-            sblock(:, :) = sblock(:, :)+sint(:, :, 1)
+            sblock(:, :) = sblock(:, :) + sint(:, :, 1)
          ELSE
-            sblock(:, :) = sblock(:, :)+TRANSPOSE(sint(:, :, 1))
+            sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
          END IF
          IF (calculate_forces) THEN
             DO i = 2, 4
                IF (iatom <= jatom) THEN
-                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :)+sint(:, :, i)
+                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :) + sint(:, :, i)
                ELSE
-                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :)-TRANSPOSE(sint(:, :, i))
+                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :) - TRANSPOSE(sint(:, :, i))
                END IF
             END DO
          END IF
 
          ! Calculate Pi = Pia * Pib (Eq. 11)
-         rcovab = rcova+rcovb
+         rcovab = rcova + rcovb
          rrab = SQRT(dr/rcovab)
          DO i = 1, nsa
-            pia(i) = 1._dp+kpolya(i)*rrab
+            pia(i) = 1._dp + kpolya(i)*rrab
          END DO
          DO i = 1, nsb
-            pib(i) = 1._dp+kpolyb(i)*rrab
+            pib(i) = 1._dp + kpolyb(i)*rrab
          END DO
          IF (calculate_forces) THEN
             IF (dr > 1.e-6_dp) THEN
@@ -633,18 +633,18 @@ CONTAINS
          IF (diagblock) THEN
             DO i = 1, natorb_a
                na = naoa(i)
-               fblock(i, i) = fblock(i, i)+huckel(na, iatom)
+               fblock(i, i) = fblock(i, i) + huckel(na, iatom)
             END DO
          ELSE
             DO j = 1, natorb_b
                nb = naob(j)
                DO i = 1, natorb_a
                   na = naoa(i)
-                  hij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*pib(nb)
+                  hij = 0.5_dp*(huckel(na, iatom) + huckel(nb, jatom))*pia(na)*pib(nb)
                   IF (iatom <= jatom) THEN
-                     fblock(i, j) = fblock(i, j)+hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                     fblock(i, j) = fblock(i, j) + hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
                   ELSE
-                     fblock(j, i) = fblock(j, i)+hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                     fblock(j, i) = fblock(j, i) + hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
                   END IF
                END DO
             END DO
@@ -660,7 +660,7 @@ CONTAINS
                DO i = 1, natorb_a
                   la = laoa(i)
                   na = naoa(i)
-                  fhud = fhud+pblock(i, i)*kcnlk(la, ikind)*hena(na)
+                  fhud = fhud + pblock(i, i)*kcnlk(la, ikind)*hena(na)
                END DO
             ELSE
                DO j = 1, natorb_b
@@ -671,11 +671,11 @@ CONTAINS
                      na = naoa(i)
                      hij = 0.5_dp*pia(na)*pib(nb)
                      IF (iatom <= jatom) THEN
-                        fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
-                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, jkind)*henb(nb)
+                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, jkind)*henb(nb)
                      ELSE
-                        fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, ikind)*hena(na)
-                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, jkind)*henb(nb)
+                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, jkind)*henb(nb)
                      END IF
                   END DO
                END DO
@@ -694,13 +694,13 @@ CONTAINS
                drk = SQRT(SUM(rik(:)**2))
                IF (drk > 1.e-3_dp) THEN
                   fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
-                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdika(:)
-                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdika(:)
+                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - fdika(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdika(:)
                   fdikb(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
-                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdikb(:)
-                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdikb(:)
+                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - fdikb(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdikb(:)
                   IF (use_virial) THEN
-                     fdik = fdika+fdikb
+                     fdik = fdika + fdikb
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
                      IF (atprop%stress) THEN
                         CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
@@ -719,8 +719,8 @@ CONTAINS
                drk = SQRT(SUM(rik(:)**2))
                IF (drk > 1.e-3_dp) THEN
                   fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
-                  force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b)-fdik(:)
-                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdik(:)
+                  force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b) - fdik(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdik(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
                      IF (atprop%stress) THEN
@@ -744,11 +744,11 @@ CONTAINS
                   DO i = 1, natorb_a
                      la = laoa(i)
                      na = naoa(i)
-                     dhij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*(dpia(na)*pib(nb)+pia(na)*dpib(nb))
+                     dhij = 0.5_dp*(huckel(na, iatom) + huckel(nb, jatom))*(dpia(na)*pib(nb) + pia(na)*dpib(nb))
                      IF (iatom <= jatom) THEN
-                        dfblock(i, j) = dfblock(i, j)+dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                        dfblock(i, j) = dfblock(i, j) + dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
                      ELSE
-                        dfblock(j, i) = dfblock(j, i)+dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                        dfblock(j, i) = dfblock(j, i) + dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
                      END IF
                   END DO
                END DO
@@ -762,11 +762,11 @@ CONTAINS
                      DO i = 1, natorb_a
                         la = laoa(i)
                         na = naoa(i)
-                        hij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*pib(nb)
+                        hij = 0.5_dp*(huckel(na, iatom) + huckel(nb, jatom))*pia(na)*pib(nb)
                         IF (iatom <= jatom) THEN
-                           foab = foab+2.0_dp*hij*sint(i, j, ir+1)*pblock(i, j)*kijab(i, j, ikind, jkind)
+                           foab = foab + 2.0_dp*hij*sint(i, j, ir + 1)*pblock(i, j)*kijab(i, j, ikind, jkind)
                         ELSE
-                           foab = foab-2.0_dp*hij*sint(i, j, ir+1)*pblock(j, i)*kijab(i, j, ikind, jkind)
+                           foab = foab - 2.0_dp*hij*sint(i, j, ir + 1)*pblock(j, i)*kijab(i, j, ikind, jkind)
                         END IF
                      END DO
                   END DO
@@ -780,8 +780,8 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
             IF (irow == iatom) force_ab = -force_ab
-            force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-force_ab(:)
-            force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b)+force_ab(:)
+            force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - force_ab(:)
+            force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b) + force_ab(:)
             IF (use_virial) THEN
                f1 = 1.0_dp
                IF (iatom == jatom) f1 = 0.5_dp
@@ -798,20 +798,20 @@ CONTAINS
          ! repulsive potential
          IF (dr > 0.001_dp) THEN
             erepij = zneffa*zneffb/dr*EXP(-SQRT(alphaa*alphab)*dr**kf)
-            erep = erep+erepij
+            erep = erep + erepij
             IF (atprop%energy) THEN
-               atprop%atecc(iatom) = atprop%atecc(iatom)+0.5_dp*erepij
-               atprop%atecc(jatom) = atprop%atecc(jatom)+0.5_dp*erepij
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*erepij
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*erepij
             END IF
             IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-               derepij = -(1.0_dp/dr+SQRT(alphaa*alphab)*kf*dr**(kf-1.0_dp))*erepij
+               derepij = -(1.0_dp/dr + SQRT(alphaa*alphab)*kf*dr**(kf - 1.0_dp))*erepij
                force_rr(1) = derepij*rij(1)/dr
                force_rr(2) = derepij*rij(2)/dr
                force_rr(3) = derepij*rij(3)/dr
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
-               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a)-force_rr(:)
-               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b)+force_rr(:)
+               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - force_rr(:)
+               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + force_rr(:)
                IF (use_virial) THEN
                   f1 = 1.0_dp
                   IF (iatom == jatom) f1 = 0.5_dp
@@ -841,7 +841,7 @@ CONTAINS
                              calculate_forces, use_virial, force, virial, atprop)
       END IF
       ! set repulsive energy
-      erep = erep+exb
+      erep = erep + exb
       CALL mp_sum(erep, para_env%group)
       energy%repulsive = erep
 
@@ -1041,8 +1041,8 @@ CONTAINS
                atom_a = atomic_kind_set(ikind)%atom_list(iatom)
                charges(atom_a, :) = REAL(occ(:), KIND=dp)
                DO is = 1, natorb
-                  ns = lao(is)+1
-                  charges(atom_a, ns) = charges(atom_a, ns)-aocg(is, atom_a)
+                  ns = lao(is) + 1
+                  charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
                END DO
             END DO
          END DO
@@ -1105,14 +1105,14 @@ CONTAINS
             ! Compute QM/MM Energy
             CALL dbcsr_dot(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
                            matrix_p1(ispin)%matrix, qmmm_el)
-            energy%qmmm_el = energy%qmmm_el+qmmm_el
+            energy%qmmm_el = energy%qmmm_el + qmmm_el
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener
-         energy%qmmm_el = energy%qmmm_el+pc_ener
+         energy%qmmm_el = energy%qmmm_el + pc_ener
       END IF
 
-      energy%total = energy%core+energy%hartree+energy%efield+energy%qmmm_el+ &
-                     energy%repulsive+energy%dispersion+energy%dftb3
+      energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
+                     energy%repulsive + energy%dispersion + energy%dftb3
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                     extension=".scfLog")
@@ -1181,14 +1181,14 @@ CONTAINS
             ALLOCATE (dmloc(2*natom), matom(natom), coord(3, natom))
             dmloc = 0.0_dp
             DO iatom = 1, natom
-               dmloc(2*iatom-1) = neighbor_atoms(ikind)%rab(iatom)
+               dmloc(2*iatom - 1) = neighbor_atoms(ikind)%rab(iatom)
                dmloc(2*iatom) = REAL(para_env%mepos, KIND=dp)
             END DO
             CALL mp_minloc(dmloc, para_env%group)
             coord = 0.0_dp
             matom = 0
             DO iatom = 1, natom
-               neighbor_atoms(ikind)%rab(iatom) = dmloc(2*iatom-1)
+               neighbor_atoms(ikind)%rab(iatom) = dmloc(2*iatom - 1)
                IF (NINT(dmloc(2*iatom)) == para_env%mepos) THEN
                   coord(1:3, iatom) = neighbor_atoms(ikind)%coord(1:3, iatom)
                   matom(iatom) = neighbor_atoms(ikind)%katom(iatom)
@@ -1263,26 +1263,26 @@ CONTAINS
          atom_a = atom_of_kind(iatom)
          katom = neighbor_atoms(ikind)%katom(atom_a)
          IF (katom == 0) CYCLE
-         dr = SQRT(rij(1)**2+rij(2)**2+rij(3)**2)
+         dr = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
          ddr = rcab(ikind, jkind)/dr
          ddr6 = ddr**6
          ddr12 = ddr6*ddr6
-         eval = kx(ikind)*(ddr12-kx2*ddr6)/(1.0_dp+ddr12)
+         eval = kx(ikind)*(ddr12 - kx2*ddr6)/(1.0_dp + ddr12)
          ! angle
          ria(1:3) = neighbor_atoms(ikind)%coord(1:3, atom_a)
-         rja(1:3) = rij(1:3)-ria(1:3)
-         drax = ria(1)**2+ria(2)**2+ria(3)**2
+         rja(1:3) = rij(1:3) - ria(1:3)
+         drax = ria(1)**2 + ria(2)**2 + ria(3)**2
          drbx = dr*dr
-         drab = rja(1)**2+rja(2)**2+rja(3)**2
+         drab = rja(1)**2 + rja(2)**2 + rja(3)**2
          xy = SQRT(drbx*drax)
          ! cos angle B-X-A
-         cosa = (drbx+drax-drab)/xy
-         aterm = (0.5_dp-0.25_dp*cosa)**alp
+         cosa = (drbx + drax - drab)/xy
+         aterm = (0.5_dp - 0.25_dp*cosa)**alp
          !
-         exb = exb+aterm*eval
+         exb = exb + aterm*eval
          IF (atprop%energy) THEN
-            atprop%atecc(iatom) = atprop%atecc(iatom)+0.5_dp*aterm*eval
-            atprop%atecc(jatom) = atprop%atecc(jatom)+0.5_dp*aterm*eval
+            atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*aterm*eval
+            atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*aterm*eval
          END IF
          !
          IF (calculate_forces) THEN
@@ -1290,11 +1290,11 @@ CONTAINS
             atom_b = atom_of_kind(jatom)
             atom_c = atom_of_kind(katom)
             !
-            deval = 6.0_dp*kx(ikind)*ddr6*(kx2*ddr12+2.0_dp*ddr6-kx2)/(1.0_dp+ddr12)**2
+            deval = 6.0_dp*kx(ikind)*ddr6*(kx2*ddr12 + 2.0_dp*ddr6 - kx2)/(1.0_dp + ddr12)**2
             deval = -rcab(ikind, jkind)*deval/(dr*dr)/ddr
             fij(1:3) = aterm*deval*rij(1:3)/dr
-            force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a)-fij(:)
-            force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b)+fij(:)
+            force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fij(:)
+            force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + fij(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
                IF (atprop%stress) THEN
@@ -1306,16 +1306,16 @@ CONTAINS
             fij(1:3) = 0.0_dp
             fia(1:3) = 0.0_dp
             fja(1:3) = 0.0_dp
-            daterm = -0.25_dp*alp*(0.5_dp-0.25_dp*cosa)**(alp-1.0_dp)
-            ddbx = 0.5_dp*(drab-drax+drbx)/xy/drbx
-            ddax = 0.5_dp*(drab+drax-drbx)/xy/drax
+            daterm = -0.25_dp*alp*(0.5_dp - 0.25_dp*cosa)**(alp - 1.0_dp)
+            ddbx = 0.5_dp*(drab - drax + drbx)/xy/drbx
+            ddax = 0.5_dp*(drab + drax - drbx)/xy/drax
             ddab = -1._dp/xy
             fij(1:3) = 2.0_dp*daterm*ddbx*rij(1:3)*eval
             fia(1:3) = 2.0_dp*daterm*ddax*ria(1:3)*eval
             fja(1:3) = 2.0_dp*daterm*ddab*rja(1:3)*eval
-            force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a)-fij(:)-fia(:)
-            force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b)+fij(:)+fja(:)
-            force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c)+fia(:)-fja(:)
+            force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fij(:) - fia(:)
+            force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + fij(:) + fja(:)
+            force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fia(:) - fja(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
                CALL virial_pair_force(virial%pv_virial, -1._dp, fia, ria)

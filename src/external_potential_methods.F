@@ -94,9 +94,9 @@ CONTAINS
          CALL section_vals_val_get(ext_pot_section, "ATOMS_LIST", n_rep_val=a_var, i_rep_section=rep)
          DO k = 1, a_var
             CALL section_vals_val_get(ext_pot_section, "ATOMS_LIST", i_rep_val=k, i_vals=iatms, i_rep_section=rep)
-            CALL reallocate(nparticle, 1, natom+SIZE(iatms))
-            nparticle(natom+1:natom+SIZE(iatms)) = iatms
-            natom = natom+SIZE(iatms)
+            CALL reallocate(nparticle, 1, natom + SIZE(iatms))
+            nparticle(natom + 1:natom + SIZE(iatms)) = iatms
+            natom = natom + SIZE(iatms)
          END DO
          IF (a_var == 0) THEN
             natom = particles%n_els
@@ -112,7 +112,7 @@ CONTAINS
             my_val(2) = particles%els(iatom)%r(2)
             my_val(3) = particles%els(iatom)%r(3)
 
-            energy = energy+evalf(1, my_val)
+            energy = energy + evalf(1, my_val)
             DO j = 1, 3
                dedf = evalfd(1, j, my_val, dx, err)
                IF (ABS(err) > lerr) THEN
@@ -125,7 +125,7 @@ CONTAINS
                                ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
                                TRIM(def_error)//' .')
                END IF
-               particles%els(iatom)%f(j) = particles%els(iatom)%f(j)-dedf
+               particles%els(iatom)%f(j) = particles%els(iatom)%f(j) - dedf
             END DO
          END DO
          CALL force_env_set(force_env, additional_potential=energy)

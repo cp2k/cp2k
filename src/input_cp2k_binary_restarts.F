@@ -761,9 +761,9 @@ CONTAINS
          END IF
          CALL mp_bcast(rbuf, para_env%source, para_env%group)
          DO i = 1, SIZE(nhc%nvt, 2)
-            idx = (nhc%map_info%index(i)-1)*nhc%nhc_len
+            idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
-               idx = idx+1
+               idx = idx + 1
                nhc%nvt(j, i)%eta = rbuf(idx)
             END DO
          END DO
@@ -781,9 +781,9 @@ CONTAINS
          END IF
          CALL mp_bcast(rbuf, para_env%source, para_env%group)
          DO i = 1, SIZE(nhc%nvt, 2)
-            idx = (nhc%map_info%index(i)-1)*nhc%nhc_len
+            idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
-               idx = idx+1
+               idx = idx + 1
                nhc%nvt(j, i)%v = rbuf(idx)
             END DO
          END DO
@@ -801,9 +801,9 @@ CONTAINS
          END IF
          CALL mp_bcast(rbuf, para_env%source, para_env%group)
          DO i = 1, SIZE(nhc%nvt, 2)
-            idx = (nhc%map_info%index(i)-1)*nhc%nhc_len
+            idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
-               idx = idx+1
+               idx = idx + 1
                nhc%nvt(j, i)%mass = rbuf(idx)
             END DO
          END DO
@@ -821,9 +821,9 @@ CONTAINS
          END IF
          CALL mp_bcast(rbuf, para_env%source, para_env%group)
          DO i = 1, SIZE(nhc%nvt, 2)
-            idx = (nhc%map_info%index(i)-1)*nhc%nhc_len
+            idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
-               idx = idx+1
+               idx = idx + 1
                nhc%nvt(j, i)%f = rbuf(idx)
             END DO
          END DO

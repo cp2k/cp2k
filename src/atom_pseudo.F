@@ -158,7 +158,7 @@ CONTAINS
       maxn = 0
       CALL section_vals_val_get(atom_section, "CALCULATE_STATES", i_vals=cn)
       DO in = 1, MIN(SIZE(cn), 4)
-         maxn(in-1) = cn(in)
+         maxn(in - 1) = cn(in)
       END DO
       DO in = 0, lmat
          maxn(in) = MIN(maxn(in), ae_basis%nbas(in))
@@ -223,7 +223,7 @@ CONTAINS
             DO k = 0, state%maxl_calc
                ads = 2
                IF (state%maxn_occ(k) == 0) ads = 1
-               state%maxn_calc(k) = MAX(maxn(k), state%maxn_occ(k)+ads)
+               state%maxn_calc(k) = MAX(maxn(k), state%maxn_occ(k) + ads)
                state%maxn_calc(k) = MIN(state%maxn_calc(k), ae_basis%nbas(k))
             END DO
             state%core = 0._dp
@@ -234,7 +234,7 @@ CONTAINS
                state%occa = 0._dp
                state%occb = 0._dp
                DO l = 0, lmat
-                  nm = REAL((2*l+1), KIND=dp)
+                  nm = REAL((2*l + 1), KIND=dp)
                   DO k = 1, 10
                      ne = state%occupation(l, k)
                      IF (ne == 0._dp) THEN !empty shell
@@ -244,10 +244,10 @@ CONTAINS
                         state%occb(l, k) = nm
                      ELSEIF (state%multiplicity == -2) THEN !High spin case
                         state%occa(l, k) = MIN(ne, nm)
-                        state%occb(l, k) = MAX(0._dp, ne-nm)
+                        state%occb(l, k) = MAX(0._dp, ne - nm)
                      ELSE
-                        state%occa(l, k) = 0.5_dp*(ne+state%multiplicity-1._dp)
-                        state%occb(l, k) = ne-state%occa(l, k)
+                        state%occa(l, k) = 0.5_dp*(ne + state%multiplicity - 1._dp)
+                        state%occb(l, k) = ne - state%occa(l, k)
                      END IF
                   END DO
                END DO
@@ -256,20 +256,20 @@ CONTAINS
             ! set occupations for pseudopotential calculation
             CALL section_vals_val_get(atom_section, "CORE", c_vals=tmpstringlist)
             CALL atom_set_occupation(tmpstringlist, statepp%core, pocc)
-            zcore = zval-NINT(SUM(statepp%core))
+            zcore = zval - NINT(SUM(statepp%core))
             CALL set_atom(atom_info(in, im)%atom, zcore=zcore, pp_calc=.TRUE.)
 
-            statepp%occ = state%occ-statepp%core
+            statepp%occ = state%occ - statepp%core
             statepp%occupation = 0._dp
             DO l = 0, lmat
                k = 0
                DO i = 1, 10
                   IF (statepp%occ(l, i) /= 0._dp) THEN
-                     k = k+1
+                     k = k + 1
                      statepp%occupation(l, k) = state%occ(l, i)
                      IF (state%multiplicity /= -1) THEN
-                        statepp%occa(l, k) = state%occa(l, i)-statepp%core(l, i)/2
-                        statepp%occb(l, k) = state%occb(l, i)-statepp%core(l, i)/2
+                        statepp%occa(l, k) = state%occa(l, i) - statepp%core(l, i)/2
+                        statepp%occb(l, k) = state%occb(l, i) - statepp%core(l, i)/2
                      END IF
                   END IF
                END DO
@@ -281,7 +281,7 @@ CONTAINS
             statepp%maxn_calc = 0
             maxn = get_maxn_occ(statepp%core)
             DO k = 0, statepp%maxl_calc
-               statepp%maxn_calc(k) = state%maxn_calc(k)-maxn(k)
+               statepp%maxn_calc(k) = state%maxn_calc(k) - maxn(k)
                statepp%maxn_calc(k) = MIN(statepp%maxn_calc(k), pp_basis%nbas(k))
             END DO
             statepp%multiplicity = state%multiplicity

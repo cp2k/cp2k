@@ -276,12 +276,12 @@ CONTAINS
       n_kv = n_ev
       iteration: DO
 
-         CALL allocate_krylov_vectors(b, "b-", k+1, n_kv, nspins, kv_fm_struct)
-         CALL allocate_krylov_vectors(Ab, "Ab-", k+1, n_kv, nspins, kv_fm_struct)
-         CALL allocate_krylov_vectors(Sb, "Sb-", k+1, n_kv, nspins, kv_fm_struct)
+         CALL allocate_krylov_vectors(b, "b-", k + 1, n_kv, nspins, kv_fm_struct)
+         CALL allocate_krylov_vectors(Ab, "Ab-", k + 1, n_kv, nspins, kv_fm_struct)
+         CALL allocate_krylov_vectors(Sb, "Sb-", k + 1, n_kv, nspins, kv_fm_struct)
 
          DO i = 1, n_kv
-            k = k+1
+            k = k + 1
 
             IF (k <= SIZE(t_env%evecs, 1)) THEN ! the first iteration
 
@@ -298,10 +298,10 @@ CONTAINS
                   DO spin = 1, nspins
                      IF (tddfpt_control%invert_S) THEN
                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                        1.0_dp, t_env%invS(spin)%matrix, Ab(k-1, spin)%matrix, &
+                                        1.0_dp, t_env%invS(spin)%matrix, Ab(k - 1, spin)%matrix, &
                                         0.0_dp, b(k, spin)%matrix)
                      ELSE
-                        CALL cp_fm_to_fm(Ab(k-1, spin)%matrix, b(k, spin)%matrix)
+                        CALL cp_fm_to_fm(Ab(k - 1, spin)%matrix, b(k, spin)%matrix)
                      END IF
                   END DO
 
@@ -312,10 +312,10 @@ CONTAINS
                   DO spin = 1, nspins
 
                      CALL cp_fm_set_all(R(spin)%matrix, 0.0_dp)
-                     DO j = 1, k-i
+                     DO j = 1, k - i
                         CALL cp_fm_to_fm(Ab(j, spin)%matrix, X(spin)%matrix)
                         CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
-                                                 -evals(iev, iter-1), Sb(j, spin)%matrix)
+                                                 -evals(iev, iter - 1), Sb(j, spin)%matrix)
                         CALL cp_fm_get_element(Us%matrix, j, iev, tmp)
                         CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
                                                  tmp, X(spin)%matrix)
@@ -335,9 +335,9 @@ CONTAINS
                      IF (dft_control%tddfpt_control%precond) THEN
                         DO col = 1, p_env%n_mo(spin)
                            IF (col <= n_ev) THEN
-                              tmp2 = ABS(evals(iev, iter-1)-in_evals(col))
+                              tmp2 = ABS(evals(iev, iter - 1) - in_evals(col))
                            ELSE
-                              tmp2 = ABS(evals(iev, iter-1)-(in_evals(n_ev)+10.0_dp))
+                              tmp2 = ABS(evals(iev, iter - 1) - (in_evals(n_ev) + 10.0_dp))
                            END IF
                            ! protect against division by 0 by a introducing a cutoff.
                            tmp2 = MAX(tmp2, 100*EPSILON(1.0_dp))
@@ -361,7 +361,7 @@ CONTAINS
 
             CALL p_preortho(p_env, qs_env, b(k, :))
             DO j = 1, tddfpt_control%n_reortho
-               CALL reorthogonalize(b(k, :), b, Sb, R, k-1) ! R is temp
+               CALL reorthogonalize(b(k, :), b, Sb, R, k - 1) ! R is temp
             END DO
             CALL normalize(b(k, :), R, matrix_s) ! R is temp
             DO spin = 1, nspins
@@ -404,7 +404,7 @@ CONTAINS
                Atilde_ij = 0.0_dp
                DO spin = 1, nspins
                   CALL cp_fm_trace(b(i, spin)%matrix, Ab(j, spin)%matrix, tmp)
-                  Atilde_ij = Atilde_ij+tmp
+                  Atilde_ij = Atilde_ij + tmp
                END DO
                CALL cp_fm_set_element(Atilde%matrix, i, j, Atilde_ij)
             END DO
@@ -423,7 +423,7 @@ CONTAINS
          evals_difference = 1.0_dp
          IF (iter /= 1) THEN
 
-            evals_difference(:) = ABS((evals(1:n_ev, iter-1)-evals(1:n_ev, iter)))
+            evals_difference(:) = ABS((evals(1:n_ev, iter - 1) - evals(1:n_ev, iter)))
             ! For debugging
             IF (output_unit > 0) THEN
                WRITE (output_unit, *)
@@ -457,14 +457,14 @@ CONTAINS
             DO i = 1, n_ev
                IF (must_improve(i) == 1) THEN
                   must_improve(j) = i
-                  j = j+1
+                  j = j + 1
                END IF
             END DO
          END IF
 
-         IF (k+n_kv > max_kv) EXIT iteration
+         IF (k + n_kv > max_kv) EXIT iteration
 
-         iter = iter+1
+         iter = iter + 1
 
       END DO iteration
 
@@ -552,7 +552,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      counter = counter+1
+      counter = counter + 1
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
 
@@ -618,7 +618,7 @@ CONTAINS
       INTEGER                                            :: index, spin
 
       DO spin = 1, nspins
-         DO index = startv, startv+n_v-1
+         DO index = startv, startv + n_v - 1
             NULLIFY (vectors(index, spin)%matrix)
             mat_name = routineP//vectors_name//TRIM(cp_to_string(index)) &
                        //","//TRIM(cp_to_string(spin))

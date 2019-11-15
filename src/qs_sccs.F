@@ -350,21 +350,21 @@ CONTAINS
       cavity_surface = 0.0_dp
       cavity_volume = 0.0_dp
 
-      IF (should_output .AND. (ABS(eps0-1.0_dp) > tol)) THEN
+      IF (should_output .AND. (ABS(eps0 - 1.0_dp) > tol)) THEN
 
          ! Initialise the switching function theta
          theta => work_r3d(4)%pw
          CALL pw_zero(theta)
 
          ! Calculate the (quantum) volume of the solute cavity
-         f = 1.0_dp/(eps0-1.0_dp)
+         f = 1.0_dp/(eps0 - 1.0_dp)
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k) &
 !$OMP                SHARED(eps0,eps_elec,f,lb,theta,ub)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  theta%cr3d(i, j, k) = f*(eps0-eps_elec%cr3d(i, j, k))
+                  theta%cr3d(i, j, k) = f*(eps0 - eps_elec%cr3d(i, j, k))
                END DO
             END DO
          END DO
@@ -392,9 +392,9 @@ CONTAINS
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
                   norm_drho_elec%cr3d(i, j, k) = SQRT(drho_elec(1)%pw%cr3d(i, j, k)* &
-                                                      drho_elec(1)%pw%cr3d(i, j, k)+ &
+                                                      drho_elec(1)%pw%cr3d(i, j, k) + &
                                                       drho_elec(2)%pw%cr3d(i, j, k)* &
-                                                      drho_elec(2)%pw%cr3d(i, j, k)+ &
+                                                      drho_elec(2)%pw%cr3d(i, j, k) + &
                                                       drho_elec(3)%pw%cr3d(i, j, k)* &
                                                       drho_elec(3)%pw%cr3d(i, j, k))
                END DO
@@ -480,7 +480,7 @@ CONTAINS
                            v_sccs%cr3d(i, j, k) = sccs_control%gamma_solvent*theta%cr3d(i, j, k)* &
                                                   (drho_elec(di)%pw%cr3d(i, j, k)* &
                                                    drho_elec(dj)%pw%cr3d(i, j, k)* &
-                                                   d2rho_elec(di, dj)%pw%cr3d(i, j, k)/norm_drho2- &
+                                                   d2rho_elec(di, dj)%pw%cr3d(i, j, k)/norm_drho2 - &
                                                    d2rho_elec(di, di)%pw%cr3d(i, j, k))/norm_drho2
                         END DO
                      END DO
@@ -597,7 +597,7 @@ CONTAINS
       iter_loop: DO
 
          ! Increment iteration counter
-         iter = iter+1
+         iter = iter + 1
 
          ! Check if the requested maximum number of SCCS iterations is reached
          IF (iter > sccs_control%max_iter) THEN
@@ -628,15 +628,15 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  rho_iter_new = (dln_eps_elec(1)%pw%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k)+ &
-                                  dln_eps_elec(2)%pw%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k)+ &
+                  rho_iter_new = (dln_eps_elec(1)%pw%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
+                                  dln_eps_elec(2)%pw%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
                                   dln_eps_elec(3)%pw%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k))*f
-                  rho_iter_new = rho_iter_old%cr3d(i, j, k)+ &
-                                 sccs_control%mixing*(rho_iter_new-rho_iter_old%cr3d(i, j, k))
-                  rho_delta = ABS(rho_iter_new-rho_iter_old%cr3d(i, j, k))
+                  rho_iter_new = rho_iter_old%cr3d(i, j, k) + &
+                                 sccs_control%mixing*(rho_iter_new - rho_iter_old%cr3d(i, j, k))
+                  rho_delta = ABS(rho_iter_new - rho_iter_old%cr3d(i, j, k))
                   rho_delta_max = MAX(rho_delta, rho_delta_max)
-                  rho_delta_avg = rho_delta_avg+rho_delta
-                  rho_tot%cr3d(i, j, k) = rho_tot_zero%cr3d(i, j, k)+rho_iter_new
+                  rho_delta_avg = rho_delta_avg + rho_delta
+                  rho_tot%cr3d(i, j, k) = rho_tot_zero%cr3d(i, j, k) + rho_iter_new
                   rho_iter_old%cr3d(i, j, k) = rho_iter_new
                END DO
             END DO
@@ -783,10 +783,10 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               dphi2 = dphi_tot(1)%pw%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k)+ &
-                       dphi_tot(2)%pw%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k)+ &
+               dphi2 = dphi_tot(1)%pw%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
+                       dphi_tot(2)%pw%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
                        dphi_tot(3)%pw%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k)
-               v_sccs%cr3d(i, j, k) = v_sccs%cr3d(i, j, k)+f*deps_elec%cr3d(i, j, k)*dphi2
+               v_sccs%cr3d(i, j, k) = v_sccs%cr3d(i, j, k) + f*deps_elec%cr3d(i, j, k)*dphi2
             END DO
          END DO
       END DO
@@ -844,11 +844,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       f = LOG(epsilon_solvent)/twopi
-      diff = rho_max-rho_min
+      diff = rho_max - rho_min
       IF (diff > tol) THEN
          ln_rho_max = LOG(rho_max)
          ln_rho_min = LOG(rho_min)
-         q = twopi/(ln_rho_max-ln_rho_min)
+         q = twopi/(ln_rho_max - ln_rho_min)
          dq = -f*q
       END IF
 
@@ -870,10 +870,10 @@ CONTAINS
                ELSE IF (rho <= rho_max) THEN
                   IF (diff > tol) THEN
                      x = LOG(rho)
-                     y = q*(ln_rho_max-x)
-                     t = f*(y-SIN(y))
+                     y = q*(ln_rho_max - x)
+                     t = f*(y - SIN(y))
                      eps_elec%cr3d(i, j, k) = EXP(t)
-                     dt = dq*(1.0_dp-COS(y))
+                     dt = dq*(1.0_dp - COS(y))
                      deps_elec%cr3d(i, j, k) = eps_elec%cr3d(i, j, k)*dt/rho
                   ELSE
                      eps_elec%cr3d(i, j, k) = 1.0_dp
@@ -920,8 +920,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      df = (1.0_dp-epsilon_solvent)/rho_zero
-      f = 0.5_dp*(epsilon_solvent-1.0_dp)
+      df = (1.0_dp - epsilon_solvent)/rho_zero
+      f = 0.5_dp*(epsilon_solvent - 1.0_dp)
       q = 1.0_dp/rho_zero
       twobeta = 2.0_dp*beta
 
@@ -943,8 +943,8 @@ CONTAINS
                ELSE
                   s = rho*q
                   p = s**twobeta
-                  t = 1.0_dp/(1.0_dp+p)
-                  eps_elec%cr3d(i, j, k) = 1.0_dp+f*(1.0_dp+(1.0_dp-p)*t)
+                  t = 1.0_dp/(1.0_dp + p)
+                  eps_elec%cr3d(i, j, k) = 1.0_dp + f*(1.0_dp + (1.0_dp - p)*t)
                   deps_elec%cr3d(i, j, k) = df*twobeta*t*t*p/s
                END IF
             END DO
@@ -1009,7 +1009,7 @@ CONTAINS
          CASE (sccs_derivative_cd7)
             border_points = 3
          END SELECT
-         CALL init_input_type(input_settings, 2*border_points+1, rs_grid_section, &
+         CALL init_input_type(input_settings, 2*border_points + 1, rs_grid_section, &
                               1, (/-1, -1, -1/))
          CALL rs_grid_create_descriptor(rs_desc, f%pw_grid, input_settings, &
                                         border_points=border_points)
@@ -1103,13 +1103,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      e = epsilon_solvent-1.0_dp
+      e = epsilon_solvent - 1.0_dp
       f = LOG(epsilon_solvent)/twopi
-      diff = rho_max-rho_min
+      diff = rho_max - rho_min
       IF (diff > tol) THEN
          ln_rho_max = LOG(rho_max)
          ln_rho_min = LOG(rho_min)
-         q = twopi/(ln_rho_max-ln_rho_min)
+         q = twopi/(ln_rho_max - ln_rho_min)
       END IF
 
       lb(1:3) = rho_elec%pw_grid%bounds_local(1, 1:3)
@@ -1124,14 +1124,14 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                DO l = 1, 2
-                  rho = rho_elec%cr3d(i, j, k)+(REAL(l, KIND=dp)-1.5_dp)*delta_rho
+                  rho = rho_elec%cr3d(i, j, k) + (REAL(l, KIND=dp) - 1.5_dp)*delta_rho
                   IF (rho < rho_min) THEN
                      eps_elec = epsilon_solvent
                   ELSE IF (rho <= rho_max) THEN
                      IF (diff > tol) THEN
                         x = LOG(rho)
-                        y = q*(ln_rho_max-x)
-                        t = f*(y-SIN(y))
+                        y = q*(ln_rho_max - x)
+                        t = f*(y - SIN(y))
                         eps_elec = EXP(t)
                      ELSE
                         eps_elec = 1.0_dp
@@ -1139,9 +1139,9 @@ CONTAINS
                   ELSE
                      eps_elec = 1.0_dp
                   END IF
-                  theta(l) = (epsilon_solvent-eps_elec)/e
+                  theta(l) = (epsilon_solvent - eps_elec)/e
                END DO
-               dtheta%cr3d(i, j, k) = (theta(2)-theta(1))*norm_drho_elec%cr3d(i, j, k)/delta_rho
+               dtheta%cr3d(i, j, k) = (theta(2) - theta(1))*norm_drho_elec%cr3d(i, j, k)/delta_rho
             END DO
          END DO
       END DO
@@ -1186,7 +1186,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      e = epsilon_solvent-1.0_dp
+      e = epsilon_solvent - 1.0_dp
       f = 0.5_dp*e
       q = 1.0_dp/rho_zero
       twobeta = 2.0_dp*beta
@@ -1203,18 +1203,18 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                DO l = 1, 2
-                  rho = rho_elec%cr3d(i, j, k)+(REAL(l, KIND=dp)-1.5_dp)*delta_rho
+                  rho = rho_elec%cr3d(i, j, k) + (REAL(l, KIND=dp) - 1.5_dp)*delta_rho
                   IF (rho < tol) THEN
                      eps_elec = epsilon_solvent
                   ELSE
                      s = rho*q
                      p = s**twobeta
-                     t = 1.0_dp/(1.0_dp+p)
-                     eps_elec = 1.0_dp+f*(1.0_dp+(1.0_dp-p)*t)
+                     t = 1.0_dp/(1.0_dp + p)
+                     eps_elec = 1.0_dp + f*(1.0_dp + (1.0_dp - p)*t)
                   END IF
-                  theta(l) = (epsilon_solvent-eps_elec)/e
+                  theta(l) = (epsilon_solvent - eps_elec)/e
                END DO
-               dtheta%cr3d(i, j, k) = (theta(2)-theta(1))*norm_drho_elec%cr3d(i, j, k)/delta_rho
+               dtheta%cr3d(i, j, k) = (theta(2) - theta(1))*norm_drho_elec%cr3d(i, j, k)/delta_rho
             END DO
          END DO
       END DO

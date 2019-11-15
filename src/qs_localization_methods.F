@@ -151,7 +151,7 @@ CONTAINS
          f2 = 0.0_dp
          DO p = 1, ncol_local ! p
             DO i = 1, nrow_local ! i
-               f2 = f2+SQRT(C%local_data(i, p)**2+f2_eps)
+               f2 = f2 + SQRT(C%local_data(i, p)**2 + f2_eps)
             ENDDO
          ENDDO
          CALL mp_sum(f2, C%matrix_struct%para_env%group)
@@ -161,7 +161,7 @@ CONTAINS
          ! f_2(x)=(x^2+eps)^1/2
          DO p = 1, ncol_local ! p
             DO i = 1, nrow_local ! i
-               CTmp%local_data(i, p) = C%local_data(i, p)/SQRT(C%local_data(i, p)**2+f2_eps)
+               CTmp%local_data(i, p) = C%local_data(i, p)/SQRT(C%local_data(i, p)**2 + f2_eps)
             ENDDO
          ENDDO
          CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, CTmp, C, 0.0_dp, G)
@@ -207,13 +207,13 @@ CONTAINS
          !
          ! printing
          IF (output_unit .GT. 0) THEN
-            WRITE (output_unit, '(10X,I4,E18.10,2E10.2)') istep, f2, gnorm, ABS((f2-f2old)/f2)
+            WRITE (output_unit, '(10X,I4,E18.10,2E10.2)') istep, f2, gnorm, ABS((f2 - f2old)/f2)
          ENDIF
          !
          ! Are we done?
          sweeps = istep
          !IF(gnorm.LE.grad_thresh.AND.ABS((f2-f2old)/f2).LE.f2_thresh.AND.istep.GT.1) THEN
-         IF (ABS((f2-f2old)/f2) .LE. eps .AND. istep .GT. 1) THEN
+         IF (ABS((f2 - f2old)/f2) .LE. eps .AND. istep .GT. 1) THEN
             converged = .TRUE.
             EXIT
          ENDIF
@@ -266,9 +266,9 @@ CONTAINS
       metric = 0.0_dp
       CALL dgemm('T', 'N', 3, 3, 3, 1._dp, cell%hmat, 3, cell%hmat, 3, 0.0_dp, metric, 3)
 
-      weights(1) = METRIC(1, 1)-METRIC(1, 2)-METRIC(1, 3)
-      weights(2) = METRIC(2, 2)-METRIC(1, 2)-METRIC(2, 3)
-      weights(3) = METRIC(3, 3)-METRIC(1, 3)-METRIC(2, 3)
+      weights(1) = METRIC(1, 1) - METRIC(1, 2) - METRIC(1, 3)
+      weights(2) = METRIC(2, 2) - METRIC(1, 2) - METRIC(2, 3)
+      weights(3) = METRIC(3, 3) - METRIC(1, 3) - METRIC(2, 3)
       weights(4) = METRIC(1, 2)
       weights(5) = METRIC(1, 3)
       weights(6) = METRIC(2, 3)
@@ -374,10 +374,10 @@ CONTAINS
       END IF
       ! do jacobi sweeps until converged
       DO WHILE (tolerance >= eps_localization .AND. sweeps < max_iter)
-         sweeps = sweeps+1
+         sweeps = sweeps + 1
          t1 = m_walltime()
          DO istate = 1, nstate
-            DO jstate = istate+1, nstate
+            DO jstate = istate + 1, nstate
                DO idim = 1, dim2
                   CALL cp_cfm_get_element(c_zij(idim)%matrix, istate, istate, mii(idim))
                   CALL cp_cfm_get_element(c_zij(idim)%matrix, istate, jstate, mij(idim))
@@ -394,7 +394,7 @@ CONTAINS
          t2 = m_walltime()
          IF (unit_nr > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
             WRITE (unit_nr, '(T4,A,I7,T30,A,E12.4,T60,A,F8.3)') &
-               "Iteration:", sweeps, "Tolerance:", tolerance, "Time:", t2-t1
+               "Iteration:", sweeps, "Tolerance:", tolerance, "Time:", t2 - t1
             CALL m_flush(unit_nr)
          ENDIF
       END DO
@@ -508,9 +508,9 @@ CONTAINS
          z11 = mii(idim)
          z22 = mjj(idim)
          z12 = mij(idim)
-         a12 = a12+weights(idim)*REAL(CONJG(z12)*(z11-z22), KIND=dp)
-         b12 = b12+weights(idim)*REAL((z12*CONJG(z12)- &
-                                       0.25_dp*(z11-z22)*(CONJG(z11)-CONJG(z22))), KIND=dp)
+         a12 = a12 + weights(idim)*REAL(CONJG(z12)*(z11 - z22), KIND=dp)
+         b12 = b12 + weights(idim)*REAL((z12*CONJG(z12) - &
+                                         0.25_dp*(z11 - z22)*(CONJG(z11) - CONJG(z22))), KIND=dp)
       END DO
       IF (ABS(b12) > 1.e-10_dp) THEN
          ratio = -a12/b12
@@ -522,12 +522,12 @@ CONTAINS
          theta = 0.25_dp*pi
       ENDIF
 ! Check second derivative info
-      d2 = a12*SIN(4._dp*theta)-b12*COS(4._dp*theta)
+      d2 = a12*SIN(4._dp*theta) - b12*COS(4._dp*theta)
       IF (d2 <= 0._dp) THEN ! go to the maximum, not the minimum
          IF (theta > 0.0_dp) THEN ! make theta as small as possible
-            theta = theta-0.25_dp*pi
+            theta = theta - 0.25_dp*pi
          ELSE
-            theta = theta+0.25_dp*pi
+            theta = theta + 0.25_dp*pi
          ENDIF
       ENDIF
    END SUBROUTINE get_angle
@@ -610,8 +610,8 @@ CONTAINS
             DO idim = 1, ndim
                zii = diag(row_indices(istate), idim)
                zjj = diag(col_indices(jstate), idim)
-               gradsq_ij = gradsq_ij+weights(idim)* &
-                           4.0_dp*REAL((CONJG(zii)*zii+CONJG(zjj)*zjj), KIND=dp)
+               gradsq_ij = gradsq_ij + weights(idim)* &
+                           4.0_dp*REAL((CONJG(zii)*zii + CONJG(zjj)*zjj), KIND=dp)
             END DO
             matrix%local_data(istate, jstate) = gradsq_ij
          END DO
@@ -656,8 +656,8 @@ CONTAINS
                zii = diag(row_indices(istate), idim)
                zjj = diag(col_indices(jstate), idim)
                zij = matrix_p(idim)%matrix%local_data(istate, jstate)
-               grad_ij = grad_ij+weights(idim)* &
-                         REAL(4.0_dp*CONJG(zij)*(zjj-zii), dp)
+               grad_ij = grad_ij + weights(idim)* &
+                         REAL(4.0_dp*CONJG(zij)*(zjj - zii), dp)
             END DO
             matrix%local_data(istate, jstate) = grad_ij
          END DO
@@ -696,7 +696,7 @@ CONTAINS
             CALL cp_fm_get_element(zij(1, idim)%matrix, istate, istate, ra)
             CALL cp_fm_get_element(zij(2, idim)%matrix, istate, istate, rb)
             diag(istate, idim) = CMPLX(ra, rb, dp)
-            value = value+weights(idim)-weights(idim)*ABS(diag(istate, idim))**2
+            value = value + weights(idim) - weights(idim)*ABS(diag(istate, idim))**2
          ENDDO
       ENDDO
       tolerance = 0.0_dp
@@ -709,8 +709,8 @@ CONTAINS
                ra = zij(1, idim)%matrix%local_data(istate, jstate)
                rb = zij(2, idim)%matrix%local_data(istate, jstate)
                kij = CMPLX(ra, rb, dp)
-               grad_ij = grad_ij+weights(idim)* &
-                         REAL(4.0_dp*CONJG(kij)*(kjj-kii), dp)
+               grad_ij = grad_ij + weights(idim)* &
+                         REAL(4.0_dp*CONJG(kij)*(kjj - kii), dp)
             END DO
             tolerance = MAX(ABS(grad_ij), tolerance)
          ENDDO
@@ -826,7 +826,7 @@ CONTAINS
       tolerance = 1.0_dp
 
       DO
-         iterations = iterations+1
+         iterations = iterations + 1
          DO idim = 1, dim2
             DO i = 1, nrow_global
                CALL cp_fm_get_element(zij(1, idim)%matrix, i, i, ra)
@@ -1032,7 +1032,7 @@ CONTAINS
       line_searches = 0
       line_search_count = 0
       DO
-         iterations = iterations+1
+         iterations = iterations + 1
          ! compute U,R,evals given A
          cmat_A%local_data = CMPLX(0.0_dp, matrix_A%local_data, dp) ! cmat_A is hermitian, evals are reals
          CALL cp_cfm_heevd(cmat_A, cmat_R, evals)
@@ -1076,16 +1076,16 @@ CONTAINS
                   fval(i) = -weights(idim)*LOG(ABS(diag_z(i, idim))**2)
                   fvald(i) = -weights(idim)/(ABS(diag_z(i, idim))**2)
                CASE (2) ! corresponds to the jacobi setup
-                  fval(i) = weights(idim)-weights(idim)*ABS(diag_z(i, idim))**2
+                  fval(i) = weights(idim) - weights(idim)*ABS(diag_z(i, idim))**2
                   fvald(i) = -weights(idim)
                END SELECT
-               omega = omega+fval(i)
+               omega = omega + fval(i)
             ENDDO
             DO icol = 1, ncol_local
                DO irow = 1, nrow_local
                   tmp = cmat_t1%local_data(irow, icol)*CONJG(diag_z(col_indices(icol), idim))
                   cmat_M%local_data(irow, icol) = cmat_M%local_data(irow, icol) &
-                                                  +4.0_dp*fvald(col_indices(icol))*REAL(tmp, KIND=dp)
+                                                  + 4.0_dp*fvald(col_indices(icol))*REAL(tmp, KIND=dp)
                ENDDO
             ENDDO
          ENDDO
@@ -1102,16 +1102,16 @@ CONTAINS
             DO irow = 1, nrow_local
                ll = (0.0_dp, -1.0_dp)*evals(row_indices(irow))
                lk = (0.0_dp, -1.0_dp)*evals(col_indices(icol))
-               IF (ABS(ll-lk) .LT. 0.5_dp) THEN ! use a series expansion to avoid loss of precision
+               IF (ABS(ll - lk) .LT. 0.5_dp) THEN ! use a series expansion to avoid loss of precision
                   tmp = 1.0_dp
                   cmat_B%local_data(irow, icol) = 0.0_dp
                   DO i = 1, 16
-                     cmat_B%local_data(irow, icol) = cmat_B%local_data(irow, icol)+tmp
-                     tmp = tmp*(ll-lk)/(i+1)
+                     cmat_B%local_data(irow, icol) = cmat_B%local_data(irow, icol) + tmp
+                     tmp = tmp*(ll - lk)/(i + 1)
                   ENDDO
                   cmat_B%local_data(irow, icol) = cmat_B%local_data(irow, icol)*EXP(lk)
                ELSE
-                  cmat_B%local_data(irow, icol) = (EXP(lk)-EXP(ll))/(lk-ll)
+                  cmat_B%local_data(irow, icol) = (EXP(lk) - EXP(ll))/(lk - ll)
                ENDIF
             ENDDO
          ENDDO
@@ -1130,7 +1130,7 @@ CONTAINS
          ! from here on, minimizing technology
          IF (new_direction) THEN
             ! energy converged up to machine precision ?
-            line_searches = line_searches+1
+            line_searches = line_searches + 1
             ! DO i=1,line_search_count
             !   write(15,*) pos(i),energy(i)
             ! ENDDO
@@ -1156,7 +1156,7 @@ CONTAINS
                ENDDO
                CALL cp_fm_trace(matrix_G, matrix_G_old, normg)
                normg = normg*0.5_dp
-               beta_pr = (normg-normg_cross)/normg_old
+               beta_pr = (normg - normg_cross)/normg_old
                normg_old = normg
                beta_pr = MAX(beta_pr, 0.0_dp)
                CALL cp_fm_scale_and_add(beta_pr, matrix_G_search, -1.0_dp, matrix_G_old)
@@ -1175,7 +1175,7 @@ CONTAINS
             ! ds_min=1.0E-4_dp
             line_search_count = 0
          END IF
-         line_search_count = line_search_count+1
+         line_search_count = line_search_count + 1
          energy(line_search_count) = Omega
 
          ! line search section
@@ -1194,10 +1194,10 @@ CONTAINS
                c = energy(1)
                b = grad(1)
                x1 = pos(2)
-               a = (energy(2)-b*x1-c)/(x1**2)
+               a = (energy(2) - b*x1 - c)/(x1**2)
                IF (a .LE. 0.0_dp) a = 1.0E-15_dp
                npos = -b/(2.0_dp*a)
-               val = a*npos**2+b*npos+c
+               val = a*npos**2 + b*npos + c
                IF (val .LT. energy(1) .AND. val .LE. energy(2)) THEN
                   ! we go to a minimum, but ...
                   ! we take a guard against too large steps
@@ -1227,16 +1227,16 @@ CONTAINS
                fa = energy(1)
                fb = energy(2)
                fc = energy(3)
-               nom = (xb-xa)**2*(fb-fc)-(xb-xc)**2*(fb-fa)
-               denom = (xb-xa)*(fb-fc)-(xb-xc)*(fb-fa)
-               IF (ABS(denom) .LE. 1.0E-18_dp*MAX(ABS(fb-fc), ABS(fb-fa))) THEN
+               nom = (xb - xa)**2*(fb - fc) - (xb - xc)**2*(fb - fa)
+               denom = (xb - xa)*(fb - fc) - (xb - xc)*(fb - fa)
+               IF (ABS(denom) .LE. 1.0E-18_dp*MAX(ABS(fb - fc), ABS(fb - fa))) THEN
                   npos = xb
                ELSE
-                  npos = xb-0.5_dp*nom/denom ! position of the stationary point
+                  npos = xb - 0.5_dp*nom/denom ! position of the stationary point
                ENDIF
-               val = (npos-xa)*(npos-xb)*fc/((xc-xa)*(xc-xb))+ &
-                     (npos-xb)*(npos-xc)*fa/((xa-xb)*(xa-xc))+ &
-                     (npos-xc)*(npos-xa)*fb/((xb-xc)*(xb-xa))
+               val = (npos - xa)*(npos - xb)*fc/((xc - xa)*(xc - xb)) + &
+                     (npos - xb)*(npos - xc)*fa/((xa - xb)*(xa - xc)) + &
+                     (npos - xc)*(npos - xa)*fb/((xb - xc)*(xb - xa))
                IF (val .LT. fa .AND. val .LE. fb .AND. val .LE. fc) THEN ! OK, we go to a minimum
                   ! we take a guard against too large steps
                   pos(4) = MAX(MAXVAL(pos(1:3))*0.01_dp, &
@@ -1256,13 +1256,13 @@ CONTAINS
             ELSE
                IF (line_search_count .EQ. 150) CPABORT("Too many")
                IF (lsr .EQ. 0) THEN
-                  IF (energy(line_search_count-1) .LT. energy(line_search_count)) THEN
+                  IF (energy(line_search_count - 1) .LT. energy(line_search_count)) THEN
                      lsr = line_search_count
-                     pos(line_search_count+1) = pos(lsm)+(pos(lsr)-pos(lsm))*gold_sec
+                     pos(line_search_count + 1) = pos(lsm) + (pos(lsr) - pos(lsm))*gold_sec
                   ELSE
                      lsl = lsm
                      lsm = line_search_count
-                     pos(line_search_count+1) = pos(line_search_count)/gold_sec
+                     pos(line_search_count + 1) = pos(line_search_count)/gold_sec
                   ENDIF
                ELSE
                   IF (pos(line_search_count) .LT. pos(lsm)) THEN
@@ -1280,20 +1280,20 @@ CONTAINS
                         lsr = line_search_count
                      ENDIF
                   ENDIF
-                  IF (pos(lsr)-pos(lsm) .GT. pos(lsm)-pos(lsl)) THEN
-                     pos(line_search_count+1) = pos(lsm)+gold_sec*(pos(lsr)-pos(lsm))
+                  IF (pos(lsr) - pos(lsm) .GT. pos(lsm) - pos(lsl)) THEN
+                     pos(line_search_count + 1) = pos(lsm) + gold_sec*(pos(lsr) - pos(lsm))
                   ELSE
-                     pos(line_search_count+1) = pos(lsl)+gold_sec*(pos(lsm)-pos(lsl))
+                     pos(line_search_count + 1) = pos(lsl) + gold_sec*(pos(lsm) - pos(lsl))
                   ENDIF
-                  IF ((pos(lsr)-pos(lsl)) .LT. 1.0E-3_dp*pos(lsr)) THEN
+                  IF ((pos(lsr) - pos(lsl)) .LT. 1.0E-3_dp*pos(lsr)) THEN
                      new_direction = .TRUE.
                   ENDIF
                ENDIF ! lsr .eq. 0
             ENDIF ! first step
          END SELECT
          ! now go to the suggested point
-         ds_min = pos(line_search_count+1)
-         ds = pos(line_search_count+1)-pos(line_search_count)
+         ds_min = pos(line_search_count + 1)
+         ds = pos(line_search_count + 1) - pos(line_search_count)
          CALL cp_fm_scale_and_add(1.0_dp, matrix_A, ds, matrix_G_search)
       ENDDO
 
@@ -1407,30 +1407,30 @@ CONTAINS
       sweeps = 0
 
       ! number of processor pairs and number of permutations
-      npair = (para_env%num_pe+1)/2
-      nperm = para_env%num_pe-MOD(para_env%num_pe+1, 2)
+      npair = (para_env%num_pe + 1)/2
+      nperm = para_env%num_pe - MOD(para_env%num_pe + 1, 2)
       ALLOCATE (list_pair(2, npair))
 
       ! Distribution of the states (XXXXX safe against more pe than states ??? XXXXX)
       xstate = REAL(nstate, dp)/REAL(para_env%num_pe, dp)
       nblock_max = 0
-      ALLOCATE (ns_bound(0:para_env%num_pe-1, 2))
+      ALLOCATE (ns_bound(0:para_env%num_pe - 1, 2))
       Xlow = 0.0D0
       Xup = 0.0D0
       DO ip = 1, para_env%num_pe
-         xup = xlow+xstate
-         ns_bound(ip-1, 1) = NINT(xlow)+1
-         ns_bound(ip-1, 2) = NINT(xup)
+         xup = xlow + xstate
+         ns_bound(ip - 1, 1) = NINT(xlow) + 1
+         ns_bound(ip - 1, 2) = NINT(xup)
          IF (NINT(xup) .GT. nstate) THEN
-            ns_bound(ip-1, 2) = nstate
+            ns_bound(ip - 1, 2) = nstate
          ENDIF
          IF (NINT(xlow) .GT. nstate) THEN
-            ns_bound(ip-1, 1) = nstate+1
+            ns_bound(ip - 1, 1) = nstate + 1
          ENDIF
          xlow = xup
       ENDDO
-      DO ip = 0, para_env%num_pe-1
-         nblock = ns_bound(ip, 2)-ns_bound(ip, 1)+1
+      DO ip = 0, para_env%num_pe - 1
+         nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
          nblock_max = MAX(nblock_max, nblock)
       ENDDO
 
@@ -1439,8 +1439,8 @@ CONTAINS
       ALLOCATE (z_ij_loc_im(nstate, nblock_max))
       ALLOCATE (cz_ij_loc(dim2))
       DO idim = 1, dim2
-         DO ip = 0, para_env%num_pe-1
-            nblock = ns_bound(ip, 2)-ns_bound(ip, 1)+1
+         DO ip = 0, para_env%num_pe - 1
+            nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
             CALL cp_fm_get_submatrix(zij(1, idim)%matrix, z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
             CALL cp_fm_get_submatrix(zij(2, idim)%matrix, z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
             IF (para_env%mepos == ip) THEN
@@ -1461,7 +1461,7 @@ CONTAINS
       ALLOCATE (rotmat(nstate, 2*nblock_max))
       rotmat = 0.0_dp
       DO i = ns_bound(para_env%mepos, 1), ns_bound(para_env%mepos, 2)
-         ii = i-ns_bound(para_env%mepos, 1)+1
+         ii = i - ns_bound(para_env%mepos, 1) + 1
          rotmat(i, ii) = 1.0_dp
       END DO
 
@@ -1470,7 +1470,7 @@ CONTAINS
       ALLOCATE (zdiag_me(dim2))
       ALLOCATE (zdiag_all(dim2))
 
-      ns_me = ns_bound(para_env%mepos, 2)-ns_bound(para_env%mepos, 1)+1
+      ns_me = ns_bound(para_env%mepos, 2) - ns_bound(para_env%mepos, 1) + 1
       IF (ns_me /= 0) THEN
          ALLOCATE (c_array_me(nstate, ns_me, dim2))
          DO idim = 1, dim2
@@ -1489,15 +1489,15 @@ CONTAINS
       ALLOCATE (rmat_send(nblock_max*2, nblock_max))
 
       ! buffer for message passing
-      ALLOCATE (rmat_recv_all(nblock_max*2, nblock_max, 0:para_env%num_pe-1))
+      ALLOCATE (rmat_recv_all(nblock_max*2, nblock_max, 0:para_env%num_pe - 1))
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T4,A )') " Localization by iterative distributed Jacobi rotation"
          WRITE (output_unit, '(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance", " Time "
       END IF
 
-      DO sweeps = 1, max_iter+1
-         IF (sweeps == max_iter+1) THEN
+      DO sweeps = 1, max_iter + 1
+         IF (sweeps == max_iter + 1) THEN
             IF (output_unit > 0) THEN
                WRITE (output_unit, *) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
                WRITE (output_unit, *) '               Present  Max. gradient = ', tolerance
@@ -1522,7 +1522,7 @@ CONTAINS
                END IF
             END DO
             IF (ip_partner >= 0) THEN
-               ns_partner = ns_bound(ip_partner, 2)-ns_bound(ip_partner, 1)+1
+               ns_partner = ns_bound(ip_partner, 2) - ns_bound(ip_partner, 1) + 1
             ELSE
                ns_partner = 0
             END IF
@@ -1530,16 +1530,16 @@ CONTAINS
             ! if there is a non-zero block connecting two partners, jacobi-sweep it.
             IF (ns_partner*ns_me /= 0) THEN
 
-               ALLOCATE (rmat_loc(ns_me+ns_partner, ns_me+ns_partner))
+               ALLOCATE (rmat_loc(ns_me + ns_partner, ns_me + ns_partner))
                rmat_loc = 0.0_dp
-               DO i = 1, ns_me+ns_partner
+               DO i = 1, ns_me + ns_partner
                   rmat_loc(i, i) = 1.0_dp
                END DO
 
                ALLOCATE (c_array_partner(nstate, ns_partner, dim2))
 
                DO idim = 1, dim2
-                  ALLOCATE (xyz_mix(idim)%c_array(ns_me+ns_partner, ns_me+ns_partner))
+                  ALLOCATE (xyz_mix(idim)%c_array(ns_me + ns_partner, ns_me + ns_partner))
                   DO i = 1, ns_me
                      c_array_me(1:nstate, i, idim) = cz_ij_loc(idim)%c_array(1:nstate, i)
                   END DO
@@ -1551,36 +1551,36 @@ CONTAINS
                n1 = ns_me
                n2 = ns_partner
                ilow1 = ns_bound(para_env%mepos, 1)
-               iup1 = ns_bound(para_env%mepos, 1)+n1-1
+               iup1 = ns_bound(para_env%mepos, 1) + n1 - 1
                ilow2 = ns_bound(ip_partner, 1)
-               iup2 = ns_bound(ip_partner, 1)+n2-1
+               iup2 = ns_bound(ip_partner, 1) + n2 - 1
                IF (ns_bound(para_env%mepos, 1) < ns_bound(ip_partner, 1)) THEN
                   il1 = 1
                   iu1 = n1
                   iu1 = n1
-                  il2 = 1+n1
-                  iu2 = n1+n2
+                  il2 = 1 + n1
+                  iu2 = n1 + n2
                ELSE
-                  il1 = 1+n2
-                  iu1 = n1+n2
-                  iu1 = n1+n2
+                  il1 = 1 + n2
+                  iu1 = n1 + n2
+                  iu1 = n1 + n2
                   il2 = 1
                   iu2 = n2
                END IF
 
                DO idim = 1, dim2
                   DO i = 1, n1
-                     xyz_mix(idim)%c_array(il1:iu1, il1+i-1) = c_array_me(ilow1:iup1, i, idim)
-                     xyz_mix(idim)%c_array(il2:iu2, il1+i-1) = c_array_me(ilow2:iup2, i, idim)
+                     xyz_mix(idim)%c_array(il1:iu1, il1 + i - 1) = c_array_me(ilow1:iup1, i, idim)
+                     xyz_mix(idim)%c_array(il2:iu2, il1 + i - 1) = c_array_me(ilow2:iup2, i, idim)
                   END DO
                   DO i = 1, n2
-                     xyz_mix(idim)%c_array(il2:iu2, il2+i-1) = c_array_partner(ilow2:iup2, i, idim)
-                     xyz_mix(idim)%c_array(il1:iu1, il2+i-1) = c_array_partner(ilow1:iup1, i, idim)
+                     xyz_mix(idim)%c_array(il2:iu2, il2 + i - 1) = c_array_partner(ilow2:iup2, i, idim)
+                     xyz_mix(idim)%c_array(il1:iu1, il2 + i - 1) = c_array_partner(ilow1:iup1, i, idim)
                   END DO
                END DO
 
-               DO istate = 1, n1+n2
-                  DO jstate = istate+1, n1+n2
+               DO istate = 1, n1 + n2
+                  DO jstate = istate + 1, n1 + n2
                      DO idim = 1, dim2
                         mii(idim) = xyz_mix(idim)%c_array(istate, istate)
                         mij(idim) = xyz_mix(idim)%c_array(istate, jstate)
@@ -1590,40 +1590,40 @@ CONTAINS
                      st = SIN(theta)
                      ct = COS(theta)
                      DO idim = 1, dim2
-                        DO i = 1, n1+n2
-                           zi = ct*xyz_mix(idim)%c_array(i, istate)+st*xyz_mix(idim)%c_array(i, jstate)
-                           zj = -st*xyz_mix(idim)%c_array(i, istate)+ct*xyz_mix(idim)%c_array(i, jstate)
+                        DO i = 1, n1 + n2
+                           zi = ct*xyz_mix(idim)%c_array(i, istate) + st*xyz_mix(idim)%c_array(i, jstate)
+                           zj = -st*xyz_mix(idim)%c_array(i, istate) + ct*xyz_mix(idim)%c_array(i, jstate)
                            xyz_mix(idim)%c_array(i, istate) = zi
                            xyz_mix(idim)%c_array(i, jstate) = zj
                         END DO
-                        DO i = 1, n1+n2
-                           zi = ct*xyz_mix(idim)%c_array(istate, i)+st*xyz_mix(idim)%c_array(jstate, i)
-                           zj = -st*xyz_mix(idim)%c_array(istate, i)+ct*xyz_mix(idim)%c_array(jstate, i)
+                        DO i = 1, n1 + n2
+                           zi = ct*xyz_mix(idim)%c_array(istate, i) + st*xyz_mix(idim)%c_array(jstate, i)
+                           zj = -st*xyz_mix(idim)%c_array(istate, i) + ct*xyz_mix(idim)%c_array(jstate, i)
                            xyz_mix(idim)%c_array(istate, i) = zi
                            xyz_mix(idim)%c_array(jstate, i) = zj
                         END DO
                      END DO
 
-                     DO i = 1, n1+n2
-                        ri = ct*rmat_loc(i, istate)+st*rmat_loc(i, jstate)
-                        rj = ct*rmat_loc(i, jstate)-st*rmat_loc(i, istate)
+                     DO i = 1, n1 + n2
+                        ri = ct*rmat_loc(i, istate) + st*rmat_loc(i, jstate)
+                        rj = ct*rmat_loc(i, jstate) - st*rmat_loc(i, istate)
                         rmat_loc(i, istate) = ri
                         rmat_loc(i, jstate) = rj
                      END DO
                   END DO
                END DO
 
-               k = nblock_max+1
+               k = nblock_max + 1
                CALL mp_sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
-                                rotmat(1:nstate, k:k+n2-1), ip_partner, para_env%group)
+                                rotmat(1:nstate, k:k + n2 - 1), ip_partner, para_env%group)
 
                IF (ilow1 < ilow2) THEN
-                  CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1+n1, 1), n1+n2, 0.0_dp, gmat, nstate)
-                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, rmat_loc(1, 1), n1+n2, 1.0_dp, gmat, nstate)
+              CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1 + n1, 1), n1 + n2, 0.0_dp, gmat, nstate)
+                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, rmat_loc(1, 1), n1 + n2, 1.0_dp, gmat, nstate)
                ELSE
-                  CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1, n2+1), n1+n2, 0.0_dp, gmat, nstate)
+              CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1, n2 + 1), n1 + n2, 0.0_dp, gmat, nstate)
                   CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, &
-                             rmat_loc(n2+1, n2+1), n1+n2, 1.0_dp, gmat, nstate)
+                             rmat_loc(n2 + 1, n2 + 1), n1 + n2, 1.0_dp, gmat, nstate)
                END IF
 
                CALL dcopy(nstate*n1, gmat(1, 1), 1, rotmat(1, 1), 1)
@@ -1637,16 +1637,16 @@ CONTAINS
                      DO jstate = 1, nstate
                         DO i = 1, n2
                            xyz_mix_ns(idim)%c_array(jstate, istate) = &
-                              xyz_mix_ns(idim)%c_array(jstate, istate)+ &
-                              c_array_partner(jstate, i, idim)*rmat_loc(il2+i-1, il1+istate-1)
+                              xyz_mix_ns(idim)%c_array(jstate, istate) + &
+                              c_array_partner(jstate, i, idim)*rmat_loc(il2 + i - 1, il1 + istate - 1)
                         END DO
                      END DO
                   END DO
                   DO istate = 1, n1
                      DO jstate = 1, nstate
                         DO i = 1, n1
-                           xyz_mix_ns(idim)%c_array(jstate, istate) = xyz_mix_ns(idim)%c_array(jstate, istate)+ &
-                                                                      c_array_me(jstate, i, idim)*rmat_loc(il1+i-1, il1+istate-1)
+                           xyz_mix_ns(idim)%c_array(jstate, istate) = xyz_mix_ns(idim)%c_array(jstate, istate) + &
+                                                                 c_array_me(jstate, i, idim)*rmat_loc(il1 + i - 1, il1 + istate - 1)
                         END DO
                      END DO
                   END DO
@@ -1670,8 +1670,8 @@ CONTAINS
 
             IF (ns_partner*ns_me /= 0) THEN
                ! transpose rotation matrix rmat_loc
-               DO i = 1, ns_me+ns_partner
-                  DO j = i+1, ns_me+ns_partner
+               DO i = 1, ns_me + ns_partner
+                  DO j = i + 1, ns_me + ns_partner
                      ri = rmat_loc(i, j)
                      rmat_loc(i, j) = rmat_loc(j, i)
                      rmat_loc(j, i) = ri
@@ -1680,11 +1680,11 @@ CONTAINS
 
                ! prepare for distribution
                DO i = 1, n1
-                  rmat_send(1:n1, i) = rmat_loc(il1:iu1, il1+i-1)
+                  rmat_send(1:n1, i) = rmat_loc(il1:iu1, il1 + i - 1)
                END DO
                ik = nblock_max
                DO i = 1, n2
-                  rmat_send(ik+1:ik+n1, i) = rmat_loc(il1:iu1, il2+i-1)
+                  rmat_send(ik + 1:ik + n1, i) = rmat_loc(il1:iu1, il2 + i - 1)
                END DO
             ELSE
                rmat_send = 0.0_dp
@@ -1694,12 +1694,12 @@ CONTAINS
             CALL mp_allgather(rmat_send, rmat_recv_all, para_env%group)
 
             ! update blocks everywhere
-            DO ip = 0, para_env%num_pe-1
+            DO ip = 0, para_env%num_pe - 1
 
-               ip_recv_from = MOD(para_env%mepos-IP+para_env%num_pe, para_env%num_pe)
+               ip_recv_from = MOD(para_env%mepos - IP + para_env%num_pe, para_env%num_pe)
                rmat_recv(:, :) = rmat_recv_all(:, :, ip_recv_from)
 
-               ns_recv_from = ns_bound(ip_recv_from, 2)-ns_bound(ip_recv_from, 1)+1
+               ns_recv_from = ns_bound(ip_recv_from, 2) - ns_bound(ip_recv_from, 1) + 1
 
                IF (ns_me /= 0) THEN
                   IF (ns_recv_from /= 0) THEN
@@ -1717,7 +1717,7 @@ CONTAINS
                      END DO
 
                      IF (ip_recv_partner >= 0) THEN
-                        ns_recv_partner = ns_bound(ip_recv_partner, 2)-ns_bound(ip_recv_partner, 1)+1
+                        ns_recv_partner = ns_bound(ip_recv_partner, 2) - ns_bound(ip_recv_partner, 1) + 1
                      END IF
                      IF (ns_recv_partner > 0) THEN
                         il1 = ns_bound(para_env%mepos, 1)
@@ -1727,24 +1727,24 @@ CONTAINS
 
                         DO idim = 1, dim2
                            DO i = 1, ns_recv_from
-                              ii = il_recv+i-1
+                              ii = il_recv + i - 1
                               DO j = 1, ns_me
                                  jj = j
                                  DO k = 1, ns_recv_from
-                                    kk = il_recv+k-1
-                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj)+ &
+                                    kk = il_recv + k - 1
+                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj) + &
                                                                       rmat_recv(i, k)*xyz_mix_ns(idim)%c_array(kk, j)
                                  END DO
                               END DO
                            END DO
                            DO i = 1, ns_recv_from
-                              ii = il_recv+i-1
+                              ii = il_recv + i - 1
                               DO j = 1, ns_me
                                  jj = j
                                  DO k = 1, ns_recv_partner
-                                    kk = il_recv_partner+k-1
-                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj)+ &
-                                                                      rmat_recv(ik+i, k)*xyz_mix_ns(idim)%c_array(kk, j)
+                                    kk = il_recv_partner + k - 1
+                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj) + &
+                                                                      rmat_recv(ik + i, k)*xyz_mix_ns(idim)%c_array(kk, j)
                                  END DO
                               END DO
                            END DO
@@ -1756,7 +1756,7 @@ CONTAINS
                            DO j = 1, ns_me
                               jj = j
                               DO i = 1, ns_recv_from
-                                 ii = il_recv+i-1
+                                 ii = il_recv + i - 1
                                  cz_ij_loc(idim)%c_array(ii, jj) = xyz_mix_ns(idim)%c_array(ii, j)
                               END DO
                            END DO
@@ -1778,14 +1778,14 @@ CONTAINS
          ! calculate the max gradient
          DO idim = 1, dim2
             DO i = ns_bound(para_env%mepos, 1), ns_bound(para_env%mepos, 2)
-               ii = i-ns_bound(para_env%mepos, 1)+1
+               ii = i - ns_bound(para_env%mepos, 1) + 1
                zdiag_me(idim)%c_array(ii) = cz_ij_loc(idim)%c_array(i, ii)
                zdiag_me(idim)%c_array(ii) = cz_ij_loc(idim)%c_array(i, ii)
             END DO
             rcount(:) = SIZE(zdiag_me(idim)%c_array)
             rdispl(1) = 0
             DO ip = 2, para_env%num_pe
-               rdispl(ip) = rdispl(ip-1)+rcount(ip-1)
+               rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
             ENDDO
             ! collect all the diagonal elements in a replicated 1d array
             CALL mp_allgather(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl, para_env%group)
@@ -1793,23 +1793,23 @@ CONTAINS
 
          gmax = 0.0_dp
          DO j = ns_bound(para_env%mepos, 1), ns_bound(para_env%mepos, 2)
-            k = j-ns_bound(para_env%mepos, 1)+1
-            DO i = 1, j-1
+            k = j - ns_bound(para_env%mepos, 1) + 1
+            DO i = 1, j - 1
                ! find the location of the diagonal element (i,i)
-               DO ip = 0, para_env%num_pe-1
+               DO ip = 0, para_env%num_pe - 1
                   IF (i >= ns_bound(ip, 1) .AND. i <= ns_bound(ip, 2)) THEN
                      ip_has_i = ip
                      EXIT
                   END IF
                END DO
-               ii = nblock_max*ip_has_i+i-ns_bound(ip_has_i, 1)+1
+               ii = nblock_max*ip_has_i + i - ns_bound(ip_has_i, 1) + 1
                ! mepos has the diagonal element (j,j), as well as the off diagonal (i,j)
-               jj = nblock_max*para_env%mepos+j-ns_bound(para_env%mepos, 1)+1
+               jj = nblock_max*para_env%mepos + j - ns_bound(para_env%mepos, 1) + 1
                grad = 0.0_dp
                DO idim = 1, dim2
                   zi = zdiag_all(idim)%c_array(ii)
                   zj = zdiag_all(idim)%c_array(jj)
-                  grad = grad+weights(idim)*REAL(4.0_dp*CONJG(cz_ij_loc(idim)%c_array(i, k))*(zj-zi), dp)
+                  grad = grad + weights(idim)*REAL(4.0_dp*CONJG(cz_ij_loc(idim)%c_array(i, k))*(zj - zi), dp)
                END DO
                gmax = MAX(gmax, ABS(grad))
             END DO
@@ -1820,18 +1820,18 @@ CONTAINS
 
          func = 0.0_dp
          DO i = ns_bound(para_env%mepos, 1), ns_bound(para_env%mepos, 2)
-            k = i-ns_bound(para_env%mepos, 1)+1
+            k = i - ns_bound(para_env%mepos, 1) + 1
             DO idim = 1, dim2
                zr = REAL(cz_ij_loc(idim)%c_array(i, k), dp)
                zc = AIMAG(cz_ij_loc(idim)%c_array(i, k))
-               func = func+weights(idim)*(1.0_dp-(zr*zr+zc*zc))/twopi/twopi
+               func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
             END DO
          END DO
          CALL mp_sum(func, para_env%group)
          t2 = m_walltime()
 
          IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
-            WRITE (output_unit, '(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps, func, tolerance, t2-t1
+            WRITE (output_unit, '(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps, func, tolerance, t2 - t1
             CALL m_flush(output_unit)
          END IF
          IF (tolerance < eps_localization) EXIT
@@ -1869,18 +1869,18 @@ CONTAINS
       DEALLOCATE (mjj)
 
       ilow1 = ns_bound(para_env%mepos, 1)
-      ns_me = ns_bound(para_env%mepos, 2)-ns_bound(para_env%mepos, 1)+1
+      ns_me = ns_bound(para_env%mepos, 2) - ns_bound(para_env%mepos, 1) + 1
       ALLOCATE (z_ij_loc_re(nstate, nblock_max))
       ALLOCATE (z_ij_loc_im(nstate, nblock_max))
       DO idim = 1, dim2
-         DO ip = 0, para_env%num_pe-1
+         DO ip = 0, para_env%num_pe - 1
             z_ij_loc_re = 0.0_dp
             z_ij_loc_im = 0.0_dp
-            nblock = ns_bound(ip, 2)-ns_bound(ip, 1)+1
+            nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
             IF (ip == para_env%mepos) THEN
                ns_me = nblock
                DO i = 1, ns_me
-                  ii = ilow1+i-1
+                  ii = ilow1 + i - 1
                   DO j = 1, nstate
                      z_ij_loc_re(j, i) = REAL(cz_ij_loc(idim)%c_array(j, i), dp)
                      z_ij_loc_im(j, i) = AIMAG(cz_ij_loc(idim)%c_array(j, i))
@@ -1894,13 +1894,13 @@ CONTAINS
          END DO ! ip
       END DO
 
-      DO ip = 0, para_env%num_pe-1
+      DO ip = 0, para_env%num_pe - 1
          z_ij_loc_re = 0.0_dp
-         nblock = ns_bound(ip, 2)-ns_bound(ip, 1)+1
+         nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
          IF (ip == para_env%mepos) THEN
             ns_me = nblock
             DO i = 1, ns_me
-               ii = ilow1+i-1
+               ii = ilow1 + i - 1
                DO j = 1, nstate
                   z_ij_loc_re(j, i) = rotmat(j, i)
                END DO
@@ -1943,12 +1943,12 @@ CONTAINS
 
       INTEGER                                            :: i, ii, jj, npair
 
-      npair = (para_env%num_pe+1)/2
+      npair = (para_env%num_pe + 1)/2
       IF (iperm == 1) THEN
 !..set up initial ordering
-         DO I = 0, para_env%num_pe-1
-            II = ((i+1)+1)/2
-            JJ = MOD((i+1)+1, 2)+1
+         DO I = 0, para_env%num_pe - 1
+            II = ((i + 1) + 1)/2
+            JJ = MOD((i + 1) + 1, 2) + 1
             list_pair(JJ, II) = i
          ENDDO
          IF (MOD(para_env%num_pe, 2) == 1) list_pair(2, npair) = -1
@@ -1956,15 +1956,15 @@ CONTAINS
 !..a type shift
          jj = list_pair(1, npair)
          DO I = npair, 3, -1
-            list_pair(1, I) = list_pair(1, I-1)
+            list_pair(1, I) = list_pair(1, I - 1)
          ENDDO
          list_pair(1, 2) = list_pair(2, 1)
          list_pair(2, 1) = jj
       ELSE
 !..b type shift
          jj = list_pair(2, 1)
-         DO I = 1, npair-1
-            list_pair(2, I) = list_pair(2, I+1)
+         DO I = 1, npair - 1
+            list_pair(2, I) = list_pair(2, I + 1)
          ENDDO
          list_pair(2, npair) = jj
       ENDIF

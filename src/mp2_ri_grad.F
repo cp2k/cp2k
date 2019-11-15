@@ -216,10 +216,10 @@ CONTAINS
       IF (PRESENT(homo_beta) .AND. PRESENT(Eigenval_beta)) alpha_beta = .TRUE.
 
       dimen = nmo
-      virtual = dimen-homo
+      virtual = dimen - homo
       potential_type = mp2_env%potential_parameter%potential_type
       omega = mp2_env%potential_parameter%omega
-      IF (alpha_beta) virtual_beta = dimen-homo_beta
+      IF (alpha_beta) virtual_beta = dimen - homo_beta
       eps_filter = mp2_env%mp2_gpw%eps_filter
       NULLIFY (mo_coeff_o, mo_coeff_v, G_P_ia, ks_env)
       mo_coeff_o => mp2_env%ri_grad%mo_coeff_o
@@ -236,7 +236,7 @@ CONTAINS
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
       my_P_end = itmp(2)
-      my_P_size = itmp(2)-itmp(1)+1
+      my_P_size = itmp(2) - itmp(1) + 1
       ALLOCATE (G_PQ_local(dimen_RI, my_group_L_size))
 
       G_PQ_local = 0.0_dp
@@ -244,7 +244,7 @@ CONTAINS
          G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = mp2_env%ri_grad%Gamma_PQ
       ELSE
          G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = &
-            0.50_dp*(mp2_env%ri_grad%Gamma_PQ+mp2_env%ri_grad%Gamma_PQ_beta)
+            0.50_dp*(mp2_env%ri_grad%Gamma_PQ + mp2_env%ri_grad%Gamma_PQ_beta)
       ENDIF
       DEALLOCATE (mp2_env%ri_grad%Gamma_PQ)
       IF (alpha_beta) THEN
@@ -298,7 +298,7 @@ CONTAINS
          ALLOCATE (mat_munu_local(my_group_L_size))
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
-            L_counter = L_counter+1
+            L_counter = L_counter + 1
             ALLOCATE (matrix_P_munu_local(L_counter)%matrix)
             ALLOCATE (mat_munu_local(L_counter)%matrix)
             CALL dbcsr_create(matrix_P_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
@@ -337,7 +337,7 @@ CONTAINS
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
-            L_counter = L_counter+1
+            L_counter = L_counter + 1
             ! we recompute matrix_P_inu
             CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
                                 0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
@@ -360,9 +360,9 @@ CONTAINS
          ENDDO
 
          DO ikind = 1, SIZE(force)
-            force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :)+ &
-                                             force_3c_orb_mu(ikind)%forces(:, :)+ &
-                                             force_3c_orb_nu(ikind)%forces(:, :)+ &
+            force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :) + &
+                                             force_3c_orb_mu(ikind)%forces(:, :) + &
+                                             force_3c_orb_nu(ikind)%forces(:, :) + &
                                              force_3c_aux(ikind)%forces(:, :)
          END DO
 
@@ -423,7 +423,7 @@ CONTAINS
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
-            L_counter = L_counter+1
+            L_counter = L_counter + 1
 
             IF (alpha_beta) THEN
                CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
@@ -528,7 +528,7 @@ CONTAINS
                   ALLOCATE (pab(ncoa, 1))
                   pab = 0.0_dp
 
-                  I_ab(1:nsgfa(iset), 1) = -4.0_dp*G_PQ_local(offset+1:offset+nsgfa(iset), L_counter)
+                  I_ab(1:nsgfa(iset), 1) = -4.0_dp*G_PQ_local(offset + 1:offset + nsgfa(iset), L_counter)
 
                   CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
                              1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
@@ -545,14 +545,14 @@ CONTAINS
                         tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
                         tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
                         IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
                         ELSE
                            lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
                            ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
                         ENDIF
                         ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                        location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
                      ENDDO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -564,11 +564,11 @@ CONTAINS
                      IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
                   ENDIF
 
-                  offset = offset+nsgfa(iset)
+                  offset = offset + nsgfa(iset)
 
                   IF (map_it_here) THEN
                      DO ipgf = 1, npgfa(iset)
-                        na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                         na2 = ipgf*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
@@ -580,7 +580,7 @@ CONTAINS
                                                           cube_info=pw_env_sub%cube_info(igrid_level), &
                                                           hab=I_tmp2, &
                                                           pab=pab, &
-                                                          o1=na1-1, &
+                                                          o1=na1 - 1, &
                                                           o2=0, &
                                                           map_consistent=.TRUE., &
                                                           eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
@@ -604,9 +604,9 @@ CONTAINS
                END DO
 
                force(ikind)%rho_elec(:, atom_a) = &
-                  force(ikind)%rho_elec(:, atom_a)+force_a(:)+force_b
+                  force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial+my_virial_a+my_virial_b
+                  virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
                END IF
             END DO
 
@@ -669,11 +669,11 @@ CONTAINS
                   h_stress(alpha, alpha) = -e_hartree
                   DO beta = alpha, 3
                      h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                             -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
+                                             - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
                      h_stress(beta, alpha) = h_stress(alpha, beta)
                   END DO
                END DO
-               virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env_sub%num_pe, dp)
+               virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
                CALL timestop(handle3)
             END IF
 
@@ -709,11 +709,11 @@ CONTAINS
                   h_stress(alpha, alpha) = -e_hartree
                   DO beta = alpha, 3
                      h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                             -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
+                                             - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
                      h_stress(beta, alpha) = h_stress(alpha, beta)
                   END DO
                END DO
-               virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env_sub%num_pe, dp)
+               virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
                CALL timestop(handle3)
             END IF
 
@@ -768,14 +768,14 @@ CONTAINS
 
                   skip_shell = .TRUE.
                   DO iorb = 1, nsgfa(iset)
-                     IF (iorb+offset == LLL) THEN
+                     IF (iorb + offset == LLL) THEN
                         I_ab(iorb, 1) = 1.0_dp
                         skip_shell = .FALSE.
                      END IF
                   END DO
 
                   IF (skip_shell) THEN
-                     offset = offset+nsgfa(iset)
+                     offset = offset + nsgfa(iset)
                      DEALLOCATE (I_tmp2)
                      DEALLOCATE (I_ab)
                      DEALLOCATE (pab)
@@ -796,14 +796,14 @@ CONTAINS
                         tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
                         tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
                         IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
                         ELSE
                            lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
                            ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
                         ENDIF
                         ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                        location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
                      ENDDO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -815,11 +815,11 @@ CONTAINS
                      IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
                   ENDIF
 
-                  offset = offset+nsgfa(iset)
+                  offset = offset + nsgfa(iset)
 
                   IF (map_it_here) THEN
                      DO ipgf = 1, npgfa(iset)
-                        na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                         na2 = ipgf*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
@@ -831,7 +831,7 @@ CONTAINS
                                                           cube_info=pw_env_sub%cube_info(igrid_level), &
                                                           hab=I_tmp2, &
                                                           pab=pab, &
-                                                          o1=na1-1, &
+                                                          o1=na1 - 1, &
                                                           o2=0, &
                                                           map_consistent=.TRUE., &
                                                           eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
@@ -852,9 +852,9 @@ CONTAINS
                END DO
 
                force(ikind)%rho_elec(:, atom_a) = &
-                  force(ikind)%rho_elec(:, atom_a)+force_a(:)+force_b(:)
+                  force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b(:)
                IF (use_virial) THEN
-                  virial%pv_virial = virial%pv_virial+my_virial_a+my_virial_b
+                  virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
                END IF
             END DO
 
@@ -1255,17 +1255,17 @@ CONTAINS
       CALL cp_fm_set_all(L_mu_q, 0.0_dp)
 
       ! create all information array
-      ALLOCATE (pos_info(0:para_env%num_pe-1))
+      ALLOCATE (pos_info(0:para_env%num_pe - 1))
       pos_info = 0
       pos_info(para_env%mepos) = para_env_sub%mepos
       CALL mp_sum(pos_info, para_env%group)
 
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
+      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
       sub_proc_map = 0
-      DO i = 0, para_env_sub%num_pe-1
+      DO i = 0, para_env_sub%num_pe - 1
          sub_proc_map(i) = i
-         sub_proc_map(-i-1) = para_env_sub%num_pe-i-1
-         sub_proc_map(para_env_sub%num_pe+i) = i
+         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
+         sub_proc_map(para_env_sub%num_pe + i) = i
       END DO
 
       ! get matrix information for the global
@@ -1281,7 +1281,7 @@ CONTAINS
       nprow = L_mu_q%matrix_struct%context%num_pe(1)
       npcol = L_mu_q%matrix_struct%context%num_pe(2)
 
-      ALLOCATE (grid_2_mepos(0:nprow-1, 0:npcol-1))
+      ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
       grid_2_mepos = 0
       grid_2_mepos(myprow, mypcol) = para_env%mepos
       CALL mp_sum(grid_2_mepos, para_env%group)
@@ -1299,13 +1299,13 @@ CONTAINS
       nprow_1i = L1_mu_i%matrix_struct%context%num_pe(1)
       npcol_1i = L1_mu_i%matrix_struct%context%num_pe(2)
 
-      ALLOCATE (mepos_2_grid_1i(0:para_env_sub%num_pe-1, 2))
+      ALLOCATE (mepos_2_grid_1i(0:para_env_sub%num_pe - 1, 2))
       mepos_2_grid_1i = 0
       mepos_2_grid_1i(para_env_sub%mepos, 1) = myprow_1i
       mepos_2_grid_1i(para_env_sub%mepos, 2) = mypcol_1i
       CALL mp_sum(mepos_2_grid_1i, para_env_sub%group)
 
-      ALLOCATE (sizes_1i(2, 0:para_env_sub%num_pe-1))
+      ALLOCATE (sizes_1i(2, 0:para_env_sub%num_pe - 1))
       sizes_1i = 0
       sizes_1i(1, para_env_sub%mepos) = nrow_local_1i
       sizes_1i(2, para_env_sub%mepos) = ncol_local_1i
@@ -1324,13 +1324,13 @@ CONTAINS
       nprow_2a = L2_nu_a%matrix_struct%context%num_pe(1)
       npcol_2a = L2_nu_a%matrix_struct%context%num_pe(2)
 
-      ALLOCATE (mepos_2_grid_2a(0:para_env_sub%num_pe-1, 2))
+      ALLOCATE (mepos_2_grid_2a(0:para_env_sub%num_pe - 1, 2))
       mepos_2_grid_2a = 0
       mepos_2_grid_2a(para_env_sub%mepos, 1) = myprow_2a
       mepos_2_grid_2a(para_env_sub%mepos, 2) = mypcol_2a
       CALL mp_sum(mepos_2_grid_2a, para_env_sub%group)
 
-      ALLOCATE (sizes_2a(2, 0:para_env_sub%num_pe-1))
+      ALLOCATE (sizes_2a(2, 0:para_env_sub%num_pe - 1))
       sizes_2a = 0
       sizes_2a(1, para_env_sub%mepos) = nrow_local_2a
       sizes_2a(2, para_env_sub%mepos) = ncol_local_2a
@@ -1350,17 +1350,17 @@ CONTAINS
       NULLIFY (para_env_exchange)
       CALL cp_para_env_create(para_env_exchange, comm_exchange)
       ! crate the proc maps exchange and info
-      ALLOCATE (proc_map_ex(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
-      DO i = 0, para_env_exchange%num_pe-1
+      ALLOCATE (proc_map_ex(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
+      DO i = 0, para_env_exchange%num_pe - 1
          proc_map_ex(i) = i
-         proc_map_ex(-i-1) = para_env_exchange%num_pe-i-1
-         proc_map_ex(para_env_exchange%num_pe+i) = i
+         proc_map_ex(-i - 1) = para_env_exchange%num_pe - i - 1
+         proc_map_ex(para_env_exchange%num_pe + i) = i
       END DO
-      ALLOCATE (pos_info_ex(0:para_env%num_pe-1))
+      ALLOCATE (pos_info_ex(0:para_env%num_pe - 1))
       pos_info_ex = 0
       pos_info_ex(para_env%mepos) = para_env_exchange%mepos
       CALL mp_sum(pos_info_ex, para_env%group)
-      ALLOCATE (sizes(2, 0:para_env_exchange%num_pe-1))
+      ALLOCATE (sizes(2, 0:para_env_exchange%num_pe - 1))
       sizes = 0
       sizes(1, para_env_exchange%mepos) = nrow_local
       sizes(2, para_env_exchange%mepos) = ncol_local
@@ -1371,8 +1371,8 @@ CONTAINS
       ! matrix L1_mu_i
       max_row_size = MAXVAL(sizes_1i(1, :))
       max_col_size = MAXVAL(sizes_1i(2, :))
-      ALLOCATE (row_indeces_info_1i(2, max_row_size, 0:para_env_sub%num_pe-1))
-      ALLOCATE (col_indeces_info_1i(2, max_col_size, 0:para_env_sub%num_pe-1))
+      ALLOCATE (row_indeces_info_1i(2, max_row_size, 0:para_env_sub%num_pe - 1))
+      ALLOCATE (col_indeces_info_1i(2, max_col_size, 0:para_env_sub%num_pe - 1))
       row_indeces_info_1i = 0
       col_indeces_info_1i = 0
       dummy_proc = 0
@@ -1402,8 +1402,8 @@ CONTAINS
       ! matrix L2_nu_a
       max_row_size = MAXVAL(sizes_2a(1, :))
       max_col_size = MAXVAL(sizes_2a(2, :))
-      ALLOCATE (row_indeces_info_2a(2, max_row_size, 0:para_env_sub%num_pe-1))
-      ALLOCATE (col_indeces_info_2a(2, max_col_size, 0:para_env_sub%num_pe-1))
+      ALLOCATE (row_indeces_info_2a(2, max_row_size, 0:para_env_sub%num_pe - 1))
+      ALLOCATE (col_indeces_info_2a(2, max_col_size, 0:para_env_sub%num_pe - 1))
       row_indeces_info_2a = 0
       col_indeces_info_2a = 0
       ! row
@@ -1418,7 +1418,7 @@ CONTAINS
       END DO
       ! col
       DO jjB = 1, ncol_local_2a
-         j_global = col_indices_2a(jjB)+homo
+         j_global = col_indices_2a(jjB) + homo
          send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
                                    L_mu_q%matrix_struct%first_p_pos(2), npcol)
          j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
@@ -1432,7 +1432,7 @@ CONTAINS
 
       ! 1) define the map for sending data in the subgroup starting with L1_mu_i
       CALL timeset(routineN//"_subinfo", handle2)
-      ALLOCATE (map_send_size(0:para_env_sub%num_pe-1))
+      ALLOCATE (map_send_size(0:para_env_sub%num_pe - 1))
       map_send_size = 0
       DO jjB = 1, ncol_local_1i
          ! j_global=col_indices_1i(jjB)
@@ -1446,7 +1446,7 @@ CONTAINS
             send_prow = row_indeces_info_1i(1, iiB, para_env_sub%mepos)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
-            map_send_size(proc_send_sub) = map_send_size(proc_send_sub)+1
+            map_send_size(proc_send_sub) = map_send_size(proc_send_sub) + 1
          END DO
       END DO
       ! and the same for L2_nu_a
@@ -1462,11 +1462,11 @@ CONTAINS
             send_prow = row_indeces_info_2a(1, iiB, para_env_sub%mepos)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
-            map_send_size(proc_send_sub) = map_send_size(proc_send_sub)+1
+            map_send_size(proc_send_sub) = map_send_size(proc_send_sub) + 1
          END DO
       END DO
       ! and exchange data in order to create map_rec_size
-      ALLOCATE (map_rec_size(0:para_env_sub%num_pe-1))
+      ALLOCATE (map_rec_size(0:para_env_sub%num_pe - 1))
       map_rec_size = 0
       CALL mp_alltoall(map_send_size, map_rec_size, 1, para_env_sub%group)
       CALL timestop(handle2)
@@ -1475,22 +1475,22 @@ CONTAINS
       CALL timeset(routineN//"_sub_Bsend", handle2)
       ! count the number of messages (include myself)
       number_of_send = 0
-      DO proc_shift = 0, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+      DO proc_shift = 0, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          IF (map_send_size(proc_send) > 0) THEN
-            number_of_send = number_of_send+1
+            number_of_send = number_of_send + 1
          END IF
       END DO
       ! allocate the structure that will hold the messages to be sent
       ALLOCATE (buffer_send(number_of_send))
       send_counter = 0
-      ALLOCATE (proc_2_send_pos(0:para_env_sub%num_pe-1))
+      ALLOCATE (proc_2_send_pos(0:para_env_sub%num_pe - 1))
       proc_2_send_pos = 0
-      DO proc_shift = 0, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+      DO proc_shift = 0, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter+1
+            send_counter = send_counter + 1
             ! allocate the sending buffer (msg)
             ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
             buffer_send(send_counter)%msg = 0.0_dp
@@ -1516,7 +1516,7 @@ CONTAINS
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
             send_counter = proc_2_send_pos(proc_send_sub)
-            iii_vet(send_counter) = iii_vet(send_counter)+1
+            iii_vet(send_counter) = iii_vet(send_counter) + 1
             iii = iii_vet(send_counter)
             buffer_send(send_counter)%msg(iii) = L1_mu_i%local_data(iiB, jjB)
          END DO
@@ -1537,7 +1537,7 @@ CONTAINS
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
             send_counter = proc_2_send_pos(proc_send_sub)
-            iii_vet(send_counter) = iii_vet(send_counter)+1
+            iii_vet(send_counter) = iii_vet(send_counter) + 1
             iii = iii_vet(send_counter)
             buffer_send(send_counter)%msg(iii) = L2_nu_a%local_data(iiB, jjB)
          END DO
@@ -1552,19 +1552,19 @@ CONTAINS
       CALL timeset(routineN//"_sub_isendrecv", handle2)
       ! count the number of messages to be received
       number_of_rec = 0
-      DO proc_shift = 0, para_env_sub%num_pe-1
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 0, para_env_sub%num_pe - 1
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
          IF (map_rec_size(proc_receive) > 0) THEN
-            number_of_rec = number_of_rec+1
+            number_of_rec = number_of_rec + 1
          END IF
       END DO
       ALLOCATE (buffer_rec(number_of_rec))
       rec_counter = 0
-      DO proc_shift = 0, para_env_sub%num_pe-1
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 0, para_env_sub%num_pe - 1
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter+1
+            rec_counter = rec_counter + 1
             ! prepare the buffer for receive
             ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
             buffer_rec(rec_counter)%msg = 0.0_dp
@@ -1580,10 +1580,10 @@ CONTAINS
       ALLOCATE (req_send(number_of_send))
       req_send = mp_request_null
       send_counter = 0
-      DO proc_shift = 0, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+      DO proc_shift = 0, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter+1
+            send_counter = send_counter + 1
             IF (proc_send == para_env_sub%mepos) THEN
                buffer_rec(send_counter)%msg = buffer_send(send_counter)%msg
             ELSE
@@ -1602,8 +1602,8 @@ CONTAINS
       !    subgroup
       CALL timeset(routineN//"_Bcyclic", handle2)
       ! first allocata new structure
-      ALLOCATE (buffer_cyclic(0:para_env_exchange%num_pe-1))
-      DO iproc = 0, para_env_exchange%num_pe-1
+      ALLOCATE (buffer_cyclic(0:para_env_exchange%num_pe - 1))
+      DO iproc = 0, para_env_exchange%num_pe - 1
          rec_row_size = sizes(1, iproc)
          rec_col_size = sizes(2, iproc)
          ALLOCATE (buffer_cyclic(iproc)%msg(rec_row_size, rec_col_size))
@@ -1612,11 +1612,11 @@ CONTAINS
       ! now collect data from other member of the subgroup and fill
       ! buffer_cyclic
       rec_counter = 0
-      DO proc_shift = 0, para_env_sub%num_pe-1
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 0, para_env_sub%num_pe - 1
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter+1
+            rec_counter = rec_counter + 1
 
             ! wait for the message
             IF (proc_receive /= para_env_sub%mepos) CALL mp_wait(buffer_rec(rec_counter)%msg_req)
@@ -1641,7 +1641,7 @@ CONTAINS
                   proc_send = grid_2_mepos(send_prow, send_pcol)
                   proc_send_sub = pos_info(proc_send)
                   IF (proc_send_sub /= para_env_sub%mepos) CYCLE
-                  iii = iii+1
+                  iii = iii + 1
                   ! i_local=cp_fm_indxg2l(i_global,nrow_block,dummy_proc,&
                   !                       L_mu_q%matrix_struct%first_p_pos(1),nprow)
                   i_local = row_indeces_info_1i(2, iiB, proc_receive)
@@ -1668,7 +1668,7 @@ CONTAINS
                   proc_send = grid_2_mepos(send_prow, send_pcol)
                   proc_send_sub = pos_info(proc_send)
                   IF (proc_send_sub /= para_env_sub%mepos) CYCLE
-                  iii = iii+1
+                  iii = iii + 1
                   ! i_local=cp_fm_indxg2l(i_global,nrow_block,dummy_proc,&
                   !                       L_mu_q%matrix_struct%first_p_pos(1),nprow)
                   i_local = row_indeces_info_2a(2, iiB, proc_receive)
@@ -1702,8 +1702,8 @@ CONTAINS
 
       ! 6) Start with ring communication
       CALL timeset(routineN//"_ring", handle2)
-      proc_send_static = proc_map_ex(para_env_exchange%mepos+1)
-      proc_receive_static = proc_map_ex(para_env_exchange%mepos-1)
+      proc_send_static = proc_map_ex(para_env_exchange%mepos + 1)
+      proc_receive_static = proc_map_ex(para_env_exchange%mepos - 1)
       max_row_size = MAXVAL(sizes(1, :))
       max_col_size = MAXVAL(sizes(2, :))
       ALLOCATE (mat_send(max_row_size, max_col_size))
@@ -1711,9 +1711,9 @@ CONTAINS
       mat_send = 0.0_dp
       mat_send(1:nrow_local, 1:ncol_local) = buffer_cyclic(para_env_exchange%mepos)%msg(:, :)
       DEALLOCATE (buffer_cyclic(para_env_exchange%mepos)%msg)
-      DO proc_shift = 1, para_env_exchange%num_pe-1
-         proc_send = proc_map_ex(para_env_exchange%mepos+proc_shift)
-         proc_receive = proc_map_ex(para_env_exchange%mepos-proc_shift)
+      DO proc_shift = 1, para_env_exchange%num_pe - 1
+         proc_send = proc_map_ex(para_env_exchange%mepos + proc_shift)
+         proc_receive = proc_map_ex(para_env_exchange%mepos - proc_shift)
 
          rec_row_size = sizes(1, proc_receive)
          rec_col_size = sizes(2, proc_receive)
@@ -1724,7 +1724,7 @@ CONTAINS
                           para_env_exchange%group)
 
          mat_send = 0.0_dp
-         mat_send(1:rec_row_size, 1:rec_col_size) = mat_rec(1:rec_row_size, 1:rec_col_size)+ &
+         mat_send(1:rec_row_size, 1:rec_col_size) = mat_rec(1:rec_row_size, 1:rec_col_size) + &
                                                     buffer_cyclic(proc_receive)%msg(:, :)
 
          DEALLOCATE (buffer_cyclic(proc_receive)%msg)
@@ -1794,13 +1794,13 @@ CONTAINS
             ! diagonal elements alreasy updated
             IF (j_global == i_global) CYCLE
             ! check if the given element is above the threshold
-            IF (ABS(Eigenval(j_global)-Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical) CYCLE
+            IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical) CYCLE
             IF (.NOT. alpha_beta) THEN
                mp2_env%ri_grad%P_ij(i_global, j_global) = &
-                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global)-Eigenval(i_global))
+                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
             ELSE
                mp2_env%ri_grad%P_ij_beta(i_global, j_global) = &
-                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global)-Eigenval(i_global))
+                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
             ENDIF
          END DO
       END DO
@@ -1871,17 +1871,17 @@ CONTAINS
                IF (i_global <= homo .AND. j_global <= homo) THEN
                   mp2_env%ri_grad%P_mo%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(i_global, j_global)
                END IF
-               IF ((my_B_virtual_start <= i_global-homo .AND. i_global-homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
+               IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
                   mp2_env%ri_grad%P_mo%local_data(iiB, jjB) = &
-                     mp2_env%ri_grad%P_ab(i_global-homo-my_B_virtual_start+1, j_global-homo)
+                     mp2_env%ri_grad%P_ab(i_global - homo - my_B_virtual_start + 1, j_global - homo)
                END IF
             ELSE
                IF (i_global <= homo .AND. j_global <= homo) THEN
                   mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij_beta(i_global, j_global)
                END IF
-               IF ((my_B_virtual_start <= i_global-homo .AND. i_global-homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
+               IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
                   mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB) = &
-                     mp2_env%ri_grad%P_ab_beta(i_global-homo-my_B_virtual_start+1, j_global-homo)
+                     mp2_env%ri_grad%P_ab_beta(i_global - homo - my_B_virtual_start + 1, j_global - homo)
                END IF
             ENDIF
          END DO
@@ -1895,22 +1895,22 @@ CONTAINS
 
       ! send around the sub_group the local data and check if we
       ! have to update our block with external elements
-      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe-1, 2))
+      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe - 1, 2))
       mepos_2_grid = 0
       mepos_2_grid(para_env_sub%mepos, 1) = myprow
       mepos_2_grid(para_env_sub%mepos, 2) = mypcol
       CALL mp_sum(mepos_2_grid, para_env_sub%group)
 
-      ALLOCATE (sizes(2, 0:para_env_sub%num_pe-1))
+      ALLOCATE (sizes(2, 0:para_env_sub%num_pe - 1))
       sizes = 0
       sizes(1, para_env_sub%mepos) = nrow_local
       sizes(2, para_env_sub%mepos) = ncol_local
       CALL mp_sum(sizes, para_env_sub%group)
 
       ALLOCATE (ab_rec(nrow_local, ncol_local))
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
          send_prow = mepos_2_grid(proc_send, 1)
          send_pcol = mepos_2_grid(proc_send, 2)
@@ -1926,7 +1926,7 @@ CONTAINS
             i_global = cp_fm_indxl2g(iiB, nrow_block, send_prow, &
                                      mp2_env%ri_grad%P_mo%matrix_struct%first_p_pos(1), nprow)
             IF (i_global <= homo) CYCLE
-            i_global = i_global-homo
+            i_global = i_global - homo
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
                IF (.NOT. alpha_beta) THEN
@@ -1937,11 +1937,11 @@ CONTAINS
                                            mp2_env%ri_grad%P_mo_beta%matrix_struct%first_p_pos(2), npcol)
                ENDIF
                IF (j_global <= homo) CYCLE
-               j_global = j_global-homo
+               j_global = j_global - homo
                IF (.NOT. alpha_beta) THEN
-                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(i_global-my_B_virtual_start+1, j_global)
+                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(i_global - my_B_virtual_start + 1, j_global)
                ELSE
-                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab_beta(i_global-my_B_virtual_start+1, j_global)
+                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab_beta(i_global - my_B_virtual_start + 1, j_global)
                ENDIF
             END DO
          END DO
@@ -1952,11 +1952,11 @@ CONTAINS
                           para_env_sub%group)
          IF (.NOT. alpha_beta) THEN
             mp2_env%ri_grad%P_mo%local_data(1:nrow_local, 1:ncol_local) = &
-               mp2_env%ri_grad%P_mo%local_data(1:nrow_local, 1:ncol_local)+ &
+               mp2_env%ri_grad%P_mo%local_data(1:nrow_local, 1:ncol_local) + &
                ab_rec(1:nrow_local, 1:ncol_local)
          ELSE
             mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local) = &
-               mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local)+ &
+               mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local) + &
                ab_rec(1:nrow_local, 1:ncol_local)
          ENDIF
 
@@ -2007,9 +2007,9 @@ CONTAINS
                       mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo, &
                       a_first_col=1, &
                       a_first_row=1, &
-                      b_first_col=homo+1, &
+                      b_first_col=homo + 1, &
                       b_first_row=1, &
-                      c_first_col=homo+1, &
+                      c_first_col=homo + 1, &
                       c_first_row=1)
       ELSE
          NULLIFY (mp2_env%ri_grad%W_mo_beta)
@@ -2042,9 +2042,9 @@ CONTAINS
                       mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo_beta, &
                       a_first_col=1, &
                       a_first_row=1, &
-                      b_first_col=homo+1, &
+                      b_first_col=homo + 1, &
                       b_first_row=1, &
-                      c_first_col=homo+1, &
+                      c_first_col=homo + 1, &
                       c_first_row=1)
       ENDIF
       CALL timestop(handle2)
@@ -2064,7 +2064,7 @@ CONTAINS
                       L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb, &
                       a_first_col=1, &
                       a_first_row=1, &
-                      b_first_col=homo+1, &
+                      b_first_col=homo + 1, &
                       b_first_row=1, &
                       c_first_col=1, &
                       c_first_row=1)
@@ -2073,7 +2073,7 @@ CONTAINS
                       mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb, &
                       a_first_col=1, &
                       a_first_row=1, &
-                      b_first_col=homo+1, &
+                      b_first_col=homo + 1, &
                       b_first_row=1, &
                       c_first_col=1, &
                       c_first_row=1)
@@ -2090,7 +2090,7 @@ CONTAINS
                       L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb_beta, &
                       a_first_col=1, &
                       a_first_row=1, &
-                      b_first_col=homo+1, &
+                      b_first_col=homo + 1, &
                       b_first_row=1, &
                       c_first_col=1, &
                       c_first_row=1)
@@ -2099,7 +2099,7 @@ CONTAINS
                       mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb_beta, &
                       a_first_col=1, &
                       a_first_row=1, &
-                      b_first_col=homo+1, &
+                      b_first_col=homo + 1, &
                       b_first_row=1, &
                       c_first_col=1, &
                       c_first_row=1)

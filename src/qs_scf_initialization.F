@@ -280,7 +280,7 @@ CONTAINS
       INTEGER                                            :: nhistory, nvariables
 
       IF (scf_control%outer_scf%have_scf) THEN
-         nhistory = scf_control%outer_scf%max_scf+1
+         nhistory = scf_control%outer_scf%max_scf + 1
          IF (PRESENT(nvar)) THEN
             IF (nvar > 0) THEN
                nvariables = nvar
@@ -332,7 +332,7 @@ CONTAINS
          CPABORT("Section SCF&OUTER_SCF must be active for CDFT calculations.")
       ! Initialize CDFT and outer_loop variables (constraint settings active in scf_control)
       IF (dft_control%qs_control%cdft_control%constraint_control%have_scf) THEN
-         nhistory = dft_control%qs_control%cdft_control%constraint_control%max_scf+1
+         nhistory = dft_control%qs_control%cdft_control%constraint_control%max_scf + 1
          IF (scf_control%outer_scf%type /= outer_scf_none) THEN
             nvariables = outer_loop_variables_count(scf_control, &
                                                     dft_control%qs_control%cdft_control)
@@ -676,7 +676,7 @@ CONTAINS
          DO ik = 1, SIZE(kpoints%kp_env)
             CALL mpools_get(kpoints%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
             mos_k => kpoints%kp_env(ik)%kpoint_env%mos
-            ikk = kpoints%kp_range(1)+ik-1
+            ikk = kpoints%kp_range(1) + ik - 1
             CPASSERT(ASSOCIATED(mos_k))
             DO ispin = 1, SIZE(mos_k, 2)
                DO ic = 1, SIZE(mos_k, 1)
@@ -870,7 +870,7 @@ CONTAINS
       ELSEIF (scf_control%use_ot) THEN
          scf_env%method = ot_method_nr
          need_coeff_b = .TRUE.
-         IF (scf_control%added_mos(1)+scf_control%added_mos(2) > 0) &
+         IF (scf_control%added_mos(1) + scf_control%added_mos(2) > 0) &
             CPABORT("OT with ADDED_MOS/=0 not implemented")
          IF (dft_control%restricted .AND. dft_control%nspins .NE. 2) &
             CPABORT("nspin must be 2 for restricted (ROKS)")
@@ -1024,7 +1024,7 @@ CONTAINS
                                          extension=".scfLog")
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
-            "Number of independent orbital functions:", nao-ndep
+            "Number of independent orbital functions:", nao - ndep
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

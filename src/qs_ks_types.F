@@ -775,7 +775,7 @@ CONTAINS
 
       IF (ASSOCIATED(ks_env)) THEN
          CPASSERT(ks_env%ref_count > 0)
-         ks_env%ref_count = ks_env%ref_count-1
+         ks_env%ref_count = ks_env%ref_count - 1
 
          IF (ks_env%ref_count < 1) THEN
             IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
@@ -917,7 +917,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ks_env))
       CPASSERT(ks_env%ref_count > 0)
-      ks_env%ref_count = ks_env%ref_count+1
+      ks_env%ref_count = ks_env%ref_count + 1
    END SUBROUTINE qs_ks_retain
 
 ! **************************************************************************************************

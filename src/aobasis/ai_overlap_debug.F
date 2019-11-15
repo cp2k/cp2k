@@ -50,12 +50,12 @@ CONTAINS
       A = rA
       B = rB
 
-      xsi = xa+xb
+      xsi = xa + xb
       zeta = xa*xb/xsi
 
-      P = (xa*A+xb*B)/xsi
+      P = (xa*A + xb*B)/xsi
 
-      ss = (pi/xsi)**(3._dp/2._dp)*EXP(-zeta*SUM((A-B)**2))
+      ss = (pi/xsi)**(3._dp/2._dp)*EXP(-zeta*SUM((A - B)**2))
 
    END SUBROUTINE init_os_overlap2
 
@@ -78,27 +78,27 @@ CONTAINS
       IF (ANY(an < 0)) RETURN
       IF (ANY(bn < 0)) RETURN
 
-      IF (SUM(an+bn) == 0) THEN
+      IF (SUM(an + bn) == 0) THEN
          IAB = ss
          RETURN
       END IF
 
       IF (bn(1) > 0) THEN
-         IAB = os_overlap2(an+i1, bn-i1)+(A(1)-B(1))*os_overlap2(an, bn-i1)
+         IAB = os_overlap2(an + i1, bn - i1) + (A(1) - B(1))*os_overlap2(an, bn - i1)
       ELSEIF (bn(2) > 0) THEN
-         IAB = os_overlap2(an+i2, bn-i2)+(A(2)-B(2))*os_overlap2(an, bn-i2)
+         IAB = os_overlap2(an + i2, bn - i2) + (A(2) - B(2))*os_overlap2(an, bn - i2)
       ELSEIF (bn(3) > 0) THEN
-         IAB = os_overlap2(an+i3, bn-i3)+(A(3)-B(3))*os_overlap2(an, bn-i3)
+         IAB = os_overlap2(an + i3, bn - i3) + (A(3) - B(3))*os_overlap2(an, bn - i3)
       ELSE
          IF (an(1) > 0) THEN
-            IAB = (P(1)-A(1))*os_overlap2(an-i1, bn)+ &
-                  0.5_dp*(an(1)-1)/xsi*os_overlap2(an-i1-i1, bn)
+            IAB = (P(1) - A(1))*os_overlap2(an - i1, bn) + &
+                  0.5_dp*(an(1) - 1)/xsi*os_overlap2(an - i1 - i1, bn)
          ELSEIF (an(2) > 0) THEN
-            IAB = (P(2)-A(2))*os_overlap2(an-i2, bn)+ &
-                  0.5_dp*(an(2)-1)/xsi*os_overlap2(an-i2-i2, bn)
+            IAB = (P(2) - A(2))*os_overlap2(an - i2, bn) + &
+                  0.5_dp*(an(2) - 1)/xsi*os_overlap2(an - i2 - i2, bn)
          ELSEIF (an(3) > 0) THEN
-            IAB = (P(3)-A(3))*os_overlap2(an-i3, bn)+ &
-                  0.5_dp*(an(3)-1)/xsi*os_overlap2(an-i3-i3, bn)
+            IAB = (P(3) - A(3))*os_overlap2(an - i3, bn) + &
+                  0.5_dp*(an(3) - 1)/xsi*os_overlap2(an - i3 - i3, bn)
          ELSE
             CPABORT("I(0000)")
          ENDIF

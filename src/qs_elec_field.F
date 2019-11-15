@@ -129,10 +129,10 @@ CONTAINS
                            maxlgto=maxlgto, &
                            maxsgf=maxsgf)
 
-      ldai = ncoset(maxlgto+2)
+      ldai = ncoset(maxlgto + 2)
       CALL init_orbital_pointers(ldai)
 
-      ALLOCATE (rr_work(0:2*maxlgto+4, ldai, ldai))
+      ALLOCATE (rr_work(0:2*maxlgto + 4, ldai, ldai))
 
       ALLOCATE (efgab(maxco, maxco, 6))
 
@@ -188,11 +188,11 @@ CONTAINS
 
          IF (inode == 1) last_jatom = 0
 
-         rb = rab+ra
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rb = rab + ra
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
          rac = pbc(ra, rc, cell)
-         rbc = rac-rab
+         rbc = rac - rab
 
          IF (jatom /= last_jatom) THEN
             new_atom_b = .TRUE.
@@ -224,7 +224,7 @@ CONTAINS
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)

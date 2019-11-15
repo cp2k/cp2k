@@ -119,7 +119,7 @@ CONTAINS
       ALLOCATE (pool)
       pool%pw_grid => pw_grid
       CALL pw_grid_retain(pw_grid)
-      last_pw_pool_id_nr = last_pw_pool_id_nr+1
+      last_pw_pool_id_nr = last_pw_pool_id_nr + 1
       pool%id_nr = last_pw_pool_id_nr
       pool%ref_count = 1
       pool%max_cache = default_max_cache
@@ -153,7 +153,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
 
-      pool%ref_count = pool%ref_count+1
+      pool%ref_count = pool%ref_count + 1
       IF (debug_this_module) THEN
          WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
                 fmt="(' *** pw_pool ',i4,' has been retained, ref_count=',i4)") &
@@ -256,7 +256,7 @@ CONTAINS
 
       IF (ASSOCIATED(pool)) THEN
          CPASSERT(pool%ref_count > 0)
-         pool%ref_count = pool%ref_count-1
+         pool%ref_count = pool%ref_count - 1
          IF (debug_this_module) THEN
             WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
                    fmt="(' *** pw_pool ',i4,' released ref_count=',i4)") &

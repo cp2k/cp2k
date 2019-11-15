@@ -225,7 +225,7 @@ CONTAINS
          CALL y_lm(lebedev_grid(ll)%r, y, l, m)
          slm(1:na, iso) = y(1:na)
          DO i = 1, na
-            slm_int(iso) = slm_int(iso)+slm(i, iso)*wa(i)
+            slm_int(iso) = slm_int(iso) + slm(i, iso)*wa(i)
          END DO ! i
       END DO ! iso
 
@@ -241,9 +241,9 @@ CONTAINS
       DO ia = 1, na
          DO l = 0, indso(1, max_s_harm)
             DO ic = 1, nco(l)
-               lx = indco(1, ic+ncoset(l-1))
-               ly = indco(2, ic+ncoset(l-1))
-               lz = indco(3, ic+ncoset(l-1))
+               lx = indco(1, ic + ncoset(l - 1))
+               ly = indco(2, ic + ncoset(l - 1))
+               lz = indco(3, ic + ncoset(l - 1))
 
                IF (lx == 0) THEN
                   rx = 1.0_dp
@@ -253,7 +253,7 @@ CONTAINS
                   drx = 1.0_dp
                ELSE
                   rx = lebedev_grid(ll)%r(1, ia)**lx
-                  drx = REAL(lx, dp)*lebedev_grid(ll)%r(1, ia)**(lx-1)
+                  drx = REAL(lx, dp)*lebedev_grid(ll)%r(1, ia)**(lx - 1)
                END IF
                IF (ly == 0) THEN
                   ry = 1.0_dp
@@ -263,7 +263,7 @@ CONTAINS
                   dry = 1.0_dp
                ELSE
                   ry = lebedev_grid(ll)%r(2, ia)**ly
-                  dry = REAL(ly, dp)*lebedev_grid(ll)%r(2, ia)**(ly-1)
+                  dry = REAL(ly, dp)*lebedev_grid(ll)%r(2, ia)**(ly - 1)
                END IF
                IF (lz == 0) THEN
                   rz = 1.0_dp
@@ -273,22 +273,22 @@ CONTAINS
                   drz = 1.0_dp
                ELSE
                   rz = lebedev_grid(ll)%r(3, ia)**lz
-                  drz = REAL(lz, dp)*lebedev_grid(ll)%r(3, ia)**(lz-1)
+                  drz = REAL(lz, dp)*lebedev_grid(ll)%r(3, ia)**(lz - 1)
                END IF
                dc(ic, 1) = drx*ry*rz
                dc(ic, 2) = rx*dry*rz
                dc(ic, 3) = rx*ry*drz
             END DO
-            n = nsoset(l-1)
+            n = nsoset(l - 1)
             DO is = 1, nso(l)
-               iso = is+n
+               iso = is + n
                dslm_dxyz(1:3, ia, iso) = 0.0_dp
                DO ic = 1, nco(l)
-                  dslm_dxyz(1, ia, iso) = dslm_dxyz(1, ia, iso)+ &
+                  dslm_dxyz(1, ia, iso) = dslm_dxyz(1, ia, iso) + &
                                           orbtramat(l)%slm(is, ic)*dc(ic, 1)
-                  dslm_dxyz(2, ia, iso) = dslm_dxyz(2, ia, iso)+ &
+                  dslm_dxyz(2, ia, iso) = dslm_dxyz(2, ia, iso) + &
                                           orbtramat(l)%slm(is, ic)*dc(ic, 2)
-                  dslm_dxyz(3, ia, iso) = dslm_dxyz(3, ia, iso)+ &
+                  dslm_dxyz(3, ia, iso) = dslm_dxyz(3, ia, iso) + &
                                           orbtramat(l)%slm(is, ic)*dc(ic, 3)
                END DO
             END DO
@@ -305,12 +305,12 @@ CONTAINS
             int2 = 0.0_dp
             int3 = 0.0_dp
             DO ia = 1, na
-               int1 = int1+wa(ia)* &
-                      (dslm_dxyz(1, ia, iso1)*slm(ia, iso2)+slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
-               int2 = int2+wa(ia)* &
-                      (dslm_dxyz(2, ia, iso1)*slm(ia, iso2)+slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
-               int3 = int3+wa(ia)* &
-                      (dslm_dxyz(3, ia, iso1)*slm(ia, iso2)+slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
+               int1 = int1 + wa(ia)* &
+                      (dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
+               int2 = int2 + wa(ia)* &
+                      (dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
+               int3 = int3 + wa(ia)* &
+                      (dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
             END DO
             DO iso = 1, max_s_harm
                rx = 0.0_dp
@@ -320,15 +320,15 @@ CONTAINS
                rz = 0.0_dp
                drz = 0.0_dp
                DO ia = 1, na
-                  rx = rx+wa(ia)*slm(ia, iso)* &
-                       (dslm_dxyz(1, ia, iso1)*slm(ia, iso2)+slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
-                  drx = drx+wa(ia)*slm(ia, iso)
-                  ry = ry+wa(ia)*slm(ia, iso)* &
-                       (dslm_dxyz(2, ia, iso1)*slm(ia, iso2)+slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
-                  dry = dry+wa(ia)*slm(ia, iso)
-                  rz = rz+wa(ia)*slm(ia, iso)* &
-                       (dslm_dxyz(3, ia, iso1)*slm(ia, iso2)+slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
-                  drz = drz+wa(ia)*slm(ia, iso)
+                  rx = rx + wa(ia)*slm(ia, iso)* &
+                       (dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
+                  drx = drx + wa(ia)*slm(ia, iso)
+                  ry = ry + wa(ia)*slm(ia, iso)* &
+                       (dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
+                  dry = dry + wa(ia)*slm(ia, iso)
+                  rz = rz + wa(ia)*slm(ia, iso)* &
+                       (dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
+                  drz = drz + wa(ia)*slm(ia, iso)
                END DO
 
                harmonics%my_CG_dxyz(1, iso1, iso2, iso) = rx
@@ -356,18 +356,18 @@ CONTAINS
                rz = 0.0_dp
                drz = 0.0_dp
                DO ia = 1, na
-                  rx = rx+wa(ia)*slm(ia, iso)* &
-                       (-dslm_dxyz(1, ia, iso1)*slm(ia, iso2)+ &
+                  rx = rx + wa(ia)*slm(ia, iso)* &
+                       (-dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + &
                         slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
-                  drx = drx+wa(ia)*slm(ia, iso)
-                  ry = ry+wa(ia)*slm(ia, iso)* &
-                       (-dslm_dxyz(2, ia, iso1)*slm(ia, iso2)+ &
+                  drx = drx + wa(ia)*slm(ia, iso)
+                  ry = ry + wa(ia)*slm(ia, iso)* &
+                       (-dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + &
                         slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
-                  dry = dry+wa(ia)*slm(ia, iso)
-                  rz = rz+wa(ia)*slm(ia, iso)* &
-                       (-dslm_dxyz(3, ia, iso1)*slm(ia, iso2)+ &
+                  dry = dry + wa(ia)*slm(ia, iso)
+                  rz = rz + wa(ia)*slm(ia, iso)* &
+                       (-dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + &
                         slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
-                  drz = drz+wa(ia)*slm(ia, iso)
+                  drz = drz + wa(ia)*slm(ia, iso)
                END DO
 
                harmonics%my_CG_dxyz_asym(1, iso1, iso2, iso) = rx
@@ -512,14 +512,14 @@ CONTAINS
       DO iso = 1, max_s_harm
          nlist = 0
          DO l1 = lmin1, lmax1
-            DO iso1 = nsoset(l1-1)+1, nsoset(l1)
+            DO iso1 = nsoset(l1 - 1) + 1, nsoset(l1)
                DO l2 = lmin2, lmax2
-                  IF (l1+l2 > llmax) CYCLE
-                  DO iso2 = nsoset(l2-1)+1, nsoset(l2)
-                     IF (ABS(cgc(1, iso1, iso2, iso))+ &
-                         ABS(cgc(2, iso1, iso2, iso))+ &
+                  IF (l1 + l2 > llmax) CYCLE
+                  DO iso2 = nsoset(l2 - 1) + 1, nsoset(l2)
+                     IF (ABS(cgc(1, iso1, iso2, iso)) + &
+                         ABS(cgc(2, iso1, iso2, iso)) + &
                          ABS(cgc(3, iso1, iso2, iso)) > 1.E-8_dp) THEN
-                        nlist = nlist+1
+                        nlist = nlist + 1
                         IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
                            list(1, nlist, iso) = iso1
                            list(2, nlist, iso) = iso2
@@ -573,12 +573,12 @@ CONTAINS
       DO iso = 1, max_s_harm
          nlist = 0
          DO l1 = lmin1, lmax1
-            DO iso1 = nsoset(l1-1)+1, nsoset(l1)
+            DO iso1 = nsoset(l1 - 1) + 1, nsoset(l1)
                DO l2 = lmin2, lmax2
-                  IF (l1+l2 > llmax) CYCLE
-                  DO iso2 = nsoset(l2-1)+1, nsoset(l2)
+                  IF (l1 + l2 > llmax) CYCLE
+                  DO iso2 = nsoset(l2 - 1) + 1, nsoset(l2)
                      IF (ABS(cgc(iso1, iso2, iso)) > 1.E-8_dp) THEN
-                        nlist = nlist+1
+                        nlist = nlist + 1
                         IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
                            list(1, nlist, iso) = iso1
                            list(2, nlist, iso) = iso2

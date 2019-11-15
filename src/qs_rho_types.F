@@ -111,7 +111,7 @@ CONTAINS
       IF (ASSOCIATED(rho)) CPABORT("rho already associated")
 
       ALLOCATE (rho)
-      last_rho_id_nr = last_rho_id_nr+1
+      last_rho_id_nr = last_rho_id_nr + 1
       rho%id_nr = last_rho_id_nr
       rho%rebuild_each = 5
       rho%ref_count = 1
@@ -132,7 +132,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_struct))
       CPASSERT(rho_struct%ref_count > 0)
-      rho_struct%ref_count = rho_struct%ref_count+1
+      rho_struct%ref_count = rho_struct%ref_count + 1
    END SUBROUTINE qs_rho_retain
 
 ! **************************************************************************************************
@@ -151,7 +151,7 @@ CONTAINS
 
       IF (ASSOCIATED(rho_struct)) THEN
          CPASSERT(rho_struct%ref_count > 0)
-         rho_struct%ref_count = rho_struct%ref_count-1
+         rho_struct%ref_count = rho_struct%ref_count - 1
          IF (rho_struct%ref_count < 1) THEN
             CALL qs_rho_clear(rho_struct)
             DEALLOCATE (rho_struct)

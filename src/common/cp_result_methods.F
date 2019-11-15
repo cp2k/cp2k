@@ -72,12 +72,12 @@ CONTAINS
       isize = SIZE(results%result_label)
       jsize = SIZE(values)
 
-      CALL reallocate(results%result_label, 1, isize+1)
-      CALL cp_result_value_p_reallocate(results%result_value, 1, isize+1)
+      CALL reallocate(results%result_label, 1, isize + 1)
+      CALL cp_result_value_p_reallocate(results%result_value, 1, isize + 1)
 
-      results%result_label(isize+1) = description
-      CALL cp_result_value_init(results%result_value(isize+1)%value, result_type_real, jsize)
-      results%result_value(isize+1)%value%real_type = values
+      results%result_label(isize + 1) = description
+      CALL cp_result_value_init(results%result_value(isize + 1)%value, result_type_real, jsize)
+      results%result_value(isize + 1)%value%real_type = values
 
    END SUBROUTINE put_result_r1
 
@@ -108,12 +108,12 @@ CONTAINS
       isize = SIZE(results%result_label)
       jsize = SIZE(values, 1)*SIZE(values, 2)
 
-      CALL reallocate(results%result_label, 1, isize+1)
-      CALL cp_result_value_p_reallocate(results%result_value, 1, isize+1)
+      CALL reallocate(results%result_label, 1, isize + 1)
+      CALL cp_result_value_p_reallocate(results%result_value, 1, isize + 1)
 
-      results%result_label(isize+1) = description
-      CALL cp_result_value_init(results%result_value(isize+1)%value, result_type_real, jsize)
-      results%result_value(isize+1)%value%real_type = RESHAPE(values, (/jsize/))
+      results%result_label(isize + 1) = description
+      CALL cp_result_value_init(results%result_value(isize + 1)%value, result_type_real, jsize)
+      results%result_value(isize + 1)%value%real_type = RESHAPE(values, (/jsize/))
 
    END SUBROUTINE put_result_r2
 
@@ -178,7 +178,7 @@ CONTAINS
       CPASSERT(SIZE(results%result_label) == nlist)
       nrep = 0
       DO i = 1, nlist
-         IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep+1
+         IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep + 1
       END DO
 
       IF (PRESENT(n_rep)) THEN
@@ -208,14 +208,14 @@ CONTAINS
       k = 0
       DO i = 1, nlist
          IF (TRIM(results%result_label(i)) == TRIM(description)) THEN
-            k = k+1
+            k = k + 1
             IF (PRESENT(nval)) THEN
                IF (k == nval) THEN
                   values = results%result_value(i)%value%real_type
                   EXIT
                END IF
             ELSE
-               values((k-1)*size_res+1:k*size_res) = results%result_value(i)%value%real_type
+               values((k - 1)*size_res + 1:k*size_res) = results%result_value(i)%value%real_type
             END IF
          END IF
       END DO
@@ -252,7 +252,7 @@ CONTAINS
       CPASSERT(SIZE(results%result_label) == nlist)
       nrep = 0
       DO i = 1, nlist
-         IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep+1
+         IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep + 1
       END DO
 
       IF (PRESENT(n_rep)) THEN
@@ -282,15 +282,15 @@ CONTAINS
       k = 0
       DO i = 1, nlist
          IF (TRIM(results%result_label(i)) == TRIM(description)) THEN
-            k = k+1
+            k = k + 1
             IF (PRESENT(nval)) THEN
                IF (k == nval) THEN
                   values = RESHAPE(results%result_value(i)%value%real_type, (/SIZE(values, 1), SIZE(values, 2)/))
                   EXIT
                END IF
             ELSE
-               values((k-1)*size_res+1:k*size_res, :) = RESHAPE(results%result_value(i)%value%real_type, &
-                                                                (/SIZE(values, 1), SIZE(values, 2)/))
+               values((k - 1)*size_res + 1:k*size_res, :) = RESHAPE(results%result_value(i)%value%real_type, &
+                                                                    (/SIZE(values, 1), SIZE(values, 2)/))
             END IF
          END IF
       END DO
@@ -325,20 +325,20 @@ CONTAINS
       IF (PRESENT(n_rep)) THEN
          n_rep = 0
          DO i = 1, nlist
-            IF (TRIM(results%result_label(i)) == TRIM(description)) n_rep = n_rep+1
+            IF (TRIM(results%result_label(i)) == TRIM(description)) n_rep = n_rep + 1
          END DO
       END IF
       IF (PRESENT(n_entries)) THEN
          n_entries = 0
          DO i = 1, nlist
             IF (TRIM(results%result_label(i)) == TRIM(description)) THEN
-               SELECT CASE (results%result_value (i)%value%type_in_use)
+               SELECT CASE (results%result_value(i)%value%type_in_use)
                CASE (result_type_real)
-                  n_entries = n_entries+SIZE(results%result_value(i)%value%real_type)
+                  n_entries = n_entries + SIZE(results%result_value(i)%value%real_type)
                CASE (result_type_integer)
-                  n_entries = n_entries+SIZE(results%result_value(i)%value%integer_type)
+                  n_entries = n_entries + SIZE(results%result_value(i)%value%integer_type)
                CASE (result_type_logical)
-                  n_entries = n_entries+SIZE(results%result_value(i)%value%logical_type)
+                  n_entries = n_entries + SIZE(results%result_value(i)%value%logical_type)
                CASE DEFAULT
                   ! Type not implemented in cp_result_type
                   CPABORT("")
@@ -387,26 +387,26 @@ CONTAINS
          nlist = SIZE(results%result_value)
          nrep = 0
          DO i = 1, nlist
-            IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep+1
+            IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep + 1
          END DO
          IF (nrep .NE. 0) THEN
             k = 0
             entry_deleted = 0
             DO i = 1, nlist
                IF (TRIM(results%result_label(i)) == TRIM(description)) THEN
-                  k = k+1
+                  k = k + 1
                   IF (PRESENT(nval)) THEN
                      IF (nval == k) THEN
-                        entry_deleted = entry_deleted+1
+                        entry_deleted = entry_deleted + 1
                         EXIT
                      END IF
                   ELSE
-                     entry_deleted = entry_deleted+1
+                     entry_deleted = entry_deleted + 1
                   END IF
                END IF
             END DO
-            CPASSERT(nlist-entry_deleted >= 0)
-            new_size = nlist-entry_deleted
+            CPASSERT(nlist - entry_deleted >= 0)
+            new_size = nlist - entry_deleted
             NULLIFY (clean_results)
             CALL cp_result_create(clean_results)
             CALL cp_result_clean(clean_results)
@@ -419,7 +419,7 @@ CONTAINS
             k = 0
             DO i = 1, nlist
                IF (TRIM(results%result_label(i)) /= TRIM(description)) THEN
-                  k = k+1
+                  k = k + 1
                   clean_results%result_label(k) = results%result_label(i)
                   CALL cp_result_value_copy(clean_results%result_value(k)%value, &
                                             results%result_value(i)%value)
@@ -483,7 +483,7 @@ CONTAINS
       END IF
       DO i = 1, nlist
          CALL mp_bcast(results%result_label(i), source, para_env%group)
-         SELECT CASE (results%result_value (i)%value%type_in_use)
+         SELECT CASE (results%result_value(i)%value%type_in_use)
          CASE (result_type_real)
             CALL mp_bcast(results%result_value(i)%value%real_type, source, para_env%group)
          CASE (result_type_integer)

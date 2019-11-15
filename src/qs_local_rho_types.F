@@ -134,10 +134,10 @@ CONTAINS
             rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
          END IF
          rhoz%vr_coef(ir) = prefactor3*erf(grid_atom%rad(ir)*c3)/grid_atom%rad(ir)
-         sum = sum+rhoz%r_coef(ir)*grid_atom%wr(ir)
+         sum = sum + rhoz%r_coef(ir)*grid_atom%wr(ir)
       END DO
       rhoz%one_atom = sum*harmonics%slm_int(1)
-      rhoz_tot = rhoz_tot+natom*rhoz%one_atom
+      rhoz_tot = rhoz_tot + natom*rhoz%one_atom
 
    END SUBROUTINE calculate_rhoz
 

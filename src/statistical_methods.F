@@ -81,7 +81,7 @@ CONTAINS
       IF (MOD(n, 2) == 0) THEN
          n2 = n/2
       ELSE
-         n2 = (n-1)/2
+         n2 = (n - 1)/2
       END IF
       ALLOCATE (x(n))
       ALLOCATE (itmp(n))
@@ -89,7 +89,7 @@ CONTAINS
       x(:) = ix
       CALL sort(x, n, itmp)
       ! Check for zero range
-      range = x(n)-x(1)
+      range = x(n) - x(1)
       IF (range < small) failure = .TRUE.
       IF (failure .AND. (output_unit > 0)) THEN
          WRITE (output_unit, '(A)') "Shapiro Wilk test: two data points are numerically identical."
@@ -102,26 +102,26 @@ CONTAINS
       IF (n == 3) THEN
          a(1) = sqrth
       ELSE
-         an25 = an+qtr
+         an25 = an + qtr
          summ2 = zero
          DO i = 1, n2
-            CALL ppnd7((i-th)/an25, a(i))
-            summ2 = summ2+a(i)**2
+            CALL ppnd7((i - th)/an25, a(i))
+            summ2 = summ2 + a(i)**2
          END DO
          summ2 = summ2*two
          ssumm2 = SQRT(summ2)
          rsn = one/SQRT(an)
-         a1 = poly(c1, 6, rsn)-a(1)/ssumm2
+         a1 = poly(c1, 6, rsn) - a(1)/ssumm2
          ! Normalize coefficients
          IF (n > 5) THEN
             i1 = 3
-            a2 = -a(2)/ssumm2+poly(c2, 6, rsn)
-            fac = SQRT((summ2-two*a(1)**2-two*a(2)**2)/(one-two*a1**2-two*a2**2))
+            a2 = -a(2)/ssumm2 + poly(c2, 6, rsn)
+            fac = SQRT((summ2 - two*a(1)**2 - two*a(2)**2)/(one - two*a1**2 - two*a2**2))
             a(1) = a1
             a(2) = a2
          ELSE
             i1 = 2
-            fac = SQRT((summ2-two*a(1)**2)/(one-two*a1**2))
+            fac = SQRT((summ2 - two*a(1)**2)/(one - two*a1**2))
             a(1) = a1
          END IF
          DO i = i1, n2
@@ -132,13 +132,13 @@ CONTAINS
       xx = x(1)/range
       sx = xx
       sa = -a(1)
-      j = n-1
+      j = n - 1
       DO i = 2, n
          xi = x(i)/range
-         sx = sx+xi
-         IF (i /= j) sa = sa+SIGN(1, i-j)*a(MIN(i, j))
+         sx = sx + xi
+         IF (i /= j) sa = sa + SIGN(1, i - j)*a(MIN(i, j))
          xx = xi
-         j = j-1
+         j = j - 1
       END DO
       ! Calculate W statistic as squared correlation
       ! between data and coefficients
@@ -150,24 +150,24 @@ CONTAINS
       j = n
       DO i = 1, n
          IF (i /= j) THEN
-            asa = SIGN(1, i-j)*a(MIN(i, j))-sa
+            asa = SIGN(1, i - j)*a(MIN(i, j)) - sa
          ELSE
             asa = -sa
          END IF
-         xsx = x(i)/range-sx
-         ssa = ssa+asa*asa
-         ssx = ssx+xsx*xsx
-         sax = sax+asa*xsx
-         j = j-1
+         xsx = x(i)/range - sx
+         ssa = ssa + asa*asa
+         ssx = ssx + xsx*xsx
+         sax = sax + asa*xsx
+         j = j - 1
       END DO
       ! W1 equals (1-W) calculated to avoid excessive rounding error
       ! for W very near 1 (a potential problem in very large samples)
       ssassx = SQRT(ssa*ssx)
-      w1 = (ssassx-sax)*(ssassx+sax)/(ssa*ssx)
-      w = one-w1
+      w1 = (ssassx - sax)*(ssassx + sax)/(ssa*ssx)
+      w = one - w1
       ! Calculate significance level for W (exact for N=3)
       IF (n == 3) THEN
-         pw = pi6*(ASIN(SQRT(w))-stqr)
+         pw = pi6*(ASIN(SQRT(w)) - stqr)
       ELSE
          y = LOG(w1)
          xx = LOG(an)
@@ -178,15 +178,15 @@ CONTAINS
             IF (y >= gamma) THEN
                pw = small
             ELSE
-               y = -LOG(gamma-y)
+               y = -LOG(gamma - y)
                m = poly(c3, 4, an)
                s = EXP(poly(c4, 4, an))
-               pw = alnorm((y-m)/s, .TRUE.)
+               pw = alnorm((y - m)/s, .TRUE.)
             END IF
          ELSE
             m = poly(c5, 4, xx)
             s = EXP(poly(c6, 3, xx))
-            pw = alnorm((y-m)/s, .TRUE.)
+            pw = alnorm((y - m)/s, .TRUE.)
          END IF
       END IF
       DEALLOCATE (x)
@@ -221,17 +221,17 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: q, r
 
-      q = p-half
+      q = p - half
       IF (ABS(q) <= split1) THEN
-         r = const1-q*q
-         normal_dev = q*(((a3*r+a2)*r+a1)*r+a0)/ &
-                      (((b3*r+b2)*r+b1)*r+one)
+         r = const1 - q*q
+         normal_dev = q*(((a3*r + a2)*r + a1)*r + a0)/ &
+                      (((b3*r + b2)*r + b1)*r + one)
          RETURN
       ELSE
          IF (q < zero) THEN
             r = p
          ELSE
-            r = one-p
+            r = one - p
          END IF
          IF (r <= zero) THEN
             normal_dev = zero
@@ -239,11 +239,11 @@ CONTAINS
          END IF
          r = SQRT(-LOG(r))
          IF (r <= split2) THEN
-            r = r-const2
-            normal_dev = (((c3*r+c2)*r+c1)*r+c0)/((d2*r+d1)*r+one)
+            r = r - const2
+            normal_dev = (((c3*r + c2)*r + c1)*r + c0)/((d2*r + d1)*r + one)
          ELSE
-            r = r-split2
-            normal_dev = (((e3*r+e2)*r+e1)*r+e0)/((f2*r+f1)*r+one)
+            r = r - split2
+            normal_dev = (((e3*r + e2)*r + e1)*r + e0)/((f2*r + f1)*r + one)
          END IF
          IF (q < zero) normal_dev = -normal_dev
          RETURN
@@ -286,16 +286,16 @@ CONTAINS
       ENDIF
       IF (.NOT. (z <= ltone .OR. up .AND. z <= utzero)) THEN
          fn_val = zero
-         IF (.NOT. up) fn_val = one-fn_val
+         IF (.NOT. up) fn_val = one - fn_val
          RETURN
       ENDIF
       y = half*z*z
       IF (z <= con) THEN
-         fn_val = r*EXP(-y)/(z+c1+d1/(z+c2+d2/(z+c3+d3/(z+c4+d4/(z+c5+d5/(z+c6))))))
+         fn_val = r*EXP(-y)/(z + c1 + d1/(z + c2 + d2/(z + c3 + d3/(z + c4 + d4/(z + c5 + d5/(z + c6))))))
       ELSE
-         fn_val = half-z*(p-q*y/(y+a1+b1/(y+a2+b2/(y+a3))))
+         fn_val = half - z*(p - q*y/(y + a1 + b1/(y + a2 + b2/(y + a3))))
       ENDIF
-      IF (.NOT. up) fn_val = one-fn_val
+      IF (.NOT. up) fn_val = one - fn_val
 
    END FUNCTION alnorm
 
@@ -325,16 +325,16 @@ CONTAINS
       IF (nord == 1) RETURN
       p = x*c(nord)
       IF (nord == 2) THEN
-         fn_val = fn_val+p
+         fn_val = fn_val + p
          RETURN
       ENDIF
-      n2 = nord-2
-      j = n2+1
+      n2 = nord - 2
+      j = n2 + 1
       DO i = 1, n2
-         p = (p+c(j))*x
-         j = j-1
+         p = (p + c(j))*x
+         j = j - 1
       END DO
-      fn_val = fn_val+p
+      fn_val = fn_val + p
    END FUNCTION poly
 
 ! **************************************************************************************************
@@ -362,21 +362,21 @@ CONTAINS
       INTEGER                                            :: is, j, k, nt
       REAL(KIND=dp)                                      :: a1, var
 
-      nt = n-istart+1
+      nt = n - istart + 1
       IF (nt .GE. min_sample_size) THEN
          is = 0
-         DO j = istart, n-1
-            DO k = j+1, n
-               a1 = xdata(j)-xdata(k)
+         DO j = istart, n - 1
+            DO k = j + 1, n
+               a1 = xdata(j) - xdata(k)
                IF (a1 .GT. 0.0_dp) THEN
-                  is = is+1
+                  is = is + 1
                ELSE IF (a1 .LT. 0.0_dp) THEN
-                  is = is-1
+                  is = is - 1
                END IF
             END DO
          END DO
          tau = REAL(is, KIND=dp)
-         var = REAL(nt, KIND=dp)*REAL(nt-1, KIND=dp)*REAL(2*nt+5, KIND=dp)/18.0_dp
+         var = REAL(nt, KIND=dp)*REAL(nt - 1, KIND=dp)*REAL(2*nt + 5, KIND=dp)/18.0_dp
          z = tau/SQRT(var)
          prob = erf(ABS(z)/SQRT(2.0_dp))
       ELSE
@@ -410,20 +410,20 @@ CONTAINS
          x = 0.0_dp
          q = 0.0_dp
          s = 0.0_dp
-         DO i = 1, n-1
-            x = x+xdata(i)
-            q = q+(xdata(i+1)-xdata(i))**2
+         DO i = 1, n - 1
+            x = x + xdata(i)
+            q = q + (xdata(i + 1) - xdata(i))**2
          END DO
-         x = x+xdata(n)
+         x = x + xdata(n)
          x = x/REAL(n, KIND=dp)
          DO i = 1, n
-            s = s+(xdata(i)-x)**2
+            s = s + (xdata(i) - x)**2
          END DO
-         s = s/REAL(n-1, KIND=dp)
-         q = q/REAL(2*(n-1), KIND=dp)
+         s = s/REAL(n - 1, KIND=dp)
+         q = q/REAL(2*(n - 1), KIND=dp)
          r = q/s
-         var = SQRT(1.0_dp/REAL(n+1, KIND=dp)*(1.0_dp+1.0_dp/REAL(n-1, KIND=dp)))
-         u = (r-1.0_dp)/var
+         var = SQRT(1.0_dp/REAL(n + 1, KIND=dp)*(1.0_dp + 1.0_dp/REAL(n - 1, KIND=dp)))
+         u = (r - 1.0_dp)/var
          prob = erf(ABS(u)/SQRT(2.0_dp))
       ELSE
          r = 0.0_dp
@@ -456,7 +456,7 @@ CONTAINS
          NULLIFY (xdata)
          ALLOCATE (xdata(n))
          DO i = 1, 10
-            xdata(i) = 5.0_dp-REAL(i, KIND=dp)/2.0_dp+0.1* &
+            xdata(i) = 5.0_dp - REAL(i, KIND=dp)/2.0_dp + 0.1* &
                        next_random_number(globenv%gaussian_rng_stream)
             WRITE (3, *) xdata(i)
          END DO
@@ -473,10 +473,10 @@ CONTAINS
 
          ! Test for normality distribution and for serial correlation
          DO i = 1, n
-            ALLOCATE (ydata(n-i+1))
+            ALLOCATE (ydata(n - i + 1))
             ydata = xdata(i:n)
-            CALL sw_test(ydata, n-i+1, w, pw)
-            CALL vn_test(ydata, n-i+1, r, u, prob)
+            CALL sw_test(ydata, n - i + 1, w, pw)
+            CALL vn_test(ydata, n - i + 1, r, u, prob)
             WRITE (*, *) "Shapiro Wilks test", i, w, pw
             WRITE (*, *) "Von Neu", i, r, u, prob
             DEALLOCATE (ydata)

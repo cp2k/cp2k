@@ -59,24 +59,24 @@ CONTAINS
       ! Split off a piece of the pattern
       !
       DO WHILE (p <= ptrim)
-         SELECT CASE (pattern (p:p))
+         SELECT CASE (pattern(p:p))
          CASE (star)
             IF (ll .NE. 0) EXIT
             method = 1
          CASE (question)
             IF (ll .NE. 0) EXIT
             method = 2
-            start = start+1
+            start = start + 1
          CASE (backslash)
-            p = p+1
-            ll = ll+1
+            p = p + 1
+            ll = ll + 1
             literal(ll:ll) = pattern(p:p)
          CASE default
-            ll = ll+1
+            ll = ll + 1
             literal(ll:ll) = pattern(p:p)
          END SELECT
 
-         p = p+1
+         p = p + 1
       ENDDO
 
       !
@@ -93,8 +93,8 @@ CONTAINS
             ! The string matches a literal part?
             !
             IF (ll > 0) THEN
-               IF (string(start:MIN(strim, start+ll-1)) == literal(1:ll)) THEN
-                  start = start+ll
+               IF (string(start:MIN(strim, start + ll - 1)) == literal(1:ll)) THEN
+                  start = start + ll
                   match = string_match(string(start:), pattern(p:))
                ENDIF
             ENDIF
@@ -111,14 +111,14 @@ CONTAINS
             DO WHILE (start <= strim)
                k = INDEX(string(start:), literal(1:ll))
                IF (k > 0) THEN
-                  start = start+k+ll-1
+                  start = start + k + ll - 1
                   match = string_match(string(start:), pattern(p:))
                   IF (match) THEN
                      EXIT
                   ENDIF
                ENDIF
 
-               start = start+1
+               start = start + 1
             ENDDO
          ENDIF
       ENDIF
@@ -127,8 +127,8 @@ CONTAINS
          !
          ! Scan the whole of the remaining string ...
          !
-         IF (string(start:MIN(strim, start+ll-1)) == literal(1:ll)) THEN
-            match = string_match(string(start+ll:), pattern(p:))
+         IF (string(start:MIN(strim, start + ll - 1)) == literal(1:ll)) THEN
+            match = string_match(string(start + ll:), pattern(p:))
          ENDIF
       ENDIF
       RETURN

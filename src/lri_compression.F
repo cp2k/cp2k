@@ -75,7 +75,7 @@ CONTAINS
                ii = 0
                DO ib = 1, nb
                   DO ia = 1, na
-                     ii = ii+1
+                     ii = ii + 1
                      ca%cdp(ii) = aval(ia, ib, i)
                   END DO
                END DO
@@ -85,7 +85,7 @@ CONTAINS
                ii = 0
                DO ib = 1, nb
                   DO ia = 1, na
-                     ii = ii+1
+                     ii = ii + 1
                      ca%csp(ii) = REAL(aval(ia, ib, i), KIND=sp)
                   END DO
                END DO
@@ -113,13 +113,13 @@ CONTAINS
       IF (ASSOCIATED(cont%ca)) THEN
          DO i = 1, SIZE(cont%ca)
             IF (ASSOCIATED(cont%ca(i)%cdp)) THEN
-               cmem = cmem+SIZE(cont%ca(i)%cdp)
+               cmem = cmem + SIZE(cont%ca(i)%cdp)
             END IF
             IF (ASSOCIATED(cont%ca(i)%csp)) THEN
-               cmem = cmem+0.5_dp*SIZE(cont%ca(i)%csp)
+               cmem = cmem + 0.5_dp*SIZE(cont%ca(i)%csp)
             END IF
             IF (ASSOCIATED(cont%ca(i)%cip)) THEN
-               cmem = cmem+SIZE(cont%ca(i)%cip)
+               cmem = cmem + SIZE(cont%ca(i)%cip)
             END IF
          END DO
       END IF
@@ -157,7 +157,7 @@ CONTAINS
          ii = 0
          DO ib = 1, nb
             DO ia = 1, na
-               ii = ii+1
+               ii = ii + 1
                aval(ia, ib) = ca%cdp(ii)
             END DO
          END DO
@@ -165,7 +165,7 @@ CONTAINS
          ii = 0
          DO ib = 1, nb
             DO ia = 1, na
-               ii = ii+1
+               ii = ii + 1
                aval(ia, ib) = REAL(ca%csp(ii), KIND=dp)
             END DO
          END DO

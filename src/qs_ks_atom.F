@@ -61,10 +61,10 @@ MODULE qs_ks_atom
    USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
-!$    omp_get_thread_num, &
-!$    omp_lock_kind, &
-!$    omp_init_lock, omp_set_lock, &
-!$    omp_unset_lock, omp_destroy_lock
+!$                    omp_get_thread_num, &
+!$                    omp_lock_kind, &
+!$                    omp_init_lock, omp_set_lock, &
+!$                    omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 
@@ -227,7 +227,7 @@ CONTAINS
                END DO
             END DO
             ! broadcast the CPC arrays to all processors (replicated data)
-            DO ip = 0, num_pe-1
+            DO ip = 0, num_pe - 1
                bo = get_limit(nat, num_pe, ip)
                DO iat = bo(1), bo(2)
                   iatom = atom_list(iat)
@@ -261,9 +261,9 @@ CONTAINS
          CALL get_iterator_task(nl_iterator, task) ! build hash table in serial, so don't pass mepos
          ! tasks with the same key access the same blocks of H & P
          IF (task%iatom <= task%jatom) THEN
-            nl_table_key = natom*task%iatom+task%jatom
+            nl_table_key = natom*task%iatom + task%jatom
          ELSE
-            nl_table_key = natom*task%jatom+task%iatom
+            nl_table_key = natom*task%jatom + task%iatom
          ENDIF
          CALL nl_hash_table_add(nl_hash_table, nl_table_key, task)
       END DO
@@ -383,8 +383,8 @@ CONTAINS
 
                   CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, maxso=maxsoc)
 
-                  iac = ikind+nkind*(kkind-1)
-                  ibc = jkind+nkind*(kkind-1)
+                  iac = ikind + nkind*(kkind - 1)
+                  ibc = jkind + nkind*(kkind - 1)
                   IF (.NOT. ASSOCIATED(oce%intac(iac)%alist)) CYCLE
                   IF (.NOT. ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
 
@@ -397,7 +397,7 @@ CONTAINS
                      DO kbc = 1, alist_bc%nclist
                         IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
 
-                        IF (ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
+                        IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                            n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                            n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
                            IF (n_cont_a .EQ. 0 .OR. n_cont_b .EQ. 0) CYCLE
@@ -450,15 +450,15 @@ CONTAINS
                                                        rho_at, force_tmp, nspins, iatom, jatom, nsoctot, &
                                                        list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, &
                                                        PC_h, PC_s, p_matrix)
-!$                               CALL omp_set_lock(locks((ka_kind-1)*nkind+kkind))
-                                 force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind)+force_tmp(1:3, 3)
-!$                               CALL omp_unset_lock(locks((ka_kind-1)*nkind+kkind))
-!$                               CALL omp_set_lock(locks((ia_kind-1)*nkind+ikind))
-                                 force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind)+force_tmp(1:3, 1)
-!$                               CALL omp_unset_lock(locks((ia_kind-1)*nkind+ikind))
-!$                               CALL omp_set_lock(locks((ja_kind-1)*nkind+jkind))
-                                 force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind)+force_tmp(1:3, 2)
-!$                               CALL omp_unset_lock(locks((ja_kind-1)*nkind+jkind))
+!$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
+                                 force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
+!$                               CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
+!$                               CALL omp_set_lock(locks((ia_kind - 1)*nkind + ikind))
+                                 force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind) + force_tmp(1:3, 1)
+!$                               CALL omp_unset_lock(locks((ia_kind - 1)*nkind + ikind))
+!$                               CALL omp_set_lock(locks((ja_kind - 1)*nkind + jkind))
+                                 force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind) + force_tmp(1:3, 2)
+!$                               CALL omp_unset_lock(locks((ja_kind - 1)*nkind + jkind))
                                  IF (use_virial) THEN
                                     CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rac)
                                     CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rbc)
@@ -468,15 +468,15 @@ CONTAINS
                                                        rho_at, force_tmp, nspins, jatom, iatom, nsoctot, &
                                                        list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, &
                                                        PC_h, PC_s, p_matrix)
-!$                               CALL omp_set_lock(locks((ka_kind-1)*nkind+kkind))
-                                 force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind)+force_tmp(1:3, 3)
-!$                               CALL omp_unset_lock(locks((ka_kind-1)*nkind+kkind))
-!$                               CALL omp_set_lock(locks((ia_kind-1)*nkind+ikind))
-                                 force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind)+force_tmp(1:3, 2)
-!$                               CALL omp_unset_lock(locks((ia_kind-1)*nkind+ikind))
-!$                               CALL omp_set_lock(locks((ja_kind-1)*nkind+jkind))
-                                 force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind)+force_tmp(1:3, 1)
-!$                               CALL omp_unset_lock(locks((ja_kind-1)*nkind+jkind))
+!$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
+                                 force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
+!$                               CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
+!$                               CALL omp_set_lock(locks((ia_kind - 1)*nkind + ikind))
+                                 force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind) + force_tmp(1:3, 2)
+!$                               CALL omp_unset_lock(locks((ia_kind - 1)*nkind + ikind))
+!$                               CALL omp_set_lock(locks((ja_kind - 1)*nkind + jkind))
+                                 force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind) + force_tmp(1:3, 1)
+!$                               CALL omp_unset_lock(locks((ja_kind - 1)*nkind + jkind))
                                  IF (use_virial) THEN
                                     CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rac)
                                     CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rbc)
@@ -528,7 +528,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF (use_virial) THEN
-         virial%pv_virial(1:3, 1:3) = virial%pv_virial(1:3, 1:3)+pv_virial_thread(1:3, 1:3)
+         virial%pv_virial(1:3, 1:3) = virial%pv_virial(1:3, 1:3) + pv_virial_thread(1:3, 1:3)
       END IF
 
       CALL nl_hash_table_release(nl_hash_table)
@@ -604,8 +604,8 @@ CONTAINS
                k = 0
                DO i = 1, nsp
                   DO j = 1, nsp
-                     k = k+1
-                     coc(k) = int_hard(j, i)-int_soft(j, i)
+                     k = k + 1
+                     coc(k) = int_hard(j, i) - int_soft(j, i)
                   END DO
                END DO
                CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, coc, nsp, C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
@@ -648,8 +648,8 @@ CONTAINS
                k = 0
                DO i = 1, nsp
                   DO j = 1, nsp
-                     k = k+1
-                     coc(k) = int_hard(j, i)-int_soft(j, i)
+                     k = k + 1
+                     coc(k) = int_hard(j, i) - int_soft(j, i)
                   END DO
                END DO
                CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, coc, nsp, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), 0.0_dp, C_int_h(1), nsp)
@@ -772,15 +772,15 @@ CONTAINS
                        C_hh_a(1, 1, dir), SIZE(C_hh_a, 1), &
                        0.0_dp, dCPC_h(1, 1), SIZE(dCPC_h, 1))
             trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir-1, 3) = force(dir-1, 3)+ieqj*trace
-            force(dir-1, 1) = force(dir-1, 1)-ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace
+            force(dir - 1, 1) = force(dir - 1, 1) - ieqj*trace
 
             CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_s(1, 1, ispin), SIZE(PC_s, 1), &
                        C_ss_a(1, 1, dir), SIZE(C_ss_a, 1), &
                        0.0_dp, dCPC_s(1, 1), SIZE(dCPC_s, 1))
             trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir-1, 3) = force(dir-1, 3)-ieqj*trace
-            force(dir-1, 1) = force(dir-1, 1)+ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace
+            force(dir - 1, 1) = force(dir - 1, 1) + ieqj*trace
          END DO
 
          ! j-k contributions
@@ -796,15 +796,15 @@ CONTAINS
                        C_hh_b(1, 1, dir), SIZE(C_hh_b, 1), &
                        0.0_dp, dCPC_h(1, 1), SIZE(dCPC_h, 1))
             trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir-1, 3) = force(dir-1, 3)+ieqj*trace
-            force(dir-1, 2) = force(dir-1, 2)-ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace
+            force(dir - 1, 2) = force(dir - 1, 2) - ieqj*trace
 
             CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_s(1, 1, ispin), SIZE(PC_s, 1), &
                        C_ss_b(1, 1, dir), SIZE(C_ss_b, 1), &
                        0.0_dp, dCPC_s(1, 1), SIZE(dCPC_s, 1))
             trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir-1, 3) = force(dir-1, 3)-ieqj*trace
-            force(dir-1, 2) = force(dir-1, 2)+ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace
+            force(dir - 1, 2) = force(dir - 1, 2) + ieqj*trace
          END DO
 
       END DO !ispin

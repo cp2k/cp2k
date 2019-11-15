@@ -43,22 +43,21 @@ MODULE topology_amber
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_amber'
-  REAL(KIND=dp), PARAMETER, PRIVATE    :: amber_conv_factor = 20.4550_dp,&
-                                          amber_conv_charge = 18.2223_dp
-  INTEGER, PARAMETER, PRIVATE          :: buffer_size = 1
+   REAL(KIND=dp), PARAMETER, PRIVATE    :: amber_conv_factor = 20.4550_dp, &
+                                           amber_conv_charge = 18.2223_dp
+   INTEGER, PARAMETER, PRIVATE          :: buffer_size = 1
 
+   PRIVATE
+   PUBLIC :: read_coordinate_crd, read_connectivity_amber, rdparm_amber_8
 
-  PRIVATE
-  PUBLIC :: read_coordinate_crd, read_connectivity_amber, rdparm_amber_8
-
-  ! Reading Amber sections routines
-  INTERFACE rd_amber_section
-     MODULE PROCEDURE rd_amber_section_i1, rd_amber_section_c1, rd_amber_section_r1,&
-                      rd_amber_section_i3, rd_amber_section_i4, rd_amber_section_i5
-  END INTERFACE
+   ! Reading Amber sections routines
+   INTERFACE rd_amber_section
+      MODULE PROCEDURE rd_amber_section_i1, rd_amber_section_c1, rd_amber_section_r1, &
+         rd_amber_section_i3, rd_amber_section_i4, rd_amber_section_i5
+   END INTERFACE
 
 CONTAINS
 
@@ -96,7 +95,7 @@ CONTAINS
 !> \param subsys_section ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE read_coordinate_crd (topology,para_env,subsys_section)
+   SUBROUTINE read_coordinate_crd(topology, para_env, subsys_section)
       TYPE(topology_parameters_type)                     :: topology
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
@@ -113,163 +112,163 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(section_vals_type), POINTER                   :: velocity_section
 
-    NULLIFY(parser, logger, velocity)
-    logger => cp_get_default_logger()
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/CRD_INFO",&
-         extension=".subsysLog")
-    CALL timeset(routineN,handle)
+      NULLIFY (parser, logger, velocity)
+      logger => cp_get_default_logger()
+      iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/CRD_INFO", &
+                                extension=".subsysLog")
+      CALL timeset(routineN, handle)
 
-    atom_info => topology%atom_info
-    IF (iw>0)  WRITE(iw,*) "    Reading in CRD file ",TRIM(topology%coord_file_name)
+      atom_info => topology%atom_info
+      IF (iw > 0) WRITE (iw, *) "    Reading in CRD file ", TRIM(topology%coord_file_name)
 
-    ! Title Section
-    IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| Parsing the TITLE section'
-    CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
-    CALL parser_get_next_line(parser,1)
-    ! Title may be missing
-    IF (parser_test_next_token(parser)=="STR") THEN
-       CALL parser_get_object(parser,string,string_length=default_string_length)
-       IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| '//TRIM(string)
-       ! Natom and Time (which we ignore)
-       CALL parser_get_next_line(parser,1)
-    END IF
-    CALL parser_get_object(parser,natom)
-    topology%natoms = natom
-    IF(iw>0) WRITE(iw,'(T2,A,I0)') 'CRD_INFO| Number of atoms: ',natom
-    CALL reallocate(atom_info%id_molname, 1,    natom)
-    CALL reallocate(atom_info%id_resname, 1,    natom)
-    CALL reallocate(atom_info%resid,   1,    natom)
-    CALL reallocate(atom_info%id_atmname, 1,    natom)
-    CALL reallocate(atom_info%r,             1,3,1,natom)
-    CALL reallocate(atom_info%atm_mass,      1,    natom)
-    CALL reallocate(atom_info%atm_charge,    1,    natom)
-    CALL reallocate(atom_info%occup,         1,    natom)
-    CALL reallocate(atom_info%beta,          1,    natom)
-    CALL reallocate(atom_info%id_element,       1,    natom)
+      ! Title Section
+      IF (iw > 0) WRITE (iw, '(T2,A)') 'CRD_INFO| Parsing the TITLE section'
+      CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
+      CALL parser_get_next_line(parser, 1)
+      ! Title may be missing
+      IF (parser_test_next_token(parser) == "STR") THEN
+         CALL parser_get_object(parser, string, string_length=default_string_length)
+         IF (iw > 0) WRITE (iw, '(T2,A)') 'CRD_INFO| '//TRIM(string)
+         ! Natom and Time (which we ignore)
+         CALL parser_get_next_line(parser, 1)
+      END IF
+      CALL parser_get_object(parser, natom)
+      topology%natoms = natom
+      IF (iw > 0) WRITE (iw, '(T2,A,I0)') 'CRD_INFO| Number of atoms: ', natom
+      CALL reallocate(atom_info%id_molname, 1, natom)
+      CALL reallocate(atom_info%id_resname, 1, natom)
+      CALL reallocate(atom_info%resid, 1, natom)
+      CALL reallocate(atom_info%id_atmname, 1, natom)
+      CALL reallocate(atom_info%r, 1, 3, 1, natom)
+      CALL reallocate(atom_info%atm_mass, 1, natom)
+      CALL reallocate(atom_info%atm_charge, 1, natom)
+      CALL reallocate(atom_info%occup, 1, natom)
+      CALL reallocate(atom_info%beta, 1, natom)
+      CALL reallocate(atom_info%id_element, 1, natom)
 
-    ! Element is assigned on the basis of the atm_name
-    topology%aa_element = .TRUE.
+      ! Element is assigned on the basis of the atm_name
+      topology%aa_element = .TRUE.
 
-    ! Coordinates
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    DO j = 1, natom-MOD(natom,2), 2
-       IF (my_end) EXIT
-       READ(parser%input_line,*)atom_info%r(1,j  ),atom_info%r(2,j  ),atom_info%r(3,j  ),&
-                                atom_info%r(1,j+1),atom_info%r(2,j+1),atom_info%r(3,j+1)
-       ! All these information will have to be setup elsewhere..
-       ! CRD file does not contain anything related..
-       atom_info%id_atmname(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%id_molname(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%id_resname(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%id_element(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%resid  (j  ) =  HUGE(0)
-       atom_info%atm_mass     (j  ) =  HUGE(0.0_dp)
-       atom_info%atm_charge   (j  ) = -HUGE(0.0_dp)
-       atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom")
-       atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom")
-       atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom")
+      ! Coordinates
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      DO j = 1, natom - MOD(natom, 2), 2
+         IF (my_end) EXIT
+         READ (parser%input_line, *) atom_info%r(1, j), atom_info%r(2, j), atom_info%r(3, j), &
+            atom_info%r(1, j + 1), atom_info%r(2, j + 1), atom_info%r(3, j + 1)
+         ! All these information will have to be setup elsewhere..
+         ! CRD file does not contain anything related..
+         atom_info%id_atmname(j) = str2id(s2s("__UNDEF__"))
+         atom_info%id_molname(j) = str2id(s2s("__UNDEF__"))
+         atom_info%id_resname(j) = str2id(s2s("__UNDEF__"))
+         atom_info%id_element(j) = str2id(s2s("__UNDEF__"))
+         atom_info%resid(j) = HUGE(0)
+         atom_info%atm_mass(j) = HUGE(0.0_dp)
+         atom_info%atm_charge(j) = -HUGE(0.0_dp)
+         atom_info%r(1, j) = cp_unit_to_cp2k(atom_info%r(1, j), "angstrom")
+         atom_info%r(2, j) = cp_unit_to_cp2k(atom_info%r(2, j), "angstrom")
+         atom_info%r(3, j) = cp_unit_to_cp2k(atom_info%r(3, j), "angstrom")
 
-       atom_info%id_atmname(j+1) = str2id(s2s("__UNDEF__"))
-       atom_info%id_molname(j+1) = str2id(s2s("__UNDEF__"))
-       atom_info%id_resname(j+1) = str2id(s2s("__UNDEF__"))
-       atom_info%id_element(j+1) = str2id(s2s("__UNDEF__"))
-       atom_info%resid  (j+1) =  HUGE(0)
-       atom_info%atm_mass     (j+1) =  HUGE(0.0_dp)
-       atom_info%atm_charge   (j+1) = -HUGE(0.0_dp)
-       atom_info%r(1,j+1) = cp_unit_to_cp2k(atom_info%r(1,j+1),"angstrom")
-       atom_info%r(2,j+1) = cp_unit_to_cp2k(atom_info%r(2,j+1),"angstrom")
-       atom_info%r(3,j+1) = cp_unit_to_cp2k(atom_info%r(3,j+1),"angstrom")
+         atom_info%id_atmname(j + 1) = str2id(s2s("__UNDEF__"))
+         atom_info%id_molname(j + 1) = str2id(s2s("__UNDEF__"))
+         atom_info%id_resname(j + 1) = str2id(s2s("__UNDEF__"))
+         atom_info%id_element(j + 1) = str2id(s2s("__UNDEF__"))
+         atom_info%resid(j + 1) = HUGE(0)
+         atom_info%atm_mass(j + 1) = HUGE(0.0_dp)
+         atom_info%atm_charge(j + 1) = -HUGE(0.0_dp)
+         atom_info%r(1, j + 1) = cp_unit_to_cp2k(atom_info%r(1, j + 1), "angstrom")
+         atom_info%r(2, j + 1) = cp_unit_to_cp2k(atom_info%r(2, j + 1), "angstrom")
+         atom_info%r(3, j + 1) = cp_unit_to_cp2k(atom_info%r(3, j + 1), "angstrom")
 
-       CALL parser_get_next_line(parser,1,at_end=my_end)
-    END DO
-    ! Trigger error
-    IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
-       IF(j/=natom)&
-          CPABORT("Error while reading CRD file. Unexpected end of file.")
-    ELSE IF (MOD(natom,2)/=0) THEN
-       ! In case let's handle the last atom
-       j = natom
-       READ(parser%input_line,*)atom_info%r(1,j  ),atom_info%r(2,j  ),atom_info%r(3,j  )
-       ! All these information will have to be setup elsewhere..
-       ! CRD file does not contain anything related..
-       atom_info%id_atmname(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%id_molname(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%id_resname(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%id_element(j  ) = str2id(s2s("__UNDEF__"))
-       atom_info%resid  (j  ) =  HUGE(0)
-       atom_info%atm_mass     (j  ) =  HUGE(0.0_dp)
-       atom_info%atm_charge   (j  ) = -HUGE(0.0_dp)
-       atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom")
-       atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom")
-       atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom")
+         CALL parser_get_next_line(parser, 1, at_end=my_end)
+      END DO
+      ! Trigger error
+      IF ((my_end) .AND. (j /= natom - MOD(natom, 2) + 1)) THEN
+         IF (j /= natom) &
+            CPABORT("Error while reading CRD file. Unexpected end of file.")
+      ELSE IF (MOD(natom, 2) /= 0) THEN
+         ! In case let's handle the last atom
+         j = natom
+         READ (parser%input_line, *) atom_info%r(1, j), atom_info%r(2, j), atom_info%r(3, j)
+         ! All these information will have to be setup elsewhere..
+         ! CRD file does not contain anything related..
+         atom_info%id_atmname(j) = str2id(s2s("__UNDEF__"))
+         atom_info%id_molname(j) = str2id(s2s("__UNDEF__"))
+         atom_info%id_resname(j) = str2id(s2s("__UNDEF__"))
+         atom_info%id_element(j) = str2id(s2s("__UNDEF__"))
+         atom_info%resid(j) = HUGE(0)
+         atom_info%atm_mass(j) = HUGE(0.0_dp)
+         atom_info%atm_charge(j) = -HUGE(0.0_dp)
+         atom_info%r(1, j) = cp_unit_to_cp2k(atom_info%r(1, j), "angstrom")
+         atom_info%r(2, j) = cp_unit_to_cp2k(atom_info%r(2, j), "angstrom")
+         atom_info%r(3, j) = cp_unit_to_cp2k(atom_info%r(3, j), "angstrom")
 
-       CALL parser_get_next_line(parser,1,at_end=my_end)
-    END IF
+         CALL parser_get_next_line(parser, 1, at_end=my_end)
+      END IF
 
-    IF (my_end) THEN
-       IF(j/=natom)&
-          CPWARN("No VELOCITY or BOX information found in CRD file. ")
-    ELSE
-       ! Velocities
-       CALL reallocate(velocity,1,3,1,natom)
-       DO j = 1, natom-MOD(natom,2), 2
-          IF (my_end) EXIT
-          READ(parser%input_line,*)velocity(1,j  ),velocity(2,j  ),velocity(3,j  ),&
-                                   velocity(1,j+1),velocity(2,j+1),velocity(3,j+1)
+      IF (my_end) THEN
+         IF (j /= natom) &
+            CPWARN("No VELOCITY or BOX information found in CRD file. ")
+      ELSE
+         ! Velocities
+         CALL reallocate(velocity, 1, 3, 1, natom)
+         DO j = 1, natom - MOD(natom, 2), 2
+            IF (my_end) EXIT
+            READ (parser%input_line, *) velocity(1, j), velocity(2, j), velocity(3, j), &
+               velocity(1, j + 1), velocity(2, j + 1), velocity(3, j + 1)
 
-          velocity(1,j  ) = cp_unit_to_cp2k(velocity(1,j  ),"angstrom*ps^-1")
-          velocity(2,j  ) = cp_unit_to_cp2k(velocity(2,j  ),"angstrom*ps^-1")
-          velocity(3,j  ) = cp_unit_to_cp2k(velocity(3,j  ),"angstrom*ps^-1")
-          velocity(1:3,j  ) = velocity(1:3,j  )*amber_conv_factor
+            velocity(1, j) = cp_unit_to_cp2k(velocity(1, j), "angstrom*ps^-1")
+            velocity(2, j) = cp_unit_to_cp2k(velocity(2, j), "angstrom*ps^-1")
+            velocity(3, j) = cp_unit_to_cp2k(velocity(3, j), "angstrom*ps^-1")
+            velocity(1:3, j) = velocity(1:3, j)*amber_conv_factor
 
-          velocity(1,j+1) = cp_unit_to_cp2k(velocity(1,j+1),"angstrom*ps^-1")
-          velocity(2,j+1) = cp_unit_to_cp2k(velocity(2,j+1),"angstrom*ps^-1")
-          velocity(3,j+1) = cp_unit_to_cp2k(velocity(3,j+1),"angstrom*ps^-1")
-          velocity(1:3,j+1) = velocity(1:3,j+1)*amber_conv_factor
+            velocity(1, j + 1) = cp_unit_to_cp2k(velocity(1, j + 1), "angstrom*ps^-1")
+            velocity(2, j + 1) = cp_unit_to_cp2k(velocity(2, j + 1), "angstrom*ps^-1")
+            velocity(3, j + 1) = cp_unit_to_cp2k(velocity(3, j + 1), "angstrom*ps^-1")
+            velocity(1:3, j + 1) = velocity(1:3, j + 1)*amber_conv_factor
 
-          CALL parser_get_next_line(parser,1,at_end=my_end)
-       END DO
-       setup_velocities = .TRUE.
-       IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
-          IF(j/=natom)&
-             CALL cp_warn(__LOCATION__,&
-                  "No VELOCITY information found in CRD file. Ignoring BOX information. "//&
-                  "Please provide the BOX information directly from the main CP2K input! ")
-          setup_velocities = .FALSE.
-       ELSE IF (MOD(natom,2)/=0) THEN
-          ! In case let's handle the last atom
-          j = natom
-          READ(parser%input_line,*)velocity(1,j  ),velocity(2,j  ),velocity(3,j  )
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END DO
+         setup_velocities = .TRUE.
+         IF ((my_end) .AND. (j /= natom - MOD(natom, 2) + 1)) THEN
+            IF (j /= natom) &
+               CALL cp_warn(__LOCATION__, &
+                            "No VELOCITY information found in CRD file. Ignoring BOX information. "// &
+                            "Please provide the BOX information directly from the main CP2K input! ")
+            setup_velocities = .FALSE.
+         ELSE IF (MOD(natom, 2) /= 0) THEN
+            ! In case let's handle the last atom
+            j = natom
+            READ (parser%input_line, *) velocity(1, j), velocity(2, j), velocity(3, j)
 
-          velocity(1,j  ) = cp_unit_to_cp2k(velocity(1,j  ),"angstrom*ps^-1")
-          velocity(2,j  ) = cp_unit_to_cp2k(velocity(2,j  ),"angstrom*ps^-1")
-          velocity(3,j  ) = cp_unit_to_cp2k(velocity(3,j  ),"angstrom*ps^-1")
-          velocity(1:3,j  ) = velocity(1:3,j  )*amber_conv_factor
+            velocity(1, j) = cp_unit_to_cp2k(velocity(1, j), "angstrom*ps^-1")
+            velocity(2, j) = cp_unit_to_cp2k(velocity(2, j), "angstrom*ps^-1")
+            velocity(3, j) = cp_unit_to_cp2k(velocity(3, j), "angstrom*ps^-1")
+            velocity(1:3, j) = velocity(1:3, j)*amber_conv_factor
 
-          CALL parser_get_next_line(parser,1,at_end=my_end)
-       END IF
-       IF (setup_velocities) THEN
-          velocity_section => section_vals_get_subs_vals(subsys_section,"VELOCITY")
-          CALL section_velocity_val_set(velocity_section, velocity=velocity, &
-               conv_factor=1.0_dp)
-       END IF
-       DEALLOCATE(velocity)
-    END IF
-    IF (my_end) THEN
-       IF(j/=natom)&
-          CPWARN("BOX information missing in CRD file. ")
-    ELSE
-       IF(j/=natom)&
-          CALL cp_warn(__LOCATION__,&
-               "BOX information found in CRD file. They will be ignored."//&
-               "Please provide the BOX information directly from the main CP2K input!")
-    END IF
-    CALL parser_release(parser)
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/CRD_INFO")
-    CALL timestop(handle)
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
+         IF (setup_velocities) THEN
+            velocity_section => section_vals_get_subs_vals(subsys_section, "VELOCITY")
+            CALL section_velocity_val_set(velocity_section, velocity=velocity, &
+                                          conv_factor=1.0_dp)
+         END IF
+         DEALLOCATE (velocity)
+      END IF
+      IF (my_end) THEN
+         IF (j /= natom) &
+            CPWARN("BOX information missing in CRD file. ")
+      ELSE
+         IF (j /= natom) &
+            CALL cp_warn(__LOCATION__, &
+                         "BOX information found in CRD file. They will be ignored."// &
+                         "Please provide the BOX information directly from the main CP2K input!")
+      END IF
+      CALL parser_release(parser)
+      CALL cp_print_key_finished_output(iw, logger, subsys_section, &
+                                        "PRINT%TOPOLOGY_INFO/CRD_INFO")
+      CALL timestop(handle)
 
-  END SUBROUTINE read_coordinate_crd
+   END SUBROUTINE read_coordinate_crd
 
 ! **************************************************************************************************
 !> \brief Read AMBER topology file (.top) : At this level we parse only the
@@ -282,7 +281,7 @@ CONTAINS
 !> \param subsys_section ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE read_connectivity_amber (filename, topology, para_env, subsys_section)
+   SUBROUTINE read_connectivity_amber(filename, topology, para_env, subsys_section)
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -296,26 +295,26 @@ CONTAINS
       TYPE(connectivity_info_type), POINTER              :: conn_info
       TYPE(cp_logger_type), POINTER                      :: logger
 
-    NULLIFY(logger)
-    CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/AMBER_INFO",&
-         extension=".subsysLog")
+      NULLIFY (logger)
+      CALL timeset(routineN, handle)
+      logger => cp_get_default_logger()
+      iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/AMBER_INFO", &
+                                extension=".subsysLog")
 
-    atom_info => topology%atom_info
-    conn_info => topology%conn_info
+      atom_info => topology%atom_info
+      conn_info => topology%conn_info
 
-    ! Read the Amber topology file
-    CALL rdparm_amber_8(filename, iw, para_env, do_connectivity=.TRUE., do_forcefield=.FALSE.,&
-         atom_info=atom_info, conn_info=conn_info)
+      ! Read the Amber topology file
+      CALL rdparm_amber_8(filename, iw, para_env, do_connectivity=.TRUE., do_forcefield=.FALSE., &
+                          atom_info=atom_info, conn_info=conn_info)
 
-    ! Molnames have been internally generated
-    topology%molname_generated = .TRUE.
+      ! Molnames have been internally generated
+      topology%molname_generated = .TRUE.
 
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/AMBER_INFO")
-    CALL timestop(handle)
-  END SUBROUTINE read_connectivity_amber
+      CALL cp_print_key_finished_output(iw, logger, subsys_section, &
+                                        "PRINT%TOPOLOGY_INFO/AMBER_INFO")
+      CALL timestop(handle)
+   END SUBROUTINE read_connectivity_amber
 
 ! **************************************************************************************************
 !> \brief  Access information form the AMBER topology file
@@ -364,8 +363,8 @@ CONTAINS
 !> \param particle_set ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rdparm_amber_8(filename, output_unit, para_env, do_connectivity,&
-       do_forcefield, atom_info, conn_info, amb_info, particle_set)
+   SUBROUTINE rdparm_amber_8(filename, output_unit, para_env, do_connectivity, &
+                             do_forcefield, atom_info, conn_info, amb_info, particle_set)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
       INTEGER, INTENT(IN)                                :: output_unit
@@ -397,538 +396,538 @@ CONTAINS
                                                             req, rk, teq, tk
       TYPE(cp_parser_type), POINTER                      :: parser
 
-    CALL timeset(routineN,handle)
-    NULLIFY(parser)
-    IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
+      CALL timeset(routineN, handle)
+      NULLIFY (parser)
+      IF (output_unit > 0) WRITE (output_unit, '(/,A)') " AMBER_INFO| Reading Amber Topology File: "// &
          TRIM(filename)
-    CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.)
-    valid_format = check_amber_8_std(parser, output_unit)
-    IF (valid_format) THEN
-       DO WHILE (get_section_parmtop(parser, section, input_format))
-          SELECT CASE (TRIM(section))
-          CASE("TITLE")
-             ! Who cares about the title?
-             CYCLE
-          CASE("POINTERS")
-             CALL rd_amber_section(parser, section, info, 31)
-             ! Assign pointers to the corresponding labels
-             ! just for convenience to have something more human readable
-             natom    = info( 1)
-             ntypes   = info( 2)
-             nbonh    = info( 3)
-             mbona    = info( 4)
-             ntheth   = info( 5)
-             mtheta   = info( 6)
-             nphih    = info( 7)
-             mphia    = info( 8)
-             nhparm   = info( 9)
-             nparm    = info(10)
-             nnb      = info(11)
-             nres     = info(12)
-             nbona    = info(13)
-             ntheta   = info(14)
-             nphia    = info(15)
-             numbnd   = info(16)
-             numang   = info(17)
-             nptra    = info(18)
-             natyp    = info(19)
-             nphb     = info(20)
-             ifpert   = info(21)
-             nbper    = info(22)
-             ngper    = info(23)
-             ndper    = info(24)
-             mbper    = info(25)
-             mgper    = info(26)
-             mdper    = info(27)
-             ifbox    = info(28)
-             nmxrs    = info(29)
-             ifcap    = info(30)
-             numextra = info(31)
+      CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
+      valid_format = check_amber_8_std(parser, output_unit)
+      IF (valid_format) THEN
+         DO WHILE (get_section_parmtop(parser, section, input_format))
+            SELECT CASE (TRIM(section))
+            CASE ("TITLE")
+               ! Who cares about the title?
+               CYCLE
+            CASE ("POINTERS")
+               CALL rd_amber_section(parser, section, info, 31)
+               ! Assign pointers to the corresponding labels
+               ! just for convenience to have something more human readable
+               natom = info(1)
+               ntypes = info(2)
+               nbonh = info(3)
+               mbona = info(4)
+               ntheth = info(5)
+               mtheta = info(6)
+               nphih = info(7)
+               mphia = info(8)
+               nhparm = info(9)
+               nparm = info(10)
+               nnb = info(11)
+               nres = info(12)
+               nbona = info(13)
+               ntheta = info(14)
+               nphia = info(15)
+               numbnd = info(16)
+               numang = info(17)
+               nptra = info(18)
+               natyp = info(19)
+               nphb = info(20)
+               ifpert = info(21)
+               nbper = info(22)
+               ngper = info(23)
+               ndper = info(24)
+               mbper = info(25)
+               mgper = info(26)
+               mdper = info(27)
+               ifbox = info(28)
+               nmxrs = info(29)
+               ifcap = info(30)
+               numextra = info(31)
 
-             ! Print some info if requested
-             IF (output_unit>0) THEN
-                WRITE(output_unit,'(A,/)')" AMBER_INFO| Information from AMBER topology file:"
-                WRITE(output_unit,1000)&
-                     natom, ntypes, nbonh,    mbona, ntheth, mtheta, nphih,  &
-                     mphia, nhparm, nparm,    nnb,   nres,   nbona,  ntheta, &
-                     nphia, numbnd, numang,   nptra, natyp,  nphb,   ifbox,  &
-                     nmxrs, ifcap,  numextra
-             END IF
+               ! Print some info if requested
+               IF (output_unit > 0) THEN
+                  WRITE (output_unit, '(A,/)') " AMBER_INFO| Information from AMBER topology file:"
+                  WRITE (output_unit, 1000) &
+                     natom, ntypes, nbonh, mbona, ntheth, mtheta, nphih, &
+                     mphia, nhparm, nparm, nnb, nres, nbona, ntheta, &
+                     nphia, numbnd, numang, nptra, natyp, nphb, ifbox, &
+                     nmxrs, ifcap, numextra
+               END IF
 
-             ! Allocate temporary arrays
-             IF (do_connectivity) THEN
-                check = PRESENT(atom_info).AND.PRESENT(conn_info)
-                CPASSERT(check)
-                natom_prev = 0
-                IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
-                ! Allocate for extracting connectivity infos
-                ALLOCATE(labres (nres               ))
-                ALLOCATE(ipres  (nres               ))
-             END IF
-             IF (do_forcefield) THEN
-                ! Allocate for extracting forcefield infos
-                ALLOCATE(iac    (natom              ))
-                ALLOCATE(ico    (ntypes*ntypes      ))
-                ALLOCATE(rk     (numbnd             ))
-                ALLOCATE(req    (numbnd             ))
-                ALLOCATE(tk     (numang             ))
-                ALLOCATE(teq    (numang             ))
-                ALLOCATE(pk     (nptra              ))
-                ALLOCATE(pn     (nptra              ))
-                ALLOCATE(phase  (nptra              ))
-                ALLOCATE(cn1    (ntypes*(ntypes+1)/2))
-                ALLOCATE(cn2    (ntypes*(ntypes+1)/2))
-                ALLOCATE(asol   (ntypes*(ntypes+1)/2))
-                ALLOCATE(bsol   (ntypes*(ntypes+1)/2))
-             END IF
-             ! Always Allocate
-             ALLOCATE(ibh    (nbonh              ))
-             ALLOCATE(jbh    (nbonh              ))
-             ALLOCATE(icbh   (nbonh              ))
-             ALLOCATE(ib     (nbona              ))
-             ALLOCATE(jb     (nbona              ))
-             ALLOCATE(icb    (nbona              ))
-             ALLOCATE(ith    (ntheth             ))
-             ALLOCATE(jth    (ntheth             ))
-             ALLOCATE(kth    (ntheth             ))
-             ALLOCATE(icth   (ntheth             ))
-             ALLOCATE(it     (ntheta             ))
-             ALLOCATE(jt     (ntheta             ))
-             ALLOCATE(kt     (ntheta             ))
-             ALLOCATE(ict    (ntheta             ))
-             ALLOCATE(iph    (nphih              ))
-             ALLOCATE(jph    (nphih              ))
-             ALLOCATE(kph    (nphih              ))
-             ALLOCATE(lph    (nphih              ))
-             ALLOCATE(icph   (nphih              ))
-             ALLOCATE(ip     (nphia              ))
-             ALLOCATE(jp     (nphia              ))
-             ALLOCATE(kp     (nphia              ))
-             ALLOCATE(lp     (nphia              ))
-             ALLOCATE(icp    (nphia              ))
-          CASE("ATOM_NAME")
-             ! Atom names are just ignored according the CP2K philosophy
-             CYCLE
-          CASE("AMBER_ATOM_TYPE")
-             IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
-             ALLOCATE(strtmp_a(natom))
-             CALL rd_amber_section(parser, section, strtmp_a , natom)
-             DO i=1,natom
-                atom_info%id_atmname(natom_prev+i)=str2id(strtmp_a(i))
-             ENDDO
-             DEALLOCATE(strtmp_a)
-          CASE("CHARGE")
-             IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, atom_info%atm_charge(natom_prev+1:), natom)
-             ! Convert charges into atomic units
-             atom_info%atm_charge(natom_prev+1:) = atom_info%atm_charge(natom_prev+1:)/amber_conv_charge
-          CASE("MASS")
-             IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, atom_info%atm_mass(natom_prev+1:), natom)
-          CASE("RESIDUE_LABEL")
-             IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%id_resname,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, labres, nres)
-          CASE("RESIDUE_POINTER")
-             IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%resid,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, ipres, nres)
-          CASE("ATOM_TYPE_INDEX")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, iac, natom)
-          CASE("NONBONDED_PARM_INDEX")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, ico, ntypes**2)
-          CASE("BOND_FORCE_CONSTANT")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, rk, numbnd)
-          CASE("BOND_EQUIL_VALUE")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, req, numbnd)
-          CASE("ANGLE_FORCE_CONSTANT")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, tk, numang)
-          CASE("ANGLE_EQUIL_VALUE")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, teq, numang)
-          CASE("DIHEDRAL_FORCE_CONSTANT")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, pk, nptra)
-          CASE("DIHEDRAL_PERIODICITY")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, pn, nptra)
-          CASE("DIHEDRAL_PHASE")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, phase, nptra)
-          CASE("LENNARD_JONES_ACOEF")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, cn1, ntypes*(ntypes+1)/2)
-          CASE("LENNARD_JONES_BCOEF")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, cn2, ntypes*(ntypes+1)/2)
-          CASE("HBOND_ACOEF")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, asol, nphb)
-          CASE("HBOND_BCOEF")
-             IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, bsol, nphb)
-          CASE("BONDS_INC_HYDROGEN")
-             ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh)
-             ! Conver to an atomic index
-             ibh(:) = ibh(:)/3+1
-             jbh(:) = jbh(:)/3+1
-          CASE("BONDS_WITHOUT_HYDROGEN")
-             ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ib, jb, icb, nbona)
-             ! Conver to an atomic index
-             ib(:)  =  ib(:)/3+1
-             jb(:)  =  jb(:)/3+1
-          CASE("ANGLES_INC_HYDROGEN")
-             ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth)
-             ! Conver to an atomic index
-             ith(:) = ith(:)/3+1
-             jth(:) = jth(:)/3+1
-             kth(:) = kth(:)/3+1
-          CASE("ANGLES_WITHOUT_HYDROGEN")
-             ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta)
-             ! Conver to an atomic index
-             it(:)  =  it(:)/3+1
-             jt(:)  =  jt(:)/3+1
-             kt(:)  =  kt(:)/3+1
-          CASE("DIHEDRALS_INC_HYDROGEN")
-             ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih)
-             ! Conver to an atomic index
-             iph(:) = iph(:)/3+1
-             jph(:) = jph(:)/3+1
-             kph(:) = ABS(kph(:))/3+1
-             lph(:) = ABS(lph(:))/3+1
-          CASE("DIHEDRALS_WITHOUT_HYDROGEN")
-             ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia)
-             ! Conver to an atomic index
-             ip(:)  = ip(:)/3+1
-             jp(:)  = jp(:)/3+1
-             kp(:)  = ABS(kp(:))/3+1
-             lp(:)  = ABS(lp(:))/3+1
-          CASE DEFAULT
-             ! Just Ignore other sections...
-          END SELECT
-       END DO
-    END IF
+               ! Allocate temporary arrays
+               IF (do_connectivity) THEN
+                  check = PRESENT(atom_info) .AND. PRESENT(conn_info)
+                  CPASSERT(check)
+                  natom_prev = 0
+                  IF (ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
+                  ! Allocate for extracting connectivity infos
+                  ALLOCATE (labres(nres))
+                  ALLOCATE (ipres(nres))
+               END IF
+               IF (do_forcefield) THEN
+                  ! Allocate for extracting forcefield infos
+                  ALLOCATE (iac(natom))
+                  ALLOCATE (ico(ntypes*ntypes))
+                  ALLOCATE (rk(numbnd))
+                  ALLOCATE (req(numbnd))
+                  ALLOCATE (tk(numang))
+                  ALLOCATE (teq(numang))
+                  ALLOCATE (pk(nptra))
+                  ALLOCATE (pn(nptra))
+                  ALLOCATE (phase(nptra))
+                  ALLOCATE (cn1(ntypes*(ntypes + 1)/2))
+                  ALLOCATE (cn2(ntypes*(ntypes + 1)/2))
+                  ALLOCATE (asol(ntypes*(ntypes + 1)/2))
+                  ALLOCATE (bsol(ntypes*(ntypes + 1)/2))
+               END IF
+               ! Always Allocate
+               ALLOCATE (ibh(nbonh))
+               ALLOCATE (jbh(nbonh))
+               ALLOCATE (icbh(nbonh))
+               ALLOCATE (ib(nbona))
+               ALLOCATE (jb(nbona))
+               ALLOCATE (icb(nbona))
+               ALLOCATE (ith(ntheth))
+               ALLOCATE (jth(ntheth))
+               ALLOCATE (kth(ntheth))
+               ALLOCATE (icth(ntheth))
+               ALLOCATE (it(ntheta))
+               ALLOCATE (jt(ntheta))
+               ALLOCATE (kt(ntheta))
+               ALLOCATE (ict(ntheta))
+               ALLOCATE (iph(nphih))
+               ALLOCATE (jph(nphih))
+               ALLOCATE (kph(nphih))
+               ALLOCATE (lph(nphih))
+               ALLOCATE (icph(nphih))
+               ALLOCATE (ip(nphia))
+               ALLOCATE (jp(nphia))
+               ALLOCATE (kp(nphia))
+               ALLOCATE (lp(nphia))
+               ALLOCATE (icp(nphia))
+            CASE ("ATOM_NAME")
+               ! Atom names are just ignored according the CP2K philosophy
+               CYCLE
+            CASE ("AMBER_ATOM_TYPE")
+               IF (.NOT. do_connectivity) CYCLE
+               CALL reallocate(atom_info%id_atmname, 1, natom_prev + natom)
+               ALLOCATE (strtmp_a(natom))
+               CALL rd_amber_section(parser, section, strtmp_a, natom)
+               DO i = 1, natom
+                  atom_info%id_atmname(natom_prev + i) = str2id(strtmp_a(i))
+               ENDDO
+               DEALLOCATE (strtmp_a)
+            CASE ("CHARGE")
+               IF (.NOT. do_connectivity) CYCLE
+               CALL reallocate(atom_info%atm_charge, 1, natom_prev + natom)
+               CALL rd_amber_section(parser, section, atom_info%atm_charge(natom_prev + 1:), natom)
+               ! Convert charges into atomic units
+               atom_info%atm_charge(natom_prev + 1:) = atom_info%atm_charge(natom_prev + 1:)/amber_conv_charge
+            CASE ("MASS")
+               IF (.NOT. do_connectivity) CYCLE
+               CALL reallocate(atom_info%atm_mass, 1, natom_prev + natom)
+               CALL rd_amber_section(parser, section, atom_info%atm_mass(natom_prev + 1:), natom)
+            CASE ("RESIDUE_LABEL")
+               IF (.NOT. do_connectivity) CYCLE
+               CALL reallocate(atom_info%id_resname, 1, natom_prev + natom)
+               CALL rd_amber_section(parser, section, labres, nres)
+            CASE ("RESIDUE_POINTER")
+               IF (.NOT. do_connectivity) CYCLE
+               CALL reallocate(atom_info%resid, 1, natom_prev + natom)
+               CALL rd_amber_section(parser, section, ipres, nres)
+            CASE ("ATOM_TYPE_INDEX")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, iac, natom)
+            CASE ("NONBONDED_PARM_INDEX")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, ico, ntypes**2)
+            CASE ("BOND_FORCE_CONSTANT")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, rk, numbnd)
+            CASE ("BOND_EQUIL_VALUE")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, req, numbnd)
+            CASE ("ANGLE_FORCE_CONSTANT")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, tk, numang)
+            CASE ("ANGLE_EQUIL_VALUE")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, teq, numang)
+            CASE ("DIHEDRAL_FORCE_CONSTANT")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, pk, nptra)
+            CASE ("DIHEDRAL_PERIODICITY")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, pn, nptra)
+            CASE ("DIHEDRAL_PHASE")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, phase, nptra)
+            CASE ("LENNARD_JONES_ACOEF")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, cn1, ntypes*(ntypes + 1)/2)
+            CASE ("LENNARD_JONES_BCOEF")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, cn2, ntypes*(ntypes + 1)/2)
+            CASE ("HBOND_ACOEF")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, asol, nphb)
+            CASE ("HBOND_BCOEF")
+               IF (.NOT. do_forcefield) CYCLE
+               CALL rd_amber_section(parser, section, bsol, nphb)
+            CASE ("BONDS_INC_HYDROGEN")
+               ! We always need to parse this information both for connectivity and forcefields
+               CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh)
+               ! Conver to an atomic index
+               ibh(:) = ibh(:)/3 + 1
+               jbh(:) = jbh(:)/3 + 1
+            CASE ("BONDS_WITHOUT_HYDROGEN")
+               ! We always need to parse this information both for connectivity and forcefields
+               CALL rd_amber_section(parser, section, ib, jb, icb, nbona)
+               ! Conver to an atomic index
+               ib(:) = ib(:)/3 + 1
+               jb(:) = jb(:)/3 + 1
+            CASE ("ANGLES_INC_HYDROGEN")
+               ! We always need to parse this information both for connectivity and forcefields
+               CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth)
+               ! Conver to an atomic index
+               ith(:) = ith(:)/3 + 1
+               jth(:) = jth(:)/3 + 1
+               kth(:) = kth(:)/3 + 1
+            CASE ("ANGLES_WITHOUT_HYDROGEN")
+               ! We always need to parse this information both for connectivity and forcefields
+               CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta)
+               ! Conver to an atomic index
+               it(:) = it(:)/3 + 1
+               jt(:) = jt(:)/3 + 1
+               kt(:) = kt(:)/3 + 1
+            CASE ("DIHEDRALS_INC_HYDROGEN")
+               ! We always need to parse this information both for connectivity and forcefields
+               CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih)
+               ! Conver to an atomic index
+               iph(:) = iph(:)/3 + 1
+               jph(:) = jph(:)/3 + 1
+               kph(:) = ABS(kph(:))/3 + 1
+               lph(:) = ABS(lph(:))/3 + 1
+            CASE ("DIHEDRALS_WITHOUT_HYDROGEN")
+               ! We always need to parse this information both for connectivity and forcefields
+               CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia)
+               ! Conver to an atomic index
+               ip(:) = ip(:)/3 + 1
+               jp(:) = jp(:)/3 + 1
+               kp(:) = ABS(kp(:))/3 + 1
+               lp(:) = ABS(lp(:))/3 + 1
+            CASE DEFAULT
+               ! Just Ignore other sections...
+            END SELECT
+         END DO
+      END IF
 
-    ! Extracts connectivity info from the AMBER topology file
-    IF (do_connectivity) THEN
-       CALL timeset(TRIM(routineN)//"_connectivity",handle2)
-       ! ----------------------------------------------------------
-       ! Conform Amber Names with CHARMM convention (kind<->charge)
-       ! ----------------------------------------------------------
-       ALLOCATE(isymbl(natom))
-       ALLOCATE(iwork(natom))
+      ! Extracts connectivity info from the AMBER topology file
+      IF (do_connectivity) THEN
+         CALL timeset(TRIM(routineN)//"_connectivity", handle2)
+         ! ----------------------------------------------------------
+         ! Conform Amber Names with CHARMM convention (kind<->charge)
+         ! ----------------------------------------------------------
+         ALLOCATE (isymbl(natom))
+         ALLOCATE (iwork(natom))
 
-       DO i=1,SIZE(isymbl)
-          isymbl(i) = id2str(atom_info%id_atmname(natom_prev+i))
-       ENDDO
+         DO i = 1, SIZE(isymbl)
+            isymbl(i) = id2str(atom_info%id_atmname(natom_prev + i))
+         ENDDO
 
-       ! Sort atom names + charges and identify unique types
-       CALL sort(isymbl, natom, iwork)
+         ! Sort atom names + charges and identify unique types
+         CALL sort(isymbl, natom, iwork)
 
-       istart = 1
-       DO i = 2, natom
-          IF (TRIM(isymbl(i))/=TRIM(isymbl(istart))) THEN
-             CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:))
-             istart = i
-          END IF
-       END DO
-       CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:))
+         istart = 1
+         DO i = 2, natom
+            IF (TRIM(isymbl(i)) /= TRIM(isymbl(istart))) THEN
+               CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev + 1:))
+               istart = i
+            END IF
+         END DO
+         CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev + 1:))
 
-       ! Copy back the modified and conformed atom types
-       DO i = 1, natom
-          atom_info%id_atmname(natom_prev+iwork(i)) = str2id(s2s(isymbl(i)))
-       END DO
+         ! Copy back the modified and conformed atom types
+         DO i = 1, natom
+            atom_info%id_atmname(natom_prev + iwork(i)) = str2id(s2s(isymbl(i)))
+         END DO
 
-       ! -----------------------------------------------------------
-       ! Fill residue_name and residue_id information before exiting
-       ! -----------------------------------------------------------
-       DO i = 1, nres-1
-          atom_info%id_resname(natom_prev+ipres(i):natom_prev+ipres(i+1)) = str2id(s2s(labres(i)))
-          atom_info%resid(natom_prev+ipres(i):natom_prev+ipres(i+1))   = i
-       END DO
-       atom_info%id_resname(natom_prev+ipres(i):natom_prev+natom) = str2id(s2s(labres(i)))
-       atom_info%resid(natom_prev+ipres(i):natom_prev+natom)   = i
+         ! -----------------------------------------------------------
+         ! Fill residue_name and residue_id information before exiting
+         ! -----------------------------------------------------------
+         DO i = 1, nres - 1
+            atom_info%id_resname(natom_prev + ipres(i):natom_prev + ipres(i + 1)) = str2id(s2s(labres(i)))
+            atom_info%resid(natom_prev + ipres(i):natom_prev + ipres(i + 1)) = i
+         END DO
+         atom_info%id_resname(natom_prev + ipres(i):natom_prev + natom) = str2id(s2s(labres(i)))
+         atom_info%resid(natom_prev + ipres(i):natom_prev + natom) = i
 
-       ! Deallocate when extracting connectivity infos
-       DEALLOCATE(iwork)
-       DEALLOCATE(isymbl)
-       DEALLOCATE(labres)
-       DEALLOCATE(ipres)
+         ! Deallocate when extracting connectivity infos
+         DEALLOCATE (iwork)
+         DEALLOCATE (isymbl)
+         DEALLOCATE (labres)
+         DEALLOCATE (ipres)
 
-       ! ----------------------------------------------------------
-       ! Copy connectivity
-       ! ----------------------------------------------------------
-       ! BONDS
-       nbond_prev = 0
-       IF(ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
+         ! ----------------------------------------------------------
+         ! Copy connectivity
+         ! ----------------------------------------------------------
+         ! BONDS
+         nbond_prev = 0
+         IF (ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
 
-       CALL reallocate(conn_info%bond_a,1,nbond_prev+nbonh+nbona)
-       CALL reallocate(conn_info%bond_b,1,nbond_prev+nbonh+nbona)
-       DO i = 1, nbonh
-          index_now = nbond_prev + i
-          conn_info%bond_a(index_now) = natom_prev+ibh(i)
-          conn_info%bond_b(index_now) = natom_prev+jbh(i)
-       END DO
-       DO i = 1, nbona
-          index_now = nbond_prev + i + nbonh
-          conn_info%bond_a(index_now) = natom_prev+ib(i)
-          conn_info%bond_b(index_now) = natom_prev+jb(i)
-       END DO
+         CALL reallocate(conn_info%bond_a, 1, nbond_prev + nbonh + nbona)
+         CALL reallocate(conn_info%bond_b, 1, nbond_prev + nbonh + nbona)
+         DO i = 1, nbonh
+            index_now = nbond_prev + i
+            conn_info%bond_a(index_now) = natom_prev + ibh(i)
+            conn_info%bond_b(index_now) = natom_prev + jbh(i)
+         END DO
+         DO i = 1, nbona
+            index_now = nbond_prev + i + nbonh
+            conn_info%bond_a(index_now) = natom_prev + ib(i)
+            conn_info%bond_b(index_now) = natom_prev + jb(i)
+         END DO
 
-       ! ANGLES
-       ntheta_prev = 0
-       IF(ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
+         ! ANGLES
+         ntheta_prev = 0
+         IF (ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
 
-       CALL reallocate(conn_info%theta_a,1,ntheta_prev+ntheth+ntheta)
-       CALL reallocate(conn_info%theta_b,1,ntheta_prev+ntheth+ntheta)
-       CALL reallocate(conn_info%theta_c,1,ntheta_prev+ntheth+ntheta)
-       DO i = 1, ntheth
-          index_now = ntheta_prev + i
-          conn_info%theta_a(index_now) = natom_prev+ith(i)
-          conn_info%theta_b(index_now) = natom_prev+jth(i)
-          conn_info%theta_c(index_now) = natom_prev+kth(i)
-       END DO
-       DO i = 1, ntheta
-          index_now = ntheta_prev + i + ntheth
-          conn_info%theta_a(index_now) = natom_prev+it(i)
-          conn_info%theta_b(index_now) = natom_prev+jt(i)
-          conn_info%theta_c(index_now) = natom_prev+kt(i)
-       END DO
+         CALL reallocate(conn_info%theta_a, 1, ntheta_prev + ntheth + ntheta)
+         CALL reallocate(conn_info%theta_b, 1, ntheta_prev + ntheth + ntheta)
+         CALL reallocate(conn_info%theta_c, 1, ntheta_prev + ntheth + ntheta)
+         DO i = 1, ntheth
+            index_now = ntheta_prev + i
+            conn_info%theta_a(index_now) = natom_prev + ith(i)
+            conn_info%theta_b(index_now) = natom_prev + jth(i)
+            conn_info%theta_c(index_now) = natom_prev + kth(i)
+         END DO
+         DO i = 1, ntheta
+            index_now = ntheta_prev + i + ntheth
+            conn_info%theta_a(index_now) = natom_prev + it(i)
+            conn_info%theta_b(index_now) = natom_prev + jt(i)
+            conn_info%theta_c(index_now) = natom_prev + kt(i)
+         END DO
 
-       ! TORSIONS
-       ! For torsions we need to find out the unique torsions
-       ! defined in the amber parmtop
-       nphi_prev = 0
-       IF(ASSOCIATED(conn_info%phi_a)) nphi_prev = SIZE(conn_info%phi_a)
+         ! TORSIONS
+         ! For torsions we need to find out the unique torsions
+         ! defined in the amber parmtop
+         nphi_prev = 0
+         IF (ASSOCIATED(conn_info%phi_a)) nphi_prev = SIZE(conn_info%phi_a)
 
-       CALL reallocate(conn_info%phi_a,1,nphi_prev+nphih+nphia)
-       CALL reallocate(conn_info%phi_b,1,nphi_prev+nphih+nphia)
-       CALL reallocate(conn_info%phi_c,1,nphi_prev+nphih+nphia)
-       CALL reallocate(conn_info%phi_d,1,nphi_prev+nphih+nphia)
+         CALL reallocate(conn_info%phi_a, 1, nphi_prev + nphih + nphia)
+         CALL reallocate(conn_info%phi_b, 1, nphi_prev + nphih + nphia)
+         CALL reallocate(conn_info%phi_c, 1, nphi_prev + nphih + nphia)
+         CALL reallocate(conn_info%phi_d, 1, nphi_prev + nphih + nphia)
 
-       IF (nphih+nphia /= 0) THEN
-          ALLOCATE(full_torsions(4,nphih+nphia))
-          ALLOCATE(iwork(nphih+nphia))
+         IF (nphih + nphia /= 0) THEN
+            ALLOCATE (full_torsions(4, nphih + nphia))
+            ALLOCATE (iwork(nphih + nphia))
 
-          DO i = 1, nphih
-             full_torsions(1,i)          = iph(i)
-             full_torsions(2,i)          = jph(i)
-             full_torsions(3,i)          = kph(i)
-             full_torsions(4,i)          = lph(i)
-          END DO
-          DO i = 1, nphia
-             full_torsions(1,nphih+i)    = ip(i)
-             full_torsions(2,nphih+i)    = jp(i)
-             full_torsions(3,nphih+i)    = kp(i)
-             full_torsions(4,nphih+i)    = lp(i)
-          END DO
-          CALL sort(full_torsions, 1, nphih+nphia, 1, 4, iwork)
+            DO i = 1, nphih
+               full_torsions(1, i) = iph(i)
+               full_torsions(2, i) = jph(i)
+               full_torsions(3, i) = kph(i)
+               full_torsions(4, i) = lph(i)
+            END DO
+            DO i = 1, nphia
+               full_torsions(1, nphih + i) = ip(i)
+               full_torsions(2, nphih + i) = jp(i)
+               full_torsions(3, nphih + i) = kp(i)
+               full_torsions(4, nphih + i) = lp(i)
+            END DO
+            CALL sort(full_torsions, 1, nphih + nphia, 1, 4, iwork)
 
-          unique_torsions = nphi_prev+1
-          conn_info%phi_a(unique_torsions) = natom_prev+full_torsions(1,1)
-          conn_info%phi_b(unique_torsions) = natom_prev+full_torsions(2,1)
-          conn_info%phi_c(unique_torsions) = natom_prev+full_torsions(3,1)
-          conn_info%phi_d(unique_torsions) = natom_prev+full_torsions(4,1)
-          DO i = 2, nphih+nphia
-             IF ( (full_torsions(1,i)/=full_torsions(1,i-1)).OR.&
-                  (full_torsions(2,i)/=full_torsions(2,i-1)).OR.&
-                  (full_torsions(3,i)/=full_torsions(3,i-1)).OR.&
-                  (full_torsions(4,i)/=full_torsions(4,i-1))) THEN
-                unique_torsions = unique_torsions + 1
-                conn_info%phi_a(unique_torsions) = natom_prev+full_torsions(1,i)
-                conn_info%phi_b(unique_torsions) = natom_prev+full_torsions(2,i)
-                conn_info%phi_c(unique_torsions) = natom_prev+full_torsions(3,i)
-                conn_info%phi_d(unique_torsions) = natom_prev+full_torsions(4,i)
-             END IF
-          END DO
-          CALL reallocate(conn_info%phi_a,1,unique_torsions)
-          CALL reallocate(conn_info%phi_b,1,unique_torsions)
-          CALL reallocate(conn_info%phi_c,1,unique_torsions)
-          CALL reallocate(conn_info%phi_d,1,unique_torsions)
+            unique_torsions = nphi_prev + 1
+            conn_info%phi_a(unique_torsions) = natom_prev + full_torsions(1, 1)
+            conn_info%phi_b(unique_torsions) = natom_prev + full_torsions(2, 1)
+            conn_info%phi_c(unique_torsions) = natom_prev + full_torsions(3, 1)
+            conn_info%phi_d(unique_torsions) = natom_prev + full_torsions(4, 1)
+            DO i = 2, nphih + nphia
+               IF ((full_torsions(1, i) /= full_torsions(1, i - 1)) .OR. &
+                   (full_torsions(2, i) /= full_torsions(2, i - 1)) .OR. &
+                   (full_torsions(3, i) /= full_torsions(3, i - 1)) .OR. &
+                   (full_torsions(4, i) /= full_torsions(4, i - 1))) THEN
+                  unique_torsions = unique_torsions + 1
+                  conn_info%phi_a(unique_torsions) = natom_prev + full_torsions(1, i)
+                  conn_info%phi_b(unique_torsions) = natom_prev + full_torsions(2, i)
+                  conn_info%phi_c(unique_torsions) = natom_prev + full_torsions(3, i)
+                  conn_info%phi_d(unique_torsions) = natom_prev + full_torsions(4, i)
+               END IF
+            END DO
+            CALL reallocate(conn_info%phi_a, 1, unique_torsions)
+            CALL reallocate(conn_info%phi_b, 1, unique_torsions)
+            CALL reallocate(conn_info%phi_c, 1, unique_torsions)
+            CALL reallocate(conn_info%phi_d, 1, unique_torsions)
 
-          DEALLOCATE(full_torsions)
-          DEALLOCATE(iwork)
-       END IF
-       ! IMPROPERS
-       CALL reallocate(conn_info%impr_a,1,0)
-       CALL reallocate(conn_info%impr_b,1,0)
-       CALL reallocate(conn_info%impr_c,1,0)
-       CALL reallocate(conn_info%impr_d,1,0)
+            DEALLOCATE (full_torsions)
+            DEALLOCATE (iwork)
+         END IF
+         ! IMPROPERS
+         CALL reallocate(conn_info%impr_a, 1, 0)
+         CALL reallocate(conn_info%impr_b, 1, 0)
+         CALL reallocate(conn_info%impr_c, 1, 0)
+         CALL reallocate(conn_info%impr_d, 1, 0)
 
-       ! ----------------------------------------------------------
-       ! Generate molecule names
-       ! ----------------------------------------------------------
-       CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
-       atom_info%id_molname(natom_prev+1:natom_prev+natom) = str2id(s2s("__UNDEF__"))
-       CALL topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
-            atom_info%id_molname(natom_prev+1:natom_prev+natom))
-       CALL timestop(handle2)
-    END IF
+         ! ----------------------------------------------------------
+         ! Generate molecule names
+         ! ----------------------------------------------------------
+         CALL reallocate(atom_info%id_molname, 1, natom_prev + natom)
+         atom_info%id_molname(natom_prev + 1:natom_prev + natom) = str2id(s2s("__UNDEF__"))
+         CALL topology_generate_molname(conn_info, natom, natom_prev, nbond_prev, &
+                                        atom_info%id_molname(natom_prev + 1:natom_prev + natom))
+         CALL timestop(handle2)
+      END IF
 
-    ! Extracts force fields info from the AMBER topology file
-    IF (do_forcefield) THEN
-       CALL timeset(TRIM(routineN)//"_forcefield",handle2)
-       ! ----------------------------------------------------------
-       ! Force Fields informations related to bonds
-       ! ----------------------------------------------------------
-       CALL reallocate(amb_info%bond_a, 1,buffer_size)
-       CALL reallocate(amb_info%bond_b, 1,buffer_size)
-       CALL reallocate(amb_info%bond_k, 1,buffer_size)
-       CALL reallocate(amb_info%bond_r0,1,buffer_size)
-       nsize = 0
-       ! Bonds containing hydrogens
-       CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b,&
-            amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
-            nbonh, ibh, jbh, icbh, rk, req)
-       ! Bonds non-containing hydrogens
-       CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b,&
-            amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
-            nbona, ib, jb, icb, rk, req)
-       ! Shrink arrays size to the minimal request
-       CALL reallocate(amb_info%bond_a, 1,nsize)
-       CALL reallocate(amb_info%bond_b, 1,nsize)
-       CALL reallocate(amb_info%bond_k, 1,nsize)
-       CALL reallocate(amb_info%bond_r0,1,nsize)
+      ! Extracts force fields info from the AMBER topology file
+      IF (do_forcefield) THEN
+         CALL timeset(TRIM(routineN)//"_forcefield", handle2)
+         ! ----------------------------------------------------------
+         ! Force Fields informations related to bonds
+         ! ----------------------------------------------------------
+         CALL reallocate(amb_info%bond_a, 1, buffer_size)
+         CALL reallocate(amb_info%bond_b, 1, buffer_size)
+         CALL reallocate(amb_info%bond_k, 1, buffer_size)
+         CALL reallocate(amb_info%bond_r0, 1, buffer_size)
+         nsize = 0
+         ! Bonds containing hydrogens
+         CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b, &
+                                      amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
+                                      nbonh, ibh, jbh, icbh, rk, req)
+         ! Bonds non-containing hydrogens
+         CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b, &
+                                      amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
+                                      nbona, ib, jb, icb, rk, req)
+         ! Shrink arrays size to the minimal request
+         CALL reallocate(amb_info%bond_a, 1, nsize)
+         CALL reallocate(amb_info%bond_b, 1, nsize)
+         CALL reallocate(amb_info%bond_k, 1, nsize)
+         CALL reallocate(amb_info%bond_r0, 1, nsize)
 
-       ! ----------------------------------------------------------
-       ! Force Fields informations related to bends
-       ! ----------------------------------------------------------
-       CALL reallocate(amb_info%bend_a, 1,buffer_size)
-       CALL reallocate(amb_info%bend_b, 1,buffer_size)
-       CALL reallocate(amb_info%bend_c, 1,buffer_size)
-       CALL reallocate(amb_info%bend_k, 1,buffer_size)
-       CALL reallocate(amb_info%bend_theta0,1,buffer_size)
-       nsize = 0
-       ! Bends containing hydrogens
-       CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b,&
-            amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
-            particle_set, nsize, ntheth, ith, jth, kth, icth, tk, teq)
-       ! Bends non-containing hydrogens
-       CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b,&
-            amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
-            particle_set, nsize, ntheta, it, jt, kt, ict, tk, teq)
-       ! Shrink arrays size to the minimal request
-       CALL reallocate(amb_info%bend_a, 1,nsize)
-       CALL reallocate(amb_info%bend_b, 1,nsize)
-       CALL reallocate(amb_info%bend_c, 1,nsize)
-       CALL reallocate(amb_info%bend_k, 1,nsize)
-       CALL reallocate(amb_info%bend_theta0,1,nsize)
+         ! ----------------------------------------------------------
+         ! Force Fields informations related to bends
+         ! ----------------------------------------------------------
+         CALL reallocate(amb_info%bend_a, 1, buffer_size)
+         CALL reallocate(amb_info%bend_b, 1, buffer_size)
+         CALL reallocate(amb_info%bend_c, 1, buffer_size)
+         CALL reallocate(amb_info%bend_k, 1, buffer_size)
+         CALL reallocate(amb_info%bend_theta0, 1, buffer_size)
+         nsize = 0
+         ! Bends containing hydrogens
+         CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b, &
+                                      amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
+                                      particle_set, nsize, ntheth, ith, jth, kth, icth, tk, teq)
+         ! Bends non-containing hydrogens
+         CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b, &
+                                      amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
+                                      particle_set, nsize, ntheta, it, jt, kt, ict, tk, teq)
+         ! Shrink arrays size to the minimal request
+         CALL reallocate(amb_info%bend_a, 1, nsize)
+         CALL reallocate(amb_info%bend_b, 1, nsize)
+         CALL reallocate(amb_info%bend_c, 1, nsize)
+         CALL reallocate(amb_info%bend_k, 1, nsize)
+         CALL reallocate(amb_info%bend_theta0, 1, nsize)
 
-       ! ----------------------------------------------------------
-       ! Force Fields informations related to torsions
-       ! in amb_info%phi0 we store PHI0
-       ! ----------------------------------------------------------
-       CALL reallocate(amb_info%torsion_a, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_b, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_c, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_d, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_k, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_m, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_phi0, 1,buffer_size)
-       nsize = 0
-       ! Torsions containing hydrogens
-       CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
-            amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
-            amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize,&
-            nphih, iph, jph, kph, lph, icph, pk, pn, phase)
-       ! Torsions non-containing hydrogens
-       CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
-            amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
-            amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize,&
-            nphia, ip, jp, kp, lp, icp, pk, pn, phase)
-       ! Shrink arrays size to the minimal request
-       CALL reallocate(amb_info%torsion_a, 1,nsize)
-       CALL reallocate(amb_info%torsion_b, 1,nsize)
-       CALL reallocate(amb_info%torsion_c, 1,nsize)
-       CALL reallocate(amb_info%torsion_d, 1,nsize)
-       CALL reallocate(amb_info%torsion_k, 1,nsize)
-       CALL reallocate(amb_info%torsion_m, 1,nsize)
-       CALL reallocate(amb_info%torsion_phi0, 1,nsize)
+         ! ----------------------------------------------------------
+         ! Force Fields informations related to torsions
+         ! in amb_info%phi0 we store PHI0
+         ! ----------------------------------------------------------
+         CALL reallocate(amb_info%torsion_a, 1, buffer_size)
+         CALL reallocate(amb_info%torsion_b, 1, buffer_size)
+         CALL reallocate(amb_info%torsion_c, 1, buffer_size)
+         CALL reallocate(amb_info%torsion_d, 1, buffer_size)
+         CALL reallocate(amb_info%torsion_k, 1, buffer_size)
+         CALL reallocate(amb_info%torsion_m, 1, buffer_size)
+         CALL reallocate(amb_info%torsion_phi0, 1, buffer_size)
+         nsize = 0
+         ! Torsions containing hydrogens
+         CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b, &
+                                         amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
+                                         amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize, &
+                                         nphih, iph, jph, kph, lph, icph, pk, pn, phase)
+         ! Torsions non-containing hydrogens
+         CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b, &
+                                         amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
+                                         amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize, &
+                                         nphia, ip, jp, kp, lp, icp, pk, pn, phase)
+         ! Shrink arrays size to the minimal request
+         CALL reallocate(amb_info%torsion_a, 1, nsize)
+         CALL reallocate(amb_info%torsion_b, 1, nsize)
+         CALL reallocate(amb_info%torsion_c, 1, nsize)
+         CALL reallocate(amb_info%torsion_d, 1, nsize)
+         CALL reallocate(amb_info%torsion_k, 1, nsize)
+         CALL reallocate(amb_info%torsion_m, 1, nsize)
+         CALL reallocate(amb_info%torsion_phi0, 1, nsize)
 
-       ! ----------------------------------------------------------
-       ! Post process of LJ parameters
-       ! ----------------------------------------------------------
-       CALL reallocate(amb_info%nonbond_a,     1, buffer_size)
-       CALL reallocate(amb_info%nonbond_eps,   1, buffer_size)
-       CALL reallocate(amb_info%nonbond_rmin2, 1, buffer_size)
+         ! ----------------------------------------------------------
+         ! Post process of LJ parameters
+         ! ----------------------------------------------------------
+         CALL reallocate(amb_info%nonbond_a, 1, buffer_size)
+         CALL reallocate(amb_info%nonbond_eps, 1, buffer_size)
+         CALL reallocate(amb_info%nonbond_rmin2, 1, buffer_size)
 
-       nsize = 0
-       CALL post_process_LJ_info(amb_info%nonbond_a, amb_info%nonbond_eps,&
-            amb_info%nonbond_rmin2, particle_set, ntypes, nsize, iac, ico,&
-            cn1, cn2, natom)
+         nsize = 0
+         CALL post_process_LJ_info(amb_info%nonbond_a, amb_info%nonbond_eps, &
+                                   amb_info%nonbond_rmin2, particle_set, ntypes, nsize, iac, ico, &
+                                   cn1, cn2, natom)
 
-       ! Shrink arrays size to the minimal request
-       CALL reallocate(amb_info%nonbond_a,     1, nsize)
-       CALL reallocate(amb_info%nonbond_eps,   1, nsize)
-       CALL reallocate(amb_info%nonbond_rmin2, 1, nsize)
+         ! Shrink arrays size to the minimal request
+         CALL reallocate(amb_info%nonbond_a, 1, nsize)
+         CALL reallocate(amb_info%nonbond_eps, 1, nsize)
+         CALL reallocate(amb_info%nonbond_rmin2, 1, nsize)
 
-       ! Deallocate at the end of the dirty job
-       DEALLOCATE(iac)
-       DEALLOCATE(ico)
-       DEALLOCATE(rk)
-       DEALLOCATE(req)
-       DEALLOCATE(tk)
-       DEALLOCATE(teq)
-       DEALLOCATE(pk)
-       DEALLOCATE(pn)
-       DEALLOCATE(phase)
-       DEALLOCATE(cn1)
-       DEALLOCATE(cn2)
-       DEALLOCATE(asol)
-       DEALLOCATE(bsol)
-       CALL timestop(handle2)
-    END IF
-    ! Always Deallocate
-    DEALLOCATE(ibh)
-    DEALLOCATE(jbh)
-    DEALLOCATE(icbh)
-    DEALLOCATE(ib)
-    DEALLOCATE(jb)
-    DEALLOCATE(icb)
-    DEALLOCATE(ith)
-    DEALLOCATE(jth)
-    DEALLOCATE(kth)
-    DEALLOCATE(icth)
-    DEALLOCATE(it)
-    DEALLOCATE(jt)
-    DEALLOCATE(kt)
-    DEALLOCATE(ict)
-    DEALLOCATE(iph)
-    DEALLOCATE(jph)
-    DEALLOCATE(kph)
-    DEALLOCATE(lph)
-    DEALLOCATE(icph)
-    DEALLOCATE(ip)
-    DEALLOCATE(jp)
-    DEALLOCATE(kp)
-    DEALLOCATE(lp)
-    DEALLOCATE(icp)
-    CALL parser_release(parser)
-    CALL timestop(handle)
-    RETURN
-    ! Output info Format
-1000 FORMAT(T2, &
-          /' NATOM  = ',i7,' NTYPES = ',i7,' NBONH = ',i7,' MBONA  = ',i7, &
-          /' NTHETH = ',i7,' MTHETA = ',i7,' NPHIH = ',i7,' MPHIA  = ',i7, &
-          /' NHPARM = ',i7,' NPARM  = ',i7,' NNB   = ',i7,' NRES   = ',i7, &
-          /' NBONA  = ',i7,' NTHETA = ',i7,' NPHIA = ',i7,' NUMBND = ',i7, &
-          /' NUMANG = ',i7,' NPTRA  = ',i7,' NATYP = ',i7,' NPHB   = ',i7, &
-          /' IFBOX  = ',i7,' NMXRS  = ',i7,' IFCAP = ',i7,' NEXTRA = ',i7, /)
-  END SUBROUTINE rdparm_amber_8
+         ! Deallocate at the end of the dirty job
+         DEALLOCATE (iac)
+         DEALLOCATE (ico)
+         DEALLOCATE (rk)
+         DEALLOCATE (req)
+         DEALLOCATE (tk)
+         DEALLOCATE (teq)
+         DEALLOCATE (pk)
+         DEALLOCATE (pn)
+         DEALLOCATE (phase)
+         DEALLOCATE (cn1)
+         DEALLOCATE (cn2)
+         DEALLOCATE (asol)
+         DEALLOCATE (bsol)
+         CALL timestop(handle2)
+      END IF
+      ! Always Deallocate
+      DEALLOCATE (ibh)
+      DEALLOCATE (jbh)
+      DEALLOCATE (icbh)
+      DEALLOCATE (ib)
+      DEALLOCATE (jb)
+      DEALLOCATE (icb)
+      DEALLOCATE (ith)
+      DEALLOCATE (jth)
+      DEALLOCATE (kth)
+      DEALLOCATE (icth)
+      DEALLOCATE (it)
+      DEALLOCATE (jt)
+      DEALLOCATE (kt)
+      DEALLOCATE (ict)
+      DEALLOCATE (iph)
+      DEALLOCATE (jph)
+      DEALLOCATE (kph)
+      DEALLOCATE (lph)
+      DEALLOCATE (icph)
+      DEALLOCATE (ip)
+      DEALLOCATE (jp)
+      DEALLOCATE (kp)
+      DEALLOCATE (lp)
+      DEALLOCATE (icp)
+      CALL parser_release(parser)
+      CALL timestop(handle)
+      RETURN
+      ! Output info Format
+1000  FORMAT(T2, &
+             /' NATOM  = ', i7, ' NTYPES = ', i7, ' NBONH = ', i7, ' MBONA  = ', i7, &
+             /' NTHETH = ', i7, ' MTHETA = ', i7, ' NPHIH = ', i7, ' MPHIA  = ', i7, &
+             /' NHPARM = ', i7, ' NPARM  = ', i7, ' NNB   = ', i7, ' NRES   = ', i7, &
+             /' NBONA  = ', i7, ' NTHETA = ', i7, ' NPHIA = ', i7, ' NUMBND = ', i7, &
+             /' NUMANG = ', i7, ' NPTRA  = ', i7, ' NATYP = ', i7, ' NPHB   = ', i7, &
+             /' IFBOX  = ', i7, ' NMXRS  = ', i7, ' IFCAP = ', i7, ' NEXTRA = ', i7,/)
+   END SUBROUTINE rdparm_amber_8
 
 ! **************************************************************************************************
 !> \brief Low level routine to identify and rename unique atom types
@@ -939,7 +938,7 @@ CONTAINS
 !> \param charges ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE conform_atom_type_low(isymbl, iwork, i, istart, charges)
+   SUBROUTINE conform_atom_type_low(isymbl, iwork, i, istart, charges)
       CHARACTER(LEN=default_string_length), DIMENSION(:) :: isymbl
       INTEGER, DIMENSION(:)                              :: iwork
       INTEGER, INTENT(IN)                                :: i
@@ -955,55 +954,55 @@ CONTAINS
       REAL(KIND=dp)                                      :: ctmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cwork
 
-    CALL timeset(routineN, handle)
-    iend = i - 1
-    isize= iend-istart+1
-    ALLOCATE(cwork(isize))
-    ALLOCATE(lindx(isize))
-    ALLOCATE(cindx(isize))
-    ind = 0
-    DO k = istart, iend
-       ind = ind + 1
-       cwork(ind) = charges(iwork(k))
-       lindx(ind) = k
-    END DO
-    CALL sort(cwork, isize, cindx)
+      CALL timeset(routineN, handle)
+      iend = i - 1
+      isize = iend - istart + 1
+      ALLOCATE (cwork(isize))
+      ALLOCATE (lindx(isize))
+      ALLOCATE (cindx(isize))
+      ind = 0
+      DO k = istart, iend
+         ind = ind + 1
+         cwork(ind) = charges(iwork(k))
+         lindx(ind) = k
+      END DO
+      CALL sort(cwork, isize, cindx)
 
-    ctmp    = cwork(1)
-    counter = 1
-    DO k = 2, isize
-       IF (cwork(k)/=ctmp) THEN
-          counter = counter + 1
-          ctmp = cwork(k)
-       END IF
-    END DO
-    IF (counter /= 1) THEN
-       counter = 1
-       kstart  = 1
-       ctmp    = cwork(1)
-       DO k = 2, isize
-          IF (cwork(k)/=ctmp) THEN
-             kend = k - 1
-             DO j = kstart, kend
-                gind= lindx(cindx(j))
-                isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
-             END DO
-             counter = counter + 1
-             ctmp    = cwork(k)
-             kstart  = k
-          END IF
-       END DO
-       kend = k - 1
-       DO j = kstart, kend
-          gind= lindx(cindx(j))
-          isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
-       END DO
-    END IF
-    DEALLOCATE(cwork)
-    DEALLOCATE(lindx)
-    DEALLOCATE(cindx)
-    CALL timestop(handle)
-  END SUBROUTINE conform_atom_type_low
+      ctmp = cwork(1)
+      counter = 1
+      DO k = 2, isize
+         IF (cwork(k) /= ctmp) THEN
+            counter = counter + 1
+            ctmp = cwork(k)
+         END IF
+      END DO
+      IF (counter /= 1) THEN
+         counter = 1
+         kstart = 1
+         ctmp = cwork(1)
+         DO k = 2, isize
+            IF (cwork(k) /= ctmp) THEN
+               kend = k - 1
+               DO j = kstart, kend
+                  gind = lindx(cindx(j))
+                  isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
+               END DO
+               counter = counter + 1
+               ctmp = cwork(k)
+               kstart = k
+            END IF
+         END DO
+         kend = k - 1
+         DO j = kstart, kend
+            gind = lindx(cindx(j))
+            isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
+         END DO
+      END IF
+      DEALLOCATE (cwork)
+      DEALLOCATE (lindx)
+      DEALLOCATE (cindx)
+      CALL timestop(handle)
+   END SUBROUTINE conform_atom_type_low
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1014,7 +1013,7 @@ CONTAINS
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rd_amber_section_i1(parser, section, array1, dim)
+   SUBROUTINE rd_amber_section_i1(parser, section, array1, dim)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1
@@ -1026,20 +1025,20 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    i = 1
-    DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object(parser,array1(i))
-       i = i + 1
-    END DO
-    ! Trigger end of file aborting
-    IF(my_end.AND.(i<=dim))&
-       CALL cp_abort(__LOCATION__,&
-            "End of file while reading section "//TRIM(section)//" in amber topology file!")
-  END SUBROUTINE rd_amber_section_i1
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      i = 1
+      DO WHILE ((i <= dim) .AND. (.NOT. my_end))
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array1(i))
+         i = i + 1
+      END DO
+      ! Trigger end of file aborting
+      IF (my_end .AND. (i <= dim)) &
+         CALL cp_abort(__LOCATION__, &
+                       "End of file while reading section "//TRIM(section)//" in amber topology file!")
+   END SUBROUTINE rd_amber_section_i1
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1052,7 +1051,7 @@ CONTAINS
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim)
+   SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3
@@ -1064,31 +1063,31 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    i = 1
-    DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       !array1
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i))
-       !array2
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array2(i))
-       !array3
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array3(i))
-       i = i + 1
-    END DO
-    ! Trigger end of file aborting
-    IF(my_end.AND.(i<=dim))&
-       CALL cp_abort(__LOCATION__,&
-            "End of file while reading section "//TRIM(section)//" in amber topology file!")
-  END SUBROUTINE rd_amber_section_i3
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      i = 1
+      DO WHILE ((i <= dim) .AND. (.NOT. my_end))
+         !array1
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array1(i))
+         !array2
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array2(i))
+         !array3
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array3(i))
+         i = i + 1
+      END DO
+      ! Trigger end of file aborting
+      IF (my_end .AND. (i <= dim)) &
+         CALL cp_abort(__LOCATION__, &
+                       "End of file while reading section "//TRIM(section)//" in amber topology file!")
+   END SUBROUTINE rd_amber_section_i3
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1102,7 +1101,7 @@ CONTAINS
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim)
+   SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4
@@ -1114,36 +1113,36 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    i = 1
-    DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       !array1
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i))
-       !array2
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array2(i))
-       !array3
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array3(i))
-       !array4
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array4(i))
-       i = i + 1
-    END DO
-    ! Trigger end of file aborting
-    IF(my_end.AND.(i<=dim))&
-       CALL cp_abort(__LOCATION__,&
-            "End of file while reading section "//TRIM(section)//" in amber topology file!")
-  END SUBROUTINE rd_amber_section_i4
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      i = 1
+      DO WHILE ((i <= dim) .AND. (.NOT. my_end))
+         !array1
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array1(i))
+         !array2
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array2(i))
+         !array3
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array3(i))
+         !array4
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array4(i))
+         i = i + 1
+      END DO
+      ! Trigger end of file aborting
+      IF (my_end .AND. (i <= dim)) &
+         CALL cp_abort(__LOCATION__, &
+                       "End of file while reading section "//TRIM(section)//" in amber topology file!")
+   END SUBROUTINE rd_amber_section_i4
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1158,8 +1157,8 @@ CONTAINS
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rd_amber_section_i5(parser, section, array1, array2, array3, array4, &
-       array5, dim)
+   SUBROUTINE rd_amber_section_i5(parser, section, array1, array2, array3, array4, &
+                                  array5, dim)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4, array5
@@ -1171,41 +1170,41 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    i = 1
-    DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       !array1
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i))
-       !array2
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array2(i))
-       !array3
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array3(i))
-       !array4
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array4(i))
-       !array5
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object  (parser,array5(i))
-       i = i + 1
-    END DO
-    ! Trigger end of file aborting
-    IF(my_end.AND.(i<=dim))&
-       CALL cp_abort(__LOCATION__,&
-            "End of file while reading section "//TRIM(section)//" in amber topology file!")
-  END SUBROUTINE rd_amber_section_i5
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      i = 1
+      DO WHILE ((i <= dim) .AND. (.NOT. my_end))
+         !array1
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array1(i))
+         !array2
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array2(i))
+         !array3
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array3(i))
+         !array4
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array4(i))
+         !array5
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array5(i))
+         i = i + 1
+      END DO
+      ! Trigger end of file aborting
+      IF (my_end .AND. (i <= dim)) &
+         CALL cp_abort(__LOCATION__, &
+                       "End of file while reading section "//TRIM(section)//" in amber topology file!")
+   END SUBROUTINE rd_amber_section_i5
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1216,7 +1215,7 @@ CONTAINS
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rd_amber_section_c1(parser, section, array1, dim)
+   SUBROUTINE rd_amber_section_c1(parser, section, array1, dim)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       CHARACTER(LEN=default_string_length), DIMENSION(:) :: array1
@@ -1228,20 +1227,20 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    i = 1
-    DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object(parser,array1(i),lower_to_upper=.TRUE.)
-       i = i + 1
-    END DO
-    ! Trigger end of file aborting
-    IF(my_end.AND.(i<=dim))&
-       CALL cp_abort(__LOCATION__,&
-            "End of file while reading section "//TRIM(section)//" in amber topology file!")
-  END SUBROUTINE rd_amber_section_c1
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      i = 1
+      DO WHILE ((i <= dim) .AND. (.NOT. my_end))
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array1(i), lower_to_upper=.TRUE.)
+         i = i + 1
+      END DO
+      ! Trigger end of file aborting
+      IF (my_end .AND. (i <= dim)) &
+         CALL cp_abort(__LOCATION__, &
+                       "End of file while reading section "//TRIM(section)//" in amber topology file!")
+   END SUBROUTINE rd_amber_section_c1
 
 ! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
@@ -1252,7 +1251,7 @@ CONTAINS
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  SUBROUTINE rd_amber_section_r1(parser, section, array1, dim)
+   SUBROUTINE rd_amber_section_r1(parser, section, array1, dim)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       REAL(KIND=dp), DIMENSION(:)                        :: array1
@@ -1264,20 +1263,20 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
-    CALL parser_get_next_line(parser,1,at_end=my_end)
-    i = 1
-    DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       IF (parser_test_next_token(parser)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF (my_end) EXIT
-       CALL parser_get_object(parser,array1(i))
-       i = i + 1
-    END DO
-    ! Trigger end of file aborting
-    IF(my_end.AND.(i<=dim))&
-       CALL cp_abort(__LOCATION__,&
-            "End of file while reading section "//TRIM(section)//" in amber topology file!")
-  END SUBROUTINE rd_amber_section_r1
+      CALL parser_get_next_line(parser, 1, at_end=my_end)
+      i = 1
+      DO WHILE ((i <= dim) .AND. (.NOT. my_end))
+         IF (parser_test_next_token(parser) == "EOL") &
+            CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (my_end) EXIT
+         CALL parser_get_object(parser, array1(i))
+         i = i + 1
+      END DO
+      ! Trigger end of file aborting
+      IF (my_end .AND. (i <= dim)) &
+         CALL cp_abort(__LOCATION__, &
+                       "End of file while reading section "//TRIM(section)//" in amber topology file!")
+   END SUBROUTINE rd_amber_section_r1
 
 ! **************************************************************************************************
 !> \brief Check the version of the AMBER topology file (we can handle from v8 on)
@@ -1287,7 +1286,7 @@ CONTAINS
 !> \return ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  FUNCTION  get_section_parmtop(parser, section, input_format) RESULT(another_section)
+   FUNCTION get_section_parmtop(parser, section, input_format) RESULT(another_section)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(OUT)  :: section, input_format
       LOGICAL                                            :: another_section
@@ -1298,27 +1297,27 @@ CONTAINS
       INTEGER                                            :: end_f, indflag, start_f
       LOGICAL                                            :: found, my_end
 
-    CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.)
-    IF (found) THEN
-       ! section label
-       indflag = INDEX(parser%input_line,"%FLAG")+LEN_TRIM("%FLAG")
-       DO WHILE (INDEX(parser%input_line(indflag:indflag)," ") /= 0)
-          indflag = indflag + 1
-       END DO
-       section = TRIM(parser%input_line(indflag:))
-       ! Input format
-       CALL parser_get_next_line(parser,1,at_end=my_end)
-       IF(INDEX(parser%input_line,"%FORMAT")==0 .OR. my_end)&
-          CPABORT("Expecting %FORMAT. Not found! Abort reading of AMBER topology file!")
+      CALL parser_search_string(parser, "%FLAG", .TRUE., found, begin_line=.TRUE.)
+      IF (found) THEN
+         ! section label
+         indflag = INDEX(parser%input_line, "%FLAG") + LEN_TRIM("%FLAG")
+         DO WHILE (INDEX(parser%input_line(indflag:indflag), " ") /= 0)
+            indflag = indflag + 1
+         END DO
+         section = TRIM(parser%input_line(indflag:))
+         ! Input format
+         CALL parser_get_next_line(parser, 1, at_end=my_end)
+         IF (INDEX(parser%input_line, "%FORMAT") == 0 .OR. my_end) &
+            CPABORT("Expecting %FORMAT. Not found! Abort reading of AMBER topology file!")
 
-       start_f = INDEX(parser%input_line,"(")
-       end_f   = INDEX(parser%input_line,")")
-       input_format  = parser%input_line(start_f:end_f)
-       another_section = .TRUE.
-    ELSE
-       another_section = .FALSE.
-    END IF
-  END FUNCTION get_section_parmtop
+         start_f = INDEX(parser%input_line, "(")
+         end_f = INDEX(parser%input_line, ")")
+         input_format = parser%input_line(start_f:end_f)
+         another_section = .TRUE.
+      ELSE
+         another_section = .FALSE.
+      END IF
+   END FUNCTION get_section_parmtop
 
 ! **************************************************************************************************
 !> \brief Check the version of the AMBER topology file (we can handle from v8 on)
@@ -1327,7 +1326,7 @@ CONTAINS
 !> \return ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-  FUNCTION check_amber_8_std(parser, output_unit) RESULT(found_AMBER_V8)
+   FUNCTION check_amber_8_std(parser, output_unit) RESULT(found_AMBER_V8)
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL                                            :: found_AMBER_V8
@@ -1335,15 +1334,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
          routineP = moduleN//':'//routineN
 
-    CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
-    IF(.NOT.found_AMBER_V8)&
-       CALL cp_abort(__LOCATION__,&
-            "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
-            "AMBER file formats. ")
-    IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
+      CALL parser_search_string(parser, "%VERSION ", .TRUE., found_AMBER_V8, begin_line=.TRUE.)
+      IF (.NOT. found_AMBER_V8) &
+         CALL cp_abort(__LOCATION__, &
+                       "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "// &
+                       "AMBER file formats. ")
+      IF (output_unit > 0) WRITE (output_unit, '(" AMBER_INFO| ",A)') "Amber PrmTop V.8 or greater.", &
          TRIM(parser%input_line)
 
-  END FUNCTION check_amber_8_std
+   END FUNCTION check_amber_8_std
 
 ! **************************************************************************************************
 !> \brief Post processing of forcefield information related to bonds
@@ -1361,8 +1360,8 @@ CONTAINS
 !> \param req ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! **************************************************************************************************
-  SUBROUTINE post_process_bonds_info(label_a, label_b, k, r0, particle_set, ibond, &
-       nbond, ib, jb, icb, rk, req)
+   SUBROUTINE post_process_bonds_info(label_a, label_b, k, r0, particle_set, ibond, &
+                                      nbond, ib, jb, icb, rk, req)
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: label_a, label_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: k, r0
@@ -1382,55 +1381,55 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
       LOGICAL                                            :: l_dum
 
-    CALL timeset(routineN, handle)
-    IF (nbond/=0) THEN
-       ALLOCATE(work_label(2,nbond))
-       ALLOCATE(iwork(nbond))
-       DO i = 1, nbond
-          name_atm_a = particle_set(ib(i))%atomic_kind%name
-          name_atm_b = particle_set(jb(i))%atomic_kind%name
-          l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-          work_label(1,i) = name_atm_a
-          work_label(2,i) = name_atm_b
-       END DO
-       CALL sort(work_label, 1, nbond, 1, 2, iwork)
+      CALL timeset(routineN, handle)
+      IF (nbond /= 0) THEN
+         ALLOCATE (work_label(2, nbond))
+         ALLOCATE (iwork(nbond))
+         DO i = 1, nbond
+            name_atm_a = particle_set(ib(i))%atomic_kind%name
+            name_atm_b = particle_set(jb(i))%atomic_kind%name
+            l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
+            work_label(1, i) = name_atm_a
+            work_label(2, i) = name_atm_b
+         END DO
+         CALL sort(work_label, 1, nbond, 1, 2, iwork)
 
-       ibond = ibond + 1
-       ! In case we need more space ... give it up...
-       IF (ibond>SIZE(label_a)) THEN
-          CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
-          CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
-          CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
-          CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
-       END IF
-       label_a(ibond)  = work_label(1,1)
-       label_b(ibond)  = work_label(2,1)
-       k(ibond)  = rk (icb(iwork(1)))
-       r0(ibond) = req(icb(iwork(1)))
+         ibond = ibond + 1
+         ! In case we need more space ... give it up...
+         IF (ibond > SIZE(label_a)) THEN
+            CALL reallocate(label_a, 1, INT(buffer_size + ibond*1.5_dp))
+            CALL reallocate(label_b, 1, INT(buffer_size + ibond*1.5_dp))
+            CALL reallocate(k, 1, INT(buffer_size + ibond*1.5_dp))
+            CALL reallocate(r0, 1, INT(buffer_size + ibond*1.5_dp))
+         END IF
+         label_a(ibond) = work_label(1, 1)
+         label_b(ibond) = work_label(2, 1)
+         k(ibond) = rk(icb(iwork(1)))
+         r0(ibond) = req(icb(iwork(1)))
 
-       DO i = 2, nbond
-          IF  ((work_label(1,i)/=label_a(ibond)).OR.&
-               (work_label(2,i)/=label_b(ibond))) THEN
-             ibond = ibond + 1
-             ! In case we need more space ... give it up...
-             IF (ibond>SIZE(label_a)) THEN
-                CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
-                CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
-                CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
-                CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
-             END IF
-             label_a(ibond)  = work_label(1,i)
-             label_b(ibond)  = work_label(2,i)
-             k(ibond)  = rk(icb(iwork(i)))
-             r0(ibond) = req(icb(iwork(i)))
-          END IF
-       END DO
+         DO i = 2, nbond
+            IF ((work_label(1, i) /= label_a(ibond)) .OR. &
+                (work_label(2, i) /= label_b(ibond))) THEN
+               ibond = ibond + 1
+               ! In case we need more space ... give it up...
+               IF (ibond > SIZE(label_a)) THEN
+                  CALL reallocate(label_a, 1, INT(buffer_size + ibond*1.5_dp))
+                  CALL reallocate(label_b, 1, INT(buffer_size + ibond*1.5_dp))
+                  CALL reallocate(k, 1, INT(buffer_size + ibond*1.5_dp))
+                  CALL reallocate(r0, 1, INT(buffer_size + ibond*1.5_dp))
+               END IF
+               label_a(ibond) = work_label(1, i)
+               label_b(ibond) = work_label(2, i)
+               k(ibond) = rk(icb(iwork(i)))
+               r0(ibond) = req(icb(iwork(i)))
+            END IF
+         END DO
 
-       DEALLOCATE(work_label)
-       DEALLOCATE(iwork)
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE post_process_bonds_info
+         DEALLOCATE (work_label)
+         DEALLOCATE (iwork)
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE post_process_bonds_info
 
 ! **************************************************************************************************
 !> \brief Post processing of forcefield information related to bends
@@ -1450,8 +1449,8 @@ CONTAINS
 !> \param teq ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! **************************************************************************************************
-  SUBROUTINE post_process_bends_info(label_a, label_b, label_c, k, theta0, &
-       particle_set, itheta, ntheta, it, jt, kt, ict, tk, teq)
+   SUBROUTINE post_process_bends_info(label_a, label_b, label_c, k, theta0, &
+                                      particle_set, itheta, ntheta, it, jt, kt, ict, tk, teq)
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: label_a, label_b, label_c
       REAL(KIND=dp), DIMENSION(:), POINTER               :: k, theta0
@@ -1471,64 +1470,64 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
       LOGICAL                                            :: l_dum
 
-    CALL timeset(routineN,handle)
-    IF (ntheta/=0) THEN
-       ALLOCATE(work_label(3,ntheta))
-       ALLOCATE(iwork(ntheta))
-       DO i = 1, ntheta
-          name_atm_a = particle_set(it(i))%atomic_kind%name
-          name_atm_b = particle_set(jt(i))%atomic_kind%name
-          name_atm_c = particle_set(kt(i))%atomic_kind%name
-          l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b,&
-               id3=name_atm_c)
-          work_label(1,i) = name_atm_a
-          work_label(2,i) = name_atm_b
-          work_label(3,i) = name_atm_c
-       END DO
+      CALL timeset(routineN, handle)
+      IF (ntheta /= 0) THEN
+         ALLOCATE (work_label(3, ntheta))
+         ALLOCATE (iwork(ntheta))
+         DO i = 1, ntheta
+            name_atm_a = particle_set(it(i))%atomic_kind%name
+            name_atm_b = particle_set(jt(i))%atomic_kind%name
+            name_atm_c = particle_set(kt(i))%atomic_kind%name
+            l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, &
+                                            id3=name_atm_c)
+            work_label(1, i) = name_atm_a
+            work_label(2, i) = name_atm_b
+            work_label(3, i) = name_atm_c
+         END DO
 
-       CALL sort(work_label, 1, ntheta, 1, 3, iwork)
+         CALL sort(work_label, 1, ntheta, 1, 3, iwork)
 
-       itheta = itheta + 1
-       ! In case we need more space ... give it up...
-       IF (itheta>SIZE(label_a)) THEN
-          CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
-          CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
-          CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
-          CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
-          CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
-       END IF
-       label_a(itheta)  = work_label(1,1)
-       label_b(itheta)  = work_label(2,1)
-       label_c(itheta)  = work_label(3,1)
-       k(itheta)      = tk (ict(iwork(1)))
-       theta0(itheta) = teq(ict(iwork(1)))
+         itheta = itheta + 1
+         ! In case we need more space ... give it up...
+         IF (itheta > SIZE(label_a)) THEN
+            CALL reallocate(label_a, 1, INT(buffer_size + itheta*1.5_dp))
+            CALL reallocate(label_b, 1, INT(buffer_size + itheta*1.5_dp))
+            CALL reallocate(label_c, 1, INT(buffer_size + itheta*1.5_dp))
+            CALL reallocate(k, 1, INT(buffer_size + itheta*1.5_dp))
+            CALL reallocate(theta0, 1, INT(buffer_size + itheta*1.5_dp))
+         END IF
+         label_a(itheta) = work_label(1, 1)
+         label_b(itheta) = work_label(2, 1)
+         label_c(itheta) = work_label(3, 1)
+         k(itheta) = tk(ict(iwork(1)))
+         theta0(itheta) = teq(ict(iwork(1)))
 
-       DO i = 2, ntheta
-          IF  ((work_label(1,i)/=label_a(itheta)).OR.&
-               (work_label(2,i)/=label_b(itheta)).OR.&
-               (work_label(3,i)/=label_c(itheta))) THEN
-             itheta = itheta + 1
-             ! In case we need more space ... give it up...
-             IF (itheta>SIZE(label_a)) THEN
-                CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
-                CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
-                CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
-                CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
-                CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
-             END IF
-             label_a(itheta)  = work_label(1,i)
-             label_b(itheta)  = work_label(2,i)
-             label_c(itheta)  = work_label(3,i)
-             k(itheta)      = tk (ict(iwork(i)))
-             theta0(itheta) = teq(ict(iwork(i)))
-          END IF
-       END DO
+         DO i = 2, ntheta
+            IF ((work_label(1, i) /= label_a(itheta)) .OR. &
+                (work_label(2, i) /= label_b(itheta)) .OR. &
+                (work_label(3, i) /= label_c(itheta))) THEN
+               itheta = itheta + 1
+               ! In case we need more space ... give it up...
+               IF (itheta > SIZE(label_a)) THEN
+                  CALL reallocate(label_a, 1, INT(buffer_size + itheta*1.5_dp))
+                  CALL reallocate(label_b, 1, INT(buffer_size + itheta*1.5_dp))
+                  CALL reallocate(label_c, 1, INT(buffer_size + itheta*1.5_dp))
+                  CALL reallocate(k, 1, INT(buffer_size + itheta*1.5_dp))
+                  CALL reallocate(theta0, 1, INT(buffer_size + itheta*1.5_dp))
+               END IF
+               label_a(itheta) = work_label(1, i)
+               label_b(itheta) = work_label(2, i)
+               label_c(itheta) = work_label(3, i)
+               k(itheta) = tk(ict(iwork(i)))
+               theta0(itheta) = teq(ict(iwork(i)))
+            END IF
+         END DO
 
-       DEALLOCATE(work_label)
-       DEALLOCATE(iwork)
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE post_process_bends_info
+         DEALLOCATE (work_label)
+         DEALLOCATE (iwork)
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE post_process_bends_info
 
 ! **************************************************************************************************
 !> \brief Post processing of forcefield information related to torsions
@@ -1552,8 +1551,8 @@ CONTAINS
 !> \param phase ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! **************************************************************************************************
-  SUBROUTINE post_process_torsions_info(label_a, label_b, label_c, label_d, k,&
-       m, phi0, particle_set, iphi, nphi, ip, jp, kp, lp, icp, pk, pn, phase)
+   SUBROUTINE post_process_torsions_info(label_a, label_b, label_c, label_d, k, &
+                                         m, phi0, particle_set, iphi, nphi, ip, jp, kp, lp, icp, pk, pn, phase)
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: label_a, label_b, label_c, label_d
       REAL(KIND=dp), DIMENSION(:), POINTER               :: k
@@ -1576,93 +1575,93 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
       LOGICAL                                            :: l_dum
 
-    CALL timeset(routineN, handle)
-    IF (nphi/=0) THEN
-       ALLOCATE(work_label(6,nphi))
-       ALLOCATE(iwork(nphi))
-       DO i = 1, nphi
-          name_atm_a = particle_set(ip(i))%atomic_kind%name
-          name_atm_b = particle_set(jp(i))%atomic_kind%name
-          name_atm_c = particle_set(kp(i))%atomic_kind%name
-          name_atm_d = particle_set(lp(i))%atomic_kind%name
-          l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b,&
-               id3=name_atm_c, id4=name_atm_d)
-          work_label(1,i) = name_atm_a
-          work_label(2,i) = name_atm_b
-          work_label(3,i) = name_atm_c
-          work_label(4,i) = name_atm_d
-          ! Phase and multiplicity must be kept into account
-          ! for the ordering of the torsions
-          work_label(5,i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
-          work_label(6,i) = TRIM(ADJUSTL(cp_to_string(pn(icp(i)))))
-       END DO
+      CALL timeset(routineN, handle)
+      IF (nphi /= 0) THEN
+         ALLOCATE (work_label(6, nphi))
+         ALLOCATE (iwork(nphi))
+         DO i = 1, nphi
+            name_atm_a = particle_set(ip(i))%atomic_kind%name
+            name_atm_b = particle_set(jp(i))%atomic_kind%name
+            name_atm_c = particle_set(kp(i))%atomic_kind%name
+            name_atm_d = particle_set(lp(i))%atomic_kind%name
+            l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, &
+                                            id3=name_atm_c, id4=name_atm_d)
+            work_label(1, i) = name_atm_a
+            work_label(2, i) = name_atm_b
+            work_label(3, i) = name_atm_c
+            work_label(4, i) = name_atm_d
+            ! Phase and multiplicity must be kept into account
+            ! for the ordering of the torsions
+            work_label(5, i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
+            work_label(6, i) = TRIM(ADJUSTL(cp_to_string(pn(icp(i)))))
+         END DO
 
-       CALL sort(work_label, 1, nphi, 1, 6, iwork)
+         CALL sort(work_label, 1, nphi, 1, 6, iwork)
 
-       iphi = iphi + 1
-       ! In case we need more space ... give it up...
-       IF (iphi>SIZE(label_a)) THEN
-          CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
-          CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
-          CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
-          CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
-          CALL reallocate(k, 1,  INT(buffer_size+iphi*1.5_dp))
-          CALL reallocate(m, 1,  INT(buffer_size+iphi*1.5_dp))
-          CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
-       END IF
-       label_a(iphi)  = work_label(1,1)
-       label_b(iphi)  = work_label(2,1)
-       label_c(iphi)  = work_label(3,1)
-       label_d(iphi)  = work_label(4,1)
-       k(iphi)    = pk   (icp(iwork(1)))*0.5_dp
-       m(iphi)    = NINT(pn   (icp(iwork(1))))
-       IF (m(iphi)-pn   (icp(iwork(1))).GT.EPSILON(1.0_dp)) THEN
-         ! non integer torsions not supported
-         CPABORT("")
-       ENDIF
+         iphi = iphi + 1
+         ! In case we need more space ... give it up...
+         IF (iphi > SIZE(label_a)) THEN
+            CALL reallocate(label_a, 1, INT(buffer_size + iphi*1.5_dp))
+            CALL reallocate(label_b, 1, INT(buffer_size + iphi*1.5_dp))
+            CALL reallocate(label_c, 1, INT(buffer_size + iphi*1.5_dp))
+            CALL reallocate(label_d, 1, INT(buffer_size + iphi*1.5_dp))
+            CALL reallocate(k, 1, INT(buffer_size + iphi*1.5_dp))
+            CALL reallocate(m, 1, INT(buffer_size + iphi*1.5_dp))
+            CALL reallocate(phi0, 1, INT(buffer_size + iphi*1.5_dp))
+         END IF
+         label_a(iphi) = work_label(1, 1)
+         label_b(iphi) = work_label(2, 1)
+         label_c(iphi) = work_label(3, 1)
+         label_d(iphi) = work_label(4, 1)
+         k(iphi) = pk(icp(iwork(1)))*0.5_dp
+         m(iphi) = NINT(pn(icp(iwork(1))))
+         IF (m(iphi) - pn(icp(iwork(1))) .GT. EPSILON(1.0_dp)) THEN
+            ! non integer torsions not supported
+            CPABORT("")
+         ENDIF
 
-       phi0(iphi) = phase(icp(iwork(1)))
+         phi0(iphi) = phase(icp(iwork(1)))
 
-       DO i = 2, nphi
-          ! We don't consider the possibility that a torsion can have same
-          ! phase, periodicity but different value of k.. in this case the
-          ! potential should be summed-up
-          IF  ((work_label(1,i)/=label_a(iphi)).OR.&
-               (work_label(2,i)/=label_b(iphi)).OR.&
-               (work_label(3,i)/=label_c(iphi)).OR.&
-               (work_label(4,i)/=label_d(iphi)).OR.&
-               (pn(icp(iwork(i)))/=m(iphi))    .OR.&
-               (phase(icp(iwork(i)))/=phi0(iphi))) THEN
-             iphi = iphi + 1
-             ! In case we need more space ... give it up...
-             IF (iphi>SIZE(label_a)) THEN
-                CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
-                CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
-                CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
-                CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
-                CALL reallocate(k,   1,INT(buffer_size+iphi*1.5_dp))
-                CALL reallocate(m,   1,INT(buffer_size+iphi*1.5_dp))
-                CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
-             END IF
-             label_a(iphi)  = work_label(1,i)
-             label_b(iphi)  = work_label(2,i)
-             label_c(iphi)  = work_label(3,i)
-             label_d(iphi)  = work_label(4,i)
-             k(iphi)    = pk   (icp(iwork(i)))*0.5_dp
-             m(iphi)    = NINT(pn   (icp(iwork(i))))
-             IF (m(iphi)-pn   (icp(iwork(i))).GT.EPSILON(1.0_dp)) THEN
-               ! non integer torsions not supported
-               CPABORT("")
-             ENDIF
-             phi0(iphi) = phase(icp(iwork(i)))
-          END IF
-       END DO
+         DO i = 2, nphi
+            ! We don't consider the possibility that a torsion can have same
+            ! phase, periodicity but different value of k.. in this case the
+            ! potential should be summed-up
+            IF ((work_label(1, i) /= label_a(iphi)) .OR. &
+                (work_label(2, i) /= label_b(iphi)) .OR. &
+                (work_label(3, i) /= label_c(iphi)) .OR. &
+                (work_label(4, i) /= label_d(iphi)) .OR. &
+                (pn(icp(iwork(i))) /= m(iphi)) .OR. &
+                (phase(icp(iwork(i))) /= phi0(iphi))) THEN
+               iphi = iphi + 1
+               ! In case we need more space ... give it up...
+               IF (iphi > SIZE(label_a)) THEN
+                  CALL reallocate(label_a, 1, INT(buffer_size + iphi*1.5_dp))
+                  CALL reallocate(label_b, 1, INT(buffer_size + iphi*1.5_dp))
+                  CALL reallocate(label_c, 1, INT(buffer_size + iphi*1.5_dp))
+                  CALL reallocate(label_d, 1, INT(buffer_size + iphi*1.5_dp))
+                  CALL reallocate(k, 1, INT(buffer_size + iphi*1.5_dp))
+                  CALL reallocate(m, 1, INT(buffer_size + iphi*1.5_dp))
+                  CALL reallocate(phi0, 1, INT(buffer_size + iphi*1.5_dp))
+               END IF
+               label_a(iphi) = work_label(1, i)
+               label_b(iphi) = work_label(2, i)
+               label_c(iphi) = work_label(3, i)
+               label_d(iphi) = work_label(4, i)
+               k(iphi) = pk(icp(iwork(i)))*0.5_dp
+               m(iphi) = NINT(pn(icp(iwork(i))))
+               IF (m(iphi) - pn(icp(iwork(i))) .GT. EPSILON(1.0_dp)) THEN
+                  ! non integer torsions not supported
+                  CPABORT("")
+               ENDIF
+               phi0(iphi) = phase(icp(iwork(i)))
+            END IF
+         END DO
 
-       DEALLOCATE(work_label)
-       DEALLOCATE(iwork)
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE post_process_torsions_info
+         DEALLOCATE (work_label)
+         DEALLOCATE (iwork)
+      END IF
+      CALL timestop(handle)
+   END SUBROUTINE post_process_torsions_info
 
 ! **************************************************************************************************
 !> \brief Post processing of forcefield information related to Lennard-Jones
@@ -1679,8 +1678,8 @@ CONTAINS
 !> \param natom ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! **************************************************************************************************
-  SUBROUTINE post_process_LJ_info(atom_label, eps, sigma, particle_set,&
-       ntypes, nsize, iac, ico, cn1, cn2, natom)
+   SUBROUTINE post_process_LJ_info(atom_label, eps, sigma, particle_set, &
+                                   ntypes, nsize, iac, ico, cn1, cn2, natom)
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atom_label
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eps, sigma
@@ -1702,67 +1701,67 @@ CONTAINS
       LOGICAL                                            :: check, l_dum
       REAL(KIND=dp)                                      :: F12, F6, my_eps, my_sigma, sigma6
 
-    CALL timeset(routineN, handle)
-    ALLOCATE(work_label(natom))
-    ALLOCATE(iwork(natom))
-    DO i = 1, natom
-       name_atm_a = particle_set(i)%atomic_kind%name
-       l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a)
-       work_label(i) = name_atm_a
-    END DO
-    CALL sort(work_label, natom, iwork)
+      CALL timeset(routineN, handle)
+      ALLOCATE (work_label(natom))
+      ALLOCATE (iwork(natom))
+      DO i = 1, natom
+         name_atm_a = particle_set(i)%atomic_kind%name
+         l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a)
+         work_label(i) = name_atm_a
+      END DO
+      CALL sort(work_label, natom, iwork)
 
-    nsize = nsize + 1
-    IF (nsize>SIZE(atom_label)) THEN
-       CALL reallocate(atom_label, 1, INT(buffer_size+nsize*1.5_dp))
-       CALL reallocate(eps,        1, INT(buffer_size+nsize*1.5_dp))
-       CALL reallocate(sigma,      1, INT(buffer_size+nsize*1.5_dp))
-    END IF
-    F12 = cn1( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
-    F6  = cn2( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
-    check = (F6==0.0_dp).EQV.(F12==0.0_dp)
-    CPASSERT(check)
-    my_sigma = 0.0_dp
-    my_eps   = 0.0_dp
-    IF (F6/=0.0_dp) THEN
-       sigma6   = (2.0_dp*F12/F6)
-       my_sigma = sigma6**(1.0_dp/6.0_dp)
-       my_eps   = F6/(2.0_dp*sigma6)
-    END IF
-    atom_label(nsize) = work_label(1)
-    sigma(nsize)      = my_sigma/2.0_dp
-    eps(nsize)        = my_eps
+      nsize = nsize + 1
+      IF (nsize > SIZE(atom_label)) THEN
+         CALL reallocate(atom_label, 1, INT(buffer_size + nsize*1.5_dp))
+         CALL reallocate(eps, 1, INT(buffer_size + nsize*1.5_dp))
+         CALL reallocate(sigma, 1, INT(buffer_size + nsize*1.5_dp))
+      END IF
+      F12 = cn1(ico(ntypes*(iac(iwork(1)) - 1) + iac(iwork(1))))
+      F6 = cn2(ico(ntypes*(iac(iwork(1)) - 1) + iac(iwork(1))))
+      check = (F6 == 0.0_dp) .EQV. (F12 == 0.0_dp)
+      CPASSERT(check)
+      my_sigma = 0.0_dp
+      my_eps = 0.0_dp
+      IF (F6 /= 0.0_dp) THEN
+         sigma6 = (2.0_dp*F12/F6)
+         my_sigma = sigma6**(1.0_dp/6.0_dp)
+         my_eps = F6/(2.0_dp*sigma6)
+      END IF
+      atom_label(nsize) = work_label(1)
+      sigma(nsize) = my_sigma/2.0_dp
+      eps(nsize) = my_eps
 
-    DO i = 2, natom
-       IF  (work_label(i)/=atom_label(nsize)) THEN
-          nsize = nsize + 1
-          ! In case we need more space ... give it up...
-          IF (nsize>SIZE(atom_label)) THEN
-             CALL reallocate(atom_label, 1, INT(buffer_size+nsize*1.5_dp))
-             CALL reallocate(eps,        1, INT(buffer_size+nsize*1.5_dp))
-             CALL reallocate(sigma,      1, INT(buffer_size+nsize*1.5_dp))
-          END IF
-          F12 = cn1( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
-          F6  = cn2( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
-          check = (F6==0.0_dp).EQV.(F12==0.0_dp)
-          CPASSERT(check)
-          my_sigma = 0.0_dp
-          my_eps   = 0.0_dp
-          IF (F6/=0.0_dp) THEN
-             sigma6   = (2.0_dp*F12/F6)
-             my_sigma = sigma6**(1.0_dp/6.0_dp)
-             my_eps   = F6/(2.0_dp*sigma6)
-          END IF
-          atom_label(nsize) = work_label(i)
-          sigma(nsize)      = my_sigma/2.0_dp
-          eps(nsize)        = my_eps
-       END IF
-    END DO
+      DO i = 2, natom
+         IF (work_label(i) /= atom_label(nsize)) THEN
+            nsize = nsize + 1
+            ! In case we need more space ... give it up...
+            IF (nsize > SIZE(atom_label)) THEN
+               CALL reallocate(atom_label, 1, INT(buffer_size + nsize*1.5_dp))
+               CALL reallocate(eps, 1, INT(buffer_size + nsize*1.5_dp))
+               CALL reallocate(sigma, 1, INT(buffer_size + nsize*1.5_dp))
+            END IF
+            F12 = cn1(ico(ntypes*(iac(iwork(i)) - 1) + iac(iwork(i))))
+            F6 = cn2(ico(ntypes*(iac(iwork(i)) - 1) + iac(iwork(i))))
+            check = (F6 == 0.0_dp) .EQV. (F12 == 0.0_dp)
+            CPASSERT(check)
+            my_sigma = 0.0_dp
+            my_eps = 0.0_dp
+            IF (F6 /= 0.0_dp) THEN
+               sigma6 = (2.0_dp*F12/F6)
+               my_sigma = sigma6**(1.0_dp/6.0_dp)
+               my_eps = F6/(2.0_dp*sigma6)
+            END IF
+            atom_label(nsize) = work_label(i)
+            sigma(nsize) = my_sigma/2.0_dp
+            eps(nsize) = my_eps
+         END IF
+      END DO
 
-    DEALLOCATE(work_label)
-    DEALLOCATE(iwork)
-    CALL timestop(handle)
-  END SUBROUTINE post_process_LJ_info
+      DEALLOCATE (work_label)
+      DEALLOCATE (iwork)
+      CALL timestop(handle)
+   END SUBROUTINE post_process_LJ_info
 
 END MODULE topology_amber
 

@@ -230,17 +230,17 @@ CONTAINS
 
             ! subtract the current ener_x from the diagonal
             CALL dbcsr_get_diag(qs_ot_env(ispin)%matrix_buf2, expectation_values(ispin)%array)
-            expectation_values(ispin)%array = expectation_values(ispin)%array-qs_ot_env(ispin)%ener_x
+            expectation_values(ispin)%array = expectation_values(ispin)%array - qs_ot_env(ispin)%ener_x
             CALL dbcsr_set_diag(qs_ot_env(ispin)%matrix_buf2, expectation_values(ispin)%array)
 
             ! get nondiag energy trace (D^T D)
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_buf2, qs_ot_env(ispin)%matrix_buf2, trace)
-            ener_nondiag = ener_nondiag+0.5_dp*qs_ot_env(1)%settings%nondiag_energy_strength*trace
+            ener_nondiag = ener_nondiag + 0.5_dp*qs_ot_env(1)%settings%nondiag_energy_strength*trace
 
             ! get gradient (again ignoring dependencies of H)
             IF (.NOT. energy_only) THEN
                ! first for the ener_x (-2*(diag(C^T H C)-ener_x))
-               qs_ot_env(ispin)%ener_gx = qs_ot_env(ispin)%ener_gx- &
+               qs_ot_env(ispin)%ener_gx = qs_ot_env(ispin)%ener_gx - &
                                           qs_ot_env(1)%settings%nondiag_energy_strength*expectation_values(ispin)%array
 
                ! next for the rot_mat_u derivative (2 * k * \tilde H U D)
@@ -270,7 +270,7 @@ CONTAINS
       ENDDO
 
       ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
-      qs_ot_env(1)%etotal = energy+ener_nondiag
+      qs_ot_env(1)%etotal = energy + ener_nondiag
 
       CALL ot_mini(qs_ot_env, matrix_dedc_scaled)
 
@@ -281,7 +281,7 @@ CONTAINS
       DO ispin = 1, SIZE(qs_ot_env)
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff_b=mo_coeff)
          CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
-         SELECT CASE (qs_ot_env (1)%settings%ot_algorithm)
+         SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
          CASE ("TOD")
             IF (ASSOCIATED(matrix_s)) THEN
                CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(ispin)%matrix_x, &
@@ -423,7 +423,7 @@ CONTAINS
             qs_ot_env(ispin)%ener_x = mo_array(ispin)%mo_set%eigenvalues
          ENDIF
 
-         SELECT CASE (qs_ot_env (1)%settings%ot_algorithm)
+         SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
          CASE ("TOD")
             ! get c
             CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, qs_ot_env(ispin))

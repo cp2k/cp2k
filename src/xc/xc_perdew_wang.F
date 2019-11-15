@@ -88,12 +88,12 @@ CONTAINS
                      //" Phys. Rev. B 45, 13244 (1992)" &
                      //"["//TRIM(p_string)//"]"
          IF (scale /= 1._dp) THEN
-            WRITE (reference(LEN_TRIM(reference)+1:LEN(reference)), "('s=',f5.3)") &
+            WRITE (reference(LEN_TRIM(reference) + 1:LEN(reference)), "('s=',f5.3)") &
                scale
          END IF
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(reference)+6 < LEN(reference)) THEN
-               reference(LEN_TRIM(reference)+1:LEN_TRIM(reference)+7) = ' {LDA}'
+            IF (LEN_TRIM(reference) + 6 < LEN(reference)) THEN
+               reference(LEN_TRIM(reference) + 1:LEN_TRIM(reference) + 7) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -101,12 +101,12 @@ CONTAINS
          shortform = "J. P. Perdew et al., PRB 45, 13244 (1992)" &
                      //"["//TRIM(p_string)//"]"
          IF (scale /= 1._dp) THEN
-            WRITE (shortform(LEN_TRIM(shortform)+1:LEN(shortform)), "('s=',f5.3)") &
+            WRITE (shortform(LEN_TRIM(shortform) + 1:LEN(shortform)), "('s=',f5.3)") &
                scale
          END IF
          IF (.NOT. lsd) THEN
-            IF (LEN_TRIM(shortform)+6 < LEN(shortform)) THEN
-               shortform(LEN_TRIM(shortform)+1:LEN_TRIM(shortform)+7) = ' {LDA}'
+            IF (LEN_TRIM(shortform) + 6 < LEN(shortform)) THEN
+               shortform(LEN_TRIM(shortform) + 1:LEN_TRIM(shortform) + 7) = ' {LDA}'
             END IF
          END IF
       END IF
@@ -186,7 +186,7 @@ CONTAINS
          c1(k) = -2.0_dp*c0(k)*LOG(2.0_dp*A(k)*b1(k))
          c2(k) = A(k)*a1(k)
          c3(k) = -2.0_dp*A(k)*(a1(k)*LOG(2.0_dp*A(k)*b1(k)) &
-                               -(b2(k)/b1(k))**2+(b3(k)/b1(k)))
+                               - (b2(k)/b1(k))**2 + (b3(k)/b1(k)))
          d0(k) = a1(k)/b4(k)
          d1(k) = a1(k)*b3(k)/(b4(k)**2)
       END DO
@@ -236,7 +236,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       CALL perdew_wang_init(method, rho_cutoff)
 
@@ -312,16 +312,16 @@ CONTAINS
             ed = scale*ed
 
             IF (order >= 0) THEN
-               e_0(k) = e_0(k)+rho(k)*ed(0)
+               e_0(k) = e_0(k) + rho(k)*ed(0)
             END IF
             IF (order >= 1 .OR. order == -1) THEN
-               e_rho(k) = e_rho(k)+ed(0)+rho(k)*ed(1)
+               e_rho(k) = e_rho(k) + ed(0) + rho(k)*ed(1)
             END IF
             IF (order >= 2 .OR. order == -2) THEN
-               e_rho_rho(k) = e_rho_rho(k)+2.0_dp*ed(1)+rho(k)*ed(2)
+               e_rho_rho(k) = e_rho_rho(k) + 2.0_dp*ed(1) + rho(k)*ed(2)
             END IF
             IF (order >= 3 .OR. order == -3) THEN
-               e_rho_rho_rho(k) = e_rho_rho_rho(k)+3.0_dp*ed(2)+rho(k)*ed(3)
+               e_rho_rho_rho(k) = e_rho_rho_rho(k) + 3.0_dp*ed(2) + rho(k)*ed(3)
             END IF
 
          END IF
@@ -371,7 +371,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=a, rhob=b, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       CALL perdew_wang_init(method, rho_cutoff)
 
@@ -470,28 +470,28 @@ CONTAINS
 !$OMP SHARED(npoints,rhoa,rhob,eps_rho,abs_order,order,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb,scale)
       DO k = 1, npoints
 
-         rho = rhoa(k)+rhob(k)
+         rho = rhoa(k) + rhob(k)
          IF (rho > eps_rho) THEN
 
             CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, abs_order)
             ed = ed*scale
             IF (order >= 0) THEN
-               e_0(k) = e_0(k)+rho*ed(0)
+               e_0(k) = e_0(k) + rho*ed(0)
             END IF
             IF (order >= 1 .OR. order == -1) THEN
-               ea(k) = ea(k)+ed(0)+rho*ed(1)
-               eb(k) = eb(k)+ed(0)+rho*ed(2)
+               ea(k) = ea(k) + ed(0) + rho*ed(1)
+               eb(k) = eb(k) + ed(0) + rho*ed(2)
             END IF
             IF (order >= 2 .OR. order == -2) THEN
-               eaa(k) = eaa(k)+2.0_dp*ed(1)+rho*ed(3)
-               eab(k) = eab(k)+ed(1)+ed(2)+rho*ed(4)
-               ebb(k) = ebb(k)+2.0_dp*ed(2)+rho*ed(5)
+               eaa(k) = eaa(k) + 2.0_dp*ed(1) + rho*ed(3)
+               eab(k) = eab(k) + ed(1) + ed(2) + rho*ed(4)
+               ebb(k) = ebb(k) + 2.0_dp*ed(2) + rho*ed(5)
             END IF
             IF (order >= 3 .OR. order == -3) THEN
-               eaaa(k) = eaaa(k)+3.0_dp*ed(3)+rho*ed(6)
-               eaab(k) = eaab(k)+2.0_dp*ed(4)+ed(3)+rho*ed(7)
-               eabb(k) = eabb(k)+2.0_dp*ed(4)+ed(5)+rho*ed(8)
-               ebbb(k) = ebbb(k)+3.0_dp*ed(5)+rho*ed(9)
+               eaaa(k) = eaaa(k) + 3.0_dp*ed(3) + rho*ed(6)
+               eaab(k) = eaab(k) + 2.0_dp*ed(4) + ed(3) + rho*ed(7)
+               eabb(k) = eabb(k) + 2.0_dp*ed(4) + ed(5) + rho*ed(8)
+               ebbb(k) = ebbb(k) + 3.0_dp*ed(5) + rho*ed(9)
             END IF
 
          END IF
@@ -534,37 +534,37 @@ CONTAINS
       IF (r < 1.0_dp) THEN
 
          ! order 0 must always be calculated
-         g(0) = c0(z)*LOG(r)-c1(z)+c2(z)*r*LOG(r)-c3(z)*r
-         IF (order >= 1) g(1) = c0(z)/r+c2(z)*LOG(r)+c2(z)-c3(z)
-         IF (order >= 2) g(2) = -c0(z)/rr+c2(z)/r
-         IF (order >= 3) g(3) = 2.0_dp*c0(z)/(rr*r)-c2(z)/rr
+         g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
+         IF (order >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
+         IF (order >= 2) g(2) = -c0(z)/rr + c2(z)/r
+         IF (order >= 3) g(3) = 2.0_dp*c0(z)/(rr*r) - c2(z)/rr
 
       ELSE IF (r <= 100.0_dp) THEN
 
-         t3 = 1.0_dp+a1_*r
-         t11 = b1_*sr+b2_*r+b3_*rsr+b4_*rr
+         t3 = 1.0_dp + a1_*r
+         t11 = b1_*sr + b2_*r + b3_*rsr + b4_*rr
          t12 = t11**2
-         t15 = 1.0_dp+0.5_dp/A_/t11
+         t15 = 1.0_dp + 0.5_dp/A_/t11
          t16 = LOG(t15)
-         t20 = 0.5_dp*b1_/sr+b2_+1.5_dp*b3_*sr+2.0_dp*b4_*r
+         t20 = 0.5_dp*b1_/sr + b2_ + 1.5_dp*b3_*sr + 2.0_dp*b4_*r
 
          ! order 0 must always be calculated
          g(0) = -2.0_dp*A_*t3*t16
 
          IF (order >= 1) THEN
 
-            g(1) = -2.0_dp*A_*a1_*t16+t3*t20/(t12*t15)
+            g(1) = -2.0_dp*A_*a1_*t16 + t3*t20/(t12*t15)
 
          END IF
 
          IF (order >= 2) THEN
 
-            t40 = -0.25_dp*b1_/rsr+0.75_dp*b3_/sr+2.0_dp*b4_
+            t40 = -0.25_dp*b1_/rsr + 0.75_dp*b3_/sr + 2.0_dp*b4_
 
             g(2) = 2.0_dp*a1_*t20/(t12*t15) &
-                   -2.0_dp*(t20**2)*t3/(t12*t11*t15) &
-                   +t3*t40/(t12*t15) &
-                   +0.5_dp*t3*(t20**2)/(A_*(t12**2)*(t15**2))
+                   - 2.0_dp*(t20**2)*t3/(t12*t11*t15) &
+                   + t3*t40/(t12*t15) &
+                   + 0.5_dp*t3*(t20**2)/(A_*(t12**2)*(t15**2))
 
          END IF
 
@@ -582,24 +582,24 @@ CONTAINS
 
             g(3) = &
                -6.0_dp*a1_*t14*t22/t15 &
-               +3.0_dp*a1_*t40/(t15*t12) &
-               +1.5_dp*a1_*t45*t22*t48/A_ &
-               +6.0_dp*t55*t56/t15 &
-               -6.0_dp*t3*t14*t20*t40/t15 &
-               -3.0_dp*t3*t56*t48/(A_*t44*t11) &
-               +0.375_dp*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
-               +1.5_dp*t55*t40*t48*t20/A_ &
-               +0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
+               + 3.0_dp*a1_*t40/(t15*t12) &
+               + 1.5_dp*a1_*t45*t22*t48/A_ &
+               + 6.0_dp*t55*t56/t15 &
+               - 6.0_dp*t3*t14*t20*t40/t15 &
+               - 3.0_dp*t3*t56*t48/(A_*t44*t11) &
+               + 0.375_dp*t3*(b1_/(rr*sr) - b3_/rsr)/(t12*t15) &
+               + 1.5_dp*t55*t40*t48*t20/A_ &
+               + 0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
 
          END IF
 
       ELSE
 
          ! order 0 must always be calculated
-         g(0) = -d0(z)/r+d1(z)/rsr
-         IF (order >= 1) g(1) = d0(z)/rr-1.5_dp*d1(z)/(rsr*r)
-         IF (order >= 2) g(2) = -2.0_dp*d0(z)/(rr*r)+3.75_dp*d1(z)/(rsr*rr)
-         IF (order >= 3) g(3) = 6.0_dp*d0(z)/(rr*rr)-13.125_dp*d1(z)/(rsr*rr*r)
+         g(0) = -d0(z)/r + d1(z)/rsr
+         IF (order >= 1) g(1) = d0(z)/rr - 1.5_dp*d1(z)/(rsr*r)
+         IF (order >= 2) g(2) = -2.0_dp*d0(z)/(rr*r) + 3.75_dp*d1(z)/(rsr*rr)
+         IF (order >= 3) g(3) = 6.0_dp*d0(z)/(rr*rr) - 13.125_dp*d1(z)/(rsr*rr*r)
 
       END IF
 
@@ -642,18 +642,18 @@ CONTAINS
       m = 0
       IF (calc(0)) THEN
          ed(m) = e0(0)
-         m = m+1
+         m = m + 1
       END IF
       IF (calc(1)) THEN
          ed(m) = e0(1)*r(1)
-         m = m+1
+         m = m + 1
       END IF
       IF (calc(2)) THEN
-         ed(m) = e0(2)*r(1)**2+e0(1)*r(2)
-         m = m+1
+         ed(m) = e0(2)*r(1)**2 + e0(1)*r(2)
+         m = m + 1
       END IF
       IF (calc(3)) THEN
-         ed(m) = e0(3)*r(1)**3+e0(2)*3.0_dp*r(1)*r(2)+e0(1)*r(3)
+         ed(m) = e0(3)*r(1)**3 + e0(2)*3.0_dp*r(1)*r(2) + e0(1)*r(3)
       END IF
 
    END SUBROUTINE pw_lda_ed_loc
@@ -688,7 +688,7 @@ CONTAINS
          calc(order_) = .TRUE.
       END IF
 
-      rho = a+b
+      rho = a + b
 
       CALL calc_fx(a, b, f(0:order_), order_)
       CALL calc_rs(rho, r(0))
@@ -701,35 +701,35 @@ CONTAINS
       IF (order_ >= 1) THEN
          r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
          tr = e0(1) &
-              +fpp*ac(1)*f(0) &
-              -fpp*ac(1)*f(0)*z(0, 0)**4 &
-              +(e1(1)-e0(1))*f(0)*z(0, 0)**4
+              + fpp*ac(1)*f(0) &
+              - fpp*ac(1)*f(0)*z(0, 0)**4 &
+              + (e1(1) - e0(1))*f(0)*z(0, 0)**4
          tz = fpp*ac(0)*f(1) &
-              -fpp*ac(0)*f(1)*z(0, 0)**4 &
-              -fpp*ac(0)*f(0)*4.0_dp*z(0, 0)**3 &
-              +(e1(0)-e0(0))*f(1)*z(0, 0)**4 &
-              +(e1(0)-e0(0))*f(0)*4.0_dp*z(0, 0)**3
+              - fpp*ac(0)*f(1)*z(0, 0)**4 &
+              - fpp*ac(0)*f(0)*4.0_dp*z(0, 0)**3 &
+              + (e1(0) - e0(0))*f(1)*z(0, 0)**4 &
+              + (e1(0) - e0(0))*f(0)*4.0_dp*z(0, 0)**3
       END IF
 
 !! calculate second partial derivatives
       IF (order_ >= 2) THEN
          r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
          trr = e0(2) &
-               +fpp*ac(2)*f(0) &
-               -fpp*ac(2)*f(0)*z(0, 0)**4 &
-               +(e1(2)-e0(2))*f(0)*z(0, 0)**4
+               + fpp*ac(2)*f(0) &
+               - fpp*ac(2)*f(0)*z(0, 0)**4 &
+               + (e1(2) - e0(2))*f(0)*z(0, 0)**4
          trz = fpp*ac(1)*f(1) &
-               -fpp*ac(1)*f(1)*z(0, 0)**4 &
-               -fpp*ac(1)*f(0)*4.0_dp*z(0, 0)**3 &
-               +(e1(1)-e0(1))*f(1)*z(0, 0)**4 &
-               +(e1(1)-e0(1))*f(0)*4.0_dp*z(0, 0)**3
+               - fpp*ac(1)*f(1)*z(0, 0)**4 &
+               - fpp*ac(1)*f(0)*4.0_dp*z(0, 0)**3 &
+               + (e1(1) - e0(1))*f(1)*z(0, 0)**4 &
+               + (e1(1) - e0(1))*f(0)*4.0_dp*z(0, 0)**3
          tzz = fpp*ac(0)*f(2) &
-               -fpp*ac(0)*f(2)*z(0, 0)**4 &
-               -fpp*ac(0)*f(1)*8.0_dp*z(0, 0)**3 &
-               -fpp*ac(0)*f(0)*12.0_dp*z(0, 0)**2 &
-               +(e1(0)-e0(0))*f(2)*z(0, 0)**4 &
-               +(e1(0)-e0(0))*f(1)*8.0_dp*z(0, 0)**3 &
-               +(e1(0)-e0(0))*f(0)*12.0_dp*z(0, 0)**2
+               - fpp*ac(0)*f(2)*z(0, 0)**4 &
+               - fpp*ac(0)*f(1)*8.0_dp*z(0, 0)**3 &
+               - fpp*ac(0)*f(0)*12.0_dp*z(0, 0)**2 &
+               + (e1(0) - e0(0))*f(2)*z(0, 0)**4 &
+               + (e1(0) - e0(0))*f(1)*8.0_dp*z(0, 0)**3 &
+               + (e1(0) - e0(0))*f(0)*12.0_dp*z(0, 0)**2
       END IF
 
 !! calculate third derivatives
@@ -738,85 +738,85 @@ CONTAINS
          r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
 
          trrr = e0(3) &
-                +fpp*ac(3)*f(0) &
-                -fpp*ac(3)*f(0)*z(0, 0)**4 &
-                +(e1(3)-e0(3))*f(0)*z(0, 0)**4
+                + fpp*ac(3)*f(0) &
+                - fpp*ac(3)*f(0)*z(0, 0)**4 &
+                + (e1(3) - e0(3))*f(0)*z(0, 0)**4
 
          trrz = fpp*ac(2)*f(1) &
-                -fpp*ac(2)*f(1)*z(0, 0)**4 &
-                -fpp*ac(2)*f(0)*4.0_dp*z(0, 0)**3 &
-                +(e1(2)-e0(2))*f(1)*z(0, 0)**4 &
-                +(e1(2)-e0(2))*f(0)*4.0_dp*z(0, 0)**3
+                - fpp*ac(2)*f(1)*z(0, 0)**4 &
+                - fpp*ac(2)*f(0)*4.0_dp*z(0, 0)**3 &
+                + (e1(2) - e0(2))*f(1)*z(0, 0)**4 &
+                + (e1(2) - e0(2))*f(0)*4.0_dp*z(0, 0)**3
 
          trzz = fpp*ac(1)*f(2) &
-                -fpp*ac(1)*f(2)*z(0, 0)**4 &
-                -fpp*ac(1)*f(1)*8.0_dp*z(0, 0)**3 &
-                -fpp*ac(1)*f(0)*12.0_dp*z(0, 0)**2 &
-                +(e1(1)-e0(1))*f(2)*z(0, 0)**4 &
-                +(e1(1)-e0(1))*f(1)*8.0_dp*z(0, 0)**3 &
-                +(e1(1)-e0(1))*f(0)*12.0_dp*z(0, 0)**2
+                - fpp*ac(1)*f(2)*z(0, 0)**4 &
+                - fpp*ac(1)*f(1)*8.0_dp*z(0, 0)**3 &
+                - fpp*ac(1)*f(0)*12.0_dp*z(0, 0)**2 &
+                + (e1(1) - e0(1))*f(2)*z(0, 0)**4 &
+                + (e1(1) - e0(1))*f(1)*8.0_dp*z(0, 0)**3 &
+                + (e1(1) - e0(1))*f(0)*12.0_dp*z(0, 0)**2
 
          tzzz = fpp*ac(0)*f(3) &
-                -fpp*ac(0)*f(3)*z(0, 0)**4 &
-                -fpp*ac(0)*f(2)*12.0_dp*z(0, 0)**3 &
-                -fpp*ac(0)*f(1)*36.0_dp*z(0, 0)**2 &
-                -fpp*ac(0)*f(0)*24.0_dp*z(0, 0) &
-                +(e1(0)-e0(0))*f(3)*z(0, 0)**4 &
-                +(e1(0)-e0(0))*f(2)*12.0_dp*z(0, 0)**3 &
-                +(e1(0)-e0(0))*f(1)*36.0_dp*z(0, 0)**2 &
-                +(e1(0)-e0(0))*f(0)*24.0_dp*z(0, 0)
+                - fpp*ac(0)*f(3)*z(0, 0)**4 &
+                - fpp*ac(0)*f(2)*12.0_dp*z(0, 0)**3 &
+                - fpp*ac(0)*f(1)*36.0_dp*z(0, 0)**2 &
+                - fpp*ac(0)*f(0)*24.0_dp*z(0, 0) &
+                + (e1(0) - e0(0))*f(3)*z(0, 0)**4 &
+                + (e1(0) - e0(0))*f(2)*12.0_dp*z(0, 0)**3 &
+                + (e1(0) - e0(0))*f(1)*36.0_dp*z(0, 0)**2 &
+                + (e1(0) - e0(0))*f(0)*24.0_dp*z(0, 0)
       END IF
 
       m = 0
       IF (calc(0)) THEN
          ed(m) = e0(0) &
-                 +fpp*ac(0)*f(0)*(1.0_dp-z(0, 0)**4) &
-                 +(e1(0)-e0(0))*f(0)*z(0, 0)**4
-         m = m+1
+                 + fpp*ac(0)*f(0)*(1.0_dp - z(0, 0)**4) &
+                 + (e1(0) - e0(0))*f(0)*z(0, 0)**4
+         m = m + 1
       END IF
       IF (calc(1)) THEN
-         ed(m) = tr*r(1)+tz*z(1, 0)
-         ed(m+1) = tr*r(1)+tz*z(0, 1)
-         m = m+2
+         ed(m) = tr*r(1) + tz*z(1, 0)
+         ed(m + 1) = tr*r(1) + tz*z(0, 1)
+         m = m + 2
       END IF
       IF (calc(2)) THEN
-         ed(m) = trr*r(1)**2+2.0_dp*trz*r(1)*z(1, 0) &
-                 +tr*r(2)+tzz*z(1, 0)**2+tz*z(2, 0)
-         ed(m+1) = trr*r(1)**2+trz*r(1)*(z(0, 1)+z(1, 0)) &
-                   +tr*r(2)+tzz*z(1, 0)*z(0, 1)+tz*z(1, 1)
-         ed(m+2) = trr*r(1)**2+2.0_dp*trz*r(1)*z(0, 1) &
-                   +tr*r(2)+tzz*z(0, 1)**2+tz*z(0, 2)
-         m = m+3
+         ed(m) = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(1, 0) &
+                 + tr*r(2) + tzz*z(1, 0)**2 + tz*z(2, 0)
+         ed(m + 1) = trr*r(1)**2 + trz*r(1)*(z(0, 1) + z(1, 0)) &
+                     + tr*r(2) + tzz*z(1, 0)*z(0, 1) + tz*z(1, 1)
+         ed(m + 2) = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(0, 1) &
+                     + tr*r(2) + tzz*z(0, 1)**2 + tz*z(0, 2)
+         m = m + 3
       END IF
       IF (calc(3)) THEN
          ed(m) = &
-            trrr*r(1)**3+3.0_dp*trrz*r(1)**2*z(1, 0) &
-            +3.0_dp*trr*r(1)*r(2)+3.0_dp*trz*r(2)*z(1, 0)+tr*r(3) &
-            +3.0_dp*trzz*r(1)*z(1, 0)**2+tzzz*z(1, 0)**3 &
-            +3.0_dp*trz*r(1)*z(2, 0) &
-            +3.0_dp*tzz*z(1, 0)*z(2, 0)+tz*z(3, 0)
-         ed(m+1) = &
-            trrr*r(1)**3+trrz*r(1)**2*(2.0_dp*z(1, 0)+z(0, 1)) &
-            +2.0_dp*trzz*r(1)*z(1, 0)*z(0, 1) &
-            +2.0_dp*trz*(r(2)*z(1, 0)+r(1)*z(1, 1)) &
-            +3.0_dp*trr*r(2)*r(1)+trz*r(2)*z(0, 1)+tr*r(3) &
-            +trzz*r(1)*z(1, 0)**2+tzzz*z(1, 0)**2*z(0, 1) &
-            +2.0_dp*tzz*z(1, 0)*z(1, 1) &
-            +trz*r(1)*z(2, 0)+tzz*z(2, 0)*z(0, 1)+tz*z(2, 1)
-         ed(m+2) = &
-            trrr*r(1)**3+trrz*r(1)**2*(2.0_dp*z(0, 1)+z(1, 0)) &
-            +2.0_dp*trzz*r(1)*z(0, 1)*z(1, 0) &
-            +2.0_dp*trz*(r(2)*z(0, 1)+r(1)*z(1, 1)) &
-            +3.0_dp*trr*r(2)*r(1)+trz*r(2)*z(1, 0)+tr*r(3) &
-            +trzz*r(1)*z(0, 1)**2+tzzz*z(0, 1)**2*z(1, 0) &
-            +2.0_dp*tzz*z(0, 1)*z(1, 1) &
-            +trz*r(1)*z(0, 2)+tzz*z(0, 2)*z(1, 0)+tz*z(1, 2)
-         ed(m+3) = &
-            trrr*r(1)**3+3.0_dp*trrz*r(1)**2*z(0, 1) &
-            +3.0_dp*trr*r(1)*r(2)+3.0_dp*trz*r(2)*z(0, 1)+tr*r(3) &
-            +3.0_dp*trzz*r(1)*z(0, 1)**2+tzzz*z(0, 1)**3 &
-            +3.0_dp*trz*r(1)*z(0, 2) &
-            +3.0_dp*tzz*z(0, 1)*z(0, 2)+tz*z(0, 3)
+            trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(1, 0) &
+            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(1, 0) + tr*r(3) &
+            + 3.0_dp*trzz*r(1)*z(1, 0)**2 + tzzz*z(1, 0)**3 &
+            + 3.0_dp*trz*r(1)*z(2, 0) &
+            + 3.0_dp*tzz*z(1, 0)*z(2, 0) + tz*z(3, 0)
+         ed(m + 1) = &
+            trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(1, 0) + z(0, 1)) &
+            + 2.0_dp*trzz*r(1)*z(1, 0)*z(0, 1) &
+            + 2.0_dp*trz*(r(2)*z(1, 0) + r(1)*z(1, 1)) &
+            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(0, 1) + tr*r(3) &
+            + trzz*r(1)*z(1, 0)**2 + tzzz*z(1, 0)**2*z(0, 1) &
+            + 2.0_dp*tzz*z(1, 0)*z(1, 1) &
+            + trz*r(1)*z(2, 0) + tzz*z(2, 0)*z(0, 1) + tz*z(2, 1)
+         ed(m + 2) = &
+            trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(0, 1) + z(1, 0)) &
+            + 2.0_dp*trzz*r(1)*z(0, 1)*z(1, 0) &
+            + 2.0_dp*trz*(r(2)*z(0, 1) + r(1)*z(1, 1)) &
+            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(1, 0) + tr*r(3) &
+            + trzz*r(1)*z(0, 1)**2 + tzzz*z(0, 1)**2*z(1, 0) &
+            + 2.0_dp*tzz*z(0, 1)*z(1, 1) &
+            + trz*r(1)*z(0, 2) + tzz*z(0, 2)*z(1, 0) + tz*z(1, 2)
+         ed(m + 3) = &
+            trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(0, 1) &
+            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(0, 1) + tr*r(3) &
+            + 3.0_dp*trzz*r(1)*z(0, 1)**2 + tzzz*z(0, 1)**3 &
+            + 3.0_dp*trz*r(1)*z(0, 2) &
+            + 3.0_dp*tzz*z(0, 1)*z(0, 2) + tz*z(0, 3)
       END IF
 
    END SUBROUTINE pw_lsd_ed_loc

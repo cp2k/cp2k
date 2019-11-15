@@ -187,17 +187,17 @@ CONTAINS
          ALLOCATE (tvec(nk, nspin))
          tvec(:, :) = 0.0_dp
 
-         rjk(1:3) = rik(1:3)-rij(1:3)
+         rjk(1:3) = rik(1:3) - rij(1:3)
          dij = NORM2(rij)
          dik = NORM2(rik)
          djk = NORM2(rjk)
 
          DO iset = 1, nseta
             DO jset = 1, nsetb
-               IF (set_radius_a(iset)+set_radius_b(jset) < dij) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dij) CYCLE
                DO kset = 1, nsetc
-                  IF (set_radius_a(iset)+set_radius_c(kset) < dik) CYCLE
-                  IF (set_radius_b(jset)+set_radius_c(kset) < djk) CYCLE
+                  IF (set_radius_a(iset) + set_radius_c(kset) < dik) CYCLE
+                  IF (set_radius_b(jset) + set_radius_c(kset) < djk) CYCLE
 
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -207,9 +207,9 @@ CONTAINS
                   sgfb = first_sgfb(1, jset)
                   sgfc = first_sgfc(1, kset)
 
-                  egfa = sgfa+nsgfa(iset)-1
-                  egfb = sgfb+nsgfb(jset)-1
-                  egfc = sgfc+nsgfc(kset)-1
+                  egfa = sgfa + nsgfa(iset) - 1
+                  egfb = sgfb + nsgfb(jset) - 1
+                  egfc = sgfc + nsgfc(kset) - 1
 
                   IF (ncoa*ncob*ncoc > 0) THEN
                      ALLOCATE (sabc(ncoa, ncob, ncoc))
@@ -262,7 +262,7 @@ CONTAINS
          END DO
          IF (do_force) THEN
             ! translational invariance
-            iadbc(:, :, :, :) = -idabc(:, :, :, :)-iabdc(:, :, :, :)
+            iadbc(:, :, :, :) = -idabc(:, :, :, :) - iabdc(:, :, :, :)
             !
             ! get the atom indices
             CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, &
@@ -290,9 +290,9 @@ CONTAINS
                                       row=irow, col=icol, BLOCK=pblock, found=found)
                IF (found) THEN
                   IF (trans) THEN
-                     pmat(:, :) = pmat(:, :)+TRANSPOSE(pblock(:, :))
+                     pmat(:, :) = pmat(:, :) + TRANSPOSE(pblock(:, :))
                   ELSE
-                     pmat(:, :) = pmat(:, :)+pblock(:, :)
+                     pmat(:, :) = pmat(:, :) + pblock(:, :)
                   END IF
                END IF
             END DO
@@ -402,7 +402,7 @@ CONTAINS
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, iset)
       END DO
-      m_max = maxli+maxlj+maxlk
+      m_max = maxli + maxlj + maxlk
 
       !Screening
       do_screen = .FALSE.
@@ -482,7 +482,7 @@ CONTAINS
 
                   ncoa = basis_set%npgf(iset)*ncoset(basis_set%lmax(iset))
                   sgfa = basis_set%first_sgf(1, iset)
-                  egfa = sgfa+basis_set%nsgf_set(iset)-1
+                  egfa = sgfa + basis_set%nsgf_set(iset) - 1
 
                   max_contr(iset, ibasis) = &
                      MAXVAL((/(SUM(ABS(basis_set%sphi(1:ncoa, i))), i=sgfa, egfa)/))
@@ -502,7 +502,7 @@ CONTAINS
          CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                     kkind=kkind, rij=rij, rik=rik, integral=iabc, tvec=tvec)
 
-         rjk = rik-rij
+         rjk = rik - rij
 
          !basis
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
@@ -561,17 +561,17 @@ CONTAINS
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
-            egfa = sgfa+nsgfa(iset)-1
+            egfa = sgfa + nsgfa(iset) - 1
 
             DO jset = 1, nsetb
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
-               egfb = sgfb+nsgfb(jset)-1
+               egfb = sgfb + nsgfb(jset) - 1
 
                DO kset = 1, nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
                   sgfc = first_sgfc(1, kset)
-                  egfc = sgfc+nsgfc(kset)-1
+                  egfc = sgfc + nsgfc(kset) - 1
 
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
                   sabc = 0.0_dp

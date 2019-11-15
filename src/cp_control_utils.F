@@ -181,7 +181,7 @@ CONTAINS
          CALL section_vals_val_get(dft_section, "AUTO_BASIS", i_rep_val=irep, c_vals=tmpstringlist)
          IF (SIZE(tmpstringlist) == 2) THEN
             CALL uppercase(tmpstringlist(2))
-            SELECT CASE (tmpstringlist (2))
+            SELECT CASE (tmpstringlist(2))
             CASE ("X")
                isize = -1
             CASE ("SMALL")
@@ -196,7 +196,7 @@ CONTAINS
                CPWARN("Unknown basis size in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
             END SELECT
             !
-            SELECT CASE (tmpstringlist (1))
+            SELECT CASE (tmpstringlist(1))
             CASE ("X")
             CASE ("RI_AUX")
                dft_control%auto_basis_ri_aux = isize
@@ -564,14 +564,14 @@ CONTAINS
          IF (qs_control%commensurate_mgrids) qs_control%progression_factor = 4.0_dp
          qs_control%e_cutoff(1) = qs_control%cutoff
          DO igrid_level = 2, ngrid_level
-            qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1) &
+            qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level - 1) &
                                                /qs_control%progression_factor
          END DO
       END IF
       ! check that multigrids are ordered
       DO igrid_level = 2, ngrid_level
          IF (qs_control%e_cutoff(igrid_level) > &
-             qs_control%e_cutoff(igrid_level-1)) THEN
+             qs_control%e_cutoff(igrid_level - 1)) THEN
             CPABORT("Multi-grids not ordered")
          END IF
       END DO
@@ -829,7 +829,7 @@ CONTAINS
          jj = 0
          DO k = 1, n_rep
             CALL section_vals_val_get(mull_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
-            jj = jj+SIZE(tmplist)
+            jj = jj + SIZE(tmplist)
          END DO
          qs_control%mulliken_restraint_control%natoms = jj
          IF (qs_control%mulliken_restraint_control%natoms < 1) &
@@ -839,7 +839,7 @@ CONTAINS
          DO k = 1, n_rep
             CALL section_vals_val_get(mull_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
             DO j = 1, SIZE(tmplist)
-               jj = jj+1
+               jj = jj + 1
                qs_control%mulliken_restraint_control%atoms(jj) = tmplist(j)
             END DO
          END DO
@@ -1814,7 +1814,7 @@ CONTAINS
             CALL section_vals_val_get(ddapc_section, "ATOMS", i_rep_section=i, &
                                       i_rep_val=k, i_vals=tmplist)
             DO j = 1, SIZE(tmplist)
-               jj = jj+1
+               jj = jj + 1
             END DO
          END DO
          IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc contraints")
@@ -1827,7 +1827,7 @@ CONTAINS
             CALL section_vals_val_get(ddapc_section, "ATOMS", i_rep_section=i, &
                                       i_rep_val=k, i_vals=tmplist)
             DO j = 1, SIZE(tmplist)
-               jj = jj+1
+               jj = jj + 1
                ddapc_restraint_control%atoms(jj) = tmplist(j)
             END DO
          END DO
@@ -1844,7 +1844,7 @@ CONTAINS
             CALL section_vals_val_get(ddapc_section, "COEFF", i_rep_section=i, &
                                       i_rep_val=k, r_vals=rtmplist)
             DO j = 1, SIZE(rtmplist)
-               jj = jj+1
+               jj = jj + 1
                IF (jj > ddapc_restraint_control%natoms) &
                   CPABORT("Need the same number of coeff as there are atoms ")
                ddapc_restraint_control%coeff(jj) = rtmplist(j)
@@ -1856,7 +1856,7 @@ CONTAINS
       k = 0
       DO i = 1, SIZE(qs_control%ddapc_restraint_control)
          IF (qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%functional_form == &
-             do_ddapc_constraint) k = k+1
+             do_ddapc_constraint) k = k + 1
       END DO
       IF (k == 2) CALL cp_abort(__LOCATION__, &
                                 "Only a single constraint possible yet, try to use restraints instead ")
@@ -1934,14 +1934,14 @@ CONTAINS
             DO WHILE (.TRUE.)
                READ (unit_nr, *, iostat=io)
                IF (io /= 0) EXIT
-               n = n+1
+               n = n + 1
             END DO
             REWIND (unit_nr)
-            ALLOCATE (efield%envelop_r_vars(n+1))
+            ALLOCATE (efield%envelop_r_vars(n + 1))
             !Store the timestep of the list in the first entry of the r_vars
             CALL section_vals_val_get(tmp_section, "TIMESTEP", r_val=efield%envelop_r_vars(1))
             !Read the file
-            DO j = 2, n+1
+            DO j = 2, n + 1
                READ (unit_nr, *) efield%envelop_r_vars(j)
                efield%envelop_r_vars(j) = cp_unit_to_cp2k(efield%envelop_r_vars(j), "volt/m")
             END DO

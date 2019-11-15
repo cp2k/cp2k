@@ -153,7 +153,7 @@ CONTAINS
                                  natorb=natorb_a)
                IF (.NOT. defined .OR. natorb_a < 1) CYCLE
                Atoms: DO i = 1, SIZE(list)
-                  iqm = iqm+1
+                  iqm = iqm + 1
                   iatom = list(i)
                   ! Give back block
                   NULLIFY (p_block_a)
@@ -217,9 +217,9 @@ CONTAINS
                               natorb=natorb_a)
             IF (.NOT. defined .OR. natorb_a < 1) CYCLE
             DO i = 1, SIZE(list)
-               iqm = iqm+1
+               iqm = iqm + 1
                iatom = qmmm_env%qm_atom_index(list(i))
-               particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:)+Forces_QM(:, iqm)
+               particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:) + Forces_QM(:, iqm)
             END DO
          END DO
          ! MM forces will be handled directly from the QMMM module in the same way
@@ -294,7 +294,7 @@ CONTAINS
          LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
             Imm = Pot%mm_atom_index(Imp)
             IndMM = mm_atom_index(Imm)
-            r_pbc = pbc(particles_mm(IndMM)%r-particles_qm(IndQM)%r, mm_cell)
+            r_pbc = pbc(particles_mm(IndMM)%r - particles_qm(IndQM)%r, mm_cell)
             rt1 = r_pbc(1)
             rt2 = r_pbc(2)
             rt3 = r_pbc(3)
@@ -319,19 +319,19 @@ CONTAINS
             i2 = 0
             DO i1L = 1, se_kind_a%natorb
                i1 = se_orbital_pointer(i1L)
-               DO j1L = 1, i1L-1
+               DO j1L = 1, i1L - 1
                   j1 = se_orbital_pointer(j1L)
-                  i2 = i2+1
-                  force_ab = force_ab-2.0_dp*de1b(:, i2)*p_block_a(i1, j1)
+                  i2 = i2 + 1
+                  force_ab = force_ab - 2.0_dp*de1b(:, i2)*p_block_a(i1, j1)
                END DO
                j1 = se_orbital_pointer(j1L)
-               i2 = i2+1
-               force_ab = force_ab-de1b(:, i2)*p_block_a(i1, j1)
+               i2 = i2 + 1
+               force_ab = force_ab - de1b(:, i2)*p_block_a(i1, j1)
             END DO
             ! The array of QM forces are really the forces
-            forces_qm(:) = forces_qm(:)-force_ab
+            forces_qm(:) = forces_qm(:) - force_ab
             ! The one of MM atoms are instead gradients
-            forces(:, Imm) = forces(:, Imm)-force_ab
+            forces(:, Imm) = forces(:, Imm) - force_ab
          END DO LoopMM
       END DO MainLoopPot
       CALL timestop(handle)

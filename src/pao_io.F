@@ -119,7 +119,7 @@ CONTAINS
          CALL pao_read_raw(pao%restart_file, param, hmat, kinds, atom2kind, positions, xblocks)
 
          ! check cell
-         IF (MAXVAL(ABS(hmat-cell%hmat)) > 1e-10) &
+         IF (MAXVAL(ABS(hmat - cell%hmat)) > 1e-10) &
             CPWARN("Restarting from differnt cell")
 
          ! check parametrization
@@ -144,7 +144,7 @@ CONTAINS
          ! check positions, warning only
          diff = 0.0_dp
          DO iatom = 1, natoms
-            diff = MAX(diff, MAXVAL(ABS(positions(iatom, :)-particle_set(iatom)%r)))
+            diff = MAX(diff, MAXVAL(ABS(positions(iatom, :) - particle_set(iatom)%r)))
          ENDDO
          IF (diff > 1e-10) &
             CPWARN("Restarting from different atom positions")
@@ -305,7 +305,7 @@ CONTAINS
             ALLOCATE (xblocks(iatom)%p(nparams, 1))
             BACKSPACE (unit_nr)
             READ (unit_nr, fmt=*) label, iatom, xblocks(iatom)%p
-            xblocks_read = xblocks_read+1
+            xblocks_read = xblocks_read + 1
             CPASSERT(iatom == xblocks_read) ! ensure blocks are read in order
 
          ELSE IF (TRIM(label) == "THE_END") THEN
@@ -479,7 +479,7 @@ CONTAINS
       ENDDO
 
       ! flush
-      IF (unit_nr > 0) FLUSH(unit_nr)
+      IF (unit_nr > 0) FLUSH (unit_nr)
 
    END SUBROUTINE pao_write_diagonal_blocks
 

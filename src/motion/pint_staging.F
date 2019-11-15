@@ -52,7 +52,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(staging_env))
       ALLOCATE (staging_env)
-      last_staging_id = last_staging_id+1
+      last_staging_id = last_staging_id + 1
       staging_env%id_nr = last_staging_id
       staging_env%ref_count = 1
 
@@ -83,7 +83,7 @@ CONTAINS
 
       IF (ASSOCIATED(staging_env)) THEN
          CPASSERT(staging_env%ref_count > 0)
-         staging_env%ref_count = staging_env%ref_count-1
+         staging_env%ref_count = staging_env%ref_count - 1
          IF (staging_env%ref_count == 0) THEN
             DEALLOCATE (staging_env)
          END IF
@@ -104,7 +104,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(staging_env))
       CPASSERT(staging_env%ref_count > 0)
-      staging_env%ref_count = staging_env%ref_count+1
+      staging_env%ref_count = staging_env%ref_count + 1
       RETURN
    END SUBROUTINE staging_retain
 
@@ -145,7 +145,7 @@ CONTAINS
          ALLOCATE (scal(staging_env%p))
          DO iseg = 1, staging_env%nseg
             DO i = 1, staging_env%j ! check order!!!
-               scal(staging_env%j*(iseg-1)+i) = REAL(i, dp)/REAL(MAX(1, i-1), dp)
+               scal(staging_env%j*(iseg - 1) + i) = REAL(i, dp)/REAL(MAX(1, i - 1), dp)
             END DO
          END DO
          !   scal=zeros(staging_env%j,Float64)
@@ -192,12 +192,12 @@ CONTAINS
       CPASSERT(ASSOCIATED(staging_env))
       CPASSERT(staging_env%ref_count > 0)
       ux = x
-      DO s = 0, staging_env%nseg-1
+      DO s = 0, staging_env%nseg - 1
          DO k = 2, staging_env%j
-            ux(staging_env%j*s+k, :) = ux(staging_env%j*s+k, :) &
-                                       -((REAL(k-1, dp)/REAL(k, dp) &
-                                          *x(MODULO((staging_env%j*s+k+1), staging_env%p), :)+ &
-                                          x(staging_env%j*s+1, :)/REAL(k, dp)))
+            ux(staging_env%j*s + k, :) = ux(staging_env%j*s + k, :) &
+                                         - ((REAL(k - 1, dp)/REAL(k, dp) &
+                                             *x(MODULO((staging_env%j*s + k + 1), staging_env%p), :) + &
+                                             x(staging_env%j*s + 1, :)/REAL(k, dp)))
          END DO
       END DO
       RETURN
@@ -225,27 +225,27 @@ CONTAINS
       CPASSERT(ASSOCIATED(staging_env))
       CPASSERT(staging_env%ref_count > 0)
       j = staging_env%j
-      const = REAL(j-1, dp)/REAL(j, dp)
+      const = REAL(j - 1, dp)/REAL(j, dp)
       const2 = 1._dp/REAL(j, dp)
       ALLOCATE (iii(staging_env%nseg), jjj(staging_env%nseg))
       DO i = 1, staging_env%nseg
-         iii(i) = staging_env%j*(i-1)+1 !first el
+         iii(i) = staging_env%j*(i - 1) + 1 !first el
       END DO
-      DO i = 1, staging_env%nseg-1
-         jjj(i) = iii(i)+j ! next first el (pbc)
+      DO i = 1, staging_env%nseg - 1
+         jjj(i) = iii(i) + j ! next first el (pbc)
       END DO
       jjj(staging_env%nseg) = 1
 
       x = ux
       DO i = 1, staging_env%nseg
-         x(j-1+iii(i), :) = x(j-1+iii(i), :)+ &
-                            const*ux(jjj(i), :)+ux(iii(i), :)*const2
+         x(j - 1 + iii(i), :) = x(j - 1 + iii(i), :) + &
+                                const*ux(jjj(i), :) + ux(iii(i), :)*const2
       END DO
       DO ist = 1, staging_env%nseg
-         DO i = staging_env%j-2, 2, -1
-            x(i+iii(ist), :) = x(i+iii(ist), :)+ &
-                               REAL(i-1, dp)/REAL(i, dp)*x(i+iii(ist)+1, :) &
-                               +ux(iii(ist), :)/REAL(i, dp)
+         DO i = staging_env%j - 2, 2, -1
+            x(i + iii(ist), :) = x(i + iii(ist), :) + &
+                                 REAL(i - 1, dp)/REAL(i, dp)*x(i + iii(ist) + 1, :) &
+                                 + ux(iii(ist), :)/REAL(i, dp)
          END DO
       END DO
       RETURN
@@ -271,13 +271,13 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(staging_env))
       CPASSERT(staging_env%ref_count > 0)
-      const = REAL(staging_env%j-1, dp)/REAL(staging_env%j, dp)
+      const = REAL(staging_env%j - 1, dp)/REAL(staging_env%j, dp)
       ALLOCATE (iii(staging_env%j), jjj(staging_env%j), &
                 kkk(staging_env%j))
-      DO ist = 1, staging_env%j-1
-         iii(ist) = (ist-1)*staging_env%j+1 ! first el
-         jjj(ist) = iii(ist)+staging_env%j-1 ! last el
-         kkk(ist) = iii(ist)-1 ! prev el
+      DO ist = 1, staging_env%j - 1
+         iii(ist) = (ist - 1)*staging_env%j + 1 ! first el
+         jjj(ist) = iii(ist) + staging_env%j - 1 ! last el
+         kkk(ist) = iii(ist) - 1 ! prev el
       END DO
       kkk(1) = staging_env%p
 
@@ -285,19 +285,19 @@ CONTAINS
       ! staging beads
       DO k = 1, staging_env%nseg
          DO i = 2, staging_env%j
-            uf(i+iii(k), :) = uf(i+iii(k), :) &
-                              +REAL(i-1, dp)/REAL(i, dp)*uf(i+iii(k)-1, :)
+            uf(i + iii(k), :) = uf(i + iii(k), :) &
+                                + REAL(i - 1, dp)/REAL(i, dp)*uf(i + iii(k) - 1, :)
          END DO
       END DO
       ! end point beads
       DO idim = 1, SIZE(uf, 2)
          DO k = 1, staging_env%nseg
             sum_f = 0._dp
-            DO ij = 2, staging_env%j-1
-               sum_f = sum_f+uf((k-1)*staging_env%j+ij, idim)
+            DO ij = 2, staging_env%j - 1
+               sum_f = sum_f + uf((k - 1)*staging_env%j + ij, idim)
             END DO
-            uf(iii(k), idim) = uf(iii(k), idim)+ &
-                               sum_f-const*(uf(jjj(k), idim)-uf(kkk(k), idim))
+            uf(iii(k), idim) = uf(iii(k), idim) + &
+                               sum_f - const*(uf(jjj(k), idim) - uf(kkk(k), idim))
          END DO
       END DO
       RETURN
@@ -330,27 +330,27 @@ CONTAINS
                 kkk(staging_env%nseg))
 
       DO ist = 1, staging_env%nseg
-         iii(ist) = (ist-1)*staging_env%j+1 ! first el
-         jjj(ist) = iii(ist)+staging_env%j ! next fisrt (pbc)
-         kkk(ist) = iii(ist)-staging_env%j ! prev first el (pbc)
+         iii(ist) = (ist - 1)*staging_env%j + 1 ! first el
+         jjj(ist) = iii(ist) + staging_env%j ! next fisrt (pbc)
+         kkk(ist) = iii(ist) - staging_env%j ! prev first el (pbc)
       END DO
       jjj(staging_env%nseg) = 1
-      kkk(1) = staging_env%p-staging_env%j
+      kkk(1) = staging_env%p - staging_env%j
 
       DO idim = 1, SIZE(mass_beads, 2)
          DO ist = 1, staging_env%nseg
-            e_h = e_h+0.5*mass_beads(1, idim)*staging_env%w_j**2* &
-                  (ux(iii(ist), idim)-ux(jjj(ist), idim))**2
+            e_h = e_h + 0.5*mass_beads(1, idim)*staging_env%w_j**2* &
+                  (ux(iii(ist), idim) - ux(jjj(ist), idim))**2
             uf_h(iii(ist), idim) = mass_beads(1, idim)*staging_env%w_j**2*( &
                                    2._dp*ux(iii(ist), idim) &
-                                   -ux(jjj(ist), idim) &
-                                   -ux(kkk(ist), idim) &
+                                   - ux(jjj(ist), idim) &
+                                   - ux(kkk(ist), idim) &
                                    )
             DO isg = 2, staging_env%j ! use 3 as start?
-               d = ux((ist-1)*staging_env%j+isg, idim)
-               f = mass_beads((ist-1)*staging_env%j+isg, idim)*staging_env%w_j**2*d
-               e_h = e_h+0.5_dp*f*d
-               uf_h((ist-1)*staging_env%j+isg, idim) = f
+               d = ux((ist - 1)*staging_env%j + isg, idim)
+               f = mass_beads((ist - 1)*staging_env%j + isg, idim)*staging_env%w_j**2*d
+               e_h = e_h + 0.5_dp*f*d
+               uf_h((ist - 1)*staging_env%j + isg, idim) = f
             END DO
          END DO
       END DO
